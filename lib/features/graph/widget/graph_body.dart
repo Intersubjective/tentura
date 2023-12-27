@@ -126,7 +126,7 @@ class GraphBodyState extends State<GraphBody>
 
 class _AnimatedHighlightedEdgePainter
     implements AnimatedEdgePainter<NodeDetails, EdgeDetails<NodeDetails>> {
-  const _AnimatedHighlightedEdgePainter({
+  _AnimatedHighlightedEdgePainter({
     required this.animation,
     required this.highlightColor,
     required this.highlightRadius,
@@ -139,6 +139,8 @@ class _AnimatedHighlightedEdgePainter
   final bool isAnimated;
   final Color highlightColor;
   final double highlightRadius;
+
+  late final _colorStops = <double>[0, highlightRadius, highlightRadius * 2];
 
   @override
   void paint(
@@ -157,7 +159,7 @@ class _AnimatedHighlightedEdgePainter
                   src,
                   dst,
                   [edge.color, highlightColor, edge.color],
-                  [0, highlightRadius, highlightRadius * 2],
+                  _colorStops,
                   TileMode.clamp,
                   Matrix4.translationValues(
                     (dst.dx - src.dx) * animation.value,
