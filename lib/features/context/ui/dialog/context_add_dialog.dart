@@ -29,7 +29,7 @@ class _ContextAddDialogState extends State<ContextAddDialog> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(_controller.text),
+            onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
             child: const Text('Ok'),
           ),
           TextButton(

@@ -13,16 +13,16 @@ final class ContextState extends StateBase {
 
   @override
   List<Object?> get props => [
+        selected,
+        contexts,
         status,
         error,
-        contexts,
-        selected,
       ];
 
   @override
   ContextState copyWith({
-    Set<String>? contexts,
     String? selected,
+    Set<String>? contexts,
     FetchStatus? status,
     Object? error,
   }) =>

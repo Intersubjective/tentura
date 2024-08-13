@@ -99,9 +99,7 @@ class GraphBodyState extends State<GraphBody>
         onDoubleTap: () => context.push(switch (node) {
           final UserNode node => Uri(
               path: pathProfileView,
-              queryParameters: {
-                'id': node.id,
-              },
+              queryParameters: {'id': node.id},
             ),
           final BeaconNode node => Uri(
               path: pathBeaconView,

@@ -38,6 +38,7 @@ class AnimatedHighlightedEdgePainter
         src,
         dst,
         Paint()
+          ..strokeWidth = edge.strokeWidth
           ..shader = ui.Gradient.linear(
             src,
             dst,

@@ -52,8 +52,8 @@ class ContextCubit extends Cubit<ContextState> {
       final context = await _repository.delete(contextName);
       state.contexts.remove(context);
       emit(state.copyWith(
-        contexts: {...state.contexts},
-      ));
+          contexts: Set.from(state.contexts),
+          selected: state.selected == context ? '' : null));
     } catch (e) {
       emit(state.setError(e));
     }

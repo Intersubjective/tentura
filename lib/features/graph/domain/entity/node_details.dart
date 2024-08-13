@@ -7,14 +7,16 @@ import 'package:force_directed_graphview/force_directed_graphview.dart'
 sealed class NodeDetails extends NodeBase with EquatableMixin {
   const NodeDetails({
     required this.id,
-    this.label = '',
     this.hasImage = false,
+    this.label = '',
+    this.score = 0,
     super.size = 40,
     super.pinned,
   });
 
   final String id;
   final String label;
+  final double score;
   final bool hasImage;
 
   @override
@@ -26,10 +28,11 @@ sealed class NodeDetails extends NodeBase with EquatableMixin {
 final class UserNode extends NodeDetails {
   const UserNode({
     required super.id,
+    super.score,
     super.label,
     super.size,
-    super.hasImage,
     super.pinned,
+    super.hasImage,
   });
 
   @override
@@ -42,6 +45,7 @@ final class UserNode extends NodeDetails {
         label: label,
         hasImage: hasImage,
         pinned: pinned,
+        score: score,
       );
 }
 
@@ -49,10 +53,11 @@ final class BeaconNode extends NodeDetails {
   const BeaconNode({
     required this.userId,
     required super.id,
+    super.score,
     super.label,
     super.size,
-    super.hasImage,
     super.pinned,
+    super.hasImage,
   });
 
   @override
@@ -66,6 +71,7 @@ final class BeaconNode extends NodeDetails {
         userId: userId,
         hasImage: hasImage,
         pinned: pinned,
+        score: score,
       );
 }
 
@@ -74,8 +80,9 @@ final class CommentNode extends NodeDetails {
     required this.userId,
     required this.beaconId,
     required super.id,
-    super.size,
     super.pinned,
+    super.score,
+    super.size,
   });
 
   @override
@@ -93,5 +100,6 @@ final class CommentNode extends NodeDetails {
         userId: userId,
         beaconId: beaconId,
         pinned: pinned,
+        score: score,
       );
 }
