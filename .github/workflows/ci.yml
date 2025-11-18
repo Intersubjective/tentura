@@ -60,6 +60,14 @@ jobs:
         working-directory: packages/server
         continue-on-error: true
 
+      - name: Generate localizations (client)
+        run: flutter gen-l10n
+        working-directory: packages/client
+
+      - name: Run codegen (client)
+        run: dart run build_runner build -d
+        working-directory: packages/client
+
       - name: Run client tests
         run: flutter test
         working-directory: packages/client
