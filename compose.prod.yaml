@@ -98,7 +98,7 @@ services:
       service: common
     hostname: tentura
     container_name: tentura
-    image: vbulavintsev/tentura-service
+    image: ghcr.io/intersubjective/tentura-server:latest
     depends_on:
       - postgres
     networks:
