@@ -73,6 +73,19 @@ jobs:
         with:
           flutter-version: '3.38.1'
           channel: 'stable'
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            packages/server/.dart_tool
+            packages/client/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Install dependencies (root)
         run: dart pub get
@@ -85,6 +98,10 @@ jobs:
       - name: Install dependencies (client)
         run: flutter pub get
         working-directory: packages/client
+
+      - name: Run codegen (server)
+        run: dart run build_runner build -d
+        working-directory: packages/server
 
       - name: Run server tests
         run: dart test
@@ -147,6 +164,17 @@ jobs:
         with:
           flutter-version: '3.38.1'
           channel: 'stable'
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            packages/client/.dart_tool
+          key: ${{ runner.os }}-pub-client-${{ hashFiles('packages/client/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-client-
 
       - name: Install dependencies
         run: flutter pub get
