@@ -2,23 +2,33 @@ FROM dart:stable AS build
 
 WORKDIR /app
 
-COPY *.yaml ./
+# Copy root package files (tentura_root)
+COPY pubspec.yaml pubspec_overrides.yaml ./
+COPY lib/ ./lib/
 
-RUN echo "resolution:" >> pubspec_overrides.yaml && dart pub get
+# Copy server package files
+COPY packages/server/pubspec.yaml packages/server/pubspec_overrides.yaml ./packages/server/
+COPY packages/server/bin ./packages/server/bin
+COPY packages/server/lib ./packages/server/lib
 
-COPY ./bin ./bin
+# Install root dependencies first
+RUN dart pub get
 
-COPY ./lib ./lib
+# Install server dependencies
+WORKDIR /app/packages/server
+RUN dart pub get
 
+# Run codegen
 RUN dart run build_runner build -d
 
-RUN dart compile exe bin/main.dart -o bin/tentura
+# Compile executable
+RUN dart compile exe bin/tentura.dart -o bin/tentura
 
 FROM scratch
 
 COPY --from=build /runtime/ /
 
-COPY --from=build /app/bin/tentura /
+COPY --from=build /app/packages/server/bin/tentura /
 
 EXPOSE 2080/tcp
 
