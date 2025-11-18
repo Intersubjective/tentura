@@ -1,0 +1,191 @@
+---
+applyWhen:
+  - pathMatches: "**/*.graphql"
+  - pathMatches: "**/build.yaml"
+  - pathMatches: "**/*_screen.dart"
+  - pathMatches: "**/root_router.dart"
+  - pathMatches: "**/*_state.dart"
+  - pathMatches: "**/entity/**/*.dart"
+  - pathMatches: "**/*.dart"
+    contentMatches: "@freezed|@Freezed|@RoutePage|@AutoRouterConfig|part.*\\.freezed\\.dart|part.*\\.g\\.dart|extension type const.*implements"
+  - pathMatches: "**/di.dart"
+  - pathMatches: "**/modules.dart"
+---
+
+# Codegen Architecture Guidelines
+
+## Overview
+This project uses multiple code generators that work together. Always run `dart run build_runner build -d` after making changes that require codegen.
+
+**Related Documents:**
+- `architecture.mdc` - Clean Architecture and SOLID principles
+- `advanced-patterns.mdc` - Advanced patterns using codegen outputs
+- `quick-reference.mdc` - One-line rules (always applied)
+
+**⚠️ Rule Maintenance:** If you observe new codegen tools, different codegen patterns, or alternative approaches that consistently diverge from these guidelines, notify the user and suggest updating this file with specific examples.
+
+## Codegen Tools & Their Roles
+
+### 1. Ferry (GraphQL)
+- **Purpose**: Generates Dart types from GraphQL schema and queries
+- **Input**: `.graphql` files in `lib/features/*/data/gql/` and `lib/data/gql/schema.graphql`
+- **Output**: `_g/*.gql.dart` files (ignored in git)
+- **Pattern**: 
+  - Write GraphQL queries in `.graphql` files
+  - Import generated types: `import '../gql/_g/query_name.req.gql.dart';`
+  - Use `GQueryNameReq()` for requests
+  - Access response via `r.dataOrThrow(label: 'Label').field`
+
+### 2. Freezed (Immutable Classes)
+- **Purpose**: Generates immutable data classes with `copyWith`, equality, etc.
+- **Input**: Classes annotated with `@freezed` or `@Freezed()`
+- **Output**: `*.freezed.dart` and `*.g.dart` files
+- **Pattern**:
+  - Use for domain entities (`lib/domain/entity/*.dart`)
+  - Use for BLoC states (`lib/features/*/ui/bloc/*_state.dart`)
+  - Always include `part 'filename.freezed.dart';`
+  - Add `const ClassName._();` for custom methods
+  - Use `@Default()` for optional fields with defaults
+  - Use `copyWith()` for immutable updates
+
+### 3. Drift (Database)
+- **Purpose**: Generates type-safe database code
+- **Input**: Table definitions in `lib/data/database/tables/` and database class
+- **Output**: `*.g.dart` files (database implementation)
+- **Pattern**:
+  - Define tables in separate files
+  - Database class uses `@DriftDatabase(tables: [...])`
+  - Include `part 'database.g.dart';`
+  - Run `dart run drift_dev make-migrations` after schema changes
+
+### 4. Auto Route (Navigation)
+- **Purpose**: Generates type-safe routing
+- **Input**: Screen files with `@RoutePage()` and `root_router.dart` with `@AutoRouterConfig()`
+- **Output**: `*.gr.dart` files (route definitions)
+- **Pattern**:
+  - Annotate screens: `@RoutePage() class MyScreen extends StatelessWidget`
+  - Use `@PathParam('id')` and `@QueryParam('key')` for route parameters
+  - Register routes in `root_router.dart` with `AutoRoute(page: MyRoute.page)`
+  - Router class must be `@singleton` for Injectable
+
+### 5. Injectable (Dependency Injection)
+- **Purpose**: Generates DI registration code
+- **Input**: Classes annotated with `@injectable`, `@singleton`, `@lazySingleton`
+- **Output**: `di.config.dart` file
+- **Pattern**:
+  - Use `@singleton` for services that should be created once
+  - Use `@lazySingleton` for services created on first access
+  - Use `@injectable` for regular factories
+  - Access via `GetIt.I<Type>()` or constructor injection
+  - Router, repositories, services all use Injectable
+
+### 6. JSON Serializable
+- **Purpose**: Generates JSON serialization code
+- **Input**: Classes with `@JsonSerializable()` or Freezed classes with JSON support
+- **Output**: `*.g.dart` files (shared with Freezed)
+
+### 7. Flutter Localizations
+- **Purpose**: Generates localization code
+- **Input**: `.arb` files in `l10n/`
+- **Output**: `lib/ui/l10n/` directory
+- **Run**: `flutter gen-l10n` (separate from build_runner)
+
+## Data Flow Patterns
+
+### GraphQL → Domain Entity (Extension Types)
+1. Ferry generates `GModelName` from GraphQL schema
+2. Create extension type wrapper: `extension type const ModelName(GModelName i) implements GModelName`
+3. Add `toEntity()` method that converts to Freezed domain entity
+4. Pattern: `(gqlResponse as ModelName).toEntity()`
+
+Example:
+```dart
+extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
+  Beacon toEntity() => Beacon(
+    id: i.id,
+    title: i.title,
+    // ... map all fields
+  );
+}
+```
+
+**Note**: See advanced-patterns.mdc for extension types pattern details.
+
+### BLoC State Pattern (Freezed)
+- States extend `StateBase` (see advanced-patterns.mdc for StateBase details)
+- Use `@Freezed()` with `makeCollectionsUnmodifiable: false` for mutable collections
+- Use `copyWith()` to update state immutably
+- Custom getters go in private constructor: `const State._();`
+
+## File Naming Conventions
+
+- **Screens**: `*_screen.dart` (triggers Auto Route generation)
+- **BLoC States**: `*_state.dart` (use Freezed)
+- **Repositories**: `*_repository.dart` (use Injectable)
+- **GraphQL Queries**: `*.graphql` in `data/gql/` directories
+- **Domain Entities**: `*.dart` in `domain/entity/` (use Freezed)
+- **Models**: `*_model.dart` in `data/model/` (extension types wrapping Ferry types)
+
+## Build Process
+
+1. **Before building**: Run `flutter gen-l10n` for localizations
+2. **Codegen**: Run `dart run build_runner build -d` (delete conflicting outputs)
+3. **Watch mode**: `dart run build_runner watch` during development
+4. **Clean**: `dart run build_runner clean` if issues occur
+
+## Common Patterns
+
+### Screen with Route Parameters
+```dart
+@RoutePage()
+class MyScreen extends StatelessWidget implements AutoRouteWrapper {
+  const MyScreen({
+    @PathParam('id') this.id = '',
+    super.key,
+  });
+  final String id;
+  
+  @override
+  Widget wrappedRoute(BuildContext context) => BlocProvider(...);
+}
+```
+
+### Repository with GraphQL (Codegen Usage)
+```dart
+@lazySingleton
+class MyRepository {
+  Future<Iterable<Entity>> fetch() => _remoteApiService
+      .request(GQueryReq())  // Ferry-generated request type
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: 'Label').field)
+      .then((v) => v.map((e) => (e.model as ModelName).toEntity()));  // Extension type conversion
+}
+```
+
+**Note**: See architecture.mdc for repository pattern details, advanced-patterns.mdc for base classes.
+
+### Freezed Entity
+```dart
+@freezed
+abstract class Entity with _$Entity {
+  const factory Entity({
+    required String id,
+    @Default('') String title,
+    OtherEntity? optional,
+  }) = _Entity;
+  
+  const Entity._();
+  
+  bool get isValid => id.isNotEmpty;
+}
+```
+
+## Important Rules
+
+1. **Never commit generated files** - All `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `_g/`, `di.config.dart` are in `.gitignore`
+2. **Always use Freezed for domain entities** - Never use regular classes for business logic data
+3. **Always use extension types for Ferry models** - Wrap Ferry types, don't use them directly
+4. **Router must be @singleton** - Required for Injectable integration
+5. **Run codegen after schema changes** - GraphQL schema, Drift tables, new screens all require regeneration
+6. **Use copyWith for state updates** - Never mutate Freezed objects directly
+7. **Type safety first** - Leverage generated types, avoid `dynamic` and manual casting when possible

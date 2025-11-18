@@ -1,0 +1,158 @@
+---
+applyWhen:
+  - pathMatches: "**/mock/**/*.dart"
+  - pathMatches: "**/*_base.dart"
+  - pathMatches: "**/*_native.dart"
+  - pathMatches: "**/*_web.dart"
+  - pathMatches: "**/env.dart"
+  - pathMatches: "**/exception/**/*.dart"
+  - pathMatches: "**/StateBase.dart"
+  - pathMatches: "**/StateStatus.dart"
+  - pathMatches: "**/RepositoryEvent.dart"
+  - pathMatches: "**/Localizable*.dart"
+  - pathMatches: "**/hook/**/*.dart"
+  - pathMatches: "**/platform/**/*.dart"
+  - pathMatches: "**/pubspec.yaml"
+    contentMatches: "tentura_root"
+---
+
+# Advanced Architectural Patterns & Principles
+
+## Overview
+Additional sophisticated patterns beyond SOLID and Clean Architecture. See `codegen.mdc` and `architecture.mdc` for basics.
+
+**Related Documents:**
+- `codegen.mdc` - Code generation tools (Freezed, Ferry, Drift, etc.)
+- `architecture.mdc` - Clean Architecture and SOLID principles
+- `quick-reference.mdc` - One-line rules (always applied)
+
+**⚠️ Rule Maintenance:** If you observe new architectural patterns, alternative implementations, or approaches that consistently diverge from these guidelines, notify the user and suggest updating this file with specific examples.
+
+## 1. Monorepo Architecture
+
+**Structure**: `lib/` (shared root) + `packages/{client,server,widgetbook}`
+
+**Strategy**: Root package contains shared domain entities; packages depend on root, not each other.
+
+**Rules**: Shared domain in root, feature isolation per package, independent versioning.
+
+## 2. Platform Abstraction
+
+**Pattern**: Conditional exports + base classes
+```dart
+export 'lifecycle_handler_native.dart'
+    if (dart.library.js_interop) 'lifecycle_handler_web.dart';
+```
+
+**Rules**: Base abstraction required, conditional exports for platform selection, isolate platform code, test separately.
+
+## 3. Environment Configuration
+
+**Pattern**: Comprehensive Env classes with defaults, factory constructors (`Env.dev()`, `Env.prod()`, `Env.test()`), Injectable `@singleton`.
+
+**Client**: `String.fromEnvironment()` with defaults, `@factoryMethod const Env.fromEnvironment()`.
+
+**Server**: `Platform.environment`, named constructors, debug printing.
+
+**Rules**: All config via Env, no hardcoded values, env vars for secrets, sensible defaults, support dev/prod/test.
+
+## 4. Exception Hierarchy
+
+**Server**: `ExceptionBase` → `ExceptionCodes` (sealed) → code spaces (1000, 1100, 1200...), GraphQL error format.
+
+**Client**: `LocalizableException` (sealed) with `toEn`/`toRu`, user-facing.
+
+**Rules**: Sealed classes for types, server has numeric codes, client is localizable, domain exceptions in domain layer.
+
+## 5. Test Doubles & Mocks
+
+**Pattern**: Environment-based injection
+```dart
+@Injectable(as: UserRepository, env: [Environment.test], order: 1)
+class UserRepositoryMock implements UserRepository { ... }
+```
+
+**Organization**: `data/repository/mock/`, `*_mock.dart` suffix, mock data in `mock/data/`.
+
+**Rules**: All repos have mocks, separate directory, environment-based injection, full interface implementation.
+
+## 6. State Management
+
+**StateBase Pattern**:
+```dart
+abstract class StateBase {
+  final StateStatus status;  // Sealed class
+  bool get isSuccess => status is StateIsSuccess;
+}
+```
+
+**StateStatus**: Sealed class with `StateIsSuccess`, `StateIsLoading`, `StateHasError`, `StateIsNavigating`, `StateIsMessaging`.
+
+**Rules**: All BLoC states extend `StateBase`, use sealed class for status, Freezed for immutability (see codegen.mdc), pattern matching for checks.
+
+## 7. Repository Base Classes
+
+**Pattern**: `RemoteRepository` base class with common error handling, logging, request pattern.
+
+**Rules**: Extract shared logic to base, keep abstract, use Ferry types (see codegen.mdc), Injectable (see codegen.mdc).
+
+## 8. Client Abstraction
+
+**Pattern**: `RemoteApiClientBase` (abstract base class) → platform-specific implementations.
+
+**Rules**: Use `abstract base class`, `@mustCallSuper` for lifecycle, abstract methods for platform behavior.
+
+## 9. Localization
+
+**Pattern**: `Localizable` interface with `toEn`/`toRu`, `LocalizableException` for user-facing errors.
+
+**Rules**: User-facing exceptions implement `Localizable`, Flutter localization for UI (see codegen.mdc), keep messages user-friendly.
+
+## 10. Build Hooks
+
+**Location**: `hook/build.dart` for build-time automation (version updates, code generation).
+
+**Rules**: Keep hooks simple, document purposes, version updates via hooks.
+
+## 11. Sealed Classes & Type Safety
+
+**Usage**: `StateStatus`, `ExceptionCodes`, `RepositoryEvent`, `LocalizableException`.
+
+**Benefits**: Exhaustive pattern matching, compile-time safety, prevents invalid states.
+
+**Rules**: Use for closed hierarchies, prefer sealed over abstract for fixed sets, enable exhaustive matching.
+
+## 12. Factory Methods
+
+**Pattern**: `@FactoryMethod(preResolve: true)` for async initialization, complex construction.
+
+**Rules**: Use for async init, `preResolve: true` for async setup, keep focused (see codegen.mdc for Injectable).
+
+## 13. Extension Types
+
+**Pattern**: Zero-cost wrappers for Ferry models
+```dart
+extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
+  Beacon toEntity() { ... }
+}
+```
+
+**Rules**: Use for Ferry wrappers (see codegen.mdc), implement `toEntity()`, keep thin.
+
+## 14. Dependency Injection Ordering
+
+**Strategy**: Order 1 (Data) → Order 2 (Domain) → Order 3 (Application) → Order 4 (Presentation).
+
+**Rules**: Use `order` parameter, lower numbers first, follow Clean Architecture order (see architecture.mdc).
+
+## 15. Error Code System
+
+**Pattern**: Hierarchical codes with code spaces (1000, 1100, 1200...), enum-based, numeric conversion.
+
+**Rules**: Code spaces per domain, increment by 100, enum index for sub-codes, document assignments.
+
+## 16. Repository Event Pattern
+
+**Pattern**: Sealed `RepositoryEvent<T>` with `Fetch`, `Create`, `Update`, `Delete` subclasses.
+
+**Rules**: Sealed classes for events, events carry entity data, stream from repositories, listen in BLoC.
