@@ -50,4 +50,4 @@ packages:
     source: hosted
     version: "10.0.0"
 sdks:
-  dart: ">=3.9.2 <4.0.0"
+  dart: ">=3.10.0 <4.0.0"
