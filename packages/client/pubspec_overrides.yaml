@@ -1,4 +1,3 @@
 dependency_overrides:
   adaptive_number:
     git: https://github.com/alexandrim0/adaptive_number_dart.git
-  analyzer: ^9.0.0
