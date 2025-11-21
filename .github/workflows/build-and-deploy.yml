@@ -68,10 +68,15 @@ jobs:
         with:
           sdk: stable
 
+      - name: Determine Flutter version
+        run: |
+          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
@@ -167,10 +172,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Determine Flutter version
+        run: |
+          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
