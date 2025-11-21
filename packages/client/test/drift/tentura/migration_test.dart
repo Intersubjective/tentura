@@ -2,8 +2,10 @@
 // ignore_for_file: unused_local_variable, unused_import
 import 'package:drift/drift.dart';
 import 'package:drift_dev/api/migrations_native.dart';
-import 'package:tentura/data/database/database.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart';
+import 'package:tentura/data/database/database.dart';
+import 'package:tentura/env.dart';
 import 'generated/schema.dart';
 
 import 'generated/schema_v1.dart' as v1;
@@ -27,7 +29,7 @@ void main() {
         for (final toVersion in versions.skip(i + 1)) {
           test('to $toVersion', () async {
             final schema = await verifier.schemaAt(fromVersion);
-            final db = Database(schema.newConnection());
+            final db = _openTestDatabase(schema.newConnection());
             await verifier.migrateAndValidate(db, toVersion);
             await db.close();
           });
@@ -65,7 +67,7 @@ void main() {
       newVersion: 2,
       createOld: v1.DatabaseAtV1.new,
       createNew: v2.DatabaseAtV2.new,
-      openTestedDatabase: Database.new,
+      openTestedDatabase: _openTestDatabase,
       createItems: (batch, oldDb) {
         batch.insertAll(oldDb.messages, oldMessagesData);
         batch.insertAll(oldDb.settings, oldSettingsData);
@@ -84,3 +86,6 @@ void main() {
     );
   });
 }
+
+Database _openTestDatabase(QueryExecutor executor) =>
+    Database(const Env(), Logger(level: Level.nothing), executor);
