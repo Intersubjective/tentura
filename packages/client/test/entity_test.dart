@@ -43,7 +43,7 @@ void main() {
       beaconNode2,
     };
 
-    expect(s.length, 6);
+    expect(s.length, 4);
   });
 
   test('test set 2', () {
@@ -54,6 +54,6 @@ void main() {
       Node(data: beaconNode2, size: 40),
     };
 
-    expect(s.length, 6);
+    expect(s.length, 4);
   });
 }

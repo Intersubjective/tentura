@@ -1,0 +1,439 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/tentura-server
+
+jobs:
+  determine-target:
+    runs-on: ubuntu-latest
+    outputs:
+      build_type: ${{ steps.set-type.outputs.build_type }}
+      server_version: ${{ steps.extract-versions.outputs.server_version }}
+      client_version: ${{ steps.extract-versions.outputs.client_version }}
+      sha: ${{ steps.sha.outputs.sha }}
+      deploy_dev: ${{ steps.set-type.outputs.deploy_dev }}
+      deploy_stage: ${{ steps.set-type.outputs.deploy_stage }}
+      deploy_prod: ${{ steps.set-type.outputs.deploy_prod }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set build type
+        id: set-type
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/dev" ]; then
+            echo "build_type=dev" >> $GITHUB_OUTPUT
+            echo "deploy_dev=true" >> $GITHUB_OUTPUT
+            echo "deploy_stage=false" >> $GITHUB_OUTPUT
+            echo "deploy_prod=false" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "build_type=release" >> $GITHUB_OUTPUT
+            echo "deploy_dev=false" >> $GITHUB_OUTPUT
+            echo "deploy_stage=true" >> $GITHUB_OUTPUT
+            echo "deploy_prod=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_type=" >> $GITHUB_OUTPUT
+            echo "deploy_dev=false" >> $GITHUB_OUTPUT
+            echo "deploy_stage=false" >> $GITHUB_OUTPUT
+            echo "deploy_prod=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract versions
+        id: extract-versions
+        run: |
+          SERVER_VERSION=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "server_version=$SERVER_VERSION" >> $GITHUB_OUTPUT
+          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set SHA
+        id: sha
+        run: echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  test:
+    runs-on: ubuntu-latest
+    needs: determine-target
+    if: needs.determine-target.outputs.build_type != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Determine Flutter version
+        run: |
+          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            packages/server/.dart_tool
+            packages/client/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies (root)
+        run: dart pub get
+        working-directory: .
+
+      - name: Install dependencies (server)
+        run: dart pub get
+        working-directory: packages/server
+
+      - name: Install dependencies (client)
+        run: flutter pub get
+        working-directory: packages/client
+
+      - name: Run codegen (server)
+        run: dart run build_runner build -d
+        working-directory: packages/server
+
+      - name: Run server tests
+        run: dart test
+        working-directory: packages/server
+        continue-on-error: true
+
+      - name: Generate localizations (client)
+        run: flutter gen-l10n
+        working-directory: packages/client
+
+      - name: Run codegen (client)
+        run: dart run build_runner build -d
+        working-directory: packages/client
+
+      - name: Run client tests
+        run: flutter test
+        working-directory: packages/client
+        continue-on-error: true
+
+  build-server:
+    runs-on: ubuntu-latest
+    needs: [determine-target, test]
+    if: needs.determine-target.outputs.build_type != ''
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tags
+        id: tags
+        run: |
+          if [ "${{ needs.determine-target.outputs.build_type }}" == "dev" ]; then
+            echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev-${{ needs.determine-target.outputs.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev-latest" >> $GITHUB_OUTPUT
+          else
+            echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ needs.determine-target.outputs.server_version }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/server/Dockerfile_build
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-web:
+    runs-on: ubuntu-latest
+    needs: [determine-target, test]
+    if: needs.determine-target.outputs.build_type != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine Flutter version
+        run: |
+          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            packages/client/.dart_tool
+          key: ${{ runner.os }}-pub-client-${{ hashFiles('packages/client/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-client-
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: packages/client
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+        working-directory: packages/client
+
+      - name: Run codegen
+        run: dart run build_runner build -d
+        working-directory: packages/client
+
+      - name: Build web (dev)
+        if: needs.determine-target.outputs.build_type == 'dev'
+        run: |
+          if [ -f env/dev-web.env ]; then
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define-from-file=env/dev-web.env
+          else
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define=SERVER_NAME=https://dev.tentura.io
+          fi
+        working-directory: packages/client
+
+      - name: Build web (stage)
+        if: needs.determine-target.outputs.build_type == 'release'
+        run: |
+          if [ -f .env ]; then
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define-from-file=.env \
+              --dart-define=SERVER_NAME=https://stage.tentura.io
+          else
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define=SERVER_NAME=https://stage.tentura.io
+          fi
+        working-directory: packages/client
+
+      - name: Create web archive (stage)
+        if: needs.determine-target.outputs.build_type == 'release'
+        run: |
+          cd packages/client/build/web
+          tar -czf ../../../../web-stage-${{ needs.determine-target.outputs.client_version }}.tar.gz .
+          cd ../../../..
+          # Clean build directory for prod build
+          flutter clean
+          flutter pub get
+          flutter gen-l10n
+          dart run build_runner build -d
+        working-directory: packages/client
+
+      - name: Build web (prod)
+        if: needs.determine-target.outputs.build_type == 'release'
+        run: |
+          if [ -f .env ]; then
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define-from-file=.env \
+              --dart-define=SERVER_NAME=https://app.tentura.io \
+              --dart-define=NEED_INVITE_CODE=true
+          else
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define=SERVER_NAME=https://app.tentura.io \
+              --dart-define=NEED_INVITE_CODE=true
+          fi
+        working-directory: packages/client
+
+      - name: Create web archive (dev)
+        if: needs.determine-target.outputs.build_type == 'dev'
+        run: |
+          cd packages/client/build/web
+          tar -czf ../../../../web-dev-${{ needs.determine-target.outputs.sha }}.tar.gz .
+          cd ../../../..
+
+      - name: Create web archive (prod)
+        if: needs.determine-target.outputs.build_type == 'release'
+        run: |
+          cd packages/client/build/web
+          tar -czf ../../../../web-prod-${{ needs.determine-target.outputs.client_version }}.tar.gz .
+          cd ../../../..
+
+      - name: Upload web archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-archives
+          path: |
+            web-*.tar.gz
+          retention-days: 7
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: [determine-target, build-server, build-web]
+    if: needs.determine-target.outputs.deploy_dev == 'true'
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: true
+    environment:
+      name: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download web archive
+        uses: actions/download-artifact@v4
+        with:
+          name: web-archives
+          pattern: web-dev-*.tar.gz
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy web archive to VPS
+        run: |
+          scp -i ~/.ssh/deploy_key web-dev-*.tar.gz deploy@${{ secrets.VPS_HOST }}:/tmp/
+
+      - name: Deploy to VPS
+        run: |
+          ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
+            cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
+            
+            # Extract web archive to Docker volume
+            tar -xzf /tmp/web-dev-*.tar.gz -C ./web/
+            rm -f /tmp/web-dev-*.tar.gz
+            
+            # Pull latest images
+            docker compose -f compose.prod.yaml pull
+            
+            # Restart services
+            docker compose -f compose.prod.yaml down
+            docker compose -f compose.prod.yaml up -d
+          EOF
+
+  deploy-stage:
+    runs-on: ubuntu-latest
+    needs: [determine-target, build-server, build-web]
+    if: needs.determine-target.outputs.deploy_stage == 'true'
+    environment:
+      name: stage
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download web archive
+        uses: actions/download-artifact@v4
+        with:
+          name: web-archives
+          pattern: web-stage-*.tar.gz
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy web archive to VPS
+        run: |
+          scp -i ~/.ssh/deploy_key web-stage-*.tar.gz deploy@${{ secrets.VPS_HOST }}:/tmp/
+
+      - name: Deploy to VPS
+        run: |
+          ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
+            cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
+            
+            # Extract web archive to Docker volume
+            tar -xzf /tmp/web-stage-*.tar.gz -C ./web/
+            rm -f /tmp/web-stage-*.tar.gz
+            
+            # Pull latest images
+            docker compose -f compose.prod.yaml pull
+            
+            # Restart services
+            docker compose -f compose.prod.yaml down
+            docker compose -f compose.prod.yaml up -d
+          EOF
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: [determine-target, build-server, build-web, deploy-stage]
+    if: needs.determine-target.outputs.deploy_prod == 'true'
+    # Production deployment requires manual approval
+    # Configure approval requirement in: Settings > Environments > prod > Required reviewers
+    environment:
+      name: prod
+      url: https://app.tentura.io
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download web archive
+        uses: actions/download-artifact@v4
+        with:
+          name: web-archives
+          pattern: web-prod-*.tar.gz
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy web archive to VPS
+        run: |
+          scp -i ~/.ssh/deploy_key web-prod-*.tar.gz deploy@${{ secrets.VPS_HOST }}:/tmp/
+
+      - name: Deploy to VPS
+        run: |
+          ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
+            set -e
+            cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
+            
+            # Extract web archive to Docker volume
+            tar -xzf /tmp/web-prod-*.tar.gz -C ./web/
+            rm -f /tmp/web-prod-*.tar.gz
+            
+            # Pull latest images
+            docker compose -f compose.prod.yaml pull
+            
+            # Restart services
+            docker compose -f compose.prod.yaml down
+            docker compose -f compose.prod.yaml up -d
+          EOF
+

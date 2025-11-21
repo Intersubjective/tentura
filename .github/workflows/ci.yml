@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+      - fake_dev
+  push:
+    branches:
+      - main
+      - fake_dev
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Determine Flutter version
+        run: |
+          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+            packages/server/.dart_tool
+            packages/client/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies (root)
+        run: dart pub get
+        working-directory: .
+
+      - name: Install dependencies (server)
+        run: dart pub get
+        working-directory: packages/server
+
+      - name: Install dependencies (client)
+        run: flutter pub get
+        working-directory: packages/client
+
+      - name: Run codegen (server)
+        run: dart run build_runner build -d
+        working-directory: packages/server
+
+      - name: Run server tests
+        run: dart test
+        working-directory: packages/server
+
+      - name: Generate localizations (client)
+        run: flutter gen-l10n
+        working-directory: packages/client
+
+      - name: Run codegen (client)
+        run: dart run build_runner build -d
+        working-directory: packages/client
+
+      - name: Run client tests
+        run: flutter test
+        working-directory: packages/client
+
+  validate-builds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate server Docker build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/server/Dockerfile_build
+          push: false
+          tags: ghcr.io/intersubjective/tentura-server:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Determine Flutter version
+        run: |
+          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            packages/client/.dart_tool
+          key: ${{ runner.os }}-pub-client-${{ hashFiles('packages/client/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-client-
+
+      - name: Install dependencies
+        run: flutter pub get
+        working-directory: packages/client
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+        working-directory: packages/client
+
+      - name: Run codegen
+        run: dart run build_runner build -d
+        working-directory: packages/client
+
+      - name: Validate Flutter web build
+        run: |
+          flutter build web \
+            --wasm \
+            --pwa-strategy=none \
+            --source-maps \
+            --dart-define=SERVER_NAME=https://test.tentura.io
+        working-directory: packages/client
+
