@@ -1,17 +1,6 @@
 ---
-applyWhen:
-  - pathMatches: "**/*.graphql"
-  - pathMatches: "**/build.yaml"
-  - pathMatches: "**/*_screen.dart"
-  - pathMatches: "**/root_router.dart"
-  - pathMatches: "**/*_state.dart"
-  - pathMatches: "**/entity/**/*.dart"
-  - pathMatches: "**/*.dart"
-    contentMatches: "@freezed|@Freezed|@RoutePage|@AutoRouterConfig|part.*\\.freezed\\.dart|part.*\\.g\\.dart|extension type const.*implements"
-  - pathMatches: "**/di.dart"
-  - pathMatches: "**/modules.dart"
+alwaysApply: true
 ---
-
 # Codegen Architecture Guidelines
 
 ## Overview
