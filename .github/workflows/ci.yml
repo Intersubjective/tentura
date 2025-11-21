@@ -68,7 +68,6 @@ jobs:
       - name: Run server tests
         run: dart test
         working-directory: packages/server
-        continue-on-error: true
 
       - name: Generate localizations (client)
         run: flutter gen-l10n
@@ -81,7 +80,6 @@ jobs:
       - name: Run client tests
         run: flutter test
         working-directory: packages/client
-        continue-on-error: true
 
   validate-builds:
     runs-on: ubuntu-latest
