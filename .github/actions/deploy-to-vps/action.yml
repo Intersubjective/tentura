@@ -1,0 +1,66 @@
+name: 'Deploy to VPS'
+description: 'Deploy web archive to VPS server via SSH'
+
+inputs:
+  archive-pattern:
+    description: 'Pattern to match web archive (e.g., web-dev-*.tar.gz)'
+    required: true
+  archive-name:
+    description: 'Archive name for remote extraction (e.g., web-dev-*.tar.gz)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check VPS deployment configuration
+      id: check-vps
+      shell: bash
+      run: |
+        if [ -z "${{ secrets.VPS_SSH_HOST }}" ]; then
+          echo "VPS_SSH_HOST secret is not set. Skipping deployment."
+          echo "deploy_enabled=false" >> $GITHUB_OUTPUT
+        else
+          echo "VPS_SSH_HOST is configured. Proceeding with deployment."
+          echo "deploy_enabled=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Download web archive
+      if: steps.check-vps.outputs.deploy_enabled == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: web-archives
+        pattern: ${{ inputs.archive-pattern }}
+
+    - name: Setup SSH
+      if: steps.check-vps.outputs.deploy_enabled == 'true'
+      shell: bash
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H ${{ secrets.VPS_SSH_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Copy web archive to VPS
+      if: steps.check-vps.outputs.deploy_enabled == 'true'
+      shell: bash
+      run: |
+        scp -i ~/.ssh/deploy_key ${{ inputs.archive-pattern }} deploy@${{ secrets.VPS_SSH_HOST }}:/tmp/
+
+    - name: Deploy to VPS
+      if: steps.check-vps.outputs.deploy_enabled == 'true'
+      shell: bash
+      run: |
+        ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_SSH_HOST }} << EOF
+          set -e
+          cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
+          
+          # Run deployment script
+          if [ ! -f ./deploy.sh ]; then
+            echo "Error: deploy.sh not found in deployment directory" >&2
+            exit 1
+          fi
+          
+          chmod +x ./deploy.sh
+          ./deploy.sh /tmp/${{ inputs.archive-name }}
+        EOF
+
