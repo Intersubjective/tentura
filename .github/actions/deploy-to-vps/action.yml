@@ -54,15 +54,13 @@ runs:
           set -e
           cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
           
-          # Extract web archive to Docker volume
-          tar -xzf /tmp/${{ inputs.archive-name }} -C ./web/
-          rm -f /tmp/${{ inputs.archive-name }}
+          # Run deployment script
+          if [ ! -f ./deploy.sh ]; then
+            echo "Error: deploy.sh not found in deployment directory" >&2
+            exit 1
+          fi
           
-          # Pull latest images
-          docker compose -f compose.prod.yaml pull
-          
-          # Restart services
-          docker compose -f compose.prod.yaml down
-          docker compose -f compose.prod.yaml up -d
+          chmod +x ./deploy.sh
+          ./deploy.sh /tmp/${{ inputs.archive-name }}
         EOF
 
