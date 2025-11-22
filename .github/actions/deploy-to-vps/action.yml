@@ -16,12 +16,15 @@ runs:
       id: check-vps
       shell: bash
       run: |
-        if [ -z "${{ secrets.VPS_SSH_HOST }}" ]; then
+        set -euo pipefail
+        VPS_HOST="${{ secrets.VPS_SSH_HOST }}"
+        if [ -z "$VPS_HOST" ]; then
           echo "VPS_SSH_HOST secret is not set. Skipping deployment."
           echo "deploy_enabled=false" >> $GITHUB_OUTPUT
         else
           echo "VPS_SSH_HOST is configured. Proceeding with deployment."
           echo "deploy_enabled=true" >> $GITHUB_OUTPUT
+          echo "vps_host=$VPS_HOST" >> $GITHUB_OUTPUT
         fi
 
     - name: Download web archive
@@ -35,23 +38,29 @@ runs:
       if: steps.check-vps.outputs.deploy_enabled == 'true'
       shell: bash
       run: |
+        set -euo pipefail
+        VPS_HOST="${{ steps.check-vps.outputs.vps_host }}"
         mkdir -p ~/.ssh
         echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H ${{ secrets.VPS_SSH_HOST }} >> ~/.ssh/known_hosts
+        ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
     - name: Copy web archive to VPS
       if: steps.check-vps.outputs.deploy_enabled == 'true'
       shell: bash
       run: |
-        scp -i ~/.ssh/deploy_key ${{ inputs.archive-pattern }} deploy@${{ secrets.VPS_SSH_HOST }}:/tmp/
+        set -euo pipefail
+        VPS_HOST="${{ steps.check-vps.outputs.vps_host }}"
+        scp -i ~/.ssh/deploy_key ${{ inputs.archive-pattern }} deploy@"$VPS_HOST":/tmp/
 
     - name: Deploy to VPS
       if: steps.check-vps.outputs.deploy_enabled == 'true'
       shell: bash
       run: |
-        ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_SSH_HOST }} << EOF
-          set -e
+        set -euo pipefail
+        VPS_HOST="${{ steps.check-vps.outputs.vps_host }}"
+        ssh -i ~/.ssh/deploy_key deploy@"$VPS_HOST" << EOF
+          set -euo pipefail
           cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
           
           # Run deployment script

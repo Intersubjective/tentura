@@ -70,6 +70,7 @@ jobs:
       - name: Determine server version
         id: versions
         run: |
+          set -euo pipefail
           VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
           VERSION_CLEAN=${VERSION_LINE//+/-}
           VERSION_CLEAN=${VERSION_CLEAN//\//-}
@@ -79,6 +80,7 @@ jobs:
       - name: Determine build type
         id: build-type
         run: |
+          set -euo pipefail
           if [ "${{ github.ref }}" == "refs/heads/dev" ]; then
             echo "build_type=dev" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
@@ -117,6 +119,7 @@ jobs:
       - name: Build web (dev)
         if: steps.build-type.outputs.build_type == 'dev' && github.event_name == 'push'
         run: |
+          set -euo pipefail
           if [ -f env/dev-web.env ]; then
             flutter build web \
               --wasm \
@@ -135,6 +138,7 @@ jobs:
       - name: Build web (stage)
         if: steps.build-type.outputs.build_type == 'release' && github.event_name == 'push'
         run: |
+          set -euo pipefail
           if [ -f .env ]; then
             flutter build web \
               --wasm \
@@ -154,6 +158,7 @@ jobs:
       - name: Create web archive (stage)
         if: steps.build-type.outputs.build_type == 'release' && github.event_name == 'push'
         run: |
+          set -euo pipefail
           cd packages/client/build/web
           tar -czf ../../../../web-stage-${{ steps.versions.outputs.server_version }}.tar.gz .
           cd ../../../..
@@ -167,6 +172,7 @@ jobs:
       - name: Build web (prod)
         if: steps.build-type.outputs.build_type == 'release' && github.event_name == 'push'
         run: |
+          set -euo pipefail
           if [ -f .env ]; then
             flutter build web \
               --wasm \
@@ -188,6 +194,7 @@ jobs:
       - name: Create web archive (dev)
         if: steps.build-type.outputs.build_type == 'dev' && github.event_name == 'push'
         run: |
+          set -euo pipefail
           cd packages/client/build/web
           tar -czf ../../../../web-dev-${{ steps.versions.outputs.sha }}.tar.gz .
           cd ../../../..
@@ -195,6 +202,7 @@ jobs:
       - name: Create web archive (prod)
         if: steps.build-type.outputs.build_type == 'release' && github.event_name == 'push'
         run: |
+          set -euo pipefail
           cd packages/client/build/web
           tar -czf ../../../../web-prod-${{ steps.versions.outputs.server_version }}.tar.gz .
           cd ../../../..
@@ -202,6 +210,7 @@ jobs:
       - name: Validate Flutter web build
         if: github.event_name == 'pull_request'
         run: |
+          set -euo pipefail
           flutter build web \
             --wasm \
             --pwa-strategy=none \

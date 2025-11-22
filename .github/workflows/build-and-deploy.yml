@@ -28,12 +28,14 @@ jobs:
       - name: Set image name (lowercase)
         id: set-image-name
         run: |
+          set -euo pipefail
           REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "image_name=${{ env.REGISTRY }}/$REPO_OWNER_LOWER/tentura-server" >> $GITHUB_OUTPUT
 
       - name: Set build type
         id: set-type
         run: |
+          set -euo pipefail
           if [ "${{ github.ref }}" == "refs/heads/fake_dev" ]; then
             echo "build_type=fake_dev" >> $GITHUB_OUTPUT
             echo "deploy_dev=true" >> $GITHUB_OUTPUT
@@ -54,6 +56,7 @@ jobs:
       - name: Extract versions
         id: extract-versions
         run: |
+          set -euo pipefail
           SERVER_VERSION=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version: //' | tr -d ' ')
           CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version: //' | tr -d ' ')
           echo "server_version=$SERVER_VERSION" >> $GITHUB_OUTPUT
@@ -77,6 +80,7 @@ jobs:
 
       - name: Determine Flutter version
         run: |
+          set -euo pipefail
           FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
           echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
 
@@ -118,7 +122,6 @@ jobs:
       - name: Run server tests
         run: dart test
         working-directory: packages/server
-        continue-on-error: true
 
       - name: Generate localizations (client)
         run: flutter gen-l10n
@@ -131,7 +134,6 @@ jobs:
       - name: Run client tests
         run: flutter test
         working-directory: packages/client
-        continue-on-error: true
 
   build-server:
     runs-on: ubuntu-latest
@@ -156,6 +158,7 @@ jobs:
       - name: Set image tags
         id: tags
         run: |
+          set -euo pipefail
           if [ "${{ needs.determine-target.outputs.build_type }}" == "fake_dev" ]; then
             echo "tags=${{ needs.determine-target.outputs.image_name }}:fake_dev-${{ needs.determine-target.outputs.sha }},${{ needs.determine-target.outputs.image_name }}:fake_dev-latest" >> $GITHUB_OUTPUT
           else
@@ -181,6 +184,7 @@ jobs:
 
       - name: Determine Flutter version
         run: |
+          set -euo pipefail
           FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
           echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
 
@@ -216,6 +220,7 @@ jobs:
       - name: Build web (fake_dev)
         if: needs.determine-target.outputs.build_type == 'fake_dev'
         run: |
+          set -euo pipefail
           if [ -f env/dev-web.env ]; then
             flutter build web \
               --wasm \
@@ -234,6 +239,7 @@ jobs:
       - name: Build web (stage)
         if: needs.determine-target.outputs.build_type == 'release'
         run: |
+          set -euo pipefail
           if [ -f .env ]; then
             flutter build web \
               --wasm \
@@ -253,6 +259,7 @@ jobs:
       - name: Create web archive (stage)
         if: needs.determine-target.outputs.build_type == 'release'
         run: |
+          set -euo pipefail
           cd packages/client/build/web
           tar -czf ../../../../web-stage-${{ needs.determine-target.outputs.client_version }}.tar.gz .
           cd ../../../..
@@ -266,6 +273,7 @@ jobs:
       - name: Build web (prod)
         if: needs.determine-target.outputs.build_type == 'release'
         run: |
+          set -euo pipefail
           if [ -f .env ]; then
             flutter build web \
               --wasm \
@@ -287,6 +295,7 @@ jobs:
       - name: Create web archive (dev)
         if: needs.determine-target.outputs.build_type == 'fake_dev'
         run: |
+          set -euo pipefail
           cd packages/client/build/web
           tar -czf ../../../../web-dev-${{ needs.determine-target.outputs.sha }}.tar.gz .
           cd ../../../..
@@ -294,6 +303,7 @@ jobs:
       - name: Create web archive (prod)
         if: needs.determine-target.outputs.build_type == 'release'
         run: |
+          set -euo pipefail
           cd packages/client/build/web
           tar -czf ../../../../web-prod-${{ needs.determine-target.outputs.client_version }}.tar.gz .
           cd ../../../..
@@ -326,6 +336,7 @@ jobs:
 
       - name: Setup SSH
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -333,12 +344,14 @@ jobs:
 
       - name: Copy web archive to VPS
         run: |
+          set -euo pipefail
           scp -i ~/.ssh/deploy_key web-dev-*.tar.gz deploy@${{ secrets.VPS_HOST }}:/tmp/
 
       - name: Deploy to VPS
         run: |
+          set -euo pipefail
           ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
-            set -e
+            set -euo pipefail
             cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
             
             # Extract web archive to Docker volume
@@ -370,6 +383,7 @@ jobs:
 
       - name: Setup SSH
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -381,8 +395,9 @@ jobs:
 
       - name: Deploy to VPS
         run: |
+          set -euo pipefail
           ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
-            set -e
+            set -euo pipefail
             cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
             
             # Extract web archive to Docker volume
@@ -417,6 +432,7 @@ jobs:
 
       - name: Setup SSH
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -428,8 +444,9 @@ jobs:
 
       - name: Deploy to VPS
         run: |
+          set -euo pipefail
           ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
-            set -e
+            set -euo pipefail
             cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
             
             # Extract web archive to Docker volume
