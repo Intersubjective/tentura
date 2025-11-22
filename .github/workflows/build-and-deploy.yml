@@ -196,7 +196,7 @@ jobs:
 
       - name: Build web (fake_dev)
         if: needs.determine-target.outputs.build_type == 'fake_dev'
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           echo "Building web (fake_dev) with WASM..."
@@ -224,7 +224,7 @@ jobs:
 
       - name: Build web (stage)
         if: needs.determine-target.outputs.build_type == 'release'
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           echo "Building web (stage) with WASM..."
@@ -267,7 +267,7 @@ jobs:
 
       - name: Build web (prod)
         if: needs.determine-target.outputs.build_type == 'release'
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           set -euo pipefail
           echo "Building web (prod) with WASM..."
