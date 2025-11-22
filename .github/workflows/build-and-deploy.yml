@@ -73,35 +73,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
+      - name: Setup Dart and Flutter
+        uses: ./.github/actions/setup-dart-flutter
         with:
-          sdk: stable
-
-      - name: Determine Flutter version
-        run: |
-          set -euo pipefail
-          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
-          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-            packages/server/.dart_tool
-            packages/client/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
+          cache-key: pub
+          include-server-cache: 'true'
 
       - name: Install dependencies (root)
         run: dart pub get
@@ -182,28 +158,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Determine Flutter version
-        run: |
-          set -euo pipefail
-          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
-          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Dart and Flutter
+        uses: ./.github/actions/setup-dart-flutter
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            packages/client/.dart_tool
-          key: ${{ runner.os }}-pub-client-${{ hashFiles('packages/client/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-client-
+          cache-key: pub-client
+          include-server-cache: 'false'
 
       - name: Install dependencies
         run: flutter pub get
@@ -217,43 +176,79 @@ jobs:
         run: dart run build_runner build -d
         working-directory: packages/client
 
-      - name: Build web (fake_dev)
-        if: needs.determine-target.outputs.build_type == 'fake_dev'
+      - name: Validate Flutter setup
         run: |
           set -euo pipefail
+          echo "Validating Flutter setup..."
+          FLUTTER_VERSION=$(flutter --version | head -1)
+          echo "Flutter version: $FLUTTER_VERSION"
+          
+          echo "Running Flutter doctor..."
+          flutter doctor || true
+          
+          echo "Checking WASM support..."
+          if flutter build web --help 2>&1 | grep -q "wasm"; then
+            echo "WASM build support confirmed"
+          else
+            echo "Error: WASM build support not available"
+            exit 1
+          fi
+
+      - name: Build web (fake_dev)
+        if: needs.determine-target.outputs.build_type == 'fake_dev'
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          echo "Building web (fake_dev) with WASM..."
+          echo "Flutter version: $(flutter --version | head -1)"
+          
           if [ -f env/dev-web.env ]; then
+            echo "Using env/dev-web.env file"
             flutter build web \
               --wasm \
               --pwa-strategy=none \
               --source-maps \
+              --verbose \
               --dart-define-from-file=env/dev-web.env
           else
+            echo "env/dev-web.env not found, using default SERVER_NAME"
             flutter build web \
               --wasm \
               --pwa-strategy=none \
               --source-maps \
+              --verbose \
               --dart-define=SERVER_NAME=https://dev.tentura.io
           fi
+          echo "Build completed successfully"
         working-directory: packages/client
 
       - name: Build web (stage)
         if: needs.determine-target.outputs.build_type == 'release'
+        timeout-minutes: 5
         run: |
           set -euo pipefail
+          echo "Building web (stage) with WASM..."
+          echo "Flutter version: $(flutter --version | head -1)"
+          
           if [ -f .env ]; then
+            echo "Using .env file"
             flutter build web \
               --wasm \
               --pwa-strategy=none \
               --source-maps \
+              --verbose \
               --dart-define-from-file=.env \
               --dart-define=SERVER_NAME=https://stage.tentura.io
           else
+            echo ".env not found, using default SERVER_NAME"
             flutter build web \
               --wasm \
               --pwa-strategy=none \
               --source-maps \
+              --verbose \
               --dart-define=SERVER_NAME=https://stage.tentura.io
           fi
+          echo "Build completed successfully"
         working-directory: packages/client
 
       - name: Create web archive (stage)
@@ -272,24 +267,33 @@ jobs:
 
       - name: Build web (prod)
         if: needs.determine-target.outputs.build_type == 'release'
+        timeout-minutes: 5
         run: |
           set -euo pipefail
+          echo "Building web (prod) with WASM..."
+          echo "Flutter version: $(flutter --version | head -1)"
+          
           if [ -f .env ]; then
+            echo "Using .env file"
             flutter build web \
               --wasm \
               --pwa-strategy=none \
               --source-maps \
+              --verbose \
               --dart-define-from-file=.env \
               --dart-define=SERVER_NAME=https://app.tentura.io \
               --dart-define=NEED_INVITE_CODE=true
           else
+            echo ".env not found, using default SERVER_NAME"
             flutter build web \
               --wasm \
               --pwa-strategy=none \
               --source-maps \
+              --verbose \
               --dart-define=SERVER_NAME=https://app.tentura.io \
               --dart-define=NEED_INVITE_CODE=true
           fi
+          echo "Build completed successfully"
         working-directory: packages/client
 
       - name: Create web archive (dev)
@@ -335,36 +339,19 @@ jobs:
           pattern: web-dev-*.tar.gz
 
       - name: Setup SSH
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+        id: setup-ssh
+        uses: ./.github/actions/setup-ssh
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Copy web archive to VPS
-        run: |
-          set -euo pipefail
-          scp -i ~/.ssh/deploy_key web-dev-*.tar.gz deploy@${{ secrets.VPS_HOST }}:/tmp/
-
-      - name: Deploy to VPS
-        run: |
-          set -euo pipefail
-          ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
-            
-            # Extract web archive to Docker volume
-            tar -xzf /tmp/web-dev-*.tar.gz -C ./web/
-            rm -f /tmp/web-dev-*.tar.gz
-            
-            # Pull latest images
-            docker compose -f compose.prod.yaml pull
-            
-            # Restart services
-            docker compose -f compose.prod.yaml down
-            docker compose -f compose.prod.yaml up -d
-          EOF
+      - name: Deploy web archive
+        uses: ./.github/actions/deploy-web-archive
+        env:
+          VPS_HOST: ${{ steps.setup-ssh.outputs.vps-host }}
+        with:
+          archive-pattern: web-dev-*.tar.gz
+          archive-name-pattern: web-dev-*.tar.gz
 
   deploy-stage:
     runs-on: ubuntu-latest
@@ -382,35 +369,19 @@ jobs:
           pattern: web-stage-*.tar.gz
 
       - name: Setup SSH
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+        id: setup-ssh
+        uses: ./.github/actions/setup-ssh
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Copy web archive to VPS
-        run: |
-          scp -i ~/.ssh/deploy_key web-stage-*.tar.gz deploy@${{ secrets.VPS_HOST }}:/tmp/
-
-      - name: Deploy to VPS
-        run: |
-          set -euo pipefail
-          ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
-            
-            # Extract web archive to Docker volume
-            tar -xzf /tmp/web-stage-*.tar.gz -C ./web/
-            rm -f /tmp/web-stage-*.tar.gz
-            
-            # Pull latest images
-            docker compose -f compose.prod.yaml pull
-            
-            # Restart services
-            docker compose -f compose.prod.yaml down
-            docker compose -f compose.prod.yaml up -d
-          EOF
+      - name: Deploy web archive
+        uses: ./.github/actions/deploy-web-archive
+        env:
+          VPS_HOST: ${{ steps.setup-ssh.outputs.vps-host }}
+        with:
+          archive-pattern: web-stage-*.tar.gz
+          archive-name-pattern: web-stage-*.tar.gz
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -431,33 +402,17 @@ jobs:
           pattern: web-prod-*.tar.gz
 
       - name: Setup SSH
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+        id: setup-ssh
+        uses: ./.github/actions/setup-ssh
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Copy web archive to VPS
-        run: |
-          scp -i ~/.ssh/deploy_key web-prod-*.tar.gz deploy@${{ secrets.VPS_HOST }}:/tmp/
-
-      - name: Deploy to VPS
-        run: |
-          set -euo pipefail
-          ssh -i ~/.ssh/deploy_key deploy@${{ secrets.VPS_HOST }} << 'EOF'
-            set -euo pipefail
-            cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
-            
-            # Extract web archive to Docker volume
-            tar -xzf /tmp/web-prod-*.tar.gz -C ./web/
-            rm -f /tmp/web-prod-*.tar.gz
-            
-            # Pull latest images
-            docker compose -f compose.prod.yaml pull
-            
-            # Restart services
-            docker compose -f compose.prod.yaml down
-            docker compose -f compose.prod.yaml up -d
-          EOF
+      - name: Deploy web archive
+        uses: ./.github/actions/deploy-web-archive
+        env:
+          VPS_HOST: ${{ steps.setup-ssh.outputs.vps-host }}
+        with:
+          archive-pattern: web-prod-*.tar.gz
+          archive-name-pattern: web-prod-*.tar.gz
 
