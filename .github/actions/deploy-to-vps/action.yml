@@ -61,7 +61,7 @@ runs:
         VPS_HOST="${{ steps.check-vps.outputs.vps_host }}"
         ssh -i ~/.ssh/deploy_key deploy@"$VPS_HOST" << EOF
           set -euo pipefail
-          cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
+          cd /srv/tentura_server || { echo "Deployment directory not found"; exit 1; }
           
           # Run deployment script
           if [ ! -f ./deploy.sh ]; then
