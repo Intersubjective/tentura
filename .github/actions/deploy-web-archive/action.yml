@@ -49,7 +49,7 @@ runs:
             -o LogLevel=ERROR \
             deploy@"$VPS_HOST" << 'EOF'
           set -euo pipefail
-          cd /opt/tentura || cd ~/tentura || { echo "Deployment directory not found"; exit 1; }
+          cd /srv/tentura_server || { echo "Deployment directory /srv/tentura_server not found"; exit 1; }
           
           # Extract web archive to Docker volume
           tar -xzf /tmp/${{ inputs.archive-name-pattern }} -C ./web/
