@@ -1,0 +1,48 @@
+name: 'Setup Dart and Flutter'
+description: 'Install system dependencies, setup Dart SDK and Flutter with caching'
+
+inputs:
+  cache-key:
+    description: 'Cache key suffix for pub dependencies'
+    required: false
+    default: 'pub'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install system dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsqlite3-dev
+
+    - name: Setup Dart
+      uses: dart-lang/setup-dart@v1
+      with:
+        sdk: stable
+
+    - name: Determine Flutter version
+      shell: bash
+      run: |
+        FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
+        echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+
+    - name: Cache pub dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.pub-cache
+          .dart_tool
+          packages/server/.dart_tool
+          packages/client/.dart_tool
+        key: ${{ runner.os }}-${{ inputs.cache-key }}-${{ hashFiles('**/pubspec.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ inputs.cache-key }}-
+

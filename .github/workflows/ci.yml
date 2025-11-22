@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   pull_request:
@@ -9,7 +9,15 @@ on:
   push:
     branches:
       - main
-      - fake_dev
+      - dev
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/intersubjective/tentura
 
 jobs:
   test:
@@ -17,39 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsqlite3-dev
-
-      - name: Setup Dart
-        uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - name: Determine Flutter version
-        run: |
-          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
-          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-            packages/server/.dart_tool
-            packages/client/.dart_tool
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
+      - name: Setup Dart and Flutter
+        uses: ./.github/actions/setup-dart-flutter
 
       - name: Install dependencies (root)
         run: dart pub get
@@ -59,10 +36,6 @@ jobs:
         run: dart pub get
         working-directory: packages/server
 
-      - name: Install dependencies (client)
-        run: flutter pub get
-        working-directory: packages/client
-
       - name: Run codegen (server)
         run: dart run build_runner build -d
         working-directory: packages/server
@@ -71,19 +44,14 @@ jobs:
         run: dart test
         working-directory: packages/server
 
-      - name: Generate localizations (client)
-        run: flutter gen-l10n
-        working-directory: packages/client
-
-      - name: Run codegen (client)
-        run: dart run build_runner build -d
-        working-directory: packages/client
+      - name: Setup client codegen
+        uses: ./.github/actions/setup-client-codegen
 
       - name: Run client tests
         run: flutter test
         working-directory: packages/client
 
-  validate-builds:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,51 +59,148 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine server version
+        id: versions
+        run: |
+          VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
+          VERSION_CLEAN=${VERSION_LINE//+/-}
+          VERSION_CLEAN=${VERSION_CLEAN//\//-}
+          echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Determine build type
+        id: build-type
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/dev" ]; then
+            echo "build_type=dev" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "build_type=release" >> $GITHUB_OUTPUT
+          else
+            echo "build_type=test" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push server image
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/server/Dockerfile_build
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.server_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Validate server Docker build
+        if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v5
         with:
           context: .
           file: packages/server/Dockerfile_build
           push: false
-          tags: ghcr.io/intersubjective/tentura-server:test
+          tags: ${{ env.IMAGE_NAME }}:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Determine Flutter version
+      - name: Setup client for build
+        uses: ./.github/actions/setup-client-build
+
+      - name: Build web (dev)
+        if: steps.build-type.outputs.build_type == 'dev' && github.event_name == 'push'
         run: |
-          FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
-          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            packages/client/.dart_tool
-          key: ${{ runner.os }}-pub-client-${{ hashFiles('packages/client/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-client-
-
-      - name: Install dependencies
-        run: flutter pub get
+          if [ -f env/dev-web.env ]; then
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define-from-file=env/dev-web.env
+          else
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define=SERVER_NAME=https://dev.tentura.io
+          fi
         working-directory: packages/client
 
-      - name: Generate localizations
-        run: flutter gen-l10n
+      - name: Build web (stage)
+        if: steps.build-type.outputs.build_type == 'release' && github.event_name == 'push'
+        run: |
+          if [ -f .env ]; then
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define-from-file=.env \
+              --dart-define=SERVER_NAME=https://stage.tentura.io
+          else
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define=SERVER_NAME=https://stage.tentura.io
+          fi
         working-directory: packages/client
 
-      - name: Run codegen
-        run: dart run build_runner build -d
+      - name: Create web archive (stage)
+        if: steps.build-type.outputs.build_type == 'release' && github.event_name == 'push'
+        run: |
+          cd packages/client/build/web
+          tar -czf ../../../../web-stage-${{ steps.versions.outputs.server_version }}.tar.gz .
+          cd ../../../..
+          # Clean build directory for prod build
+          flutter clean
+          flutter pub get
+          flutter gen-l10n
+          dart run build_runner build -d
         working-directory: packages/client
+
+      - name: Build web (prod)
+        if: steps.build-type.outputs.build_type == 'release' && github.event_name == 'push'
+        run: |
+          if [ -f .env ]; then
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define-from-file=.env \
+              --dart-define=SERVER_NAME=https://app.tentura.io \
+              --dart-define=NEED_INVITE_CODE=true
+          else
+            flutter build web \
+              --wasm \
+              --pwa-strategy=none \
+              --source-maps \
+              --dart-define=SERVER_NAME=https://app.tentura.io \
+              --dart-define=NEED_INVITE_CODE=true
+          fi
+        working-directory: packages/client
+
+      - name: Create web archive (dev)
+        if: steps.build-type.outputs.build_type == 'dev' && github.event_name == 'push'
+        run: |
+          cd packages/client/build/web
+          tar -czf ../../../../web-dev-${{ steps.versions.outputs.sha }}.tar.gz .
+          cd ../../../..
+
+      - name: Create web archive (prod)
+        if: steps.build-type.outputs.build_type == 'release' && github.event_name == 'push'
+        run: |
+          cd packages/client/build/web
+          tar -czf ../../../../web-prod-${{ steps.versions.outputs.server_version }}.tar.gz .
+          cd ../../../..
 
       - name: Validate Flutter web build
+        if: github.event_name == 'pull_request'
         run: |
           flutter build web \
             --wasm \
@@ -144,3 +209,59 @@ jobs:
             --dart-define=SERVER_NAME=https://test.tentura.io
         working-directory: packages/client
 
+      - name: Upload web archive artifacts
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-archives
+          path: |
+            web-*.tar.gz
+          retention-days: 7
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    environment:
+      name: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: ./.github/actions/deploy-to-vps
+        with:
+          archive-pattern: web-dev-*.tar.gz
+          archive-name: web-dev-*.tar.gz
+
+  deploy-stage:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: stage
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: ./.github/actions/deploy-to-vps
+        with:
+          archive-pattern: web-stage-*.tar.gz
+          archive-name: web-stage-*.tar.gz
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: [test, build, deploy-stage]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Production deployment requires manual approval
+    # Configure approval requirement in: Settings > Environments > prod > Required reviewers
+    environment:
+      name: prod
+      url: https://app.tentura.io
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to VPS
+        uses: ./.github/actions/deploy-to-vps
+        with:
+          archive-pattern: web-prod-*.tar.gz
+          archive-name: web-prod-*.tar.gz
