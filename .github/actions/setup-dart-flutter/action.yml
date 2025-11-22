@@ -6,6 +6,10 @@ inputs:
     description: 'Cache key suffix for pub dependencies'
     required: false
     default: 'pub'
+  include-server-cache:
+    description: 'Include server .dart_tool in cache paths'
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -34,7 +38,8 @@ runs:
         channel: 'stable'
         cache: true
 
-    - name: Cache pub dependencies
+    - name: Cache pub dependencies (with server)
+      if: inputs.include-server-cache == 'true'
       uses: actions/cache@v4
       with:
         path: |
@@ -43,6 +48,17 @@ runs:
           packages/server/.dart_tool
           packages/client/.dart_tool
         key: ${{ runner.os }}-${{ inputs.cache-key }}-${{ hashFiles('**/pubspec.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ inputs.cache-key }}-
+
+    - name: Cache pub dependencies (client only)
+      if: inputs.include-server-cache != 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.pub-cache
+          packages/client/.dart_tool
+        key: ${{ runner.os }}-${{ inputs.cache-key }}-${{ hashFiles('packages/client/pubspec.lock') }}
         restore-keys: |
           ${{ runner.os }}-${{ inputs.cache-key }}-
 
