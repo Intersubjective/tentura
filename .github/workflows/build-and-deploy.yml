@@ -9,7 +9,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/tentura-server
 
 jobs:
   determine-target:
@@ -22,8 +21,15 @@ jobs:
       deploy_dev: ${{ steps.set-type.outputs.deploy_dev }}
       deploy_stage: ${{ steps.set-type.outputs.deploy_stage }}
       deploy_prod: ${{ steps.set-type.outputs.deploy_prod }}
+      image_name: ${{ steps.set-image-name.outputs.image_name }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set image name (lowercase)
+        id: set-image-name
+        run: |
+          REPO_OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_name=${{ env.REGISTRY }}/$REPO_OWNER_LOWER/tentura-server" >> $GITHUB_OUTPUT
 
       - name: Set build type
         id: set-type
@@ -151,9 +157,9 @@ jobs:
         id: tags
         run: |
           if [ "${{ needs.determine-target.outputs.build_type }}" == "fake_dev" ]; then
-            echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:fake_dev-${{ needs.determine-target.outputs.sha }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:fake_dev-latest" >> $GITHUB_OUTPUT
+            echo "tags=${{ needs.determine-target.outputs.image_name }}:fake_dev-${{ needs.determine-target.outputs.sha }},${{ needs.determine-target.outputs.image_name }}:fake_dev-latest" >> $GITHUB_OUTPUT
           else
-            echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ needs.determine-target.outputs.server_version }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+            echo "tags=${{ needs.determine-target.outputs.image_name }}:v${{ needs.determine-target.outputs.server_version }},${{ needs.determine-target.outputs.image_name }}:latest" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and push Docker image
