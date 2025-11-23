@@ -62,10 +62,10 @@ runs:
           rm -f "\$ARCHIVE_FILE"
           
           # Pull latest images
-          docker compose -f compose.prod.yaml pull
+          docker compose -f compose.yaml pull
           
           # Restart services
-          docker compose -f compose.prod.yaml down
-          docker compose -f compose.prod.yaml up -d
+          docker compose -f compose.yaml down
+          docker compose -f compose.yaml up -d
         EOF
 
