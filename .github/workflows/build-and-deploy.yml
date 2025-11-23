@@ -338,6 +338,18 @@ jobs:
           name: web-archives
           pattern: web-dev-*.tar.gz
 
+      - name: Determine archive filename
+        id: archive-name
+        run: |
+          set -euo pipefail
+          ARCHIVE_FILE=$(ls -1 web-dev-*.tar.gz | head -1)
+          if [ -z "$ARCHIVE_FILE" ]; then
+            echo "Error: No web-dev archive file found" >&2
+            exit 1
+          fi
+          echo "archive_name=$ARCHIVE_FILE" >> $GITHUB_OUTPUT
+          echo "Found archive: $ARCHIVE_FILE"
+
       - name: Setup SSH
         id: setup-ssh
         uses: ./.github/actions/setup-ssh
@@ -350,8 +362,7 @@ jobs:
         env:
           VPS_HOST: ${{ steps.setup-ssh.outputs.vps-host }}
         with:
-          archive-pattern: web-dev-*.tar.gz
-          archive-name-pattern: web-dev-*.tar.gz
+          archive-name: ${{ steps.archive-name.outputs.archive_name }}
 
   deploy-stage:
     runs-on: ubuntu-latest
@@ -368,6 +379,18 @@ jobs:
           name: web-archives
           pattern: web-stage-*.tar.gz
 
+      - name: Determine archive filename
+        id: archive-name
+        run: |
+          set -euo pipefail
+          ARCHIVE_FILE=$(ls -1 web-stage-*.tar.gz | head -1)
+          if [ -z "$ARCHIVE_FILE" ]; then
+            echo "Error: No web-stage archive file found" >&2
+            exit 1
+          fi
+          echo "archive_name=$ARCHIVE_FILE" >> $GITHUB_OUTPUT
+          echo "Found archive: $ARCHIVE_FILE"
+
       - name: Setup SSH
         id: setup-ssh
         uses: ./.github/actions/setup-ssh
@@ -380,8 +403,7 @@ jobs:
         env:
           VPS_HOST: ${{ steps.setup-ssh.outputs.vps-host }}
         with:
-          archive-pattern: web-stage-*.tar.gz
-          archive-name-pattern: web-stage-*.tar.gz
+          archive-name: ${{ steps.archive-name.outputs.archive_name }}
 
   deploy-prod:
     runs-on: ubuntu-latest
@@ -401,6 +423,18 @@ jobs:
           name: web-archives
           pattern: web-prod-*.tar.gz
 
+      - name: Determine archive filename
+        id: archive-name
+        run: |
+          set -euo pipefail
+          ARCHIVE_FILE=$(ls -1 web-prod-*.tar.gz | head -1)
+          if [ -z "$ARCHIVE_FILE" ]; then
+            echo "Error: No web-prod archive file found" >&2
+            exit 1
+          fi
+          echo "archive_name=$ARCHIVE_FILE" >> $GITHUB_OUTPUT
+          echo "Found archive: $ARCHIVE_FILE"
+
       - name: Setup SSH
         id: setup-ssh
         uses: ./.github/actions/setup-ssh
@@ -413,6 +447,5 @@ jobs:
         env:
           VPS_HOST: ${{ steps.setup-ssh.outputs.vps-host }}
         with:
-          archive-pattern: web-prod-*.tar.gz
-          archive-name-pattern: web-prod-*.tar.gz
+          archive-name: ${{ steps.archive-name.outputs.archive_name }}
 
