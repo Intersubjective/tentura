@@ -44,28 +44,6 @@ runs:
         ssh -i ~/.ssh/deploy_key \
             -o StrictHostKeyChecking=accept-new \
             -o LogLevel=ERROR \
-            deploy@"$VPS_HOST" << EOF
-          set -euo pipefail
-          cd /srv/tentura_server || { echo "Deployment directory /srv/tentura_server not found"; exit 1; }
-          
-          # Use exact archive filename
-          ARCHIVE_FILE="/tmp/${{ inputs.archive-name }}"
-          if [ ! -f "\$ARCHIVE_FILE" ]; then
-            echo "Error: Archive file \$ARCHIVE_FILE not found" >&2
-            exit 1
-          fi
-          
-          # Extract web archive to Docker volume
-          tar -xzf "\$ARCHIVE_FILE" -C ./web/
-          
-          # Clean up the extracted archive
-          rm -f "\$ARCHIVE_FILE"
-          
-          # Pull latest images
-          docker compose -f compose.yaml pull
-          
-          # Restart services
-          docker compose -f compose.yaml down
-          docker compose -f compose.yaml up -d
-        EOF
+            deploy@"$VPS_HOST" \
+            "chmod +x /srv/tentura_server/deploy.sh && /srv/tentura_server/deploy.sh /tmp/${{ inputs.archive-name }}"
 
