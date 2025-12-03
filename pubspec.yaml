@@ -6,6 +6,10 @@ version: 0.0.1
 environment:
   sdk: '>=3.10.1 <4.0.0'
 
+workspace:
+  - packages/client
+  - packages/server
+
 dependencies:
   latlong2: ^0.9.1
 
