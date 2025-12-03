@@ -16,7 +16,7 @@
 ## Development
 
 1. Run `./openresty/scripts/create_cert_and_keys.sh`
-2. Build images (docker build --no-cache -t vbulavintsev/openresty-tentura:vX.Y.Z .)
+2. Build images (docker build --no-cache -t alexandrim0/openresty-tentura:vX.Y.Z .)
 
 
 ## Backup and restore data

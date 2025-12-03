@@ -13,7 +13,7 @@ services:
       service: common
     hostname: proxy
     container_name: proxy
-    image: vbulavintsev/tentura-proxy
+    image: alexandrim0/tentura-proxy
     depends_on:
       - hasura
       - tentura
@@ -71,7 +71,7 @@ services:
       service: common
     hostname: postgres
     container_name: postgres
-    image: vbulavintsev/postgres-tentura
+    image: alexandrim0/postgres-tentura
     depends_on:
       - meritrank
     volumes:
@@ -85,7 +85,7 @@ services:
       service: common
     hostname: meritrank
     container_name: meritrank
-    image: vbulavintsev/meritrank-service
+    image: alexandrim0/meritrank-service
     oom_kill_disable: true
     read_only: true
     environment:
@@ -98,7 +98,7 @@ services:
       service: common
     hostname: tentura
     container_name: tentura
-    image: vbulavintsev/tentura-service
+    image: alexandrim0/tentura-service
     depends_on:
       - postgres
     networks:
