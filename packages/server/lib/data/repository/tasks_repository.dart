@@ -1,5 +1,7 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_root/utils/utils.dart';
+
 import 'package:tentura_server/data/mapper/task_status_mapper.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 
@@ -21,7 +23,7 @@ class TaskRepository {
   final TaskWorker _taskWorker;
 
   Future<T?> acquire<T extends TaskEntity>() async {
-    switch (T) {
+    switch (typeOf<T>()) {
       case const (TaskEntity<TaskCalculateImageHashDetails>):
         final task = await _taskWorker.acquire(queue: _queueCalculateImageHash);
         return task == null

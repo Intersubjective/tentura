@@ -20,7 +20,7 @@ dependencies:
 
   # Common
   uuid: ^4.5.2
-  get_it: ^9.1.1
+  get_it: ^9.2.0
   latlong2: ^0.9.1
   injectable: ^2.7.0
   auto_route: ^11.0.0

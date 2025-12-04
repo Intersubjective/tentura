@@ -3,8 +3,7 @@ include:
 
 analyzer:
   exclude:
-    - "lib/api/grpc/**"
-    - "packages/**"
+    - "packages/widgetbook/**"
     - "temp/**"
 
 linter:
