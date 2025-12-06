@@ -3,6 +3,7 @@ name: tentura
 services:
   common:
     init: true
+    cpu_count: 1
     image: scratch
     network_mode: host
     environment:
@@ -102,11 +103,29 @@ services:
       - JWT_EXPIRES_IN
       - S3_ACCESS_KEY
       - S3_SECRET_KEY
-      - 'S3_BUCKET=tentura'
-      - 'S3_ENDPOINT=ams3.digitaloceanspaces.com'
-      - 'IMAGE_SERVER=https://tentura.ams3.cdn.digitaloceanspaces.com'
+      - S3_BUCKET
+      - S3_ENDPOINT
+      - IMAGE_SERVER
       - 'DEBUG_MODE=false'
-      - 'NEED_INVITE=true'
+      - 'NEED_INVITE=false'
+
+  minio:
+    extends:
+      service: common
+    hostname: minio
+    container_name: minio
+    image: minio/minio:latest
+    command: server /data/
+    volumes:
+      - minio-storage:/data
+    environment:
+      - MINIO_ROOT_USER
+      - MINIO_ROOT_PASSWORD
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
 
   schema_fetcher:
     extends:
@@ -141,3 +160,4 @@ services:
 
 volumes:
   pg_data:
+  minio-storage:

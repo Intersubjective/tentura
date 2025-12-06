@@ -32,3 +32,17 @@ backup schema and data:
 
 restore:
 `cat dump_all.sql | docker exec -i postgres psql -U postgres`
+
+## Minio
+
+Start Minio Console
+`docker run -it --entrypoint=/bin/sh minio/mc`
+
+Set credentials
+`mc alias set minio http://localhost:9000 login password`
+
+Grant access to anonymous on `mybucket`
+`mc anonymous set download minio/mybucket`
+
+Create access\secret keys
+`mc admin accesskey create minio/`
