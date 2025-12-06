@@ -10,25 +10,28 @@ environment:
 resolution: workspace
 
 dependencies:
+  # From Workspace
+  http:
+  uuid:
+  meta:
+  image:
+  drift:
+  get_it:
+  latlong2:
+  injectable:
+  collection:
   tentura_root:
-    path: ../../
+  json_annotation:
+  dart_jsonwebtoken:
+  freezed_annotation:
 
-  http: ^1.6.0
-  uuid: ^4.5.2
-  meta: ^1.17.0
   faker: ^2.2.0
-  image: ^4.5.4
   minio: ^3.5.7
-  drift: ^2.29.0
   jaspr: ^0.21.7
   crypto: ^3.0.6
-  get_it: ^9.2.0
   logging: ^1.3.0
   migrant: ^0.3.0
-  latlong2: ^0.9.1
   postgres: ^3.5.9
-  injectable: ^2.7.0
-  collection: ^1.19.1
   shelf_plus: ^1.11.0
   pg_job_queue: ^0.0.2
   blurhash_dart: ^1.2.1
@@ -36,23 +39,22 @@ dependencies:
   drift_postgres: ^1.3.1
   graphql_schema2: ^6.5.0
   graphql_server2: ^6.5.0
-  json_annotation: ^4.9.0
   shelf_multipart: ^2.0.1
-  dart_jsonwebtoken: ^3.3.1
-  freezed_annotation: ^3.1.0
   shelf_cors_headers: ^0.1.5
   migrant_db_postgresql: ^0.3.0
 
 dev_dependencies:
-  test: ^1.26.3
-  freezed: ^3.2.3
-  drift_dev: ^2.29.0
+  # From Workspace
+  test:
+  freezed:
+  drift_dev:
+  build_runner:
+  json_serializable:
+  very_good_analysis:
+  injectable_generator:
+
   jaspr_lints: ^0.5.1
-  build_runner: ^2.10.4
   jaspr_builder: ^0.21.7
-  json_serializable: ^6.11.2
-  very_good_analysis: ^10.0.0
-  injectable_generator: ^2.9.1
 
 jaspr:
   mode: server
