@@ -23,6 +23,7 @@ dependencies:
   drift:
   image:
   get_it:
+  logging:
   latlong2:
   drift_dev:
   collection:
@@ -57,7 +58,7 @@ dependencies:
   flutter_secure_storage: ^10.0.0-beta.5
 
   # Logs & Stats
-  logger: ^2.6.2
+  # logger: ^2.6.2
   sentry_drift: ^9.8.0
   sentry_flutter: ^9.8.0
 

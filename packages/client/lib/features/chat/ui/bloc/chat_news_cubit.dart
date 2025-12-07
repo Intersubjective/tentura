@@ -73,7 +73,7 @@ class ChatNewsCubit extends Cubit<ChatNewsState> {
   //
   //
   Future<void> _onAuthChanges(String userId) async {
-    _chatCase.logger.d('[ChatNewsCubit] _onAuthChanges: $userId');
+    _chatCase.logger.fine('[ChatNewsCubit] _onAuthChanges: $userId');
     emit(
       ChatNewsState(
         myId: userId,

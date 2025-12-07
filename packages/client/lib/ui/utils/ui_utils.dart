@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
@@ -68,7 +68,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState!
         ..clearSnackBars();
   if (isError) {
-    GetIt.I<Logger>().d(text);
+    GetIt.I<Logger>().fine(text);
   }
   return scaffoldMessenger.showSnackBar(
     SnackBar(
@@ -117,7 +117,7 @@ void commonScreenBlocListener(
           : context.router.pushPath(
               s.path,
               includePrefixMatches: true,
-              onFailure: GetIt.I<Logger>().e,
+              onFailure: GetIt.I<Logger>().fine,
             ),
     final StateIsMessaging s when listenMessagingState => switch (s.message) {
       final LocalizableActionMessage m => showSnackBar(

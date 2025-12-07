@@ -1,17 +1,18 @@
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:tentura/env.dart';
+import 'package:tentura/data/service/service_base.dart';
 
 import '../../domain/entity/notification_permissions.dart';
 
 @singleton
-class FcmService {
-  const FcmService(
-    this._env,
-    this._logger,
-  );
+class FcmService extends ServiceBase {
+  const FcmService._({
+    required super.env,
+    required super.logger,
+  });
 
   @factoryMethod
   factory FcmService.create({
@@ -19,16 +20,14 @@ class FcmService {
     required Logger logger,
   }) {
     if (env.firebaseApiKey.isEmpty) {
-      logger.i('Firebase Messaging configured with fake service');
+      logger.info('Firebase Messaging configured with fake service');
       return const _FcmServiceFake();
     }
-    return FcmService(env, logger);
+    return FcmService._(
+      env: env,
+      logger: logger,
+    );
   }
-
-  final Env _env;
-
-  // ignore: unused_field //
-  final Logger _logger;
 
   Stream<String> get onTokenRefresh =>
       FirebaseMessaging.instance.onTokenRefresh;
@@ -48,11 +47,17 @@ class FcmService {
   //
   //
   Future<String?> getToken() =>
-      FirebaseMessaging.instance.getToken(vapidKey: _env.firebaseVapidKey);
+      FirebaseMessaging.instance.getToken(vapidKey: env.firebaseVapidKey);
 }
 
-class _FcmServiceFake implements FcmService {
+final class _FcmServiceFake implements FcmService {
   const _FcmServiceFake();
+
+  @override
+  Env get env => throw UnimplementedError();
+
+  @override
+  Logger get logger => throw UnimplementedError();
 
   @override
   Stream<String> get onTokenRefresh => const Stream.empty();
@@ -64,11 +69,4 @@ class _FcmServiceFake implements FcmService {
   Future<NotificationPermissions> requestPermission() => Future.value(
     const NotificationPermissions(),
   );
-
-  @override
-  Env get _env => throw UnimplementedError();
-
-  @override
-  // ignore: unused_element //
-  Logger get _logger => throw UnimplementedError();
 }

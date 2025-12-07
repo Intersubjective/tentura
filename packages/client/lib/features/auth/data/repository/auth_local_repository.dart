@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/database/database.dart';
@@ -120,7 +120,7 @@ class AuthLocalRepository {
       _currentAccountId = id ?? '',
     );
     _controllerIdChanges.add(_currentAccountId);
-    _logger.i('Current User Id: $id');
+    _logger.info('Current User Id: $id');
   }
 
   //

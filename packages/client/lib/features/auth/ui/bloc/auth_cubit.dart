@@ -222,7 +222,7 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
-    _authCase.logger.d('Sign out');
+    _authCase.logger.fine('Sign out');
   }
 
   ///

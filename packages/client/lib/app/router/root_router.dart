@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
 
@@ -262,7 +262,7 @@ class RootRouter extends RootStackRouter {
   ];
 
   FutureOr<DeepLink> deepLinkBuilder(PlatformDeepLink deepLink) {
-    _logger.i('DeepLinkBuilder: ${deepLink.uri}');
+    _logger.info('DeepLinkBuilder: ${deepLink.uri}');
     return deepLink;
   }
 

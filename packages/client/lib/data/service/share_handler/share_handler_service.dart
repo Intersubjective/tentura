@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:share_handler/share_handler.dart'
@@ -24,11 +24,11 @@ class ShareHandlerService {
   void _handler(SharedMedia? e) {
     if (e == null) return;
 
-    _logger.d('String: ${e.content}');
+    _logger.info('String: ${e.content}');
 
     if (e.attachments != null) {
       for (final e in e.attachments!) {
-        _logger.d('Attached: ${e?.path}');
+        _logger.info('Attached: ${e?.path}');
       }
     }
   }

@@ -1,4 +1,4 @@
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
@@ -20,19 +20,17 @@ abstract class RemoteRepository {
     String? label = 'No label',
   }) async {
     final response = await remoteApiService
-        .request(
-          req,
-        )
+        .request(req)
         .firstWhere((e) => e.dataSource == DataSource.Link);
 
     if (response.hasErrors) {
       if (response.linkException != null) {
-        log.e(response.linkException);
+        log.severe(response.linkException);
         // TBD: check specific link exceptions
         throw const ConnectionUplinkException();
       }
       if (response.graphqlErrors != null) {
-        log.e(response.graphqlErrors);
+        log.severe(response.graphqlErrors);
         // TBD: parse specific server codes
         throw const ServerUnknownException();
       }

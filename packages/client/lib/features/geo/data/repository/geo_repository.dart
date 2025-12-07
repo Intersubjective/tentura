@@ -1,4 +1,4 @@
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:geolocator/geolocator.dart';
@@ -46,9 +46,9 @@ class GeoRepository {
   }
 
   Future<Location> getLocationByCoords(Coordinates coords) async => Location(
-        coords: coords,
-        place: await getPlaceNameByCoords(coords),
-      );
+    coords: coords,
+    place: await getPlaceNameByCoords(coords),
+  );
 
   Future<Coordinates?> getMyCoords({
     Duration timeLimit = const Duration(seconds: 30),
@@ -68,7 +68,7 @@ class GeoRepository {
           long: position.longitude,
         );
       } catch (e) {
-        _logger.e(e);
+        _logger.severe(e);
       }
     }
     return null;
