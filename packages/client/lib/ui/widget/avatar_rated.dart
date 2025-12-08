@@ -20,8 +20,6 @@ class AvatarRated extends StatelessWidget {
     BoxFit? fit,
   }) => Image.asset(
     'images/placeholder/avatar.jpg',
-    // ignore: avoid_redundant_argument_values //
-    package: kAssetPackage,
     cacheHeight: cacheHeight,
     cacheWidth: cacheWidth,
     fit: fit,

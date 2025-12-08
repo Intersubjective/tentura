@@ -4,7 +4,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vector_graphics/vector_graphics.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -27,11 +26,7 @@ class IntroScreen extends StatelessWidget {
 
             // Image
             const SvgPicture(
-              AssetBytesLoader(
-                'images/intro.svg.vec',
-                // ignore: avoid_redundant_argument_values //
-                packageName: kAssetPackage,
-              ),
+              AssetBytesLoader('images/intro.svg.vec'),
             ),
 
             // Title

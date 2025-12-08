@@ -2,9 +2,6 @@ import 'package:tentura_root/consts.dart';
 
 export 'package:tentura_root/consts.dart';
 
-// Bools
-const kAssetPackage = bool.fromEnvironment('IS_IMPORTED') ? 'tentura' : null;
-
 // Numbers
 const kMaxLines = 3;
 const kCommentsShown = 3;
