@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.3.20-dev
 
 environment:
-  sdk: '>=3.10.3 <4.0.0'
+  sdk: ^3.10.3
   flutter: ^3.38.4
 
 resolution: workspace
@@ -58,7 +58,6 @@ dependencies:
   flutter_secure_storage: ^10.0.0-beta.5
 
   # Logs & Stats
-  # logger: ^2.6.2
   sentry_drift: ^9.8.0
   sentry_flutter: ^9.8.0
 
