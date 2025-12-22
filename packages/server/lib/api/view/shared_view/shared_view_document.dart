@@ -129,7 +129,7 @@ class SharedViewDocument extends StatelessComponent {
   };
 
   static const _hr = hr(
-    styles: const Styles(
+    styles: Styles(
       margin: Spacing.symmetric(horizontal: kEdgeInsetsS),
     ),
   );

@@ -16,7 +16,7 @@ class AvatarComponent extends StatelessComponent {
   final int size;
 
   @override
-  Component build(BuildContext context) => fragment([
+  Component build(BuildContext context) => Component.fragment([
     // Avatar
     img(
       src: user.imageUrl,
@@ -42,7 +42,7 @@ class AvatarComponent extends StatelessComponent {
     // Title
     h3(
       [
-        text(user.title),
+        Component.text(user.title),
       ],
     ),
   ]);

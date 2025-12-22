@@ -16,7 +16,7 @@ class RootRouter {
   RootRouter(
     this._env,
     this._authMiddleware,
-    this._chatController,
+    this._wsController,
     this._graphqlController,
     this._graphiqlController,
     this._firebaseSwController,
@@ -27,7 +27,7 @@ class RootRouter {
 
   final AuthMiddleware _authMiddleware;
 
-  final WebSocketController _chatController;
+  final WebSocketController _wsController;
 
   final GraphqlController _graphqlController;
 
@@ -52,7 +52,7 @@ class RootRouter {
       ..get('/graphiql', _graphiqlController.handler)
       ..get(kPathAppLinkView, _sharedViewController.handler)
       ..get(kPathFirebaseSwJs, _firebaseSwController.handler)
-      ..get(kPathWebSocketEndpoint, _chatController.handler)
+      ..get(kPathWebSocketEndpoint, _wsController.handler)
       ..post(
         kPathGraphQLEndpointV2,
         _graphqlController.handler,
