@@ -1,3 +1,4 @@
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/domain/entity/comment_entity.dart';
@@ -18,7 +19,7 @@ class CommentViewComponent extends StatelessComponent {
 
       p(
         [
-          text(comment.content),
+          Component.text(comment.content),
         ],
       ),
     ],

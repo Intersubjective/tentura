@@ -1,4 +1,4 @@
-import 'package:jaspr/server.dart';
+import 'package:jaspr/dom.dart';
 
 const kEdgeInsetsS = Unit.pixels(8);
 const kEdgeInsetsM = Unit.pixels(16);

@@ -1,3 +1,4 @@
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -17,9 +18,9 @@ class InvitationViewComponent extends StatelessComponent {
       AvatarComponent(user: user),
 
       if (user.description.isNotEmpty)
-        p(
+        const p(
           [
-            text('Invite you to join Tentura!'),
+            Component.text('Invite you to join Tentura!'),
           ],
         ),
     ],

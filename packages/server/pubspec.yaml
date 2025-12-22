@@ -2,10 +2,10 @@ name: tentura_server
 description: Tentura server API
 publish_to: none
 
-version: 0.6.5
+version: 0.6.6-dev
 
 environment:
-  sdk: ^3.10.3
+  sdk: ^3.10.4
 
 resolution: workspace
 
@@ -28,7 +28,7 @@ dependencies:
 
   faker: ^2.2.0
   minio: ^3.5.7
-  jaspr: ^0.21.7
+  jaspr: ^0.22.0
   crypto: ^3.0.6
   migrant: ^0.3.0
   postgres: ^3.5.9
@@ -53,8 +53,8 @@ dev_dependencies:
   very_good_analysis:
   injectable_generator:
 
-  jaspr_lints: ^0.5.1
-  jaspr_builder: ^0.21.7
+  jaspr_lints: ^0.6.0
+  jaspr_builder: ^0.22.0
 
 jaspr:
   mode: server

@@ -1,3 +1,4 @@
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/consts.dart';
@@ -127,7 +128,7 @@ class SharedViewDocument extends StatelessComponent {
     'og:image': imagePath,
   };
 
-  static final _hr = hr(
+  static const _hr = hr(
     styles: const Styles(
       margin: Spacing.symmetric(horizontal: kEdgeInsetsS),
     ),
