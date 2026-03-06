@@ -1,0 +1,18 @@
+# Build tentura server. Run from repo root: docker build -f Dockerfile.server -t vbulavintsev/tentura-service:0.6.6 .
+FROM dart:stable AS build
+
+WORKDIR /app
+COPY . .
+
+WORKDIR /app/packages/server
+RUN dart pub get
+RUN dart run build_runner build -d
+RUN dart compile exe bin/tentura.dart -o bin/tentura
+
+FROM scratch
+COPY --from=build /runtime/ /
+COPY --from=build /app/packages/server/bin/tentura /
+
+EXPOSE 2080/tcp
+USER 33:33
+CMD ["/tentura"]

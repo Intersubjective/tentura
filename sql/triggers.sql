@@ -442,11 +442,11 @@ BEGIN
     FROM vote_beacon vb JOIN "beacon" b ON b.id = vb.object
     UNION ALL
     -- Edges Comment -> Author
-    SELECT c.id, c.user_id, 1.0::float8, 0::bigint, c.context
+    SELECT c.id, c.user_id, 1.0::float8, 0::bigint, b.context
     FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
     UNION ALL
     -- Edges Author -> Comment
-    SELECT c.user_id, c.id, 1.0::float8, c.ticker::bigint, c.context
+    SELECT c.user_id, c.id, 1.0::float8, c.ticker::bigint, b.context
     FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
     UNION ALL
     -- Edges User -> Comment (vote)

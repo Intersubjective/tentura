@@ -1,6 +1,7 @@
 part of '_migrations.dart';
 
-final m0010 = Migration('0010', [
+// Fix meritrank_init: use b.context for comment edges (comment table has content, not context).
+final m0011 = Migration('0011', [
   r'''
 CREATE OR REPLACE FUNCTION public.meritrank_init()
   RETURNS integer
@@ -31,11 +32,11 @@ BEGIN
     SELECT vb.subject, vb.object, vb.amount::float8, vb.ticker::bigint, b.context
     FROM vote_beacon vb JOIN "beacon" b ON b.id = vb.object
     UNION ALL
-    -- Edges Comment -> Author
+    -- Edges Comment -> Author (context from beacon b)
     SELECT c.id, c.user_id, 1.0::float8, 0::bigint, b.context
     FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
     UNION ALL
-    -- Edges Author -> Comment
+    -- Edges Author -> Comment (context from beacon b)
     SELECT c.user_id, c.id, 1.0::float8, c.ticker::bigint, b.context
     FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
     UNION ALL

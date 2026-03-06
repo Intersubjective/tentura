@@ -2,7 +2,7 @@ name: tentura_server
 description: Tentura server API
 publish_to: none
 
-version: 0.6.6
+version: 0.6.7
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
