@@ -83,7 +83,7 @@ BEGIN
 
   _total := _total + _edge_count;
 
-  PERFORM mr_bulk_load_edges(_src, _dst, _weight, _magnitude, _context, 120000);
+  PERFORM mr_bulk_load_edges(_src, _dst, _weight, _magnitude, _context, 120000::bigint);
 
   -- Read Updates Filters
   SELECT _total + count(*)::int INTO _total
