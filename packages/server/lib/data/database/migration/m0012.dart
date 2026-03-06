@@ -20,17 +20,17 @@ BEGIN
   WITH all_edges AS (
     SELECT subject AS src, object AS dst, amount::float8 AS weight, ticker::bigint AS magnitude, ''::text AS context FROM vote_user
     UNION ALL
-    SELECT id, user_id, 1.0::float8, 0::bigint, context FROM "beacon"
+    SELECT id, user_id, 1.0::float8, 0::bigint, coalesce(context, ''::text) FROM "beacon"
     UNION ALL
-    SELECT user_id, id, 1.0::float8, ticker::bigint, context FROM "beacon"
+    SELECT user_id, id, 1.0::float8, ticker::bigint, coalesce(context, ''::text) FROM "beacon"
     UNION ALL
-    SELECT vb.subject, vb.object, vb.amount::float8, vb.ticker::bigint, b.context FROM vote_beacon vb JOIN "beacon" b ON b.id = vb.object
+    SELECT vb.subject, vb.object, vb.amount::float8, vb.ticker::bigint, coalesce(b.context, ''::text) FROM vote_beacon vb JOIN "beacon" b ON b.id = vb.object
     UNION ALL
-    SELECT c.id, c.user_id, 1.0::float8, 0::bigint, b.context FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
+    SELECT c.id, c.user_id, 1.0::float8, 0::bigint, coalesce(b.context, ''::text) FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
     UNION ALL
-    SELECT c.user_id, c.id, 1.0::float8, c.ticker::bigint, b.context FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
+    SELECT c.user_id, c.id, 1.0::float8, c.ticker::bigint, coalesce(b.context, ''::text) FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
     UNION ALL
-    SELECT vc.subject, vc.object, vc.amount::float8, vc.ticker::bigint, b.context FROM vote_comment vc JOIN "comment" c ON c.id = vc.object JOIN "beacon" b ON b.id = c.beacon_id
+    SELECT vc.subject, vc.object, vc.amount::float8, vc.ticker::bigint, coalesce(b.context, ''::text) FROM vote_comment vc JOIN "comment" c ON c.id = vc.object JOIN "beacon" b ON b.id = c.beacon_id
     UNION ALL
     SELECT subject, id, (abs(amount))::float8, ticker::bigint, ''::text FROM "opinion"
     UNION ALL
