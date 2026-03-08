@@ -32,7 +32,7 @@ class MeritrankRepository {
     Duration timeout = const Duration(minutes: 10),
   }) => _database
       .customSelect(
-        'SELECT mr_zerorec(\$1, \$2)',
+        'SELECT mr_recalculate_clustering(\$1, \$2)',
         variables: [
           Variable<bool>(isBlocking),
           Variable<int>(timeout.inMilliseconds),

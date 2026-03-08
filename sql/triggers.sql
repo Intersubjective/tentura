@@ -1,6 +1,6 @@
 -- Triggers and trigger functions for MeritRank + app logic
 -- Extracted from packages/server migrations m0002, m0003, m0005.
--- Prerequisites: mr_put_edge(), mr_delete_edge(), mr_set_new_edges_filter() must exist
+-- Prerequisites: mr_put_edge(), mr_delete_edge(); mr_set_new_edges_filter() optional (behind flag, unimplemented/WIP)
 -- (e.g. from MeritRank/Hasura schema). Tables public.beacon, comment, opinion,
 -- vote_beacon, vote_comment, vote_user, "user", user_vsids, invitation, message,
 -- polling, polling_variant, polling_act, user_updates must exist.
@@ -412,12 +412,16 @@ CREATE OR REPLACE TRIGGER set_public_vote_user_updated_at
 
 -- meritrank_init(): backfill MeritRank from existing data (call via SELECT meritrank_init();)
 -- Uses mr_bulk_load_edges for a single RPC instead of many mr_put_edge calls.
+-- Unimplemented/WIP: new-edges filter behind _meritrank_new_edges_enabled (default false).
 CREATE OR REPLACE FUNCTION public.meritrank_init()
   RETURNS integer
   LANGUAGE plpgsql
   STABLE
   AS $$
 DECLARE
+  -- Unimplemented/WIP: new-edges filter feature disabled; Meritrank service no longer supports
+  -- mr_set_new_edges_filter / mr_fetch_new_edges / mr_get_new_edges_filter. Set to true when reimplemented.
+  _meritrank_new_edges_enabled constant boolean := false;
   _src text[];
   _dst text[];
   _weight float8[];
@@ -494,9 +498,11 @@ BEGIN
 
   PERFORM mr_bulk_load_edges(_src, _dst, _weight, _magnitude, _context, 120000::bigint);
 
-  -- Read Updates Filters
-  SELECT _total + count(*)::int INTO _total
-  FROM (SELECT mr_set_new_edges_filter(user_id, filter) FROM user_updates) AS _;
+  -- Unimplemented/WIP: new-edges filter; no calls when flag off.
+  IF _meritrank_new_edges_enabled THEN
+    SELECT _total + count(*)::int INTO _total
+    FROM (SELECT mr_set_new_edges_filter(user_id, filter) FROM user_updates) AS _;
+  END IF;
 
   RETURN _total;
 END;
