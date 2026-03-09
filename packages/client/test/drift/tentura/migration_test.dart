@@ -3,7 +3,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:tentura/data/database/database.dart';
 import 'package:tentura/env.dart';
 import 'generated/schema.dart';
@@ -88,4 +88,4 @@ void main() {
 }
 
 Database _openTestDatabase(QueryExecutor executor) =>
-    Database(const Env(), Logger(level: Level.nothing), executor);
+    Database(const Env(), Logger('test'), executor);
