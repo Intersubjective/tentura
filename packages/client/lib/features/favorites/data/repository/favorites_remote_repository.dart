@@ -27,7 +27,7 @@ class FavoritesRemoteRepository {
       .request(GBeaconFetchPinnedReq())
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beacon_pinned)
-      .then((v) => v.map((e) => (e.beacon as BeaconModel).toEntity));
+      .then((v) => v.map((e) => (e.beacon as BeaconModel).toEntity()));
 
   Future<void> pin(Beacon beacon) async {
     final response = await _remoteApiService
@@ -43,11 +43,13 @@ class FavoritesRemoteRepository {
     required Beacon beacon,
   }) async {
     final response = await _remoteApiService
-        .request(GBeaconUnpinByIdReq(
-          (b) => b.vars
-            ..user_id = userId
-            ..beacon_id = beacon.id,
-        ))
+        .request(
+          GBeaconUnpinByIdReq(
+            (b) => b.vars
+              ..user_id = userId
+              ..beacon_id = beacon.id,
+          ),
+        )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).delete_beacon_pinned_by_pk);
     if (response == null) throw const FavoritesUnpinException();

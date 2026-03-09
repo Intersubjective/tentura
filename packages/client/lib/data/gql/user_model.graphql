@@ -1,12 +1,13 @@
+# import '/data/gql/image_model.graphql'
+
 fragment UserModel on user {
   id
   title
   description
-  has_picture
-  pic_height
-  pic_width
-  blur_hash
   my_vote
+  image {
+    ...ImageModel
+  }
   scores {
     src_score
     dst_score

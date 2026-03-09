@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/ui/l10n/l10n.dart';
-
 import 'package:tentura/domain/entity/comment.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/rating_indicator.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
@@ -12,10 +11,12 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/like/ui/widget/like_control.dart';
 
-import '../bloc/comment_cubit.dart';
-
 class CommentTile extends StatelessWidget {
-  const CommentTile({required this.comment, this.isMine = false, super.key});
+  const CommentTile({
+    required this.comment,
+    this.isMine = false,
+    super.key,
+  });
 
   final Comment comment;
   final bool isMine;
@@ -23,6 +24,7 @@ class CommentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
     return Column(
       children: [
         const Divider(),
@@ -35,12 +37,11 @@ class CommentTile extends StatelessWidget {
             children: [
               // Avatar
               GestureDetector(
-                onTap:
-                    isMine
-                        ? null
-                        : () => context.read<CommentCubit>().showProfile(
-                          comment.author.id,
-                        ),
+                onTap: isMine
+                    ? null
+                    : () => context.read<ScreenCubit>().showProfile(
+                        comment.author.id,
+                      ),
                 child: Padding(
                   padding: const EdgeInsets.only(right: kSpacingMedium),
                   child: AvatarRated.small(profile: comment.author),
@@ -53,7 +54,7 @@ class CommentTile extends StatelessWidget {
                     // Title
                     Text(
                       isMine ? l10n.labelMe : comment.author.title,
-                      style: Theme.of(context).textTheme.headlineMedium,
+                      style: theme.textTheme.headlineMedium,
                     ),
 
                     // Body
@@ -62,6 +63,7 @@ class CommentTile extends StatelessWidget {
                       child: ShowMoreText(
                         comment.content,
                         style: ShowMoreText.buildTextStyle(context),
+                        colorClickableText: theme.colorScheme.primary,
                       ),
                     ),
                   ],
@@ -70,18 +72,14 @@ class CommentTile extends StatelessWidget {
 
               // More
               PopupMenuButton(
-                itemBuilder: (context) {
-                  return <PopupMenuEntry<void>>[
-                    // Complaint
-                    PopupMenuItem(
-                      onTap:
-                          () => context.read<ScreenCubit>().showComplaint(
-                            comment.id,
-                          ),
-                      child: Text(l10n.buttonComplaint),
-                    ),
-                  ];
-                },
+                itemBuilder: (context) => <PopupMenuEntry<void>>[
+                  // Complaint
+                  PopupMenuItem(
+                    onTap: () =>
+                        context.read<ScreenCubit>().showComplaint(comment.id),
+                    child: Text(l10n.buttonComplaint),
+                  ),
+                ],
               ),
             ],
           ),
@@ -109,7 +107,10 @@ class CommentTile extends StatelessWidget {
                 ),
 
                 // Vote
-                LikeControl(entity: comment, key: ValueKey(comment)),
+                LikeControl(
+                  key: ValueKey(comment),
+                  entity: comment,
+                ),
               ],
             ],
           ),

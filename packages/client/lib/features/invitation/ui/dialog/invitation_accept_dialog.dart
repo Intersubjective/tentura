@@ -5,7 +5,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 class InvitationAcceptDialog extends StatelessWidget {
   static Future<bool?> show(BuildContext context, {required Profile profile}) =>
-      showDialog<bool>(
+      showAdaptiveDialog<bool>(
         context: context,
         builder: (_) => InvitationAcceptDialog(profile: profile),
       );

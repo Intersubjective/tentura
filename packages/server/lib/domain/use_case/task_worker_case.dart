@@ -4,75 +4,58 @@ import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart';
 import 'package:blurhash_dart/blurhash_dart.dart';
 
-import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/image_repository.dart';
 import 'package:tentura_server/data/repository/tasks_repository.dart';
-import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/env.dart';
 
 import '../entity/task_entity.dart';
 
 @LazySingleton()
 class TaskWorkerCase {
+  @FactoryMethod()
+  static Future<TaskWorkerCase> create(
+    Env env,
+    ImageRepository imageRepository,
+    TaskRepository tasksRepository,
+  ) => Future.value(
+    TaskWorkerCase(
+      env,
+      imageRepository,
+      tasksRepository,
+    ),
+  );
+
   TaskWorkerCase(
     this._env,
-    this._beaconRepository,
     this._imageRepository,
     this._tasksRepository,
-    this._userRepository,
   );
 
   final Env _env;
 
-  final BeaconRepository _beaconRepository;
-
   final ImageRepository _imageRepository;
 
-  final TasksRepository _tasksRepository;
-
-  final UserRepository _userRepository;
+  final TaskRepository _tasksRepository;
 
   final _runnerCompleter = Completer<void>();
 
   late final _tasks = <Future<void> Function()>[
-    // Calculate Profile Image Hash
+    // Calculate Image Hash
     () async {
-      final task = await _tasksRepository.acquire<TaskProfileImageHash>();
+      final task = await _tasksRepository
+          .acquire<TaskEntity<TaskCalculateImageHashDetails>>();
       if (task == null) return;
       try {
-        final imageBytes = await _imageRepository.getUserImage(
-          userId: task.details.userId,
+        final imageBytes = await _imageRepository.get(
+          id: task.details.imageId,
         );
         final (:hash, :height, :width) = processImage(imageBytes);
 
-        await _userRepository.update(
-          id: task.details.userId,
+        await _imageRepository.update(
+          id: task.details.imageId,
           blurHash: hash,
-          imageHeight: height,
-          imageWidth: width,
-        );
-        await _tasksRepository.complete(task.id);
-      } catch (e) {
-        await _tasksRepository.fail(task.id);
-        rethrow;
-      }
-    },
-
-    // Calculate Beacon Image Hash
-    () async {
-      final task = await _tasksRepository.acquire<TaskBeaconImageHash>();
-      if (task == null) return;
-      try {
-        final imageBytes = await _imageRepository.getBeaconImage(
-          authorId: task.details.userId,
-          beaconId: task.details.beaconId,
-        );
-        final (:hash, :height, :width) = processImage(imageBytes);
-        await _beaconRepository.updateBeaconImageDetails(
-          beaconId: task.details.beaconId,
-          blurHash: hash,
-          imageHeight: height,
-          imageWidth: width,
+          height: height,
+          width: width,
         );
         await _tasksRepository.complete(task.id);
       } catch (e) {

@@ -3,7 +3,6 @@ import 'package:http/http.dart' show MultipartFile;
 import 'package:http_parser/http_parser.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
@@ -28,18 +27,20 @@ class ProfileRepository {
   @disposeMethod
   Future<void> dispose() => _controller.close();
 
+  //
   Future<Profile> fetchById(String id) async {
     final request = GUserFetchByIdReq((b) => b.vars.id = id);
     final response = await _remoteApiService
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).user_by_pk)
-        .then((r) => (r as UserModel?)?.toEntity);
+        .then((r) => (r as UserModel?)?.toEntity());
     if (response == null) throw ProfileFetchException(id);
     _controller.add(RepositoryEventFetch(response));
     return response;
   }
 
+  //
   Future<void> update(
     Profile profile, {
     String? title,
@@ -53,33 +54,25 @@ class ProfileRepository {
         ..title = title
         ..description = description
         ..dropImage = dropImage
-        ..image =
-            image == null
-                ? null
-                : MultipartFile.fromBytes(
-                  'image',
-                  image.imageBytes,
-                  contentType: MediaType.parse(image.mimeType),
-                  filename: image.fileName,
-                );
+        ..image = image?.imageBytes == null
+            ? null
+            : MultipartFile.fromBytes(
+                'image',
+                image!.imageBytes!,
+                contentType: MediaType.parse(image.mimeType),
+                filename: image.fileName,
+              );
     });
+
     await _remoteApiService
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label));
-    _controller.add(
-      RepositoryEventUpdate(
-        profile.copyWith(
-          title: title ?? profile.title,
-          description: description ?? profile.description,
-          hasAvatar: !dropImage || image != null || profile.hasAvatar,
-          blurhash:
-              dropImage || image != null ? kAvatarPlaceholderBlurhash : '',
-        ),
-      ),
-    );
+
+    _controller.add(RepositoryEventUpdate(await fetchById(profile.id)));
   }
 
+  //
   Future<void> delete(String id) async {
     final isOk = await _remoteApiService
         .request(GProfileDeleteReq())

@@ -12,7 +12,4 @@ abstract class ProfileViewState extends StateBase with _$ProfileViewState {
   }) = _ProfileViewState;
 
   const ProfileViewState._();
-
-  bool get hasFocusedOpinion => focusOpinionId.isNotEmpty;
-  bool get hasNoFocusedOpinion => focusOpinionId.isEmpty;
 }

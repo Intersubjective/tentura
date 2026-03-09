@@ -43,18 +43,12 @@ class _ChatListState extends State<ChatList> {
             scrollOffsetController: _scrollOffsetController,
 
             // Message Tile
-            itemBuilder: (context, index) {
+            itemBuilder: (_, index) {
               final message = chatCubit.state.messages[index];
               final key = ValueKey(message);
-              return message.sender == chatCubit.state.me.id
-                  ? ChatTileMine(
-                      key: key,
-                      message: message,
-                    )
-                  : ChatTileSender(
-                      key: key,
-                      message: message,
-                    );
+              return message.senderId == chatCubit.state.me.id
+                  ? ChatTileMine(key: key, message: message)
+                  : ChatTileSender(key: key, message: message);
             },
 
             // Time separator

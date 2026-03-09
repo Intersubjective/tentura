@@ -4,12 +4,15 @@ include:
 analyzer:
   errors:
     specify_nonobvious_property_types: ignore
+    sort_constructors_first: ignore
   exclude:
     - "**/*.g.dart"
     - "**/*.gr.dart"
     - "**/*.schema.dart"
     - "**/*.freezed.dart"
     - "lib/jaspr_options.dart"
+  plugins:
+    - custom_lint
 
 linter:
   rules:
@@ -17,8 +20,13 @@ linter:
     directives_ordering: false
     sort_pub_dependencies: false
     public_member_api_docs: false
-    require_trailing_commas: false
-    sort_constructors_first: false
     always_use_package_imports: false
     lines_longer_than_80_chars: false
     avoid_catches_without_on_clauses: false
+
+custom_lint:
+  rules:
+    styles_ordering: true
+    prefer_html_methods: true
+    prefer_styles_getter: true
+    sort_children_properties_last: true

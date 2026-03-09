@@ -10,7 +10,7 @@ extension type const OpinionModel(GOpinionModel i) implements GOpinionModel {
     content: i.content,
     objectId: i.object,
     createdAt: i.created_at,
-    author: (i.author! as UserModel).toEntity,
-    score: double.tryParse(i.scores?.first.dst_score?.value ?? '') ?? 0,
+    author: (i.author! as UserModel).toEntity(),
+    score: double.tryParse(i.scores?.firstOrNull?.dst_score?.value ?? '') ?? 0,
   );
 }

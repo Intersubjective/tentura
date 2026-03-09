@@ -9,20 +9,23 @@ final class MutationPolling extends GqlNodeBase {
 
   final PollingCase _pollingCase;
 
-  final _pollingIdInput = InputFieldString(fieldName: 'pollingId');
-
-  final _variantIdInput = InputFieldString(fieldName: 'variantId');
-
   List<GraphQLObjectField<dynamic, dynamic>> get all => [pollingAct];
 
   GraphQLObjectField<dynamic, dynamic> get pollingAct => GraphQLObjectField(
     'pollingAct',
     graphQLBoolean.nonNullable(),
-    arguments: [_pollingIdInput.field, _variantIdInput.field],
+    arguments: [
+      _pollingIdInput.field,
+      _variantIdInput.field,
+    ],
     resolve: (_, args) => _pollingCase.create(
       authorId: getCredentials(args).sub,
       pollingId: _pollingIdInput.fromArgsNonNullable(args),
       variantId: _variantIdInput.fromArgsNonNullable(args),
     ),
   );
+
+  static final _pollingIdInput = InputFieldString(fieldName: 'pollingId');
+
+  static final _variantIdInput = InputFieldString(fieldName: 'variantId');
 }

@@ -4,10 +4,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/enum.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
-import 'package:tentura/features/auth/data/repository/auth_repository.dart';
-
-import '../../data/repository/chat_repository.dart';
-import '../../domain/entity/chat_message.dart';
+import '../../domain/entity/chat_message_entity.dart';
+import '../../domain/use_case/chat_case.dart';
 import 'chat_news_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,104 +14,127 @@ export 'package:get_it/get_it.dart';
 export 'chat_news_state.dart';
 
 /// Global Cubit
-@lazySingleton
+@singleton
 class ChatNewsCubit extends Cubit<ChatNewsState> {
-  ChatNewsCubit(this._authRepository, this._chatRepository)
-    : super(ChatNewsState(cursor: _zeroAge, messages: {}, myId: '')) {
-    _authChanges.resume();
-  }
-
-  final AuthRepository _authRepository;
-
-  final ChatRepository _chatRepository;
-
-  final _messagesUpdatesController = StreamController<ChatMessage>.broadcast();
-
-  late final _authChanges = _authRepository.currentAccountChanges().listen(
-    _onAuthChanges,
-    cancelOnError: false,
-    onError: (Object e) => emit(state.copyWith(status: StateHasError(e))),
-  );
-
-  StreamSubscription<Iterable<ChatMessage>>? _messagesUpdatesSubscription;
-
-  Stream<ChatMessage> get updates => _messagesUpdatesController.stream;
-
-  @override
-  Future<void> close() async {
-    await _authChanges.cancel();
-    await _messagesUpdatesSubscription?.cancel();
-    await _messagesUpdatesController.close();
-    return super.close();
-  }
-
-  Future<void> _onAuthChanges(String userId) async {
-    if (userId.isEmpty) {
-      // User logged out
-      emit(ChatNewsState(cursor: _zeroAge, messages: {}, myId: userId));
-      await _messagesUpdatesSubscription?.cancel();
-      _messagesUpdatesSubscription = null;
-    } else {
-      // User logged in
-      emit(state.copyWith(status: StateStatus.isLoading));
-      await _chatRepository.syncMessagesFor(userId: userId);
-
-      var oldest = _zeroAge;
-      for (final message in await _chatRepository.getAllNewMessagesFor(
-        objectId: userId,
-      )) {
-        if (message.updatedAt.isAfter(oldest)) oldest = message.updatedAt;
-        _processMessage(message);
-      }
-      emit(
-        state.copyWith(
-          myId: userId,
-          cursor: DateTime.timestamp(),
-          status: StateStatus.isSuccess,
+  ChatNewsCubit(this._chatCase)
+    : super(
+        ChatNewsState(
+          myId: '',
+          messages: {},
+          lastUpdate: DateTime.timestamp(),
         ),
-      );
-      _messagesUpdatesSubscription = _chatRepository
-          .watchUpdates(fromMoment: oldest.toUtc())
-          .listen(
-            _onMessagesUpdate,
-            cancelOnError: false,
-            onError:
-                (Object e) => emit(state.copyWith(status: StateHasError(e))),
-          );
-    }
-  }
-
-  Future<void> _onMessagesUpdate(Iterable<ChatMessage> messages) async {
-    for (final message in messages) {
-      _messagesUpdatesController.add(message);
-      if (message.sender != state.myId) _processMessage(message);
-    }
-    emit(
-      ChatNewsState(
-        cursor: DateTime.timestamp(),
-        messages: state.messages,
-        myId: state.myId,
-      ),
+      ) {
+    _authChanges = _chatCase.authChanges.listen(
+      _onAuthChanges,
+      cancelOnError: false,
+      onError: (Object e) => emit(state.copyWith(status: StateHasError(e))),
+    );
+    _webSocketStateSubscription = _chatCase.webSocketState.listen(
+      _onWebSocketStateChanges,
+      cancelOnError: false,
+      onError: (Object e) => emit(state.copyWith(status: StateHasError(e))),
+    );
+    _messagesUpdatesSubscription = _chatCase.updates.listen(
+      _onMessagesUpdate,
+      cancelOnError: false,
+      onError: (Object e) => emit(state.copyWith(status: StateHasError(e))),
     );
   }
 
-  void _processMessage(ChatMessage message) {
-    if (message.status == ChatMessageStatus.sent) {
-      if (state.messages.containsKey(message.sender)) {
-        final messagesOfSender = state.messages[message.sender]!;
-        final index = messagesOfSender.indexWhere((e) => e.id == message.id);
-        if (index < 0) {
-          messagesOfSender.add(message);
-        } else {
-          messagesOfSender[index] = message;
-        }
-      } else {
-        state.messages[message.sender] = [message];
-      }
-    } else if (message.status == ChatMessageStatus.seen) {
-      state.messages[message.sender]?.removeWhere((e) => e.id == message.id);
+  final ChatCase _chatCase;
+
+  late final StreamSubscription<String> _authChanges;
+
+  late final StreamSubscription<WebSocketState> _webSocketStateSubscription;
+
+  late final StreamSubscription<Iterable<ChatMessageEntity>>
+  _messagesUpdatesSubscription;
+
+  //
+  @override
+  @disposeMethod
+  Future<void> close() async {
+    await _authChanges.cancel();
+    await _messagesUpdatesSubscription.cancel();
+    await _webSocketStateSubscription.cancel();
+    return super.close();
+  }
+
+  //
+  //
+  Future<void> _onWebSocketStateChanges(WebSocketState wsState) async {
+    if (wsState == WebSocketState.connected) {
+      _chatCase.subscribeToUpdates(
+        fromMoment: await _chatCase.getCursor(userId: state.myId),
+      );
     }
   }
 
-  static final _zeroAge = DateTime.fromMillisecondsSinceEpoch(0);
+  //
+  //
+  Future<void> _onAuthChanges(String userId) async {
+    _chatCase.logger.fine('[ChatNewsCubit] _onAuthChanges: $userId');
+    emit(
+      ChatNewsState(
+        myId: userId,
+        messages: {},
+        lastUpdate: DateTime.timestamp(),
+      ),
+    );
+
+    if (userId.isNotEmpty) {
+      emit(state.copyWith(status: StateStatus.isLoading));
+      try {
+        (await _chatCase.getUnseenMessagesFor(
+          userId: userId,
+        )).forEach(_updateStateWithMessage);
+        emit(state.copyWith(status: StateStatus.isSuccess));
+      } catch (e) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
+    }
+  }
+
+  //
+  //
+  Future<void> _onMessagesUpdate(Iterable<ChatMessageEntity> messages) async {
+    if (messages.isNotEmpty) {
+      messages.forEach(_updateStateWithMessage);
+
+      emit(state.copyWith(lastUpdate: DateTime.timestamp()));
+
+      await _chatCase.saveMessages(messages: messages);
+    }
+  }
+
+  //
+  //
+  void _updateStateWithMessage(ChatMessageEntity message) {
+    if (message.senderId == state.myId) {
+      return;
+    }
+
+    switch (message.status) {
+      case ChatMessageStatus.seen:
+        state.messages[message.senderId]?.removeWhere(
+          (e) => e.serverId == message.serverId,
+        );
+
+      case ChatMessageStatus.sent:
+        if (state.messages.containsKey(message.senderId)) {
+          final messagesOfSender = state.messages[message.senderId]!;
+          final index = messagesOfSender.indexWhere(
+            (e) => e.serverId == message.serverId,
+          );
+          index < 0
+              ? messagesOfSender.add(message)
+              : messagesOfSender[index] = message;
+        } else {
+          state.messages[message.senderId] = [message];
+        }
+
+      // ignore: no_default_cases //
+      default:
+    }
+  }
 }

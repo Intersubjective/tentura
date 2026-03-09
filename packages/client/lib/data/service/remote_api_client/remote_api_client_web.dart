@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'package:meta/meta.dart';
 import 'package:ferry/ferry.dart'
     show Client, OperationRequest, OperationResponse;
-import 'package:flutter/foundation.dart';
 
 import 'auth_box.dart';
 import 'build_client.dart';
@@ -19,6 +19,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
   Client? _gqlClient;
 
   @override
+  @mustCallSuper
   Future<String?> setAuth({
     required String seed,
     required AuthTokenFetcher authTokenFetcher,

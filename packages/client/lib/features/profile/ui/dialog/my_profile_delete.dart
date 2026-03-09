@@ -9,7 +9,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import '../bloc/profile_cubit.dart';
 
 class MyProfileDeleteDialog extends StatelessWidget {
-  static Future<void> show(BuildContext context) => showDialog<void>(
+  static Future<void> show(BuildContext context) => showAdaptiveDialog<void>(
     context: context,
     builder: (context) => const MyProfileDeleteDialog(),
   );

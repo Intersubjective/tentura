@@ -1,0 +1,52 @@
+name: 'Setup SSH'
+description: 'Setup SSH key and known hosts for VPS deployment. Secrets should be passed via environment variables (env:) for better security.'
+
+outputs:
+  vps-host:
+    description: 'VPS hostname'
+    value: ${{ steps.setup.outputs.vps-host }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate and setup SSH
+      id: setup
+      shell: bash
+      env:
+        VPS_HOST: ${{ env.VPS_HOST }}
+        VPS_SSH_KEY: ${{ env.VPS_SSH_KEY }}
+      run: |
+        set -euo pipefail
+        mkdir -p ~/.ssh
+        
+        # Mask sensitive values to prevent logging
+        if [ -n "$VPS_HOST" ]; then
+          echo "::add-mask::$VPS_HOST"
+        fi
+        if [ -n "$VPS_SSH_KEY" ]; then
+          echo "::add-mask::$VPS_SSH_KEY"
+        fi
+        
+        # Validate VPS host
+        if [ -z "$VPS_HOST" ]; then
+          echo "Error: VPS_HOST environment variable is not set"
+          exit 1
+        fi
+        
+        # Validate SSH key
+        if [ -z "$VPS_SSH_KEY" ]; then
+          echo "Error: VPS_SSH_KEY environment variable is not set"
+          exit 1
+        fi
+        
+        # Setup SSH key - write directly to file to avoid logging
+        # Use printf instead of echo to handle special characters safely
+        printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        # Add host to known_hosts (suppress verbose output)
+        ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+        
+        # Output VPS host for use in subsequent steps
+        echo "vps-host=$VPS_HOST" >> $GITHUB_OUTPUT
+

@@ -10,12 +10,12 @@ sealed class NodeDetails extends NodeBase {
   const NodeDetails({
     super.size = 40,
     super.pinned,
-    this.positionHint = 0,
+    this.positionHint,
   });
 
-  final int positionHint;
+  final int? positionHint;
 
-  NodeDetails copyWithPositionHint(int positionHint);
+  NodeDetails copyWithPositionHint(int? positionHint);
 
   @override
   NodeDetails copyWithPinned(bool isPinned);
@@ -82,6 +82,8 @@ final class UserNode extends NodeDetails {
   @override
   double get rScore => user.rScore;
 
+  bool get canSeeMe => user.isSeeingMe;
+
   @override
   UserNode copyWithPinned(bool isPinned) => UserNode(
     size: size,
@@ -91,7 +93,7 @@ final class UserNode extends NodeDetails {
   );
 
   @override
-  UserNode copyWithPositionHint(int positionHint) => UserNode(
+  UserNode copyWithPositionHint(int? positionHint) => UserNode(
     user: user,
     size: size,
     pinned: pinned,
@@ -136,7 +138,7 @@ final class BeaconNode extends NodeDetails {
   );
 
   @override
-  BeaconNode copyWithPositionHint(int positionHint) => BeaconNode(
+  BeaconNode copyWithPositionHint(int? positionHint) => BeaconNode(
     beacon: beacon,
     pinned: pinned,
     positionHint: positionHint,

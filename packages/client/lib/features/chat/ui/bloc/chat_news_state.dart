@@ -1,6 +1,6 @@
 import 'package:tentura/ui/bloc/state_base.dart';
 
-import '../../domain/entity/chat_message.dart';
+import '../../domain/entity/chat_message_entity.dart';
 
 part 'chat_news_state.freezed.dart';
 
@@ -8,8 +8,8 @@ part 'chat_news_state.freezed.dart';
 abstract class ChatNewsState extends StateBase with _$ChatNewsState {
   const factory ChatNewsState({
     required String myId,
-    required DateTime cursor,
-    required Map<String, List<ChatMessage>> messages,
+    required DateTime lastUpdate,
+    required Map<String, List<ChatMessageEntity>> messages,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ChatNewsState;
 

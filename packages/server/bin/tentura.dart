@@ -1,28 +1,20 @@
 import 'dart:io';
-import 'package:args/args.dart';
 
 import 'package:tentura_server/app/app.dart';
 
 import 'utils/issue_jwt.dart';
-import 'utils/calculate_blur_hashes.dart';
-
-const kJwtKeyName = 'jwt';
-const kBlurKeyName = 'blur';
+import 'utils/convert_images.dart';
 
 Future<void> main(List<String> args) async {
-  if (args.isEmpty) {
-    await const App().run();
-  } else {
-    ArgParser()
-      ..addCommand(kBlurKeyName)
-      ..addCommand(
-        kJwtKeyName,
-        ArgParser()..addOption('sub', callback: issueJwt),
-      )
-      ..parse(args);
-    if (args.contains(kBlurKeyName)) {
-      await const BlurHashCalculator().calculateBlurHashes();
-    }
+  switch (args.firstOrNull) {
+    case null:
+      await App().run();
+
+    case 'jwt':
+      issueJwt(args);
+
+    case 'convert_images':
+      await convertImages();
   }
   exit(0);
 }

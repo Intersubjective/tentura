@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/dialog/qr_scan_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -16,21 +15,11 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
   const AuthLoginScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider(
-    create: (_) => ScreenCubit(),
-    child: MultiBlocListener(
-      listeners: [
-        const BlocListener<ScreenCubit, ScreenState>(
-          listener: commonScreenBlocListener,
-        ),
-        BlocListener<AuthCubit, AuthState>(
-          bloc: GetIt.I<AuthCubit>(),
-          listener: commonScreenBlocListener,
-        ),
-      ],
-      child: this,
-    ),
-  );
+  Widget wrappedRoute(BuildContext context) =>
+      BlocListener<ScreenCubit, ScreenState>(
+        listener: commonScreenBlocListener,
+        child: this,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +32,7 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
         return Scaffold(
           appBar: AppBar(
             centerTitle: true,
+            automaticallyImplyLeading: false,
             title: Text(l10n.chooseAccount),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(4),
@@ -54,13 +44,14 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
               ),
             ),
           ),
-          body: SafeArea(
-            minimum: kPaddingH,
+          body: Padding(
+            padding: kPaddingH,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 if (state.accounts.isEmpty)
+                  // No accounts yet
                   Padding(
                     padding: kPaddingAll,
                     child: Text(
@@ -87,10 +78,9 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
                 Padding(
                   padding: kPaddingAll,
                   child: OutlinedButton(
-                    onPressed:
-                        () async => authCubit.addAccount(
-                          await QRScanDialog.show(context),
-                        ),
+                    onPressed: () async => authCubit.addAccount(
+                      await QRScanDialog.show(context),
+                    ),
                     child: Text(l10n.recoverFromQR),
                   ),
                 ),
@@ -104,6 +94,28 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
                   ),
                 ),
 
+                // Info for new users
+                Padding(
+                  padding: kPaddingAll,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.firstTimeHerePrefix,
+                        textAlign: TextAlign.center,
+                      ),
+                      TextButton(
+                        onPressed: authCubit.openInviteEmailUrl,
+                        child: Text(authCubit.inviteEmail),
+                      ),
+                      Text(
+                        l10n.firstTimeHereSuffix,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+
                 const Spacer(),
 
                 // Create new account
@@ -112,11 +124,7 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
                       kPaddingAll +
                       const EdgeInsets.only(bottom: 60 - kSpacingMedium),
                   child: FilledButton(
-                    onPressed: () async {
-                      await context.navigateNamedTo(kPathSignUp);
-                      // TBD: use ScreenCubit
-                      // context.read<ScreenCubit>().showProfileCreator();
-                    },
+                    onPressed: context.read<ScreenCubit>().showProfileCreator,
                     child: Text(l10n.createNewAccount),
                   ),
                 ),

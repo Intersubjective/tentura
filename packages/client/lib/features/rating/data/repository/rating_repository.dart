@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/consts.dart';
+// import 'package:tentura/consts.dart';
+import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
@@ -18,26 +19,14 @@ class RatingRepository {
       _remoteApiService
           .request(
             GRatingFetchReq(
-              (r) =>
-                  r
-                    ..context = const Context().withEntry(
-                      HttpLinkHeaders(headers: {kHeaderQueryContext: context}),
-                    )
-                    ..vars.context = context,
+              (r) => r
+                // ..context = const Context().withEntry(
+                //   HttpLinkHeaders(headers: {kHeaderQueryContext: context}),
+                // )
+                ..vars.context = context,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then((r) => r.dataOrThrow(label: _label).rating)
-          .then(
-            (r) => r.map(
-              (e) => Profile(
-                id: e.user?.id ?? '',
-                title: e.user?.title ?? '',
-                myVote: e.user?.my_vote ?? 0,
-                hasAvatar: e.user?.has_picture ?? false,
-                score: double.tryParse(e.dst_score?.value ?? '') ?? 0,
-                rScore: double.tryParse(e.src_score?.value ?? '') ?? 0,
-              ),
-            ),
-          );
+          .then((r) => r.map((e) => (e.user! as UserModel).toEntity()));
 }

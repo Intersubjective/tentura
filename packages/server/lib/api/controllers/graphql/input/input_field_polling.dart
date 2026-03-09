@@ -21,7 +21,7 @@ abstract class InputFieldPolling {
   static ({String? question, List<String>? variants})? fromArgs(
     Map<String, dynamic> args,
   ) => switch (args[_fieldKey]) {
-    final Map<dynamic, dynamic> p => (
+    final Map<dynamic, dynamic> p when p.isNotEmpty => (
       question: p[_questionKey] as String?,
       variants: p[_variantsKey] as List<String>?,
     ),

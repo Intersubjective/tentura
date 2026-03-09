@@ -4,19 +4,16 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        // Local
         {
-            "name": "tentura (Dev, debug)",
+            "name": "tentura (local)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "debug",
             "toolArgs": [
                 "--flavor",
                 "prod",
-				"--dart-define-from-file=.env",
-				"--dart-define",
-				"SERVER_NAME=https://dev.tentura.io",
-				"--dart-define",
-				"NEED_INVITE_CODE=true",
+				"--dart-define-from-file=env/local.env",
             ],
         },
         {
@@ -25,17 +22,26 @@
             "type": "dart",
             "flutterMode": "debug",
             "toolArgs": [
-				"--dart-define-from-file=.env",
-                "--dart-define",
-                "SERVER_NAME=https://localhost",
+				"--dart-define-from-file=env/local-web.env",
             ],
             "args": [
                 "-d", "chrome",
                 "--web-port", "8888",
-                "--web-experimental-hot-reload",
                 "--web-browser-flag=--disable-web-security",
                 "--web-browser-flag=--ignore-certificate-errors",
             ]
+        },
+        // Dev
+        {
+            "name": "tentura (Dev, debug)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug",
+            "toolArgs": [
+                "--flavor",
+                "prod",
+				"--dart-define-from-file=env/dev.env",
+            ],
         },
         {
             "name": "tentura-web (Dev, debug)",
@@ -43,19 +49,16 @@
             "type": "dart",
             "flutterMode": "debug",
             "toolArgs": [
-				"--dart-define-from-file=.env",
-				"--dart-define",
-				"NEED_INVITE_CODE=true",
-				"--dart-define",
-				"SERVER_NAME=https://dev.tentura.io",
+				"--dart-define-from-file=env/dev-web.env",
             ],
             "args": [
                 "-d", "chrome",
                 "--web-port", "8888",
-                "--web-experimental-hot-reload",
                 "--web-browser-flag=--disable-web-security",
+                "--web-browser-flag=--ignore-certificate-errors",
             ]
         },
+        // Stage
         {
             "name": "tentura-stage (debug)",
             "request": "launch",
@@ -69,6 +72,7 @@
                 "SERVER_NAME=https://stage.tentura.io",
             ],
         },
+        // Prod
         {
             "name": "tentura-web (Prod, debug)",
             "request": "launch",
@@ -84,8 +88,8 @@
             "args": [
                 "-d", "chrome",
                 "--web-port", "8888",
-                "--web-experimental-hot-reload",
                 "--web-browser-flag=--disable-web-security",
+                "--web-browser-flag=--ignore-certificate-errors",
             ]
         },
         {
@@ -132,6 +136,7 @@
                 "--wasm",
                 "--web-port", "8888",
                 "--web-browser-flag=--disable-web-security",
+                "--web-browser-flag=--ignore-certificate-errors",
             ]
         },
   ],

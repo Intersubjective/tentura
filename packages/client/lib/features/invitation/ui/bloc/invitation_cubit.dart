@@ -1,3 +1,5 @@
+// TBD: move not void public methods into state
+// ignore_for_file: prefer_void_public_cubit_methods
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class BeaconPublishDialog extends StatelessWidget {
-  static Future<bool?> show(BuildContext context) => showDialog<bool>(
+  static Future<bool?> show(BuildContext context) => showAdaptiveDialog<bool>(
     context: context,
     builder: (_) => const BeaconPublishDialog(),
   );

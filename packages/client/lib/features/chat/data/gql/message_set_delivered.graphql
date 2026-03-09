@@ -1,6 +1,0 @@
-mutation MessageSetDelivered($id: uuid!) {
-  update_message_by_pk(pk_columns: {id: $id}) {
-    delivered
-    updated_at
-  }
-}

@@ -36,17 +36,19 @@ class OpinionRepository {
   }) => _remoteApiService
       .request(
         GOpinionsFetchByUserIdReq(
-          (b) =>
-              b.vars
-                ..objectId = userId
-                ..offset = offset
-                ..limit = limit,
+          (b) => b.vars
+            ..objectId = userId
+            ..offset = offset
+            ..limit = limit,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).opinions)
       .then(
-        (v) => v.map((e) => (e.opinion! as OpinionModel).asEntity).toList(),
+        (v) => v
+            .where((e) => e.opinion != null)
+            .map((e) => (e.opinion! as OpinionModel).asEntity)
+            .toList(),
       );
 
   Future<Opinion> createOpinion({
@@ -56,11 +58,10 @@ class OpinionRepository {
   }) => _remoteApiService
       .request(
         GOpinionCreateReq(
-          (b) =>
-              b.vars
-                ..amount = amount
-                ..content = content
-                ..objectId = userId,
+          (b) => b.vars
+            ..amount = amount
+            ..content = content
+            ..objectId = userId,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)

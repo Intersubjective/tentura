@@ -3,16 +3,39 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'utils/ui_utils.dart';
 
-const primaryColor = Color(0xFF3A1E5C);
-
-final themeLight = _createAppTheme(
-  ColorScheme.fromSeed(seedColor: primaryColor),
+const colorSchemeLight = ColorScheme(
+  brightness: Brightness.light,
+  primary: Color(0xFF014F86),
+  onPrimary: Color(0xFFE5E7EB),
+  secondary: Color(0xFF6CBCE3),
+  onSecondary: Color(0xFFE1E1E1),
+  error: Color(0xFFD14343),
+  onError: Colors.white,
+  surface: Color(0xFFF4F4F4),
+  surfaceContainer: Colors.white,
+  onSurface: Color(0xFF1A1A1A),
+  onSurfaceVariant: Color(0xFF4B5563),
+  outlineVariant: Color(0xFF4B5563),
+  primaryFixed: Color(0xFF014F86),
 );
-final themeDark = _createAppTheme(
-  ColorScheme.fromSeed(brightness: Brightness.dark, seedColor: primaryColor),
+
+const colorSchemeDark = ColorScheme(
+  brightness: Brightness.dark,
+  primary: Color(0xFF6CBCE3),
+  onPrimary: Color(0xFF0A1826),
+  secondary: Color(0xFF014F86),
+  onSecondary: Color(0xFFE1E1E1),
+  error: Color(0xFFD14343),
+  onError: Colors.white,
+  surface: Color(0xFF0A1826),
+  surfaceContainer: Color(0xFF1D2935),
+  onSurface: Color(0xFFE1E1E1),
+  onSurfaceVariant: Color(0xFFE5E7EB),
+  outlineVariant: Color(0xFF444746),
+  primaryFixed: Color(0xFF014F86),
 );
 
-ThemeData _createAppTheme(ColorScheme colorScheme) {
+ThemeData createAppTheme(ColorScheme colorScheme) {
   final buttonShape = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(kBorderRadius),
   );
@@ -29,12 +52,29 @@ ThemeData _createAppTheme(ColorScheme colorScheme) {
     scaffoldBackgroundColor: colorScheme.surface,
     unselectedWidgetColor: colorScheme.onSurface,
 
-    //Dialog
-    dialogTheme: DialogThemeData(backgroundColor: colorScheme.surfaceContainer),
+    // Dialog
+    dialogTheme: DialogThemeData(
+      backgroundColor: colorScheme.surfaceContainer,
+    ),
+
+    // DropdownMenu
+    dropdownMenuTheme: const DropdownMenuThemeData(
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(),
+      ),
+    ),
 
     // Elevated Button
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(shape: buttonShape),
+    ),
+
+    // Outlined Button
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: buttonShape,
+        side: BorderSide(color: colorScheme.outlineVariant),
+      ),
     ),
 
     expansionTileTheme: ExpansionTileThemeData(
@@ -47,7 +87,7 @@ ThemeData _createAppTheme(ColorScheme colorScheme) {
     ),
 
     // Icon
-    iconTheme: IconThemeData(color: colorScheme.onSurface),
+    iconTheme: IconThemeData(color: colorScheme.primary),
 
     //Snack Bar
     snackBarTheme: SnackBarThemeData(
@@ -79,5 +119,11 @@ ThemeData _createAppTheme(ColorScheme colorScheme) {
           bodyColor: colorScheme.onSurface,
           displayColor: colorScheme.onSurface,
         ),
+
+    //
+    chipTheme: ChipThemeData(
+      labelStyle: TextStyle(color: colorScheme.onPrimary),
+      backgroundColor: colorScheme.primary,
+    ),
   );
 }

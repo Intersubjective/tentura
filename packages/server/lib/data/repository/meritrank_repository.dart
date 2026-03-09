@@ -4,7 +4,13 @@ import 'package:injectable/injectable.dart';
 
 import '../database/tentura_db.dart';
 
-@Injectable(env: [Environment.dev, Environment.prod], order: 1)
+@Injectable(
+  env: [
+    Environment.dev,
+    Environment.prod,
+  ],
+  order: 1,
+)
 class MeritrankRepository {
   const MeritrankRepository(this._database);
 
@@ -26,7 +32,7 @@ class MeritrankRepository {
     Duration timeout = const Duration(minutes: 10),
   }) => _database
       .customSelect(
-        'SELECT mr_zerorec(\$1, \$2)',
+        'SELECT mr_recalculate_clustering(\$1, \$2)',
         variables: [
           Variable<bool>(isBlocking),
           Variable<int>(timeout.inMilliseconds),

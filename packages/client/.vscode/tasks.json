@@ -12,11 +12,7 @@
 				"--pwa-strategy",
 				"none",
 				"--source-maps",
-				"--dart-define-from-file=.env",
-				"--dart-define",
-				"NEED_INVITE_CODE=true",
-				"--dart-define",
-				"SERVER_NAME=https://dev.tentura.io",
+				"--dart-define-from-file=env/dev-web.env",
 			],
 			"group": {
 				"kind": "build",

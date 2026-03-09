@@ -12,14 +12,20 @@ import '../bloc/opinion_cubit.dart';
 import '../dialog/opinion_delete_dialog.dart';
 
 class OpinionTile extends StatelessWidget {
-  const OpinionTile({required this.opinion, this.isMine = false, super.key});
+  const OpinionTile({
+    required this.opinion,
+    this.isMine = false,
+    super.key,
+  });
 
   final Opinion opinion;
+
   final bool isMine;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
     final screenCubit = context.read<ScreenCubit>();
     return Column(
       children: [
@@ -29,11 +35,9 @@ class OpinionTile extends StatelessWidget {
           children: [
             // Avatar
             GestureDetector(
-              onTap: () {
-                if (!isMine) {
-                  screenCubit.showProfile(opinion.author.id);
-                }
-              },
+              onTap: isMine
+                  ? null
+                  : () => screenCubit.showProfile(opinion.author.id),
               child: Padding(
                 padding: const EdgeInsets.only(right: kSpacingMedium),
                 child: AvatarRated.small(
@@ -49,10 +53,21 @@ class OpinionTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Title
-                  Text(
-                    isMine ? l10n.labelMe : opinion.author.title,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
+                  if (isMine)
+                    Text(
+                      l10n.labelMe,
+                      style: theme.textTheme.headlineMedium,
+                    )
+                  else
+                    GestureDetector(
+                      onTap: () => screenCubit.showProfile(opinion.author.id),
+                      child: Text(
+                        opinion.author.title,
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
 
                   // Opinion
                   Padding(
@@ -60,6 +75,7 @@ class OpinionTile extends StatelessWidget {
                     child: ShowMoreText(
                       opinion.content,
                       style: ShowMoreText.buildTextStyle(context),
+                      colorClickableText: theme.colorScheme.primary,
                     ),
                   ),
                 ],

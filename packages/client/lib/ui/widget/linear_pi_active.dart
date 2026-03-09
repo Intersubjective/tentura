@@ -30,6 +30,7 @@ class _LinearPiActiveState extends State<LinearPiActive>
   void initState() {
     _controller
       ..addListener(() => setState(() {}))
+      // ignore: discarded_futures //
       ..repeat();
     super.initState();
   }

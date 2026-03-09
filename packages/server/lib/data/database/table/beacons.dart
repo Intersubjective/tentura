@@ -5,11 +5,12 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 
 import '../common_fields.dart';
+import 'images.dart';
 import 'pollings.dart';
 import 'users.dart';
 
 class Beacons extends Table
-    with TitleDescriptionFields, TimestampsFields, TickerFields, ImageFields {
+    with TitleDescriptionFields, TimestampsFields, TickerFields {
   late final id = text().clientDefault(() => BeaconEntity.newId)();
 
   @ReferenceName('author')
@@ -18,6 +19,10 @@ class Beacons extends Table
   late final isEnabled = boolean()
       .named('enabled')
       .withDefault(const Constant(true))();
+
+  late final imageId = customType(
+    PgTypes.uuid,
+  ).nullable().references(Images, #id)();
 
   late final context = text().nullable().withLength(
     min: kTitleMinLength,
@@ -33,6 +38,8 @@ class Beacons extends Table
   late final endAt = customType(PgTypes.timestampWithTimezone).nullable()();
 
   late final pollingId = text().nullable().references(Pollings, #id)();
+
+  late final tags = text().withDefault(const Constant(''))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

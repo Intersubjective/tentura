@@ -1,8 +1,13 @@
+import 'dart:convert';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura_server/consts.dart';
+
 import '../enum.dart';
+import '../exception.dart';
 
 part 'jwt_entity.freezed.dart';
+part 'jwt_entity.g.dart';
 
 @freezed
 abstract class JwtEntity with _$JwtEntity {
@@ -35,6 +40,9 @@ abstract class JwtEntity with _$JwtEntity {
     @Default('') String rawToken,
   }) = _JwtEntity;
 
+  factory JwtEntity.fromJson(Map<String, dynamic> json) =>
+      _$JwtEntityFromJson(json);
+
   const JwtEntity._();
 
   /// Signature algorythm
@@ -50,4 +58,12 @@ abstract class JwtEntity with _$JwtEntity {
     'token_type': 'bearer',
     'access_token': rawToken,
   };
+
+  String get asJson => jsonEncode(toJson());
+
+  void validate() {
+    if (sub.length != kIdLength || !RegExp(r'^U[0-9a-f]+$').hasMatch(sub)) {
+      throw IdWrongException(id: sub);
+    }
+  }
 }

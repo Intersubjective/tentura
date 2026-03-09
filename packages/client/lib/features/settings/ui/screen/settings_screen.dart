@@ -2,9 +2,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/ui/l10n/l10n.dart';
-
 import 'package:tentura/ui/dialog/show_seed_dialog.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/settings_cubit.dart';
@@ -26,8 +25,21 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final cubit = GetIt.I<SettingsCubit>();
     final l10n = L10n.of(context)!;
+    final visibleVersion = cubit.state.visibleVersion;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.labelSettings)),
+      appBar: AppBar(
+        title: Text(l10n.labelSettings),
+        actions: visibleVersion != null && visibleVersion.isNotEmpty
+            ? [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    right: kSpacingMedium,
+                  ),
+                  child: Text(visibleVersion),
+                ),
+              ]
+            : null,
+      ),
       body: Padding(
         padding: kPaddingAll,
         child: Column(
@@ -37,19 +49,19 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
             const ThemeSwitchButton(),
 
             // Seed
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               icon: const Icon(Icons.remove_red_eye_outlined),
               label: Text(l10n.showSeed),
               onPressed: () async {
-                final (:id, :seed) = await cubit.getAccountSeed();
+                final seed = await cubit.getCurrentAccountSeed();
                 if (context.mounted) {
-                  await ShowSeedDialog.show(context, seed: seed, accountId: id);
+                  await ShowSeedDialog.show(context, seed: seed);
                 }
               },
             ),
 
             // Intro
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               icon: const Icon(Icons.reset_tv),
               label: Text(l10n.showIntroAgain),
               onPressed: () => cubit.setIntroEnabled(true),
@@ -62,6 +74,7 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
               label: Text(l10n.logout),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor:  Theme.of(context).colorScheme.onError,
               ),
             ),
           ],

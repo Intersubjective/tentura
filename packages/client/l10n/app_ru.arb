@@ -80,8 +80,10 @@
   "@buttonScanQR": {
     "context": "Utils"
   },
-
-
+  "tagsText": "Тэги",
+  "@tagsText": {
+    "context": "Utils"
+  },
   "invitationCodeTooShort": "Код слишком короткий",
   "@invitationCodeTooShort": {
     "context": "CommonErrors"
@@ -106,8 +108,6 @@
   "@descriptionTooLong": {
     "context": "CommonErrors"
   },
-
-
   "createNewAccount": "Создать аккаунт",
   "@createNewAccount": {
     "context": "AccountAddDialog, AuthLoginScreen"
@@ -115,6 +115,14 @@
   "labelInvitationCode": "Код приглашения",
   "@labelInvitationCode": {
     "context": "AccountAddDialog"
+  },
+  "firstTimeHerePrefix": "Впервые тут? Мы работаем по инвайтам. Получить инвайт можно вот здесь: ",
+  "firstTimeHereSuffix": "Пишите!",
+  "@firstTimeHerePrefix": {
+    "context": "AuthLoginScreen"
+  },
+  "@firstTimeHereSuffix": {
+    "context": "AuthLoginScreen"
   },
   "pleaseEnterCode": "Введите код приглашения",
   "@pleaseEnterCode": {
@@ -156,18 +164,22 @@
   "@removeFromList": {
     "context": "AccountListTile"
   },
-
-
   "invitationScreenTitle": "Приглашения",
   "@invitationScreenTitle": {
     "context": "InvitationScreen"
   },
-
+  "friendsTitle": "Друзья",
+  "@friendsTitle": {
+    "context": "FriendsScreen"
+  },
   "invitationsShowMenuItem": "Посмотреть приглашения",
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
   },
-
+  "confirmInvitationRemoval": "Вы уверены, что хотите отменить приглашение? После этого человек не сможет зарегистрироваться.",
+  "@confirmInvitationRemoval": {
+    "context": "InvitationRemoveDialog"
+  },
   "confirmBeaconRemoval": "Вы уверены, что хотите удалить этот маяк?",
   "@confirmBeaconRemoval": {
     "context": "BeaconDeleteDialog"
@@ -204,6 +216,54 @@
   "@showOnMap": {
     "context": "BeaconInfo"
   },
+  "createNewBeacon": "Создать маяк",
+  "@createNewBeacon": {
+    "context": "BeaconCreateScreen"
+  },
+  "setDisplayPeriod": "Укажите период",
+  "@setDisplayPeriod": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconTitleRequired": "Название маяка (обязательно)",
+  "@beaconTitleRequired": {
+    "context": "BeaconCreateScreen"
+  },
+  "buttonPublish": "Опубликовать",
+  "@buttonPublish": {
+    "context": "BeaconCreateScreen"
+  },
+  "addLocation": "Добавить место",
+  "@addLocation": {
+    "context": "BeaconCreateScreen"
+  },
+  "attachImage": "Прикрепить изображение",
+  "@attachImage": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconInfo": "Инфо",
+  "@beaconInfo": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconImage": "Изображение",
+  "@beaconImage": {
+    "context": "BeaconCreateScreen"
+  },
+  "createBeaconErrorTooShortQuestion": "слишком короткий вопрос",
+  "@createBeaconErrorTooShortQuestion": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateSuccess": "Маяк успешно создан!",
+  "@beaconCreateSuccess": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateError": "Что-то пошло не так, маяк не создан. Попробуйте ещё раз.",
+  "@beaconCreateError": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconViewButton": "Посмотреть",
+  "@beaconViewButton": {
+    "context": "BeaconCreateScreen"
+  },
   "confirmBeaconPublishing": "Вы уверены, что хотите опубликовать этот маяк?",
   "@confirmBeaconPublishing": {
     "context": "BeaconPublishDialog"
@@ -212,32 +272,6 @@
   "@confirmBeaconPublishingHint": {
     "context": "BeaconPublishDialog"
   },
-  "createNewBeacon": "Создать маяк",
-  "@createNewBeacon": {
-    "context": "BeaconCreateScreen"
-  },
-  "setDisplayPeriod": "Выберите период отображения",
-  "@setDisplayPeriod": {
-    "context": "DateRangeInput"
-  },
-  "beaconTitleRequired": "Название маяка (обязательно)",
-  "@beaconTitleRequired": {
-    "context": "TitleInput"
-  },
-  "buttonPublish": "Опубликовать",
-  "@buttonPublish": {
-    "context": "PublishButton"
-  },
-  "addLocation": "Добавить место",
-  "@addLocation": {
-    "context": "LocationInput"
-  },
-  "attachImage": "Прикрепить изображение",
-  "@attachImage": {
-    "context": "LocationInput"
-  },
-
-  
   "labelComments": "Комментарии",
   "@labelComments": {
     "context": "Comments"
@@ -270,7 +304,7 @@
   "@labelComplaintType": {
     "context": "ComplaintScreen"
   },
-  "detailsRequired": "Подробности*",
+  "detailsRequired": "Подробности, минимум 3 символа",
   "@detailsRequired": {
     "context": "ComplaintScreen"
   },
@@ -290,7 +324,10 @@
   "@buttonSubmitComplaint": {
     "context": "ComplaintScreen"
   },
-
+  "filterByTag": "Фильтр по тегу",
+  "@filterByTag": {
+    "context": "MyFieldScreen"
+  },
   "writeCodeHere": "Если у вас есть код, введите его здесь:",
   "@writeCodeHere": {
     "context": "ConnectScreen"
@@ -307,7 +344,6 @@
   "@codeNotFoundError": {
     "context": "ConnectScreen"
   },
-
   "addNewTopic": "Добавить новую тему",
   "@addNewTopic": {
     "context": "Topics"
@@ -343,7 +379,6 @@
       }
     }
   },
-
   "tapToChooseLocation": "Нажмите, чтобы выбрать место",
   "@tapToChooseLocation": {
     "context": "ChooseLocationDialog"
@@ -468,6 +503,26 @@
   "@searchBy": {
     "context": "RatingScreen"
   },
+  "scatterView": "Диаграмма",
+  "@scatterView": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyIdols": "мои кумиры",
+  "@quadrantMyIdols": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyFriends": "мои друзья",
+  "@quadrantMyFriends": {
+    "context": "RatingScreen"
+  },
+  "quadrantAcquaintances": "знакомые",
+  "@quadrantAcquaintances": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyFans": "мои фанаты",
+  "@quadrantMyFans": {
+    "context": "RatingScreen"
+  },
   "showIntroAgain": "Показать интро снова",
   "@showIntroAgain": {
     "context": "SettingsScreen"
@@ -516,7 +571,6 @@
   "@shareLink": {
     "context": "ShareCodeDialog"
   },
-
   "addPollOption": "Добавить голосование",
   "@addPollOption": {
     "context": "BeaconCreateScreen"
@@ -579,5 +633,13 @@
   "closeButton": "Закрыть",
   "@closeButton": {
     "context": "PollDialog"
+  },
+  "addTagText": "Добавить тэг",
+  "@addTagText": {
+    "context": "AddTagDialog"
+  },
+  "enterTagNameHint": "Введите имя тэга",
+  "@enterTagNameHint": {
+    "context": "AddTagDialog"
   }
 }

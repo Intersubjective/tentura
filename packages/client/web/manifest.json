@@ -1,25 +1,37 @@
 {
-    "name": "Tentura",
-    "short_name": "Tentura",
-    "start_url": ".",
-    "display": "standalone",
-    "background_color": "#3A1E5C",
-    "theme_color": "#3A1E5C",
-    "description": "Social network for communities",
-    "orientation": "portrait-primary",
-    "prefer_related_applications": true,
-    "icons": [
-        {
-            "src": "icons/Icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "icons/Icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        }
-    ],
-    "manifest_version": 3,
-    "version": "1.1.4"
+  "name": "Tentura",
+  "short_name": "Tentura",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#3A1E5C",
+  "theme_color": "#3A1E5C",
+  "description": "Social network for communities",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": true,
+  "manifest_version": 3,
+  "version": "1.4.1",
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/Icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }

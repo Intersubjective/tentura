@@ -1,6 +1,6 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/consts.dart';
+// import 'package:tentura/consts.dart';
 import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -25,16 +25,15 @@ class GraphRepository {
   }) => _remoteApiService
       .request(
         GGraphFetchReq(
-          (b) =>
-              b
-                ..context = const Context().withEntry(
-                  HttpLinkHeaders(headers: {kHeaderQueryContext: context}),
-                )
-                ..vars.focus = focus
-                ..vars.limit = limit
-                ..vars.offset = offset
-                ..vars.context = context
-                ..vars.positive_only = positiveOnly,
+          (b) => b
+            // ..context = const Context().withEntry(
+            //   HttpLinkHeaders(headers: {kHeaderQueryContext: context}),
+            // )
+            ..vars.focus = focus
+            ..vars.limit = limit
+            ..vars.offset = offset
+            ..vars.context = context
+            ..vars.positive_only = positiveOnly,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -51,7 +50,7 @@ class GraphRepository {
                 src: e.src!,
                 dst: e.dst!,
                 weight: weight,
-                node: BeaconNode(beacon: (beacon as BeaconModel).toEntity),
+                node: BeaconNode(beacon: (beacon as BeaconModel).toEntity()),
               ));
             }
           } else {
@@ -59,7 +58,7 @@ class GraphRepository {
               src: e.src!,
               dst: e.dst!,
               weight: weight,
-              node: UserNode(user: (user as UserModel).toEntity),
+              node: UserNode(user: (user as UserModel).toEntity()),
             ));
           }
         }

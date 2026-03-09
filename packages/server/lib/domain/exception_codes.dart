@@ -8,6 +8,7 @@ enum GeneralExceptionCode {
   unspecifiedException,
   idWrongException,
   idNotFoundException,
+  idDuplicateException,
 }
 
 class GeneralExceptionCodes extends ExceptionCodes {
@@ -21,7 +22,7 @@ class GeneralExceptionCodes extends ExceptionCodes {
   int get codeNumber => codeSpace + exceptionCode.index;
 }
 
-//Auth
+// Auth
 
 enum AuthExceptionCode {
   unspecifiedException,

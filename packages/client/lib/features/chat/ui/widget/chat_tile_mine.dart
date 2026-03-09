@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import '../../domain/entity/chat_message.dart';
+import '../../domain/entity/chat_message_entity.dart';
 
 class ChatTileMine extends StatelessWidget {
   const ChatTileMine({
@@ -10,7 +10,7 @@ class ChatTileMine extends StatelessWidget {
     super.key,
   });
 
-  final ChatMessage message;
+  final ChatMessageEntity message;
 
   @override
   Widget build(BuildContext context) {

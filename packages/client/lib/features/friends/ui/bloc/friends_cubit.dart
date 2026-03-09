@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 
-import 'package:tentura/features/auth/data/repository/auth_repository.dart';
+import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
@@ -19,9 +19,9 @@ class FriendsCubit extends Cubit<FriendsState> {
     this._invitationRepository,
     this._likeRemoteRepository,
     this._friendsRemoteRepository,
-    AuthRepository _authRepository,
+    AuthCase _authCase,
   ) : super(const FriendsState(friends: {})) {
-    _authChanges = _authRepository.currentAccountChanges().listen(
+    _authChanges = _authCase.currentAccountChanges().listen(
       _onAuthChanged,
       cancelOnError: false,
     );
@@ -53,7 +53,11 @@ class FriendsCubit extends Cubit<FriendsState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final friends = await _friendsRemoteRepository.fetch();
-      emit(FriendsState(friends: {for (final e in friends) e.id: e}));
+      emit(
+        FriendsState(
+          friends: {for (final e in friends) e.id: e},
+        ),
+      );
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -70,7 +74,9 @@ class FriendsCubit extends Cubit<FriendsState> {
   void _onAuthChanged(String userId) {
     // ignore: prefer_const_constructors //
     emit(FriendsState(friends: {}));
-    if (userId.isNotEmpty) fetch();
+    if (userId.isNotEmpty) {
+      unawaited(fetch());
+    }
   }
 
   void _onFriendsChanged(Profile profile) {

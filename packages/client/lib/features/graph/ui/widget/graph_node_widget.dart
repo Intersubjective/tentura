@@ -8,11 +8,13 @@ import '../../domain/entity/node_details.dart';
 class GraphNodeWidget extends StatelessWidget {
   const GraphNodeWidget({
     required this.nodeDetails,
+    this.withRating = false,
     this.onDoubleTap,
     this.onTap,
     super.key,
   });
 
+  final bool withRating;
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
@@ -22,13 +24,16 @@ class GraphNodeWidget extends StatelessWidget {
     final widget = SizedBox.square(
       dimension: nodeDetails.size,
       child: switch (nodeDetails) {
+        //
         final UserNode userNode => AvatarRated(
-            profile: userNode.user,
-            size: nodeDetails.size,
-          ),
+          profile: userNode.user,
+          size: nodeDetails.size,
+          withRating: withRating,
+        ),
+        //
         final BeaconNode beaconNode => BeaconImage(
-            beacon: beaconNode.beacon,
-          ),
+          beacon: beaconNode.beacon,
+        ),
       },
     );
     return onTap == null && onDoubleTap == null

@@ -1,25 +1,21 @@
-<!DOCTYPE html>
-<html>
-  <head>
+<!DOCTYPE html><html><head>
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Social network for communities">
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#3A1E5C">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#3A1E5C">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#3A1E5C">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="mobile-web-app-capable" content="yes">
-
-  <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Tentura">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
 
-  <!-- Favicon -->
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
 
   <title>Tentura</title>
-  <link rel="manifest" href="manifest.json">
+
   <style id="splash-screen-style">
     html {
       height: 100%
@@ -28,8 +24,8 @@
     body {
       margin: 0;
       min-height: 100%;
-      background-color: #3A1E5C;
-          background-size: 100% 100%;
+      background-size: 100% 100%;
+      background-color: #F4F4F4;
     }
 
     .center {
@@ -42,19 +38,22 @@
     }
 
     .contain {
-      display:block;
-      width:100%; height:100%;
+      display: block;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
     }
 
     .stretch {
-      display:block;
-      width:100%; height:100%;
+      display: block;
+      width: 100%;
+      height: 100%;
     }
 
     .cover {
-      display:block;
-      width:100%; height:100%;
+      display: block;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
     }
 
@@ -80,7 +79,7 @@
 
     @media (prefers-color-scheme: dark) {
       body {
-        background-color: #3A1E5C;
+        background-color: #0A1826;
       }
     }
   </style>
@@ -94,10 +93,26 @@
 </head>
 <body>
   <picture id="splash">
-      <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
-      <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
-      <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
+    <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
+    <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
+    <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
   </picture>
-  <script src="flutter_bootstrap.js?v=1.1.4" async></script>
-</body>
-</html>
+
+  <script src="flutter_bootstrap.js?v=1.4.1" async=""></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        try {
+          navigator.serviceWorker.register('firebase-messaging-sw.js', {
+            scope: '/firebase-cloud-messaging-push-scope',
+          });
+          console.info('Service worker has been registered!');
+        } catch (e) {
+          console.error('Failed to register service worker:', e);
+        }
+      });
+    }
+  </script>
+
+</body></html>

@@ -1,5 +1,6 @@
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+
+import '../../domain/entity/account_entity.dart';
 
 part 'auth_state.freezed.dart';
 
@@ -8,7 +9,7 @@ abstract class AuthState extends StateBase with _$AuthState {
   const factory AuthState({
     required DateTime updatedAt,
     @Default('') String currentAccountId,
-    @Default([]) List<Profile> accounts,
+    @Default([]) List<AccountEntity> accounts,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _AuthState;
 
@@ -18,8 +19,9 @@ abstract class AuthState extends StateBase with _$AuthState {
 
   bool get isNotAuthenticated => currentAccountId.isEmpty;
 
-  Profile get currentAccount =>
-      currentAccountId.isEmpty
-          ? const Profile()
-          : accounts.singleWhere((e) => e.id == currentAccountId);
+  AccountEntity get currentAccount => currentAccountId.isEmpty
+      ? const AccountEntity(id: '')
+      : accounts.singleWhere((e) => e.id == currentAccountId);
+
+  bool checkIfIsMe(String id) => id == currentAccountId;
 }

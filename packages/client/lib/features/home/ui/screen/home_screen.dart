@@ -23,8 +23,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   const HomeScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider(
-    create: (_) => ScreenCubit(),
+  Widget wrappedRoute(BuildContext context) => BlocProvider.value(
+    value: GetIt.I<ScreenCubit>(),
     child: MultiBlocListener(
       listeners: [
         const BlocListener<ScreenCubit, ScreenState>(
@@ -36,8 +36,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
           listener: commonScreenBlocListener,
         ),
         // Context
-        BlocListener<ContextCubit, ContextState>(
-          bloc: GetIt.I<ContextCubit>(),
+        const BlocListener<ContextCubit, ContextState>(
           listener: commonScreenBlocListener,
         ),
         // ChatNews
@@ -77,34 +76,37 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
     return AutoTabsScaffold(
-      bottomNavigationBuilder: (_, tabsRouter) => NavigationBar(
-        onDestinationSelected: tabsRouter.setActiveIndex,
-        selectedIndex: tabsRouter.activeIndex,
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(TenturaIcons.home),
-            label: l10n.myField,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.star_border),
-            label: l10n.favorites,
-          ),
-          NavigationDestination(
-            icon: const Icon(TenturaIcons.affiliation),
-            label: l10n.connect,
-          ),
-          NavigationDestination(
-            icon: const FriendsNavbarItem(),
-            label: l10n.friends,
-          ),
-          NavigationDestination(
-            icon: const ProfileNavBarItem(),
-            label: l10n.profile,
-          ),
-        ],
-      ),
+      bottomNavigationBuilder: (context, tabsRouter) {
+        final l10n = L10n.of(context)!;
+        return NavigationBar(
+          onDestinationSelected: tabsRouter.setActiveIndex,
+          indicatorColor: Theme.of(context).colorScheme.primaryFixed,
+          selectedIndex: tabsRouter.activeIndex,
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(TenturaIcons.home),
+              label: l10n.myField,
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.star_border),
+              label: l10n.favorites,
+            ),
+            NavigationDestination(
+              icon: const Icon(TenturaIcons.affiliation),
+              label: l10n.connect,
+            ),
+            NavigationDestination(
+              icon: const FriendsNavbarItem(),
+              label: l10n.friends,
+            ),
+            NavigationDestination(
+              icon: const ProfileNavBarItem(),
+              label: l10n.profile,
+            ),
+          ],
+        );
+      },
       resizeToAvoidBottomInset: false,
       routes: const [
         MyFieldRoute(),

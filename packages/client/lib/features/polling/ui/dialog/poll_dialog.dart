@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/polling.dart';
@@ -11,7 +12,7 @@ class PollDialog extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required Polling polling,
-  }) => showDialog<void>(
+  }) => showAdaptiveDialog<void>(
     context: context,
     builder: (_) => PollDialog(
       polling: polling,
@@ -36,19 +37,19 @@ class PollDialogState extends State<PollDialog> {
   @override
   void initState() {
     super.initState();
-    _pollingCubit.fetch();
+    unawaited(_pollingCubit.fetch());
   }
 
   @override
   void dispose() {
-    _pollingCubit.close();
+    unawaited(_pollingCubit.close());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog.adaptive(
+    contentPadding: kPaddingAll,
     insetPadding: kPaddingAll,
-    contentPadding: kPaddingV + kPaddingH,
     scrollable: true,
 
     // Title

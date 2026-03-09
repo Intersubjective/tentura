@@ -1,1 +1,0 @@
-enum ComplaintType { violatesCsaePolicy, violatesPlatformRules }

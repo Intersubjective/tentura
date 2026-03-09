@@ -2,93 +2,114 @@ name: tentura
 description: 'Social network for communities'
 publish_to: 'none'
 
-version: 1.1.4
+version: 1.4.1
 
 environment:
-  sdk: '>=3.8.1 <4.0.0'
-  flutter: ^3.32.4
+  sdk: ^3.10.7
+  flutter: ^3.38.7
+
+resolution: workspace
 
 dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+
+  # From Workspace
+  http:
+  meta:
+  uuid:
+  drift:
+  image:
+  get_it:
+  logging:
+  latlong2:
+  drift_dev:
+  collection:
+  injectable:
   tentura_root:
-    path: ../../
+  json_annotation:
+  dart_jsonwebtoken:
+  freezed_annotation:
 
   # Common
-  uuid: ^4.4.2
-  get_it: ^8.0.3
-  logger: ^2.5.0
-  latlong2: ^0.9.1
-  injectable: ^2.5.0
-  auto_route: ^9.0.0
-  collection: ^1.19.1
-  built_value: ^8.9.5
+  auto_route: ^11.1.0
   http_parser: ^4.1.2
+  built_value: ^8.12.3
   flutter_bloc: ^9.1.1
-  synchronized: ^3.3.0
-  sentry_drift: ^9.0.0
-  sentry_flutter: ^9.0.0
-  json_annotation: ^4.9.0
-  ed25519_edwards: ^0.3.1
+  synchronized: ^3.4.0
   built_collection: ^5.1.1
-  intl_translation: ^0.20.1
-  dart_jsonwebtoken: ^3.2.0
-  freezed_annotation: ^2.4.4
 
-  # Platform
-  http: ^1.2.2
-  drift: ^2.26.1
-  ferry: ^0.16.0
-  mailto: ^2.0.0
-  gql_exec: ^1.0.0
+  # Platform related
+  web: ^1.1.1
   geocoding: ^4.0.0
-  drift_dev: ^2.26.0
-  geolocator: ^14.0.1
-  share_plus: ^11.0.0
-  image_picker: ^1.1.2
-  url_launcher: ^6.3.1
-  drift_flutter: ^0.2.4
-  gql_http_link: ^1.1.0
-  share_handler: ^0.0.22
-  mobile_scanner: ^7.0.1
-  gql_error_link: ^1.0.0
-  gql_dedupe_link: ^2.0.3
-  gql_websocket_link: ^2.0.1
-  flutter_secure_storage: ^10.0.0-beta.4
+  geolocator: ^14.0.2
+  share_plus: ^12.0.1
+  image_picker: ^1.2.1
+  url_launcher: ^6.3.2
+  drift_flutter: ^0.2.8
+  firebase_core: ^4.4.0
+  share_handler: ^0.0.25
+  mobile_scanner: ^7.1.4
+  package_info_plus: ^9.0.0
+  firebase_messaging: ^16.1.1
+  flutter_native_splash: ^2.4.7
+  flutter_secure_storage: ^10.0.0
+
+  # Logs & Stats
+  sentry_drift: ^9.10.0
+  sentry_flutter: ^9.10.0
+
+  # Remote API related
+  ferry: ^0.16.2-dev.4
+  gql_exec: ^1.0.0
+  gql_http_link: ^1.2.0
+  gql_error_link: ^1.0.1
+  gql_dedupe_link: ^4.0.0
+  ed25519_edwards: ^0.3.1
+  web_socket_client: ^0.2.1
 
   # UI related
   nil: ^1.1.1
   intl: ^0.20.2
-  image: ^4.5.4
   readmore: ^3.0.0
   qr_flutter: ^4.1.0
-  flutter_map: ^8.1.1
-  flutter_svg: ^2.2.0
-  google_fonts: ^6.2.1
-  validatorless: ^1.2.4
+  flutter_map: ^8.2.2
+  flutter_svg: ^2.2.3
+  google_fonts: ^7.0.2
+  validatorless: ^1.2.5
   blurhash_shader: ^1.1.2
   vector_graphics: ^1.1.19
   visibility_detector: ^0.4.0
-  flutter_native_splash: ^2.4.6
   force_directed_graphview: ^0.6.2
   scrollable_positioned_list: ^0.3.8
-  flutter_map_cancellable_tile_provider: ^3.0.0
+
+  # Build time
+  html: ^0.15.6
+  hooks: ^1.0.0
+  pubspec_parse: ^1.5.0
+  pretty_print_json: ^1.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  lints: ^6.0.0
-  freezed: ^2.5.7
-  build_runner: ^2.5.3
+  integration_test:
+    sdk: flutter
+
+  # From Workspace
+  lints:
+  freezed:
+  build_runner:
+  json_serializable:
+  very_good_analysis:
+  injectable_generator:
+
+  bloc_lint: ^0.3.5
   flutter_lints: ^6.0.0
-  ferry_generator: ^0.12.0
-  json_serializable: ^6.9.0
-  sentry_dart_plugin: ^2.4.1
-  very_good_analysis: ^9.0.0
-  auto_route_generator: ^9.0.0
-  injectable_generator: ^2.6.2
+  ferry_generator: ^0.14.0-dev.2
+  sentry_dart_plugin: ^3.0.0
+  auto_route_generator: ^10.4.0
   flutter_launcher_icons: ^0.14.4
 
 flutter:

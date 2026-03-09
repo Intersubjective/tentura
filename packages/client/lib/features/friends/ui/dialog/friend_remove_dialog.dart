@@ -9,7 +9,7 @@ import '../bloc/friends_cubit.dart';
 
 class FriendRemoveDialog extends StatelessWidget {
   static Future<void> show(BuildContext context, {required Profile profile}) =>
-      showDialog(
+      showAdaptiveDialog(
         context: context,
         builder: (_) => FriendRemoveDialog(profile: profile),
       );

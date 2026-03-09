@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -26,11 +27,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _commentRepository = commentRepository ?? GetIt.I<CommentRepository>(),
        super(_idToState(id, myProfile)) {
-    state.hasFocusedComment
-        // Show Beacon with one Comment
-        ? _fetchBeaconByCommentId()
-        // show Beacon with all Comments
-        : _fetchBeaconByIdWithComments();
+    unawaited(
+      state.hasFocusedComment
+          // Show Beacon with one Comment
+          ? _fetchBeaconByCommentId()
+          // show Beacon with all Comments
+          : _fetchBeaconByIdWithComments(),
+    );
   }
 
   final BeaconRepository _beaconRepository;
@@ -41,7 +44,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _beaconRepository.delete(beaconId);
-      emit(state.copyWith(status: StateIsNavigating.back()));
+      emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -89,8 +92,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       emit(
         state.copyWith(
           status: StateStatus.isSuccess,
-          comments:
-              state.comments..add(comment.copyWith(author: state.myProfile)),
+          comments: state.comments
+            ..add(comment.copyWith(author: state.myProfile)),
         ),
       );
     } catch (e) {

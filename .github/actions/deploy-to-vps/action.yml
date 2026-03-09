@@ -1,0 +1,75 @@
+name: 'Deploy to VPS'
+description: 'Deploy web archive to VPS server via SSH'
+
+inputs:
+  archive-pattern:
+    description: 'Pattern to match web archive (e.g., web-dev-*.tar.gz)'
+    required: true
+  archive-name:
+    description: 'Archive name for remote extraction (e.g., web-dev-*.tar.gz)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check VPS deployment configuration
+      id: check-vps
+      shell: bash
+      run: |
+        set -euo pipefail
+        VPS_HOST="${{ secrets.VPS_SSH_HOST }}"
+        if [ -z "$VPS_HOST" ]; then
+          echo "VPS_SSH_HOST secret is not set. Skipping deployment."
+          echo "deploy_enabled=false" >> $GITHUB_OUTPUT
+        else
+          echo "VPS_SSH_HOST is configured. Proceeding with deployment."
+          echo "deploy_enabled=true" >> $GITHUB_OUTPUT
+          echo "vps_host=$VPS_HOST" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Download web archive
+      if: steps.check-vps.outputs.deploy_enabled == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: web-archives
+        pattern: ${{ inputs.archive-pattern }}
+
+    - name: Setup SSH
+      if: steps.check-vps.outputs.deploy_enabled == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        VPS_HOST="${{ steps.check-vps.outputs.vps_host }}"
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+    - name: Copy web archive to VPS
+      if: steps.check-vps.outputs.deploy_enabled == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        VPS_HOST="${{ steps.check-vps.outputs.vps_host }}"
+        scp -i ~/.ssh/deploy_key ${{ inputs.archive-pattern }} deploy@"$VPS_HOST":/tmp/
+
+    - name: Deploy to VPS
+      if: steps.check-vps.outputs.deploy_enabled == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        VPS_HOST="${{ steps.check-vps.outputs.vps_host }}"
+        ssh -i ~/.ssh/deploy_key deploy@"$VPS_HOST" << EOF
+          set -euo pipefail
+          cd /srv/tentura_server || { echo "Deployment directory not found"; exit 1; }
+          
+          # Run deployment script
+          if [ ! -f ./deploy.sh ]; then
+            echo "Error: deploy.sh not found in deployment directory" >&2
+            exit 1
+          fi
+          
+          chmod +x ./deploy.sh
+          ./deploy.sh /tmp/${{ inputs.archive-name }}
+        EOF
+

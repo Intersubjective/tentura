@@ -2,19 +2,22 @@ import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'identifiable.dart';
+
 part 'image_entity.freezed.dart';
 
 @freezed
-abstract class ImageEntity with _$ImageEntity {
+abstract class ImageEntity with _$ImageEntity implements Identifiable {
   const factory ImageEntity({
-    required Uint8List imageBytes,
-    @Default('') String fileName,
+    @Default('') String id,
+    @Default('') String authorId,
+    @Default('') String blurHash,
+    @Default(0) int height,
+    @Default(0) int width,
     @Default('image/jpeg') String mimeType,
+    @Default('') String fileName,
+    Uint8List? imageBytes,
   }) = _ImageEntity;
 
-  factory ImageEntity.empty() => ImageEntity(imageBytes: Uint8List(0));
-
   const ImageEntity._();
-
-  bool get isEmpty => imageBytes.isEmpty;
 }

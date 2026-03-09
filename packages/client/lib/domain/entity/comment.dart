@@ -7,7 +7,7 @@ import 'profile.dart';
 part 'comment.freezed.dart';
 
 @freezed
-class Comment with _$Comment implements Likable {
+abstract class Comment with _$Comment implements Likable {
   const factory Comment({
     required DateTime createdAt,
     @Default('') String id,

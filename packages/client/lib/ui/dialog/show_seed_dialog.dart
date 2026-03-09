@@ -2,27 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
-
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/qr_code.dart';
 
 class ShowSeedDialog extends StatelessWidget {
   static Future<void> show(
     BuildContext context, {
-    required String accountId,
     required String seed,
-  }) => showDialog(
+  }) => showAdaptiveDialog(
     context: context,
-    builder: (context) => ShowSeedDialog(accountId: accountId, seed: seed),
+    builder: (_) => ShowSeedDialog(seed: seed),
   );
 
   const ShowSeedDialog({
-    required this.accountId,
     required this.seed,
     super.key,
   });
 
-  final String accountId;
   final String seed;
 
   @override

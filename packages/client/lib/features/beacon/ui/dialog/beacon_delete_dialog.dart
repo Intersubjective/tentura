@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class BeaconDeleteDialog extends StatelessWidget {
-  static Future<bool?> show(BuildContext context) =>
-      showDialog(context: context, builder: (_) => const BeaconDeleteDialog());
+  static Future<bool?> show(BuildContext context) => showAdaptiveDialog(
+    context: context,
+    builder: (_) => const BeaconDeleteDialog(),
+  );
 
   const BeaconDeleteDialog({super.key});
 

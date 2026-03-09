@@ -5,7 +5,7 @@ import 'package:tentura/domain/enum.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import '../../domain/entity/chat_message.dart';
+import '../../domain/entity/chat_message_entity.dart';
 import '../bloc/chat_cubit.dart';
 
 class ChatTileSender extends StatelessWidget {
@@ -14,7 +14,7 @@ class ChatTileSender extends StatelessWidget {
     super.key,
   });
 
-  final ChatMessage message;
+  final ChatMessageEntity message;
 
   @override
   Widget build(BuildContext context) {

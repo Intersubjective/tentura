@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/chat_news_cubit.dart';
 
 class ChatPeerListTile extends StatelessWidget {
-  const ChatPeerListTile({required this.profile, super.key});
+  const ChatPeerListTile({
+    required this.profile,
+    super.key,
+  });
 
   final Profile profile;
 
@@ -23,37 +24,29 @@ class ChatPeerListTile extends StatelessWidget {
         child: AvatarRated.small(profile: profile),
       ),
 
-      title: Row(
-        children: [
-          // Title
-          Text(profile.title),
-
-          // An Eye
-          Padding(
-            padding: kPaddingH,
-            child: Icon(
-              profile.isSeeingMe
-                  ? TenturaIcons.eyeOpen
-                  : TenturaIcons.eyeClosed,
-            ),
-          ),
-        ],
+      // Title
+      title: Text(
+        profile.title,
+        style: profile.isSeeingMe
+            ? const TextStyle(decoration: TextDecoration.underline)
+            : null,
       ),
 
       // New messages indicator
       trailing: BlocSelector<ChatNewsCubit, ChatNewsState, int>(
         bloc: GetIt.I<ChatNewsCubit>(),
         selector: (state) => state.messages[profile.id]?.length ?? 0,
-        builder:
-            (_, newMessagesCount) => Badge.count(
-              count: newMessagesCount,
-              isLabelVisible: newMessagesCount > 0,
-              backgroundColor: colorScheme.primaryContainer,
-              textColor: colorScheme.onPrimaryContainer,
-            ),
+        builder: (_, newMessagesCount) => Badge.count(
+          count: newMessagesCount,
+          isLabelVisible: newMessagesCount > 0,
+          backgroundColor: colorScheme.primaryContainer,
+          textColor: colorScheme.onPrimaryContainer,
+        ),
       ),
 
-      onTap: () => context.read<ScreenCubit>().showChatWith(profile.id),
+      onTap: profile.isSeeingMe
+          ? () => context.read<ScreenCubit>().showChatWith(profile.id)
+          : null,
     );
   }
 }

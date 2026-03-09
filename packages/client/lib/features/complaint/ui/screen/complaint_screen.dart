@@ -3,18 +3,20 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/deep_back_button.dart';
 
-import '../../domain/enum.dart';
 import '../bloc/complaint_cubit.dart';
 
 @RoutePage()
 class ComplaintScreen extends StatefulWidget implements AutoRouteWrapper {
-  const ComplaintScreen({@queryParam this.id = '', super.key});
+  const ComplaintScreen({
+    @PathParam('id') this.id = '',
+    super.key,
+  });
 
   final String id;
 
@@ -52,7 +54,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(_l10n.submitComplaint),
-      leading: const DeepBackButton(),
+      leading: const AutoLeadingButton(),
     ),
     body: Form(
       key: _formKey,
@@ -62,9 +64,10 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
           // Type
           BlocSelector<ComplaintCubit, ComplaintState, ComplaintType>(
             selector: (state) => state.type,
-            builder: (context, type) {
-              return DropdownButtonFormField<ComplaintType>(
-                value: type,
+            builder: (_, type) => Theme(
+              data: ThemeData.from(colorScheme: Theme.of(context).colorScheme),
+              child: DropdownButtonFormField<ComplaintType>(
+                initialValue: type,
                 items: [
                   DropdownMenuItem(
                     value: ComplaintType.violatesCsaePolicy,
@@ -80,9 +83,8 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                   labelText: _l10n.labelComplaintType,
                   border: const OutlineInputBorder(),
                 ),
-                dropdownColor: Theme.of(context).colorScheme.secondaryContainer,
-              );
-            },
+              ),
+            ),
           ),
 
           // Details
@@ -90,6 +92,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
             padding: kPaddingV,
             child: TextFormField(
               maxLines: 5,
+              autofocus: true,
               decoration: InputDecoration(
                 labelText: _l10n.detailsRequired,
                 border: const OutlineInputBorder(),
@@ -124,9 +127,6 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
               onPressed: () async {
                 if (_formKey.currentState?.validate() ?? false) {
                   await _cubit.submit();
-                  if (context.mounted) {
-                    context.read<ScreenCubit>().back();
-                  }
                 }
               },
               child: Text(_l10n.buttonSubmitComplaint),

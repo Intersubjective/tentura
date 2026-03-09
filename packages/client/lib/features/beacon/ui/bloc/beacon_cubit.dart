@@ -4,6 +4,8 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/auth/data/repository/auth_local_repository.dart';
+
 import '../../data/repository/beacon_repository.dart';
 import '../../domain/enum.dart';
 import 'beacon_state.dart';
@@ -15,19 +17,31 @@ export 'beacon_state.dart';
 
 class BeaconCubit extends Cubit<BeaconState> {
   BeaconCubit({
-    required bool isMine,
     required String profileId,
     BeaconRepository? beaconRepository,
+    AuthLocalRepository? authLocalRepository,
   }) : _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
-       super(BeaconState(profileId: profileId, isMine: isMine, beacons: []));
+       _authLocalRepository =
+           authLocalRepository ?? GetIt.I<AuthLocalRepository>(),
+       super(
+         BeaconState(
+           beacons: [],
+           profileId: profileId,
+         ),
+       );
 
   final BeaconRepository _beaconRepository;
 
+  final AuthLocalRepository _authLocalRepository;
+
   Future<void> fetch() async {
-    if (state.hasReachedLast || state.status is StateIsLoading) return;
+    if (state.hasReachedLast || state.status is StateIsLoading) {
+      return;
+    }
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      final myAccountId = await _authLocalRepository.getCurrentAccountId();
       final beacons = await _beaconRepository.fetchBeacons(
         isEnabled: state.filter == BeaconFilter.enabled,
         offset: state.beacons.length,
@@ -35,6 +49,7 @@ class BeaconCubit extends Cubit<BeaconState> {
       );
       emit(
         state.copyWith(
+          isMine: myAccountId == state.profileId,
           beacons: state.beacons..addAll(beacons),
           hasReachedLast: beacons.length < kFetchWindowSize,
           status: StateStatus.isSuccess,
@@ -45,10 +60,17 @@ class BeaconCubit extends Cubit<BeaconState> {
     }
   }
 
-  void toggleFilter(BeaconFilter? filter) {
-    if (filter == null) return;
-    emit(state.copyWith(filter: filter, hasReachedLast: false, beacons: []));
-    fetch();
+  void setFilter(BeaconFilter? filter) {
+    if (filter != null) {
+      emit(
+        state.copyWith(
+          filter: filter,
+          hasReachedLast: false,
+          beacons: [],
+        ),
+      );
+      unawaited(fetch());
+    }
   }
 
   Future<void> delete(String beaconId) async {
@@ -67,7 +89,10 @@ class BeaconCubit extends Cubit<BeaconState> {
     try {
       final beaconIndex = state.beacons.indexWhere((e) => e.id == beaconId);
       final beacon = state.beacons[beaconIndex];
-      await _beaconRepository.setEnabled(!beacon.isEnabled, id: beacon.id);
+      await _beaconRepository.setEnabled(
+        !beacon.isEnabled,
+        id: beacon.id,
+      );
       state.beacons[beaconIndex] = beacon.copyWith(
         isEnabled: !beacon.isEnabled,
       );

@@ -14,22 +14,20 @@ final class MutationInvitation extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get accept => GraphQLObjectField(
     'invitationAccept',
     graphQLBoolean.nonNullable(),
-    arguments: [InputFieldId.fieldNonNullable],
-    resolve:
-        (_, args) => _invitationCase.accept(
-          invitationId: InputFieldId.fromArgsNonNullable(args),
-          userId: getCredentials(args).sub,
-        ),
+    arguments: [InputFieldId.field],
+    resolve: (_, args) => _invitationCase.accept(
+      invitationId: InputFieldId.fromArgsNonNullable(args),
+      userId: getCredentials(args).sub,
+    ),
   );
 
   GraphQLObjectField<dynamic, dynamic> get delete => GraphQLObjectField(
     'invitationDelete',
     graphQLBoolean.nonNullable(),
-    arguments: [InputFieldId.fieldNonNullable],
-    resolve:
-        (_, args) => _invitationCase.delete(
-          invitationId: InputFieldId.fromArgsNonNullable(args),
-          userId: getCredentials(args).sub,
-        ),
+    arguments: [InputFieldId.field],
+    resolve: (_, args) => _invitationCase.delete(
+      invitationId: InputFieldId.fromArgsNonNullable(args),
+      userId: getCredentials(args).sub,
+    ),
   );
 }

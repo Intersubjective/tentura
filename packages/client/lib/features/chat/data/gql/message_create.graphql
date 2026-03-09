@@ -1,6 +1,0 @@
-mutation MessageCreate($object: String!, $message: String!) {
-  insert_message_one(object: {object: $object, message: $message}) {
-    id
-    created_at
-  }
-}

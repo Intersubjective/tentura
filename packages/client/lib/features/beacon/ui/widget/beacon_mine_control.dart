@@ -27,7 +27,7 @@ class BeaconMineControl extends StatelessWidget {
           icon: const Icon(Icons.hub_outlined),
           onPressed: beacon.myVote < 0
               ? null
-              : () => context.read<ScreenCubit>().showGraph(beacon.id),
+              : () => context.read<ScreenCubit>().showGraphFor(beacon.id),
         ),
 
         // Share

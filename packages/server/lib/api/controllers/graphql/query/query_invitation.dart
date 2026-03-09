@@ -15,13 +15,11 @@ final class QueryInvitation extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get invitationById => GraphQLObjectField(
     'invitationById',
     gqlTypeInvitation,
-    arguments: [InputFieldId.fieldNonNullable],
-    resolve:
-        (_, args) => _invitationCase
-            .fetchById(
-              invitationId: InputFieldId.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-            )
-            .then((e) => e?.asMap),
+    arguments: [InputFieldId.field],
+    resolve: (_, args) => _invitationCase
+        .fetchById(
+          invitationId: InputFieldId.fromArgsNonNullable(args),
+        )
+        .then((e) => e.asMap),
   );
 }

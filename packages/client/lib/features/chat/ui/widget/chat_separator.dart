@@ -4,7 +4,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import '../../domain/entity/chat_message.dart';
+import '../../domain/entity/chat_message_entity.dart';
 
 class ChatSeparator extends StatelessWidget {
   const ChatSeparator({
@@ -13,8 +13,8 @@ class ChatSeparator extends StatelessWidget {
     super.key,
   });
 
-  final ChatMessage currentMessage;
-  final ChatMessage nextMessage;
+  final ChatMessageEntity currentMessage;
+  final ChatMessageEntity nextMessage;
 
   @override
   Widget build(BuildContext context) {

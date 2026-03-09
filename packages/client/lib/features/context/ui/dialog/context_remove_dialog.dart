@@ -6,7 +6,7 @@ class ContextRemoveDialog extends StatelessWidget {
   static Future<bool?> show(
     BuildContext context, {
     required String contextName,
-  }) => showDialog<bool>(
+  }) => showAdaptiveDialog<bool>(
     context: context,
     builder: (_) => ContextRemoveDialog(contextName: contextName),
   );

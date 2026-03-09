@@ -9,6 +9,7 @@ part 'settings_state.freezed.dart';
 @freezed
 abstract class SettingsState extends StateBase with _$SettingsState {
   const factory SettingsState({
+    String? visibleVersion,
     @Default('en') String locale,
     @Default(true) bool introEnabled,
     @Default(ThemeMode.system) ThemeMode themeMode,

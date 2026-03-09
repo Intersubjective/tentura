@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class OpinionPublishDialog extends StatelessWidget {
-  static Future<int?> show(BuildContext context) => showDialog(
+  static Future<int?> show(BuildContext context) => showAdaptiveDialog(
     context: context,
     builder: (_) => const OpinionPublishDialog(),
   );

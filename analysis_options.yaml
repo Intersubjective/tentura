@@ -3,8 +3,8 @@ include:
 
 analyzer:
   exclude:
-    - "temp/*.dart"
-    - "packages/"
+    - "packages/widgetbook/**"
+    - "temp/**"
 
 linter:
   rules:

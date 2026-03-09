@@ -45,7 +45,6 @@ type beacon {
     """filter the rows returned"""
     where: beacon_pinned_bool_exp
   ): [beacon_pinned!]!
-  blur_hash: String!
 
   """An array relationship"""
   comments(
@@ -69,8 +68,11 @@ type beacon {
   description: String!
   enabled: Boolean!
   end_at: timestamptz
-  has_picture: Boolean!
   id: String!
+
+  """An object relationship"""
+  image: image
+  image_id: uuid
 
   """
   A computed field, executes function "beacon_get_is_pinned"
@@ -83,8 +85,6 @@ type beacon {
   A computed field, executes function "beacon_get_my_vote"
   """
   my_vote: Int
-  pic_height: Int!
-  pic_width: Int!
 
   """An object relationship"""
   polling: polling
@@ -110,6 +110,7 @@ type beacon {
     where: mutual_score_bool_exp
   ): [mutual_score!]
   start_at: timestamptz
+  tags: String!
   title: String!
   updated_at: timestamptz!
   user_id: String!
@@ -160,8 +161,6 @@ order by avg() on columns of table "beacon"
 input beacon_avg_order_by {
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
 }
 
 """
@@ -173,25 +172,24 @@ input beacon_bool_exp {
   _or: [beacon_bool_exp!]
   author: user_bool_exp
   beacon_pinneds: beacon_pinned_bool_exp
-  blur_hash: String_comparison_exp
   comments: comment_bool_exp
   context: String_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
   enabled: Boolean_comparison_exp
   end_at: timestamptz_comparison_exp
-  has_picture: Boolean_comparison_exp
   id: String_comparison_exp
+  image: image_bool_exp
+  image_id: uuid_comparison_exp
   is_pinned: Boolean_comparison_exp
   lat: float8_comparison_exp
   long: float8_comparison_exp
   my_vote: Int_comparison_exp
-  pic_height: Int_comparison_exp
-  pic_width: Int_comparison_exp
   polling: polling_bool_exp
   polling_id: String_comparison_exp
   scores: mutual_score_bool_exp
   start_at: timestamptz_comparison_exp
+  tags: String_comparison_exp
   title: String_comparison_exp
   updated_at: timestamptz_comparison_exp
   user_id: String_comparison_exp
@@ -202,18 +200,17 @@ input beacon_bool_exp {
 order by max() on columns of table "beacon"
 """
 input beacon_max_order_by {
-  blur_hash: order_by
   context: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
   id: order_by
+  image_id: order_by
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
   polling_id: order_by
   start_at: order_by
+  tags: order_by
   title: order_by
   updated_at: order_by
   user_id: order_by
@@ -223,18 +220,17 @@ input beacon_max_order_by {
 order by min() on columns of table "beacon"
 """
 input beacon_min_order_by {
-  blur_hash: order_by
   context: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
   id: order_by
+  image_id: order_by
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
   polling_id: order_by
   start_at: order_by
+  tags: order_by
   title: order_by
   updated_at: order_by
   user_id: order_by
@@ -255,25 +251,24 @@ type beacon_mutation_response {
 input beacon_order_by {
   author: user_order_by
   beacon_pinneds_aggregate: beacon_pinned_aggregate_order_by
-  blur_hash: order_by
   comments_aggregate: comment_aggregate_order_by
   context: order_by
   created_at: order_by
   description: order_by
   enabled: order_by
   end_at: order_by
-  has_picture: order_by
   id: order_by
+  image: image_order_by
+  image_id: order_by
   is_pinned: order_by
   lat: order_by
   long: order_by
   my_vote: order_by
-  pic_height: order_by
-  pic_width: order_by
   polling: polling_order_by
   polling_id: order_by
   scores_aggregate: mutual_score_aggregate_order_by
   start_at: order_by
+  tags: order_by
   title: order_by
   updated_at: order_by
   user_id: order_by
@@ -422,9 +417,6 @@ select columns of table "beacon"
 """
 enum beacon_select_column {
   """column name"""
-  blur_hash
-
-  """column name"""
   context
 
   """column name"""
@@ -440,10 +432,10 @@ enum beacon_select_column {
   end_at
 
   """column name"""
-  has_picture
+  id
 
   """column name"""
-  id
+  image_id
 
   """column name"""
   lat
@@ -452,16 +444,13 @@ enum beacon_select_column {
   long
 
   """column name"""
-  pic_height
-
-  """column name"""
-  pic_width
-
-  """column name"""
   polling_id
 
   """column name"""
   start_at
+
+  """column name"""
+  tags
 
   """column name"""
   title
@@ -486,8 +475,6 @@ order by stddev() on columns of table "beacon"
 input beacon_stddev_order_by {
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
 }
 
 """
@@ -496,8 +483,6 @@ order by stddev_pop() on columns of table "beacon"
 input beacon_stddev_pop_order_by {
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
 }
 
 """
@@ -506,8 +491,6 @@ order by stddev_samp() on columns of table "beacon"
 input beacon_stddev_samp_order_by {
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
 }
 
 """
@@ -523,20 +506,18 @@ input beacon_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input beacon_stream_cursor_value_input {
-  blur_hash: String
   context: String
   created_at: timestamptz
   description: String
   enabled: Boolean
   end_at: timestamptz
-  has_picture: Boolean
   id: String
+  image_id: uuid
   lat: float8
   long: float8
-  pic_height: Int
-  pic_width: Int
   polling_id: String
   start_at: timestamptz
+  tags: String
   title: String
   updated_at: timestamptz
   user_id: String
@@ -548,8 +529,6 @@ order by sum() on columns of table "beacon"
 input beacon_sum_order_by {
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
 }
 
 input beacon_updates {
@@ -566,8 +545,6 @@ order by var_pop() on columns of table "beacon"
 input beacon_var_pop_order_by {
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
 }
 
 """
@@ -576,8 +553,6 @@ order by var_samp() on columns of table "beacon"
 input beacon_var_samp_order_by {
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
 }
 
 """
@@ -586,8 +561,6 @@ order by variance() on columns of table "beacon"
 input beacon_variance_order_by {
   lat: order_by
   long: order_by
-  pic_height: order_by
-  pic_width: order_by
 }
 
 """
@@ -937,6 +910,87 @@ input graph_args {
 }
 
 """
+columns and relationships of "image"
+"""
+type image {
+  author_id: String!
+  created_at: timestamptz!
+  hash: String!
+  height: Int!
+  id: uuid!
+  width: Int!
+}
+
+"""
+Boolean expression to filter rows from the table "image". All fields are combined with a logical 'AND'.
+"""
+input image_bool_exp {
+  _and: [image_bool_exp!]
+  _not: image_bool_exp
+  _or: [image_bool_exp!]
+  author_id: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  hash: String_comparison_exp
+  height: Int_comparison_exp
+  id: uuid_comparison_exp
+  width: Int_comparison_exp
+}
+
+"""Ordering options when selecting data from "image"."""
+input image_order_by {
+  author_id: order_by
+  created_at: order_by
+  hash: order_by
+  height: order_by
+  id: order_by
+  width: order_by
+}
+
+"""
+select columns of table "image"
+"""
+enum image_select_column {
+  """column name"""
+  author_id
+
+  """column name"""
+  created_at
+
+  """column name"""
+  hash
+
+  """column name"""
+  height
+
+  """column name"""
+  id
+
+  """column name"""
+  width
+}
+
+"""
+Streaming cursor of the table "image"
+"""
+input image_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: image_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input image_stream_cursor_value_input {
+  author_id: String
+  created_at: timestamptz
+  hash: String
+  height: Int
+  id: uuid
+  width: Int
+}
+
+"""
 Boolean expression to compare columns of type "Int". All fields are combined with logical 'AND'.
 """
 input Int_comparison_exp {
@@ -1093,154 +1147,11 @@ enum invitation_update_column {
   _PLACEHOLDER
 }
 
-"""
-columns and relationships of "message"
-"""
-type message {
-  created_at: timestamptz!
-  delivered: Boolean!
-  id: uuid!
-  message: String!
-  object: String!
-  subject: String!
-  updated_at: timestamptz!
-}
-
-"""
-Boolean expression to filter rows from the table "message". All fields are combined with a logical 'AND'.
-"""
-input message_bool_exp {
-  _and: [message_bool_exp!]
-  _not: message_bool_exp
-  _or: [message_bool_exp!]
-  created_at: timestamptz_comparison_exp
-  delivered: Boolean_comparison_exp
-  id: uuid_comparison_exp
-  message: String_comparison_exp
-  object: String_comparison_exp
-  subject: String_comparison_exp
-  updated_at: timestamptz_comparison_exp
-}
-
-"""
-unique or primary key constraints on table "message"
-"""
-enum message_constraint {
-  """
-  unique or primary key constraint on columns "id"
-  """
-  message_pkey
-}
-
-"""
-input type for inserting data into table "message"
-"""
-input message_insert_input {
-  message: String
-  object: String
-}
-
-"""
-response of any mutation on the table "message"
-"""
-type message_mutation_response {
-  """number of rows affected by the mutation"""
-  affected_rows: Int!
-
-  """data from the rows affected by the mutation"""
-  returning: [message!]!
-}
-
-"""
-on_conflict condition type for table "message"
-"""
-input message_on_conflict {
-  constraint: message_constraint!
-  update_columns: [message_update_column!]! = []
-  where: message_bool_exp
-}
-
-"""Ordering options when selecting data from "message"."""
-input message_order_by {
-  created_at: order_by
-  delivered: order_by
-  id: order_by
-  message: order_by
-  object: order_by
-  subject: order_by
-  updated_at: order_by
-}
-
-"""primary key columns input for table: message"""
-input message_pk_columns_input {
-  id: uuid!
-}
-
-"""
-select columns of table "message"
-"""
-enum message_select_column {
-  """column name"""
-  created_at
-
-  """column name"""
-  delivered
-
-  """column name"""
-  id
-
-  """column name"""
-  message
-
-  """column name"""
-  object
-
-  """column name"""
-  subject
-
-  """column name"""
-  updated_at
-}
-
-"""
-Streaming cursor of the table "message"
-"""
-input message_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: message_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input message_stream_cursor_value_input {
-  created_at: timestamptz
-  delivered: Boolean
-  id: uuid
-  message: String
-  object: String
-  subject: String
-  updated_at: timestamptz
-}
-
-"""
-placeholder for update columns of table "message" (current role has no relevant permissions)
-"""
-enum message_update_column {
-  """placeholder (do not use)"""
-  _PLACEHOLDER
-}
-
-input message_updates {
-  """filter the rows which have to be updated"""
-  where: message_bool_exp!
-}
-
 """mutation root"""
 type mutation_root {
-  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, image: Upload = {}, polling: PollingInput, startAt: String, title: String!): Beacon!
+  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, image: Upload = {}, polling: PollingInput, startAt: String, tags: String, title: String!): Beacon!
   beaconDeleteById(id: String!): Boolean!
+  complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
 
   """
   delete data from the table: "beacon_pinned"
@@ -1267,19 +1178,6 @@ type mutation_root {
   delete single row from the table: "comment"
   """
   delete_comment_by_pk(id: String!): comment
-
-  """
-  delete data from the table: "message"
-  """
-  delete_message(
-    """filter the rows which have to be deleted"""
-    where: message_bool_exp!
-  ): message_mutation_response
-
-  """
-  delete single row from the table: "message"
-  """
-  delete_message_by_pk(id: uuid!): message
 
   """
   delete data from the table: "opinion"
@@ -1319,6 +1217,7 @@ type mutation_root {
   delete single row from the table: "vote_user"
   """
   delete_vote_user_by_pk(object: String!, subject: String!): vote_user
+  fcmTokenRegister(appId: String!, platform: String!, token: String!): Boolean!
 
   """
   insert data into the table: "beacon_pinned"
@@ -1385,28 +1284,6 @@ type mutation_root {
     """upsert condition"""
     on_conflict: invitation_on_conflict
   ): invitation
-
-  """
-  insert data into the table: "message"
-  """
-  insert_message(
-    """the rows to be inserted"""
-    objects: [message_insert_input!]!
-
-    """upsert condition"""
-    on_conflict: message_on_conflict
-  ): message_mutation_response
-
-  """
-  insert a single row into the table: "message"
-  """
-  insert_message_one(
-    """the row to be inserted"""
-    object: message_insert_input!
-
-    """upsert condition"""
-    on_conflict: message_on_conflict
-  ): message
 
   """
   insert data into the table: "opinion"
@@ -1519,6 +1396,7 @@ type mutation_root {
   ): vote_user
   invitationAccept(id: String!): Boolean!
   invitationDelete(id: String!): Boolean!
+  meritrankInit(forceCalculate: Boolean): Int!
   pollingAct(pollingId: String!, variantId: String!): Boolean!
   signIn(authRequestToken: String!): AuthResponse!
   signOut: Boolean!
@@ -1551,27 +1429,6 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [beacon_updates!]!
   ): [beacon_mutation_response]
-
-  """
-  update data of the table: "message"
-  """
-  update_message(
-    """filter the rows which have to be updated"""
-    where: message_bool_exp!
-  ): message_mutation_response
-
-  """
-  update single row of the table: "message"
-  """
-  update_message_by_pk(pk_columns: message_pk_columns_input!): message
-
-  """
-  update multiples rows of table: "message"
-  """
-  update_message_many(
-    """updates to execute, in order"""
-    updates: [message_updates!]!
-  ): [message_mutation_response]
 
   """
   update data of the table: "vote_beacon"
@@ -2575,6 +2432,29 @@ type query_root {
   ): [mutual_score!]!
 
   """
+  fetch data from the table: "image"
+  """
+  image(
+    """distinct select on columns"""
+    distinct_on: [image_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [image_order_by!]
+
+    """filter the rows returned"""
+    where: image_bool_exp
+  ): [image!]!
+
+  """fetch data from the table: "image" using primary key columns"""
+  image_by_pk(id: uuid!): image
+
+  """
   fetch data from the table: "invitation"
   """
   invitation(
@@ -2597,29 +2477,6 @@ type query_root {
 
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation
-
-  """
-  fetch data from the table: "message"
-  """
-  message(
-    """distinct select on columns"""
-    distinct_on: [message_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [message_order_by!]
-
-    """filter the rows returned"""
-    where: message_bool_exp
-  ): [message!]!
-
-  """fetch data from the table: "message" using primary key columns"""
-  message_by_pk(id: uuid!): message
 
   """
   fetch data from the table: "mutual_score"
@@ -3199,6 +3056,43 @@ type subscription_root {
   ): [mutual_score!]!
 
   """
+  fetch data from the table: "image"
+  """
+  image(
+    """distinct select on columns"""
+    distinct_on: [image_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [image_order_by!]
+
+    """filter the rows returned"""
+    where: image_bool_exp
+  ): [image!]!
+
+  """fetch data from the table: "image" using primary key columns"""
+  image_by_pk(id: uuid!): image
+
+  """
+  fetch data from the table in a streaming manner: "image"
+  """
+  image_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [image_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: image_bool_exp
+  ): [image!]!
+
+  """
   fetch data from the table: "invitation"
   """
   invitation(
@@ -3234,43 +3128,6 @@ type subscription_root {
     """filter the rows returned"""
     where: invitation_bool_exp
   ): [invitation!]!
-
-  """
-  fetch data from the table: "message"
-  """
-  message(
-    """distinct select on columns"""
-    distinct_on: [message_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [message_order_by!]
-
-    """filter the rows returned"""
-    where: message_bool_exp
-  ): [message!]!
-
-  """fetch data from the table: "message" using primary key columns"""
-  message_by_pk(id: uuid!): message
-
-  """
-  fetch data from the table in a streaming manner: "message"
-  """
-  message_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [message_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: message_bool_exp
-  ): [message!]!
 
   """
   fetch data from the table: "mutual_score"
@@ -3835,7 +3692,6 @@ type user {
     """filter the rows returned"""
     where: beacon_bool_exp
   ): [beacon!]!
-  blur_hash: String!
 
   """An array relationship"""
   comments(
@@ -3856,15 +3712,16 @@ type user {
   ): [comment!]!
   created_at: timestamptz!
   description: String!
-  has_picture: Boolean!
   id: String!
+
+  """An object relationship"""
+  image: image
+  image_id: uuid
 
   """
   A computed field, executes function "user_get_my_vote"
   """
   my_vote: Int
-  pic_height: Int!
-  pic_width: Int!
   public_key: String!
 
   """
@@ -3975,15 +3832,13 @@ input user_bool_exp {
   _or: [user_bool_exp!]
   beacon_pinneds: beacon_pinned_bool_exp
   beacons: beacon_bool_exp
-  blur_hash: String_comparison_exp
   comments: comment_bool_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
-  has_picture: Boolean_comparison_exp
   id: String_comparison_exp
+  image: image_bool_exp
+  image_id: uuid_comparison_exp
   my_vote: Int_comparison_exp
-  pic_height: Int_comparison_exp
-  pic_width: Int_comparison_exp
   public_key: String_comparison_exp
   scores: mutual_score_bool_exp
   title: String_comparison_exp
@@ -4096,15 +3951,13 @@ enum user_context_update_column {
 input user_order_by {
   beacon_pinneds_aggregate: beacon_pinned_aggregate_order_by
   beacons_aggregate: beacon_aggregate_order_by
-  blur_hash: order_by
   comments_aggregate: comment_aggregate_order_by
   created_at: order_by
   description: order_by
-  has_picture: order_by
   id: order_by
+  image: image_order_by
+  image_id: order_by
   my_vote: order_by
-  pic_height: order_by
-  pic_width: order_by
   public_key: order_by
   scores_aggregate: mutual_score_aggregate_order_by
   title: order_by
@@ -4120,25 +3973,16 @@ select columns of table "user"
 """
 enum user_select_column {
   """column name"""
-  blur_hash
-
-  """column name"""
   created_at
 
   """column name"""
   description
 
   """column name"""
-  has_picture
-
-  """column name"""
   id
 
   """column name"""
-  pic_height
-
-  """column name"""
-  pic_width
+  image_id
 
   """column name"""
   public_key
@@ -4163,13 +4007,10 @@ input user_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input user_stream_cursor_value_input {
-  blur_hash: String
   created_at: timestamptz
   description: String
-  has_picture: Boolean
   id: String
-  pic_height: Int
-  pic_width: Int
+  image_id: uuid
   public_key: String
   title: String
   updated_at: timestamptz

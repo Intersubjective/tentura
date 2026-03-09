@@ -6,7 +6,7 @@ import '../bloc/auth_cubit.dart';
 
 class AccountRemoveDialog extends StatelessWidget {
   static Future<void> show(BuildContext context, {required String id}) =>
-      showDialog(
+      showAdaptiveDialog(
         context: context,
         builder: (context) => AccountRemoveDialog(id: id),
       );

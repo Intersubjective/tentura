@@ -1,0 +1,44 @@
+name: 'Setup Client for Build'
+description: 'Setup Flutter, install client dependencies, run codegen and localizations'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Determine Flutter version
+      shell: bash
+      run: |
+        FLUTTER_VERSION=$("${{ github.workspace }}/.github/scripts/read_flutter_version.sh" "${{ github.workspace }}/packages/client/pubspec.yaml")
+        echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+
+    - name: Cache pub dependencies (client)
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.pub-cache
+          packages/client/.dart_tool
+        key: ${{ runner.os }}-pub-client-${{ hashFiles('packages/client/pubspec.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-pub-client-
+
+    - name: Install client dependencies
+      shell: bash
+      run: flutter pub get
+      working-directory: packages/client
+
+    - name: Generate localizations (client)
+      shell: bash
+      run: flutter gen-l10n
+      working-directory: packages/client
+
+    - name: Run codegen (client)
+      shell: bash
+      run: dart run build_runner build -d
+      working-directory: packages/client
+

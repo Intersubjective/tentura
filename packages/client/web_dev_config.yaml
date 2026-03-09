@@ -1,0 +1,29 @@
+server:
+  host: 'tentura'
+  port: 8888
+  https:
+    cert-path: '.cert/rsa_cert.pem'
+    cert-key-path: '.cert/rsa_key.pem'
+
+  headers:
+    - name: 'Cache-Control'
+      value: 'no-cache, no-store, must-revalidate'
+    - name: 'strict-transport-security'
+      value: 'max-age=0;'
+
+  proxy:
+    - target: 'https://static.tentura.io/'
+      prefix: '/images/'
+
+    - target: 'http://localhost:2080/'
+      prefix: '/api/v2/graphql'
+
+    # - target: 'http://localhost:2080/'
+    #   prefix: '/api/v2/ws'
+
+    - target: 'http://localhost:2080/'
+      prefix: '/shared/'
+
+    - target: 'http://localhost:8080/'
+      prefix: '/api/v1/graphql'
+      replace: '/v1/graphql'

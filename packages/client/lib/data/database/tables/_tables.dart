@@ -1,4 +1,4 @@
 export 'accounts.dart';
 export 'friends.dart';
-export 'messages.dart';
+export 'p2p_messages.dart';
 export 'settings.dart';

@@ -44,45 +44,5 @@
 				"cwd": "packages/client"
 			},
 		},
-		{
-			"label": "flutter: build widgetbook",
-			"type": "flutter",
-			"command": "flutter",
-			"args": [
-				"build",
-				"web",
-				"--wasm",
-				"--base-href",
-				"/widgetbook/",
-				"--pwa-strategy",
-				"none",
-				"--dart-define",
-				"IS_IMPORTED=true",
-				"--dart-define-from-file=.env",
-			],
-			"group": {
-				"kind": "build",
-			},
-			"options": {
-				"cwd": "packages/widgetbook"
-			},
-		},
-		{
-			"label": "flutter: build web (wasm, stage)",
-			"type": "flutter",
-			"command": "flutter",
-			"args": [
-				"build",
-				"web",
-				"--wasm",
-				"--dart-define-from-file=.env",
-			],
-			"group": {
-				"kind": "build",
-			},
-			"options": {
-				"cwd": "packages/client"
-			},
-		},
 	],
 }

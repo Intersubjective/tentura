@@ -1,6 +1,7 @@
-import 'package:auto_route/auto_route.dart';
-import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:get_it/get_it.dart';
+import 'package:flutter/material.dart';
+import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -19,8 +20,13 @@ class InvitationScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
     providers: [
-      BlocProvider.value(value: GetIt.I<ScreenCubit>()),
-      BlocProvider(create: (_) => InvitationCubit()..fetch()),
+      BlocProvider.value(
+        value: GetIt.I<ScreenCubit>(),
+      ),
+      BlocProvider(
+        // ignore: discarded_futures //
+        create: (_) => InvitationCubit()..fetch(),
+      ),
     ],
     child: MultiBlocListener(
       listeners: const [
@@ -86,7 +92,7 @@ class InvitationScreen extends StatelessWidget implements AutoRouteWrapper {
                 final invitation = state.invitations[i];
                 if (state.invitations.length > kFetchListOffset &&
                     state.invitations.length == i + 1) {
-                  invitationCubit.fetch(clear: false);
+                  unawaited(invitationCubit.fetch(clear: false));
                 }
                 final createdAt = invitation.createdAt.toLocal();
                 return ListTile(
@@ -108,15 +114,14 @@ class InvitationScreen extends StatelessWidget implements AutoRouteWrapper {
                       color: Colors.red[300],
                     ),
                   ),
-                  onTap:
-                      () => ShareCodeDialog.show(
-                        context,
-                        header: l10n.labelInvitationCode,
-                        link: Uri.parse(kServerName).replace(
-                          path: kPathAppLinkView,
-                          queryParameters: {'id': invitation.id},
-                        ),
-                      ),
+                  onTap: () => ShareCodeDialog.show(
+                    context,
+                    header: l10n.labelInvitationCode,
+                    link: Uri.parse(kServerName).replace(
+                      path: kPathAppLinkView,
+                      queryParameters: {'id': invitation.id},
+                    ),
+                  ),
                 );
               },
               separatorBuilder: separatorBuilder,

@@ -2,53 +2,59 @@ name: tentura_server
 description: Tentura server API
 publish_to: none
 
-version: 0.4.3
+version: 0.7.0
 
 environment:
-  sdk: '>=3.8.1 <4.0.0'
+  sdk: ^3.10.7
+
+resolution: workspace
 
 dependencies:
+  # From Workspace
+  http:
+  uuid:
+  meta:
+  image:
+  drift:
+  get_it:
+  logging:
+  latlong2:
+  injectable:
+  collection:
   tentura_root:
-    path: ../../
+  json_annotation:
+  dart_jsonwebtoken:
+  freezed_annotation:
 
-  args: ^2.7.0
-  uuid: ^4.4.2
-  meta: ^1.17.0
   faker: ^2.2.0
-  image: ^4.5.4
   minio: ^3.5.7
-  drift: ^2.27.0
-  jaspr: ^0.19.1
-  get_it: ^8.0.3
+  jaspr: ^0.22.1
+  crypto: ^3.0.6
   migrant: ^0.3.0
-  latlong2: ^0.9.1
-  postgres: ^3.5.6
-  injectable: ^2.5.0
-  collection: ^1.19.1
-  shelf_plus: ^1.10.1
+  postgres: ^3.5.9
+  shelf_plus: ^1.11.0
   pg_job_queue: ^0.0.2
   blurhash_dart: ^1.2.1
-  angel3_graphql: ^8.3.0
+  angel3_graphql: ^8.5.0
   drift_postgres: ^1.3.1
-  graphql_schema2: ^6.3.0
-  graphql_server2: ^6.3.0
-  json_annotation: ^4.9.0
+  graphql_schema2: ^6.5.0
+  graphql_server2: ^6.5.0
   shelf_multipart: ^2.0.1
-  dart_jsonwebtoken: ^3.2.0
-  freezed_annotation: ^3.0.0
   shelf_cors_headers: ^0.1.5
   migrant_db_postgresql: ^0.3.0
 
 dev_dependencies:
-  test: ^1.26.0
-  freezed: ^3.0.6
-  drift_dev: ^2.27.0
-  build_runner: ^2.5.3
-  jaspr_builder: ^0.19.1
-  json_serializable: ^6.9.0
-  very_good_analysis: ^9.0.0
-  build_web_compilers: ^4.1.5
-  injectable_generator: ^2.6.2
+  # From Workspace
+  test:
+  freezed:
+  drift_dev:
+  build_runner:
+  json_serializable:
+  very_good_analysis:
+  injectable_generator:
+
+  jaspr_lints: ^0.6.0
+  jaspr_builder: ^0.22.1
 
 jaspr:
   mode: server

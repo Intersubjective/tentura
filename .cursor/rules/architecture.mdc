@@ -1,0 +1,240 @@
+---
+applyWhen:
+  - pathMatches: "**/domain/**/*.dart"
+  - pathMatches: "**/data/**/*.dart"
+  - pathMatches: "**/ui/**/*.dart"
+  - pathMatches: "**/features/**/*.dart"
+  - pathMatches: "**/*_repository.dart"
+  - pathMatches: "**/*_case.dart"
+  - pathMatches: "**/*_cubit.dart"
+  - pathMatches: "**/*_state.dart"
+  - pathMatches: "**/use_case/**/*.dart"
+  - pathMatches: "**/entity/**/*.dart"
+  - pathMatches: "**/di.dart"
+  - pathMatches: "**/modules.dart"
+---
+
+# Architecture Guidelines (SOLID & Clean Architecture)
+
+## Overview
+This project follows **Clean Architecture** with **feature-based modularization** and strict adherence to **SOLID principles**. Dependencies flow inward: UI → Data → Domain.
+
+**Related Documents:**
+- `codegen.mdc` - Code generation tools and usage
+- `advanced-patterns.mdc` - Advanced architectural patterns
+- `quick-reference.mdc` - One-line rules (always applied)
+
+**⚠️ Rule Maintenance:** If you observe architectural patterns in the codebase that consistently diverge from these guidelines (e.g., different layer structure, new patterns, alternative approaches), notify the user and suggest updating this file with specific examples of the divergence.
+
+## Layer Structure
+
+### Feature Organization
+Each feature follows this structure:
+```
+features/
+  feature_name/
+    data/          # Data layer (repositories, GraphQL, models)
+    domain/        # Domain layer (entities, use cases, exceptions)
+    ui/            # Presentation layer (BLoC, screens, widgets)
+```
+
+### Layer Responsibilities
+
+#### Domain Layer (`domain/` or `features/*/domain/`)
+- **Entities**: Freezed immutable classes representing business objects (see codegen.mdc for Freezed usage)
+- **Use Cases**: Business logic orchestration (extend `UseCaseBase`)
+- **Exceptions**: Domain-specific error types (see advanced-patterns.mdc for exception hierarchy)
+- **Rules**: 
+  - NO dependencies on outer layers (data, ui)
+  - Pure business logic only
+  - Entities are Freezed classes
+  - Use cases orchestrate repositories, don't contain data access
+
+#### Data Layer (`data/` or `features/*/data/`)
+- **Repositories**: Abstract data sources, return domain entities (see advanced-patterns.mdc for base classes)
+- **Models**: Extension types wrapping Ferry GraphQL types (see codegen.mdc for extension type usage)
+- **Services**: External API clients, storage, etc.
+- **Rules**:
+  - Depends ONLY on domain layer
+  - Repositories are `@lazySingleton` or `@singleton` (see codegen.mdc for Injectable)
+  - Convert Ferry types → Domain entities via `toEntity()`
+  - Never expose Ferry types outside data layer
+
+#### Presentation Layer (`ui/` or `features/*/ui/`)
+- **BLoC/Cubit**: State management (use Freezed states - see codegen.mdc)
+- **Screens**: Auto Route pages (see codegen.mdc for Auto Route)
+- **Widgets**: Reusable UI components
+- **Rules**:
+  - Depends on domain and data layers
+  - BLoC uses use cases OR repositories directly
+  - States extend `StateBase` and use Freezed (see advanced-patterns.mdc for StateBase details)
+  - Screens use `@RoutePage()` for Auto Route
+
+## SOLID Principles
+
+### Single Responsibility Principle (SRP)
+- **Use Cases**: One business operation per use case
+- **Repositories**: One data source per repository (e.g., `AuthRemoteRepository`, `AuthLocalRepository`)
+- **BLoC/Cubit**: One feature's state management
+- **Entities**: Pure data structures with business logic getters only
+
+### Open/Closed Principle (OCP)
+- **Repositories**: Can be extended via interfaces (abstract base classes)
+- **Use Cases**: Extend `UseCaseBase` for common functionality
+- **Entities**: Use Freezed's `copyWith()` for immutable updates
+
+### Liskov Substitution Principle (LSP)
+- **Repositories**: Follow common interfaces (e.g., `RemoteRepository` base class)
+- **Use Cases**: Can be substituted if they implement same interface
+- **Entities**: Freezed classes are substitutable via interfaces (e.g., `Likable`, `Scorable`)
+
+### Interface Segregation Principle (ISP)
+- **Interfaces**: Small, focused (e.g., `Likable`, `Scorable`, `Identifiable`)
+- **Repositories**: Separate local vs remote repositories
+- **Use Cases**: One method per use case class (or related methods)
+
+### Dependency Inversion Principle (DIP)
+- **High-level modules** (use cases, BLoC) depend on abstractions (repositories)
+- **Low-level modules** (repositories) implement abstractions
+- **Dependency Injection**: Use Injectable for all dependencies
+- **Dependency Direction**: Domain ← Data ← UI (never reverse)
+
+## Dependency Rules
+
+### Allowed Dependencies
+```
+UI Layer
+  ↓ depends on
+Data Layer
+  ↓ depends on
+Domain Layer
+  ↓ depends on
+Nothing (pure)
+```
+
+### Forbidden Dependencies
+- ❌ Domain → Data/UI (domain is pure)
+- ❌ Data → UI (data doesn't know about UI)
+- ❌ Direct imports of Ferry types in UI (use domain entities)
+- ❌ BLoC directly accessing services (use repositories or use cases)
+
+## Common Patterns
+
+### Use Case Pattern
+```dart
+@singleton
+final class FeatureCase extends UseCaseBase {
+  FeatureCase(
+    this._repository, {
+    required super.env,
+    required super.logger,
+  });
+  
+  final FeatureRepository _repository;
+  
+  Future<Entity> doSomething() async {
+    // Business logic here
+    return _repository.fetch();
+  }
+}
+```
+
+### Repository Pattern
+```dart
+@lazySingleton
+class FeatureRepository {
+  FeatureRepository(this._remoteApiService);
+  
+  final RemoteApiService _remoteApiService;
+  
+  Future<Iterable<Entity>> fetch() => _remoteApiService
+      .request(GQueryReq())  // Ferry-generated (see codegen.mdc)
+      .then((r) => r.dataOrThrow(...).field)
+      .then((v) => v.map((e) => (e.model as ModelName).toEntity()));
+}
+```
+
+**Note**: See advanced-patterns.mdc for RemoteRepository base class pattern.
+
+### BLoC Pattern
+```dart
+class FeatureCubit extends Cubit<FeatureState> {
+  FeatureCubit({
+    FeatureRepository? repository,
+    FeatureCase? useCase,
+  }) : _repository = repository ?? GetIt.I<FeatureRepository>(),
+       _useCase = useCase ?? GetIt.I<FeatureCase>(),
+       super(const FeatureState());  // Freezed state (see codegen.mdc)
+  
+  Future<void> fetch() async {
+    emit(state.copyWith(status: StateStatus.isLoading));  // See advanced-patterns.mdc for StateStatus
+    try {
+      final data = await _useCase.doSomething();
+      emit(state.copyWith(data: data, status: StateStatus.isSuccess));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+}
+```
+
+**Note**: See advanced-patterns.mdc for StateBase and StateStatus sealed class details.
+
+## Shared Domain (`lib/domain/`)
+- **Entities**: Shared across features (e.g., `Beacon`, `Profile`, `Comment`)
+- **Enums**: Shared enumerations
+- **Exceptions**: Generic domain exceptions
+- **Use Case Base**: Common use case functionality
+
+## Feature-Specific Domain (`features/*/domain/`)
+- **Entities**: Feature-specific entities (e.g., `AccountEntity` in auth)
+- **Use Cases**: Feature business logic
+- **Exceptions**: Feature-specific errors
+
+## Data Layer Organization
+
+### Models (`data/model/`)
+- Extension types wrapping Ferry GraphQL types
+- Convert to domain entities via `toEntity()`
+- Located in shared `data/model/` or feature `data/` (if feature-specific)
+
+### Repositories (`data/repository/` or `features/*/data/repository/`)
+- Abstract data sources
+- Return domain entities, not Ferry types
+- Use `@lazySingleton` for most repositories
+- Separate local vs remote when needed
+
+### Services (`data/service/`)
+- External dependencies (API clients, storage, etc.)
+- Used by repositories, not directly by BLoC
+
+## Injectable & Dependency Injection
+
+### Registration
+- **Use Cases**: `@singleton` (business logic, shared state)
+- **Repositories**: `@lazySingleton` (created on first access)
+- **Services**: `@singleton` or `@lazySingleton` based on usage
+- **BLoC**: `@singleton` for global, regular for feature-specific
+
+### Access Patterns
+- **Constructor injection**: Preferred (use cases, repositories)
+- **GetIt.I<>()**: Acceptable in BLoC when repository is optional parameter
+- **Factory methods**: Use `@FactoryMethod()` for async initialization (see advanced-patterns.mdc for details)
+
+## Important Rules
+
+1. **Domain is pure**: No imports from `data/` or `ui/` in domain layer
+2. **Entities are Freezed**: All domain entities use `@freezed`
+3. **Repositories return entities**: Never return Ferry types or Drift models
+4. **Use cases orchestrate**: Business logic goes in use cases, not repositories
+5. **BLoC uses use cases**: Prefer use cases over direct repository access in BLoC
+6. **Feature isolation**: Features should be independent modules
+7. **Shared domain**: Common entities live in `lib/domain/entity/`
+8. **Dependency direction**: Always inward (UI → Data → Domain)
+
+## Testing Implications
+
+- **Domain layer**: Pure functions, easy to test
+- **Data layer**: Mock repositories for testing
+- **UI layer**: Test BLoC with mocked use cases/repositories
+- **Integration**: Test use case + repository together

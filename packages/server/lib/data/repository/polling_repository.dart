@@ -4,7 +4,13 @@ import 'package:tentura_server/domain/entity/polling_entity.dart';
 
 import '../database/tentura_db.dart';
 
-@Injectable(env: [Environment.dev, Environment.prod], order: 1)
+@Injectable(
+  env: [
+    Environment.dev,
+    Environment.prod,
+  ],
+  order: 1,
+)
 class PollingRepository {
   const PollingRepository(this._database);
 

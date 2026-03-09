@@ -1,7 +1,16 @@
+// TBD: move not void public methods into state
+// ignore_for_file: prefer_void_public_cubit_methods
+
+// TBD: return string instead of ThemeMode?
+// ignore: avoid_flutter_imports
 import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/features/auth/data/repository/auth_repository.dart';
+import 'package:tentura/env.dart';
+import 'package:tentura/data/repository/platform_repository.dart';
+
+import 'package:tentura/features/auth/domain/use_case/account_case.dart';
+import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
 import '../../data/repository/settings_repository.dart';
 import 'settings_state.dart';
@@ -15,16 +24,22 @@ export 'settings_state.dart';
 class SettingsCubit extends Cubit<SettingsState> {
   @FactoryMethod(preResolve: true)
   static Future<SettingsCubit> hydrated(
-    AuthRepository authRepository,
-    SettingsRepository repository,
+    Env env,
+    AuthCase authCase,
+    AccountCase accountCase,
+    PlatformRepository platformRepository,
+    SettingsRepository settingsRepository,
   ) async {
-    final isIntroEnabled = await repository.getIsIntroEnabled();
-    final themeModeName = await repository.getThemeModeName();
+    final isIntroEnabled = await settingsRepository.getIsIntroEnabled() ?? true;
+    final themeModeName =
+        await settingsRepository.getThemeModeName() ?? 'system';
     return SettingsCubit(
-      authRepository: authRepository,
-      repository: repository,
+      authCase: authCase,
+      accountCase: accountCase,
+      settingsRepository: settingsRepository,
       state: SettingsState(
         introEnabled: isIntroEnabled,
+        visibleVersion: await platformRepository.getAppVersion(),
         themeMode: ThemeMode.values.firstWhere(
           (themeMode) => themeMode.name == themeModeName,
           orElse: () => ThemeMode.system,
@@ -34,49 +49,60 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   SettingsCubit({
-    required AuthRepository authRepository,
-    required SettingsRepository repository,
+    required AuthCase authCase,
+    required AccountCase accountCase,
+    required SettingsRepository settingsRepository,
     SettingsState state = const SettingsState(),
-  }) : _authRepository = authRepository,
-       _repository = repository,
+  }) : _authCase = authCase,
+       _accountCase = accountCase,
+       _settingsRepository = settingsRepository,
        super(state);
 
-  final AuthRepository _authRepository;
+  final AuthCase _authCase;
 
-  final SettingsRepository _repository;
+  final AccountCase _accountCase;
 
+  final SettingsRepository _settingsRepository;
+
+  //
+  //
   @disposeMethod
   Future<void> dispose() => close();
 
-  Future<({String id, String seed})> getAccountSeed() async {
-    final accountId = await _authRepository.getCurrentAccountId();
-    final seed = await _authRepository.getSeedByAccountId(accountId);
-    return (id: accountId, seed: seed);
-  }
+  //
+  //
+  Future<String> getCurrentAccountSeed() async =>
+      _accountCase.getSeedByAccountId(await _authCase.getCurrentAccountId());
 
+  //
+  //
   Future<void> setThemeMode(ThemeMode themeMode) async {
     try {
-      await _repository.setThemeMode(themeMode.name);
+      await _settingsRepository.setThemeMode(themeMode.name);
       emit(state.copyWith(themeMode: themeMode));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
 
+  //
+  //
   Future<void> setIntroEnabled(bool isEnabled) async {
     try {
-      await _repository.setIsIntroEnabled(isEnabled);
+      await _settingsRepository.setIsIntroEnabled(isEnabled);
       emit(state.copyWith(introEnabled: isEnabled));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
 
+  //
+  //
   Future<void> signOut() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _authRepository.signOut();
-      emit(state.copyWith(status: StateIsNavigating.back()));
+      await _authCase.signOut();
+      emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

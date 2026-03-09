@@ -1,27 +1,20 @@
-FROM dart:stable AS build
+# Build tentura server for CI. Context: repo root. Same approach as root Dockerfile.server.
+# Uses full workspace; Flutter image provides SDK for resolution.
+FROM ghcr.io/cirruslabs/flutter:stable AS build
 
 WORKDIR /app
+COPY . .
 
-COPY *.yaml ./
-
-RUN echo "resolution:" >> pubspec_overrides.yaml && dart pub get
-
-COPY ./bin ./bin
-
-COPY ./lib ./lib
-
+# Resolve workspace and build server only (client not built).
+RUN dart pub get
+WORKDIR /app/packages/server
 RUN dart run build_runner build -d
+RUN dart compile exe bin/tentura.dart -o bin/tentura
 
-RUN dart compile exe bin/main.dart -o bin/tentura
-
-FROM scratch
-
-COPY --from=build /runtime/ /
-
-COPY --from=build /app/bin/tentura /
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/packages/server/bin/tentura /tentura
 
 EXPOSE 2080/tcp
-
 USER 33:33
-
-CMD [ "/tentura" ]
+CMD ["/tentura"]

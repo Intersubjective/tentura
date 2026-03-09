@@ -14,9 +14,7 @@ abstract base class BaseController {
     Stream<List<int>> Function() getStream,
   ) async {
     final builder = BytesBuilder(copy: false);
-    await for (final part in getStream()) {
-      builder.add(part);
-    }
+    await getStream().forEach(builder.add);
     return builder.takeBytes();
   }
 

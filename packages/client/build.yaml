@@ -4,7 +4,11 @@ targets:
 
       drift_dev:
         options:
+          databases:
+            tentura: lib/data/database/database.dart
           named_parameters: true
+          schema_dir: lib/data/database/schema/
+          store_date_time_values_as_text: true
 
       auto_route_generator:auto_route_generator:
         generate_for:

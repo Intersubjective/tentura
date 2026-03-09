@@ -12,9 +12,9 @@ import '../gql/_g/context_fetch.req.gql.dart';
 
 @lazySingleton
 class ContextRepository {
-  static const _label = 'Context';
-
-  ContextRepository(this._remoteApiService);
+  ContextRepository(
+    this._remoteApiService,
+  );
 
   final RemoteApiService _remoteApiService;
 
@@ -46,10 +46,13 @@ class ContextRepository {
         .request(GContextAddReq((b) => b.vars.context_name = contextName))
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).insert_user_context_one);
-    if (response == null) throw ContextCreateException(contextName);
+    if (response == null) {
+      throw ContextCreateException(contextName);
+    }
     _cache.add(contextName);
-    _controller
-        .add(RepositoryEventCreate(ContextEntity(name: response.context_name)));
+    _controller.add(
+      RepositoryEventCreate(ContextEntity(name: response.context_name)),
+    );
   }
 
   Future<void> delete({
@@ -57,15 +60,27 @@ class ContextRepository {
     required String contextName,
   }) async {
     final response = await _remoteApiService
-        .request(GContextDeleteReq((b) => b.vars
-          ..user_id = userId
-          ..context_name = contextName))
+        .request(
+          GContextDeleteReq(
+            (b) => b.vars
+              ..user_id = userId
+              ..context_name = contextName,
+          ),
+        )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).delete_user_context_by_pk);
-    if (response == null) throw ContextDeleteException(contextName);
+    if (response == null) {
+      throw ContextDeleteException(contextName);
+    }
     _cache.remove(contextName);
-    _controller.add(RepositoryEventDelete(ContextEntity(
-      name: response.context_name,
-    )));
+    _controller.add(
+      RepositoryEventDelete(
+        ContextEntity(
+          name: response.context_name,
+        ),
+      ),
+    );
   }
+
+  static const _label = 'Context';
 }

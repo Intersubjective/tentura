@@ -1,9 +1,0 @@
-fragment MessageModel on message {
-  id
-  subject
-  object
-  message
-  delivered
-  created_at
-  updated_at
-}

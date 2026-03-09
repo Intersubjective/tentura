@@ -11,14 +11,20 @@ class TaskWorker extends PgJobQueue {
   @FactoryMethod()
   static Future<TaskWorker> create(Env env) async {
     final taskWorker = TaskWorker(
-      await Connection.open(env.pgEndpoint, settings: env.pgEndpointSettings),
+      await Connection.open(
+        env.pgEndpoint,
+        settings: env.pgEndpointSettings,
+      ),
     );
     await taskWorker.init();
     return taskWorker;
   }
 
-  TaskWorker(this._connection, {super.table = 'tasks', super.uniqueId})
-    : super(_connection);
+  TaskWorker(
+    this._connection, {
+    super.table = 'tasks',
+    super.uniqueId,
+  }) : super(_connection);
 
   final Connection _connection;
 

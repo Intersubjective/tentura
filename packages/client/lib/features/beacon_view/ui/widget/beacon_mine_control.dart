@@ -6,6 +6,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
+import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 
@@ -22,11 +23,10 @@ class BeaconMineControl extends StatelessWidget {
       children: [
         // Graph View
         IconButton(
-          icon: const Icon(Icons.hub_outlined),
-          onPressed:
-              beacon.myVote < 0
-                  ? null
-                  : () => context.read<ScreenCubit>().showGraph(beacon.id),
+          icon: const Icon(TenturaIcons.graph),
+          onPressed: beacon.myVote < 0
+              ? null
+              : () => context.read<ScreenCubit>().showGraphFor(beacon.id),
         ),
 
         // Share
@@ -34,29 +34,28 @@ class BeaconMineControl extends StatelessWidget {
 
         // Menu
         PopupMenuButton<void>(
-          itemBuilder:
-              (context) => [
-                // Enable / Disable
-                PopupMenuItem<void>(
-                  onTap: beaconViewCubit.toggleEnabled,
-                  child: Text(
-                    beaconViewCubit.state.beacon.isEnabled
-                        ? l10n.disableBeacon
-                        : l10n.enableBeacon,
-                  ),
-                ),
-                const PopupMenuDivider(),
+          itemBuilder: (context) => [
+            // Enable / Disable
+            PopupMenuItem<void>(
+              onTap: beaconViewCubit.toggleEnabled,
+              child: Text(
+                beaconViewCubit.state.beacon.isEnabled
+                    ? l10n.disableBeacon
+                    : l10n.enableBeacon,
+              ),
+            ),
+            const PopupMenuDivider(),
 
-                // Delete
-                PopupMenuItem<void>(
-                  onTap: () async {
-                    if (await BeaconDeleteDialog.show(context) ?? false) {
-                      await beaconViewCubit.delete(beacon.id);
-                    }
-                  },
-                  child: Text(l10n.deleteBeacon),
-                ),
-              ],
+            // Delete
+            PopupMenuItem<void>(
+              onTap: () async {
+                if (await BeaconDeleteDialog.show(context) ?? false) {
+                  await beaconViewCubit.delete(beacon.id);
+                }
+              },
+              child: Text(l10n.deleteBeacon),
+            ),
+          ],
         ),
       ],
     );

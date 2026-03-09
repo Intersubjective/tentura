@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:nil/nil.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/node_details.dart';
@@ -19,11 +21,11 @@ class GraphBody extends StatefulWidget {
     this.animationDuration = const Duration(seconds: 2),
     this.canvasSize = const GraphCanvasSize.fixed(Size(4096, 4096)),
     this.layoutAlgorithm = const FruchtermanReingoldAlgorithm(
+      initialPositionExtractor: initialPositionExtractor,
       iterations: kIsWeb && !kIsWasm ? 300 : 500,
-      temperature: 500,
       optimalDistance: 100,
       showIterations: true,
-      initialPositionExtractor: initialPositionExtractor,
+      temperature: 500,
     ),
     super.key,
   });
@@ -46,15 +48,15 @@ class GraphBodyState extends State<GraphBody>
     vsync: this,
   );
 
-  late final _cubit = context.read<GraphCubit>();
+  late final _graphCubit = context.read<GraphCubit>();
 
-  late final _highlightColor = Theme.of(context).colorScheme.surface;
+  late final _screenCubit = context.read<ScreenCubit>();
 
   @override
   void initState() {
     super.initState();
-    if (_cubit.state.isAnimated) {
-      _animationController.repeat();
+    if (_graphCubit.state.isAnimated) {
+      unawaited(_animationController.repeat());
     }
   }
 
@@ -66,7 +68,7 @@ class GraphBodyState extends State<GraphBody>
 
   @override
   Widget build(_) => GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
-    controller: _cubit.graphController,
+    controller: _graphCubit.graphController,
     canvasSize: widget.canvasSize,
     minScale: widget.scaleRange.dx,
     maxScale: widget.scaleRange.dy,
@@ -77,8 +79,8 @@ class GraphBodyState extends State<GraphBody>
         curve: const EaseInOutReynolds(),
       ),
       highlightRadius: 0.15,
-      highlightColor: _highlightColor,
-      isAnimated: _cubit.state.isAnimated,
+      highlightColor: Colors.indigo,
+      isAnimated: _graphCubit.state.isAnimated,
     ),
     labelBuilder: widget.isLabeled
         ? BottomLabelBuilder(
@@ -97,8 +99,12 @@ class GraphBodyState extends State<GraphBody>
     nodeBuilder: (_, node) => GraphNodeWidget(
       key: ValueKey(node),
       nodeDetails: node,
-      onTap: () => _cubit.setFocus(node),
-      onDoubleTap: () => _cubit.showNodeDetails(node),
+      withRating: node.id != _graphCubit.state.me.id,
+      onTap: () => _graphCubit.setFocus(node),
+      onDoubleTap: () => switch (node) {
+        final UserNode n => _screenCubit.showProfile(n.id),
+        final BeaconNode n => _screenCubit.showBeacon(n.id),
+      },
     ),
   );
 }

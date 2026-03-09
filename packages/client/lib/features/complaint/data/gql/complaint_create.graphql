@@ -1,0 +1,13 @@
+mutation CreateComplaint(
+  $id: String!,
+  $type: String!,
+  $email: String!,
+  $details: String!
+) {
+  complaintCreate(
+    id: $id,
+    type: $type,
+    email: $email,
+    details: $details
+  )
+}

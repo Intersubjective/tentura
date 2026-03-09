@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'package:meta/meta.dart';
 import 'package:ferry/ferry.dart'
     show Client, OperationRequest, OperationResponse;
 import 'package:ferry/ferry_isolate.dart';
-import 'package:flutter/foundation.dart';
 
 import 'auth_box.dart';
 import 'build_client.dart';
@@ -28,6 +28,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
   SendPort? _replyPort;
 
   @override
+  @mustCallSuper
   Future<String?> setAuth({
     required String seed,
     required AuthTokenFetcher authTokenFetcher,
@@ -90,11 +91,10 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
     Credentials? credentials;
     final receivePort = ReceivePort();
     sendPort?.send(receivePort.sendPort);
-    final tokenStream =
-        receivePort
-            .where((e) => e is GetTokenResponse)
-            .cast<GetTokenResponse>()
-            .asBroadcastStream();
+    final tokenStream = receivePort
+        .where((e) => e is GetTokenResponse)
+        .cast<GetTokenResponse>()
+        .asBroadcastStream();
 
     return buildClient(
       params: params,

@@ -1,0 +1,28 @@
+#
+### GQL Create Complaint
+#
+POST {{base_url}}/{{gqlV2_path}}
+Authorization: Bearer {{$dotenv TENTURA_JWT}}
+Content-Type: application/json
+X-Request-Type: GraphQL
+
+mutation CreateComplaint(
+  $id: String!,
+  $type: String!,
+  $email: String!,
+  $details: String!
+) {
+  complaintCreate(
+    id: $id,
+    type: $type,
+    email: $email,
+    details: $details
+  )
+}
+
+{
+  "id": "Cdd6c827ecca3",
+  "type": "violatesCsaePolicy1",
+  "email": "username@mail.com",
+  "details": "Have nothing to say"
+}

@@ -14,19 +14,25 @@ import '../enum.dart';
 
 @Injectable(order: 2)
 class AuthCase {
-  AuthCase(this._env, this._userRepository);
+  AuthCase(
+    this._env,
+    this._userRepository,
+  );
 
   final Env _env;
 
   final UserRepository _userRepository;
 
-  late final roles = {UserRoles.user};
-  late final issuer = _env.serverUri.toString();
+  late final _roles = {UserRoles.user};
+
+  late final _issuer = _env.serverUri.toString();
 
   ///
   /// Parse and verify JWT issued before and signed with server private key
   ///
-  JwtEntity parseAndVerifyJwt({required String token}) {
+  JwtEntity parseAndVerifyJwt({
+    required String token,
+  }) {
     final jwt = JWT.verify(token, _env.publicKey);
     final payload = jwt.payload as Map<String, Object?>;
     final roleList = (payload[AuthRequestIntent.keyRoles] as String? ?? '')
@@ -36,23 +42,29 @@ class AuthCase {
     return JwtEntity(
       sub: jwt.subject!,
       roles: UserRoles.values.where((e) => roleList.contains(e.name)).toSet(),
-    );
+    )..validate();
   }
 
-  Future<JwtEntity> signIn({required String authRequestToken}) async {
-    final jwt = _verifyAuthRequest(token: authRequestToken);
+  //
+  //
+  Future<JwtEntity> signIn({
+    required String authRequestToken,
+  }) async {
+    final jwt = _verifyAuthRequest(authRequestToken);
     final user = await _userRepository.getByPublicKey(
       (jwt.payload as Map)[AuthRequestIntent.keyPublicKey] as String,
     );
 
-    return _issueJwt(subject: user.id);
+    return _issueJwt(user.id);
   }
 
+  //
+  //
   Future<JwtEntity> signUp({
     required String authRequestToken,
     required String title,
   }) async {
-    final jwt = _verifyAuthRequest(token: authRequestToken);
+    final jwt = _verifyAuthRequest(authRequestToken);
     final payload = jwt.payload as Map<String, dynamic>;
     final publicKey = payload[AuthRequestIntent.keyPublicKey]! as String;
     final newUser = _env.isNeedInvite
@@ -66,13 +78,22 @@ class AuthCase {
               description: 'Invite attribute not found!',
             ),
           }
-        : await _userRepository.create(publicKey: publicKey, title: title);
-    return _issueJwt(subject: newUser.id);
+        : await _userRepository.create(
+            publicKey: publicKey,
+            title: title,
+          );
+    return _issueJwt(newUser.id);
   }
 
-  Future<bool> signOut({required JwtEntity jwt}) async => true;
+  //
+  //
+  Future<bool> signOut({
+    required JwtEntity jwt,
+  }) async => true;
 
-  JWT _verifyAuthRequest({required String token}) {
+  //
+  //
+  JWT _verifyAuthRequest(String token) {
     final jwtDecoded = JWT.decode(token);
 
     if (jwtDecoded.header?['alg'] != 'EdDSA') {
@@ -92,20 +113,22 @@ class AuthCase {
     );
   }
 
-  JwtEntity _issueJwt({required String subject}) {
+  //
+  //
+  JwtEntity _issueJwt(String subject) {
     final jwtId = _uuid.v8();
     return JwtEntity(
       jti: jwtId,
       sub: subject,
-      roles: roles,
-      iss: issuer,
+      roles: _roles,
+      iss: _issuer,
       exp: _env.jwtExpiresIn.inSeconds,
       rawToken:
           JWT(
-            {AuthRequestIntent.keyRoles: roles.join(',')},
+            {AuthRequestIntent.keyRoles: _roles.join(',')},
             jwtId: jwtId,
             subject: subject,
-            issuer: issuer,
+            issuer: _issuer,
           ).sign(
             _env.privateKey,
             algorithm: JWTAlgorithm.EdDSA,
@@ -114,5 +137,6 @@ class AuthCase {
     );
   }
 
+  //
   static const _uuid = Uuid();
 }

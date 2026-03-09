@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
 
@@ -17,7 +17,11 @@ export 'root_router.gr.dart';
 @singleton
 @AutoRouterConfig()
 class RootRouter extends RootStackRouter {
-  RootRouter(this._logger, this._authCubit, this._settingsCubit);
+  RootRouter(
+    this._logger,
+    this._authCubit,
+    this._settingsCubit,
+  );
 
   late final reevaluateListenable = _ReevaluateFromStreams([
     _settingsCubit.stream.map((e) => e.introEnabled),
@@ -102,7 +106,6 @@ class RootRouter extends RootStackRouter {
 
     // Login
     AutoRoute(
-      keepHistory: false,
       maintainState: false,
       page: AuthLoginRoute.page,
       path: kPathSignIn,
@@ -119,7 +122,7 @@ class RootRouter extends RootStackRouter {
       maintainState: false,
       fullscreenDialog: true,
       page: AuthRegisterRoute.page,
-      path: kPathSignUp,
+      path: '$kPathSignUp/:id',
       guards: [
         AutoRouteGuard.redirect(
           (_) => _authCubit.state.isAuthenticated ? const ProfileRoute() : null,
@@ -138,14 +141,13 @@ class RootRouter extends RootStackRouter {
 
     // Profile View
     AutoRoute(
-      fullMatch: true,
       usesPathAsKey: true,
       maintainState: false,
       page: ProfileViewRoute.page,
       path: '$kPathProfileView/:id',
       guards: [
         AutoRouteGuard.redirect(
-          (r) => _authCubit.checkIfIsMe(r.route.pathParams.getString('id'))
+          (r) => _authCubit.state.checkIfIsMe(r.route.params.getString('id'))
               ? const ProfileRoute()
               : null,
         ),
@@ -181,20 +183,23 @@ class RootRouter extends RootStackRouter {
 
     // Beacon View
     AutoRoute(
+      usesPathAsKey: true,
       maintainState: false,
       page: BeaconViewRoute.page,
-      path: kPathBeaconView,
+      path: '$kPathBeaconView/:id',
     ),
 
     // Beacon View All
     AutoRoute(
+      usesPathAsKey: true,
       maintainState: false,
       page: BeaconRoute.page,
-      path: kPathBeaconViewAll,
+      path: '$kPathBeaconViewAll/:id',
     ),
 
     // Rating
     AutoRoute(
+      usesPathAsKey: true,
       maintainState: false,
       page: RatingRoute.page,
       path: kPathRating,
@@ -203,36 +208,61 @@ class RootRouter extends RootStackRouter {
 
     // Graph
     AutoRoute(
+      usesPathAsKey: true,
       maintainState: false,
       page: GraphRoute.page,
-      path: kPathGraph,
+      path: '$kPathGraph/:id',
       //
     ),
 
     // Chat
     AutoRoute(
       keepHistory: false,
+      usesPathAsKey: true,
       maintainState: false,
-      fullscreenDialog: true,
       page: ChatRoute.page,
-      path: kPathProfileChat,
+      path: '$kPathChat/:id',
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _authCubit.state.isNotAuthenticated
+              ? const AuthLoginRoute()
+              : null,
+        ),
+        AutoRouteGuard.redirect(
+          (resolver) {
+            final receiverId = resolver.route.queryParams.getString(
+              'receiver_id',
+              '',
+            );
+            if (receiverId.isNotEmpty &&
+                _authCubit.state.currentAccountId != receiverId) {
+              unawaited(_authCubit.signOut());
+            }
+            return null;
+          },
+        ),
+      ],
     ),
 
     // Complaint
     AutoRoute(
       keepHistory: false,
+      usesPathAsKey: true,
       maintainState: false,
       fullscreenDialog: true,
       page: ComplaintRoute.page,
-      path: kPathComplaint,
+      path: '$kPathComplaint/:id',
     ),
 
     // default
-    RedirectRoute(path: '*', redirectTo: kPathHome),
+    RedirectRoute(
+      path: '*',
+      redirectTo: kPathHome,
+    ),
   ];
 
   FutureOr<DeepLink> deepLinkBuilder(PlatformDeepLink deepLink) {
-    _logger.i('DeepLinkBuilder: ${deepLink.uri}');
+    _logger.info('DeepLinkBuilder: ${deepLink.uri}');
     return deepLink;
   }
 
@@ -240,17 +270,18 @@ class RootRouter extends RootStackRouter {
     uri.path == kPathAppLinkView
         ? uri.replace(
             path: switch (uri.queryParameters['id']) {
-              final String id when id.startsWith('B') => kPathBeaconView,
-              final String id when id.startsWith('C') => kPathBeaconView,
-              final String id when id.startsWith('U') => kPathProfileView,
-              final String id when id.startsWith('O') => kPathProfileView,
+              final String id when id.startsWith('B') || id.startsWith('C') =>
+                '$kPathBeaconView/$id',
+              final String id when id.startsWith('O') || id.startsWith('U') =>
+                '$kPathProfileView/$id',
               final String id when id.startsWith('I') =>
                 _authCubit.state.isAuthenticated
                     ? kPathConnect
-                    : _authCubit.state.accounts.isEmpty
-                    ? kPathSignUp
-                    : kPathSignIn,
+                    : '$kPathSignUp/$id',
               _ => kPathConnect,
+            },
+            queryParameters: {
+              kQueryIsDeepLink: 'true',
             },
           )
         : uri,
@@ -269,7 +300,7 @@ class _ReevaluateFromStreams extends ChangeNotifier {
   @override
   void dispose() {
     for (final subscription in _subscriptions) {
-      subscription.cancel();
+      unawaited(subscription.cancel());
     }
     super.dispose();
   }

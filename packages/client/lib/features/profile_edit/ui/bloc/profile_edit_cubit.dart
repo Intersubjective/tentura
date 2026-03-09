@@ -33,10 +33,13 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
 
   final ProfileRepository _profileRepository;
 
+  //
   void setTitle(String value) => emit(state.copyWith(title: value));
 
+  //
   void setDescription(String value) => emit(state.copyWith(description: value));
 
+  //
   Future<void> pickImage() async {
     try {
       final image = await _imageRepository.pickImage();
@@ -54,6 +57,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
     }
   }
 
+  //
   void clearImage() => emit(
     state.copyWith(
       status: const StateIsSuccess(),
@@ -63,6 +67,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
     ),
   );
 
+  //
   Future<void> save() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
@@ -73,7 +78,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         dropImage: state.willDropImage,
         image: state.image,
       );
-      emit(state.copyWith(status: StateIsNavigating.back()));
+      emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

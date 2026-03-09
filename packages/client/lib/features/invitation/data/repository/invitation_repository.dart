@@ -13,8 +13,10 @@ import '../gql/_g/invitation_delete_by_id.req.gql.dart';
 import '../gql/_g/invitation_fetch_by_id.req.gql.dart';
 import '../gql/_g/invitations_fetch_by_user_id.req.gql.dart';
 
-typedef InvitationFetchByIdResult =
-    ({InvitationEntity invitation, Profile issuer});
+typedef InvitationFetchByIdResult = ({
+  InvitationEntity invitation,
+  Profile issuer,
+});
 
 @singleton
 class InvitationRepository {
@@ -37,7 +39,7 @@ class InvitationRepository {
         createdAt: timestamp,
         updatedAt: timestamp,
       ),
-      issuer: (invitation.issuer! as UserModel).toEntity,
+      issuer: (invitation.issuer! as UserModel).toEntity(),
     );
   }
 
@@ -48,13 +50,12 @@ class InvitationRepository {
     final result = await _remoteApiService
         .request(
           GInvitationsFetchByUserIdReq(
-            (b) =>
-                b.vars
-                  ..created_at_gt = DateTime.timestamp().subtract(
-                    const Duration(hours: kInvitationDefaultTTL),
-                  )
-                  ..offset = offset
-                  ..limit = limit,
+            (b) => b.vars
+              ..created_at_gt = DateTime.timestamp().subtract(
+                const Duration(hours: kInvitationDefaultTTL),
+              )
+              ..offset = offset
+              ..limit = limit,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -92,7 +93,7 @@ class InvitationRepository {
         .request(GInvitationDeleteByIdReq((b) => b.vars.id = id))
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).invitationDelete);
-    if (result == false) {
+    if (!result) {
       throw InvitationDeleteException(id);
     }
   }
@@ -102,7 +103,7 @@ class InvitationRepository {
         .request(GInvitationAcceptReq((b) => b.vars.id = id))
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).invitationAccept);
-    if (result == false) {
+    if (!result) {
       throw InvitationAcceptException(id);
     }
   }

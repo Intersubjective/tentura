@@ -2,7 +2,13 @@ import 'package:injectable/injectable.dart';
 
 import '../database/tentura_db.dart';
 
-@Injectable(env: [Environment.dev, Environment.prod], order: 1)
+@Injectable(
+  env: [
+    Environment.dev,
+    Environment.prod,
+  ],
+  order: 1,
+)
 class PollingActRepository {
   const PollingActRepository(this._database);
 
@@ -12,13 +18,11 @@ class PollingActRepository {
     required String authorId,
     required String pollingId,
     required String variantId,
-  }) async {
-    await _database.managers.pollingActs.create(
-      (o) => o(
-        authorId: authorId,
-        pollingId: pollingId,
-        pollingVariantId: variantId,
-      ),
-    );
-  }
+  }) => _database.managers.pollingActs.create(
+    (o) => o(
+      authorId: authorId,
+      pollingId: pollingId,
+      pollingVariantId: variantId,
+    ),
+  );
 }

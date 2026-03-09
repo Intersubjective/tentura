@@ -1,7 +1,7 @@
 temp/
 bin/*.exe
+test/test_test.dart
 **.g.dart
 **.config.dart
 **.schema.dart
 **.freezed.dart
-*/jaspr_options.dart

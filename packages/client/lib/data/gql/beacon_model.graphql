@@ -1,4 +1,5 @@
 # import '/data/gql/polling_model.graphql'
+# import '/data/gql/image_model.graphql'
 # import '/data/gql/user_model.graphql'
 
 fragment BeaconModel on beacon {
@@ -7,10 +8,6 @@ fragment BeaconModel on beacon {
   description
   created_at
   updated_at
-  has_picture
-  pic_height
-  pic_width
-  blur_hash
   is_pinned
   context
   enabled
@@ -19,6 +16,10 @@ fragment BeaconModel on beacon {
   end_at
   long
   lat
+  tags
+  image {
+    ...ImageModel
+  }
   polling {
     ...PollingModel
   }

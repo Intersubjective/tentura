@@ -1,6 +1,11 @@
+// graphController should be here
+// ignore_for_file: avoid_public_fields
+
 import 'dart:async';
 import 'package:get_it/get_it.dart';
-import 'package:flutter/material.dart';
+// TBD: return int instead of Colors?
+// ignore: avoid_flutter_imports
+import 'package:flutter/material.dart' show Colors;
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/consts.dart';
@@ -31,12 +36,18 @@ class GraphCubit extends Cubit<GraphState> {
          user: me.copyWith(title: 'Me', score: 2),
          pinned: true,
          size: 80,
+         positionHint: 0,
        ),
        _graphRepository = graphRepository ?? GetIt.I<GraphRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _profileRepository = profileRepository ?? GetIt.I<ProfileRepository>(),
-       super(GraphState(focus: focus ?? '')) {
-    _fetch();
+       super(
+         GraphState(
+           focus: focus ?? '',
+           me: me,
+         ),
+       ) {
+    unawaited(_fetch());
   }
 
   final GraphRepository _graphRepository;
@@ -52,7 +63,9 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _fetchLimits = <String, int>{};
 
-  late final _nodes = <String, NodeDetails>{_egoNode.id: _egoNode};
+  late final Map<String, NodeDetails> _nodes = <String, NodeDetails>{
+    _egoNode.id: _egoNode,
+  };
 
   @override
   Future<void> close() {
@@ -60,31 +73,25 @@ class GraphCubit extends Cubit<GraphState> {
     return super.close();
   }
 
-  void showNodeDetails(NodeDetails node) => switch (node) {
-    final UserNode node => emit(
-      state.copyWith(
-        status: StateIsNavigating('$kPathProfileView?id=${node.id}'),
-      ),
-    ),
-    final BeaconNode node => emit(
-      state.copyWith(
-        status: StateIsNavigating('$kPathBeaconView?id=${node.id}'),
-      ),
-    ),
-  };
-
+  ///
+  ///
   void jumpToEgo() => graphController.jumpToNode(_egoNode);
 
+  ///
+  ///
   void setFocus(NodeDetails node) {
     if (state.focus != node.id) {
       emit(state.copyWith(focus: node.id));
       graphController
         ..setPinned(node, true)
+        // ignore: discarded_futures //
         ..jumpToNode(node);
     }
-    _fetch();
+    unawaited(_fetch());
   }
 
+  ///
+  ///
   Future<void> setContext(String? context) {
     emit(state.copyWith(context: context ?? '', focus: ''));
     graphController.clear();
@@ -92,13 +99,17 @@ class GraphCubit extends Cubit<GraphState> {
     return _fetch();
   }
 
+  ///
+  ///
   void togglePositiveOnly() {
     emit(state.copyWith(positiveOnly: !state.positiveOnly, focus: ''));
     graphController.clear();
     _fetchLimits.clear();
-    _fetch();
+    unawaited(_fetch());
   }
 
+  ///
+  ///
   Future<void> _fetch() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
@@ -120,7 +131,7 @@ class GraphCubit extends Cubit<GraphState> {
         });
       }
 
-      // Fetch FocusNode
+      // Add FocusNode in case there were no edges containing it
       if (state.focus.isNotEmpty && !_nodes.containsKey(state.focus)) {
         _nodes[state.focus] = switch (state.focus[0]) {
           'U' => UserNode(
@@ -145,6 +156,8 @@ class GraphCubit extends Cubit<GraphState> {
     }
   }
 
+  ///
+  ///
   void _updateGraph(Set<EdgeDirected> edges) => graphController.mutate((
     mutator,
   ) {

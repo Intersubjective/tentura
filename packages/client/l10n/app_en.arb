@@ -80,8 +80,10 @@
   "@buttonScanQR": {
     "context": "Utils"
   },
-
-
+  "tagsText": "Tags",
+  "@tagsText": {
+    "context": "Utils"
+  },
   "invitationCodeTooShort": "Code too short",
   "@invitationCodeTooShort": {
     "context": "CommonErrors"
@@ -106,11 +108,17 @@
   "@descriptionTooLong": {
     "context": "CommonErrors"
   },
-
-
   "createNewAccount": "Create new Account",
   "@createNewAccount": {
     "context": "AccountAddDialog, AuthLoginScreen"
+  },
+  "firstTimeHerePrefix": "First time here? We work by invitation. You can get an invite here: ",
+  "firstTimeHereSuffix": "Just message us!",
+  "@firstTimeHerePrefix": {
+    "context": "AuthLoginScreen"
+  },
+  "@firstTimeHereSuffix": {
+    "context": "AuthLoginScreen"
   },
   "pleaseFillTitle": "Please fill title",
   "@pleaseFillTitle": {
@@ -156,18 +164,22 @@
   "@removeFromList": {
     "context": "AccountListTile"
   },
-
-
   "invitationScreenTitle": "Invitations",
   "@invitationScreenTitle": {
     "context": "InvitationScreen"
   },
-
+  "friendsTitle": "Friends",
+  "@friendsTitle": {
+    "context": "FriendsScreen"
+  },
   "invitationsShowMenuItem": "Show Invitations",
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
   },
-
+  "confirmInvitationRemoval": "Are you sure you want to cancel this invite? They won’t be able to sign up after that.",
+  "@confirmInvitationRemoval": {
+    "context": "InvitationRemoveDialog"
+  },
   "confirmBeaconRemoval": "Are you sure you want to delete this beacon?",
   "@confirmBeaconRemoval": {
     "context": "BeaconDeleteDialog"
@@ -204,6 +216,54 @@
   "@showOnMap": {
     "context": "BeaconInfo"
   },
+  "createNewBeacon": "Create new Beacon",
+  "@createNewBeacon": {
+    "context": "BeaconCreateScreen"
+  },
+  "setDisplayPeriod": "Set period",
+  "@setDisplayPeriod": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconTitleRequired": "Beacon Title (required)",
+  "@beaconTitleRequired": {
+    "context": "BeaconCreateScreen"
+  },
+  "buttonPublish": "Publish",
+  "@buttonPublish": {
+    "context": "BeaconCreateScreen"
+  },
+  "addLocation": "Add Location",
+  "@addLocation": {
+    "context": "BeaconCreateScreen"
+  },
+  "attachImage": "Attach Image",
+  "@attachImage": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconInfo": "Info",
+  "@beaconInfo": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconImage": "Image",
+  "@beaconImage": {
+    "context": "BeaconCreateScreen"
+  },
+  "createBeaconErrorTooShortQuestion": "Too short question",
+  "@createBeaconErrorTooShortQuestion": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateSuccess": "Beacon created successfully!",
+  "@beaconCreateSuccess": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateError": "Something went wrong, beacon was not created.",
+  "@beaconCreateError": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconViewButton": "View Beacon",
+  "@beaconViewButton": {
+    "context": "BeaconCreateScreen"
+  },
   "confirmBeaconPublishing": "Are you sure you want to publish this beacon?",
   "@confirmBeaconPublishing": {
     "context": "BeaconPublishDialog"
@@ -212,32 +272,6 @@
   "@confirmBeaconPublishingHint": {
     "context": "BeaconPublishDialog"
   },
-  "createNewBeacon": "Create new Beacon",
-  "@createNewBeacon": {
-    "context": "BeaconCreateScreen"
-  },
-  "setDisplayPeriod": "Set display period",
-  "@setDisplayPeriod": {
-    "context": "DateRangeInput"
-  },
-  "beaconTitleRequired": "Beacon Title (required)",
-  "@beaconTitleRequired": {
-    "context": "TitleInput"
-  },
-  "buttonPublish": "Publish",
-  "@buttonPublish": {
-    "context": "PublishButton"
-  },
-  "addLocation": "Add Location",
-  "@addLocation": {
-    "context": "LocationInput"
-  },
-  "attachImage": "Attach Image",
-  "@attachImage": {
-    "context": "LocationInput"
-  },
-
-  
   "labelComments": "Comments",
   "@labelComments": {
     "context": "Comments"
@@ -270,7 +304,7 @@
   "@labelComplaintType": {
     "context": "ComplaintScreen"
   },
-  "detailsRequired": "Details*",
+  "detailsRequired": "Details, minimum 3 characters",
   "@detailsRequired": {
     "context": "ComplaintScreen"
   },
@@ -290,7 +324,10 @@
   "@buttonSubmitComplaint": {
     "context": "ComplaintScreen"
   },
-
+  "filterByTag": "Filter by tag",
+  "@filterByTag": {
+    "context": "MyFieldScreen"
+  },
   "writeCodeHere": "If you have the Code, please write it here:",
   "@writeCodeHere": {
     "context": "ConnectScreen"
@@ -307,7 +344,6 @@
   "@codeNotFoundError": {
     "context": "ConnectScreen"
   },
-
   "addNewTopic": "Add a new topic",
   "@addNewTopic": {
     "context": "Topics"
@@ -343,7 +379,6 @@
       }
     }
   },
-
   "tapToChooseLocation": "Tap to choose location",
   "@tapToChooseLocation": {
     "context": "ChooseLocationDialog"
@@ -468,6 +503,26 @@
   "@searchBy": {
     "context": "RatingScreen"
   },
+  "scatterView": "Scatter view",
+  "@scatterView": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyIdols": "my idols",
+  "@quadrantMyIdols": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyFriends": "my friends",
+  "@quadrantMyFriends": {
+    "context": "RatingScreen"
+  },
+  "quadrantAcquaintances": "acquaintances",
+  "@quadrantAcquaintances": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyFans": "my fans",
+  "@quadrantMyFans": {
+    "context": "RatingScreen"
+  },
   "showIntroAgain": "Show Intro Again",
   "@showIntroAgain": {
     "context": "SettingsScreen"
@@ -516,7 +571,6 @@
   "@shareLink": {
     "context": "ShareCodeDialog"
   },
-
   "addPollOption": "Add Poll",
   "@addPollOption": {
     "context": "BeaconCreateScreen"
@@ -579,5 +633,13 @@
   "closeButton": "Close",
   "@closeButton": {
     "context": "PollDialog"
+  },
+  "addTagText": "Add tag",
+  "@addTagText": {
+    "context": "AddTagDialog"
+  },
+  "enterTagNameHint": "Enter tag name",
+  "@enterTagNameHint": {
+    "context": "AddTagDialog"
   }
 }

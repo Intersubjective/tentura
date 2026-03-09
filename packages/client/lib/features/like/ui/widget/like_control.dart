@@ -22,7 +22,7 @@ class LikeControl extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(32),
-          color: theme.colorScheme.secondaryContainer,
+          color: theme.colorScheme.surface,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -37,7 +37,9 @@ class LikeControl extends StatelessWidget {
               selector: (state) => state.likes[entity.id] ?? entity.votes,
               builder: (context, state) => Text(
                 state.toString(),
-                style: theme.textTheme.bodyMedium,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ),
             IconButton(

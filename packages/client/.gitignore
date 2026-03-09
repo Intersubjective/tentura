@@ -33,7 +33,6 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
-pubspec.lock
 sentry.properties
 
 # Symbolication related
@@ -65,3 +64,8 @@ app.*.map.json
 
 # Misc
 temp/
+test/test_test.dart
+
+# Env
+*.env
+.cert/

@@ -1,52 +1,64 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/opinion/ui/bloc/opinion_cubit.dart';
 import 'package:tentura/features/opinion/ui/widget/opinion_list.dart';
-
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/profile_cubit.dart';
 import '../widget/profile_app_bar.dart';
 import '../widget/profile_body.dart';
 
 @RoutePage()
-class ProfileScreen extends StatelessWidget implements AutoRouteWrapper {
+class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider(
-    create: (_) {
-      final profile = GetIt.I<ProfileCubit>().state.profile;
-      return OpinionCubit(myProfile: profile, userId: profile.id);
-    },
-    child: BlocListener<OpinionCubit, OpinionState>(
-      listener: commonScreenBlocListener,
-      child: this,
-    ),
-  );
+  Widget build(BuildContext context) =>
+      BlocSelector<ProfileCubit, ProfileState, Profile>(
+        bloc: GetIt.I<ProfileCubit>(),
+        selector: (state) => state.profile,
+        builder: (_, profile) => BlocProvider(
+          create: (_) => OpinionCubit(
+            myProfile: profile,
+            profileId: profile.id,
+          ),
+          child: Builder(
+            builder: (context) => RefreshIndicator.adaptive(
+              onRefresh: () => Future.wait([
+                GetIt.I<ProfileCubit>().fetch(),
+                context.read<OpinionCubit>().fetch(preserve: false),
+              ]),
+              child: CustomScrollView(
+                slivers: [
+                  // Header
+                  ProfileAppBar(
+                    key: Key('ProfileAppBar:${profile.id}'),
+                    profile: profile,
+                  ),
 
-  @override
-  Widget build(BuildContext context) {
-    final opinionCubit = context.read<OpinionCubit>();
-    final profileCubit = GetIt.I<ProfileCubit>();
-    return RefreshIndicator.adaptive(
-      onRefresh: () async {
-        await Future.wait([profileCubit.fetch(), opinionCubit.fetch()]);
-      },
-      child: const CustomScrollView(
-        slivers: [
-          // Header
-          ProfileAppBar(),
+                  // Profile
+                  SliverPadding(
+                    padding: kPaddingAll,
+                    sliver: ProfileBody(
+                      key: Key('ProfileBody:${profile.id}'),
+                      profile: profile,
+                    ),
+                  ),
 
-          // Profile
-          SliverPadding(padding: kPaddingAll, sliver: ProfileBody()),
-
-          // Opinions List
-          SliverPadding(padding: kPaddingH, sliver: OpinionList()),
-        ],
-      ),
-    );
-  }
+                  // Opinions List
+                  SliverPadding(
+                    padding: kPaddingH,
+                    sliver: OpinionList(
+                      key: Key('OpinionList:${profile.id}'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }

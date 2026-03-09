@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:blurhash_shader/blurhash_shader.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 
 class BeaconImage extends StatelessWidget {
@@ -16,18 +15,16 @@ class BeaconImage extends StatelessWidget {
   final BoxFit boxFit;
 
   @override
-  Widget build(BuildContext context) =>
-      beacon.hasNoPicture
-          ? _placeholder
-          : beacon.blurhash.isEmpty
-          ? _imageNetwork
-          : AspectRatio(
-            aspectRatio:
-                beacon.imageHeight > 0
-                    ? beacon.imageWidth / beacon.imageHeight
-                    : 1,
-            child: BlurHash(beacon.blurhash, child: _imageNetwork),
-          );
+  Widget build(BuildContext context) => beacon.hasNoPicture
+      ? _placeholder
+      : beacon.image?.blurHash.isEmpty ?? true
+      ? _imageNetwork
+      : AspectRatio(
+          aspectRatio: beacon.image!.height > 0
+              ? beacon.image!.width / beacon.image!.height
+              : 1,
+          child: BlurHash(beacon.image!.blurHash, child: _imageNetwork),
+        );
 
   Widget get _imageNetwork => Image.network(
     beacon.imageUrl,
@@ -35,10 +32,9 @@ class BeaconImage extends StatelessWidget {
     errorBuilder: (_, _, _) => _placeholder,
   );
 
+  // TBD: remove assets
   Widget get _placeholder => Image.asset(
-    kAssetBeaconPlaceholder,
-    // ignore: avoid_redundant_argument_values // set from env
-    package: kAssetPackage,
+    'images/placeholder/beacon.jpg',
     fit: boxFit,
   );
 }

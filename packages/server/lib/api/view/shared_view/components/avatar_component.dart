@@ -1,28 +1,49 @@
-// ignore_for_file: deprecated_member_use //
-
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
+import '../shared_view_styles.dart';
+
 class AvatarComponent extends StatelessComponent {
-  const AvatarComponent({required this.user});
+  const AvatarComponent({
+    required this.user,
+    this.size = 80,
+  });
 
   final UserEntity user;
 
+  final int size;
+
   @override
-  Iterable<Component> build(BuildContext context) => [
+  Component build(BuildContext context) => Component.fragment([
+    // Avatar
     img(
       src: user.imageUrl,
-      classes: 'card-avatar__image',
-      styles: const Styles.box(width: Unit.pixels(80), height: Unit.pixels(80)),
-    ),
-    p(
-      [text(user.title)],
-      classes: 'card-avatar__text',
-      styles: const Styles.text(
-        fontSize: Unit.pixels(20),
-        fontWeight: FontWeight.w600,
+      alt: 'avatar',
+      height: size,
+      width: size,
+      styles: const Styles(
+        radius: BorderRadius.circular(Unit.percent(50)),
+        shadow: BoxShadow(
+          offsetX: Unit.zero,
+          offsetY: Unit.zero,
+          blur: kEdgeInsetsM,
+          spread: kEdgeInsetsS,
+          color: Color.variable(kShadowColorVarName),
+        ),
+
+        raw: {
+          'object-fit': 'cover',
+        },
       ),
     ),
-  ];
+
+    // Title
+    h3(
+      [
+        Component.text(user.title),
+      ],
+    ),
+  ]);
 }

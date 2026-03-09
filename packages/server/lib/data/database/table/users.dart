@@ -5,9 +5,9 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 import '../common_fields.dart';
+import 'images.dart';
 
-class Users extends Table
-    with TitleDescriptionFields, TimestampsFields, ImageFields {
+class Users extends Table with TitleDescriptionFields, TimestampsFields {
   late final id = text().clientDefault(() => UserEntity.newId)();
 
   late final publicKey = text()
@@ -15,6 +15,10 @@ class Users extends Table
       .unique()();
 
   late final privileges = customType(PgTypes.jsonb).nullable()();
+
+  late final imageId = customType(
+    PgTypes.uuid,
+  ).nullable().references(Images, #id)();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

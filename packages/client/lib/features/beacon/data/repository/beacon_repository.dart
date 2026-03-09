@@ -1,15 +1,14 @@
 import 'dart:async';
+import 'package:injectable/injectable.dart';
 import 'package:http/http.dart' show MultipartFile;
 import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:built_collection/built_collection.dart' show ListBuilder;
-import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
 import '../../domain/exception.dart';
@@ -51,7 +50,7 @@ class BeaconRepository {
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beacon)
-        .then((v) => v.map((e) => (e as BeaconModel).toEntity));
+        .then((v) => v.map((e) => (e as BeaconModel).toEntity()));
   }
 
   //
@@ -60,16 +59,17 @@ class BeaconRepository {
       .request(GBeaconFetchByIdReq((b) => b.vars.id = id))
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beacon_by_pk as BeaconModel?)
-      .then((v) => v == null ? throw BeaconFetchException(id) : v.toEntity);
+      .then((v) => v == null ? throw BeaconFetchException(id) : v.toEntity());
 
   //
   //
-  Future<Beacon> create({required Beacon beacon, ImageEntity? image}) async {
+  Future<Beacon> create(Beacon beacon) async {
     final request = GBeaconCreateReq((b) {
       b.vars
         ..title = beacon.title
         ..description = beacon.description
         ..context = beacon.context.isEmpty ? null : beacon.context
+        ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')
         ..startAt = beacon.startAt?.toIso8601String()
         ..endAt = beacon.endAt?.toIso8601String()
         ..coordinates = beacon.coordinates == null
@@ -82,13 +82,13 @@ class BeaconRepository {
             : (GPollingInputBuilder()
                 ..question = beacon.polling!.question
                 ..variants = ListBuilder(beacon.polling!.variants.values))
-        ..image = image == null
+        ..image = beacon.image?.imageBytes == null
             ? null
             : MultipartFile.fromBytes(
                 'image',
-                image.imageBytes,
-                contentType: MediaType.parse(image.mimeType),
-                filename: image.fileName,
+                beacon.image!.imageBytes!,
+                contentType: MediaType.parse(beacon.image!.mimeType),
+                filename: beacon.image!.fileName,
               );
     });
     final beaconId = await _remoteApiService
@@ -108,7 +108,9 @@ class BeaconRepository {
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconDeleteById);
     if (isOk) {
-      _controller.add(RepositoryEventDelete(emptyBeacon.copyWith(id: id)));
+      _controller.add(
+        RepositoryEventDelete(Beacon.empty.copyWith(id: id)),
+      );
     } else {
       throw BeaconDeleteException(id);
     }
@@ -116,7 +118,10 @@ class BeaconRepository {
 
   //
   //
-  Future<void> setEnabled(bool isEnabled, {required String id}) async {
+  Future<void> setEnabled(
+    bool isEnabled, {
+    required String id,
+  }) async {
     final request = GBeaconUpdateByIdReq((b) {
       b
         ..vars.id = id
@@ -129,7 +134,7 @@ class BeaconRepository {
     if (beacon == null) {
       throw BeaconUpdateException(id);
     } else {
-      _controller.add(RepositoryEventUpdate(beacon.toEntity));
+      _controller.add(RepositoryEventUpdate(beacon.toEntity()));
     }
   }
 

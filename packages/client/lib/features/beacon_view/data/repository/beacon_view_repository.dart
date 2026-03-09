@@ -21,13 +21,12 @@ class BeaconViewRepository {
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then((r) => r.dataOrThrow(label: _label).comment_by_pk)
           .then(
-            (v) =>
-                v == null
-                    ? throw BeaconViewFetchException(commentId)
-                    : (
-                      beacon: (v.beacon as BeaconModel).toEntity,
-                      comment: (v as CommentModel).toEntity,
-                    ),
+            (v) => v == null
+                ? throw BeaconViewFetchException(commentId)
+                : (
+                    beacon: (v.beacon as BeaconModel).toEntity(),
+                    comment: (v as CommentModel).asEntity,
+                  ),
           );
 
   Future<BeaconViewResults> fetchBeaconByIdWithComments({
@@ -36,22 +35,20 @@ class BeaconViewRepository {
   }) => _remoteApiService
       .request(
         GBeaconFetchByIdWithCommentsReq(
-          (b) =>
-              b.vars
-                ..id = beaconId
-                ..limit = limit,
+          (b) => b.vars
+            ..id = beaconId
+            ..limit = limit,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beacon_by_pk)
       .then(
-        (v) =>
-            v == null
-                ? throw BeaconViewFetchException(beaconId)
-                : (
-                  beacon: (v as BeaconModel).toEntity,
-                  comments: v.comments.map((e) => (e as CommentModel).toEntity),
-                ),
+        (v) => v == null
+            ? throw BeaconViewFetchException(beaconId)
+            : (
+                beacon: (v as BeaconModel).toEntity(),
+                comments: v.comments.map((e) => (e as CommentModel).asEntity),
+              ),
       );
 
   static const _label = 'BeaconView';

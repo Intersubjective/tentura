@@ -1,0 +1,11 @@
+mutation FcmRegisterToken(
+  $appId: String!,
+  $token: String!,
+  $platform: String!
+) {
+  fcmTokenRegister(
+    appId: $appId,
+    token: $token,
+    platform: $platform
+  )
+}

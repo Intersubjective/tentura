@@ -1,7 +1,0 @@
-# import 'message_model.graphql'
-
-query MessagesFetch($from: timestamptz!) {
-  message(where: {updated_at: {_gt: $from}}) {
-    ...MessageModel
-  }
-}

@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'package:meta/meta.dart';
 import 'package:ferry/ferry.dart' show OperationRequest, OperationResponse;
-import 'package:flutter/foundation.dart';
 
 import 'auth_box.dart';
 import 'credentials.dart';
@@ -15,7 +15,7 @@ typedef GqlFetcher =
       forward,
     ]);
 
-abstract class RemoteApiClientBase {
+abstract base class RemoteApiClientBase {
   RemoteApiClientBase({
     required this.authJwtExpiresIn,
     required this.apiEndpointUrl,
@@ -24,34 +24,61 @@ abstract class RemoteApiClientBase {
   });
 
   final String userAgent;
+
   final String apiEndpointUrl;
+
   final Duration requestTimeout;
+
   final Duration authJwtExpiresIn;
 
   bool _tokenLocked = false;
 
   AuthBox? _authBox;
 
+  bool get hasValidToken => _authBox?.hasValidToken ?? false;
+
+  //
+  //
+  //
+  @mustCallSuper
+  Future<void> close() async {
+    return dropAuth();
+  }
+
+  ///
   /// Returns Auth Request JWT
+  ///
   @mustCallSuper
   Future<String?> setAuth({
     required String seed,
     required AuthTokenFetcher authTokenFetcher,
     AuthRequestIntent? returnAuthRequestToken,
   }) async {
+    if (seed.isEmpty) {
+      throw const AuthenticationNoKeyException();
+    }
     _tokenLocked = false;
-    _authBox = AuthBox.fromSeed(seed: seed, authTokenFetcher: authTokenFetcher);
+    _authBox = AuthBox.fromSeed(
+      seed: seed,
+      authTokenFetcher: authTokenFetcher,
+    );
     return returnAuthRequestToken == null
         ? null
         : _authBox!.getAuthRequestToken(returnAuthRequestToken);
   }
 
+  //
+  //
+  //
   @mustCallSuper
-  Future<void> close() async {
+  Future<void> dropAuth() async {
     _authBox = null;
     _tokenLocked = false;
   }
 
+  //
+  //
+  //
   @mustCallSuper
   Future<Credentials> getAuthToken() async {
     if (_authBox == null) {
@@ -80,6 +107,9 @@ abstract class RemoteApiClientBase {
     }
   }
 
+  //
+  //
+  //
   Stream<OperationResponse<TData, TVars>> request<TData, TVars>(
     OperationRequest<TData, TVars> request, [
     Stream<OperationResponse<TData, TVars>> Function(

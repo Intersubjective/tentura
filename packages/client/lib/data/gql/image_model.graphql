@@ -1,0 +1,8 @@
+fragment ImageModel on image {
+  id
+  hash
+  height
+  width
+  author_id
+  created_at
+}

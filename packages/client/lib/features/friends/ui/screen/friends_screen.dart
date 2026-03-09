@@ -2,7 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
-import 'package:tentura/consts.dart';
+import 'package:tentura/env.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -19,11 +19,13 @@ class FriendsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenCubit = context.read<ScreenCubit>();
     final friendsCubit = GetIt.I<FriendsCubit>();
+    final env = GetIt.I<Env>();
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
     return Scaffold(
-      appBar: kNeedInviteCode
+      appBar: env.needInviteCode
           ? AppBar(
+              title: Text(l10n.friendsTitle),
               actions: [
                 PopupMenuButton<void>(
                   itemBuilder: (_) => <PopupMenuEntry<void>>[

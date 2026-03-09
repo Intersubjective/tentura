@@ -4,6 +4,7 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../enum.dart';
+import 'image_entity.dart';
 
 part 'user_entity.freezed.dart';
 
@@ -16,20 +17,19 @@ abstract class UserEntity with _$UserEntity {
     @Default('') String publicKey,
     @Default('') String title,
     @Default('') String description,
-    @Default(false) bool hasPicture,
-    @Default('') String blurHash,
-    @Default(0) int picHeight,
-    @Default(0) int picWidth,
     Set<UserPrivileges>? privileges,
+    ImageEntity? image,
   }) = _UserEntity;
 
   const UserEntity._();
 
+  bool get hasImage => image != null;
+
   Map<String, Object> get asJson => {'id': id};
 
-  String get imageUrl => hasPicture
-      ? '$kImageServer/$kImagesPath/$id/avatar.$kImageExt'
-      : kImageServer + kAvatarPlaceholderUrl;
+  String get imageUrl => hasImage
+      ? '$kImageServer/$kImagesPath/$id/${image!.id}.$kImageExt'
+      : kAvatarPlaceholderUrl;
 
   bool hasPrivilege(UserPrivileges value) =>
       privileges?.contains(value) ?? false;

@@ -1,6 +1,6 @@
-import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura_root/domain/enums.dart';
 
-import '../../domain/enum.dart';
+import 'package:tentura/ui/bloc/state_base.dart';
 
 part 'complaint_state.freezed.dart';
 

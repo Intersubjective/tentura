@@ -25,30 +25,34 @@ class RatingListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => context.read<RatingCubit>().showProfile(profile.id),
-        child: Row(
-          children: [
-            AvatarRated(
-              profile: profile,
-              size: height,
-            ),
-            Padding(
-              padding: kPaddingH,
-              child: Text(profile.title),
-            ),
-            const Spacer(),
-            CustomPaint(
-              size: _barbellSize,
-              painter: _CustomBarbellPainter(
-                profile.score,
-                profile.rScore,
-                isDarkMode,
-              ),
-            ),
-          ],
+    behavior: HitTestBehavior.translucent,
+    onTap: () => context.read<RatingCubit>().showProfile(profile.id),
+    child: Row(
+      children: [
+        AvatarRated(
+          profile: profile,
+          size: height,
         ),
-      );
+        Expanded(
+          child: Padding(
+            padding: kPaddingH,
+            child: Text(
+              profile.title,
+              maxLines: 2,
+            ),
+          ),
+        ),
+        CustomPaint(
+          size: _barbellSize,
+          painter: _CustomBarbellPainter(
+            profile.score,
+            profile.rScore,
+            isDarkMode,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _CustomBarbellPainter extends CustomPainter {

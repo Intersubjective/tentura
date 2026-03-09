@@ -1,4 +1,4 @@
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,6 +6,7 @@ import 'package:geocoding/geocoding.dart'
     if (dart.library.js_interop) '../service/geocoding_web_service.dart'
     hide Location;
 
+import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 
 import '../../domain/entity/location.dart';
@@ -30,7 +31,7 @@ class GeoRepository {
     Coordinates coords, {
     bool useCache = true,
   }) async {
-    if (kIsWeb) return null;
+    if (kIsWeb || isDesktopPlatform) return null;
     if (useCache && cache.containsKey(coords)) return cache[coords];
     try {
       final places = await placemarkFromCoordinates(coords.lat, coords.long);
@@ -46,9 +47,9 @@ class GeoRepository {
   }
 
   Future<Location> getLocationByCoords(Coordinates coords) async => Location(
-        coords: coords,
-        place: await getPlaceNameByCoords(coords),
-      );
+    coords: coords,
+    place: await getPlaceNameByCoords(coords),
+  );
 
   Future<Coordinates?> getMyCoords({
     Duration timeLimit = const Duration(seconds: 30),
@@ -68,7 +69,7 @@ class GeoRepository {
           long: position.longitude,
         );
       } catch (e) {
-        _logger.e(e);
+        _logger.severe(e);
       }
     }
     return null;

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 class BottomTextInput extends StatefulWidget {
-  const BottomTextInput({required this.hintText, this.onSend, super.key});
+  const BottomTextInput({
+    required this.hintText,
+    this.onSend,
+    super.key,
+  });
 
   final String hintText;
 
@@ -38,7 +42,9 @@ class _NewCommentInputState extends State<BottomTextInput> {
         IconButton(
           icon: const Icon(Icons.send),
           onPressed: () async {
-            if (_textController.text.isEmpty) return;
+            if (_textController.text.isEmpty) {
+              return;
+            }
             try {
               await widget.onSend?.call(_textController.text);
               _textController.clear();

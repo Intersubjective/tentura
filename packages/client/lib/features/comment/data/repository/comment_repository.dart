@@ -22,17 +22,16 @@ class CommentRepository {
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then((r) => r.dataOrThrow(label: _label).comment)
-          .then((v) => v.map<Comment>((e) => (e as CommentModel).toEntity));
+          .then((v) => v.map<Comment>((e) => (e as CommentModel).asEntity));
 
   Future<Comment> fetchCommentById(String commentId) => _remoteApiService
       .request(GCommentFetchByIdReq((b) => b.vars.id = commentId))
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).comment_by_pk)
       .then(
-        (v) =>
-            v == null
-                ? throw const CommentFetchException()
-                : (v as CommentModel).toEntity,
+        (v) => v == null
+            ? throw const CommentFetchException()
+            : (v as CommentModel).asEntity,
       );
 
   Future<Comment> addComment({
@@ -41,24 +40,22 @@ class CommentRepository {
   }) => _remoteApiService
       .request(
         GCommentCreateReq(
-          (b) =>
-              b.vars
-                ..beacon_id = beaconId
-                ..content = content,
+          (b) => b.vars
+            ..beacon_id = beaconId
+            ..content = content,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).insert_comment_one)
       .then(
-        (v) =>
-            v == null
-                ? throw const CommentCreateException()
-                : Comment(
-                  id: v.id,
-                  content: content,
-                  beaconId: beaconId,
-                  createdAt: v.created_at,
-                ),
+        (v) => v == null
+            ? throw const CommentCreateException()
+            : Comment(
+                id: v.id,
+                content: content,
+                beaconId: beaconId,
+                createdAt: v.created_at,
+              ),
       );
 
   static const _label = 'Comment';

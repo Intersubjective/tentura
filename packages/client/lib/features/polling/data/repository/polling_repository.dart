@@ -42,7 +42,7 @@ class PollingRepository {
         .then((r) => r.dataOrThrow(label: _label));
 
     final polling = (result.polling_by_pk! as PollingModel).toEntity(
-      author: (result.polling_by_pk!.author as UserModel).toEntity,
+      author: (result.polling_by_pk!.author as UserModel).toEntity(),
     );
 
     final pollingResults = result.polling_results

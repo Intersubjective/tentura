@@ -1,0 +1,25 @@
+#
+### GQL Register FCM token
+#
+POST {{base_url}}/{{gqlV2_path}}
+Authorization: Bearer {{$dotenv TENTURA_JWT}}
+Content-Type: application/json
+X-Request-Type: GraphQL
+
+mutation FcmRegisterToken(
+  $appId: String,
+  $token: String,
+  $platform: String
+) {
+  fcmTokenRegister(
+    appId: $appId,
+    token: $token,
+    platform: $platform
+  )
+}
+
+{
+  "appId": "{{$guid}}",
+  "token": "{{$guid}}",
+  "platform": "{{$randomInt 0 5}}"
+}

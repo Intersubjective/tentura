@@ -1,92 +1,88 @@
-import 'dart:typed_data';
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/env.dart';
 
-import '../storage/local_storage.dart';
+import '../database/tentura_db.dart';
 import '../storage/remote_storage.dart';
 
-@Injectable(order: 1)
+@Injectable(
+  env: [
+    Environment.dev,
+    Environment.prod,
+  ],
+  order: 1,
+)
 class ImageRepository {
-  static String getBeaconImagePath({
-    required String authorId,
-    required String beaconId,
-  }) => '$kImagesPath/$authorId/$beaconId.$kImageExt';
-
-  static String getUserImagePath({required String userId}) =>
-      '$kImageServer/$kImagesPath/$userId/avatar.$kImageExt';
-
   const ImageRepository(
-    this._localStorageService,
+    this._database,
     this._remoteStorageService,
-    this._settings,
   );
 
-  final LocalStorage _localStorageService;
+  final TenturaDb _database;
 
   final RemoteStorage _remoteStorageService;
 
-  final Env _settings;
-
-  Future<Uint8List> getBeaconImage({
-    required String authorId,
-    required String beaconId,
-  }) {
-    final path = getBeaconImagePath(authorId: authorId, beaconId: beaconId);
-    return _settings.kIsRemoteStorageEnabled
-        ? _remoteStorageService.getObject(path)
-        : _localStorageService.readFile(path);
+  Future<Uint8List> get({required String id}) async {
+    final image = await _database.managers.images
+        .filter((e) => e.id(UuidValue.fromString(id)))
+        .getSingle();
+    return _remoteStorageService.getObject(
+      _getImagePath(authorId: image.authorId, imageId: id),
+    );
   }
 
-  Future<Uint8List> getUserImage({required String userId}) {
-    final path = getUserImagePath(userId: userId);
-    return _settings.kIsRemoteStorageEnabled
-        ? _remoteStorageService.getObject(path)
-        : _localStorageService.readFile(path);
-  }
-
-  Future<String> putBeaconImage({
+  Future<String> put({
     required String authorId,
-    required String beaconId,
     required Stream<Uint8List> bytes,
-  }) {
-    final path = getBeaconImagePath(authorId: authorId, beaconId: beaconId);
-    return _settings.kIsRemoteStorageEnabled
-        ? _remoteStorageService.putObject(path, bytes)
-        : _localStorageService.saveStreamToFile(path, bytes);
+  }) async {
+    final imageModel = await _database.managers.images.createReturning(
+      (o) => o(authorId: authorId),
+    );
+    await _remoteStorageService.putObject(
+      _getImagePath(
+        authorId: authorId,
+        imageId: imageModel.id.uuid,
+      ),
+      bytes,
+    );
+    return imageModel.id.uuid;
   }
 
-  Future<void> deleteBeaconImage({
+  Future<void> update({
+    required String id,
+    required String blurHash,
+    required int height,
+    required int width,
+  }) => _database.managers.images
+      .filter((e) => e.id(UuidValue.fromString(id)))
+      .update(
+        (o) => o(
+          hash: Value(blurHash),
+          height: Value(height),
+          width: Value(width),
+        ),
+      );
+
+  Future<void> delete({
     required String authorId,
-    required String beaconId,
-  }) {
-    final path = getBeaconImagePath(authorId: authorId, beaconId: beaconId);
-    return _settings.kIsRemoteStorageEnabled
-        ? _remoteStorageService.removeObject(path)
-        : _localStorageService.deleteFile(path);
+    required String imageId,
+  }) async {
+    await _database.managers.images
+        .filter((e) => e.id(UuidValue.fromString(imageId)))
+        .delete();
+    await _remoteStorageService.removeObject(
+      _getImagePath(authorId: authorId, imageId: imageId),
+    );
   }
 
-  Future<String> putUserImage({
-    required String userId,
-    required Stream<Uint8List> bytes,
-  }) {
-    final path = getUserImagePath(userId: userId);
-    return _settings.kIsRemoteStorageEnabled
-        ? _remoteStorageService.putObject(path, bytes)
-        : _localStorageService.saveStreamToFile(path, bytes);
-  }
+  Future<void> deleteAllOf({required String userId}) =>
+      _remoteStorageService.removeObject(
+        '$kImagesPath/$userId',
+      );
 
-  Future<void> deleteUserImage({required String userId}) {
-    final path = getUserImagePath(userId: userId);
-    return _settings.kIsRemoteStorageEnabled
-        ? _remoteStorageService.removeObject(path)
-        : _localStorageService.deleteFile(path);
-  }
-
-  Future<void> deleteUserImageAll({required String userId}) {
-    final path = '$kImageServer/$kImagesPath/$userId';
-    return _settings.kIsRemoteStorageEnabled
-        ? _remoteStorageService.removeObject(path)
-        : _localStorageService.deleteFile(path, recursive: true);
-  }
+  static String _getImagePath({
+    required String authorId,
+    required String imageId,
+  }) => '$kImagesPath/$authorId/$imageId.$kImageExt';
 }

@@ -3,4 +3,3 @@ output-class: L10n
 output-dir: lib/ui/l10n
 template-arb-file: app_en.arb
 output-localization-file: l10n.dart
-synthetic-package: false

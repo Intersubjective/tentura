@@ -22,10 +22,14 @@ final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
   ]);
 
 final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
-  ..fields.addAll([field('id', graphQLString.nonNullable())]);
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+  ]);
 
 final gqlTypeProfile = GraphQLObjectType('User', null)
-  ..fields.addAll([field('id', graphQLString.nonNullable())]);
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+  ]);
 
 final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
   ..fields.addAll([

@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class OpinionDeleteDialog extends StatelessWidget {
-  static Future<bool?> show(BuildContext context) =>
-      showDialog(context: context, builder: (_) => const OpinionDeleteDialog());
+  static Future<bool?> show(BuildContext context) => showAdaptiveDialog(
+    context: context,
+    builder: (_) => const OpinionDeleteDialog(),
+  );
 
   const OpinionDeleteDialog({super.key});
 

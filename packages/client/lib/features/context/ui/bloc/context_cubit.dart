@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'package:get_it/get_it.dart';
-import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/repository_event.dart';
 
-import 'package:tentura/features/auth/data/repository/auth_repository.dart';
-import 'package:tentura/features/context/data/repository/context_repository.dart';
+import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
+import '../../data/repository/context_repository.dart';
 import '../../domain/exception.dart';
 import '../../domain/entity/context_entity.dart';
 import 'context_state.dart';
@@ -16,85 +15,69 @@ export 'package:get_it/get_it.dart';
 
 export 'context_state.dart';
 
-/// Global Cubit
-@lazySingleton
 class ContextCubit extends Cubit<ContextState> {
   ContextCubit({
-    bool fromCache = true,
-    AuthRepository? authRepository,
+    AuthCase? authCase,
     ContextRepository? contextRepository,
-  }) : _authRepository = authRepository ?? GetIt.I<AuthRepository>(),
+    bool fetchFromCache = true,
+  }) : _authCase = authCase ?? GetIt.I<AuthCase>(),
        _contextRepository = contextRepository ?? GetIt.I<ContextRepository>(),
        super(const ContextState()) {
-    _contextChanges.resume();
-    fetch(fromCache: fromCache);
+    _authChanges = _authCase.currentAccountChanges().listen(
+      _onAuthChanges,
+      cancelOnError: false,
+    );
+    _contextChanges = _contextRepository.changes.listen(
+      _onContextChanges,
+      cancelOnError: false,
+      onError: _onContextChangesError,
+    );
+    unawaited(fetch(fromCache: fetchFromCache));
   }
 
-  @factoryMethod
-  ContextCubit.global(this._authRepository, this._contextRepository)
-    : super(const ContextState()) {
-    _authChanges.resume();
-    _contextChanges.resume();
-  }
-
-  final AuthRepository _authRepository;
+  final AuthCase _authCase;
 
   final ContextRepository _contextRepository;
 
-  late final _authChanges = _authRepository.currentAccountChanges().listen((
-    id,
-  ) async {
-    if (id.isNotEmpty) await fetch(fromCache: false);
-  }, cancelOnError: false);
+  StreamSubscription<String>? _authChanges;
 
-  late final _contextChanges = _contextRepository.changes.listen(
-    (event) => switch (event) {
-      final RepositoryEventCreate<ContextEntity> entity => emit(
-        ContextState(
-          contexts: state.contexts..add(entity.value.name),
-          selected: state.selected,
-        ),
-      ),
-      final RepositoryEventDelete<ContextEntity> entity => emit(
-        ContextState(
-          contexts: state.contexts..remove(entity.id),
-          selected: state.selected == entity.id ? '' : state.selected,
-        ),
-      ),
-      RepositoryEventUpdate<ContextEntity>() => null,
-      RepositoryEventFetch<ContextEntity>() => null,
-    },
-    cancelOnError: false,
-    onError:
-        (Object? e) => emit(
-          state.copyWith(
-            status: StateHasError(e ?? const ContextUnknownException()),
-          ),
-        ),
-  );
+  StreamSubscription<RepositoryEvent<ContextEntity>>? _contextChanges;
 
-  @disposeMethod
-  Future<void> dispose() async {
-    await _authChanges.cancel();
-    await _contextChanges.cancel();
-    return close();
+  @override
+  Future<void> close() async {
+    await _authChanges?.cancel();
+    await _contextChanges?.cancel();
+    await super.close();
   }
 
+  ///
+  ///
   Future<void> fetch({bool fromCache = true}) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final contexts = await _contextRepository.fetch(fromCache: fromCache);
-      emit(ContextState(contexts: contexts.toSet(), selected: state.selected));
+      emit(
+        ContextState(
+          contexts: contexts.toSet(),
+          selected: state.selected,
+        ),
+      );
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
 
-  String select(String contextName) {
-    emit(ContextState(contexts: state.contexts, selected: contextName));
-    return contextName;
-  }
+  ///
+  ///
+  void select(String contextName) => emit(
+    ContextState(
+      contexts: state.contexts,
+      selected: contextName,
+    ),
+  );
 
+  ///
+  ///
   Future<void> add(String? contextName) async {
     if (contextName == null) {
       return;
@@ -106,18 +89,23 @@ class ContextCubit extends Cubit<ContextState> {
     try {
       await _contextRepository.add(contextName);
       emit(
-        state.copyWith(selected: contextName, status: StateStatus.isSuccess),
+        state.copyWith(
+          selected: contextName,
+          status: StateStatus.isSuccess,
+        ),
       );
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
 
+  ///
+  ///
   Future<void> delete(String contextName) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _contextRepository.delete(
-        userId: await _authRepository.getCurrentAccountId(),
+        userId: await _authCase.getCurrentAccountId(),
         contextName: contextName,
       );
       if (contextName == state.selected) {
@@ -127,4 +115,40 @@ class ContextCubit extends Cubit<ContextState> {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
+
+  ///
+  ///
+  Future<void> _onAuthChanges(String id) async {
+    if (id.isNotEmpty) {
+      await fetch(fromCache: false);
+    }
+  }
+
+  ///
+  ///
+  void _onContextChanges(RepositoryEvent<ContextEntity> event) =>
+      switch (event) {
+        final RepositoryEventCreate<ContextEntity> entity => emit(
+          ContextState(
+            contexts: state.contexts..add(entity.value.name),
+            selected: state.selected,
+          ),
+        ),
+        final RepositoryEventDelete<ContextEntity> entity => emit(
+          ContextState(
+            contexts: state.contexts..remove(entity.id),
+            selected: state.selected == entity.id ? '' : state.selected,
+          ),
+        ),
+        RepositoryEventUpdate<ContextEntity>() => null,
+        RepositoryEventFetch<ContextEntity>() => null,
+      };
+
+  ///
+  ///
+  void _onContextChangesError(Object? e) => emit(
+    state.copyWith(
+      status: StateHasError(e ?? const ContextUnknownException()),
+    ),
+  );
 }

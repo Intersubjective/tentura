@@ -1,0 +1,21 @@
+name: 'Setup Client Codegen'
+description: 'Install client dependencies, run codegen and localizations (assumes Flutter is already set up)'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install client dependencies
+      shell: bash
+      run: flutter pub get
+      working-directory: packages/client
+
+    - name: Generate localizations (client)
+      shell: bash
+      run: flutter gen-l10n
+      working-directory: packages/client
+
+    - name: Run codegen (client)
+      shell: bash
+      run: dart run build_runner build -d
+      working-directory: packages/client
+

@@ -1,5 +1,5 @@
 {
-  "resource_version": 62,
+  "resource_version": 48,
   "metadata": {
     "version": 3,
     "sources": [
@@ -17,6 +17,12 @@
                 "name": "author",
                 "using": {
                   "foreign_key_constraint_on": "user_id"
+                }
+              },
+              {
+                "name": "image",
+                "using": {
+                  "foreign_key_constraint_on": "image_id"
                 }
               },
               {
@@ -103,20 +109,18 @@
                 "role": "user",
                 "permission": {
                   "columns": [
-                    "blur_hash",
                     "context",
                     "created_at",
                     "description",
                     "enabled",
                     "end_at",
-                    "has_picture",
                     "id",
+                    "image_id",
                     "lat",
                     "long",
-                    "pic_height",
-                    "pic_width",
                     "polling_id",
                     "start_at",
+                    "tags",
                     "title",
                     "updated_at",
                     "user_id"
@@ -316,6 +320,12 @@
           },
           {
             "table": {
+              "name": "complaint",
+              "schema": "public"
+            }
+          },
+          {
+            "table": {
               "name": "edge",
               "schema": "public"
             },
@@ -374,6 +384,29 @@
                     "score",
                     "dst",
                     "src"
+                  ],
+                  "filter": {}
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "image",
+              "schema": "public"
+            },
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "author_id",
+                    "created_at",
+                    "hash",
+                    "height",
+                    "id",
+                    "width"
                   ],
                   "filter": {}
                 },
@@ -446,101 +479,6 @@
                     "user_id": {
                       "_eq": "X-Hasura-User-Id"
                     }
-                  }
-                },
-                "comment": ""
-              }
-            ]
-          },
-          {
-            "table": {
-              "name": "message",
-              "schema": "public"
-            },
-            "insert_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "check": {},
-                  "set": {
-                    "subject": "x-hasura-User-Id"
-                  },
-                  "columns": [
-                    "message",
-                    "object"
-                  ]
-                },
-                "comment": ""
-              }
-            ],
-            "select_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "created_at",
-                    "delivered",
-                    "id",
-                    "message",
-                    "object",
-                    "subject",
-                    "updated_at"
-                  ],
-                  "filter": {
-                    "_or": [
-                      {
-                        "subject": {
-                          "_eq": "X-Hasura-User-Id"
-                        }
-                      },
-                      {
-                        "object": {
-                          "_eq": "X-Hasura-User-Id"
-                        }
-                      }
-                    ]
-                  }
-                },
-                "comment": ""
-              }
-            ],
-            "update_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "delivered"
-                  ],
-                  "filter": {
-                    "object": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
-                  },
-                  "check": null,
-                  "set": {
-                    "delivered": "true"
-                  }
-                },
-                "comment": ""
-              }
-            ],
-            "delete_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "filter": {
-                    "_and": [
-                      {
-                        "subject": {
-                          "_eq": "X-Hasura-User-Id"
-                        }
-                      },
-                      {
-                        "delivered": {
-                          "_eq": false
-                        }
-                      }
-                    ]
                   }
                 },
                 "comment": ""
@@ -848,6 +786,14 @@
               "name": "user",
               "schema": "public"
             },
+            "object_relationships": [
+              {
+                "name": "image",
+                "using": {
+                  "foreign_key_constraint_on": "image_id"
+                }
+              }
+            ],
             "array_relationships": [
               {
                 "name": "beacon_pinneds",
@@ -962,13 +908,10 @@
                 "role": "user",
                 "permission": {
                   "columns": [
-                    "blur_hash",
                     "created_at",
                     "description",
-                    "has_picture",
                     "id",
-                    "pic_height",
-                    "pic_width",
+                    "image_id",
                     "public_key",
                     "title",
                     "updated_at"
@@ -1037,12 +980,6 @@
                 "comment": ""
               }
             ]
-          },
-          {
-            "table": {
-              "name": "user_vsids",
-              "schema": "public"
-            }
           },
           {
             "table": {

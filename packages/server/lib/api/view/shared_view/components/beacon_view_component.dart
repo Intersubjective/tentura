@@ -1,63 +1,69 @@
-// ignore_for_file: deprecated_member_use //
-
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/utils/format_date.dart';
 
-import '../styles/shared_view_styles.dart';
 import 'avatar_component.dart';
 
 class BeaconViewComponent extends StatelessComponent {
-  const BeaconViewComponent({required this.beacon});
+  const BeaconViewComponent({
+    required this.beacon,
+  });
 
   final BeaconEntity beacon;
 
   @override
-  Iterable<Component> build(BuildContext context) => [
+  Component build(BuildContext context) => Component.fragment([
     img(
       src: beacon.imageUrl,
-      styles: const Styles.box(width: Unit.percent(100)),
+      alt: 'beacon image',
     ),
-    div([
-      div(
-        [AvatarComponent(user: beacon.author)],
-        classes: 'card-avatar',
-        styles: const Styles.box(
-          margin: EdgeInsets.only(top: Unit.pixels(-68)),
-        ),
+    section(
+      styles: const Styles(
+        margin: Spacing.only(top: Unit.pixels(-68)),
       ),
-      h1([
-        text(beacon.title),
-      ], styles: const Styles.box(margin: EdgeInsets.only(top: kEdgeInsetsMS))),
-      if (beacon.description.isNotEmpty)
-        p(
-          [text(beacon.description)],
-          styles: const Styles.box(margin: EdgeInsets.only(top: kEdgeInsetsMS)),
+      [
+        // Avatar
+        AvatarComponent(user: beacon.author),
+
+        // Title
+        h4(
+          [
+            Component.text(beacon.title),
+          ],
         ),
-      if (beacon.coordinates != null)
-        p(
-          [text(beacon.coordinates.toString())],
-          classes: 'secondary-text',
-          styles: Styles.box(
-            margin: EdgeInsets.only(
-              top: kEdgeInsetsSXS,
-              bottom:
-                  beacon.startAt != null && beacon.endAt != null
-                      ? kEdgeInsetsS
-                      : Unit.zero,
-            ),
+
+        if (beacon.description.isNotEmpty)
+          p(
+            [
+              Component.text(beacon.description),
+            ],
           ),
-        ),
-      if (beacon.startAt != null || beacon.endAt != null)
-        p(
-          [text('${beacon.startAt} - ${beacon.endAt}')],
-          classes: 'secondary-text',
-          styles: Styles.box(
-            margin: EdgeInsets.only(
-              top: beacon.coordinates != null ? Unit.zero : kEdgeInsetsSXS,
-            ),
+
+        if (beacon.coordinates != null)
+          small(
+            [
+              Component.text(beacon.coordinates.toString()),
+              const br(),
+            ],
           ),
-        ),
-    ], classes: 'card-container'),
-  ];
+
+        if (beacon.startAt != null)
+          small(
+            [
+              Component.text('from ${formatDate(beacon.startAt)}'),
+              if (beacon.endAt != null) const Component.text(', '),
+            ],
+          ),
+
+        if (beacon.endAt != null)
+          small(
+            [
+              Component.text('until ${formatDate(beacon.endAt)}'),
+            ],
+          ),
+      ],
+    ),
+  ]);
 }

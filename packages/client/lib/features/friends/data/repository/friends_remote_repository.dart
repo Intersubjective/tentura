@@ -17,7 +17,7 @@ class FriendsRemoteRepository {
       .request(GFriendsFetchReq())
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).vote_user)
-      .then((r) => r.map((e) => (e.user as UserModel).toEntity));
+      .then((r) => r.map((e) => (e.user as UserModel).toEntity()));
 
   static const _label = 'Friends';
 }

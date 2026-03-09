@@ -1,3 +1,4 @@
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -9,14 +10,25 @@ import '../mapper/user_mapper.dart';
 
 export 'package:tentura_server/domain/entity/user_entity.dart';
 
-@Injectable(env: [Environment.dev, Environment.prod], order: 1)
-class UserRepository with UserMapper {
-  const UserRepository(this._database, this._settings);
+@Singleton(
+  env: [
+    Environment.dev,
+    Environment.prod,
+  ],
+  order: 1,
+)
+class UserRepository {
+  const UserRepository(
+    this._env,
+    this._database,
+  );
+
+  final Env _env;
 
   final TenturaDb _database;
 
-  final Env _settings;
-
+  //
+  //
   Future<UserEntity> create({
     required String publicKey,
     required String title,
@@ -25,6 +37,7 @@ class UserRepository with UserMapper {
       .then(userModelToEntity);
 
   // TBD: move to SQL
+  //
   Future<UserEntity> createInvited({
     required String invitationId,
     required String publicKey,
@@ -39,7 +52,7 @@ class UserRepository with UserMapper {
       );
     }
     if (invitation.createdAt.dateTime
-        .add(_settings.invitationTTL)
+        .add(_env.invitationTTL)
         .isBefore(DateTime.timestamp())) {
       throw const InvitationWrongException(description: 'Invitation expired!');
     }
@@ -66,11 +79,15 @@ class UserRepository with UserMapper {
     return userModelToEntity(user);
   });
 
+  //
+  //
   Future<UserEntity> getById(String id) => _database.managers.users
       .filter((e) => e.id(id))
       .getSingle()
       .then(userModelToEntity);
 
+  //
+  //
   Future<UserEntity> getByPublicKey(String publicKey) => _database
       .managers
       .users
@@ -78,33 +95,34 @@ class UserRepository with UserMapper {
       .getSingle()
       .then(userModelToEntity);
 
+  //
+  //
   Future<void> update({
     required String id,
     String? title,
     String? description,
-    bool? hasImage,
-    String? blurHash,
-    int? imageHeight,
-    int? imageWidth,
-  }) async {
-    final user = await _database.managers.users
-        .filter((e) => e.id(id))
-        .getSingle();
-    await _database.managers.users.replace(
-      user.copyWith(
-        title: title ?? user.title,
-        description: description ?? user.description,
-        hasPicture: hasImage ?? user.hasPicture,
-        blurHash: blurHash ?? user.blurHash,
-        picHeight: imageHeight ?? user.picHeight,
-        picWidth: imageWidth ?? user.picWidth,
-      ),
-    );
-  }
+    String? imageId,
+    bool dropImage = false,
+  }) => _database.managers.users
+      .filter((e) => e.id(id))
+      .update(
+        (o) => o(
+          title: Value.absentIfNull(title),
+          description: Value.absentIfNull(description),
+          imageId: dropImage
+              ? const Value(null)
+              : imageId == null
+              ? const Value.absent()
+              : Value(UuidValue.fromString(imageId)),
+        ),
+      );
 
+  //
+  //
   Future<void> deleteById({required String id}) =>
       _database.managers.users.filter((e) => e.id(id)).delete();
 
+  //
   // TBD: move to SQL
   Future<bool> bindMutual({
     required String invitationId,
@@ -118,7 +136,7 @@ class UserRepository with UserMapper {
         description: 'Invitation already used!',
       );
     } else if (invitation.createdAt.dateTime
-        .add(_settings.invitationTTL)
+        .add(_env.invitationTTL)
         .isBefore(DateTime.timestamp())) {
       throw const InvitationWrongException(description: 'Invitation expired!');
     }

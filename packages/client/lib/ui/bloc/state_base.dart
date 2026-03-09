@@ -1,3 +1,5 @@
+import 'package:tentura_root/domain/entity/localizable.dart';
+
 import 'package:tentura/consts.dart';
 
 export 'package:flutter/foundation.dart';
@@ -5,7 +7,9 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 export 'package:freezed_annotation/freezed_annotation.dart';
 
 abstract class StateBase {
-  const StateBase({this.status = const StateIsSuccess()});
+  const StateBase({
+    this.status = const StateIsSuccess(),
+  });
 
   final StateStatus status;
 
@@ -37,13 +41,13 @@ class StateIsLoading extends StateStatus {
 class StateIsMessaging extends StateStatus {
   StateIsMessaging(this.message);
 
-  final String? message;
+  final LocalizableMessage message;
 }
 
 class StateIsNavigating extends StateStatus {
-  StateIsNavigating(this.path);
+  static const back = StateIsNavigating(kPathBack);
 
-  StateIsNavigating.back() : path = kPathBack;
+  const StateIsNavigating(this.path);
 
   final String path;
 }

@@ -6,6 +6,7 @@ import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/comment_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/api/view/shared_view/shared_view_document.dart';
+import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/opinion_case.dart';
 
 import '_base_controller.dart';
@@ -16,6 +17,7 @@ final class SharedViewController extends BaseController {
     this._beaconRepository,
     this._commentRepository,
     this._userRepository,
+    this._invitationCase,
     this._opinionCase,
     super.env,
   );
@@ -25,6 +27,8 @@ final class SharedViewController extends BaseController {
   final CommentRepository _commentRepository;
 
   final UserRepository _userRepository;
+
+  final InvitationCase _invitationCase;
 
   final OpinionCase _opinionCase;
 
@@ -53,15 +57,18 @@ final class SharedViewController extends BaseController {
           entity: switch (ogId[0]) {
             'B' => await _beaconRepository.getBeaconById(beaconId: ogId),
             'C' => await _commentRepository.getCommentById(ogId),
-            // TBD: Invitation preview
-            'I' => throw UnimplementedError(),
+            'I' => await _invitationCase.fetchById(invitationId: ogId),
             'O' => await _opinionCase.getOpinionById(ogId),
             'U' => await _userRepository.getById(ogId),
             _ => throw IdWrongException(id: ogId),
           },
         ),
       );
-      return Response(html.statusCode, body: html.body, headers: html.headers);
+      return Response(
+        html.statusCode,
+        body: html.body,
+        headers: html.headers,
+      );
     } on IdWrongException catch (e) {
       return Response.badRequest(body: e.toString());
     } on IdNotFoundException catch (e) {

@@ -1,5 +1,5 @@
 flutter_native_splash:
-  color: "#3A1E5C"
-  color_dark: "#3A1E5C"
-  image: "assets/images/splash_light.png"
-  image_dark: "assets/images/splash_dark.png"
+  color: "#F4F4F4"
+  color_dark: "#0A1826"
+  image: "images/splash_light.png"
+  image_dark: "images/splash_dark.png"
