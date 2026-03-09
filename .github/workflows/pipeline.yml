@@ -40,41 +40,24 @@ jobs:
           VERSION_CLEAN=${VERSION_CLEAN//\//-}
           echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
 
-      - name: Run tests in Flutter container
+      - name: Test and build web in Flutter container
         run: |
           set -euo pipefail
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
+            --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
             ${{ env.FLUTTER_IMAGE }} \
             bash -c '
               set -euo pipefail
               apt-get update -qq && apt-get install -y -qq libsqlite3-dev > /dev/null
+
               dart pub get
-              cd packages/server && dart run build_runner build -d && dart test && cd ../..
               flutter pub get
-              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter test && cd ../..
-            '
 
-      - name: Build and push server image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: packages/server/Dockerfile_build
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.server_version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+              cd packages/server && dart run build_runner build -d && dart test && cd ../..
 
-      - name: Build web (stage) in Flutter container
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            -v "${{ github.workspace }}":/app -w /app/packages/client \
-            ${{ env.FLUTTER_IMAGE }} \
-            bash -c '
-              set -euo pipefail
+              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter test
+
               if [ -f /app/.env ]; then
                 flutter build web \
                   --wasm \
@@ -89,23 +72,8 @@ jobs:
                   --source-maps \
                   --dart-define=SERVER_NAME=https://stage.tentura.io
               fi
-            '
+              cd build/web && tar -czf /app/web-stage-${SERVER_VERSION}.tar.gz . && cd ../..
 
-      - name: Create web archive (stage)
-        run: |
-          set -euo pipefail
-          cd packages/client/build/web
-          tar -czf "${{ github.workspace }}/web-stage-${{ steps.versions.outputs.server_version }}.tar.gz" .
-          cd "${{ github.workspace }}"
-
-      - name: Build web (prod) in Flutter container
-        run: |
-          set -euo pipefail
-          docker run --rm \
-            -v "${{ github.workspace }}":/app -w /app/packages/client \
-            ${{ env.FLUTTER_IMAGE }} \
-            bash -c '
-              set -euo pipefail
               flutter clean && flutter pub get && flutter gen-l10n && dart run build_runner build -d
               if [ -f /app/.env ]; then
                 flutter build web \
@@ -123,14 +91,20 @@ jobs:
                   --dart-define=SERVER_NAME=https://app.tentura.io \
                   --dart-define=NEED_INVITE_CODE=true
               fi
+              cd build/web && tar -czf /app/web-prod-${SERVER_VERSION}.tar.gz . && cd ../..
             '
 
-      - name: Create web archive (prod)
-        run: |
-          set -euo pipefail
-          cd packages/client/build/web
-          tar -czf "${{ github.workspace }}/web-prod-${{ steps.versions.outputs.server_version }}.tar.gz" .
-          cd "${{ github.workspace }}"
+      - name: Build and push server image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/server/Dockerfile_build
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.server_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Upload web archive artifacts
         uses: actions/upload-artifact@v4
