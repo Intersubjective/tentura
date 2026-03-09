@@ -503,6 +503,26 @@
   "@searchBy": {
     "context": "RatingScreen"
   },
+  "scatterView": "Диаграмма",
+  "@scatterView": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyIdols": "мои кумиры",
+  "@quadrantMyIdols": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyFriends": "мои друзья",
+  "@quadrantMyFriends": {
+    "context": "RatingScreen"
+  },
+  "quadrantAcquaintances": "знакомые",
+  "@quadrantAcquaintances": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyFans": "мои фанаты",
+  "@quadrantMyFans": {
+    "context": "RatingScreen"
+  },
   "showIntroAgain": "Показать интро снова",
   "@showIntroAgain": {
     "context": "SettingsScreen"

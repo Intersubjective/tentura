@@ -503,6 +503,26 @@
   "@searchBy": {
     "context": "RatingScreen"
   },
+  "scatterView": "Scatter view",
+  "@scatterView": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyIdols": "my idols",
+  "@quadrantMyIdols": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyFriends": "my friends",
+  "@quadrantMyFriends": {
+    "context": "RatingScreen"
+  },
+  "quadrantAcquaintances": "acquaintances",
+  "@quadrantAcquaintances": {
+    "context": "RatingScreen"
+  },
+  "quadrantMyFans": "my fans",
+  "@quadrantMyFans": {
+    "context": "RatingScreen"
+  },
   "showIntroAgain": "Show Intro Again",
   "@showIntroAgain": {
     "context": "SettingsScreen"
