@@ -1,9 +1,0 @@
-{
-  "files.exclude": {
-    "**/_g": true,
-    "**/*.g.dart": true,
-    "**/*.gr.dart": true,
-    "**/*.freezed.dart": true,
-    "**/di.config.dart": true,
-  },
-}

@@ -61,7 +61,7 @@ final class ChatCase extends UseCaseBase {
     required DateTime fromMoment,
     int batchSize = 10,
   }) {
-    logger.d('[ChatCase] Subscribe to updates.');
+    logger.fine('[ChatCase] Subscribe to updates.');
     _chatRemoteRepository.subscribeToUpdates(
       fromMoment: fromMoment,
       batchSize: batchSize,

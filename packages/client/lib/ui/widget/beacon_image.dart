@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:blurhash_shader/blurhash_shader.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 
 class BeaconImage extends StatelessWidget {
@@ -36,8 +35,6 @@ class BeaconImage extends StatelessWidget {
   // TBD: remove assets
   Widget get _placeholder => Image.asset(
     'images/placeholder/beacon.jpg',
-    // ignore: avoid_redundant_argument_values // set from env
-    package: kAssetPackage,
     fit: boxFit,
   );
 }

@@ -1,5 +1,6 @@
-import 'package:auto_route/auto_route.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -16,7 +17,6 @@ import '../dialog/opinion_publish_dialog.dart';
 import '../widget/profile_view_app_bar.dart';
 import '../widget/profile_view_body.dart';
 
-// TBD: refactor, remove FutureBuilder<Ids>, move all state to Cubit
 @RoutePage()
 class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
   const ProfileViewScreen({
@@ -30,51 +30,35 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
   final String? isDeepLink;
 
   @override
-  Widget wrappedRoute(BuildContext context) => FutureBuilder<Ids>(
-    future: ProfileViewCubit.checkIfIdIsOpinion(id),
-    builder: (_, state) {
-      if (!state.hasData) {
-        return const Center(
-          child: CircularProgressIndicator.adaptive(),
-        );
-      } else if (state.hasError) {
-        return Center(
-          child: Text(state.error.toString()),
-        );
-      }
-      return MultiBlocProvider(
-        providers: [
-          BlocProvider.value(value: GetIt.I<ScreenCubit>()),
-          BlocProvider(
-            create: (_) => ProfileViewCubit(id: state.data!.profileId),
-          ),
-          BlocProvider(
-            create: (_) {
-              final opinion = state.data?.opinion;
-              return OpinionCubit(
-                userId: state.data!.profileId,
-                opinions: opinion == null ? null : [opinion],
-                myProfile: GetIt.I<ProfileCubit>().state.profile,
-              );
-            },
-          ),
-        ],
-        child: MultiBlocListener(
-          listeners: const [
-            BlocListener<ProfileViewCubit, ProfileViewState>(
-              listener: commonScreenBlocListener,
-            ),
-            BlocListener<OpinionCubit, OpinionState>(
-              listener: commonScreenBlocListener,
-            ),
-            BlocListener<ScreenCubit, ScreenState>(
-              listener: commonScreenBlocListener,
-            ),
-          ],
-          child: this,
+  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
+    providers: [
+      BlocProvider(
+        create: (_) => ScreenCubit(),
+      ),
+      BlocProvider(
+        create: (_) => ProfileViewCubit(id: id),
+      ),
+      BlocProvider(
+        create: (_) => OpinionCubit.resolveId(
+          myProfile: GetIt.I<ProfileCubit>().state.profile,
+          objectId: id,
         ),
-      );
-    },
+      ),
+    ],
+    child: MultiBlocListener(
+      listeners: const [
+        BlocListener<ProfileViewCubit, ProfileViewState>(
+          listener: commonScreenBlocListener,
+        ),
+        BlocListener<OpinionCubit, OpinionState>(
+          listener: commonScreenBlocListener,
+        ),
+        BlocListener<ScreenCubit, ScreenState>(
+          listener: commonScreenBlocListener,
+        ),
+      ],
+      child: this,
+    ),
   );
 
   @override
@@ -83,7 +67,7 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
     final opinionCubit = context.read<OpinionCubit>();
     return Scaffold(
       body: RefreshIndicator.adaptive(
-        onRefresh: () async => Future.wait([
+        onRefresh: () => Future.wait([
           context.read<ProfileViewCubit>().fetch(),
           opinionCubit.fetch(preserve: false),
         ]),
@@ -91,6 +75,7 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
           slivers: [
             // Header
             ProfileViewAppBar(
+              key: const Key('ProfileViewScreen:AppBar'),
               isFromDeepLink: isDeepLink == 'true',
             ),
 
@@ -111,25 +96,20 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
       // Text Input
       bottomSheet: BlocSelector<OpinionCubit, OpinionState, bool>(
-        selector: (state) => state.hasMyOpinion,
+        key: const Key('ProfileViewScreen:BottomTextInput'),
         bloc: opinionCubit,
-        builder: (_, hasMyOpinion) {
-          final keyBottomTextInput = Key(
-            'ProfileViewScreen:BottomTextInput:$hasMyOpinion',
-          );
-          return hasMyOpinion
-              ? BottomTextInput(
-                  hintText: l10n.onlyOneOpinion,
-                )
-              : BottomTextInput(
-                  key: keyBottomTextInput,
-                  hintText: l10n.writeOpinion,
-                  onSend: (text) async => opinionCubit.addOpinion(
-                    amount: await OpinionPublishDialog.show(context),
-                    text: text,
-                  ),
-                );
-        },
+        selector: (state) => state.hasMyOpinion,
+        builder: (_, hasMyOpinion) => hasMyOpinion
+            // Blocked input
+            ? BottomTextInput(hintText: l10n.onlyOneOpinion)
+            // Normal input
+            : BottomTextInput(
+                hintText: l10n.writeOpinion,
+                onSend: (text) async => opinionCubit.addOpinion(
+                  amount: await OpinionPublishDialog.show(context),
+                  text: text,
+                ),
+              ),
       ),
     );
   }

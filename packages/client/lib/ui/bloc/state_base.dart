@@ -7,7 +7,9 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 export 'package:freezed_annotation/freezed_annotation.dart';
 
 abstract class StateBase {
-  const StateBase({this.status = const StateIsSuccess()});
+  const StateBase({
+    this.status = const StateIsSuccess(),
+  });
 
   final StateStatus status;
 
@@ -39,7 +41,7 @@ class StateIsLoading extends StateStatus {
 class StateIsMessaging extends StateStatus {
   StateIsMessaging(this.message);
 
-  final Localizable message;
+  final LocalizableMessage message;
 }
 
 class StateIsNavigating extends StateStatus {

@@ -29,6 +29,8 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   @override
   double get reverseScore => rScore;
 
+  bool get isEmpty => id.isEmpty;
+
   bool get isFriend => myVote > 0;
 
   bool get isNotFriend => !isFriend;

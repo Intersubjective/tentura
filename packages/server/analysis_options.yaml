@@ -4,7 +4,7 @@ include:
 analyzer:
   errors:
     specify_nonobvious_property_types: ignore
-    switch_on_type: ignore
+    sort_constructors_first: ignore
   exclude:
     - "**/*.g.dart"
     - "**/*.gr.dart"
@@ -20,8 +20,6 @@ linter:
     directives_ordering: false
     sort_pub_dependencies: false
     public_member_api_docs: false
-    require_trailing_commas: false
-    sort_constructors_first: false
     always_use_package_imports: false
     lines_longer_than_80_chars: false
     avoid_catches_without_on_clauses: false

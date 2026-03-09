@@ -2,8 +2,8 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/env.dart';
 
-base class UseCaseBase {
-  UseCaseBase({
+abstract class ServiceBase {
+  const ServiceBase({
     required this.env,
     required this.logger,
   });

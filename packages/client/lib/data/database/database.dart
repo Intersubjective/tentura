@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/enum.dart';
@@ -39,16 +39,16 @@ final class Database extends _$Database {
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) async {
       _logger
-        ..w('Creating tables...')
-        ..w(allTables);
+        ..warning('Creating tables...')
+        ..warning(allTables);
       await migrator.createAll();
     },
     beforeOpen: (details) async {
       if (_env.clearDatabase) {
-        _logger.w('Clearing database...');
+        _logger.warning('Clearing database...');
         final m = Migrator(this);
         for (final entity in allSchemaEntities) {
-          _logger.w(entity.entityName);
+          _logger.warning(entity.entityName);
           await m.drop(entity);
           await m.create(entity);
         }
@@ -57,7 +57,7 @@ final class Database extends _$Database {
     },
     onUpgrade: stepByStep(
       from1To2: (m, schema) async {
-        _logger.w('Migrating step 1 to 2...');
+        _logger.warning('Migrating step 1 to 2...');
         await m.addColumn(schema.accounts, schema.accounts.imageId);
         await m.addColumn(schema.accounts, schema.accounts.blurHash);
         await m.addColumn(schema.accounts, schema.accounts.height);
@@ -69,7 +69,7 @@ final class Database extends _$Database {
         await m.addColumn(schema.friends, schema.friends.width);
       },
       from2To3: (m, schema) async {
-        _logger.w('Migrating step 2 to 3...');
+        _logger.warning('Migrating step 2 to 3...');
         await m.createTable(schema.p2pMessages);
         await m.createIndex(schema.p2pMessagesSender);
         await m.createIndex(schema.p2pMessagesReceiver);

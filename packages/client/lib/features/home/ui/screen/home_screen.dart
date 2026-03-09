@@ -23,8 +23,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   const HomeScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider(
-    create: (_) => ScreenCubit(),
+  Widget wrappedRoute(BuildContext context) => BlocProvider.value(
+    value: GetIt.I<ScreenCubit>(),
     child: MultiBlocListener(
       listeners: [
         const BlocListener<ScreenCubit, ScreenState>(

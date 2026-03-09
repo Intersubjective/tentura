@@ -11,8 +11,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/like/ui/widget/like_control.dart';
 
-import '../bloc/comment_cubit.dart';
-
 class CommentTile extends StatelessWidget {
   const CommentTile({
     required this.comment,
@@ -41,7 +39,7 @@ class CommentTile extends StatelessWidget {
               GestureDetector(
                 onTap: isMine
                     ? null
-                    : () => context.read<CommentCubit>().showProfile(
+                    : () => context.read<ScreenCubit>().showProfile(
                         comment.author.id,
                       ),
                 child: Padding(

@@ -5,76 +5,79 @@ publish_to: 'none'
 version: 1.4.1
 
 environment:
-  sdk: '>=3.10.0 <4.0.0'
-  flutter: ^3.38.2
+  sdk: ^3.10.7
+  flutter: ^3.38.7
+
+resolution: workspace
 
 dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+
+  # From Workspace
+  http:
+  meta:
+  uuid:
+  drift:
+  image:
+  get_it:
+  logging:
+  latlong2:
+  drift_dev:
+  collection:
+  injectable:
   tentura_root:
-    path: ../../
+  json_annotation:
+  dart_jsonwebtoken:
+  freezed_annotation:
 
   # Common
-  uuid: ^4.5.2
-  get_it: ^9.0.5
-  latlong2: ^0.9.1
-  injectable: ^2.6.0
-  auto_route: ^10.2.2
-  collection: ^1.19.1
+  auto_route: ^11.1.0
   http_parser: ^4.1.2
-  built_value: ^8.11.2
+  built_value: ^8.12.3
   flutter_bloc: ^9.1.1
   synchronized: ^3.4.0
-  json_annotation: ^4.9.0
   built_collection: ^5.1.1
-  freezed_annotation: ^3.1.0
 
   # Platform related
   web: ^1.1.1
-  http: ^1.6.0
-  meta: ^1.17.0
-  drift: ^2.29.0
   geocoding: ^4.0.0
-  drift_dev: ^2.29.0
   geolocator: ^14.0.2
   share_plus: ^12.0.1
   image_picker: ^1.2.1
   url_launcher: ^6.3.2
-  drift_flutter: ^0.2.7
-  firebase_core: ^4.2.1
+  drift_flutter: ^0.2.8
+  firebase_core: ^4.4.0
   share_handler: ^0.0.25
-  mobile_scanner: ^7.1.3
-  package_info_plus: ^8.3.1
-  firebase_messaging: ^16.0.4
+  mobile_scanner: ^7.1.4
+  package_info_plus: ^9.0.0
+  firebase_messaging: ^16.1.1
   flutter_native_splash: ^2.4.7
-  flutter_secure_storage: ^10.0.0-beta.4
+  flutter_secure_storage: ^10.0.0
 
   # Logs & Stats
-  logger: ^2.6.2
-  sentry_drift: ^9.8.0
-  sentry_flutter: ^9.8.0
+  sentry_drift: ^9.10.0
+  sentry_flutter: ^9.10.0
 
   # Remote API related
-  ferry: ^0.16.1
+  ferry: ^0.16.2-dev.4
   gql_exec: ^1.0.0
   gql_http_link: ^1.2.0
   gql_error_link: ^1.0.1
   gql_dedupe_link: ^4.0.0
   ed25519_edwards: ^0.3.1
-  dart_jsonwebtoken: ^3.3.1
   web_socket_client: ^0.2.1
 
   # UI related
   nil: ^1.1.1
   intl: ^0.20.2
-  image: ^4.5.4
   readmore: ^3.0.0
   qr_flutter: ^4.1.0
   flutter_map: ^8.2.2
-  flutter_svg: ^2.2.2
-  google_fonts: ^6.3.2
+  flutter_svg: ^2.2.3
+  google_fonts: ^7.0.2
   validatorless: ^1.2.5
   blurhash_shader: ^1.1.2
   vector_graphics: ^1.1.19
@@ -93,17 +96,20 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  lints: ^6.0.0
-  freezed: ^3.2.3
-  bloc_lint: ^0.3.3
-  build_runner: ^2.7.1
+
+  # From Workspace
+  lints:
+  freezed:
+  build_runner:
+  json_serializable:
+  very_good_analysis:
+  injectable_generator:
+
+  bloc_lint: ^0.3.5
   flutter_lints: ^6.0.0
   ferry_generator: ^0.14.0-dev.2
-  json_serializable: ^6.11.1
   sentry_dart_plugin: ^3.0.0
-  very_good_analysis: ^10.0.0
-  injectable_generator: ^2.8.1
-  auto_route_generator: ^10.2.6
+  auto_route_generator: ^10.4.0
   flutter_launcher_icons: ^0.14.4
 
 flutter:

@@ -5,11 +5,11 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/polling.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
-import 'package:tentura/ui/message/common_messages.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
+import '../message/beacon_create_message.dart';
 import 'beacon_create_state.dart';
 
 export 'package:tentura/ui/bloc/state_base.dart';
@@ -183,7 +183,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final now = DateTime.timestamp();
-      await _beaconRepository.create(
+      final beacon = await _beaconRepository.create(
         Beacon(
           createdAt: now,
           updatedAt: now,
@@ -208,7 +208,15 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
               : null,
         ),
       );
-      emit(state.copyWith(status: StateIsMessaging(const OkMessage())));
+      emit(
+        state.copyWith(
+          status: StateIsMessaging(
+            BeaconCreatedMessage(
+              onPressed: () => GetIt.I<ScreenCubit>().showBeacon(beacon.id),
+            ),
+          ),
+        ),
+      );
       emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));

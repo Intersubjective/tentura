@@ -12,7 +12,7 @@ import 'package:tentura/ui/widget/author_info.dart';
 
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_tile_control.dart';
-import 'package:tentura/features/comment/ui/bloc/comment_cubit.dart';
+// import 'package:tentura/features/comment/ui/bloc/comment_cubit.dart';
 import 'package:tentura/features/comment/ui/widget/comment_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
@@ -34,23 +34,19 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget wrappedRoute(_) => MultiBlocProvider(
     providers: [
-      BlocProvider.value(value: GetIt.I<ScreenCubit>()),
+      BlocProvider(
+        create: (_) => ScreenCubit(),
+      ),
       BlocProvider(
         create: (_) => BeaconViewCubit(
           myProfile: GetIt.I<ProfileCubit>().state.profile,
           id: id,
         ),
       ),
-      BlocProvider(
-        create: (_) => CommentCubit(),
-      ),
     ],
     child: MultiBlocListener(
       listeners: const [
         BlocListener<ScreenCubit, ScreenState>(
-          listener: commonScreenBlocListener,
-        ),
-        BlocListener<CommentCubit, CommentState>(
           listener: commonScreenBlocListener,
         ),
         BlocListener<BeaconViewCubit, BeaconViewState>(

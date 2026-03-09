@@ -1,15 +1,14 @@
 import 'package:intl/intl.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
-
-import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
 
 import '../bloc/state_base.dart';
 import '../l10n/l10n.dart';
+import '../message/action_message_base.dart';
 
 const kSpacingSmall = 8.0;
 const kSpacingMedium = 16.0;
@@ -60,6 +59,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
   Color? color,
   bool isError = false,
   bool isFloating = false,
+  SnackBarAction? action,
   List<TextSpan>? textSpans,
   Duration duration = const Duration(seconds: kSnackBarDuration),
 }) {
@@ -68,13 +68,16 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState!
         ..clearSnackBars();
   if (isError) {
-    GetIt.I<Logger>().d(text);
+    GetIt.I<Logger>().fine(text);
   }
   return scaffoldMessenger.showSnackBar(
     SnackBar(
-      behavior: isFloating ? SnackBarBehavior.floating : null,
-      margin: isFloating ? kPaddingAll : null,
+      action: action,
       duration: duration,
+      showCloseIcon: action == null,
+      margin: isFloating ? kPaddingAll : null,
+      dismissDirection: DismissDirection.horizontal,
+      behavior: isFloating ? SnackBarBehavior.floating : null,
       backgroundColor: isError
           ? theme.colorScheme.error
           : color ?? theme.snackBarTheme.backgroundColor,
@@ -104,26 +107,40 @@ void commonScreenBlocListener(
   bool listenNavigatingState = true,
   bool listenMessagingState = true,
   bool listenHasErrorState = true,
-}) => switch (state.status) {
-  final StateIsNavigating s when listenNavigatingState =>
-    s.path == kPathBack
-        ? context.back()
-        : context.router.pushPath(
-            s.path,
-            includePrefixMatches: true,
-            onFailure: GetIt.I<Logger>().e,
-          ),
-  final StateIsMessaging s when listenMessagingState => showSnackBar(
-    context,
-    text: s.message.toL10n(L10n.of(context)?.localeName),
-  ),
-  final StateHasError s when listenHasErrorState => showSnackBar(
-    context,
-    isError: true,
-    text: switch (s.error) {
-      final Localizable e => e.toL10n(L10n.of(context)?.localeName),
-      final Object e => e.toString(),
+  String? localeName,
+}) {
+  localeName ??= L10n.of(context)?.localeName;
+  return switch (state.status) {
+    final StateIsNavigating s when listenNavigatingState =>
+      s.path == kPathBack
+          ? context.back()
+          : context.router.pushPath(
+              s.path,
+              includePrefixMatches: true,
+              onFailure: GetIt.I<Logger>().fine,
+            ),
+    final StateIsMessaging s when listenMessagingState => switch (s.message) {
+      final LocalizableActionMessage m => showSnackBar(
+        context,
+        text: m.toL10n(localeName),
+        action: SnackBarAction(
+          label: m.label.toL10n(localeName),
+          onPressed: m.onPressed,
+        ),
+      ),
+      final LocalizableMessage m => showSnackBar(
+        context,
+        text: m.toL10n(localeName),
+      ),
     },
-  ),
-  _ => null,
-};
+    final StateHasError s when listenHasErrorState => showSnackBar(
+      context,
+      isError: true,
+      text: switch (s.error) {
+        final Localizable e => e.toL10n(localeName),
+        final Object e => e.toString(),
+      },
+    ),
+    _ => null,
+  };
+}

@@ -1,4 +1,4 @@
-import 'package:logger/logger.dart';
+import 'package:logging/logging.dart';
 import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 import 'package:url_launcher/url_launcher.dart' as url;
@@ -26,7 +26,7 @@ class PlatformRepository {
     try {
       await url.launchUrl(uri);
     } catch (e) {
-      _log.e(e);
+      _log.severe(e);
       throw const UnknownPlatformException();
     }
   }

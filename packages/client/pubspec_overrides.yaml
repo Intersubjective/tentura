@@ -1,3 +1,8 @@
 dependency_overrides:
   adaptive_number:
     git: https://github.com/alexandrim0/adaptive_number_dart.git
+
+  ferry_generator:
+    git:
+      url: https://github.com/gql-dart/ferry.git
+      path: packages/ferry_generator

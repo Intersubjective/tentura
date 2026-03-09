@@ -23,7 +23,7 @@ class ProfileScreen extends StatelessWidget {
         builder: (_, profile) => BlocProvider(
           create: (_) => OpinionCubit(
             myProfile: profile,
-            userId: profile.id,
+            profileId: profile.id,
           ),
           child: Builder(
             builder: (context) => RefreshIndicator.adaptive(

@@ -2,10 +2,10 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/profile_app_bar_title.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
@@ -24,10 +24,9 @@ class ProfileViewAppBar extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final screenCubit = context.read<ScreenCubit>();
     final profileViewCubit = context.read<ProfileViewCubit>();
-    return BlocSelector<ProfileViewCubit, ProfileViewState, Profile>(
+    return BlocBuilder<ProfileViewCubit, ProfileViewState>(
       bloc: profileViewCubit,
-      selector: (state) => state.profile,
-      builder: (context, profile) => SliverAppBar(
+      builder: (context, state) => SliverAppBar(
         floating: true,
         snap: true,
         leading: isFromDeepLink
@@ -35,15 +34,15 @@ class ProfileViewAppBar extends StatelessWidget {
                 onPressed: () => context.router.navigatePath(kPathHome),
               )
             : const AutoLeadingButton(),
-        title: ProfileAppBarTitle(profile: profile),
+        title: ProfileAppBarTitle(profile: state.profile),
         actions: [
           // Share
-          ShareCodeIconButton.id(profile.id),
+          ShareCodeIconButton.id(state.profile.id),
 
           // More
           PopupMenuButton(
             itemBuilder: (_) => <PopupMenuEntry<void>>[
-              if (profile.isFriend)
+              if (state.profile.isFriend)
                 PopupMenuItem(
                   onTap: profileViewCubit.removeFriend,
                   child: Text(l10n.removeFromMyField),
@@ -51,7 +50,7 @@ class ProfileViewAppBar extends StatelessWidget {
 
               // Complaint
               PopupMenuItem(
-                onTap: () => screenCubit.showComplaint(profile.id),
+                onTap: () => screenCubit.showComplaint(state.profile.id),
                 child: Text(l10n.buttonComplaint),
               ),
             ],
@@ -61,6 +60,10 @@ class ProfileViewAppBar extends StatelessWidget {
             padding: EdgeInsets.only(right: kSpacingSmall),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(40),
+          child: LinearPiActive.builder(context, state.isLoading),
+        ),
       ),
     );
   }

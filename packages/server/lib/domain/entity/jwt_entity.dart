@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'package:tentura_server/consts.dart';
 
 import '../enum.dart';

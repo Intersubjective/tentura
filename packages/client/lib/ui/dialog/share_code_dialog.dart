@@ -1,12 +1,11 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
-
+import '../l10n/l10n.dart';
+import '../message/common_messages.dart';
+import '../utils/ui_utils.dart';
 import '../widget/qr_code.dart';
 
 class ShareCodeDialog extends StatelessWidget {
@@ -57,6 +56,7 @@ class ShareCodeDialog extends StatelessWidget {
 
       // Buttons
       actions: [
+        // Copy to Clipboard
         TextButton(
           child: Text(l10n.copyToClipboard),
           onPressed: () async {
@@ -64,29 +64,52 @@ class ShareCodeDialog extends StatelessWidget {
             if (context.mounted) {
               showSnackBar(
                 context,
-                // TBD: l10n
-                text: 'Link copied into clipboard.',
+                text: const LinkCopiedToClipboardMessage().toL10n(
+                  l10n.localeName,
+                ),
               );
             }
           },
         ),
+
+        // Share Link
         Builder(
           builder: (context) => TextButton(
             child: Text(l10n.shareLink),
-            onPressed: () {
-              final box = context.findRenderObject()! as RenderBox;
-              unawaited(
-                SharePlus.instance.share(
+            onPressed: () async {
+              try {
+                final box = context.findRenderObject()! as RenderBox;
+                final result = await SharePlus.instance.share(
                   ShareParams(
+                    subject: header,
+                    title: l10n.shareLink,
                     uri: Uri.parse(link),
+                    mailToFallbackEnabled: false,
+                    // This needed for iPad
                     sharePositionOrigin:
                         box.localToGlobal(Offset.zero) & box.size,
                   ),
-                ),
-              );
+                );
+                if (context.mounted) {
+                  showSnackBar(
+                    context,
+                    text: result.toString(),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  showSnackBar(
+                    context,
+                    text: e.toString(),
+                    isError: true,
+                  );
+                }
+              }
             },
           ),
         ),
+
+        // Close
         TextButton(
           onPressed: Navigator.of(context).pop,
           child: Text(l10n.buttonClose),

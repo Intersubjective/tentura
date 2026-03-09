@@ -27,7 +27,6 @@
             "args": [
                 "-d", "chrome",
                 "--web-port", "8888",
-                "--web-experimental-hot-reload",
                 "--web-browser-flag=--disable-web-security",
                 "--web-browser-flag=--ignore-certificate-errors",
             ]
@@ -55,8 +54,8 @@
             "args": [
                 "-d", "chrome",
                 "--web-port", "8888",
-                "--web-experimental-hot-reload",
                 "--web-browser-flag=--disable-web-security",
+                "--web-browser-flag=--ignore-certificate-errors",
             ]
         },
         // Stage
@@ -89,8 +88,8 @@
             "args": [
                 "-d", "chrome",
                 "--web-port", "8888",
-                "--web-experimental-hot-reload",
                 "--web-browser-flag=--disable-web-security",
+                "--web-browser-flag=--ignore-certificate-errors",
             ]
         },
         {
@@ -137,6 +136,7 @@
                 "--wasm",
                 "--web-port", "8888",
                 "--web-browser-flag=--disable-web-security",
+                "--web-browser-flag=--ignore-certificate-errors",
             ]
         },
   ],

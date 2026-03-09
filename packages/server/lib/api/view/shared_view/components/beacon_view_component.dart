@@ -1,3 +1,4 @@
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -13,7 +14,7 @@ class BeaconViewComponent extends StatelessComponent {
   final BeaconEntity beacon;
 
   @override
-  Component build(BuildContext context) => fragment([
+  Component build(BuildContext context) => Component.fragment([
     img(
       src: beacon.imageUrl,
       alt: 'beacon image',
@@ -29,37 +30,37 @@ class BeaconViewComponent extends StatelessComponent {
         // Title
         h4(
           [
-            text(beacon.title),
+            Component.text(beacon.title),
           ],
         ),
 
         if (beacon.description.isNotEmpty)
           p(
             [
-              text(beacon.description),
+              Component.text(beacon.description),
             ],
           ),
 
         if (beacon.coordinates != null)
           small(
             [
-              text(beacon.coordinates.toString()),
-              br(),
+              Component.text(beacon.coordinates.toString()),
+              const br(),
             ],
           ),
 
         if (beacon.startAt != null)
           small(
             [
-              text('from ${formatDate(beacon.startAt)}'),
-              if (beacon.endAt != null) text(', '),
+              Component.text('from ${formatDate(beacon.startAt)}'),
+              if (beacon.endAt != null) const Component.text(', '),
             ],
           ),
 
         if (beacon.endAt != null)
           small(
             [
-              text('until ${formatDate(beacon.endAt)}'),
+              Component.text('until ${formatDate(beacon.endAt)}'),
             ],
           ),
       ],

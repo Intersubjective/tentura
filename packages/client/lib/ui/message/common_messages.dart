@@ -29,3 +29,13 @@ final class NoValidCodeMessage extends LocalizableMessage {
   @override
   String get toRu => 'В буфере обмена нет подходящего кода';
 }
+
+final class LinkCopiedToClipboardMessage extends LocalizableMessage {
+  const LinkCopiedToClipboardMessage();
+
+  @override
+  String get toEn => 'The link has been copied to the clipboard';
+
+  @override
+  String get toRu => 'Ссылка скопирована в буфер обмена';
+}

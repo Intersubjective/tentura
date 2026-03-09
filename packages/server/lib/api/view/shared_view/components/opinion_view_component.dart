@@ -1,3 +1,4 @@
+import 'package:jaspr/dom.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/domain/entity/opinion_entity.dart';
@@ -25,14 +26,14 @@ class OpinionViewComponent extends StatelessComponent {
           margin: Spacing.only(bottom: kEdgeInsetsS),
         ),
         [
-          text(opinion.content),
+          Component.text(opinion.content),
         ],
       ),
 
       // Date
       small(
         [
-          text(formatDate(opinion.createdAt)),
+          Component.text(formatDate(opinion.createdAt)),
         ],
       ),
     ],

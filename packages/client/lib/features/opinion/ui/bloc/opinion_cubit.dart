@@ -14,42 +14,65 @@ export 'opinion_state.dart';
 
 class OpinionCubit extends Cubit<OpinionState> {
   OpinionCubit({
-    required String userId,
     required Profile myProfile,
+    String profileId = '',
     List<Opinion>? opinions,
     OpinionRepository? opinionRepository,
   }) : _opinionRepository = opinionRepository ?? GetIt.I<OpinionRepository>(),
        super(
          OpinionState(
            myProfile: myProfile,
-           objectId: userId,
+           objectId: profileId,
            opinions: opinions ?? [],
          ),
        ) {
-    if (opinions?.isEmpty ?? true) {
+    unawaited(fetch());
+  }
+
+  OpinionCubit.resolveId({
+    required String objectId,
+    required Profile myProfile,
+    OpinionRepository? opinionRepository,
+  }) : _opinionRepository = opinionRepository ?? GetIt.I<OpinionRepository>(),
+       super(
+         OpinionState(
+           myProfile: myProfile,
+           objectId: objectId,
+           opinions: [],
+         ),
+       ) {
+    if (objectId.startsWith('U')) {
       unawaited(fetch());
+    } else if (objectId.startsWith('O')) {
+      unawaited(
+        GetIt.I<OpinionRepository>()
+            .fetchById(objectId)
+            .then(
+              (opinion) => emit(
+                state.copyWith(
+                  opinions: [opinion],
+                  objectId: opinion.objectId,
+                ),
+              ),
+            ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: StateHasError('Wrong id prefix [$objectId]'),
+        ),
+      );
     }
   }
 
   final OpinionRepository _opinionRepository;
 
+  ///
+  ///
   Future<void> fetch({bool preserve = true}) async {
-    if (state.isLoading) {
-      return;
-    }
-
-    if (state.myProfile.id.isEmpty) {
-      emit(
-        state.copyWith(
-          opinions: [],
-          hasReachedMax: false,
-          status: StateStatus.isSuccess,
-        ),
-      );
-      return;
-    }
-
-    if (state.hasReachedMax && preserve) {
+    if (state.isLoading ||
+        state.myProfile.isEmpty ||
+        (state.hasReachedMax && preserve)) {
       return;
     }
 
@@ -84,6 +107,8 @@ class OpinionCubit extends Cubit<OpinionState> {
     }
   }
 
+  ///
+  ///
   Future<void> addOpinion({
     required String text,
     required int? amount,
@@ -104,6 +129,8 @@ class OpinionCubit extends Cubit<OpinionState> {
     }
   }
 
+  ///
+  ///
   Future<void> removeOpinionById(String id) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {

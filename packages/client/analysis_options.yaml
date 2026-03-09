@@ -18,7 +18,6 @@ linter:
     sort_pub_dependencies: false
     public_member_api_docs: false
     sort_constructors_first: false
-    require_trailing_commas: false
     always_use_package_imports: false
     lines_longer_than_80_chars: false
     avoid_catches_without_on_clauses: false

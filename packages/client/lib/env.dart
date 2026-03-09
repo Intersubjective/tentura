@@ -8,6 +8,7 @@ export 'consts.dart';
 class Env {
   const Env({
     // Common
+    String? logLevel,
     String? serverUrlBase,
     String? complaintEmail,
     String? pathAppLinkView,
@@ -29,6 +30,7 @@ class Env {
     // Feature flags
     bool? needInviteCode,
   }) : // Common
+       logLevel = logLevel ?? const String.fromEnvironment('LOG_LEVEL'),
        serverUrlBase =
            serverUrlBase ??
            const String.fromEnvironment(
@@ -78,16 +80,14 @@ class Env {
        // Feature flags
        clearDatabase = const bool.fromEnvironment('CLEAR_DATABASE'),
        needInviteCode =
-           needInviteCode ??
-           const bool.fromEnvironment(
-             'NEED_INVITE_CODE',
-             defaultValue: true,
-           );
+           needInviteCode ?? const bool.fromEnvironment('NEED_INVITE_CODE');
 
   @factoryMethod
   const factory Env.fromEnvironment() = Env;
 
   // Common
+  /// OFF | SHOUT | SEVERE | WARNING | INFO | CONFIG | FINE | FINER | FINEST
+  final String logLevel;
   final String serverUrlBase;
   final String complaintEmail;
   final String pathAppLinkView;

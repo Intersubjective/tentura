@@ -13,17 +13,17 @@ class LifecycleHandler extends StatefulWidget {
 }
 
 class _LifecycleHandlerState extends State<LifecycleHandler> {
-  AppLifecycleListener? _appLifecycleListener;
+  final _appLifecycleListener = AppLifecycleListener();
 
   @override
   void initState() {
     super.initState();
-    _appLifecycleListener = AppLifecycleListener();
+    _appLifecycleListener.hashCode;
   }
 
   @override
   void dispose() {
-    _appLifecycleListener?.dispose();
+    _appLifecycleListener.dispose();
     super.dispose();
   }
 
