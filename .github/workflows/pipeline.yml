@@ -65,35 +65,42 @@ jobs:
           restore-keys: pub-
 
       - name: Build dev web in builder container
+        env:
+          IMAGE_SERVER: ${{ vars.IMAGE_SERVER }}
+          SERVER_NAME: ${{ vars.SERVER_NAME }}
         run: |
           set -euo pipefail
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
+            --env IMAGE_SERVER="${{ vars.IMAGE_SERVER }}" \
+            --env SERVER_NAME="${{ vars.SERVER_NAME }}" \
             ${{ env.BUILDER_IMAGE }}:latest \
-            bash -c '
+            bash -c "
               set -euo pipefail
               flutter pub get
               cd packages/client && flutter gen-l10n && dart run build_runner build -d
               if [ -f /app/.env ]; then
-                flutter build web \
-                  --wasm \
-                  --pwa-strategy=none \
-                  --source-maps \
-                  --dart-define-from-file=/app/.env \
-                  --dart-define=SERVER_NAME=https://dev.tentura.io \
-                  --dart-define=NEED_INVITE_CODE=true
+                flutter build web \\
+                  --wasm \\
+                  --pwa-strategy=none \\
+                  --source-maps \\
+                  --dart-define-from-file=/app/.env \\
+                  --dart-define=SERVER_NAME=\${SERVER_NAME} \\
+                  --dart-define=NEED_INVITE_CODE=true \\
+                  --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
               else
-                flutter build web \
-                  --wasm \
-                  --pwa-strategy=none \
-                  --source-maps \
-                  --dart-define=SERVER_NAME=https://dev.tentura.io \
-                  --dart-define=NEED_INVITE_CODE=true
+                flutter build web \\
+                  --wasm \\
+                  --pwa-strategy=none \\
+                  --source-maps \\
+                  --dart-define=SERVER_NAME=\${SERVER_NAME} \\
+                  --dart-define=NEED_INVITE_CODE=true \\
+                  --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
               fi
-              cd build/web && tar -czf /app/web-dev-${SERVER_VERSION}.tar.gz . && cd ../..
-            '
+              cd build/web && tar -czf /app/web-dev-\${SERVER_VERSION}.tar.gz . && cd ../..
+            "
 
       - name: Upload web archive artifacts
         uses: actions/upload-artifact@v4
