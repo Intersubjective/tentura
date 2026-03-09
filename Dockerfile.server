@@ -1,17 +1,18 @@
-# Build tentura server. Run from repo root: docker build -f Dockerfile.server -t vbulavintsev/tentura-service:0.6.6 .
-FROM dart:stable AS build
+# Build tentura server. Run from repo root: docker build -f Dockerfile.server -t tentura-service:local .
+# Uses full workspace; Flutter image provides SDK for resolution. Same as packages/server/Dockerfile_build.
+FROM ghcr.io/cirruslabs/flutter:stable AS build
 
 WORKDIR /app
 COPY . .
 
-WORKDIR /app/packages/server
 RUN dart pub get
+WORKDIR /app/packages/server
 RUN dart run build_runner build -d
 RUN dart compile exe bin/tentura.dart -o bin/tentura
 
-FROM scratch
-COPY --from=build /runtime/ /
-COPY --from=build /app/packages/server/bin/tentura /
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=build /app/packages/server/bin/tentura /tentura
 
 EXPOSE 2080/tcp
 USER 33:33
