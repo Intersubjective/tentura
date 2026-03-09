@@ -18,6 +18,7 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
 
@@ -45,6 +46,7 @@ jobs:
 
   build-web:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     environment: dev
     steps:
       - uses: actions/checkout@v4
@@ -110,8 +112,20 @@ jobs:
           path: web-dev-*.tar.gz
           retention-days: 7
 
+      - name: Save web archive to cache
+        run: |
+          mkdir -p web-build-output
+          cp web-dev-*.tar.gz web-build-output/web-dev.tar.gz
+
+      - name: Cache web build for deploy
+        uses: actions/cache/save@v4
+        with:
+          path: web-build-output
+          key: web-build-main
+
   build-server:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
 
@@ -148,7 +162,6 @@ jobs:
 
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: [test, build-web, build-server]
     if: github.event_name == 'workflow_dispatch'
     environment:
       name: dev
@@ -156,22 +169,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download web archive
-        uses: actions/download-artifact@v4
+      - name: Restore web build from cache
+        uses: actions/cache/restore@v4
         with:
-          name: web-archives
-          pattern: web-dev-*.tar.gz
+          path: web-build-output
+          key: web-build-main
 
-      - name: Determine archive filename
+      - name: Prepare web archive for deploy
         id: archive-name
         run: |
           set -euo pipefail
-          ARCHIVE_FILE=$(ls -1 web-dev-*.tar.gz 2>/dev/null | head -1)
-          if [ -z "$ARCHIVE_FILE" ]; then
-            echo "Error: No web-dev archive file found" >&2
+          CACHED='web-build-output/web-dev.tar.gz'
+          if [ ! -f "$CACHED" ]; then
+            echo "Error: No cached web archive found. Run a push to main first to build and cache." >&2
             exit 1
           fi
-          echo "archive_name=$ARCHIVE_FILE" >> $GITHUB_OUTPUT
+          cp "$CACHED" web-dev.tar.gz
+          echo "archive_name=web-dev.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Setup SSH
         id: setup-ssh
