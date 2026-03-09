@@ -4,11 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:share_handler/share_handler.dart'
     if (dart.library.js_interop) 'share_handler_dummy.dart';
+import 'package:tentura/app/platform/platform_info.dart';
 
 @singleton
 class ShareHandlerService {
   ShareHandlerService(this._logger) {
-    if (!kIsWeb) {
+    if (!kIsWeb && !isDesktopPlatform) {
       _subscription = ShareHandler.instance.sharedMediaStream.listen(_handler);
       unawaited(ShareHandler.instance.getInitialSharedMedia().then(_handler));
     }
@@ -16,10 +17,11 @@ class ShareHandlerService {
 
   final Logger _logger;
 
-  late final StreamSubscription<SharedMedia> _subscription;
+  StreamSubscription<SharedMedia>? _subscription;
 
   @disposeMethod
-  Future<void> dispose() => kIsWeb ? Future.value() : _subscription.cancel();
+  Future<void> dispose() =>
+      _subscription?.cancel() ?? Future.value();
 
   void _handler(SharedMedia? e) {
     if (e == null) return;

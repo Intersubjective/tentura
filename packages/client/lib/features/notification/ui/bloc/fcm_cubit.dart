@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/app/platform/platform_info.dart';
+
 import '../../domain/use_case/fcm_case.dart';
 import 'fcm_state.dart';
 
@@ -64,7 +66,7 @@ class FcmCubit extends Cubit<FcmState> {
   Future<void> _registerFcmToken([String? token]) async {
     final appId = await _fcmCase.registerFcmToken(
       token: token,
-      platform: kIsWeb ? 'web' : 'android',
+      platform: platformName,
     );
     emit(
       state.copyWith(

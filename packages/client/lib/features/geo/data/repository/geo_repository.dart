@@ -6,6 +6,7 @@ import 'package:geocoding/geocoding.dart'
     if (dart.library.js_interop) '../service/geocoding_web_service.dart'
     hide Location;
 
+import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 
 import '../../domain/entity/location.dart';
@@ -30,7 +31,7 @@ class GeoRepository {
     Coordinates coords, {
     bool useCache = true,
   }) async {
-    if (kIsWeb) return null;
+    if (kIsWeb || isDesktopPlatform) return null;
     if (useCache && cache.containsKey(coords)) return cache[coords];
     try {
       final places = await placemarkFromCoordinates(coords.lat, coords.long);
