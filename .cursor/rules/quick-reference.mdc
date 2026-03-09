@@ -1,0 +1,142 @@
+---
+alwaysApply: true
+---
+
+# Quick Reference - Project Rules
+
+One-line rules for quick lookup. See detailed files for explanations.
+
+## Codegen
+- Run `dart run build_runner build -d` after codegen changes
+- Never commit `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `_g/`, `di.config.dart`
+- Use Freezed for all domain entities and BLoC states
+- Use extension types to wrap Ferry GraphQL types
+- Router must be `@singleton` for Injectable
+
+## Architecture
+- Dependencies flow inward: UI → Data → Domain (never reverse)
+- Domain layer has NO dependencies on outer layers
+- Repositories return domain entities, never Ferry types or Drift models
+- Use cases orchestrate business logic, repositories handle data access
+- Features are independent modules with data/domain/ui layers
+
+## Injectable
+- `@singleton` for use cases, global BLoC, services
+- `@lazySingleton` for repositories, feature-specific services
+- `@injectable` for regular factories
+- Use `@module` abstract class for DI modules (providers, database, etc.)
+- Use `@InjectableInit()` on `configureDependencies` function
+- Use `order` parameter: 1 (Data) → 2 (Domain) → 3 (App) → 4 (UI)
+- Constructor injection preferred, `GetIt.I<>()` acceptable in BLoC
+- Use `@disposeMethod` for BLoC cleanup methods
+
+## Freezed
+- All domain entities use `@freezed`
+- States extend `StateBase` and use Freezed
+- Use `copyWith()` for immutable updates, never mutate directly
+- Add `const ClassName._();` for custom methods
+- Use `@Default()` for optional fields
+
+## Ferry & GraphQL
+- Write queries in `.graphql` files
+- Use `GQueryNameReq()` for requests
+- Access via `r.dataOrThrow(label: 'Label').field`
+- Convert Ferry types → entities via extension type `toEntity()`
+- Never expose Ferry types outside data layer
+
+## Repositories
+- Return domain entities only
+- Use `@lazySingleton` (or `@singleton` if needed)
+- Extend `RemoteRepository` base for common patterns
+- Separate local vs remote when needed
+- All repos have mock implementations in `mock/` directory
+
+## BLoC/Cubit
+- States extend `StateBase` with `StateStatus` sealed class
+- Use Freezed for state immutability
+- Prefer use cases over direct repository access
+- Use `copyWith()` to update state
+- Pattern match on `StateStatus` for status checks
+
+## Exceptions
+- Server: `ExceptionBase` with hierarchical codes (code spaces: 1000, 1100, 1200...)
+- Client: `LocalizableException` with `toEn`/`toRu` for user-facing errors
+- Use sealed classes for exception types
+- Domain exceptions in domain layer, feature exceptions in feature domain
+
+## State Management
+- `StateBase` with `StateStatus` sealed class
+- Status: `StateIsSuccess`, `StateIsLoading`, `StateHasError`, `StateIsNavigating`, `StateIsMessaging`
+- Pattern match with `is` checks
+- Localizable messages in `StateIsMessaging`
+
+## Platform Abstraction
+- Use conditional exports: `export 'native.dart' if (dart.library.js_interop) 'web.dart';`
+- Base abstraction required, platform-specific implementations
+- Pattern: `*_base.dart`, `*_native.dart`, `*_web.dart`
+
+## Environment
+- All config via `Env` class, never hardcode
+- Use environment variables for secrets
+- Support `Env.dev()`, `Env.prod()`, `Env.test()`
+- Env is `@singleton` and injected everywhere
+
+## Testing
+- Mocks use `@Injectable(as: RealType, env: [Environment.test])`
+- Mocks in `data/repository/mock/` directory
+- Mock data in `mock/data/` subdirectory
+- Mocks implement full repository interface
+
+## File Naming
+- Screens: `*_screen.dart` (triggers Auto Route)
+- States: `*_state.dart` (use Freezed)
+- Repositories: `*_repository.dart` (use Injectable)
+- Models: `*_model.dart` (extension types)
+- GraphQL: `*.graphql` in `data/gql/`
+
+## Auto Route
+- Annotate screens: `@RoutePage()`
+- Screens implement `AutoRouteWrapper` for BLoC setup
+- Use `wrappedRoute()` to provide BLoC/Cubit before build
+- Use `@PathParam('id')` and `@QueryParam('key')` for parameters
+- Register in `root_router.dart` with `AutoRoute(page: MyRoute.page)`
+- Router class must be `@singleton`
+
+## Sealed Classes
+- Use for closed type hierarchies (`StateStatus`, `ExceptionCodes`, `RepositoryEvent`)
+- Prefer sealed over abstract for fixed sets
+- Enable exhaustive pattern matching
+
+## Extension Types
+- Use for Ferry model wrappers (zero-cost)
+- Implement `toEntity()` conversion method
+- Keep wrappers thin
+
+## Factory Methods
+- Use `@FactoryMethod(preResolve: true)` for async initialization
+- Keep factory methods focused
+- Document initialization requirements
+
+## Monorepo
+- Shared domain in `lib/` (root package)
+- Packages: `client/`, `server/`, `widgetbook/`
+- Packages depend on root, not each other
+- Independent versioning per package
+
+## Constants & Utilities
+- Use `k*` prefix for constants (kPathHome, kPaddingSmallH, kSpacingMedium)
+- Define in `consts.dart`, export from root package
+- Use `commonScreenBlocListener` for standard BLoC state handling (navigation, messaging, errors)
+- Constants: `kPadding*`, `kSpacing*`, `kPath*`, `kQuery*`
+
+## Screen Patterns
+- Implement `AutoRouteWrapper` interface
+- Use `wrappedRoute()` to wrap with `BlocProvider`/`MultiBlocProvider`
+- Use `commonScreenBlocListener` in `BlocListener` for standard behavior
+- Access BLoC via `GetIt.I<>()` or `context.read<>()` in build method
+
+## Rule Maintenance
+- If you observe significant architectural patterns in the codebase that contradict these rules, notify the user
+- Suggest updating `.cursor/rules/*.mdc` files when patterns diverge consistently
+- Examples: new codegen tools, different layer structure, alternative state management patterns
+- When suggesting updates, provide specific examples of the divergence found

@@ -1,0 +1,49 @@
+name: 'Deploy Web Archive to VPS'
+description: 'Copy and deploy web archive to VPS server'
+
+inputs:
+  archive-name:
+    description: 'Exact archive filename (e.g., web-dev-abc123.tar.gz)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Copy web archive to VPS
+      shell: bash
+      env:
+        VPS_HOST: ${{ env.VPS_HOST }}
+      run: |
+        set -euo pipefail
+        
+        # Validate VPS host
+        if [ -z "$VPS_HOST" ]; then
+          echo "Error: VPS_HOST environment variable is not set"
+          exit 1
+        fi
+        
+        # Mask VPS host to prevent logging
+        echo "::add-mask::$VPS_HOST"
+        
+        # Use -o StrictHostKeyChecking=accept-new to avoid prompts
+        # Use -o LogLevel=ERROR to suppress verbose output
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            "${{ inputs.archive-name }}" \
+            deploy@"$VPS_HOST":/tmp/
+
+    - name: Deploy to VPS
+      shell: bash
+      env:
+        VPS_HOST: ${{ env.VPS_HOST }}
+      run: |
+        set -euo pipefail
+        
+        # Use -o LogLevel=ERROR to suppress verbose output that might expose sensitive info
+        ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            deploy@"$VPS_HOST" \
+            "chmod +x /srv/tentura_server/deploy.sh && /srv/tentura_server/deploy.sh /tmp/${{ inputs.archive-name }}"
+
