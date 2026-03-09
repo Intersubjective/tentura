@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'dart:math' show pow;
+import 'dart:math' show pow, sqrt;
 
 import 'package:flutter/material.dart';
 
@@ -35,6 +35,44 @@ class RatingScatterView extends StatefulWidget {
 }
 
 class _RatingScatterViewState extends State<RatingScatterView> {
+  final TransformationController _transformController =
+      TransformationController();
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  /// Scale factor from InteractiveViewer's matrix (approx for scale+translate).
+  static double _scaleFromMatrix(Matrix4 m) {
+    final sum = (m.entry(0, 0) * m.entry(0, 0) +
+        m.entry(1, 0) * m.entry(1, 0)).clamp(0.0, double.infinity);
+    return sqrt(sum);
+  }
+
+  /// Map canvas point (x,y) to child space (FittedBox output), then to viewport.
+  static Offset _canvasToViewport(
+    double canvasX,
+    double canvasY,
+    double viewportW,
+    double viewportH,
+    Matrix4 matrix,
+  ) {
+    final fitScale = (viewportW.isFinite && viewportH.isFinite && viewportW > 0 && viewportH > 0)
+        ? (viewportW / _canvasWidth).clamp(0.0, viewportH / _canvasHeight)
+        : 1.0;
+    final childX = viewportW / 2 + (canvasX - _canvasWidth / 2) * fitScale;
+    final childY = viewportH / 2 + (canvasY - _canvasHeight / 2) * fitScale;
+    final vx = matrix.entry(0, 0) * childX +
+        matrix.entry(0, 1) * childY +
+        matrix.entry(0, 3);
+    final vy = matrix.entry(1, 0) * childX +
+        matrix.entry(1, 1) * childY +
+        matrix.entry(1, 3);
+    return Offset(vx, vy);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -42,90 +80,174 @@ class _RatingScatterViewState extends State<RatingScatterView> {
       builder: (context, constraints) {
         final viewportW = constraints.maxWidth;
         final viewportH = constraints.maxHeight;
-        return InteractiveViewer(
-          constrained: false,
-          minScale: _minScale,
-          maxScale: _maxScale,
-          child: SizedBox(
-            width: viewportW.isFinite && viewportW > 0 ? viewportW : _canvasWidth,
-            height:
-                viewportH.isFinite && viewportH > 0 ? viewportH : _canvasHeight,
-            child: FittedBox(
-              fit: BoxFit.contain,
+        final childSize = Size(
+          viewportW.isFinite && viewportW > 0 ? viewportW : _canvasWidth,
+          viewportH.isFinite && viewportH > 0 ? viewportH : _canvasHeight,
+        );
+        return Stack(
+          children: [
+            InteractiveViewer(
+              transformationController: _transformController,
+              constrained: false,
+              minScale: _minScale,
+              maxScale: _maxScale,
               child: SizedBox(
-                width: _canvasWidth,
-                height: _canvasHeight,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    CustomPaint(
-                      size: const Size(_canvasWidth, _canvasHeight),
-                      painter: _QuadrantBackgroundPainter(
-                        margin: _plotMargin,
-                        quadrantMyIdols: l10n.quadrantMyIdols,
-                        quadrantMyFriends: l10n.quadrantMyFriends,
-                        quadrantAcquaintances: l10n.quadrantAcquaintances,
-                        quadrantMyFans: l10n.quadrantMyFans,
-                      ),
-                    ),
-                    ...widget.profiles.map((profile) {
-                      final plotW =
-                          _canvasWidth - 2 * _plotMargin;
-                      final plotH =
-                          _canvasHeight - 2 * _plotMargin;
-                      final mappedR =
-                          _stretchBorders(_clamp(profile.rScore));
-                      final mappedS =
-                          _stretchBorders(_clamp(profile.score));
-                      final x = _plotMargin + mappedR / 100 * plotW;
-                      final y =
-                          _plotMargin + (1 - mappedS / 100) * plotH;
-                      final jitter = _jitterFor(profile.id);
-                      final colW = _labelWidth;
-                      final colLeft =
-                          x - colW / 2 + jitter.dx;
-                      final colTop =
-                          y - _avatarSize / 2 + jitter.dy;
-                      return Positioned(
-                        left: colLeft,
-                        top: colTop,
-                        width: colW,
-                        child: GestureDetector(
-                          onTap: () => context
-                              .read<RatingCubit>()
-                              .showProfile(profile.id),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment:
-                                CrossAxisAlignment.center,
-                            children: [
-                              AvatarRated(
-                                profile: profile,
-                                size: _avatarSize,
-                              ),
-                              SizedBox(height: _avatarLabelGap),
-                              SizedBox(
-                                width: _labelWidth,
-                                height: _labelHeight,
-                                child: Text(
-                                  profile.title,
-                                  textAlign: TextAlign.center,
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                            ],
+                width: childSize.width,
+                height: childSize.height,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: SizedBox(
+                    width: _canvasWidth,
+                    height: _canvasHeight,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CustomPaint(
+                          size: const Size(
+                              _canvasWidth, _canvasHeight),
+                          painter: _QuadrantBackgroundPainter(
+                            margin: _plotMargin,
+                            quadrantMyIdols: l10n.quadrantMyIdols,
+                            quadrantMyFriends: l10n.quadrantMyFriends,
+                            quadrantAcquaintances:
+                                l10n.quadrantAcquaintances,
+                            quadrantMyFans: l10n.quadrantMyFans,
                           ),
                         ),
-                      );
-                    }),
-                  ],
+                        // Avatars in canvas (scaled with plot) when zoom <= 1
+                        ListenableBuilder(
+                          listenable: _transformController,
+                          builder: (context, _) {
+                            final scale = _scaleFromMatrix(
+                                _transformController.value);
+                            if (scale > 1.0) return const SizedBox.shrink();
+                            return _buildAvatarStack(context);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            // Fixed-size avatars in viewport when zoom > 1
+            ListenableBuilder(
+              listenable: _transformController,
+              builder: (context, _) {
+                final scale =
+                    _scaleFromMatrix(_transformController.value);
+                if (scale <= 1.0) return const SizedBox.shrink();
+                return _buildAvatarOverlay(
+                    context,
+                    viewportW: viewportW,
+                    viewportH: viewportH,
+                );
+              },
+            ),
+          ],
         );
       },
+    );
+  }
+
+  Widget _buildAvatarStack(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: widget.profiles.map((profile) {
+        final plotW = _canvasWidth - 2 * _plotMargin;
+        final plotH = _canvasHeight - 2 * _plotMargin;
+        final mappedR = _stretchBorders(_clamp(profile.rScore));
+        final mappedS = _stretchBorders(_clamp(profile.score));
+        final x = _plotMargin + mappedR / 100 * plotW;
+        final y = _plotMargin + (1 - mappedS / 100) * plotH;
+        final jitter = _jitterFor(profile.id);
+        final colLeft = x - _labelWidth / 2 + jitter.dx;
+        final colTop = y - _avatarSize / 2 + jitter.dy;
+        return Positioned(
+          left: colLeft,
+          top: colTop,
+          width: _labelWidth,
+          child: GestureDetector(
+            onTap: () =>
+                context.read<RatingCubit>().showProfile(profile.id),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                AvatarRated(profile: profile, size: _avatarSize),
+                SizedBox(height: _avatarLabelGap),
+                SizedBox(
+                  width: _labelWidth,
+                  height: _labelHeight,
+                  child: Text(
+                    profile.title,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildAvatarOverlay(
+    BuildContext context, {
+    required double viewportW,
+    required double viewportH,
+  }) {
+    final matrix = _transformController.value;
+    return SizedBox(
+      width: viewportW,
+      height: viewportH,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: widget.profiles.map((profile) {
+          final plotW = _canvasWidth - 2 * _plotMargin;
+          final plotH = _canvasHeight - 2 * _plotMargin;
+          final mappedR = _stretchBorders(_clamp(profile.rScore));
+          final mappedS = _stretchBorders(_clamp(profile.score));
+          final cx = _plotMargin + mappedR / 100 * plotW;
+          final cy = _plotMargin + (1 - mappedS / 100) * plotH;
+          final jitter = _jitterFor(profile.id);
+          final canvasX = cx + jitter.dx;
+          final canvasY = cy + jitter.dy;
+          final v = _canvasToViewport(
+              canvasX, canvasY, viewportW, viewportH, matrix);
+          final colTop = v.dy - _avatarSize / 2;
+          final colLeft = v.dx - _labelWidth / 2;
+          return Positioned(
+            left: colLeft,
+            top: colTop,
+            width: _labelWidth,
+            child: GestureDetector(
+              onTap: () =>
+                  context.read<RatingCubit>().showProfile(profile.id),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  AvatarRated(profile: profile, size: _avatarSize),
+                  SizedBox(height: _avatarLabelGap),
+                  SizedBox(
+                    width: _labelWidth,
+                    height: _labelHeight,
+                    child: Text(
+                      profile.title,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
