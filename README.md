@@ -3,9 +3,8 @@
 1. Set secrets described in `compose.yaml` in `.env` file
 2. If need, copy `compose.override.yaml` from `examples` and modify it
 3. Run containers (docker compose up -d)
-4. `chown nobody:nogroup /etc/nginx/cert`(acme.autossl cert storage)
-5. apply SQL commands in `hasura/schema.sql` to Postgres (Hasura schema and MeritRank-related triggers)
-6. upload `hasura/metadata.json` in Hasura console
+4. Apply SQL commands in `hasura/schema.sql` to Postgres (Hasura schema and MeritRank-related triggers)
+5. Upload `hasura/metadata.json` in Hasura console
 
 ### Generate secrets and etc
 
@@ -15,8 +14,7 @@
 
 ## Development
 
-1. Run `./openresty/scripts/create_cert_and_keys.sh`
-2. Build images (docker build --no-cache -t alexandrim0/openresty-tentura:vX.Y.Z .)
+The reverse proxy uses Caddy (official `caddy:alpine` image). For local dev, Caddy uses its automatic internal TLS for `localhost`. No proxy image build or certificate scripts are required.
 
 
 ## Backup and restore data

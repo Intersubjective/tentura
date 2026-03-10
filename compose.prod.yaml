@@ -13,36 +13,26 @@ services:
       service: common
     hostname: proxy
     container_name: proxy
-    image: alexandrim0/tentura-proxy
+    image: caddy:alpine
     depends_on:
       - hasura
       - tentura
     volumes:
-      - /tmp
-      - ./web:/usr/local/openresty/nginx/html:ro
-      - openresty-cert:/etc/nginx/cert
-    tmpfs:
-      - /var/run/openresty
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web:/srv/web:ro
+      - caddy_data:/data
+      - caddy_config:/config
     ports:
       - 80:80/tcp
       - 443:443/tcp
     networks:
       - frontend
     environment:
-      - WORKERS
-      - RESOLVER
-      - ACME_EMAIL
       - SERVER_NAME
-      - ERROR_LOG_LEVEL
-      - CONTENT_EXPIRES
-      - HASURA_KEEPALIVE
-      - TENTURA_KEEPALIVE
-      - WORKER_CONNECTIONS
+      - ACME_EMAIL
+      - CORS
       - CLIENT_MAX_BODY_SIZE
-      - CLIENT_BODY_BUFFER_SIZE
-    post_start:
-      - command: chown nobody:nogroup /etc/nginx/cert
-        user: root
+      - 'CADDY_AGREE=true'
 
   hasura:
     extends:
@@ -126,7 +116,8 @@ services:
       - S3_BUCKET
 
 volumes:
-  openresty-cert:
+  caddy_data:
+  caddy_config:
 
 networks:
   frontend:

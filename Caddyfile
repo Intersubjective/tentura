@@ -1,0 +1,87 @@
+# Production: set SERVER_NAME and ACME_EMAIL for Let's Encrypt.
+# Development: SERVER_NAME=localhost uses Caddy's automatic internal TLS.
+{$SERVER_NAME:localhost} {
+	# TLS: use internal CA for localhost; Let's Encrypt for real domains when ACME_EMAIL is set
+	tls {
+		email {$ACME_EMAIL}
+	}
+
+	request_body {
+		max_size {$CLIENT_MAX_BODY_SIZE:1MB}
+	}
+
+	encode gzip
+
+	# Multipart /api/v1/graphql -> Tentura at /api/v2/graphql
+	@multipart_v1 path /api/v1/graphql header Content-Type *multipart*
+	handle @multipart_v1 {
+		rewrite * /api/v2/graphql
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	# Non-multipart /api/v1/graphql -> Hasura at /v1/graphql
+	handle /api/v1/graphql {
+		rewrite * /v1/graphql
+		reverse_proxy {$HASURA_UPSTREAM:hasura:8080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	# Tentura GraphQL and WebSocket (long timeouts for subscriptions)
+	handle /api/v2/graphql {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+	handle /api/v2/ws {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	# Tentura: service worker and shared assets
+	handle /firebase-messaging-sw.js {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}
+	}
+	handle /shared/* {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}
+	}
+
+	# Hasura: strip /api prefix (e.g. /api/ -> Hasura /)
+	handle_path /api/* {
+		reverse_proxy {$HASURA_UPSTREAM:hasura:8080}
+	}
+
+	# Optional: pgAdmin (omit if pgadmin service not running)
+	handle /pgadmin4/* {
+		reverse_proxy pgadmin:80 {
+			header_up X-Script-Name /pgadmin4
+		}
+	}
+
+	# Static Flutter web app (SPA fallback) and CORS/security headers
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+		header Cross-Origin-Opener-Policy "same-origin"
+		header Cross-Origin-Embedder-Policy "credentialless"
+		header Access-Control-Allow-Credentials "false"
+		header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+		header Access-Control-Allow-Origin "{$CORS:*}"
+	}
+}
