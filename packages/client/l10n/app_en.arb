@@ -523,6 +523,38 @@
   "@quadrantMyFans": {
     "context": "RatingScreen"
   },
+  "alter": "Alter",
+  "@alter": {
+    "context": "RatingScreen"
+  },
+  "iTrustThem": "I trust them",
+  "@iTrustThem": {
+    "context": "RatingScreen"
+  },
+  "theyTrustMe": "They trust me",
+  "@theyTrustMe": {
+    "context": "RatingScreen"
+  },
+  "classLabel": "Class",
+  "@classLabel": {
+    "context": "RatingScreen"
+  },
+  "classMutual": "mutual",
+  "@classMutual": {
+    "context": "RatingScreen"
+  },
+  "classOneWayOut": "one-way out",
+  "@classOneWayOut": {
+    "context": "RatingScreen"
+  },
+  "classOneWayIn": "one-way in",
+  "@classOneWayIn": {
+    "context": "RatingScreen"
+  },
+  "classNone": "none",
+  "@classNone": {
+    "context": "RatingScreen"
+  },
   "showIntroAgain": "Show Intro Again",
   "@showIntroAgain": {
     "context": "SettingsScreen"

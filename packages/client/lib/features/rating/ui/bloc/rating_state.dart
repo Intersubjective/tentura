@@ -12,7 +12,9 @@ abstract class RatingState extends StateBase with _$RatingState {
     @Default([]) List<Profile> items,
     @Default('') String searchFilter,
     @Default(false) bool isSortedByAsc,
-    @Default(false) bool isSortedByEgo,
+    @Default(false) bool isSortedByReverse,
+    @Default(false) bool isSortedByAlter,
+    @Default(false) bool isSortedByClass,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _RatingState;
 
