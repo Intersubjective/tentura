@@ -16,21 +16,18 @@ services:
       service: common
     hostname: proxy
     container_name: proxy
-    image: alexandrim0/tentura-proxy
+    image: caddy:alpine
     depends_on:
       - hasura
       - tentura
     volumes:
-      - ./openresty/conf:/etc/nginx:ro
-      - ../tentura/build/web:/usr/local/openresty/nginx/html:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../tentura/build/web:/srv/web:ro
     tmpfs:
       - /tmp
-      - /var/run/openresty
     environment:
-      - "ERROR_LOG_LEVEL=debug"
-      - "PGADMIN_ENABLED=true"
-      - "LUA_CODE_CACHE=off"
-      - "WORKERS=2"
+      - "HASURA_UPSTREAM=localhost:8080"
+      - "TENTURA_UPSTREAM=localhost:2080"
 
   hasura:
     extends:
