@@ -52,9 +52,14 @@ class _RatingScreenState extends State<RatingScreen> {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final cubit = context.read<RatingCubit>();
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return BlocBuilder<RatingCubit, RatingState>(
-      buildWhen: (p, c) => c.isSuccess || c.isLoading,
+      buildWhen: (p, c) =>
+          c.isSuccess ||
+          c.isLoading ||
+          p.isSortedByAsc != c.isSortedByAsc ||
+          p.isSortedByReverse != c.isSortedByReverse ||
+          p.isSortedByAlter != c.isSortedByAlter ||
+          p.isSortedByClass != c.isSortedByClass,
       builder: (context, state) {
         if (state.isLoading) {
           return const Center(child: CircularProgressIndicator.adaptive());
@@ -80,8 +85,7 @@ class _RatingScreenState extends State<RatingScreen> {
                   _isScatterView ? Icons.list_rounded : Icons.scatter_plot,
                 ),
               ),
-              if (!_isScatterView) ...[
-                // Clear input
+              if (!_isScatterView)
                 IconButton(
                   padding: EdgeInsets.zero,
                   alignment: Alignment.center,
@@ -89,21 +93,6 @@ class _RatingScreenState extends State<RatingScreen> {
                   onPressed:
                       filter.isEmpty ? null : cubit.clearSearchFilter,
                 ),
-                // Toggle sorting by value
-                IconButton(
-                  onPressed: cubit.toggleSortingByAsc,
-                  icon: state.isSortedByAsc
-                      ? const Icon(Icons.keyboard_arrow_up_rounded)
-                      : const Icon(Icons.keyboard_arrow_down_rounded),
-                ),
-                // Toggle sorting by ego
-                IconButton(
-                  onPressed: cubit.toggleSortingByEgo,
-                  icon: state.isSortedByEgo
-                      ? const Icon(Icons.keyboard_arrow_right_rounded)
-                      : const Icon(Icons.keyboard_arrow_left_rounded),
-                ),
-              ],
             ],
             title: _isScatterView
                 ? Text(l10n.rating)
@@ -138,21 +127,205 @@ class _RatingScreenState extends State<RatingScreen> {
           ),
           body: _isScatterView
               ? RatingScatterView(profiles: items)
-              : ListView.separated(
-                  itemCount: items.length,
-                  itemBuilder: (_, i) {
-                    final profile = items[i];
-                    return RatingListTile(
-                      key: ValueKey(profile),
-                      isDarkMode: isDarkMode,
-                      profile: profile,
-                    );
-                  },
-                  padding: kPaddingH + kPaddingT,
-                  separatorBuilder: separatorBuilder,
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _RatingHeatmapHeader(
+                      l10n: l10n,
+                      cubit: cubit,
+                      isSortedByReverse: state.isSortedByReverse,
+                      isSortedByAsc: state.isSortedByAsc,
+                      isSortedByAlter: state.isSortedByAlter,
+                      isSortedByClass: state.isSortedByClass,
+                    ),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: items.length,
+                        itemBuilder: (_, i) {
+                          final profile = items[i];
+                          return RatingListTile(
+                            key: ValueKey(profile.id),
+                            profile: profile,
+                          );
+                        },
+                        padding: kPaddingH + kPaddingT,
+                        separatorBuilder: separatorBuilder,
+                      ),
+                    ),
+                  ],
                 ),
         );
       },
+    );
+  }
+}
+
+class _RatingHeatmapHeader extends StatelessWidget {
+  const _RatingHeatmapHeader({
+    required this.l10n,
+    required this.cubit,
+    required this.isSortedByReverse,
+    required this.isSortedByAsc,
+    required this.isSortedByAlter,
+    required this.isSortedByClass,
+  });
+
+  final L10n l10n;
+  final RatingCubit cubit;
+  final bool isSortedByReverse;
+  final bool isSortedByAsc;
+  final bool isSortedByAlter;
+  final bool isSortedByClass;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    return SizedBox(
+      height: 48,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(
+          kSpacingMedium,
+          kSpacingSmall,
+          kSpacingMedium,
+          kSpacingSmall,
+        ),
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainer,
+          border: Border(
+            bottom: BorderSide(color: colorScheme.outlineVariant),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: InkWell(
+                onTap: cubit.sortByAlterColumn,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l10n.alter,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isSortedByAlter)
+                      Icon(
+                        isSortedByAsc
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(
+              flex: 2,
+              child: InkWell(
+                onTap: cubit.sortByDirectColumn,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l10n.iTrustThem,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (!isSortedByReverse && !isSortedByAlter && !isSortedByClass)
+                      Icon(
+                        isSortedByAsc
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(
+              flex: 2,
+              child: InkWell(
+                onTap: cubit.sortByReverseColumn,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l10n.theyTrustMe,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isSortedByReverse && !isSortedByAlter && !isSortedByClass)
+                      Icon(
+                        isSortedByAsc
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: kSpacingSmall),
+            SizedBox(
+              width: 100,
+              child: InkWell(
+                onTap: cubit.sortByClassColumn,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        l10n.classLabel,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isSortedByClass)
+                      Icon(
+                        isSortedByAsc
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

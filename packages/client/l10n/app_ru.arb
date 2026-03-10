@@ -523,6 +523,38 @@
   "@quadrantMyFans": {
     "context": "RatingScreen"
   },
+  "alter": "Альтер",
+  "@alter": {
+    "context": "RatingScreen"
+  },
+  "iTrustThem": "Я доверяю им",
+  "@iTrustThem": {
+    "context": "RatingScreen"
+  },
+  "theyTrustMe": "Они доверяют мне",
+  "@theyTrustMe": {
+    "context": "RatingScreen"
+  },
+  "classLabel": "Класс",
+  "@classLabel": {
+    "context": "RatingScreen"
+  },
+  "classMutual": "взаимно",
+  "@classMutual": {
+    "context": "RatingScreen"
+  },
+  "classOneWayOut": "односторонне (исх.)",
+  "@classOneWayOut": {
+    "context": "RatingScreen"
+  },
+  "classOneWayIn": "односторонне (вх.)",
+  "@classOneWayIn": {
+    "context": "RatingScreen"
+  },
+  "classNone": "нет",
+  "@classNone": {
+    "context": "RatingScreen"
+  },
   "showIntroAgain": "Показать интро снова",
   "@showIntroAgain": {
     "context": "SettingsScreen"
