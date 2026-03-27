@@ -1,10 +1,7 @@
 # Production: set SERVER_NAME and ACME_EMAIL for Let's Encrypt.
 # Development: SERVER_NAME=localhost uses Caddy's automatic internal TLS.
 {$SERVER_NAME:localhost} {
-	# TLS: use internal CA for localhost; Let's Encrypt for real domains when ACME_EMAIL is set
-	tls {
-		email {$ACME_EMAIL}
-	}
+	tls {$ACME_EMAIL}
 
 	request_body {
 		max_size {$CLIENT_MAX_BODY_SIZE:1MB}
@@ -13,7 +10,10 @@
 	encode gzip
 
 	# Multipart /api/v1/graphql -> Tentura at /api/v2/graphql
-	@multipart_v1 path /api/v1/graphql header Content-Type *multipart*
+	@multipart_v1 {
+		path /api/v1/graphql
+		header Content-Type *multipart*
+	}
 	handle @multipart_v1 {
 		rewrite * /api/v2/graphql
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
