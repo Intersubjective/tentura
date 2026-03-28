@@ -1,78 +1,286 @@
+import 'dart:async';
+
 import 'package:get_it/get_it.dart';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
-import 'package:tentura/env.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/consts.dart';
+import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/chat/ui/widget/chat_peer_list_tile.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
+import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
+import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/friends_cubit.dart';
 
 @RoutePage()
-class FriendsScreen extends StatelessWidget {
+class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
 
   @override
+  State<FriendsScreen> createState() => _FriendsScreenState();
+}
+
+class _FriendsScreenState extends State<FriendsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  late final InvitationCubit _invitationCubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _invitationCubit = InvitationCubit();
+    unawaited(_invitationCubit.fetch());
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    unawaited(_invitationCubit.close());
+    super.dispose();
+  }
+
+  Future<void> _onFabPressed(BuildContext context) async {
+    final l10n = L10n.of(context)!;
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: Text(l10n.friendsFabEnterCode),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(ConnectBottomSheet.show(context));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add_alt_1),
+              title: Text(l10n.friendsFabCreateInvitation),
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                final invitation = await _invitationCubit.createInvitation();
+                if (invitation == null || !context.mounted) return;
+                await ShareCodeDialog.show(
+                  context,
+                  header: l10n.labelInvitationCode,
+                  link: Uri.parse(kServerName).replace(
+                    path: kPathAppLinkView,
+                    queryParameters: {'id': invitation.id},
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final screenCubit = context.read<ScreenCubit>();
     final friendsCubit = GetIt.I<FriendsCubit>();
-    final env = GetIt.I<Env>();
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
-    return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => ConnectBottomSheet.show(context),
-        child: const Icon(TenturaIcons.affiliation),
+
+    return BlocProvider.value(
+      value: _invitationCubit,
+      child: MultiBlocListener(
+        listeners: const [
+          BlocListener<InvitationCubit, InvitationState>(
+            listener: commonScreenBlocListener,
+          ),
+        ],
+        child: Scaffold(
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              unawaited(_onFabPressed(context));
+            },
+            child: const Icon(TenturaIcons.affiliation),
+          ),
+          appBar: AppBar(
+            title: Text(l10n.friendsTitle),
+            automaticallyImplyLeading: false,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(52),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  BlocSelector<InvitationCubit, InvitationState, bool>(
+                    key: Key('Friends.InvitationLoader:${_invitationCubit.hashCode}'),
+                    selector: (state) => state.isLoading,
+                    builder: LinearPiActive.builder,
+                    bloc: _invitationCubit,
+                  ),
+                  TabBar(
+                    controller: _tabController,
+                    tabs: [
+                      Tab(text: l10n.friendsTitle),
+                      Tab(text: l10n.invitationScreenTitle),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              _FriendsTabBody(
+                friendsCubit: friendsCubit,
+                theme: theme,
+                l10n: l10n,
+              ),
+              _InvitesTabBody(
+                invitationCubit: _invitationCubit,
+                l10n: l10n,
+              ),
+            ],
+          ),
+        ),
       ),
-      appBar: env.needInviteCode
-          ? AppBar(
-              title: Text(l10n.friendsTitle),
-              actions: [
-                PopupMenuButton<void>(
-                  itemBuilder: (_) => <PopupMenuEntry<void>>[
-                    PopupMenuItem(
-                      onTap: screenCubit.showInvitations,
-                      child: Text(l10n.invitationsShowMenuItem),
+    );
+  }
+}
+
+class _FriendsTabBody extends StatelessWidget {
+  const _FriendsTabBody({
+    required this.friendsCubit,
+    required this.theme,
+    required this.l10n,
+  });
+
+  final FriendsCubit friendsCubit;
+  final ThemeData theme;
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<FriendsCubit, FriendsState>(
+      bloc: friendsCubit,
+      buildWhen: (_, c) => c.isSuccess,
+      builder: (_, state) {
+        final friends = state.friends.values.toList();
+        return RefreshIndicator.adaptive(
+          onRefresh: friendsCubit.fetch,
+          child: state.friends.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.sizeOf(context).height * 0.5,
+                      child: Center(
+                        child: Text(
+                          l10n.labelNothingHere,
+                          style: theme.textTheme.displaySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
                   ],
+                )
+              : ListView.separated(
+                  itemCount: friends.length,
+                  itemBuilder: (_, i) {
+                    final profile = friends[i];
+                    return ChatPeerListTile(
+                      key: ValueKey(profile),
+                      profile: profile,
+                    );
+                  },
+                  separatorBuilder: separatorBuilder,
                 ),
-              ],
-              automaticallyImplyLeading: false,
-            )
-          : null,
-      body: BlocBuilder<FriendsCubit, FriendsState>(
-        bloc: friendsCubit,
+        );
+      },
+    );
+  }
+}
+
+class _InvitesTabBody extends StatelessWidget {
+  const _InvitesTabBody({
+    required this.invitationCubit,
+    required this.l10n,
+  });
+
+  final InvitationCubit invitationCubit;
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator.adaptive(
+      onRefresh: invitationCubit.fetch,
+      child: BlocBuilder<InvitationCubit, InvitationState>(
+        key: Key('Friends.InvitesBody:${invitationCubit.hashCode}'),
+        bloc: invitationCubit,
         buildWhen: (_, c) => c.isSuccess,
         builder: (_, state) {
-          late final friends = state.friends.values.toList();
-          return RefreshIndicator.adaptive(
-            onRefresh: friendsCubit.fetch,
-            child: state.friends.isEmpty
-                // Empty state
-                ? Center(
+          if (state.invitations.isEmpty) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(
+                  height: MediaQuery.sizeOf(context).height * 0.5,
+                  child: Center(
                     child: Text(
                       l10n.labelNothingHere,
-                      style: theme.textTheme.displaySmall,
+                      style: Theme.of(context).textTheme.displaySmall,
                       textAlign: TextAlign.center,
                     ),
-                  )
-                // Friends List
-                : ListView.separated(
-                    itemCount: friends.length,
-                    itemBuilder: (_, i) {
-                      final profile = friends[i];
-                      return ChatPeerListTile(
-                        key: ValueKey(profile),
-                        profile: profile,
-                      );
-                    },
-                    separatorBuilder: separatorBuilder,
                   ),
+                ),
+              ],
+            );
+          }
+          return ListView.separated(
+            itemCount: state.invitations.length,
+            itemBuilder: (_, i) {
+              final invitation = state.invitations[i];
+              if (state.invitations.length > kFetchListOffset &&
+                  state.invitations.length == i + 1) {
+                unawaited(invitationCubit.fetch(clear: false));
+              }
+              final createdAt = invitation.createdAt.toLocal();
+              return ListTile(
+                key: ValueKey(invitation),
+                title: Text(invitation.id),
+                subtitle: Text(
+                  '${dateFormatYMD(createdAt)}  ${timeFormatHm(createdAt)}',
+                ),
+                trailing: IconButton(
+                  onPressed: () async {
+                    if (await InvitationRemoveDialog.show(context) ?? false) {
+                      await invitationCubit.deleteInvitationById(
+                        invitation.id,
+                      );
+                    }
+                  },
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.red[300],
+                  ),
+                ),
+                onTap: () => ShareCodeDialog.show(
+                  context,
+                  header: l10n.labelInvitationCode,
+                  link: Uri.parse(kServerName).replace(
+                    path: kPathAppLinkView,
+                    queryParameters: {'id': invitation.id},
+                  ),
+                ),
+              );
+            },
+            separatorBuilder: separatorBuilder,
           );
         },
       ),

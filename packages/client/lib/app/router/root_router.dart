@@ -125,15 +125,6 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
-    // Invitations
-    AutoRoute(
-      keepHistory: false,
-      maintainState: false,
-      fullscreenDialog: true,
-      page: InvitationRoute.page,
-      path: kPathInvitations,
-    ),
-
     // Profile View
     AutoRoute(
       usesPathAsKey: true,

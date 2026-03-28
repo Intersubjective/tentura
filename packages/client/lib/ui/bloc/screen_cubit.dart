@@ -36,8 +36,6 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showComplaint(String id) =>
       emit(state.navigateTo('$kPathComplaint/$id'));
-
-  void showInvitations() => emit(state.navigateTo(kPathInvitations));
 }
 
 class ScreenState extends StateBase {
