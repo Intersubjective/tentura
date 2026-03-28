@@ -6,14 +6,10 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/bottom_text_input.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/author_info.dart';
 
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
-import 'package:tentura/features/beacon/ui/widget/beacon_tile_control.dart';
-// import 'package:tentura/features/comment/ui/bloc/comment_cubit.dart';
-import 'package:tentura/features/comment/ui/widget/comment_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/beacon_view_cubit.dart';
@@ -60,25 +56,24 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
     final screenCubit = context.read<ScreenCubit>();
     final beaconViewCubit = context.read<BeaconViewCubit>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Beacon'),
+        title: Text(l10n.beaconViewTitle),
         leading: isDeepLink == 'true'
             ? BackButton(
                 onPressed: () => AutoRouter.of(context).navigatePath(kPathHome),
               )
             : const AutoLeadingButton(),
         actions: [
-          // More
           BlocSelector<BeaconViewCubit, BeaconViewState, bool>(
             selector: (state) => state.isBeaconMine,
             builder: (_, isBeaconMine) => isBeaconMine
                 ? nil
                 : PopupMenuButton(
                     itemBuilder: (_) => <PopupMenuEntry<void>>[
-                      // Complaint
                       PopupMenuItem(
                         onTap: () => screenCubit.showComplaint(id),
                         child: Text(l10n.buttonComplaint),
@@ -102,16 +97,16 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
         builder: (_, state) {
           final beacon = state.beacon;
           return ListView(
-            padding: kPaddingBottomTextInput,
+            padding: kPaddingAll,
             children: [
-              // User row (Avatar and Name)
+              // Author
               if (state.isBeaconNotMine)
                 AuthorInfo(
                   author: beacon.author,
                   key: ValueKey(beacon.author),
                 ),
 
-              // Beacon Info
+              // Beacon Info (overview)
               BeaconInfo(
                 key: ValueKey(beacon),
                 beacon: beacon,
@@ -120,54 +115,180 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 isShowBeaconEnabled: false,
               ),
 
-              // Beacon Control
-              Padding(
-                padding: kPaddingSmallV,
-                child: state.isBeaconMine
-                    ? BeaconMineControl(key: ValueKey(beacon.id))
-                    : BeaconTileControl(
-                        beacon: beacon,
-                        key: ValueKey(beacon.id),
+              // Beacon owner controls
+              if (state.isBeaconMine)
+                Padding(
+                  padding: kPaddingSmallV,
+                  child: BeaconMineControl(key: ValueKey(beacon.id)),
+                ),
+
+              const SizedBox(height: kSpacingMedium),
+
+              // Primary actions for non-owners
+              if (state.isBeaconNotMine)
+                Padding(
+                  padding: kPaddingSmallV,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: BlocSelector<BeaconViewCubit, BeaconViewState,
+                            bool>(
+                          selector: (s) => s.isCommitted,
+                          builder: (_, isCommitted) => isCommitted
+                              ? OutlinedButton.icon(
+                                  onPressed: beaconViewCubit.withdraw,
+                                  icon: const Icon(Icons.check_circle),
+                                  label: Text(l10n.labelCommitted),
+                                )
+                              : FilledButton.icon(
+                                  onPressed: () =>
+                                      beaconViewCubit.commit(),
+                                  icon: const Icon(Icons.handshake),
+                                  label: Text(l10n.labelCommit),
+                                ),
+                        ),
                       ),
-              ),
-
-              // Comments Section
-              Text(
-                l10n.labelComments,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              // Comments list
-              for (final comment in state.comments.reversed)
-                CommentTile(
-                  comment: comment,
-                  key: ValueKey(comment),
-                  isMine: state.checkIfCommentIsMine(comment),
+                      const SizedBox(width: kSpacingSmall),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.router.pushPath(
+                            '$kPathForwardBeacon/${beacon.id}',
+                          ),
+                          icon: const Icon(Icons.send),
+                          label: Text(l10n.labelForward),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
-              // Show All Button
-              if (state.comments.isNotEmpty && state.hasNotReachedMax)
+              // Forward button for owners
+              if (state.isBeaconMine)
                 Padding(
                   padding: kPaddingSmallV,
                   child: SizedBox(
                     width: double.infinity,
-                    child: FilledButton(
-                      onPressed: beaconViewCubit.showAll,
-                      child: Text(l10n.showAllComments),
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.router.pushPath(
+                        '$kPathForwardBeacon/${beacon.id}',
+                      ),
+                      icon: const Icon(Icons.send),
+                      label: Text(l10n.labelForward),
                     ),
                   ),
                 ),
+
+              const Divider(height: kSpacingLarge),
+
+              // Timeline section
+              Text(
+                l10n.labelTimeline,
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: kSpacingSmall),
+
+              if (state.timeline.isEmpty)
+                Padding(
+                  padding: kPaddingSmallV,
+                  child: Text(
+                    l10n.noActivityYet,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+
+              for (final entry in state.timeline)
+                _TimelineEntryTile(entry: entry),
             ],
           );
         },
       ),
-      bottomSheet: BottomTextInput(
-        hintText: l10n.writeComment,
-        onSend: beaconViewCubit.addComment,
-      ),
+    );
+  }
+}
+
+class _TimelineEntryTile extends StatelessWidget {
+  const _TimelineEntryTile({required this.entry});
+
+  final TimelineEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    return Padding(
+      padding: kPaddingSmallV,
+      child: switch (entry) {
+        final TimelineForward e => Row(
+            children: [
+              Icon(
+                Icons.forward_to_inbox,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: kSpacingSmall),
+              Expanded(
+                child: Text(
+                  l10n.timelineForwarded(
+                    e.edge.sender.title,
+                    e.edge.recipient.title,
+                  ),
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              Text(
+                dateFormatYMD(e.timestamp),
+                style: theme.textTheme.labelSmall,
+              ),
+            ],
+          ),
+        final TimelineCommitment e => Row(
+            children: [
+              Icon(
+                Icons.handshake,
+                size: 18,
+                color: theme.colorScheme.tertiary,
+              ),
+              const SizedBox(width: kSpacingSmall),
+              Expanded(
+                child: Text(
+                  e.message.isNotEmpty
+                      ? l10n.timelineCommittedWithMessage(
+                          e.user.title,
+                          e.message,
+                        )
+                      : l10n.timelineCommitted(e.user.title),
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              Text(
+                dateFormatYMD(e.timestamp),
+                style: theme.textTheme.labelSmall,
+              ),
+            ],
+          ),
+        final TimelineUpdate e => Row(
+            children: [
+              Icon(
+                Icons.edit_note,
+                size: 18,
+                color: theme.colorScheme.secondary,
+              ),
+              const SizedBox(width: kSpacingSmall),
+              Expanded(
+                child: Text(
+                  l10n.timelineUpdate(e.author.title, e.content),
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              Text(
+                dateFormatYMD(e.timestamp),
+                style: theme.textTheme.labelSmall,
+              ),
+            ],
+          ),
+      },
     );
   }
 }

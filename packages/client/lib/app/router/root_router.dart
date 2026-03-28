@@ -52,24 +52,24 @@ class RootRouter extends RootStackRouter {
       page: HomeRoute.page,
       path: kPathHome,
       children: [
-        // Field
-        AutoRoute(
-          page: MyFieldRoute.page,
-          path: kPathMyField.split('/').last,
-        ),
-        // Favorites
-        AutoRoute(
-          page: FavoritesRoute.page,
-          path: kPathFavorites.split('/').last,
-        ),
-        // Friends
-        AutoRoute(
-          page: FriendsRoute.page,
-          path: kPathFriends.split('/').last,
-        ),
-        // Profile
+        // Inbox
         AutoRoute(
           initial: true,
+          page: InboxRoute.page,
+          path: kPathInbox.split('/').last,
+        ),
+        // My Work
+        AutoRoute(
+          page: MyWorkRoute.page,
+          path: kPathMyWork.split('/').last,
+        ),
+        // Network (Friends)
+        AutoRoute(
+          page: FriendsRoute.page,
+          path: kPathNetwork.split('/').last,
+        ),
+        // Me (Profile)
+        AutoRoute(
           page: ProfileRoute.page,
           path: kPathProfile.split('/').last,
         ),
@@ -175,6 +175,15 @@ class RootRouter extends RootStackRouter {
       path: '$kPathBeaconView/:id',
     ),
 
+    // Forward Beacon
+    AutoRoute(
+      keepHistory: false,
+      maintainState: false,
+      fullscreenDialog: true,
+      page: ForwardBeaconRoute.page,
+      path: '$kPathForwardBeacon/:id',
+    ),
+
     // Beacon View All
     AutoRoute(
       usesPathAsKey: true,
@@ -262,9 +271,9 @@ class RootRouter extends RootStackRouter {
                 '$kPathProfileView/$id',
               final String id when id.startsWith('I') =>
                 _authCubit.state.isAuthenticated
-                    ? kPathFriends
+                    ? kPathNetwork
                     : '$kPathSignUp/$id',
-              _ => kPathFriends,
+              _ => kPathNetwork,
             },
             queryParameters: {
               kQueryIsDeepLink: 'true',

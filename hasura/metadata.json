@@ -68,6 +68,42 @@
                     }
                   }
                 }
+              },
+              {
+                "name": "forward_edges",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "beacon_id",
+                    "table": {
+                      "name": "beacon_forward_edge",
+                      "schema": "public"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "commitments",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "beacon_id",
+                    "table": {
+                      "name": "beacon_commitment",
+                      "schema": "public"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "updates",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "beacon_id",
+                    "table": {
+                      "name": "beacon_update",
+                      "schema": "public"
+                    }
+                  }
+                }
               }
             ],
             "computed_fields": [
@@ -120,6 +156,7 @@
                     "long",
                     "polling_id",
                     "start_at",
+                    "state",
                     "tags",
                     "title",
                     "updated_at",
@@ -139,7 +176,8 @@
                 "role": "user",
                 "permission": {
                   "columns": [
-                    "enabled"
+                    "enabled",
+                    "state"
                   ],
                   "filter": {
                     "user_id": {
@@ -1211,6 +1249,264 @@
                   }
                 },
                 "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_forward_edge",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "sender",
+                "using": {
+                  "foreign_key_constraint_on": "sender_id"
+                }
+              },
+              {
+                "name": "recipient",
+                "using": {
+                  "foreign_key_constraint_on": "recipient_id"
+                }
+              },
+              {
+                "name": "parent_edge",
+                "using": {
+                  "foreign_key_constraint_on": "parent_edge_id"
+                }
+              }
+            ],
+            "insert_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "check": {},
+                  "set": {
+                    "sender_id": "x-hasura-User-Id"
+                  },
+                  "columns": [
+                    "beacon_id",
+                    "context",
+                    "note",
+                    "parent_edge_id",
+                    "batch_id",
+                    "recipient_id"
+                  ]
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "id",
+                    "beacon_id",
+                    "context",
+                    "sender_id",
+                    "recipient_id",
+                    "note",
+                    "parent_edge_id",
+                    "batch_id",
+                    "created_at"
+                  ],
+                  "filter": {
+                    "_or": [
+                      { "sender_id": { "_eq": "X-Hasura-User-Id" } },
+                      { "recipient_id": { "_eq": "X-Hasura-User-Id" } }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_commitment",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "user",
+                "using": {
+                  "foreign_key_constraint_on": "user_id"
+                }
+              }
+            ],
+            "insert_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "check": {},
+                  "set": {
+                    "user_id": "x-hasura-User-Id"
+                  },
+                  "columns": [
+                    "beacon_id",
+                    "message"
+                  ]
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "beacon_id",
+                    "user_id",
+                    "message",
+                    "status",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "filter": {}
+                }
+              }
+            ],
+            "update_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "message",
+                    "status"
+                  ],
+                  "filter": {
+                    "user_id": {
+                      "_eq": "X-Hasura-User-Id"
+                    }
+                  },
+                  "check": null
+                }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_update",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "author",
+                "using": {
+                  "foreign_key_constraint_on": "author_id"
+                }
+              }
+            ],
+            "insert_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "check": {
+                    "beacon": {
+                      "user_id": {
+                        "_eq": "X-Hasura-User-Id"
+                      }
+                    }
+                  },
+                  "set": {
+                    "author_id": "x-hasura-User-Id"
+                  },
+                  "columns": [
+                    "beacon_id",
+                    "content"
+                  ]
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "id",
+                    "beacon_id",
+                    "author_id",
+                    "content",
+                    "created_at"
+                  ],
+                  "filter": {}
+                }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "inbox_item",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "user",
+                "using": {
+                  "foreign_key_constraint_on": "user_id"
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "user_id",
+                    "beacon_id",
+                    "context",
+                    "forward_count",
+                    "latest_forward_at",
+                    "latest_note_preview",
+                    "is_hidden",
+                    "is_watching"
+                  ],
+                  "filter": {
+                    "user_id": {
+                      "_eq": "X-Hasura-User-Id"
+                    }
+                  }
+                }
+              }
+            ],
+            "update_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "is_hidden",
+                    "is_watching"
+                  ],
+                  "filter": {
+                    "user_id": {
+                      "_eq": "X-Hasura-User-Id"
+                    }
+                  },
+                  "check": null
+                }
               }
             ]
           }

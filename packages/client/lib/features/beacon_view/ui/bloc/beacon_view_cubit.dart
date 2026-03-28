@@ -6,7 +6,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/comment/data/repository/comment_repository.dart';
+import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 
 import '../../data/repository/beacon_view_repository.dart';
 import 'beacon_view_state.dart';
@@ -20,25 +21,23 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     required String id,
     required Profile myProfile,
     BeaconRepository? beaconRepository,
-    CommentRepository? commentRepository,
     BeaconViewRepository? beaconViewRepository,
+    ForwardRepository? forwardRepository,
   }) : _beaconViewRepository =
            beaconViewRepository ?? GetIt.I<BeaconViewRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
-       _commentRepository = commentRepository ?? GetIt.I<CommentRepository>(),
+       _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        super(_idToState(id, myProfile)) {
     unawaited(
       state.hasFocusedComment
-          // Show Beacon with one Comment
           ? _fetchBeaconByCommentId()
-          // show Beacon with all Comments
-          : _fetchBeaconByIdWithComments(),
+          : _fetchBeaconByIdWithTimeline(),
     );
   }
 
   final BeaconRepository _beaconRepository;
   final BeaconViewRepository _beaconViewRepository;
-  final CommentRepository _commentRepository;
+  final ForwardRepository _forwardRepository;
 
   Future<void> delete(String beaconId) async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -63,54 +62,73 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> showAll() async {
+  Future<void> commit({String message = ''}) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final comments = await _commentRepository.fetchCommentsByBeaconId(
-        state.beacon.id,
-      );
-      emit(
-        state.copyWith(
-          focusCommentId: '',
-          hasReachedMax: true,
-          comments: comments.toList(),
-          status: StateStatus.isSuccess,
-        ),
-      );
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
-
-  Future<void> addComment(String text) async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      final comment = await _commentRepository.addComment(
+      await _forwardRepository.commit(
         beaconId: state.beacon.id,
-        content: text,
+        message: message.isEmpty ? null : message,
       );
-      emit(
-        state.copyWith(
-          status: StateStatus.isSuccess,
-          comments: state.comments
-            ..add(comment.copyWith(author: state.myProfile)),
-        ),
-      );
+      emit(state.copyWith(isCommitted: true, status: StateStatus.isSuccess));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
 
-  Future<void> _fetchBeaconByIdWithComments([int limit = 3]) async {
+  Future<void> withdraw() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final (:beacon, :comments) = await _beaconViewRepository
-          .fetchBeaconByIdWithComments(beaconId: state.beacon.id, limit: limit);
+      await _forwardRepository.withdraw(beaconId: state.beacon.id);
+      emit(state.copyWith(isCommitted: false, status: StateStatus.isSuccess));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> _fetchBeaconByIdWithTimeline() async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final beaconId = state.beacon.id;
+      final myUserId = state.myProfile.id;
+
+      final results = await Future.wait([
+        _beaconRepository.fetchBeaconById(beaconId),
+        _forwardRepository.fetchEdges(beaconId: beaconId),
+        _forwardRepository.fetchCommitments(beaconId: beaconId),
+        _forwardRepository.fetchUpdates(beaconId: beaconId),
+      ]);
+
+      final beacon = results[0] as Beacon;
+      final forwardEdges = results[1] as List<ForwardEdge>;
+      final commitments = results[2]
+          as List<({Profile user, String message, DateTime createdAt})>;
+      final updates = results[3]
+          as List<({Profile author, String content, DateTime createdAt})>;
+
+      final isCommitted = commitments.any((c) => c.user.id == myUserId);
+
+      final timeline = <TimelineEntry>[
+        for (final edge in forwardEdges) TimelineForward(edge),
+        for (final c in commitments)
+          TimelineCommitment(
+            user: c.user,
+            message: c.message,
+            createdAt: c.createdAt,
+          ),
+        for (final u in updates)
+          TimelineUpdate(
+            author: u.author,
+            content: u.content,
+            createdAt: u.createdAt,
+          ),
+      ]..sort();
+
       emit(
         state.copyWith(
           beacon: beacon,
-          comments: comments.toList(),
-          hasReachedMax: comments.length < limit,
+          forwardEdges: forwardEdges,
+          timeline: timeline,
+          isCommitted: isCommitted,
           status: StateStatus.isSuccess,
         ),
       );
@@ -120,14 +138,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> _fetchBeaconByCommentId() async {
+    // Legacy path: load beacon when navigated via deep link to a comment
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final (:beacon, :comment) = await _beaconViewRepository
+      final (:beacon, comment: _) = await _beaconViewRepository
           .fetchBeaconByCommentId(state.focusCommentId);
       emit(
         state.copyWith(
           beacon: beacon,
-          comments: [comment],
           status: StateStatus.isSuccess,
         ),
       );

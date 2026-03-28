@@ -1,0 +1,3 @@
+mutation BeaconWithdraw($beaconId: String!) {
+  beaconWithdraw(id: $beaconId)
+}
