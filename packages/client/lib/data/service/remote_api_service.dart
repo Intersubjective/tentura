@@ -23,10 +23,11 @@ export 'remote_api_client/enum.dart';
 final class RemoteApiService extends RemoteApiClient with RemoteApiClientWs {
   RemoteApiService(Env env)
     : wsPingInterval = env.wsPingInterval,
-      wsEndpointUrl = kServerName + kPathWebSocketEndpoint,
+      wsEndpointUrl = kWsServerName + kPathWebSocketEndpoint,
       super(
         userAgent: kUserAgent,
         apiEndpointUrl: kServerName + kPathGraphQLEndpoint,
+        apiEndpointUrlV2: kServerName + kPathGraphQLEndpointV2,
         requestTimeout: const Duration(seconds: kRequestTimeout),
         authJwtExpiresIn: const Duration(seconds: kAuthJwtExpiresIn),
       );

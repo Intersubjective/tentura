@@ -1,15 +1,14 @@
-# Local development: Postgres, MeritRank, MinIO, Hasura, Caddy, optional tools.
-# Tentura API is NOT run here — start it on the host, e.g.:
-#   cd packages/server && dart run bin/tentura.dart
+# Local development: Postgres, MeritRank, MinIO, Hasura, optional tools.
+# No reverse proxy — Flutter's dev server handles API proxying via web_dev_config.yaml.
+#
+# 1. docker compose up -d
+# 2. cd packages/server && dart run bin/tentura.dart
+# 3. cd packages/client && flutter run -d chrome --web-port=8888 \
+#      --dart-define=SERVER_NAME=http://localhost:8888 \
+#      --dart-define=WS_SERVER_NAME=http://localhost:2080
+#
 # Point server Env at localhost: POSTGRES_HOST=127.0.0.1, S3_ENDPOINT=localhost:9000,
-# S3_PATH_STYLE=true, IMAGE_SERVER=http://localhost:9000/tentura, SERVER_NAME=https://localhost
-#
-# Usage: docker compose -f compose.dev.yaml up -d
-# Or:    docker compose up -d   (root compose.yaml includes this file)
-#
-# Flutter web dev server behind Caddy (hot reload, semantics DOM): add
-#   -f compose.flutter-dev.yaml
-# See compose.flutter-dev.yaml for the full command sequence.
+# S3_PATH_STYLE=true, IMAGE_SERVER=http://localhost:9000/tentura
 
 name: tentura
 
@@ -31,24 +30,6 @@ networks:
     driver: bridge
 
 services:
-  proxy:
-    <<: *common
-    hostname: proxy
-    container_name: proxy
-    image: caddy:alpine
-    depends_on:
-      hasura:
-        condition: service_started
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./build/web:/srv/web:ro
-    tmpfs:
-      - /tmp
-    environment:
-      - "HASURA_UPSTREAM=localhost:8080"
-      - "TENTURA_UPSTREAM=localhost:2080"
-      - "ACME_EMAIL=internal"
-
   hasura:
     <<: *common
     hostname: hasura

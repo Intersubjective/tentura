@@ -41,6 +41,14 @@ const kServerName = String.fromEnvironment(
   defaultValue: 'http://localhost:2080',
 );
 
+/// WebSocket server base URL; defaults to [kServerName].
+/// In dev without a reverse proxy, set to the Tentura API directly
+/// (e.g. `http://localhost:2080`) since Flutter's dev server cannot proxy WS.
+const kWsServerName = String.fromEnvironment(
+  'WS_SERVER_NAME',
+  defaultValue: kServerName,
+);
+
 /// First part of FQDN: `https://image.server.name`
 const kImageServer = String.fromEnvironment('IMAGE_SERVER');
 

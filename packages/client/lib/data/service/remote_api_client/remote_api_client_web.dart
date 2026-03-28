@@ -11,6 +11,7 @@ import 'remote_api_client_base.dart';
 abstract base class RemoteApiClient extends RemoteApiClientBase {
   RemoteApiClient({
     required super.apiEndpointUrl,
+    required super.apiEndpointUrlV2,
     required super.authJwtExpiresIn,
     required super.requestTimeout,
     required super.userAgent,
@@ -28,6 +29,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
     _gqlClient = await buildClient(
       params: (
         apiEndpointUrl: apiEndpointUrl,
+        apiEndpointUrlV2: apiEndpointUrlV2,
         userAgent: userAgent,
         requestTimeout: requestTimeout,
       ),
