@@ -176,6 +176,14 @@
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
   },
+  "friendsFabEnterCode": "Ввести код",
+  "@friendsFabEnterCode": {
+    "context": "FriendsScreen"
+  },
+  "friendsFabCreateInvitation": "Создать приглашение",
+  "@friendsFabCreateInvitation": {
+    "context": "FriendsScreen"
+  },
   "confirmInvitationRemoval": "Вы уверены, что хотите отменить приглашение? После этого человек не сможет зарегистрироваться.",
   "@confirmInvitationRemoval": {
     "context": "InvitationRemoveDialog"

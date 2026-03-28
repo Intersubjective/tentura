@@ -176,6 +176,14 @@
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
   },
+  "friendsFabEnterCode": "Enter code",
+  "@friendsFabEnterCode": {
+    "context": "FriendsScreen"
+  },
+  "friendsFabCreateInvitation": "Create invitation",
+  "@friendsFabCreateInvitation": {
+    "context": "FriendsScreen"
+  },
   "confirmInvitationRemoval": "Are you sure you want to cancel this invite? They won’t be able to sign up after that.",
   "@confirmInvitationRemoval": {
     "context": "InvitationRemoveDialog"
