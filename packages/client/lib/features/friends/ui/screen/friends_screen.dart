@@ -8,6 +8,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/chat/ui/widget/chat_peer_list_tile.dart';
+import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
+import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/friends_cubit.dart';
 
@@ -23,6 +25,10 @@ class FriendsScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => ConnectBottomSheet.show(context),
+        child: const Icon(TenturaIcons.affiliation),
+      ),
       appBar: env.needInviteCode
           ? AppBar(
               title: Text(l10n.friendsTitle),

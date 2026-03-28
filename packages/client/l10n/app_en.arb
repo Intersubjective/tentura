@@ -330,19 +330,19 @@
   },
   "writeCodeHere": "If you have the Code, please write it here:",
   "@writeCodeHere": {
-    "context": "ConnectScreen"
+    "context": "ConnectBottomSheet"
   },
   "codeLengthError": "Wrong code length!",
   "@codeLengthError": {
-    "context": "ConnectScreen"
+    "context": "ConnectBottomSheet"
   },
   "codePrefixError": "Wrong code prefix!",
   "@codePrefixError": {
-    "context": "ConnectScreen"
+    "context": "ConnectBottomSheet"
   },
   "codeNotFoundError": "Code not found or stale!",
   "@codeNotFoundError": {
-    "context": "ConnectScreen"
+    "context": "ConnectBottomSheet"
   },
   "addNewTopic": "Add a new topic",
   "@addNewTopic": {
@@ -405,10 +405,6 @@
   },
   "favorites": "Favorites",
   "@favorites": {
-    "context": "HomeScreen"
-  },
-  "connect": "Connect",
-  "@connect": {
     "context": "HomeScreen"
   },
   "friends": "Friends",

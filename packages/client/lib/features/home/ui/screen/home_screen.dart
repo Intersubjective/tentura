@@ -93,10 +93,6 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
               label: l10n.favorites,
             ),
             NavigationDestination(
-              icon: const Icon(TenturaIcons.affiliation),
-              label: l10n.connect,
-            ),
-            NavigationDestination(
               icon: const FriendsNavbarItem(),
               label: l10n.friends,
             ),
@@ -111,7 +107,6 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
       routes: const [
         MyFieldRoute(),
         FavoritesRoute(),
-        ConnectRoute(),
         FriendsRoute(),
         ProfileRoute(),
       ],

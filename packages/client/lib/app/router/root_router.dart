@@ -62,11 +62,6 @@ class RootRouter extends RootStackRouter {
           page: FavoritesRoute.page,
           path: kPathFavorites.split('/').last,
         ),
-        // Connect
-        AutoRoute(
-          page: ConnectRoute.page,
-          path: kPathConnect.split('/').last,
-        ),
         // Friends
         AutoRoute(
           page: FriendsRoute.page,
@@ -276,9 +271,9 @@ class RootRouter extends RootStackRouter {
                 '$kPathProfileView/$id',
               final String id when id.startsWith('I') =>
                 _authCubit.state.isAuthenticated
-                    ? kPathConnect
+                    ? kPathFriends
                     : '$kPathSignUp/$id',
-              _ => kPathConnect,
+              _ => kPathFriends,
             },
             queryParameters: {
               kQueryIsDeepLink: 'true',
