@@ -19,6 +19,7 @@ abstract base class RemoteApiClientBase {
   RemoteApiClientBase({
     required this.authJwtExpiresIn,
     required this.apiEndpointUrl,
+    required this.apiEndpointUrlV2,
     required this.requestTimeout,
     required this.userAgent,
   });
@@ -26,6 +27,8 @@ abstract base class RemoteApiClientBase {
   final String userAgent;
 
   final String apiEndpointUrl;
+
+  final String apiEndpointUrlV2;
 
   final Duration requestTimeout;
 

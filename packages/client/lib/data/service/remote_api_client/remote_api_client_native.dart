@@ -18,6 +18,7 @@ typedef GetTokenResponse = ({Credentials? data, Object? error});
 abstract base class RemoteApiClient extends RemoteApiClientBase {
   RemoteApiClient({
     required super.apiEndpointUrl,
+    required super.apiEndpointUrlV2,
     required super.authJwtExpiresIn,
     required super.requestTimeout,
     required super.userAgent,
@@ -38,6 +39,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
       initClient,
       params: (
         apiEndpointUrl: apiEndpointUrl,
+        apiEndpointUrlV2: apiEndpointUrlV2,
         requestTimeout: requestTimeout,
         userAgent: userAgent,
       ),
