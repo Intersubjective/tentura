@@ -46,6 +46,7 @@ class Env {
     String? kS3SecretKey,
     String? kS3Endpoint,
     String? kS3Bucket,
+    bool? kS3PathStyle,
 
     // Task Worker
     Duration? taskOnEmptyDelay,
@@ -129,6 +130,7 @@ class Env {
        kS3SecretKey = kS3SecretKey ?? _env['S3_SECRET_KEY'] ?? '',
        kS3Endpoint = kS3Endpoint ?? _env['S3_ENDPOINT'] ?? '',
        kS3Bucket = kS3Bucket ?? _env['S3_BUCKET'] ?? '',
+       kS3PathStyle = kS3PathStyle ?? _env['S3_PATH_STYLE'] == 'true',
 
        // Meritrank service
        meritrankCalculateTimeout =
@@ -246,6 +248,9 @@ class Env {
   final String kS3Endpoint;
 
   final String kS3Bucket;
+
+  /// Path-style URLs (e.g. MinIO at localhost). Virtual-hosted style for S3/Spaces.
+  final bool kS3PathStyle;
 
   late final kIsRemoteStorageEnabled =
       kS3Endpoint.isNotEmpty &&

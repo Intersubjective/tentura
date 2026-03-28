@@ -1,0 +1,22 @@
+# Override: proxy Flutter web through Caddy to https://localhost instead of static Wasm.
+#
+# 1. Start infra:
+#    docker compose -f compose.dev.yaml -f compose.flutter-dev.yaml up -d
+# 2. Start Tentura API on the host (see compose.dev.yaml header), e.g.:
+#    cd packages/server && dart run bin/tentura.dart
+# 3. Start Flutter web dev server (port must match FLUTTER_DEV_PORT, default 8888):
+#    web_dev_config.yaml uses host: tentura and HTTPS — use --web-hostname=localhost
+#    (or add `tentura` to /etc/hosts) and create packages/client/.cert/ (gitignored), e.g.:
+#      openssl req -x509 -newkey rsa:2048 -keyout .cert/rsa_key.pem -out .cert/rsa_cert.pem \
+#        -days 365 -nodes -subj "/CN=localhost"
+#    cd packages/client && flutter run -d web-server --web-port=8888 --web-hostname=localhost \
+#      --dart-define=SERVER_NAME=https://localhost
+# 4. `docker compose restart proxy` after changing Caddyfile.flutter-dev.
+# 5. Open https://localhost in the browser (Cursor Browser or Chrome).
+#
+# Optional: FLUTTER_DEV_PORT=9999 in .env and pass --web-port=9999 to flutter run.
+
+services:
+  proxy:
+    volumes:
+      - ./Caddyfile.flutter-dev:/etc/caddy/Caddyfile:ro

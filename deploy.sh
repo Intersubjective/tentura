@@ -7,7 +7,7 @@ set -euo pipefail
 
 # Configuration
 DEPLOY_DIR="${DEPLOY_DIR:-/srv/tentura_server}"
-COMPOSE_FILE="${COMPOSE_FILE:-compose.yaml}"
+COMPOSE_FILE="${COMPOSE_FILE:-compose.prod.yaml}"
 WEB_DIR="${WEB_DIR:-./web}"
 
 # Change to deployment directory
