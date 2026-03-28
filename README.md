@@ -1,8 +1,8 @@
 ## Installation
 
-1. Set secrets described in `compose.yaml` in `.env` file
+1. Set secrets described in `compose.dev.yaml` / `compose.prod.yaml` in `.env` file
 2. If need, copy `compose.override.yaml` from `examples` and modify it
-3. Run containers (docker compose up -d)
+3. **Local dev (infra in Docker, Tentura API on the host):** `docker compose up -d` (includes `compose.dev.yaml`) — then run the server from `packages/server`. **Production:** `docker compose -f compose.prod.yaml up -d`
 4. Apply SQL commands in `hasura/schema.sql` to Postgres (Hasura schema and MeritRank-related triggers)
 5. Upload `hasura/metadata.json` in Hasura console
 

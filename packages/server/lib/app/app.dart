@@ -22,6 +22,7 @@ class App {
       settings: env.pgEndpointSettings,
     );
     await migrateDbSchema(connection);
+    await connection.execute('ALTER EXTENSION pgmer2 UPDATE');
     await _uploadGraph(connection);
     await connection.close();
 
@@ -61,17 +62,24 @@ class App {
   //
   //
   Future<void> _uploadGraph(Connection connection) async {
-    final edgesResult = await connection.execute(
-      'SELECT count(*) FROM mr_edgelist()',
-    );
-
-    if (edgesResult.first.first == 0) {
-      final initResult = await connection.execute(
-        'SELECT meritrank_init()',
+    try {
+      final edgesResult = await connection.execute(
+        'SELECT count(*) FROM mr_edgelist()',
       );
-      print('Graph uploaded [${initResult.first.first}]');
-    } else {
-      print('Graph already uploaded [${edgesResult.first.first}]');
+
+      if (edgesResult.first.first == 0) {
+        final initResult = await connection.execute(
+          'SELECT meritrank_init()',
+        );
+        print('Graph uploaded [${initResult.first.first}]');
+      } else {
+        print('Graph already uploaded [${edgesResult.first.first}]');
+      }
+    } on Object catch (e, st) {
+      // Allow the server to start even if MeritRank graph init fails.
+      stderr
+        ..writeln('Warning: MeritRank graph init skipped: $e')
+        ..writeln(st);
     }
   }
 }

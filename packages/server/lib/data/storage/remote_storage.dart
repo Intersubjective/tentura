@@ -14,7 +14,7 @@ class RemoteStorage {
     accessKey: env.kS3AccessKey,
     secretKey: env.kS3SecretKey,
     endPoint: env.kS3Endpoint,
-    pathStyle: false,
+    pathStyle: env.kS3PathStyle,
   );
 
   Future<Uint8List> getObject(String path) async {

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -23,6 +24,9 @@ class App extends StatelessWidget {
     FlutterNativeSplash.preserve(
       widgetsBinding: WidgetsFlutterBinding.ensureInitialized(),
     );
+    if (kIsWeb) {
+      SemanticsBinding.instance.ensureSemantics();
+    }
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);

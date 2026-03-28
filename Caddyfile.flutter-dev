@@ -1,5 +1,8 @@
-# Production: set SERVER_NAME and ACME_EMAIL for Let's Encrypt.
-# Development: SERVER_NAME=localhost uses Caddy's automatic internal TLS.
+# Same as Caddyfile, but the default site proxies to Flutter's web dev server
+# (flutter run -d web-server) instead of serving static files from /srv/web.
+# Use with: docker compose -f compose.dev.yaml -f compose.flutter-dev.yaml up -d
+# Then: cd packages/client && flutter run -d web-server --web-port=${FLUTTER_DEV_PORT:-8888} \
+#   --dart-define=SERVER_NAME=https://localhost
 {
 	auto_https disable_redirects
 	# host network: avoid conflict if another Caddy (or stale bind) uses :2019
@@ -79,11 +82,15 @@
 		}
 	}
 
-	# Static Flutter web app (SPA fallback) and CORS/security headers
+	# Flutter web dev server (hot reload, DTD) and CORS/security headers.
+	# packages/client/web_dev_config.yaml serves HTTPS on this port; proxy must use https://
+	# and skip TLS verify for the local dev certificate in .cert/
 	handle {
-		root * /srv/web
-		try_files {path} /index.html
-		file_server
+		reverse_proxy https://localhost:{$FLUTTER_DEV_PORT:8888} {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
 		header Cross-Origin-Opener-Policy "same-origin"
 		header Cross-Origin-Embedder-Policy "credentialless"
 		header Access-Control-Allow-Credentials "false"

@@ -1,0 +1,164 @@
+# Local development: Postgres, MeritRank, MinIO, Hasura, Caddy, optional tools.
+# Tentura API is NOT run here — start it on the host, e.g.:
+#   cd packages/server && dart run bin/tentura.dart
+# Point server Env at localhost: POSTGRES_HOST=127.0.0.1, S3_ENDPOINT=localhost:9000,
+# S3_PATH_STYLE=true, IMAGE_SERVER=http://localhost:9000/tentura, SERVER_NAME=https://localhost
+#
+# Usage: docker compose -f compose.dev.yaml up -d
+# Or:    docker compose up -d   (root compose.yaml includes this file)
+#
+# Flutter web dev server behind Caddy (hot reload, semantics DOM): add
+#   -f compose.flutter-dev.yaml
+# See compose.flutter-dev.yaml for the full command sequence.
+
+name: tentura
+
+# Extension field: shared fragment for host-networked services.
+x-common: &common
+  init: true
+  network_mode: host
+  environment:
+    - POSTGRES_PASSWORD
+    - JWT_PRIVATE_PEM
+    - JWT_PUBLIC_PEM
+
+networks:
+  # Postgres <-> MeritRank (internal). Postgres also joins db_host so :5432 publishes to the host
+  # for the locally run Tentura / Hasura containers on host network (Docker 29 quirk).
+  backend:
+    internal: true
+  db_host:
+    driver: bridge
+
+services:
+  proxy:
+    <<: *common
+    hostname: proxy
+    container_name: proxy
+    image: caddy:alpine
+    depends_on:
+      hasura:
+        condition: service_started
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./build/web:/srv/web:ro
+    tmpfs:
+      - /tmp
+    environment:
+      - "HASURA_UPSTREAM=localhost:8080"
+      - "TENTURA_UPSTREAM=localhost:2080"
+      - "ACME_EMAIL=internal"
+
+  hasura:
+    <<: *common
+    hostname: hasura
+    container_name: hasura
+    image: hasura/graphql-engine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - 'HASURA_GRAPHQL_DEV_MODE=true'
+      - 'HASURA_GRAPHQL_LOG_LEVEL=debug'
+      - 'HASURA_GRAPHQL_ENABLE_CONSOLE=true'
+      - 'HASURA_GRAPHQL_ADMIN_SECRET=password'
+      - 'HASURA_GRAPHQL_ENABLE_TELEMETRY=false'
+      - 'HASURA_GRAPHQL_UNAUTHORIZED_ROLE=anon'
+      - 'HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true'
+      - 'HASURA_GRAPHQL_INFER_FUNCTION_PERMISSIONS=false'
+      - 'HASURA_GRAPHQL_ENABLE_METADATA_QUERY_LOGGING=true'
+      - 'HASURA_GRAPHQL_DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@127.0.0.1:5432/postgres'
+      - 'HASURA_GRAPHQL_JWT_SECRET={"type":"Ed25519", "key":"${JWT_PUBLIC_PEM}", "claims_map": {"x-hasura-allowed-roles": ["user", "admin"], "x-hasura-default-role": "user", "x-hasura-user-id": {"path": "$$.sub"}}}'
+      - 'HASURA_GRAPHQL_EXPERIMENTAL_FEATURES=streaming_subscriptions,remove_empty_subscription_responses'
+      - 'TENTURA_GRAPHQL_URL=http://localhost:2080/api/v2/graphql'
+
+  meritrank:
+    init: true
+    restart: unless-stopped
+    hostname: meritrank
+    container_name: meritrank
+    image: vbulavintsev/meritrank-service:v0.8.0
+    networks:
+      - backend
+    environment:
+      - 'MERITRANK_SERVER_ADDRESS=0.0.0.0'
+      - 'MERITRANK_SERVER_PORT=8080'
+      - 'MERITRANK_NUM_WALKS=1000'
+      - 'MERITRANK_ZERO_OPINION_FACTOR=0.02'
+      - 'MERITRANK_WALKS_CACHE_SIZE=200'
+
+  postgres:
+    init: true
+    restart: unless-stopped
+    hostname: postgres
+    container_name: postgres
+    image: vbulavintsev/postgres-tentura:v0.8.0
+    networks:
+      backend: {}
+      db_host: {}
+    ports:
+      - '127.0.0.1:5432:5432'
+    depends_on:
+      meritrank:
+        condition: service_started
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD
+      - 'MERITRANK_SERVICE_URL=tcp://meritrank:8080'
+      - 'MERITRANK_RECV_TIMEOUT_MSEC=60000'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  minio:
+    <<: *common
+    hostname: minio
+    container_name: minio
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      - 'MINIO_ROOT_USER=minioadmin'
+      - 'MINIO_ROOT_PASSWORD=minioadmin'
+
+  schema_fetcher:
+    profiles:
+      - tools
+    <<: *common
+    build:
+      dockerfile_inline: |
+        FROM node
+        RUN npm install -g get-graphql-schema
+    image: alexandrim0/schema_fetcher
+    container_name: schema_fetcher
+    hostname: schema_fetcher
+    depends_on:
+      hasura:
+        condition: service_started
+    volumes:
+      - ./packages/client/lib/data/gql:/gql
+    user: 1000:1000
+    command: sh -c "get-graphql-schema -h 'x-hasura-admin-secret=password' -h 'x-hasura-role=user' http://localhost:8080/v1/graphql > /gql/schema.graphql"
+
+  pgadmin:
+    <<: *common
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    hostname: pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - 'PGADMIN_DEFAULT_EMAIL=admin@local.host'
+      - 'PGADMIN_DEFAULT_PASSWORD=password'
+      - 'PGADMIN_DISABLE_POSTFIX=true'
+      - 'SERVER_MODE=false'
+
+volumes:
+  pg_data:
+  minio_data:
