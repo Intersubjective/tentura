@@ -15,7 +15,6 @@ const kImageMaxDimension = 600;
 const kPathBack = '/back';
 const kPathHome = '/home';
 const kPathMyField = '/home/field';
-const kPathConnect = '/home/connect';
 const kPathFriends = '/home/friends';
 const kPathProfile = '/home/profile';
 const kPathFavorites = '/home/favorites';

@@ -330,19 +330,19 @@
   },
   "writeCodeHere": "Если у вас есть код, введите его здесь:",
   "@writeCodeHere": {
-    "context": "ConnectScreen"
+    "context": "ConnectBottomSheet"
   },
   "codeLengthError": "Неверная длина кода!",
   "@codeLengthError": {
-    "context": "ConnectScreen"
+    "context": "ConnectBottomSheet"
   },
   "codePrefixError": "Неверный префикс кода!",
   "@codePrefixError": {
-    "context": "ConnectScreen"
+    "context": "ConnectBottomSheet"
   },
   "codeNotFoundError": "Код не найден или устарел!",
   "@codeNotFoundError": {
-    "context": "ConnectScreen"
+    "context": "ConnectBottomSheet"
   },
   "addNewTopic": "Добавить новую тему",
   "@addNewTopic": {
@@ -405,10 +405,6 @@
   },
   "favorites": "Избранное",
   "@favorites": {
-    "context": "HomeScreen"
-  },
-  "connect": "Связаться",
-  "@connect": {
     "context": "HomeScreen"
   },
   "friends": "Друзья",
