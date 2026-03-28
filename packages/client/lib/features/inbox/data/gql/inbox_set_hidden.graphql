@@ -1,0 +1,8 @@
+mutation InboxSetHidden($beaconId: String!, $isHidden: Boolean!) {
+  update_inbox_item(
+    where: {beacon_id: {_eq: $beaconId}},
+    _set: {is_hidden: $isHidden}
+  ) {
+    affected_rows
+  }
+}

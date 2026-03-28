@@ -411,6 +411,18 @@
   "@myField": {
     "context": "HomeScreen"
   },
+  "inbox": "Inbox",
+  "@inbox": {
+    "context": "HomeScreen"
+  },
+  "myWork": "My Work",
+  "@myWork": {
+    "context": "HomeScreen"
+  },
+  "network": "Network",
+  "@network": {
+    "context": "HomeScreen"
+  },
   "favorites": "Favorites",
   "@favorites": {
     "context": "HomeScreen"
@@ -677,5 +689,150 @@
   "enterTagNameHint": "Enter tag name",
   "@enterTagNameHint": {
     "context": "AddTagDialog"
+  },
+  "inboxEmpty": "Inbox is empty",
+  "@inboxEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxEmptyHint": "Beacons forwarded to you will appear here",
+  "@inboxEmptyHint": {
+    "context": "InboxScreen"
+  },
+  "inboxNeedsMe": "Needs me",
+  "@inboxNeedsMe": {
+    "context": "InboxScreen"
+  },
+  "inboxWatching": "Watching",
+  "@inboxWatching": {
+    "context": "InboxScreen"
+  },
+  "forwardedCount": "{count}x forwarded",
+  "@forwardedCount": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "actionStopWatching": "Stop watching",
+  "@actionStopWatching": {
+    "context": "InboxItemTile"
+  },
+  "actionWatch": "Watch",
+  "@actionWatch": {
+    "context": "InboxItemTile"
+  },
+  "actionHide": "Hide",
+  "@actionHide": {
+    "context": "InboxItemTile"
+  },
+  "forwardBeaconTitle": "Forward Beacon",
+  "@forwardBeaconTitle": {
+    "context": "ForwardBeaconScreen"
+  },
+  "searchContacts": "Search contacts...",
+  "@searchContacts": {
+    "context": "ForwardBeaconScreen"
+  },
+  "noReachableContacts": "No reachable contacts",
+  "@noReachableContacts": {
+    "context": "ForwardBeaconScreen"
+  },
+  "notReachable": "Not reachable",
+  "@notReachable": {
+    "context": "ForwardBeaconScreen"
+  },
+  "addNoteOptional": "Add a note (optional)",
+  "@addNoteOptional": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardToCount": "Forward to {count}",
+  "@forwardToCount": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectRecipients": "Select recipients",
+  "@selectRecipients": {
+    "context": "ForwardBeaconScreen"
+  },
+  "myWorkFilterAll": "All",
+  "@myWorkFilterAll": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkFilterAuthored": "Authored",
+  "@myWorkFilterAuthored": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkFilterCommitted": "Committed",
+  "@myWorkFilterCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmpty": "No active work",
+  "@myWorkEmpty": {
+    "context": "MyWorkScreen"
+  },
+  "beaconViewTitle": "Beacon",
+  "@beaconViewTitle": {
+    "context": "BeaconViewScreen"
+  },
+  "labelCommitted": "Committed",
+  "@labelCommitted": {
+    "context": "BeaconViewScreen"
+  },
+  "labelCommit": "Commit",
+  "@labelCommit": {
+    "context": "BeaconViewScreen"
+  },
+  "labelForward": "Forward",
+  "@labelForward": {
+    "context": "BeaconViewScreen"
+  },
+  "labelTimeline": "Timeline",
+  "@labelTimeline": {
+    "context": "BeaconViewScreen"
+  },
+  "noActivityYet": "No activity yet",
+  "@noActivityYet": {
+    "context": "BeaconViewScreen"
+  },
+  "labelForwardChain": "Forward Chain",
+  "@labelForwardChain": {
+    "context": "BeaconViewScreen"
+  },
+  "timelineForwarded": "{sender} forwarded to {recipient}",
+  "@timelineForwarded": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "sender": { "type": "String" },
+      "recipient": { "type": "String" }
+    }
+  },
+  "timelineCommitted": "{user} committed",
+  "@timelineCommitted": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "user": { "type": "String" }
+    }
+  },
+  "timelineCommittedWithMessage": "{user} committed: \"{message}\"",
+  "@timelineCommittedWithMessage": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "user": { "type": "String" },
+      "message": { "type": "String" }
+    }
+  },
+  "timelineUpdate": "{author}: {content}",
+  "@timelineUpdate": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "author": { "type": "String" },
+      "content": { "type": "String" }
+    }
   }
 }

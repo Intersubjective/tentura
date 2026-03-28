@@ -1,0 +1,15 @@
+mutation ForwardBeacon(
+  $beaconId: String!,
+  $recipientIds: [String!]!,
+  $note: String,
+  $context: String,
+  $parentEdgeId: String
+) {
+  beaconForward(
+    id: $beaconId,
+    recipientIds: $recipientIds,
+    note: $note,
+    context: $context,
+    parentEdgeId: $parentEdgeId
+  )
+}

@@ -411,6 +411,18 @@
   "@myField": {
     "context": "HomeScreen"
   },
+  "inbox": "Входящие",
+  "@inbox": {
+    "context": "HomeScreen"
+  },
+  "myWork": "Мои дела",
+  "@myWork": {
+    "context": "HomeScreen"
+  },
+  "network": "Сеть",
+  "@network": {
+    "context": "HomeScreen"
+  },
   "favorites": "Избранное",
   "@favorites": {
     "context": "HomeScreen"
@@ -677,5 +689,150 @@
   "enterTagNameHint": "Введите имя тэга",
   "@enterTagNameHint": {
     "context": "AddTagDialog"
+  },
+  "inboxEmpty": "Входящие пусты",
+  "@inboxEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxEmptyHint": "Здесь появятся маяки, пересланные вам",
+  "@inboxEmptyHint": {
+    "context": "InboxScreen"
+  },
+  "inboxNeedsMe": "Ждёт меня",
+  "@inboxNeedsMe": {
+    "context": "InboxScreen"
+  },
+  "inboxWatching": "Наблюдаю",
+  "@inboxWatching": {
+    "context": "InboxScreen"
+  },
+  "forwardedCount": "{count}x переслано",
+  "@forwardedCount": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "actionStopWatching": "Прекратить наблюдение",
+  "@actionStopWatching": {
+    "context": "InboxItemTile"
+  },
+  "actionWatch": "Наблюдать",
+  "@actionWatch": {
+    "context": "InboxItemTile"
+  },
+  "actionHide": "Скрыть",
+  "@actionHide": {
+    "context": "InboxItemTile"
+  },
+  "forwardBeaconTitle": "Переслать маяк",
+  "@forwardBeaconTitle": {
+    "context": "ForwardBeaconScreen"
+  },
+  "searchContacts": "Поиск контактов...",
+  "@searchContacts": {
+    "context": "ForwardBeaconScreen"
+  },
+  "noReachableContacts": "Нет доступных контактов",
+  "@noReachableContacts": {
+    "context": "ForwardBeaconScreen"
+  },
+  "notReachable": "Недоступен",
+  "@notReachable": {
+    "context": "ForwardBeaconScreen"
+  },
+  "addNoteOptional": "Добавить заметку (необязательно)",
+  "@addNoteOptional": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardToCount": "Переслать ({count})",
+  "@forwardToCount": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectRecipients": "Выберите получателей",
+  "@selectRecipients": {
+    "context": "ForwardBeaconScreen"
+  },
+  "myWorkFilterAll": "Все",
+  "@myWorkFilterAll": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkFilterAuthored": "Мои",
+  "@myWorkFilterAuthored": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkFilterCommitted": "Принятые",
+  "@myWorkFilterCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmpty": "Нет активных дел",
+  "@myWorkEmpty": {
+    "context": "MyWorkScreen"
+  },
+  "beaconViewTitle": "Маяк",
+  "@beaconViewTitle": {
+    "context": "BeaconViewScreen"
+  },
+  "labelCommitted": "Принято",
+  "@labelCommitted": {
+    "context": "BeaconViewScreen"
+  },
+  "labelCommit": "Принять",
+  "@labelCommit": {
+    "context": "BeaconViewScreen"
+  },
+  "labelForward": "Переслать",
+  "@labelForward": {
+    "context": "BeaconViewScreen"
+  },
+  "labelTimeline": "Хронология",
+  "@labelTimeline": {
+    "context": "BeaconViewScreen"
+  },
+  "noActivityYet": "Пока нет активности",
+  "@noActivityYet": {
+    "context": "BeaconViewScreen"
+  },
+  "labelForwardChain": "Цепочка пересылок",
+  "@labelForwardChain": {
+    "context": "BeaconViewScreen"
+  },
+  "timelineForwarded": "{sender} переслал(а) для {recipient}",
+  "@timelineForwarded": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "sender": { "type": "String" },
+      "recipient": { "type": "String" }
+    }
+  },
+  "timelineCommitted": "{user} принял(а) участие",
+  "@timelineCommitted": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "user": { "type": "String" }
+    }
+  },
+  "timelineCommittedWithMessage": "{user} принял(а) участие: \"{message}\"",
+  "@timelineCommittedWithMessage": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "user": { "type": "String" },
+      "message": { "type": "String" }
+    }
+  },
+  "timelineUpdate": "{author}: {content}",
+  "@timelineUpdate": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "author": { "type": "String" },
+      "content": { "type": "String" }
+    }
   }
 }

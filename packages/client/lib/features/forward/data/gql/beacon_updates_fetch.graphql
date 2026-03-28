@@ -1,0 +1,16 @@
+# import '/data/gql/user_model.graphql'
+
+query BeaconUpdatesFetch($beaconId: String!) {
+  beacon_update(
+    where: {beacon_id: {_eq: $beaconId}},
+    order_by: {created_at: desc}
+  ) {
+    id
+    beacon_id
+    content
+    created_at
+    author {
+      ...UserModel
+    }
+  }
+}

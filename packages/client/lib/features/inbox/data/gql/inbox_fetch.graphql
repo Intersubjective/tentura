@@ -1,0 +1,25 @@
+# import '/data/gql/beacon_model.graphql'
+
+query InboxFetch($context: String = "") {
+  inbox_item(
+    order_by: {latest_forward_at: desc},
+    where: {
+      is_hidden: {_eq: false},
+      _or: [
+        {context: {_eq: $context}},
+        {context: {_is_null: true}}
+      ]
+    }
+  ) {
+    beacon_id
+    context
+    forward_count
+    latest_forward_at
+    latest_note_preview
+    is_hidden
+    is_watching
+    beacon {
+      ...BeaconModel
+    }
+  }
+}

@@ -22,6 +22,7 @@ abstract class BeaconEntity with _$BeaconEntity {
     required DateTime createdAt,
     required DateTime updatedAt,
     @Default(true) bool isEnabled,
+    @Default(0) int state,
     @Default('') String description,
     Coordinates? coordinates,
     PollingEntity? polling,
@@ -33,6 +34,10 @@ abstract class BeaconEntity with _$BeaconEntity {
   }) = _BeaconEntity;
 
   const BeaconEntity._();
+
+  bool get isActive => state == 0;
+  bool get isClosed => state == 1;
+  bool get isDeleted => state == 2;
 
   bool get hasImage => image != null;
 

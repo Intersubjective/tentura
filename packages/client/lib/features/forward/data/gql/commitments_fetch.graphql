@@ -1,0 +1,18 @@
+# import '/data/gql/user_model.graphql'
+
+query CommitmentsFetch($beaconId: String!) {
+  beacon_commitment(
+    where: {beacon_id: {_eq: $beaconId}, status: {_eq: 0}},
+    order_by: {updated_at: desc}
+  ) {
+    beacon_id
+    user_id
+    message
+    status
+    created_at
+    updated_at
+    user {
+      ...UserModel
+    }
+  }
+}

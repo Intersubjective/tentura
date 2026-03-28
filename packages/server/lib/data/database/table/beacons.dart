@@ -41,6 +41,10 @@ class Beacons extends Table
 
   late final tags = text().withDefault(const Constant(''))();
 
+  // 0=active, 1=closed, 2=deleted
+  late final Column<int> state = integer()
+      .withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 
