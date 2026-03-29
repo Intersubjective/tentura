@@ -31,6 +31,9 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   final MyWorkRepository _repository;
   final ProfileCubit _profileCubit;
 
+  /// Incremented on every [fetch]; stale async completions must not emit.
+  int _fetchSeq = 0;
+
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
   @override
@@ -40,23 +43,41 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   Future<void> fetch([String? contextName]) async {
+    final seq = ++_fetchSeq;
+    final ctx = contextName ?? state.context;
+    final userId = _profileCubit.state.profile.id;
+    if (userId.isEmpty) {
+      emit(
+        state.copyWith(
+          status: const StateIsSuccess(),
+          context: ctx,
+          authored: const [],
+          committed: const [],
+        ),
+      );
+      return;
+    }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final ctx = contextName ?? state.context;
-      final userId = _profileCubit.state.profile.id;
       final results = await Future.wait([
         _repository.fetchAuthored(userId: userId, context: ctx),
         _repository.fetchCommitted(userId: userId, context: ctx),
       ]);
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
       emit(
-        MyWorkState(
+        state.copyWith(
+          status: const StateIsSuccess(),
           context: ctx,
           authored: results[0],
           committed: results[1],
-          filter: state.filter,
         ),
       );
     } catch (e) {
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
       emit(state.copyWith(status: StateHasError(e)));
     }
   }

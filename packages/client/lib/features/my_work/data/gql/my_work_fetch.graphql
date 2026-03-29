@@ -30,11 +30,6 @@ query MyWorkCommitted($userId: String!, $context: String = "") {
     },
     order_by: {updated_at: desc}
   ) {
-    beacon_id
-    message
-    status
-    created_at
-    updated_at
     beacon {
       ...BeaconModel
     }

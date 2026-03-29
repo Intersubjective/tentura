@@ -54,7 +54,8 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
           const ContextDropDown(),
           Expanded(
             child: BlocBuilder<InboxCubit, InboxState>(
-              buildWhen: (_, c) => c.isSuccess || c.isLoading,
+              buildWhen: (_, c) =>
+                  c.isSuccess || c.isLoading || c.hasError,
               builder: (_, state) {
                 if (state.isLoading) {
                   return const Center(
