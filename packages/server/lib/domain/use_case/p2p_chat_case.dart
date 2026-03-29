@@ -3,12 +3,11 @@ import 'package:uuid/uuid_value.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts.dart';
-import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/data/repository/fcm_remote_repository.dart';
 import 'package:tentura_server/data/repository/fcm_token_repository.dart';
 import 'package:tentura_server/data/repository/p2p_message_repository.dart';
 import 'package:tentura_server/data/repository/user_presence_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/data/service/fcm_batch_queue.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 
 import '../entity/p2p_message_entity.dart';
@@ -18,7 +17,7 @@ import '_use_case_base.dart';
 final class P2pChatCase extends UseCaseBase {
   P2pChatCase(
     this._fcmTokenRepository,
-    this._fcmRemoteRepository,
+    this._fcmBatchQueue,
     this._p2pMessageRepository,
     this._userPresenceRepository,
     this._userRepository, {
@@ -28,7 +27,7 @@ final class P2pChatCase extends UseCaseBase {
 
   final FcmTokenRepository _fcmTokenRepository;
 
-  final FcmRemoteRepository _fcmRemoteRepository;
+  final FcmBatchQueue _fcmBatchQueue;
 
   final P2pMessageRepository _p2pMessageRepository;
 
@@ -36,32 +35,30 @@ final class P2pChatCase extends UseCaseBase {
 
   final UserRepository _userRepository;
 
-  //
-  //
-  Future<void> create({
+  /// Creates a message, emits Postgres NOTIFY, and enqueues FCM if needed.
+  /// Returns the created entity (with server-assigned serverId and createdAt).
+  Future<P2pMessageEntity> create({
     required String receiverId,
     required String senderId,
     required UuidValue clientMessageId,
     required String content,
   }) async {
-    await _p2pMessageRepository.create(
+    final entity = await _p2pMessageRepository.create(
       receiverId: receiverId,
       senderId: senderId,
       clientId: clientMessageId,
       content: content,
     );
     unawaited(
-      _notifyUser(
+      _enqueueFcmIfNeeded(
         receiverId: receiverId,
         senderId: senderId,
         content: content,
-        clientMessageId: clientMessageId,
       ),
     );
+    return entity;
   }
 
-  //
-  //
   Future<void> markAsDelivered({
     required String clientId,
     required String serverId,
@@ -72,26 +69,8 @@ final class P2pChatCase extends UseCaseBase {
     serverId: serverId,
   );
 
-  ///
   /// Fetches P2P messages for a specific user from a given point in time.
-  ///
-  /// This method retrieves messages where the user with the given [userId] is
-  /// either the sender or the receiver. It includes messages that were either
-  /// created or delivered after the specified [from] timestamp.
-  ///
-  /// This is useful for syncing a client's message history, as it fetches
-  /// both new messages sent/received by the user and updates to the delivery
-  /// status of older messages.
-  ///
-  /// The results are ordered by their creation timestamp in ascending order
-  /// and are limited to the [batchSize] specified.
-  ///
-  /// - [userId]: The ID of the user whose messages are to be fetched.
-  ///   Be sure it is sanitized for prevent SQL injection!
-  /// - [from]: The timestamp from which to start fetching messages. Only
-  ///   messages created or delivered after this time will be returned.
-  /// - [batchSize]: The maximum number of messages to return.
-  ///
+  /// Used for catch-up sync after (re)connect.
   Future<Iterable<P2pMessageEntity>> fetchByUserId({
     required DateTime from,
     required String userId,
@@ -102,16 +81,25 @@ final class P2pChatCase extends UseCaseBase {
     limit: batchSize,
   );
 
-  //
-  // TBD:
-  //  make a dedicated Isolate for processing FCM jobs
-  //  or use existing TaskWorker?
-  //
-  Future<void> _notifyUser({
+  /// Fetches chat history for a pair of users, paginated by cursor.
+  Future<Iterable<P2pMessageEntity>> fetchHistory({
+    required String userId,
+    required String peerId,
+    required DateTime before,
+    int limit = 20,
+  }) => _p2pMessageRepository.fetchHistoryForPair(
+    userId: userId,
+    peerId: peerId,
+    before: before,
+    limit: limit,
+  );
+
+  /// Checks presence and enqueues to the FCM batch queue if the user
+  /// should be notified (offline or not recently notified).
+  Future<void> _enqueueFcmIfNeeded({
     required String receiverId,
     required String senderId,
     required String content,
-    required UuidValue clientMessageId,
   }) async {
     final userStatus = await _userPresenceRepository.get(receiverId);
     if (userStatus == null || !userStatus.shouldNotify) {
@@ -126,7 +114,9 @@ final class P2pChatCase extends UseCaseBase {
     }
 
     final senderProfile = await _userRepository.getById(senderId);
-    final results = await _fcmRemoteRepository.sendChatNotification(
+
+    _fcmBatchQueue.enqueue(
+      receiverId: receiverId,
       fcmTokens: fcmTokens.map((e) => e.token).toSet(),
       message: FcmNotificationEntity(
         actionUrl: '/#$kPathAppLinkChat/$senderId?receiver_id=$receiverId',
@@ -135,14 +125,10 @@ final class P2pChatCase extends UseCaseBase {
         body: content,
       ),
     );
+
     await _userPresenceRepository.update(
       receiverId,
       lastNotifiedAt: DateTime.timestamp(),
     );
-
-    for (final e in results.whereType<FcmTokenNotFoundException>()) {
-      await _fcmTokenRepository.deleteToken(e.token);
-      logger.info('[P2pChatCase] Delete unregistered token: [${e.token}]');
-    }
   }
 }

@@ -22,10 +22,33 @@ class _ChatListState extends State<ChatList> {
 
   final _scrollOffsetController = ScrollOffsetController();
 
+  final _itemPositionsListener = ItemPositionsListener.create();
+
+  @override
+  void initState() {
+    super.initState();
+    _itemPositionsListener.itemPositions.addListener(_onPositionsChanged);
+  }
+
   @override
   void dispose() {
+    _itemPositionsListener.itemPositions.removeListener(_onPositionsChanged);
     _inputController.dispose();
     super.dispose();
+  }
+
+  void _onPositionsChanged() {
+    final positions = _itemPositionsListener.itemPositions.value;
+    if (positions.isEmpty) return;
+
+    final chatCubit = context.read<ChatCubit>();
+    final maxIndex = positions.map((p) => p.index).reduce(
+      (a, b) => a > b ? a : b,
+    );
+
+    if (maxIndex >= chatCubit.state.messages.length - 1) {
+      chatCubit.loadMoreHistory();
+    }
   }
 
   @override
@@ -41,6 +64,7 @@ class _ChatListState extends State<ChatList> {
             itemCount: chatCubit.state.messages.length,
             itemScrollController: _itemScrollController,
             scrollOffsetController: _scrollOffsetController,
+            itemPositionsListener: _itemPositionsListener,
 
             // Message Tile
             itemBuilder: (_, index) {

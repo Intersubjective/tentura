@@ -12,7 +12,7 @@ import '../p2p_message_repository.dart';
 )
 class P2pMessageRepositoryMock implements P2pMessageRepository {
   @override
-  Future<void> create({
+  Future<P2pMessageEntity> create({
     required String content,
     required String senderId,
     required String receiverId,
@@ -31,10 +31,20 @@ class P2pMessageRepositoryMock implements P2pMessageRepository {
   }
 
   @override
-  Future<int> markAsDelivered({
+  Future<void> markAsDelivered({
     required String clientId,
     required String serverId,
     required String receiverId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<Iterable<P2pMessageEntity>> fetchHistoryForPair({
+    required String userId,
+    required String peerId,
+    required DateTime before,
+    required int limit,
   }) {
     throw UnimplementedError();
   }
