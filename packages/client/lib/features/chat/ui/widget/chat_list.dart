@@ -33,14 +33,36 @@ class _ChatListState extends State<ChatList> {
   void initState() {
     super.initState();
     _itemPositionsListener.itemPositions.addListener(_onPositionsChanged);
+    HardwareKeyboard.instance.addHandler(_onHardwareKey);
   }
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onHardwareKey);
     _itemPositionsListener.itemPositions.removeListener(_onPositionsChanged);
     _inputFocusNode.dispose();
     _inputController.dispose();
     super.dispose();
+  }
+
+  /// Enter sends; Shift+Enter still inserts a newline. Uses [HardwareKeyboard]
+  /// so we do not attach the same [FocusNode] to both [Focus] and [TextField]
+  /// (that breaks the focus tree on web).
+  bool _onHardwareKey(KeyEvent event) {
+    if (event is! KeyDownEvent) {
+      return false;
+    }
+    if (!_inputFocusNode.hasFocus) {
+      return false;
+    }
+    if (!_isEnterKey(event.logicalKey)) {
+      return false;
+    }
+    if (HardwareKeyboard.instance.isShiftPressed) {
+      return false;
+    }
+    unawaited(_sendMessage());
+    return true;
   }
 
   void _onPositionsChanged() {
@@ -67,7 +89,7 @@ class _ChatListState extends State<ChatList> {
     await chatCubit.onSendPressed(_inputController.text);
     _inputController.clear();
     await _scrollOffsetController.animateScroll(
-      duration: const Duration(microseconds: 500),
+      duration: const Duration(milliseconds: 500),
       offset: 1,
     );
   }
@@ -107,41 +129,25 @@ class _ChatListState extends State<ChatList> {
         // Input
         Padding(
           padding: kPaddingAllS,
-          child: Focus(
+          child: TextField(
             focusNode: _inputFocusNode,
-            onKeyEvent: (node, event) {
-              if (event is! KeyDownEvent) {
-                return KeyEventResult.ignored;
-              }
-              if (!_isEnterKey(event.logicalKey)) {
-                return KeyEventResult.ignored;
-              }
-              if (HardwareKeyboard.instance.isShiftPressed) {
-                return KeyEventResult.ignored;
-              }
-              unawaited(_sendMessage());
-              return KeyEventResult.handled;
-            },
-            child: TextField(
-              focusNode: _inputFocusNode,
-              controller: _inputController,
-              onChanged: (value) =>
-                  context.read<ChatCubit>().onComposerTextChanged(value),
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(32)),
-                ),
-                filled: true,
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: () => unawaited(_sendMessage()),
-                ),
+            controller: _inputController,
+            onChanged: (value) =>
+                context.read<ChatCubit>().onComposerTextChanged(value),
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(32)),
               ),
-              keyboardType: TextInputType.multiline,
-              maxLines: 5,
-              minLines: 1,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              filled: true,
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.send),
+                onPressed: () => unawaited(_sendMessage()),
+              ),
             ),
+            keyboardType: TextInputType.multiline,
+            maxLines: 5,
+            minLines: 1,
+            onTapOutside: (_) => FocusScope.of(context).unfocus(),
           ),
         ),
       ],

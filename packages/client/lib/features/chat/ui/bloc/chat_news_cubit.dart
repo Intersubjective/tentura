@@ -113,10 +113,22 @@ class ChatNewsCubit extends Cubit<ChatNewsState> {
     if (userId.isNotEmpty) {
       emit(state.copyWith(status: StateStatus.isLoading));
       try {
-        (await _chatCase.getUnseenMessagesFor(
-          userId: userId,
-        )).forEach(_updateStateWithMessage);
-        emit(state.copyWith(status: StateStatus.isSuccess));
+        final unseen = await _chatCase.getUnseenMessagesFor(userId: userId);
+        final messagesMap = _cloneMessagesMap(state.messages);
+        final lastByPeer = Map<String, ChatMessageEntity>.from(
+          state.lastMessageByPeerId,
+        );
+        for (final m in unseen) {
+          _applyLastMessageForPeer(lastByPeer, m);
+          _applyMessageUpdate(messagesMap, m);
+        }
+        emit(
+          state.copyWith(
+            messages: messagesMap,
+            lastMessageByPeerId: lastByPeer,
+            status: StateStatus.isSuccess,
+          ),
+        );
         unawaited(_subscribePresenceForFriends());
       } catch (e) {
         emit(state.copyWith(status: StateHasError(e)));
@@ -124,65 +136,94 @@ class ChatNewsCubit extends Cubit<ChatNewsState> {
     }
   }
 
+  static Map<String, List<ChatMessageEntity>> _cloneMessagesMap(
+    Map<String, List<ChatMessageEntity>> source,
+  ) =>
+      source.map(
+        (k, v) => MapEntry(k, List<ChatMessageEntity>.from(v)),
+      );
+
   void _onPresenceUpdate(Iterable<PeerPresenceEntity> batch) {
+    final next = Map<String, PeerPresenceEntity>.from(state.peerPresence);
     for (final p in batch) {
-      state.peerPresence[p.userId] = p;
+      next[p.userId] = p;
     }
-    emit(state.copyWith(lastUpdate: DateTime.timestamp()));
+    emit(
+      state.copyWith(
+        peerPresence: next,
+        lastUpdate: DateTime.timestamp(),
+      ),
+    );
   }
 
   //
   //
   Future<void> _onMessagesUpdate(Iterable<ChatMessageEntity> messages) async {
-    if (messages.isNotEmpty) {
-      for (final m in messages) {
-        _updateLastMessageForPeer(m);
-        _updateStateWithMessage(m);
-      }
-
-      emit(state.copyWith(lastUpdate: DateTime.timestamp()));
-
-      await _chatCase.saveMessages(messages: messages);
+    if (messages.isEmpty) {
+      return;
     }
+    final messagesMap = _cloneMessagesMap(state.messages);
+    final lastByPeer = Map<String, ChatMessageEntity>.from(
+      state.lastMessageByPeerId,
+    );
+    for (final m in messages) {
+      _applyLastMessageForPeer(lastByPeer, m);
+      _applyMessageUpdate(messagesMap, m);
+    }
+    emit(
+      state.copyWith(
+        messages: messagesMap,
+        lastMessageByPeerId: lastByPeer,
+        lastUpdate: DateTime.timestamp(),
+      ),
+    );
+    await _chatCase.saveMessages(messages: messages);
   }
 
-  void _updateLastMessageForPeer(ChatMessageEntity message) {
+  void _applyLastMessageForPeer(
+    Map<String, ChatMessageEntity> lastByPeer,
+    ChatMessageEntity message,
+  ) {
     if (state.myId.isEmpty) {
       return;
     }
     final peerId = message.senderId == state.myId
         ? message.receiverId
         : message.senderId;
-    final existing = state.lastMessageByPeerId[peerId];
+    final existing = lastByPeer[peerId];
     if (existing == null || message.createdAt.isAfter(existing.createdAt)) {
-      state.lastMessageByPeerId[peerId] = message;
+      lastByPeer[peerId] = message;
     }
   }
 
-  //
-  //
-  void _updateStateWithMessage(ChatMessageEntity message) {
+  void _applyMessageUpdate(
+    Map<String, List<ChatMessageEntity>> messagesMap,
+    ChatMessageEntity message,
+  ) {
     if (message.senderId == state.myId) {
       return;
     }
 
     switch (message.status) {
       case ChatMessageStatus.seen:
-        state.messages[message.senderId]?.removeWhere(
-          (e) => e.serverId == message.serverId,
-        );
+        final list = messagesMap[message.senderId];
+        if (list != null) {
+          list.removeWhere((e) => e.serverId == message.serverId);
+        }
 
       case ChatMessageStatus.sent:
-        if (state.messages.containsKey(message.senderId)) {
-          final messagesOfSender = state.messages[message.senderId]!;
-          final index = messagesOfSender.indexWhere(
+        final list = messagesMap[message.senderId];
+        if (list != null) {
+          final index = list.indexWhere(
             (e) => e.serverId == message.serverId,
           );
-          index < 0
-              ? messagesOfSender.add(message)
-              : messagesOfSender[index] = message;
+          if (index < 0) {
+            list.add(message);
+          } else {
+            list[index] = message;
+          }
         } else {
-          state.messages[message.senderId] = [message];
+          messagesMap[message.senderId] = [message];
         }
 
       // ignore: no_default_cases //
