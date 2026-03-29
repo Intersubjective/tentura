@@ -63,7 +63,14 @@ class ForwardRepository {
                 .toList(),
           );
 
-  Future<List<({Profile user, String message, DateTime createdAt})>>
+  Future<
+          List<
+              ({
+                Profile user,
+                String message,
+                DateTime createdAt,
+                DateTime updatedAt,
+              })>>
       fetchCommitments({required String beaconId}) => _remoteApiService
           .request(
             GCommitmentsFetchReq((r) => r..vars.beaconId = beaconId),
@@ -78,6 +85,7 @@ class ForwardRepository {
                     user: (e.user as UserModel).toEntity(),
                     message: e.message,
                     createdAt: e.created_at,
+                    updatedAt: e.updated_at,
                   ),
                 )
                 .toList(),
@@ -115,8 +123,15 @@ class ForwardRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beaconCommit);
 
-  Future<bool> withdraw({required String beaconId}) => _remoteApiService
-      .request(GBeaconWithdrawReq((r) => r..vars.beaconId = beaconId))
+  Future<bool> withdraw({
+    required String beaconId,
+    String? message,
+  }) => _remoteApiService
+      .request(
+        GBeaconWithdrawReq(
+          (r) => r..vars.beaconId = beaconId..vars.message = message,
+        ),
+      )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beaconWithdraw);
 

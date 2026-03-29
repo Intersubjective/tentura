@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:nil/nil.dart';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
@@ -13,7 +15,9 @@ import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/beacon_view_cubit.dart';
+import '../dialog/commitment_message_dialog.dart';
 import '../widget/beacon_mine_control.dart';
+import '../widget/commitment_tile.dart';
 
 @RoutePage()
 class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -56,7 +60,6 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
     final screenCubit = context.read<ScreenCubit>();
     final beaconViewCubit = context.read<BeaconViewCubit>();
     return Scaffold(
@@ -141,13 +144,36 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                           selector: (s) => s.isCommitted,
                           builder: (_, isCommitted) => isCommitted
                               ? OutlinedButton.icon(
-                                  onPressed: beaconViewCubit.withdraw,
+                                  onPressed: () async {
+                                    final message =
+                                        await CommitmentMessageDialog.show(
+                                      context,
+                                      title: l10n.dialogWithdrawTitle,
+                                      hintText: l10n.hintWithdrawReason,
+                                    );
+                                    if (message != null) {
+                                      await beaconViewCubit.withdraw(
+                                        message: message,
+                                      );
+                                    }
+                                  },
                                   icon: const Icon(Icons.check_circle),
                                   label: Text(l10n.labelCommitted),
                                 )
                               : FilledButton.icon(
-                                  onPressed: () =>
-                                      beaconViewCubit.commit(),
+                                  onPressed: () async {
+                                    final message =
+                                        await CommitmentMessageDialog.show(
+                                      context,
+                                      title: l10n.dialogCommitTitle,
+                                      hintText: l10n.hintCommitMessage,
+                                    );
+                                    if (message != null) {
+                                      await beaconViewCubit.commit(
+                                        message: message,
+                                      );
+                                    }
+                                  },
                                   icon: const Icon(Icons.handshake),
                                   label: Text(l10n.labelCommit),
                                 ),
@@ -185,30 +211,120 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
               const Divider(height: kSpacingLarge),
 
-              // Timeline section
-              Text(
-                l10n.labelTimeline,
-                style: theme.textTheme.titleMedium,
+              _TabSection(
+                timeline: state.timeline,
+                commitments: state.commitments,
+                myUserId: state.myProfile.id,
+                onEditCommitment: (commitment) async {
+                  final message = await CommitmentMessageDialog.show(
+                    context,
+                    title: l10n.dialogUpdateCommitTitle,
+                    hintText: l10n.hintCommitMessage,
+                    initialText: commitment.message,
+                  );
+                  if (message != null) {
+                    await beaconViewCubit.commit(message: message);
+                  }
+                },
               ),
-              const SizedBox(height: kSpacingSmall),
-
-              if (state.timeline.isEmpty)
-                Padding(
-                  padding: kPaddingSmallV,
-                  child: Text(
-                    l10n.noActivityYet,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-
-              for (final entry in state.timeline)
-                _TimelineEntryTile(entry: entry),
             ],
           );
         },
       ),
+    );
+  }
+}
+
+class _TabSection extends StatefulWidget {
+  const _TabSection({
+    required this.timeline,
+    required this.commitments,
+    required this.myUserId,
+    required this.onEditCommitment,
+  });
+
+  final List<TimelineEntry> timeline;
+  final List<TimelineCommitment> commitments;
+  final String myUserId;
+  final Future<void> Function(TimelineCommitment) onEditCommitment;
+
+  @override
+  State<_TabSection> createState() => _TabSectionState();
+}
+
+class _TabSectionState extends State<_TabSection>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(
+    length: 2,
+    vsync: this,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: l10n.labelTimeline),
+            Tab(text: l10n.labelCommitments),
+          ],
+        ),
+        const SizedBox(height: kSpacingSmall),
+        if (_tabController.index == 0) ...[
+          if (widget.timeline.isEmpty)
+            Padding(
+              padding: kPaddingSmallV,
+              child: Text(
+                l10n.noActivityYet,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          for (final entry in widget.timeline)
+            _TimelineEntryTile(entry: entry),
+        ] else ...[
+          if (widget.commitments.isEmpty)
+            Padding(
+              padding: kPaddingSmallV,
+              child: Text(
+                l10n.noCommitmentsYet,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          for (final c in widget.commitments)
+            CommitmentTile(
+              commitment: c,
+              isMine: c.user.id == widget.myUserId,
+              onEdit: c.user.id == widget.myUserId
+                  ? () => unawaited(widget.onEditCommitment(c))
+                  : null,
+            ),
+        ],
+      ],
     );
   }
 }

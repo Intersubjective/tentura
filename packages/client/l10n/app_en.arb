@@ -835,6 +835,46 @@
       "content": { "type": "String" }
     }
   },
+  "labelCommitments": "Commitments",
+  "@labelCommitments": {
+    "context": "BeaconViewScreen",
+    "description": "Tab title for commitments list"
+  },
+  "dialogCommitTitle": "Commit to beacon",
+  "@dialogCommitTitle": {
+    "context": "BeaconViewScreen",
+    "description": "Title for commit dialog"
+  },
+  "dialogWithdrawTitle": "Withdraw commitment",
+  "@dialogWithdrawTitle": {
+    "context": "BeaconViewScreen",
+    "description": "Title for withdraw dialog"
+  },
+  "dialogUpdateCommitTitle": "Update commitment",
+  "@dialogUpdateCommitTitle": {
+    "context": "BeaconViewScreen",
+    "description": "Title for edit commitment dialog"
+  },
+  "hintCommitMessage": "How will you help?",
+  "@hintCommitMessage": {
+    "context": "BeaconViewScreen",
+    "description": "Hint text for commit message input"
+  },
+  "hintWithdrawReason": "Why are you withdrawing?",
+  "@hintWithdrawReason": {
+    "context": "BeaconViewScreen",
+    "description": "Hint text for withdraw reason input"
+  },
+  "noCommitmentsYet": "No commitments yet",
+  "@noCommitmentsYet": {
+    "context": "BeaconViewScreen",
+    "description": "Empty state for commitments tab"
+  },
+  "labelEdited": "edited",
+  "@labelEdited": {
+    "context": "BeaconViewScreen",
+    "description": "Label shown on edited commitments"
+  },
   "chatPresenceTyping": "Typing…",
   "@chatPresenceTyping": {
     "context": "Chat"

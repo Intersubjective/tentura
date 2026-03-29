@@ -32,11 +32,15 @@ final class MutationCommitment extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get withdraw => GraphQLObjectField(
     'beaconWithdraw',
     graphQLBoolean.nonNullable(),
-    arguments: [InputFieldId.field],
+    arguments: [
+      InputFieldId.field,
+      _message.fieldNullable,
+    ],
     resolve: (_, args) => _commitmentCase
         .withdraw(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
+          message: _message.fromArgs(args) ?? '',
         )
         .then((_) => true),
   );

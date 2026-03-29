@@ -21,8 +21,10 @@ class CommitmentCase {
   Future<void> withdraw({
     required String beaconId,
     required String userId,
+    String message = '',
   }) => _commitmentRepository.withdraw(
     beaconId: beaconId,
     userId: userId,
+    message: message,
   );
 }

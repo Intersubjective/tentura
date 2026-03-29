@@ -835,6 +835,46 @@
       "content": { "type": "String" }
     }
   },
+  "labelCommitments": "Участие",
+  "@labelCommitments": {
+    "context": "BeaconViewScreen",
+    "description": "Tab title for commitments list"
+  },
+  "dialogCommitTitle": "Принять участие",
+  "@dialogCommitTitle": {
+    "context": "BeaconViewScreen",
+    "description": "Title for commit dialog"
+  },
+  "dialogWithdrawTitle": "Отказаться от участия",
+  "@dialogWithdrawTitle": {
+    "context": "BeaconViewScreen",
+    "description": "Title for withdraw dialog"
+  },
+  "dialogUpdateCommitTitle": "Изменить участие",
+  "@dialogUpdateCommitTitle": {
+    "context": "BeaconViewScreen",
+    "description": "Title for edit commitment dialog"
+  },
+  "hintCommitMessage": "Чем вы поможете?",
+  "@hintCommitMessage": {
+    "context": "BeaconViewScreen",
+    "description": "Hint text for commit message input"
+  },
+  "hintWithdrawReason": "Почему вы отказываетесь?",
+  "@hintWithdrawReason": {
+    "context": "BeaconViewScreen",
+    "description": "Hint text for withdraw reason input"
+  },
+  "noCommitmentsYet": "Пока никто не участвует",
+  "@noCommitmentsYet": {
+    "context": "BeaconViewScreen",
+    "description": "Empty state for commitments tab"
+  },
+  "labelEdited": "изменено",
+  "@labelEdited": {
+    "context": "BeaconViewScreen",
+    "description": "Label shown on edited commitments"
+  },
   "chatPresenceTyping": "Печатает…",
   "@chatPresenceTyping": {
     "context": "Chat"

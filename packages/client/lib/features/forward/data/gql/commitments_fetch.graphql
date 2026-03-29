@@ -7,6 +7,7 @@ query CommitmentsFetch($beaconId: String!) {
   ) {
     message
     created_at
+    updated_at
     user {
       ...UserModel
     }

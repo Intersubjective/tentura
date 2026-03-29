@@ -62,24 +62,27 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> commit({String message = ''}) async {
+  Future<void> commit({required String message}) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _forwardRepository.commit(
         beaconId: state.beacon.id,
-        message: message.isEmpty ? null : message,
+        message: message,
       );
-      emit(state.copyWith(isCommitted: true, status: StateStatus.isSuccess));
+      await _fetchBeaconByIdWithTimeline();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
 
-  Future<void> withdraw() async {
+  Future<void> withdraw({required String message}) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _forwardRepository.withdraw(beaconId: state.beacon.id);
-      emit(state.copyWith(isCommitted: false, status: StateStatus.isSuccess));
+      await _forwardRepository.withdraw(
+        beaconId: state.beacon.id,
+        message: message,
+      );
+      await _fetchBeaconByIdWithTimeline();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -99,21 +102,31 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
       final beacon = results[0] as Beacon;
       final forwardEdges = results[1] as List<ForwardEdge>;
-      final commitments = results[2]
-          as List<({Profile user, String message, DateTime createdAt})>;
+      final commitments = results[2] as List<
+          ({
+            Profile user,
+            String message,
+            DateTime createdAt,
+            DateTime updatedAt,
+          })>;
       final updates = results[3]
           as List<({Profile author, String content, DateTime createdAt})>;
 
       final isCommitted = commitments.any((c) => c.user.id == myUserId);
 
-      final timeline = <TimelineEntry>[
-        for (final edge in forwardEdges) TimelineForward(edge),
+      final commitmentsList = <TimelineCommitment>[
         for (final c in commitments)
           TimelineCommitment(
             user: c.user,
             message: c.message,
             createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
           ),
+      ];
+
+      final timeline = <TimelineEntry>[
+        for (final edge in forwardEdges) TimelineForward(edge),
+        ...commitmentsList,
         for (final u in updates)
           TimelineUpdate(
             author: u.author,
@@ -127,6 +140,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           beacon: beacon,
           forwardEdges: forwardEdges,
           timeline: timeline,
+          commitments: commitmentsList,
           isCommitted: isCommitted,
           status: StateStatus.isSuccess,
         ),

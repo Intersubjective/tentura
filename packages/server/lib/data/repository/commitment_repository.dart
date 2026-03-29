@@ -38,11 +38,18 @@ class CommitmentRepository {
   Future<void> withdraw({
     required String beaconId,
     required String userId,
+    String message = '',
   }) => _database.managers.beaconCommitments
       .filter(
         (e) => e.beaconId.id(beaconId) & e.userId.id(userId),
       )
-      .update((o) => o(status: const Value(1)));
+      .update(
+        (o) => o(
+          status: const Value(1),
+          message: Value(message),
+          updatedAt: Value(PgDateTime(DateTime.timestamp())),
+        ),
+      );
 
   Future<List<CommitmentEntity>> fetchByBeaconId(String beaconId) =>
       _database.managers.beaconCommitments
