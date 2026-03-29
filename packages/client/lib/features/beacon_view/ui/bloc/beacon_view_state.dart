@@ -27,13 +27,18 @@ class TimelineCommitment extends TimelineEntry {
     required this.user,
     required this.message,
     required this.createdAt,
+    required this.updatedAt,
   });
   final Profile user;
   final String message;
   final DateTime createdAt;
+  final DateTime updatedAt;
 
   @override
   DateTime get timestamp => createdAt;
+
+  bool get isEdited =>
+      updatedAt.difference(createdAt).inSeconds.abs() > 1;
 }
 
 class TimelineUpdate extends TimelineEntry {
@@ -56,6 +61,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     required Beacon beacon,
     @Default('') String focusCommentId,
     @Default([]) List<TimelineEntry> timeline,
+    @Default([]) List<TimelineCommitment> commitments,
     @Default([]) List<ForwardEdge> forwardEdges,
     @Default(false) bool isCommitted,
     @Default(Profile()) Profile myProfile,
