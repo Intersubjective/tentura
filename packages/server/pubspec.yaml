@@ -37,6 +37,7 @@ dependencies:
   blurhash_dart: ^1.2.1
   angel3_graphql: ^8.5.0
   drift_postgres: ^1.3.1
+  graphql_parser2: ^6.5.0
   graphql_schema2: ^6.5.0
   graphql_server2: ^6.5.0
   shelf_multipart: ^2.0.1

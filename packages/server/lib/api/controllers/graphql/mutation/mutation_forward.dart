@@ -20,10 +20,7 @@ final class MutationForward extends GqlNodeBase {
     graphQLString.nonNullable(),
     arguments: [
       InputFieldId.field,
-      GraphQLFieldInput(
-        'recipientIds',
-        graphQLString.nonNullable().list().nonNullable(),
-      ),
+      InputFieldRecipientIds.field,
       _note.fieldNullable,
       _context.fieldNullable,
       _parentEdgeId.fieldNullable,
@@ -31,7 +28,7 @@ final class MutationForward extends GqlNodeBase {
     resolve: (_, args) => _forwardCase.forward(
       senderId: getCredentials(args).sub,
       beaconId: InputFieldId.fromArgsNonNullable(args),
-      recipientIds: (args['recipientIds']! as List<dynamic>).cast<String>(),
+      recipientIds: InputFieldRecipientIds.fromArgs(args),
       sharedNote: _note.fromArgs(args) ?? '',
       context: _context.fromArgs(args),
       parentEdgeId: _parentEdgeId.fromArgs(args),

@@ -13,6 +13,7 @@ part 'input_field_polling.dart';
 part 'input_field_upload.dart';
 part 'input_field_title.dart';
 part 'input_field_id.dart';
+part 'input_field_recipient_ids.dart';
 
 const kGlobalInputQueryContext = 'queryContext';
 const kGlobalInputQueryFile = 'queryFile';
