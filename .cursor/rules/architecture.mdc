@@ -20,6 +20,7 @@ applyWhen:
 This project follows **Clean Architecture** with **feature-based modularization** and strict adherence to **SOLID principles**. Dependencies flow inward: UI → Data → Domain.
 
 **Related Documents:**
+- `DEV_GUIDELINES.md` (repository root) - Project conventions (e.g. initial-load UI); read when planning features or screens
 - `codegen.mdc` - Code generation tools and usage
 - `advanced-patterns.mdc` - Advanced architectural patterns
 - `quick-reference.mdc` - One-line rules (always applied)

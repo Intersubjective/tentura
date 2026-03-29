@@ -86,7 +86,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> _fetchBeaconByIdWithTimeline() async {
-    emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final beaconId = state.beacon.id;
       final myUserId = state.myProfile.id;
@@ -138,8 +137,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> _fetchBeaconByCommentId() async {
-    // Legacy path: load beacon when navigated via deep link to a comment
-    emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final (:beacon, comment: _) = await _beaconViewRepository
           .fetchBeaconByCommentId(state.focusCommentId);
@@ -165,11 +162,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _ when id.startsWith('B') => BeaconViewState(
           beacon: _emptyBeacon.copyWith(id: id),
           myProfile: myProfile,
+          status: StateStatus.isLoading,
         ),
         _ when id.startsWith('C') => BeaconViewState(
           beacon: _emptyBeacon,
           focusCommentId: id,
           myProfile: myProfile,
+          status: StateStatus.isLoading,
         ),
         _ => BeaconViewState(
           beacon: _emptyBeacon,

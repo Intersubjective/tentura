@@ -6,6 +6,9 @@ alwaysApply: true
 
 One-line rules for quick lookup. See detailed files for explanations.
 
+## Planning
+- When planning implementation (UI flows, navigation, async-loaded screens), read **`DEV_GUIDELINES.md`** at the repository root alongside these rules.
+
 ## Codegen
 - Run `dart run build_runner build -d` after codegen changes
 - Never commit `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `_g/`, `di.config.dart`
