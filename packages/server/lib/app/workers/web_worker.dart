@@ -17,11 +17,13 @@ Future<void> serveWeb(({SendPort sendPort, Env env}) params) async {
   final getIt = await configureDependencies(params.env);
   await getIt.allReady();
 
+  final rootRouter = await getIt.getAsync<RootRouter>();
+
   late ShelfRunContext webServer;
   await runZonedGuarded(
     () async {
       webServer = await shelfRun(
-        getIt<RootRouter>().routeHandler,
+        rootRouter.routeHandler,
         onStarted: (address, port) => print(
           '${Isolate.current.debugName} web server listen [$address:$port]',
         ),
