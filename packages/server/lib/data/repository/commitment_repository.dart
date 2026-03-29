@@ -19,14 +19,20 @@ class CommitmentRepository {
     required String userId,
     String message = '',
     int status = 0,
-  }) => _database.managers.beaconCommitments.create(
-    (o) => o(
+  }) => _database.into(_database.beaconCommitments).insert(
+    BeaconCommitmentsCompanion.insert(
       beaconId: beaconId,
       userId: userId,
       message: Value(message),
       status: Value(status),
     ),
-    mode: InsertMode.insertOrReplace,
+    onConflict: DoUpdate(
+      (_) => BeaconCommitmentsCompanion(
+        message: Value(message),
+        status: Value(status),
+        updatedAt: Value(PgDateTime(DateTime.timestamp())),
+      ),
+    ),
   );
 
   Future<void> withdraw({
