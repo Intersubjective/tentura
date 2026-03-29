@@ -15,7 +15,7 @@ base mixin WebsocketMessageRouter
     final payload = message['payload'];
     if (payload is Map<String, dynamic>) {
       return switch (message['path']) {
-        'p2p_chat' => onP2pChatMessage(jwt, payload),
+        'p2p_chat' => onP2pChatMessage(session, jwt, payload),
         'user_presence' => onUserPresence(jwt, payload),
         _ => throw UnsupportedError('Unsupported path'),
       };

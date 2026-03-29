@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:shelf_plus/shelf_plus.dart';
+
+import 'package:tentura_root/domain/enums.dart';
 
 import 'websocket/router/websocket_router_base.dart';
 
@@ -11,11 +14,20 @@ final class WebSocketController extends WebsocketRouterBase {
     super.authCase,
     super.userPresenceCase,
     super.p2pChatCase,
+    super.pgNotificationService,
   );
 
   WebSocketSession handler() => WebSocketSession(
     onClose: (session) {
-      removeSession(session);
+      final jwt = removeSession(session);
+      if (jwt != null) {
+        unawaited(
+          userPresenceCase.setStatus(
+            userId: jwt.sub,
+            status: UserPresenceStatus.offline,
+          ),
+        );
+      }
     },
     onError: (session, error) async {
       final err = 'Error occurred [$error]';
@@ -28,4 +40,8 @@ final class WebSocketController extends WebsocketRouterBase {
       _ => throw UnsupportedError('Unsupported payload type'),
     },
   );
+
+  @disposeMethod
+  @override
+  Future<void> dispose() => super.dispose();
 }

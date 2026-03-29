@@ -15,6 +15,9 @@ import '../entity/chat_message_entity.dart';
 
 export 'package:tentura/data/service/remote_api_client/enum.dart';
 
+typedef MessageAck = ({String clientId, String serverId, DateTime createdAt});
+typedef HistoryResponse = ({Iterable<ChatMessageEntity> messages, bool hasMore});
+
 @singleton
 final class ChatCase extends UseCaseBase {
   ChatCase(
@@ -40,23 +43,20 @@ final class ChatCase extends UseCaseBase {
   Stream<String> get authChanges =>
       _authLocalRepository.currentAccountChanges();
 
-  //
-  //
   Stream<Iterable<ChatMessageEntity>> get updates =>
       _chatRemoteRepository.updates;
 
-  //
-  //
+  Stream<MessageAck> get messageAcks => _chatRemoteRepository.messageAcks;
+
+  Stream<HistoryResponse> get historyResponses =>
+      _chatRemoteRepository.historyResponses;
+
   Future<String> getCurrentAccountId() =>
       _authLocalRepository.getCurrentAccountId();
 
-  //
-  //
   Future<Profile> fetchProfileById(String id) =>
       _profileRepository.fetchById(id);
 
-  //
-  //
   void subscribeToUpdates({
     required DateTime fromMoment,
     int batchSize = 10,
@@ -68,8 +68,6 @@ final class ChatCase extends UseCaseBase {
     );
   }
 
-  //
-  //
   Future<void> sendMessage({
     required String receiverId,
     required String content,
@@ -79,17 +77,22 @@ final class ChatCase extends UseCaseBase {
     content: content,
   );
 
-  //
-  //
   Future<void> setMessageSeen({
     required ChatMessageEntity message,
   }) => _chatRemoteRepository.setMessageSeen(
     message: message,
   );
 
-  ///
-  /// Get all messages for pair from local DB
-  ///
+  void fetchHistory({
+    required String peerId,
+    required DateTime before,
+    int limit = 20,
+  }) => _chatRemoteRepository.fetchHistory(
+    peerId: peerId,
+    before: before,
+    limit: limit,
+  );
+
   Future<Iterable<ChatMessageEntity>> getChatMessagesForPair({
     required String senderId,
     required String receiverId,
@@ -98,26 +101,18 @@ final class ChatCase extends UseCaseBase {
     receiverId: receiverId,
   );
 
-  ///
-  /// Get all unseen messages for user from local DB
-  ///
   Future<Iterable<ChatMessageEntity>> getUnseenMessagesFor({
     required String userId,
   }) => _chatLocalRepository.getAllNewMessagesFor(
     userId: userId,
   );
 
-  ///
-  /// Get last updated message timestamp
-  ///
   Future<DateTime> getCursor({
     required String userId,
   }) => _chatLocalRepository.getMostRecentMessageTimestamp(
     userId: userId,
   );
 
-  //
-  //
   Future<void> saveMessages({
     required Iterable<ChatMessageEntity> messages,
   }) => _chatLocalRepository.saveMessages(

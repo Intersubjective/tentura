@@ -55,7 +55,6 @@ class Env {
     Duration? meritrankCalculateTimeout,
 
     // Chat
-    Duration? chatPollingInterval,
     int? chatDefaultBatchSize,
     Duration? chatStatusOfflineAfterDelay,
 
@@ -140,11 +139,6 @@ class Env {
            ),
 
        // Chat
-       chatPollingInterval =
-           chatPollingInterval ??
-           Duration(
-             seconds: int.tryParse(_env['CHAT_POLLING_INTERVAL'] ?? '') ?? 1,
-           ),
        chatDefaultBatchSize =
            chatDefaultBatchSize ??
            int.tryParse(_env['CHAT_BATCH_SIZE'] ?? '') ??
@@ -295,8 +289,6 @@ class Env {
   final Duration meritrankCalculateTimeout;
 
   // Chat
-  final Duration chatPollingInterval;
-
   final int chatDefaultBatchSize;
 
   final Duration chatStatusOfflineAfterDelay;

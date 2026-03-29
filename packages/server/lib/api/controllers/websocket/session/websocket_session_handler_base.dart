@@ -32,41 +32,47 @@ base class WebsocketSessionHandlerBase {
 
   final _sessions = <WebSocketSession, WebsocketUserSession>{};
 
-  ///
-  /// Updates last seen timestamp
-  ///
+  /// Reverse index: userId -> set of WebSocket sessions for that user.
+  final _sessionsByUserId = <String, Set<WebSocketSession>>{};
+
+  /// Returns all active sessions for a given userId (possibly empty).
+  Set<WebSocketSession> getSessionsByUserId(String userId) =>
+      _sessionsByUserId[userId] ?? const {};
+
+  /// Returns true if any session exists for the given userId.
+  bool hasSessionsForUser(String userId) =>
+      _sessionsByUserId[userId]?.isNotEmpty ?? false;
+
   JwtEntity? touchSession(WebSocketSession session) {
     final userSession = _sessions[session];
     userSession?.touch();
     return userSession?.jwt;
   }
 
-  ///
-  /// Remove session and stop its timer
-  ///
   JwtEntity? removeSession(WebSocketSession session) {
     final removedSession = _sessions.remove(session);
-    removedSession?.cancel();
+    if (removedSession != null) {
+      removedSession.cancel();
+      final userId = removedSession.jwt.sub;
+      final userSessions = _sessionsByUserId[userId];
+      if (userSessions != null) {
+        userSessions.remove(session);
+        if (userSessions.isEmpty) {
+          _sessionsByUserId.remove(userId);
+        }
+      }
+    }
     return removedSession?.jwt;
   }
 
-  ///
-  /// Returns JWT by session if any else throws [UnauthorizedException]
-  ///
   JwtEntity getJwtBySession(WebSocketSession session) =>
       _sessions[session]?.jwt ?? (throw const UnauthorizedException());
 
-  ///
-  /// Add Timer worker for given session
-  ///
   void addWorker(
     WebSocketSession session, {
     required Timer worker,
   }) => _sessions[session]?.addWorker(worker);
 
-  ///
-  /// Process type 'ping' and update presence
-  ///
   Future<void> onPing(
     WebSocketSession session,
     Map<String, dynamic> message,
@@ -80,9 +86,6 @@ base class WebsocketSessionHandlerBase {
     }
   }
 
-  ///
-  /// Process type 'auth' and update presence
-  ///
   Future<void> onAuth(
     WebSocketSession session,
     Map<String, dynamic> message,
@@ -94,6 +97,7 @@ base class WebsocketSessionHandlerBase {
         );
         removeSession(session);
         _sessions[session] = WebsocketUserSession(jwt);
+        (_sessionsByUserId[jwt.sub] ??= {}).add(session);
         session.send(_authLogInResponse);
         await userPresenceCase.setStatus(
           userId: jwt.sub,
