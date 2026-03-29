@@ -1,0 +1,14 @@
+---
+description: Semantic versioning — patch for fixes, minor for features
+alwaysApply: true
+---
+
+# Versioning (Semver)
+
+When bumping package versions (`pubspec.yaml` per package in this monorepo):
+
+- **Patch** (`x.y.Z` → increment `Z`): bug fixes, corrections, and other changes that do not add user-visible features or change intended behavior of existing APIs.
+- **Minor** (`x.Y.z` → increment `Y`, reset `Z` to 0): new backward-compatible features or capabilities.
+- **Major** (`X.y.z` → increment `X`): breaking or incompatible API/behavior changes (standard semver when those occur).
+
+Apply the bump in each affected package’s `pubspec.yaml` when releasing that package.
