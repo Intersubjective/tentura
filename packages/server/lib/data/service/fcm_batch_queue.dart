@@ -9,7 +9,7 @@ import 'package:tentura_server/data/repository/fcm_token_repository.dart';
 
 /// Batches FCM notifications and flushes at most once per second to avoid
 /// per-message HTTP calls that trigger FCM rate limiting.
-@singleton
+@lazySingleton
 class FcmBatchQueue {
   FcmBatchQueue(
     this._fcmRemoteRepository,
