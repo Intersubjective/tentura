@@ -71,6 +71,23 @@ base mixin WebsocketPathP2pChat on WebsocketSessionHandlerBase {
           }),
         );
 
+      case 'typing':
+        final receiverId = message['receiver_id']! as String;
+        final typingJson = jsonEncode({
+          'type': 'subscription',
+          'path': 'p2p_chat',
+          'payload': {
+            'intent': 'typing',
+            'message': {
+              'sender_id': jwt.sub,
+              'receiver_id': receiverId,
+            },
+          },
+        });
+        for (final s in getSessionsByUserId(receiverId)) {
+          s.send(typingJson);
+        }
+
       default:
         throw UnsupportedError(
           '${payload['intent']} is not supported!',

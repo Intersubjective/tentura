@@ -2,6 +2,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/chat_message_entity.dart';
+import '../../domain/entity/peer_presence_entity.dart';
 
 part 'chat_state.freezed.dart';
 
@@ -12,6 +13,8 @@ abstract class ChatState extends StateBase with _$ChatState {
     @Default(Profile()) Profile me,
     @Default(Profile()) Profile friend,
     @Default([]) List<ChatMessageEntity> messages,
+    PeerPresenceEntity? friendPresence,
+    @Default(false) bool peerIsTyping,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ChatState;
 

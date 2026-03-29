@@ -15,6 +15,7 @@ base mixin WebsocketSubscriptionRouter
     if (payload is Map<String, dynamic>) {
       return switch (message['path']) {
         'p2p_chat' => onP2pChatSubscription(session, payload),
+        'user_presence' => onUserPresenceSubscription(session, payload),
         _ => throw UnsupportedError('Unsupported path'),
       };
     }

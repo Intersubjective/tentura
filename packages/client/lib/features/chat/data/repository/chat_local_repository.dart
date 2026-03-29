@@ -45,19 +45,22 @@ class ChatLocalRepository {
       .filter(
         (f) =>
             (f.senderId(senderId) & f.receiverId(receiverId)) |
-            (f.receiverId(receiverId) & f.senderId(senderId)),
+            (f.senderId(receiverId) & f.receiverId(senderId)),
       )
       .orderBy((o) => o.createdAt.asc())
       .get()
       .then((v) => v.map((e) => (e as ChatMessageLocalModel).toEntity()));
 
   ///
-  /// Get all unseen messages for user from local DB
+  /// Incoming messages not yet marked delivered (seen) by [userId] as receiver.
   ///
   Future<Iterable<ChatMessageEntity>> getAllNewMessagesFor({
     required String userId,
   }) => _database.managers.p2pMessages
-      .filter((f) => f.senderId(userId) & f.status(ChatMessageStatus.sent))
+      .filter(
+        (f) =>
+            f.receiverId(userId) & f.status(ChatMessageStatus.sent),
+      )
       .get()
       .then((v) => v.map((e) => (e as ChatMessageLocalModel).toEntity()));
 
@@ -90,4 +93,13 @@ LIMIT 1;
       )
       .getSingleOrNull()
       .then((r) => r == null ? kZeroAge : r.read('ts'));
+
+  /// Remove a row from local storage only (does not affect server history).
+  Future<void> deleteMessageForMe({
+    required String clientId,
+    required String serverId,
+  }) =>
+      _database.managers.p2pMessages
+          .filter((f) => f.clientId(clientId) & f.serverId(serverId))
+          .delete();
 }

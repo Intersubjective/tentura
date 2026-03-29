@@ -19,15 +19,16 @@ final class WebSocketController extends WebsocketRouterBase {
 
   WebSocketSession handler() => WebSocketSession(
     onClose: (session) {
-      final jwt = removeSession(session);
-      if (jwt != null) {
-        unawaited(
-          userPresenceCase.setStatus(
+      unawaited(() async {
+        final jwt = removeSession(session);
+        if (jwt != null) {
+          await userPresenceCase.setStatus(
             userId: jwt.sub,
             status: UserPresenceStatus.offline,
-          ),
-        );
-      }
+          );
+          await broadcastPresenceForUser(jwt.sub);
+        }
+      }());
     },
     onError: (session, error) async {
       final err = 'Error occurred [$error]';

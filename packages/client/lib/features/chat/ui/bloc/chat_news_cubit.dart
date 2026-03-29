@@ -4,7 +4,10 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/enum.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
+
 import '../../domain/entity/chat_message_entity.dart';
+import '../../domain/entity/peer_presence_entity.dart';
 import '../../domain/use_case/chat_case.dart';
 import 'chat_news_state.dart';
 
@@ -16,8 +19,10 @@ export 'chat_news_state.dart';
 /// Global Cubit
 @singleton
 class ChatNewsCubit extends Cubit<ChatNewsState> {
-  ChatNewsCubit(this._chatCase)
-    : super(
+  ChatNewsCubit(
+    this._chatCase,
+    this._friendsRemoteRepository,
+  ) : super(
         ChatNewsState(
           myId: '',
           messages: {},
@@ -39,9 +44,16 @@ class ChatNewsCubit extends Cubit<ChatNewsState> {
       cancelOnError: false,
       onError: (Object e) => emit(state.copyWith(status: StateHasError(e))),
     );
+    _presenceUpdatesSubscription = _chatCase.presenceUpdates.listen(
+      _onPresenceUpdate,
+      cancelOnError: false,
+      onError: (Object e) => emit(state.copyWith(status: StateHasError(e))),
+    );
   }
 
   final ChatCase _chatCase;
+
+  final FriendsRemoteRepository _friendsRemoteRepository;
 
   late final StreamSubscription<String> _authChanges;
 
@@ -50,12 +62,16 @@ class ChatNewsCubit extends Cubit<ChatNewsState> {
   late final StreamSubscription<Iterable<ChatMessageEntity>>
   _messagesUpdatesSubscription;
 
+  late final StreamSubscription<Iterable<PeerPresenceEntity>>
+  _presenceUpdatesSubscription;
+
   //
   @override
   @disposeMethod
   Future<void> close() async {
     await _authChanges.cancel();
     await _messagesUpdatesSubscription.cancel();
+    await _presenceUpdatesSubscription.cancel();
     await _webSocketStateSubscription.cancel();
     return super.close();
   }
@@ -64,9 +80,21 @@ class ChatNewsCubit extends Cubit<ChatNewsState> {
   //
   Future<void> _onWebSocketStateChanges(WebSocketState wsState) async {
     if (wsState == WebSocketState.connected) {
-      _chatCase.subscribeToUpdates(
-        fromMoment: await _chatCase.getCursor(userId: state.myId),
-      );
+      if (state.myId.isNotEmpty) {
+        _chatCase.subscribeToUpdates(
+          fromMoment: await _chatCase.getCursor(userId: state.myId),
+        );
+        await _subscribePresenceForFriends();
+      }
+    }
+  }
+
+  Future<void> _subscribePresenceForFriends() async {
+    try {
+      final friends = await _friendsRemoteRepository.fetch();
+      _chatCase.subscribePresencePeers(friends.map((e) => e.id).toList());
+    } catch (_) {
+      // Friends fetch is optional for presence; chat still works.
     }
   }
 
@@ -89,21 +117,45 @@ class ChatNewsCubit extends Cubit<ChatNewsState> {
           userId: userId,
         )).forEach(_updateStateWithMessage);
         emit(state.copyWith(status: StateStatus.isSuccess));
+        unawaited(_subscribePresenceForFriends());
       } catch (e) {
         emit(state.copyWith(status: StateHasError(e)));
       }
     }
   }
 
+  void _onPresenceUpdate(Iterable<PeerPresenceEntity> batch) {
+    for (final p in batch) {
+      state.peerPresence[p.userId] = p;
+    }
+    emit(state.copyWith(lastUpdate: DateTime.timestamp()));
+  }
+
   //
   //
   Future<void> _onMessagesUpdate(Iterable<ChatMessageEntity> messages) async {
     if (messages.isNotEmpty) {
-      messages.forEach(_updateStateWithMessage);
+      for (final m in messages) {
+        _updateLastMessageForPeer(m);
+        _updateStateWithMessage(m);
+      }
 
       emit(state.copyWith(lastUpdate: DateTime.timestamp()));
 
       await _chatCase.saveMessages(messages: messages);
+    }
+  }
+
+  void _updateLastMessageForPeer(ChatMessageEntity message) {
+    if (state.myId.isEmpty) {
+      return;
+    }
+    final peerId = message.senderId == state.myId
+        ? message.receiverId
+        : message.senderId;
+    final existing = state.lastMessageByPeerId[peerId];
+    if (existing == null || message.createdAt.isAfter(existing.createdAt)) {
+      state.lastMessageByPeerId[peerId] = message;
     }
   }
 

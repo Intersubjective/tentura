@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
 
@@ -36,6 +37,9 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showComplaint(String id) =>
       emit(state.navigateTo('$kPathComplaint/$id'));
+
+  void showMessaging(LocalizableMessage message) =>
+      emit(ScreenState(status: StateIsMessaging(message)));
 }
 
 class ScreenState extends StateBase {

@@ -834,5 +834,58 @@
       "author": { "type": "String" },
       "content": { "type": "String" }
     }
+  },
+  "chatPresenceTyping": "Печатает…",
+  "@chatPresenceTyping": {
+    "context": "Chat"
+  },
+  "chatPresenceOnline": "В сети",
+  "@chatPresenceOnline": {
+    "context": "Chat"
+  },
+  "chatPresenceLastSeenJustNow": "Был(а) только что",
+  "@chatPresenceLastSeenJustNow": {
+    "context": "Chat"
+  },
+  "chatPresenceLastSeenMinutes": "Был(а) {minutes} мин. назад",
+  "@chatPresenceLastSeenMinutes": {
+    "context": "Chat",
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "chatPresenceLastSeenHours": "Был(а) {hours} ч назад",
+  "@chatPresenceLastSeenHours": {
+    "context": "Chat",
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  },
+  "chatPresenceLastSeenDays": "Был(а) {days} дн. назад",
+  "@chatPresenceLastSeenDays": {
+    "context": "Chat",
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "chatMessageCopy": "Копировать",
+  "@chatMessageCopy": {
+    "context": "Chat"
+  },
+  "chatMessageDeleteForMe": "Удалить у меня",
+  "@chatMessageDeleteForMe": {
+    "context": "Chat"
+  },
+  "chatMessageRetry": "Повторить",
+  "@chatMessageRetry": {
+    "context": "Chat"
+  },
+  "chatMenuClearChat": "Очистить чат",
+  "@chatMenuClearChat": {
+    "context": "Chat"
+  },
+  "chatClearConfirmTitle": "Удалить все сообщения в этом чате?",
+  "@chatClearConfirmTitle": {
+    "context": "Chat"
   }
 }
