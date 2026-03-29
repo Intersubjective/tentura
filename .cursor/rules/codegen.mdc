@@ -7,6 +7,7 @@ alwaysApply: true
 This project uses multiple code generators that work together. Always run `dart run build_runner build -d` after making changes that require codegen.
 
 **Related Documents:**
+- `DEV_GUIDELINES.md` (repository root) - Conventions when planning UI and async-loaded screens
 - `architecture.mdc` - Clean Architecture and SOLID principles
 - `advanced-patterns.mdc` - Advanced patterns using codegen outputs
 - `quick-reference.mdc` - One-line rules (always applied)
