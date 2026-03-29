@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
+
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../../data/repository/my_work_repository.dart';
@@ -14,14 +18,26 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     String initialContext = '',
     MyWorkRepository? repository,
     ProfileCubit? profileCubit,
+    BeaconRepository? beaconRepository,
   }) : _repository = repository ?? GetIt.I<MyWorkRepository>(),
        _profileCubit = profileCubit ?? GetIt.I<ProfileCubit>(),
        super(const MyWorkState()) {
+    _beaconChanges = (beaconRepository ?? GetIt.I<BeaconRepository>())
+        .changes
+        .listen(_onBeaconChanged, cancelOnError: false);
     unawaited(fetch(initialContext));
   }
 
   final MyWorkRepository _repository;
   final ProfileCubit _profileCubit;
+
+  late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
+
+  @override
+  Future<void> close() async {
+    await _beaconChanges.cancel();
+    return super.close();
+  }
 
   Future<void> fetch([String? contextName]) async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -48,4 +64,16 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   void setFilter(MyWorkFilter filter) {
     emit(state.copyWith(filter: filter));
   }
+
+  void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
+    RepositoryEventUpdate<Beacon>(value: final b) => emit(state.copyWith(
+      authored: [for (final a in state.authored) a.id == b.id ? b : a],
+      committed: [for (final c in state.committed) c.id == b.id ? b : c],
+    )),
+    RepositoryEventDelete<Beacon>(value: final b) => emit(state.copyWith(
+      authored: state.authored.where((e) => e.id != b.id).toList(),
+      committed: state.committed.where((e) => e.id != b.id).toList(),
+    )),
+    _ => null,
+  };
 }

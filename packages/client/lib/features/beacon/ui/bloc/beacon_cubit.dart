@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/auth/data/repository/auth_local_repository.dart';
@@ -28,11 +30,24 @@ class BeaconCubit extends Cubit<BeaconState> {
            beacons: [],
            profileId: profileId,
          ),
-       );
+       ) {
+    _beaconChanges = _beaconRepository.changes.listen(
+      _onBeaconChanged,
+      cancelOnError: false,
+    );
+  }
 
   final BeaconRepository _beaconRepository;
 
   final AuthLocalRepository _authLocalRepository;
+
+  late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
+
+  @override
+  Future<void> close() async {
+    await _beaconChanges.cancel();
+    return super.close();
+  }
 
   Future<void> fetch() async {
     if (state.hasReachedLast || state.status is StateIsLoading) {
@@ -73,32 +88,15 @@ class BeaconCubit extends Cubit<BeaconState> {
     }
   }
 
-  Future<void> delete(String beaconId) async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      await _beaconRepository.delete(beaconId);
-      state.beacons.removeWhere((e) => e.id == beaconId);
-      emit(state.copyWith(status: StateStatus.isSuccess));
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
-
-  Future<void> toggleEnabled(String beaconId) async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      final beaconIndex = state.beacons.indexWhere((e) => e.id == beaconId);
-      final beacon = state.beacons[beaconIndex];
-      await _beaconRepository.setEnabled(
-        !beacon.isEnabled,
-        id: beacon.id,
-      );
-      state.beacons[beaconIndex] = beacon.copyWith(
-        isEnabled: !beacon.isEnabled,
-      );
-      emit(state.copyWith(status: StateStatus.isSuccess));
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
+    RepositoryEventUpdate<Beacon>(value: final b) => emit(state.copyWith(
+      beacons: [for (final e in state.beacons) e.id == b.id ? b : e],
+      status: StateStatus.isSuccess,
+    )),
+    RepositoryEventDelete<Beacon>(value: final b) => emit(state.copyWith(
+      beacons: state.beacons.where((e) => e.id != b.id).toList(),
+      status: StateStatus.isSuccess,
+    )),
+    _ => null,
+  };
 }
