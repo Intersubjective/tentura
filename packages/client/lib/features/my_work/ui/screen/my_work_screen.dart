@@ -79,7 +79,8 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
           // Beacons list
           Expanded(
             child: BlocBuilder<MyWorkCubit, MyWorkState>(
-              buildWhen: (_, c) => c.isSuccess || c.isLoading,
+              buildWhen: (_, c) =>
+                  c.isSuccess || c.isLoading || c.hasError,
               builder: (_, state) {
                 if (state.isLoading) {
                   return const Center(

@@ -26,8 +26,8 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
               lat: double.tryParse(i.lat?.value ?? '') ?? 0,
               long: double.tryParse(i.long?.value ?? '') ?? 0,
             ),
-      rScore: double.tryParse(i.scores?.first.src_score?.value ?? '') ?? 0,
-      score: double.tryParse(i.scores?.first.dst_score?.value ?? '') ?? 0,
+      rScore: double.tryParse(i.scores?.firstOrNull?.src_score?.value ?? '') ?? 0,
+      score: double.tryParse(i.scores?.firstOrNull?.dst_score?.value ?? '') ?? 0,
       polling: (i.polling as PollingModel?)?.toEntity(author: author),
       image: (i.image as ImageModel?)?.asEntity ?? image?.asEntity,
       tags: {

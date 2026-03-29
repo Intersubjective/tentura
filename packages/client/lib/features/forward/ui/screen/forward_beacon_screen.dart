@@ -41,7 +41,7 @@ class ForwardBeaconScreen extends StatelessWidget
         title: Text(l10n.forwardBeaconTitle),
       ),
       body: BlocBuilder<ForwardCubit, ForwardState>(
-        buildWhen: (_, c) => c.isSuccess || c.isLoading,
+        buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
         builder: (_, state) {
           if (state.isLoading && state.candidates.isEmpty) {
             return const Center(

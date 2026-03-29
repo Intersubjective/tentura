@@ -113,7 +113,8 @@ class MyFieldScreen extends StatelessWidget implements AutoRouteWrapper {
           Expanded(
             child: BlocBuilder<MyFieldCubit, MyFieldState>(
               bloc: myFieldCubit,
-              buildWhen: (_, c) => c.isSuccess || c.isLoading,
+              buildWhen: (_, c) =>
+                  c.isSuccess || c.isLoading || c.hasError,
               builder: (_, state) => state.isLoading
                   ? const Center(
                       child: CircularProgressIndicator.adaptive(),

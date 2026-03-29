@@ -24,14 +24,19 @@ class App extends StatelessWidget {
     FlutterNativeSplash.preserve(
       widgetsBinding: WidgetsFlutterBinding.ensureInitialized(),
     );
-    if (kIsWeb) {
-      SemanticsBinding.instance.ensureSemantics();
-    }
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
     await configureDependencies();
     FlutterNativeSplash.remove();
+    // Web: do not call ensureSemantics() before the first frame — it can schedule
+    // semantics work while the root is not yet laid out, leading to
+    // "Cannot hit test a render box that has never been laid out" on pointer events.
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        SemanticsBinding.instance.ensureSemantics();
+      });
+    }
     runApp(
       const Globals(
         child: LifecycleHandler(
