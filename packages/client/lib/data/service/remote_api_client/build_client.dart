@@ -64,20 +64,29 @@ Future<Client> buildClient({
   );
 }
 
-/// Routes requests with file uploads to [fileUploadLink], everything else
-/// to [defaultLink]. Mirrors the content-type split that Caddy does in
-/// production between Hasura (v1) and Tentura (v2).
+/// Routes requests with file uploads or selected Tentura-only operations to
+/// [fileUploadLink] (v2). Everything else goes to [defaultLink] (v1 / Hasura).
+///
+/// Mutations implemented only on Tentura must hit v2 directly: Hasura remote
+/// schema forwarding can mangle list arguments (e.g. `beaconForward.recipientIds`).
+/// Mirrors the content-type split that Caddy does in production between Hasura
+/// (v1) and Tentura (v2).
 class _FileRoutingLink extends Link {
   _FileRoutingLink({required this.defaultLink, required this.fileUploadLink});
 
   final Link defaultLink;
   final Link fileUploadLink;
 
+  /// Operation names that must use Tentura's `/api/v2/graphql` (not Hasura v1).
+  static const _tenturaDirectOperationNames = {'ForwardBeacon'};
+
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
-    return _hasFiles(request.variables)
-        ? fileUploadLink.request(request, forward)
-        : defaultLink.request(request, forward);
+    if (_hasFiles(request.variables) ||
+        _tenturaDirectOperationNames.contains(request.operation.operationName)) {
+      return fileUploadLink.request(request, forward);
+    }
+    return defaultLink.request(request, forward);
   }
 
   static bool _hasFiles(Map<String, dynamic> vars) {

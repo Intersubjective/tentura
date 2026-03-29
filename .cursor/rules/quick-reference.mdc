@@ -122,6 +122,7 @@ One-line rules for quick lookup. See detailed files for explanations.
 - Packages: `client/`, `server/`, `widgetbook/`
 - Packages depend on root, not each other
 - Independent versioning per package
+- Bump **patch** for bug fixes; **minor** for new features; **major** for breaking changes (semver)
 
 ## Constants & Utilities
 - Use `k*` prefix for constants (kPathHome, kPaddingSmallH, kSpacingMedium)
@@ -134,6 +135,18 @@ One-line rules for quick lookup. See detailed files for explanations.
 - Use `wrappedRoute()` to wrap with `BlocProvider`/`MultiBlocProvider`
 - Use `commonScreenBlocListener` in `BlocListener` for standard behavior
 - Access BLoC via `GetIt.I<>()` or `context.read<>()` in build method
+
+## Server GraphQL (graphql_schema2)
+- NEVER call `.nonNullable()` on `GraphQLListType` -- triggers library bug, see `packages/server/WORKAROUNDS.md` §2
+- Nullable scalar arguments + null values crash validation -- workaround in `_NullSafeGraphQL`, see `packages/server/WORKAROUNDS.md` §1
+- Use `GraphQLListType(innerType.nonNullable())` for `[T!]` arguments; enforce list non-null in `fromArgs`
+- Define list arguments as `InputField*` classes (pattern: `input_field_*.dart` as `part of '_input_types.dart'`) with `field` + `fromArgs` like `InputFieldPolling`
+- `fromArgs` handles `List<String>.from(args[key]! as List)` -- safe cast at the resolver layer
+- NEVER add field-name-specific coercion hacks in `graphql_controller.dart`; fix at the type definition layer
+
+## Library Bug Workarounds
+- When a bug is **proven** to be in a third-party library, **cannot** be fixed by upgrading, and requires a workaround: document it in the relevant package's `WORKAROUNDS.md` and add a one-line pointer here
+- When touching code that may trigger a documented workaround, read the corresponding `WORKAROUNDS.md` section first
 
 ## Rule Maintenance
 - If you observe significant architectural patterns in the codebase that contradict these rules, notify the user
