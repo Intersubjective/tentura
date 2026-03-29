@@ -834,5 +834,58 @@
       "author": { "type": "String" },
       "content": { "type": "String" }
     }
+  },
+  "chatPresenceTyping": "Typing…",
+  "@chatPresenceTyping": {
+    "context": "Chat"
+  },
+  "chatPresenceOnline": "Online",
+  "@chatPresenceOnline": {
+    "context": "Chat"
+  },
+  "chatPresenceLastSeenJustNow": "Last seen just now",
+  "@chatPresenceLastSeenJustNow": {
+    "context": "Chat"
+  },
+  "chatPresenceLastSeenMinutes": "Last seen {minutes}m ago",
+  "@chatPresenceLastSeenMinutes": {
+    "context": "Chat",
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "chatPresenceLastSeenHours": "Last seen {hours}h ago",
+  "@chatPresenceLastSeenHours": {
+    "context": "Chat",
+    "placeholders": {
+      "hours": { "type": "int" }
+    }
+  },
+  "chatPresenceLastSeenDays": "Last seen {days}d ago",
+  "@chatPresenceLastSeenDays": {
+    "context": "Chat",
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "chatMessageCopy": "Copy",
+  "@chatMessageCopy": {
+    "context": "Chat"
+  },
+  "chatMessageDeleteForMe": "Delete for me",
+  "@chatMessageDeleteForMe": {
+    "context": "Chat"
+  },
+  "chatMessageRetry": "Retry",
+  "@chatMessageRetry": {
+    "context": "Chat"
+  },
+  "chatMenuClearChat": "Clear chat",
+  "@chatMenuClearChat": {
+    "context": "Chat"
+  },
+  "chatClearConfirmTitle": "Are you sure you want to delete all messages from this chat?",
+  "@chatClearConfirmTitle": {
+    "context": "Chat"
   }
 }

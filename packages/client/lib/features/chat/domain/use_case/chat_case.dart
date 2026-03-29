@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:uuid/uuid.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
@@ -12,11 +11,13 @@ import 'package:tentura/features/profile/data/repository/profile_repository.dart
 import '../../data/repository/chat_local_repository.dart';
 import '../../data/repository/chat_remote_repository.dart';
 import '../entity/chat_message_entity.dart';
+import '../entity/peer_presence_entity.dart';
 
 export 'package:tentura/data/service/remote_api_client/enum.dart';
 
 typedef MessageAck = ({String clientId, String serverId, DateTime createdAt});
 typedef HistoryResponse = ({Iterable<ChatMessageEntity> messages, bool hasMore});
+typedef TypingEvent = ({String senderId, String receiverId});
 
 @singleton
 final class ChatCase extends UseCaseBase {
@@ -51,6 +52,12 @@ final class ChatCase extends UseCaseBase {
   Stream<HistoryResponse> get historyResponses =>
       _chatRemoteRepository.historyResponses;
 
+  Stream<Iterable<PeerPresenceEntity>> get presenceUpdates =>
+      _chatRemoteRepository.presenceUpdates;
+
+  Stream<TypingEvent> get typingUpdates =>
+      _chatRemoteRepository.typingUpdates;
+
   Future<String> getCurrentAccountId() =>
       _authLocalRepository.getCurrentAccountId();
 
@@ -68,12 +75,24 @@ final class ChatCase extends UseCaseBase {
     );
   }
 
+  void subscribePresencePeers(List<String> peerIds) {
+    if (peerIds.isEmpty) {
+      return;
+    }
+    logger.fine('[ChatCase] Subscribe presence for ${peerIds.length} peers.');
+    _chatRemoteRepository.subscribePresencePeers(peerIds);
+  }
+
+  void sendTyping({required String receiverId}) =>
+      _chatRemoteRepository.sendTyping(receiverId: receiverId);
+
   Future<void> sendMessage({
     required String receiverId,
+    required String clientId,
     required String content,
   }) => _chatRemoteRepository.sendMessage(
     receiverId: receiverId,
-    clientId: const Uuid().v4(),
+    clientId: clientId,
     content: content,
   );
 
@@ -117,5 +136,13 @@ final class ChatCase extends UseCaseBase {
     required Iterable<ChatMessageEntity> messages,
   }) => _chatLocalRepository.saveMessages(
     messages: messages,
+  );
+
+  Future<void> deleteMessageLocally({
+    required String clientId,
+    required String serverId,
+  }) => _chatLocalRepository.deleteMessageForMe(
+    clientId: clientId,
+    serverId: serverId,
   );
 }

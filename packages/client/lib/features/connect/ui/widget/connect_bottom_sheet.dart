@@ -123,8 +123,14 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
     ),
   );
 
-  Future<void> _getCodeFromClipboard() async =>
-      _inputController.text = await GetIt.I<AuthCubit>().getCodeFromClipboard();
+  Future<void> _getCodeFromClipboard() async {
+    final code = await GetIt.I<AuthCubit>().getCodeFromClipboard();
+    if (!mounted) return;
+    _inputController.text = code;
+    if (code.length == kIdLength && code.startsWith('I')) {
+      await _goWithCode(code);
+    }
+  }
 
   Future<void> _goWithCode(String code) async {
     if (code.length != kIdLength) {

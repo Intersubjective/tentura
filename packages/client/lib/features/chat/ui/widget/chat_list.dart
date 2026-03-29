@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -18,6 +21,8 @@ class ChatList extends StatefulWidget {
 class _ChatListState extends State<ChatList> {
   final _inputController = TextEditingController();
 
+  final _inputFocusNode = FocusNode();
+
   final _itemScrollController = ItemScrollController();
 
   final _scrollOffsetController = ScrollOffsetController();
@@ -33,6 +38,7 @@ class _ChatListState extends State<ChatList> {
   @override
   void dispose() {
     _itemPositionsListener.itemPositions.removeListener(_onPositionsChanged);
+    _inputFocusNode.dispose();
     _inputController.dispose();
     super.dispose();
   }
@@ -49,6 +55,21 @@ class _ChatListState extends State<ChatList> {
     if (maxIndex >= chatCubit.state.messages.length - 1) {
       chatCubit.loadMoreHistory();
     }
+  }
+
+  bool _isEnterKey(LogicalKeyboardKey key) =>
+      key == LogicalKeyboardKey.enter ||
+      key == LogicalKeyboardKey.numpadEnter;
+
+  Future<void> _sendMessage() async {
+    final chatCubit = context.read<ChatCubit>();
+    FocusScope.of(context).unfocus();
+    await chatCubit.onSendPressed(_inputController.text);
+    _inputController.clear();
+    await _scrollOffsetController.animateScroll(
+      duration: const Duration(microseconds: 500),
+      offset: 1,
+    );
   }
 
   @override
@@ -86,30 +107,41 @@ class _ChatListState extends State<ChatList> {
         // Input
         Padding(
           padding: kPaddingAllS,
-          child: TextField(
-            controller: _inputController,
-            decoration: InputDecoration(
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(32)),
+          child: Focus(
+            focusNode: _inputFocusNode,
+            onKeyEvent: (node, event) {
+              if (event is! KeyDownEvent) {
+                return KeyEventResult.ignored;
+              }
+              if (!_isEnterKey(event.logicalKey)) {
+                return KeyEventResult.ignored;
+              }
+              if (HardwareKeyboard.instance.isShiftPressed) {
+                return KeyEventResult.ignored;
+              }
+              unawaited(_sendMessage());
+              return KeyEventResult.handled;
+            },
+            child: TextField(
+              focusNode: _inputFocusNode,
+              controller: _inputController,
+              onChanged: (value) =>
+                  context.read<ChatCubit>().onComposerTextChanged(value),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(32)),
+                ),
+                filled: true,
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: () => unawaited(_sendMessage()),
+                ),
               ),
-              filled: true,
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.send),
-                onPressed: () async {
-                  FocusScope.of(context).unfocus();
-                  await chatCubit.onSendPressed(_inputController.text);
-                  _inputController.clear();
-                  await _scrollOffsetController.animateScroll(
-                    duration: const Duration(microseconds: 500),
-                    offset: 1,
-                  );
-                },
-              ),
+              keyboardType: TextInputType.multiline,
+              maxLines: 5,
+              minLines: 1,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
             ),
-            keyboardType: TextInputType.multiline,
-            maxLines: 5,
-            minLines: 1,
-            onTapOutside: (_) => FocusScope.of(context).unfocus(),
           ),
         ),
       ],

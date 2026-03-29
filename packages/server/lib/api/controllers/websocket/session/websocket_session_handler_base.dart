@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:logging/logging.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
@@ -7,6 +9,7 @@ import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/entity/user_presence_entity.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/user_presence_case.dart';
 
@@ -35,6 +38,9 @@ base class WebsocketSessionHandlerBase {
   /// Reverse index: userId -> set of WebSocket sessions for that user.
   final _sessionsByUserId = <String, Set<WebSocketSession>>{};
 
+  /// Per session: peer user ids this client wants presence updates for.
+  final _presencePeerIdsBySession = <WebSocketSession, Set<String>>{};
+
   /// Returns all active sessions for a given userId (possibly empty).
   Set<WebSocketSession> getSessionsByUserId(String userId) =>
       _sessionsByUserId[userId] ?? const {};
@@ -51,6 +57,7 @@ base class WebsocketSessionHandlerBase {
 
   JwtEntity? removeSession(WebSocketSession session) {
     final removedSession = _sessions.remove(session);
+    _presencePeerIdsBySession.remove(session);
     if (removedSession != null) {
       removedSession.cancel();
       final userId = removedSession.jwt.sub;
@@ -63,6 +70,82 @@ base class WebsocketSessionHandlerBase {
       }
     }
     return removedSession?.jwt;
+  }
+
+  void setPresenceWatchPeers(
+    WebSocketSession session,
+    Set<String> peerIds,
+  ) {
+    _presencePeerIdsBySession[session] = {
+      ...?_presencePeerIdsBySession[session],
+      ...peerIds,
+    };
+  }
+
+  Iterable<WebSocketSession> _sessionsWatchingUser(String userId) sync* {
+    for (final e in _presencePeerIdsBySession.entries) {
+      if (e.value.contains(userId)) {
+        yield e.key;
+      }
+    }
+  }
+
+  Map<String, dynamic> _presenceEventJson(UserPresenceEntity e) => {
+    'user_id': e.userId,
+    'status': e.status.name,
+    'last_seen_at': e.lastSeenAt.toIso8601String(),
+  };
+
+  UserPresenceEntity _defaultPresence(String userId) => UserPresenceEntity(
+    userId: userId,
+    status: UserPresenceStatus.unknown,
+    lastSeenAt: DateTime.fromMillisecondsSinceEpoch(0),
+    lastNotifiedAt: DateTime.fromMillisecondsSinceEpoch(0),
+    offlineAfterDelay: env.chatStatusOfflineAfterDelay,
+  );
+
+  /// Sends current presence for [peerIds] to [session] and registers the watch list.
+  Future<void> sendPresenceSnapshotForPeers(
+    WebSocketSession session,
+    List<String> peerIds,
+  ) async {
+    getJwtBySession(session);
+    setPresenceWatchPeers(session, peerIds.toSet());
+    final events = <Map<String, dynamic>>[];
+    for (final id in peerIds) {
+      final entity = await userPresenceCase.get(id) ?? _defaultPresence(id);
+      events.add(_presenceEventJson(entity));
+    }
+    if (events.isEmpty) {
+      return;
+    }
+    session.send(
+      jsonEncode({
+        'type': 'subscription',
+        'path': 'user_presence',
+        'payload': {
+          'intent': 'watch_updates',
+          'events': events,
+        },
+      }),
+    );
+  }
+
+  /// Fan-out presence for [userId] to all sessions that subscribed to that peer.
+  Future<void> broadcastPresenceForUser(String userId) async {
+    final entity =
+        await userPresenceCase.get(userId) ?? _defaultPresence(userId);
+    final json = jsonEncode({
+      'type': 'subscription',
+      'path': 'user_presence',
+      'payload': {
+        'intent': 'watch_updates',
+        'events': [_presenceEventJson(entity)],
+      },
+    });
+    for (final s in _sessionsWatchingUser(userId)) {
+      s.send(json);
+    }
   }
 
   JwtEntity getJwtBySession(WebSocketSession session) =>
@@ -103,6 +186,7 @@ base class WebsocketSessionHandlerBase {
           userId: jwt.sub,
           status: UserPresenceStatus.online,
         );
+        await broadcastPresenceForUser(jwt.sub);
         logger.info(
           '[WebsocketSessionHandlerBase] Start session: [${jwt.sub}]',
         );
@@ -115,6 +199,7 @@ base class WebsocketSessionHandlerBase {
             userId: jwt.sub,
             status: UserPresenceStatus.offline,
           );
+          await broadcastPresenceForUser(jwt.sub);
           logger.info(
             '[WebsocketSessionHandlerBase] Stop session: [${jwt.sub}]',
           );

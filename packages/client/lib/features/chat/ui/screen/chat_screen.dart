@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -10,6 +10,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import '../bloc/chat_cubit.dart';
 import '../dialog/on_chat_clear_dialog.dart';
 import '../widget/chat_list.dart';
+import '../widget/peer_presence_subtitle.dart';
 
 @RoutePage()
 class ChatScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -39,26 +40,55 @@ class ChatScreen extends StatelessWidget implements AutoRouteWrapper {
         onPressed: () async =>
             AutoRouter.of(context).navigatePath(kPathNetwork),
       ),
-      title: BlocSelector<ChatCubit, ChatState, Profile>(
-        selector: (state) => state.friend,
-        builder: (_, profile) => Row(
-          children: [
-            AvatarRated(
-              profile: profile,
-              size: 32,
-            ),
-            Expanded(
-              child: Padding(
-                padding: kPaddingH,
-                child: Text(
-                  profile.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+      title: BlocBuilder<ChatCubit, ChatState>(
+        buildWhen: (p, c) =>
+            p.friend != c.friend ||
+            p.friendPresence != c.friendPresence ||
+            p.peerIsTyping != c.peerIsTyping,
+        builder: (context, state) {
+          final theme = Theme.of(context);
+          final l10n = L10n.of(context)!;
+          final profile = state.friend;
+          final subtitle = peerPresenceSubtitle(
+            l10n: l10n,
+            presence: state.friendPresence,
+            isTyping: state.peerIsTyping,
+          );
+          return Row(
+            children: [
+              AvatarRated(
+                profile: profile,
+                size: 32,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: kPaddingH,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        profile.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      if (subtitle.isNotEmpty)
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
       actions: [
         PopupMenuButton<void>(
@@ -70,13 +100,13 @@ class ChatScreen extends StatelessWidget implements AutoRouteWrapper {
                     // TBD: remove when implemented
                     showSnackBar(
                       context,
-                      text: 'Not implemented yet...',
+                      text: L10n.of(context)!.notImplementedYet,
                     );
                     await context.read<ChatCubit>().onChatClear();
                   }
                 }
               },
-              child: const Text('Clear chat'),
+              child: Text(L10n.of(context)!.chatMenuClearChat),
             ),
           ],
         ),

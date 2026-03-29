@@ -1,6 +1,7 @@
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/chat_message_entity.dart';
+import '../../domain/entity/peer_presence_entity.dart';
 
 part 'chat_news_state.freezed.dart';
 
@@ -10,6 +11,8 @@ abstract class ChatNewsState extends StateBase with _$ChatNewsState {
     required String myId,
     required DateTime lastUpdate,
     required Map<String, List<ChatMessageEntity>> messages,
+    @Default({}) Map<String, PeerPresenceEntity> peerPresence,
+    @Default({}) Map<String, ChatMessageEntity> lastMessageByPeerId,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ChatNewsState;
 

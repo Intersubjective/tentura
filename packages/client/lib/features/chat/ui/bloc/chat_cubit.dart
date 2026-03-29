@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/chat_message_entity.dart';
+import '../../domain/entity/peer_presence_entity.dart';
 import '../../domain/use_case/chat_case.dart';
 import 'chat_state.dart';
 
@@ -39,6 +40,12 @@ class ChatCubit extends Cubit<ChatState> {
   late final StreamSubscription<ChatMessageEntity> _updatesSubscription;
   late final StreamSubscription<MessageAck> _ackSubscription;
   late final StreamSubscription<HistoryResponse> _historySubscription;
+  late final StreamSubscription<PeerPresenceEntity> _presenceSubscription;
+  late final StreamSubscription<TypingEvent> _typingSubscription;
+
+  Timer? _typingHideTimer;
+
+  Timer? _typingSendDebounce;
 
   bool _isLoadingHistory = false;
   bool _hasMoreHistory = true;
@@ -50,7 +57,28 @@ class ChatCubit extends Cubit<ChatState> {
     await _updatesSubscription.cancel();
     await _ackSubscription.cancel();
     await _historySubscription.cancel();
+    await _presenceSubscription.cancel();
+    await _typingSubscription.cancel();
+    _typingHideTimer?.cancel();
+    _typingSendDebounce?.cancel();
     return super.close();
+  }
+
+  /// Debounced outgoing typing indicator to the peer.
+  void onComposerTextChanged(String text) {
+    if (state.friend.id.isEmpty || state.me.id.isEmpty) {
+      return;
+    }
+    if (text.trim().isEmpty) {
+      return;
+    }
+    _typingSendDebounce?.cancel();
+    _typingSendDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (isClosed) {
+        return;
+      }
+      _chatCase.sendTyping(receiverId: state.friend.id);
+    });
   }
 
   Future<void> onSendPressed(String text) async {
@@ -73,12 +101,40 @@ class ChatCubit extends Cubit<ChatState> {
     try {
       await _chatCase.sendMessage(
         receiverId: state.friend.id,
+        clientId: clientId,
         content: content,
       );
     } catch (e) {
       final idx = state.messages.indexWhere((m) => m.clientId == clientId);
       if (idx >= 0) {
         state.messages[idx] = state.messages[idx].copyWith(
+          status: ChatMessageStatus.error,
+        );
+        emit(state.copyWith(status: StateHasError(e)));
+      }
+    }
+  }
+
+  /// Resend a failed outgoing message (same [clientId] and content).
+  Future<void> onRetrySend(String clientId) async {
+    final idx = state.messages.indexWhere((m) => m.clientId == clientId);
+    if (idx < 0) return;
+    final m = state.messages[idx];
+    if (m.status != ChatMessageStatus.error) return;
+
+    state.messages[idx] = m.copyWith(status: ChatMessageStatus.sending);
+    emit(state.copyWith(lastUpdate: DateTime.timestamp()));
+
+    try {
+      await _chatCase.sendMessage(
+        receiverId: state.friend.id,
+        clientId: clientId,
+        content: m.content,
+      );
+    } catch (e) {
+      final i = state.messages.indexWhere((x) => x.clientId == clientId);
+      if (i >= 0) {
+        state.messages[i] = state.messages[i].copyWith(
           status: ChatMessageStatus.error,
         );
         emit(state.copyWith(status: StateHasError(e)));
@@ -108,6 +164,58 @@ class ChatCubit extends Cubit<ChatState> {
 
   // TBD
   Future<void> onChatClear() async {}
+
+  Future<void> deleteMessageForMe(ChatMessageEntity message) async {
+    try {
+      await _chatCase.deleteMessageLocally(
+        clientId: message.clientId,
+        serverId: message.serverId,
+      );
+      state.messages.removeWhere(
+        (m) =>
+            m.clientId == message.clientId && m.serverId == message.serverId,
+      );
+      emit(state.copyWith(lastUpdate: DateTime.timestamp()));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  void _onPresenceEvent(PeerPresenceEntity p) {
+    if (p.userId != state.friend.id) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        friendPresence: p,
+        lastUpdate: DateTime.timestamp(),
+      ),
+    );
+  }
+
+  void _onTypingEvent(TypingEvent e) {
+    if (e.senderId != state.friend.id || e.receiverId != state.me.id) {
+      return;
+    }
+    _typingHideTimer?.cancel();
+    emit(
+      state.copyWith(
+        peerIsTyping: true,
+        lastUpdate: DateTime.timestamp(),
+      ),
+    );
+    _typingHideTimer = Timer(const Duration(seconds: 3), () {
+      if (isClosed) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          peerIsTyping: false,
+          lastUpdate: DateTime.timestamp(),
+        ),
+      );
+    });
+  }
 
   Future<String> _init() async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -144,6 +252,22 @@ class ChatCubit extends Cubit<ChatState> {
         },
       );
 
+      _presenceSubscription = _chatCase.presenceUpdates
+          .expand((e) => e)
+          .listen(
+            _onPresenceEvent,
+            cancelOnError: false,
+            onError: (Object e) =>
+                emit(state.copyWith(status: StateHasError(e))),
+          );
+
+      _typingSubscription = _chatCase.typingUpdates.listen(
+        _onTypingEvent,
+        cancelOnError: false,
+        onError: (Object e) =>
+            emit(state.copyWith(status: StateHasError(e))),
+      );
+
       emit(
         ChatState(
           me: Profile(id: myId),
@@ -151,6 +275,7 @@ class ChatCubit extends Cubit<ChatState> {
           lastUpdate: DateTime.timestamp(),
         ),
       );
+      _chatCase.subscribePresencePeers([state.friend.id]);
       return myId;
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));

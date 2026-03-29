@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 import '../../domain/entity/chat_message_entity.dart';
+import '../../domain/entity/peer_presence_entity.dart';
 import '../model/chat_message_remote_model.dart';
 
 @singleton
@@ -37,6 +39,60 @@ class ChatRemoteRepository {
       )
       .asBroadcastStream();
 
+  /// Peer presence batches from `user_presence` subscription.
+  late final presenceUpdates = _remoteApiService.webSocketMessages
+      .where(
+        (e) =>
+            e['type'] == 'subscription' &&
+            e['path'] == 'user_presence' &&
+            e['payload'] is Map<String, dynamic> &&
+            // ignore: avoid_dynamic_calls // temporary
+            e['payload']['intent'] == 'watch_updates' &&
+            // ignore: avoid_dynamic_calls // temporary
+            e['payload']['events'] is List<dynamic>,
+      )
+      // ignore: avoid_dynamic_calls // temporary
+      .map((e) => e['payload']['events'] as List<dynamic>)
+      .map(
+        (list) => list.map((raw) {
+          final m = raw as Map<String, dynamic>;
+          final statusName = m['status'] as String? ?? 'unknown';
+          return PeerPresenceEntity(
+            userId: m['user_id']! as String,
+            status: UserPresenceStatus.values.firstWhere(
+              (s) => s.name == statusName,
+              orElse: () => UserPresenceStatus.unknown,
+            ),
+            lastSeenAt: DateTime.parse(m['last_seen_at']! as String),
+          );
+        }),
+      )
+      .asBroadcastStream();
+
+  /// Stream of typing notifications (`p2p_chat` intent `typing`).
+  late final typingUpdates = _remoteApiService.webSocketMessages
+      .where(
+        (e) =>
+            e['type'] == 'subscription' &&
+            e['path'] == 'p2p_chat' &&
+            e['payload'] is Map<String, dynamic> &&
+            // ignore: avoid_dynamic_calls // temporary
+            e['payload']['intent'] == 'typing',
+      )
+      .map((e) {
+        // ignore: avoid_dynamic_calls // temporary
+        final msg = e['payload']['message'] as Map<String, dynamic>?;
+        if (msg == null) {
+          return (senderId: '', receiverId: '');
+        }
+        return (
+          senderId: msg['sender_id']! as String,
+          receiverId: msg['receiver_id']! as String,
+        );
+      })
+      .where((e) => e.senderId.isNotEmpty && e.receiverId.isNotEmpty)
+      .asBroadcastStream();
+
   /// Stream of send-message acknowledgements from the server, containing
   /// server-assigned serverId and createdAt for optimistic messages.
   late final messageAcks = _remoteApiService.webSocketMessages
@@ -45,7 +101,7 @@ class ChatRemoteRepository {
             e['type'] == 'message_ack' &&
             e['path'] == 'p2p_chat' &&
             e['payload'] is Map<String, dynamic> &&
-            // ignore: avoid_dynamic_calls
+            // ignore: avoid_dynamic_calls // temporary
             e['payload']['intent'] == 'send_message',
       )
       .map((e) => e['payload'] as Map<String, dynamic>)
@@ -65,7 +121,7 @@ class ChatRemoteRepository {
             e['type'] == 'message_ack' &&
             e['path'] == 'p2p_chat' &&
             e['payload'] is Map<String, dynamic> &&
-            // ignore: avoid_dynamic_calls
+            // ignore: avoid_dynamic_calls // temporary
             e['payload']['intent'] == 'fetch_history',
       )
       .map((e) => e['payload'] as Map<String, dynamic>)
@@ -83,6 +139,20 @@ class ChatRemoteRepository {
 
   Stream<WebSocketState> get webSocketState => _remoteApiService.webSocketState;
 
+  void subscribePresencePeers(List<String> peerIds) =>
+      _remoteApiService.webSocketSend(
+        jsonEncode({
+          'type': 'subscription',
+          'path': 'user_presence',
+          'payload': {
+            'intent': 'watch_updates',
+            'params': {
+              'peer_ids': peerIds,
+            },
+          },
+        }),
+      );
+
   void subscribeToUpdates({
     required DateTime fromMoment,
     required int batchSize,
@@ -95,6 +165,21 @@ class ChatRemoteRepository {
         'params': {
           'batch_size': batchSize,
           'from_timestamp': fromMoment.toIso8601String(),
+        },
+      },
+    }),
+  );
+
+  void sendTyping({
+    required String receiverId,
+  }) => _remoteApiService.webSocketSend(
+    jsonEncode({
+      'type': 'message',
+      'path': 'p2p_chat',
+      'payload': {
+        'intent': 'typing',
+        'message': {
+          'receiver_id': receiverId,
         },
       },
     }),
