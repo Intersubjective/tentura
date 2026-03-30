@@ -329,6 +329,11 @@ class _TabSectionState extends State<_TabSection>
   }
 }
 
+String _timelineEventTimestamp(DateTime utc) {
+  final local = utc.toLocal();
+  return '${dateFormatYMD(local)} ${timeFormatHm(local)}';
+}
+
 class _TimelineEntryTile extends StatelessWidget {
   const _TimelineEntryTile({required this.entry});
 
@@ -359,7 +364,7 @@ class _TimelineEntryTile extends StatelessWidget {
                 ),
               ),
               Text(
-                dateFormatYMD(e.timestamp),
+                _timelineEventTimestamp(e.timestamp),
                 style: theme.textTheme.labelSmall,
               ),
             ],
@@ -393,7 +398,7 @@ class _TimelineEntryTile extends StatelessWidget {
                 ),
               ),
               Text(
-                dateFormatYMD(e.timestamp),
+                _timelineEventTimestamp(e.timestamp),
                 style: theme.textTheme.labelSmall,
               ),
             ],
@@ -413,7 +418,7 @@ class _TimelineEntryTile extends StatelessWidget {
                 ),
               ),
               Text(
-                dateFormatYMD(e.timestamp),
+                _timelineEventTimestamp(e.timestamp),
                 style: theme.textTheme.labelSmall,
               ),
             ],
