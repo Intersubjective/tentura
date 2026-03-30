@@ -42,11 +42,11 @@ Future<Client> buildClient({
       ErrorLink(
         onException: (request, forward, exception) {
           log(exception.toString());
-          return null;
+          throw exception;
         },
         onGraphQLError: (request, forward, response) {
           log(response.errors.toString());
-          return null;
+          throw response;
         },
       ),
 

@@ -82,3 +82,9 @@ targets:
 
             - import: "package:tentura/data/gql/upload_serializer.dart"
               name: UploadSerializer
+
+            - import: "package:tentura/data/gql/float8_serializer.dart"
+              name: Float8Serializer
+
+            - import: "package:tentura/data/gql/smallint_serializer.dart"
+              name: SmallintSerializer

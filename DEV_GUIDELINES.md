@@ -37,12 +37,24 @@ resulting in hanging Futures and infinite spinners.
 | Scalar | Dart type | Needs custom serializer? |
 |--------|-----------|--------------------------|
 | `timestamptz` | `DateTime` | Yes (`TimestamptzSerializer`) |
-| `smallint` | `int` | No |
-| `float8` | `double` | No |
+| `smallint` | `int` | Yes (`SmallintSerializer`) — see below |
+| `float8` | `double` | Yes (`Float8Serializer`) — see below |
 | `uuid` | `String` | No |
 | `Upload` | `MultipartFile` | Yes (`UploadSerializer`) |
 
+**Why `smallint` and `float8` still need serializers after `type_overrides`:** mapping
+them to `int` / `double` fixes Ferry’s broken `G<Scalar>` wrappers for **typical**
+Hasura responses (JSON numbers). MeritRank plugin fields (`mr_*` functions) feed
+computed relationships such as `mutual_score` (`user.scores`, `beacon.scores`, …).
+For those paths Hasura often emits `float8` (and sometimes `smallint`) as **JSON
+strings** (e.g. `"95"`). `built_value` then expects a `num` and throws
+`String is not a subtype of num`. `Float8Serializer` and `SmallintSerializer`
+deserialize both wire shapes: register them under `custom_serializers` in
+`ferry_generator|serializer_builder` only (see `packages/client/build.yaml`).
+Details: `packages/server/WORKAROUNDS.md` section 3.
+
 When adding a **new** Hasura custom scalar to the schema, add the
 corresponding `type_overrides` entry before running codegen.
-If the Dart type is not a JSON primitive, also add a `custom_serializers`
-entry (see `TimestamptzSerializer` for the pattern).
+If the Dart type is not a JSON primitive, or the same GraphQL scalar can arrive
+as both number and string (MeritRank / computed fields), also add a
+`custom_serializers` entry (see `TimestamptzSerializer`, `Float8Serializer`).
