@@ -47,6 +47,7 @@ One-line rules for quick lookup. See detailed files for explanations.
 - Convert Ferry types → entities via extension type `toEntity()`
 - Never expose Ferry types outside data layer
 - Every Hasura custom scalar (`smallint`, `float8`, `uuid`, etc.) must have a `type_overrides` entry in both Ferry builder sections of `build.yaml`; without it, Ferry generates broken `G<Scalar>` wrappers — see `DEV_GUIDELINES.md` § "Ferry custom scalars"
+- After overrides, register `Float8Serializer` and `SmallintSerializer` under `custom_serializers` (serializer_builder only): MeritRank `mr_*` → `mutual_score` fields often arrive as JSON strings; see `DEV_GUIDELINES.md` and `packages/server/WORKAROUNDS.md` section 3
 
 ## Repositories
 - Return domain entities only
@@ -141,8 +142,8 @@ One-line rules for quick lookup. See detailed files for explanations.
 - Access BLoC via `GetIt.I<>()` or `context.read<>()` in build method
 
 ## Server GraphQL (graphql_schema2)
-- NEVER call `.nonNullable()` on `GraphQLListType` -- triggers library bug, see `packages/server/WORKAROUNDS.md` §2
-- Nullable scalar arguments + null values crash validation -- workaround in `_NullSafeGraphQL`, see `packages/server/WORKAROUNDS.md` §1
+- NEVER call `.nonNullable()` on `GraphQLListType` -- triggers library bug, see `packages/server/WORKAROUNDS.md` section 2
+- Nullable scalar arguments + null values crash validation -- workaround in `_NullSafeGraphQL`, see `packages/server/WORKAROUNDS.md` section 1
 - Use `GraphQLListType(innerType.nonNullable())` for `[T!]` arguments; enforce list non-null in `fromArgs`
 - Define list arguments as `InputField*` classes (pattern: `input_field_*.dart` as `part of '_input_types.dart'`) with `field` + `fromArgs` like `InputFieldPolling`
 - `fromArgs` handles `List<String>.from(args[key]! as List)` -- safe cast at the resolver layer

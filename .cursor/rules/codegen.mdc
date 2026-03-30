@@ -25,6 +25,7 @@ This project uses multiple code generators that work together. Always run `dart 
   - Import generated types: `import '../gql/_g/query_name.req.gql.dart';`
   - Use `GQueryNameReq()` for requests
   - Access response via `r.dataOrThrow(label: 'Label').field`
+  - Hasura `type_overrides` for `smallint` / `float8` / `uuid` plus `Float8Serializer` / `SmallintSerializer` in `custom_serializers` when MeritRank `mr_*` paths return string-encoded numbers — see `DEV_GUIDELINES.md` (Ferry custom scalars) and `packages/server/WORKAROUNDS.md` section 3
 
 ### 2. Freezed (Immutable Classes)
 - **Purpose**: Generates immutable data classes with `copyWith`, equality, etc.

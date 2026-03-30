@@ -94,3 +94,40 @@ This pattern is encapsulated in `InputField*` classes (see
 Remove the pattern and use `.nonNullable()` on list types when
 `graphql_schema2` changes `GraphQLNonNullableType.validate` to accept
 untyped `input` (or `Object?`) instead of `Serialized input`.
+
+---
+
+## 3. Hasura / MeritRank: `float8` (and sometimes `smallint`) as JSON strings in responses
+
+**Client:** `packages/client/lib/data/gql/float8_serializer.dart`,
+`packages/client/lib/data/gql/smallint_serializer.dart`,
+`packages/client/build.yaml` (`custom_serializers` under
+`ferry_generator|serializer_builder`)
+**Server DB:** computed fields that `RETURNS SETOF mutual_score` and call MeritRank
+`mr_*` functions (`mr_node_score`, `mr_neighbors`, `mr_mutual_scores`, `mr_graph`,
+`mr_scores`, etc.) — see migrations in `lib/data/database/migration/`.
+
+### Issue
+
+For ordinary table columns, Hasura usually serializes PostgreSQL `float8` as JSON
+numbers. For **computed** `mutual_score` rows produced by MeritRank (`mr_*`),
+responses often contain `src_score` / `dst_score` as **quoted strings** (e.g.
+`"95"`) instead of numbers. After mapping GraphQL `float8` → Dart `double` via
+Ferry `type_overrides`, `built_value` deserialization fails with:
+
+`TypeError: "95": type 'String' is not a subtype of type 'num'`.
+
+The same inconsistency can theoretically affect `smallint` in similar paths.
+
+### Workaround (client)
+
+Keep `type_overrides` for `smallint` → `int` and `float8` → `double`, and register
+`Float8Serializer` and `SmallintSerializer` as Ferry `custom_serializers`. They
+accept both JSON numbers and numeric strings.
+
+### Removal condition
+
+Remove the serializers if Hasura (or the MeritRank integration) consistently
+returns numeric JSON for these scalars everywhere, and no query still receives
+string-encoded values — then verify with `FriendsFetch` / `UserModel.scores` and
+other selections that include `mutual_score`.
