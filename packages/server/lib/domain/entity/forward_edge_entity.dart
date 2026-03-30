@@ -20,6 +20,8 @@ abstract class ForwardEdgeEntity with _$ForwardEdgeEntity {
     String? context,
     String? parentEdgeId,
     String? batchId,
+    @Default(false) bool recipientRejected,
+    @Default('') String recipientRejectionMessage,
     UserEntity? sender,
     UserEntity? recipient,
   }) = _ForwardEdgeEntity;

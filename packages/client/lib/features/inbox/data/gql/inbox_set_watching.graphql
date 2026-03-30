@@ -1,8 +1,0 @@
-mutation InboxSetWatching($beaconId: String!, $isWatching: Boolean!) {
-  update_inbox_item(
-    where: {beacon_id: {_eq: $beaconId}},
-    _set: {is_watching: $isWatching}
-  ) {
-    affected_rows
-  }
-}

@@ -706,6 +706,66 @@
   "@inboxWatching": {
     "context": "InboxScreen"
   },
+  "inboxSortRecent": "Recent",
+  "@inboxSortRecent": {
+    "context": "InboxScreen"
+  },
+  "inboxSortMeritRank": "MR Score",
+  "@inboxSortMeritRank": {
+    "context": "InboxScreen"
+  },
+  "inboxSortDeadline": "Deadline",
+  "@inboxSortDeadline": {
+    "context": "InboxScreen"
+  },
+  "inboxTabNeedsMe": "Needs me",
+  "@inboxTabNeedsMe": {
+    "context": "InboxScreen"
+  },
+  "inboxTabWatching": "Watching",
+  "@inboxTabWatching": {
+    "context": "InboxScreen"
+  },
+  "inboxTabRejected": "Rejected",
+  "@inboxTabRejected": {
+    "context": "InboxScreen"
+  },
+  "inboxTabNeedsEmpty": "Nothing waiting for you here",
+  "@inboxTabNeedsEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxTabWatchingEmpty": "No beacons on your watch list",
+  "@inboxTabWatchingEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxTabRejectedEmpty": "No declined beacons",
+  "@inboxTabRejectedEmpty": {
+    "context": "InboxScreen"
+  },
+  "actionCantHelp": "Can't help",
+  "@actionCantHelp": {
+    "context": "InboxItemTile"
+  },
+  "actionMoveToInbox": "Move to inbox",
+  "@actionMoveToInbox": {
+    "context": "InboxItemTile"
+  },
+  "rejectionDialogTitle": "Can't help?",
+  "@rejectionDialogTitle": {
+    "context": "RejectionDialog"
+  },
+  "rejectionDialogHint": "Add a note (optional)",
+  "@rejectionDialogHint": {
+    "context": "RejectionDialog"
+  },
+  "timelineDeclined": "Declined",
+  "@timelineDeclined": {
+    "context": "BeaconViewScreen"
+  },
+  "forwardDeclined": "Declined this beacon",
+  "@forwardDeclined": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardedCount": "{count}x forwarded",
   "@forwardedCount": {
     "context": "InboxItemTile",

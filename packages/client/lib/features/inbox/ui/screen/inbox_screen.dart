@@ -9,8 +9,11 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 
+import '../../domain/entity/inbox_item.dart';
+import '../../domain/enum.dart';
 import '../bloc/inbox_cubit.dart';
 import '../widget/inbox_item_tile.dart';
+import '../widget/rejection_dialog.dart';
 
 @RoutePage()
 class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -46,117 +49,176 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final inboxCubit = context.read<InboxCubit>();
-    return SafeArea(
-      minimum: kPaddingSmallH,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ContextDropDown(),
-          Expanded(
-            child: BlocBuilder<InboxCubit, InboxState>(
-              buildWhen: (_, c) =>
-                  c.isSuccess || c.isLoading || c.hasError,
-              builder: (_, state) {
-                if (state.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  );
-                }
-                if (state.items.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 64,
-                          color: theme.colorScheme.onSurfaceVariant,
+
+    return DefaultTabController(
+      length: 3,
+      child: SafeArea(
+        minimum: kPaddingSmallH,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ContextDropDown(),
+            BlocSelector<InboxCubit, InboxState, InboxSort>(
+              selector: (state) => state.sort,
+              builder: (_, sort) => Padding(
+                padding: kPaddingSmallV,
+                child: Wrap(
+                  spacing: kSpacingSmall,
+                  children: [
+                    for (final s in InboxSort.values)
+                      ChoiceChip(
+                        selected: sort == s,
+                        label: Text(
+                          switch (s) {
+                            InboxSort.recent => l10n.inboxSortRecent,
+                            InboxSort.meritRank => l10n.inboxSortMeritRank,
+                            InboxSort.deadline => l10n.inboxSortDeadline,
+                          },
                         ),
-                        const SizedBox(height: kSpacingMedium),
-                        Text(
-                          l10n.inboxEmpty,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: kSpacingSmall),
-                        Text(
-                          l10n.inboxEmptyHint,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                final needsMe = state.needsMe;
-                final watching = state.watching;
-                return RefreshIndicator.adaptive(
-                  onRefresh: () => Future.wait([
-                    inboxCubit.fetch(),
-                    context.read<ContextCubit>().fetch(fromCache: false),
-                  ]),
-                  child: ListView(
-                    children: [
-                      if (needsMe.isNotEmpty) ...[
-                        Padding(
-                          padding: kPaddingSmallV,
-                          child: Text(
-                            l10n.inboxNeedsMe,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                        for (final item in needsMe)
-                          Padding(
-                            padding: kPaddingSmallV,
-                            child: InboxItemTile(
-                              key: ValueKey(item.beaconId),
-                              item: item,
-                              onTap: () => context.router.pushPath(
-                                '$kPathBeaconView/${item.beaconId}',
-                              ),
-                              onHide: () => inboxCubit.hide(item.beaconId),
-                              onToggleWatch: () =>
-                                  inboxCubit.toggleWatching(item.beaconId),
-                            ),
-                          ),
-                      ],
-                      if (watching.isNotEmpty) ...[
-                        Padding(
-                          padding: kPaddingSmallV,
-                          child: Text(
-                            l10n.inboxWatching,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              color: theme.colorScheme.secondary,
-                            ),
-                          ),
-                        ),
-                        for (final item in watching)
-                          Padding(
-                            padding: kPaddingSmallV,
-                            child: InboxItemTile(
-                              key: ValueKey(item.beaconId),
-                              item: item,
-                              onTap: () => context.router.pushPath(
-                                '$kPathBeaconView/${item.beaconId}',
-                              ),
-                              onHide: () => inboxCubit.hide(item.beaconId),
-                              onToggleWatch: () =>
-                                  inboxCubit.toggleWatching(item.beaconId),
-                            ),
-                          ),
-                      ],
-                    ],
-                  ),
-                );
-              },
+                        onSelected: (_) => inboxCubit.setSort(s),
+                      ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
+            TabBar(
+              tabs: [
+                Tab(text: l10n.inboxTabNeedsMe),
+                Tab(text: l10n.inboxTabWatching),
+                Tab(text: l10n.inboxTabRejected),
+              ],
+            ),
+            Expanded(
+              child: BlocBuilder<InboxCubit, InboxState>(
+                buildWhen: (_, c) =>
+                    c.isSuccess || c.isLoading || c.hasError,
+                builder: (_, state) {
+                  if (state.isLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator.adaptive(),
+                    );
+                  }
+                  if (state.items.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 64,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: kSpacingMedium),
+                          Text(
+                            l10n.inboxEmpty,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: kSpacingSmall),
+                          Text(
+                            l10n.inboxEmptyHint,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return TabBarView(
+                    children: [
+                      _tabBody(
+                        context,
+                        inboxCubit,
+                        state.needsMe,
+                        l10n.inboxTabNeedsEmpty,
+                        0,
+                      ),
+                      _tabBody(
+                        context,
+                        inboxCubit,
+                        state.watching,
+                        l10n.inboxTabWatchingEmpty,
+                        1,
+                      ),
+                      _tabBody(
+                        context,
+                        inboxCubit,
+                        state.rejected,
+                        l10n.inboxTabRejectedEmpty,
+                        2,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+Widget _tabBody(
+  BuildContext context,
+  InboxCubit inboxCubit,
+  List<InboxItem> items,
+  String emptyHint,
+  int tabIndex,
+) {
+  final theme = Theme.of(context);
+
+  if (items.isEmpty) {
+    return Center(
+      child: Text(
+        emptyHint,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  return RefreshIndicator.adaptive(
+    onRefresh: () => Future.wait([
+      inboxCubit.fetch(),
+      context.read<ContextCubit>().fetch(fromCache: false),
+    ]),
+    child: ListView.separated(
+      padding: kPaddingSmallV,
+      itemCount: items.length,
+      separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+      itemBuilder: (_, i) {
+        final item = items[i];
+        return InboxItemTile(
+          key: ValueKey(item.beaconId),
+          item: item,
+          onTap: () => context.router.pushPath(
+            '$kPathBeaconView/${item.beaconId}',
+          ),
+          onWatch: tabIndex == 0
+              ? () => inboxCubit.setWatching(item.beaconId)
+              : null,
+          onStopWatching: tabIndex == 1
+              ? () => inboxCubit.stopWatching(item.beaconId)
+              : null,
+          onCantHelp: tabIndex == 0 || tabIndex == 1
+              ? () async {
+                  final msg = await showRejectionDialog(context);
+                  if (!context.mounted) return;
+                  if (msg != null) {
+                    await inboxCubit.reject(item.beaconId, message: msg);
+                  }
+                }
+              : null,
+          onMoveToInbox: tabIndex == 2
+              ? () => inboxCubit.unreject(item.beaconId)
+              : null,
+        );
+      },
+    ),
+  );
 }

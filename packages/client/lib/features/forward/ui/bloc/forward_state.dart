@@ -14,6 +14,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default('') String searchQuery,
     @Default([]) List<Profile> candidates,
     @Default({}) Set<String> selectedIds,
+    @Default({}) Set<String> rejectedUserIds,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ForwardState;
 
@@ -26,9 +27,6 @@ abstract class ForwardState extends StateBase with _$ForwardState {
         .where((p) => p.title.toLowerCase().contains(q))
         .toList();
   }
-
-  List<Profile> get eligibleCandidates =>
-      candidates.where((p) => p.isSeeingMe).toList();
 
   int get selectedCount => selectedIds.length;
 }

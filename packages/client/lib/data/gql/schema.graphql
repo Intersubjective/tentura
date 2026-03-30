@@ -145,6 +145,11 @@ type beacon {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]
+
+  """
+  A computed field, executes function "beacon_get_rejected_user_ids"
+  """
+  rejected_user_ids: [String!]
   start_at: timestamptz
   state: smallint!
   tags: String!
@@ -549,6 +554,8 @@ type beacon_forward_edge {
   """An object relationship"""
   sender: user!
   sender_id: String!
+  recipient_rejected: Boolean!
+  recipient_rejection_message: String!
 }
 
 """
@@ -578,6 +585,8 @@ input beacon_forward_edge_bool_exp {
   parent_edge_id: String_comparison_exp
   recipient: user_bool_exp
   recipient_id: String_comparison_exp
+  recipient_rejected: Boolean_comparison_exp
+  recipient_rejection_message: String_comparison_exp
   sender: user_bool_exp
   sender_id: String_comparison_exp
 }
@@ -678,6 +687,8 @@ input beacon_forward_edge_order_by {
   parent_edge_id: order_by
   recipient: user_order_by
   recipient_id: order_by
+  recipient_rejected: order_by
+  recipient_rejection_message: order_by
   sender: user_order_by
   sender_id: order_by
 }
@@ -709,6 +720,12 @@ enum beacon_forward_edge_select_column {
 
   """column name"""
   recipient_id
+
+  """column name"""
+  recipient_rejected
+
+  """column name"""
+  recipient_rejection_message
 
   """column name"""
   sender_id
@@ -1737,10 +1754,10 @@ type inbox_item {
   beacon_id: String!
   context: String
   forward_count: Int!
-  is_hidden: Boolean!
-  is_watching: Boolean!
   latest_forward_at: timestamptz!
   latest_note_preview: String!
+  rejection_message: String!
+  status: smallint!
 
   """An object relationship"""
   user: user!
@@ -1758,10 +1775,10 @@ input inbox_item_bool_exp {
   beacon_id: String_comparison_exp
   context: String_comparison_exp
   forward_count: Int_comparison_exp
-  is_hidden: Boolean_comparison_exp
-  is_watching: Boolean_comparison_exp
   latest_forward_at: timestamptz_comparison_exp
   latest_note_preview: String_comparison_exp
+  rejection_message: String_comparison_exp
+  status: smallint_comparison_exp
   user: user_bool_exp
   user_id: String_comparison_exp
 }
@@ -1783,10 +1800,10 @@ input inbox_item_order_by {
   beacon_id: order_by
   context: order_by
   forward_count: order_by
-  is_hidden: order_by
-  is_watching: order_by
   latest_forward_at: order_by
   latest_note_preview: order_by
+  rejection_message: order_by
+  status: order_by
   user: user_order_by
   user_id: order_by
 }
@@ -1811,16 +1828,16 @@ enum inbox_item_select_column {
   forward_count
 
   """column name"""
-  is_hidden
-
-  """column name"""
-  is_watching
-
-  """column name"""
   latest_forward_at
 
   """column name"""
   latest_note_preview
+
+  """column name"""
+  rejection_message
+
+  """column name"""
+  status
 
   """column name"""
   user_id
@@ -1830,8 +1847,8 @@ enum inbox_item_select_column {
 input type for updating data in table "inbox_item"
 """
 input inbox_item_set_input {
-  is_hidden: Boolean
-  is_watching: Boolean
+  rejection_message: String
+  status: smallint
 }
 
 """
@@ -1850,10 +1867,10 @@ input inbox_item_stream_cursor_value_input {
   beacon_id: String
   context: String
   forward_count: Int
-  is_hidden: Boolean
-  is_watching: Boolean
   latest_forward_at: timestamptz
   latest_note_preview: String
+  rejection_message: String
+  status: smallint
   user_id: String
 }
 

@@ -706,6 +706,66 @@
   "@inboxWatching": {
     "context": "InboxScreen"
   },
+  "inboxSortRecent": "Недавние",
+  "@inboxSortRecent": {
+    "context": "InboxScreen"
+  },
+  "inboxSortMeritRank": "MR рейтинг",
+  "@inboxSortMeritRank": {
+    "context": "InboxScreen"
+  },
+  "inboxSortDeadline": "Дедлайн",
+  "@inboxSortDeadline": {
+    "context": "InboxScreen"
+  },
+  "inboxTabNeedsMe": "Ждёт меня",
+  "@inboxTabNeedsMe": {
+    "context": "InboxScreen"
+  },
+  "inboxTabWatching": "Наблюдаю",
+  "@inboxTabWatching": {
+    "context": "InboxScreen"
+  },
+  "inboxTabRejected": "Отклонённые",
+  "@inboxTabRejected": {
+    "context": "InboxScreen"
+  },
+  "inboxTabNeedsEmpty": "Здесь пока ничего нет",
+  "@inboxTabNeedsEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxTabWatchingEmpty": "Нет маяков в наблюдении",
+  "@inboxTabWatchingEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxTabRejectedEmpty": "Нет отклонённых маяков",
+  "@inboxTabRejectedEmpty": {
+    "context": "InboxScreen"
+  },
+  "actionCantHelp": "Не могу помочь",
+  "@actionCantHelp": {
+    "context": "InboxItemTile"
+  },
+  "actionMoveToInbox": "Вернуть во входящие",
+  "@actionMoveToInbox": {
+    "context": "InboxItemTile"
+  },
+  "rejectionDialogTitle": "Не можете помочь?",
+  "@rejectionDialogTitle": {
+    "context": "RejectionDialog"
+  },
+  "rejectionDialogHint": "Добавьте комментарий (необязательно)",
+  "@rejectionDialogHint": {
+    "context": "RejectionDialog"
+  },
+  "timelineDeclined": "Отклонено",
+  "@timelineDeclined": {
+    "context": "BeaconViewScreen"
+  },
+  "forwardDeclined": "Отклонил(а) этот маяк",
+  "@forwardDeclined": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardedCount": "{count}x переслано",
   "@forwardedCount": {
     "context": "InboxItemTile",

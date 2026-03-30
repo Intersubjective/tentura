@@ -17,6 +17,8 @@ abstract class ForwardEdge with _$ForwardEdge {
     @Default(Profile()) Profile recipient,
     String? parentEdgeId,
     String? batchId,
+    @Default(false) bool recipientRejected,
+    @Default('') String recipientRejectionMessage,
   }) = _ForwardEdge;
 
   const ForwardEdge._();

@@ -138,6 +138,17 @@
                   },
                   "session_argument": "hasura_session"
                 }
+              },
+              {
+                "name": "rejected_user_ids",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_rejected_user_ids",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
               }
             ],
             "select_permissions": [
@@ -164,7 +175,8 @@
                   ],
                   "computed_fields": [
                     "is_pinned",
-                    "my_vote"
+                    "my_vote",
+                    "rejected_user_ids"
                   ],
                   "filter": {}
                 },
@@ -1315,7 +1327,9 @@
                     "note",
                     "parent_edge_id",
                     "batch_id",
-                    "created_at"
+                    "created_at",
+                    "recipient_rejected",
+                    "recipient_rejection_message"
                   ],
                   "filter": {
                     "_or": [
@@ -1481,8 +1495,8 @@
                     "forward_count",
                     "latest_forward_at",
                     "latest_note_preview",
-                    "is_hidden",
-                    "is_watching"
+                    "status",
+                    "rejection_message"
                   ],
                   "filter": {
                     "user_id": {
@@ -1497,8 +1511,8 @@
                 "role": "user",
                 "permission": {
                   "columns": [
-                    "is_hidden",
-                    "is_watching"
+                    "status",
+                    "rejection_message"
                   ],
                   "filter": {
                     "user_id": {

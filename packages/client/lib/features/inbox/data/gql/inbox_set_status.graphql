@@ -1,0 +1,12 @@
+mutation InboxSetStatus(
+  $beaconId: String!,
+  $status: smallint!,
+  $rejectionMessage: String = ""
+) {
+  update_inbox_item(
+    where: {beacon_id: {_eq: $beaconId}},
+    _set: {status: $status, rejection_message: $rejectionMessage}
+  ) {
+    affected_rows
+  }
+}

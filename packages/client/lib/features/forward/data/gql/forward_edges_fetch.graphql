@@ -12,6 +12,8 @@ query ForwardEdgesFetch($beaconId: String!) {
     parent_edge_id
     batch_id
     created_at
+    recipient_rejected
+    recipient_rejection_message
     sender {
       ...UserModel
     }

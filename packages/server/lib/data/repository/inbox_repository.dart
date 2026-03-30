@@ -22,35 +22,28 @@ class InboxRepository {
   }) => _database.managers.inboxItems
       .filter(
         context == null
-            ? (e) => e.userId.id(userId) & e.isHidden.equals(false)
-            : (e) =>
-                  e.userId.id(userId) &
-                  e.isHidden.equals(false) &
-                  e.context.equals(context),
+            ? (e) => e.userId.id(userId)
+            : (e) => e.userId.id(userId) & e.context.equals(context),
       )
       .orderBy((e) => e.latestForwardAt.desc())
       .get(limit: limit, offset: offset)
       .then((rows) => rows.map(_toEntity).toList());
 
-  Future<void> setHidden({
+  Future<void> setStatus({
     required String userId,
     required String beaconId,
-    required bool isHidden,
+    required int status,
+    required String rejectionMessage,
   }) => _database.managers.inboxItems
       .filter(
         (e) => e.userId.id(userId) & e.beaconId.id(beaconId),
       )
-      .update((o) => o(isHidden: Value(isHidden)));
-
-  Future<void> setWatching({
-    required String userId,
-    required String beaconId,
-    required bool isWatching,
-  }) => _database.managers.inboxItems
-      .filter(
-        (e) => e.userId.id(userId) & e.beaconId.id(beaconId),
-      )
-      .update((o) => o(isWatching: Value(isWatching)));
+      .update(
+        (o) => o(
+          status: Value(status),
+          rejectionMessage: Value(rejectionMessage),
+        ),
+      );
 
   static InboxItemEntity _toEntity(InboxItem row) =>
       InboxItemEntity(
@@ -60,7 +53,7 @@ class InboxRepository {
         forwardCount: row.forwardCount,
         latestForwardAt: (row.latestForwardAt as PgDateTime).dateTime,
         latestNotePreview: row.latestNotePreview,
-        isHidden: row.isHidden,
-        isWatching: row.isWatching,
+        status: row.status,
+        rejectionMessage: row.rejectionMessage,
       );
 }

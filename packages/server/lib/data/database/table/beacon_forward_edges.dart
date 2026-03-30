@@ -35,6 +35,12 @@ class BeaconForwardEdges extends Table {
     PgTypes.timestampWithTimezone,
   ).clientDefault(() => PgDateTime(DateTime.timestamp()))();
 
+  late final recipientRejected = boolean()
+      .withDefault(const Constant(false))();
+
+  late final recipientRejectionMessage = text()
+      .withDefault(const Constant(''))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

@@ -33,9 +33,13 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final friends = await _friendsRepository.fetch();
+      final rejected = await _forwardRepository.fetchRejectedUserIds(
+        beaconId: state.beaconId,
+      );
       emit(
         state.copyWith(
           candidates: friends.toList(),
+          rejectedUserIds: rejected,
           status: const StateIsSuccess(),
         ),
       );
@@ -65,13 +69,25 @@ class ForwardCubit extends Cubit<ForwardState> {
   Future<void> forward() async {
     if (state.selectedIds.isEmpty) return;
 
-    // Client-side permission check: ensure all selected are isSeeingMe
     final ineligible = state.candidates
         .where(
           (p) => state.selectedIds.contains(p.id) && !p.isSeeingMe,
         )
         .toList();
     if (ineligible.isNotEmpty) {
+      emit(state.copyWith(status: StateHasError(const IneligibleRecipientsException())));
+      emit(state.copyWith(status: const StateIsSuccess()));
+      return;
+    }
+
+    final declined = state.candidates
+        .where(
+          (p) =>
+              state.selectedIds.contains(p.id) &&
+              state.rejectedUserIds.contains(p.id),
+        )
+        .toList();
+    if (declined.isNotEmpty) {
       emit(state.copyWith(status: StateHasError(const IneligibleRecipientsException())));
       emit(state.copyWith(status: const StateIsSuccess()));
       return;
