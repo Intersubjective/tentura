@@ -9,6 +9,7 @@ import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
 import '../../domain/exception.dart';
@@ -36,13 +37,13 @@ class BeaconRepository {
   Future<Iterable<Beacon>> fetchBeacons({
     required String profileId,
     required int offset,
-    bool isEnabled = true,
+    required List<int> lifecycleStates,
     int limit = kFetchWindowSize,
   }) async {
     final request = GBeaconsFetchByUserIdReq(
       (b) => b.vars
         ..user_id = profileId
-        ..enabled = isEnabled
+        ..active_states.replace(lifecycleStates)
         ..offset = offset
         ..limit = limit,
     );
@@ -118,14 +119,14 @@ class BeaconRepository {
 
   //
   //
-  Future<void> setEnabled(
-    bool isEnabled, {
+  Future<void> setBeaconLifecycle(
+    BeaconLifecycle lifecycle, {
     required String id,
   }) async {
     final request = GBeaconUpdateByIdReq((b) {
       b
         ..vars.id = id
-        ..vars.enabled = isEnabled;
+        ..vars.state = lifecycle.smallintValue;
     });
     final beacon = await _remoteApiService
         .request(request)

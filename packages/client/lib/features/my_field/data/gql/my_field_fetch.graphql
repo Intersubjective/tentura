@@ -4,7 +4,7 @@ query MyFieldFetch($context: String = "") {
   my_field(
     args: {context: $context},
     order_by: {dst_score: desc},
-    where: {beacon: {enabled: {_eq: true}}}
+    where: {beacon: {state: {_in: [0, 3, 4]}}}
   ) {
     beacon {
       ...BeaconModel

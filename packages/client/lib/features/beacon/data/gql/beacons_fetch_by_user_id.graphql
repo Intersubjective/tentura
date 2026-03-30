@@ -2,7 +2,7 @@
 
 query BeaconsFetchByUserId(
   $user_id: String!,
-  $enabled: Boolean = true,
+  $active_states: [smallint!]!,
   $offset: Int = 0,
   $limit: Int = 5
 ) {
@@ -10,7 +10,7 @@ query BeaconsFetchByUserId(
     where: {
       _and: {
         user_id: {_eq: $user_id},
-        enabled: {_eq: $enabled}
+        state: {_in: $active_states}
       }
     },
     order_by: {created_at: desc},

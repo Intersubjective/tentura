@@ -1,10 +1,10 @@
 # import '/data/gql/beacon_model.graphql'
 
-query MyWorkAuthored($userId: String!, $context: String = "") {
+query MyWorkAuthoredActive($userId: String!, $context: String = "") {
   beacon(
     where: {
       user_id: {_eq: $userId},
-      enabled: {_eq: true},
+      state: {_in: [0, 3, 4]},
       _or: [
         {context: {_eq: $context}},
         {context: {_is_null: true}}
@@ -16,12 +16,50 @@ query MyWorkAuthored($userId: String!, $context: String = "") {
   }
 }
 
-query MyWorkCommitted($userId: String!, $context: String = "") {
+query MyWorkAuthoredClosed($userId: String!, $context: String = "") {
+  beacon(
+    where: {
+      user_id: {_eq: $userId},
+      state: {_in: [1, 2]},
+      _or: [
+        {context: {_eq: $context}},
+        {context: {_is_null: true}}
+      ]
+    },
+    order_by: {updated_at: desc}
+  ) {
+    ...BeaconModel
+  }
+}
+
+query MyWorkCommittedActive($userId: String!, $context: String = "") {
   beacon_commitment(
     where: {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
+        state: {_in: [0, 3, 4]},
+        _or: [
+          {context: {_eq: $context}},
+          {context: {_is_null: true}}
+        ]
+      }
+    },
+    order_by: {updated_at: desc}
+  ) {
+    beacon {
+      ...BeaconModel
+    }
+  }
+}
+
+query MyWorkCommittedClosed($userId: String!, $context: String = "") {
+  beacon_commitment(
+    where: {
+      user_id: {_eq: $userId},
+      status: {_eq: 0},
+      beacon: {
+        state: {_in: [1, 2]},
         _or: [
           {context: {_eq: $context}},
           {context: {_is_null: true}}

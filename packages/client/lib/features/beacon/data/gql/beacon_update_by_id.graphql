@@ -1,7 +1,7 @@
 # import '/data/gql/beacon_model.graphql'
 
-mutation BeaconUpdateById($id: String!, $enabled: Boolean!) {
-  update_beacon_by_pk(pk_columns: {id: $id}, _set: {enabled: $enabled}) {
+mutation BeaconUpdateById($id: String!, $state: smallint!) {
+  update_beacon_by_pk(pk_columns: {id: $id}, _set: {state: $state}) {
     ...BeaconModel
   }
 }

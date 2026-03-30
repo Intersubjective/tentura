@@ -1,6 +1,6 @@
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
-
 import '../gql/_g/beacon_model.data.gql.dart';
 import 'image_model.dart';
 import 'polling_model.dart';
@@ -13,7 +13,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       id: i.id,
       author: author,
       title: i.title,
-      isEnabled: i.enabled,
+      lifecycle: BeaconLifecycle.fromSmallint(i.state),
       createdAt: i.created_at,
       updatedAt: i.updated_at,
       description: i.description,

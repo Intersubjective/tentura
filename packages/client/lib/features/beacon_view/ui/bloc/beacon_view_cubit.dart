@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -52,10 +53,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> toggleEnabled() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _beaconRepository.setEnabled(
-        !state.beacon.isEnabled,
-        id: state.beacon.id,
-      );
+      final next = state.beacon.isListed
+          ? BeaconLifecycle.closed
+          : BeaconLifecycle.open;
+      await _beaconRepository.setBeaconLifecycle(next, id: state.beacon.id);
       emit(state.copyWith(status: StateStatus.isSuccess));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));

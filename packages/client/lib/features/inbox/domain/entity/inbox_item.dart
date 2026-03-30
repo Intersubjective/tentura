@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 
 import '../enum.dart';
+import 'inbox_provenance.dart';
 
 part 'inbox_item.freezed.dart';
 
@@ -17,6 +18,7 @@ abstract class InboxItem with _$InboxItem {
     @Default(InboxItemStatus.needsMe) InboxItemStatus status,
     @Default('') String rejectionMessage,
     @Default('') String context,
+    @Default(InboxProvenance.empty) InboxProvenance provenance,
     Beacon? beacon,
   }) = _InboxItem;
 

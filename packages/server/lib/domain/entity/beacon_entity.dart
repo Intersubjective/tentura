@@ -39,6 +39,12 @@ abstract class BeaconEntity with _$BeaconEntity {
   bool get isClosed => state == 1;
   bool get isDeleted => state == 2;
 
+  /// Shown under My Work "Active" (OPEN, DRAFT, PENDING_REVIEW).
+  bool get isLifecycleActive => state == 0 || state == 3 || state == 4;
+
+  /// Shown under My Work "Closed" (CLOSED, DELETED).
+  bool get isLifecycleClosed => state == 1 || state == 2;
+
   bool get hasImage => image != null;
 
   String get imageUrl => hasImage
