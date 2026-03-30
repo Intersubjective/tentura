@@ -42,7 +42,7 @@ class GraphRepository {
         final beacon = data.beacon_by_pk;
         final result = <EdgeDirected>{};
         for (final e in data.graph) {
-          final weight = double.parse(e.dst_score!.value);
+          final weight = e.dst_score!;
           final user = e.user;
           if (user == null) {
             if (beacon != null && e.dst == beacon.id) {

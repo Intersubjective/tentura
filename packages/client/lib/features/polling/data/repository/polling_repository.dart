@@ -49,8 +49,8 @@ class PollingRepository {
         .map(
           (e) => (
             pollingVariantId: e.dst!,
-            immediateResult: double.parse(e.dst_score!.value),
-            finalResult: double.parse(e.src_score!.value),
+            immediateResult: e.dst_score!,
+            finalResult: e.src_score!,
             percentageVoted: e.dst_cluster_score!,
             votesCount: e.src_cluster_score!,
           ),

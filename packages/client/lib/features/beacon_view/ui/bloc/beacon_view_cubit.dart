@@ -108,11 +108,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             String message,
             DateTime createdAt,
             DateTime updatedAt,
+            bool isWithdrawn,
           })>;
       final updates = results[3]
           as List<({Profile author, String content, DateTime createdAt})>;
 
-      final isCommitted = commitments.any((c) => c.user.id == myUserId);
+      final isCommitted = commitments
+          .where((c) => !c.isWithdrawn)
+          .any((c) => c.user.id == myUserId);
 
       final commitmentsList = <TimelineCommitment>[
         for (final c in commitments)
@@ -121,6 +124,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             message: c.message,
             createdAt: c.createdAt,
             updatedAt: c.updatedAt,
+            isWithdrawn: c.isWithdrawn,
           ),
       ];
 
