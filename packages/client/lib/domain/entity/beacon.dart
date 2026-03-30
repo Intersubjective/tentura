@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/consts.dart';
 
+import 'beacon_lifecycle.dart';
 import 'coordinates.dart';
 import 'image_entity.dart';
 import 'likable.dart';
@@ -22,7 +23,8 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     @Default('') String context,
     @Default('') String description,
     @Default(false) bool isPinned,
-    @Default(false) bool isEnabled,
+    @Default(BeaconLifecycle.open) BeaconLifecycle lifecycle,
+    @Default({}) Set<String> rejectedUserIds,
     @Default(0) double rScore,
     @Default(0) double score,
     @Default(0) int myVote,
@@ -36,6 +38,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   }) = _Beacon;
 
   const Beacon._();
+
+  /// Legacy: "listed" in profile filters (OPEN / DRAFT / PENDING_REVIEW).
+  bool get isListed => lifecycle.isActiveSection;
 
   @override
   int get votes => myVote;

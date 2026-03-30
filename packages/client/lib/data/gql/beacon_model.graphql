@@ -10,7 +10,7 @@ fragment BeaconModel on beacon {
   updated_at
   is_pinned
   context
-  enabled
+  state
   my_vote
   start_at
   end_at

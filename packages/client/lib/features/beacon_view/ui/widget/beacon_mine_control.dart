@@ -39,7 +39,7 @@ class BeaconMineControl extends StatelessWidget {
             PopupMenuItem<void>(
               onTap: beaconViewCubit.toggleEnabled,
               child: Text(
-                beaconViewCubit.state.beacon.isEnabled
+                beaconViewCubit.state.beacon.isListed
                     ? l10n.disableBeacon
                     : l10n.enableBeacon,
               ),

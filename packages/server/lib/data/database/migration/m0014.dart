@@ -2,7 +2,7 @@ part of '_migrations.dart';
 
 // V1 feedless redesign: forwarding, commitments, author updates, inbox projection.
 final m0014 = Migration('0014', [
-  // beacon_state column on existing beacon table (0=active, 1=closed, 2=deleted)
+  // beacon.state smallint lifecycle: 0=OPEN, 1=CLOSED, 2=DELETED, 3=DRAFT, 4=PENDING_REVIEW
   '''
 ALTER TABLE public.beacon
   ADD COLUMN IF NOT EXISTS state smallint NOT NULL DEFAULT 0;

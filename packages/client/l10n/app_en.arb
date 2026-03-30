@@ -775,6 +775,35 @@
       }
     }
   },
+  "inboxMoreForwarders": "+{count}",
+  "@inboxMoreForwarders": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconLifecycleOpen": "Open",
+  "@beaconLifecycleOpen": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecycleClosed": "Closed",
+  "@beaconLifecycleClosed": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecycleDeleted": "Deleted",
+  "@beaconLifecycleDeleted": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecycleDraft": "Draft",
+  "@beaconLifecycleDraft": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecyclePendingReview": "Review",
+  "@beaconLifecyclePendingReview": {
+    "context": "InboxItemTile"
+  },
   "actionStopWatching": "Stop watching",
   "@actionStopWatching": {
     "context": "InboxItemTile"
@@ -834,6 +863,22 @@
   },
   "myWorkEmpty": "No active work",
   "@myWorkEmpty": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSectionActive": "Active",
+  "@myWorkSectionActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSectionClosed": "Closed",
+  "@myWorkSectionClosed": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActive": "No active work",
+  "@myWorkEmptyActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyClosed": "No closed work",
+  "@myWorkEmptyClosed": {
     "context": "MyWorkScreen"
   },
   "beaconViewTitle": "Beacon",

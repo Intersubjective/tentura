@@ -51,6 +51,31 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
         children: [
           const ContextDropDown(),
 
+          // Active / Closed
+          BlocSelector<MyWorkCubit, MyWorkState, MyWorkSection>(
+            selector: (state) => state.section,
+            builder: (_, section) => Padding(
+              padding: kPaddingSmallV,
+              child: Wrap(
+                spacing: kSpacingSmall,
+                children: [
+                  ChoiceChip(
+                    selected: section == MyWorkSection.active,
+                    label: Text(l10n.myWorkSectionActive),
+                    onSelected: (_) =>
+                        cubit.setSection(MyWorkSection.active),
+                  ),
+                  ChoiceChip(
+                    selected: section == MyWorkSection.closed,
+                    label: Text(l10n.myWorkSectionClosed),
+                    onSelected: (_) =>
+                        cubit.setSection(MyWorkSection.closed),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           // Filter chips
           BlocSelector<MyWorkCubit, MyWorkState, MyWorkFilter>(
             selector: (state) => state.filter,
@@ -100,7 +125,9 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
                         ),
                         const SizedBox(height: kSpacingMedium),
                         Text(
-                          l10n.myWorkEmpty,
+                          state.section == MyWorkSection.active
+                              ? l10n.myWorkEmptyActive
+                              : l10n.myWorkEmptyClosed,
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),

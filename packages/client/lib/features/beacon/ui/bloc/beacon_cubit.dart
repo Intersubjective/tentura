@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -57,8 +58,18 @@ class BeaconCubit extends Cubit<BeaconState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final myAccountId = await _authLocalRepository.getCurrentAccountId();
+      final lifecycleStates = state.filter == BeaconFilter.enabled
+          ? [
+              BeaconLifecycle.open.smallintValue,
+              BeaconLifecycle.draft.smallintValue,
+              BeaconLifecycle.pendingReview.smallintValue,
+            ]
+          : [
+              BeaconLifecycle.closed.smallintValue,
+              BeaconLifecycle.deleted.smallintValue,
+            ];
       final beacons = await _beaconRepository.fetchBeacons(
-        isEnabled: state.filter == BeaconFilter.enabled,
+        lifecycleStates: lifecycleStates,
         offset: state.beacons.length,
         profileId: state.profileId,
       );

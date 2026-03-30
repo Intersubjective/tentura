@@ -16,13 +16,13 @@ class MyWorkRepository {
 
   static const _kNetworkTimeout = Duration(seconds: 60);
 
-  Future<List<Beacon>> fetchAuthored({
+  Future<List<Beacon>> fetchAuthoredActive({
     required String userId,
     required String context,
   }) async {
     final r = await _remoteApiService
         .request(
-          GMyWorkAuthoredReq(
+          GMyWorkAuthoredActiveReq(
             (r) => r..vars.userId = userId..vars.context = context,
           ),
         )
@@ -32,13 +32,45 @@ class MyWorkRepository {
     return v.map((e) => (e as BeaconModel).toEntity()).toList();
   }
 
-  Future<List<Beacon>> fetchCommitted({
+  Future<List<Beacon>> fetchAuthoredClosed({
     required String userId,
     required String context,
   }) async {
     final r = await _remoteApiService
         .request(
-          GMyWorkCommittedReq(
+          GMyWorkAuthoredClosedReq(
+            (r) => r..vars.userId = userId..vars.context = context,
+          ),
+        )
+        .timeout(_kNetworkTimeout)
+        .first;
+    final v = r.dataOrThrow(label: _label).beacon;
+    return v.map((e) => (e as BeaconModel).toEntity()).toList();
+  }
+
+  Future<List<Beacon>> fetchCommittedActive({
+    required String userId,
+    required String context,
+  }) async {
+    final r = await _remoteApiService
+        .request(
+          GMyWorkCommittedActiveReq(
+            (r) => r..vars.userId = userId..vars.context = context,
+          ),
+        )
+        .timeout(_kNetworkTimeout)
+        .first;
+    final v = r.dataOrThrow(label: _label).beacon_commitment;
+    return v.map((e) => (e.beacon as BeaconModel).toEntity()).toList();
+  }
+
+  Future<List<Beacon>> fetchCommittedClosed({
+    required String userId,
+    required String context,
+  }) async {
+    final r = await _remoteApiService
+        .request(
+          GMyWorkCommittedClosedReq(
             (r) => r..vars.userId = userId..vars.context = context,
           ),
         )

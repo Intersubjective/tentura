@@ -775,6 +775,35 @@
       }
     }
   },
+  "inboxMoreForwarders": "+{count}",
+  "@inboxMoreForwarders": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconLifecycleOpen": "Открыт",
+  "@beaconLifecycleOpen": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecycleClosed": "Закрыт",
+  "@beaconLifecycleClosed": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecycleDeleted": "Удалён",
+  "@beaconLifecycleDeleted": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecycleDraft": "Черновик",
+  "@beaconLifecycleDraft": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecyclePendingReview": "На проверке",
+  "@beaconLifecyclePendingReview": {
+    "context": "InboxItemTile"
+  },
   "actionStopWatching": "Прекратить наблюдение",
   "@actionStopWatching": {
     "context": "InboxItemTile"
@@ -834,6 +863,22 @@
   },
   "myWorkEmpty": "Нет активных дел",
   "@myWorkEmpty": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSectionActive": "Активные",
+  "@myWorkSectionActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSectionClosed": "Закрытые",
+  "@myWorkSectionClosed": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActive": "Нет активных дел",
+  "@myWorkEmptyActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyClosed": "Нет закрытых дел",
+  "@myWorkEmptyClosed": {
     "context": "MyWorkScreen"
   },
   "beaconViewTitle": "Маяк",

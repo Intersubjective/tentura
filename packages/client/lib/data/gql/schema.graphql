@@ -1759,6 +1759,12 @@ type inbox_item {
   rejection_message: String!
   status: smallint!
 
+  """
+  A computed field, executes function "inbox_item_inbox_provenance_data"
+  JSON string with senderIds, mrScores, totalDistinctSenders, strongestNotePreview
+  """
+  inbox_provenance_data: String
+
   """An object relationship"""
   user: user!
   user_id: String!

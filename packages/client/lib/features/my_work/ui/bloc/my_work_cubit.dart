@@ -51,8 +51,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         state.copyWith(
           status: const StateIsSuccess(),
           context: ctx,
-          authored: const [],
-          committed: const [],
+          authoredActive: const [],
+          authoredClosed: const [],
+          committedActive: const [],
+          committedClosed: const [],
         ),
       );
       return;
@@ -60,8 +62,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final results = await Future.wait([
-        _repository.fetchAuthored(userId: userId, context: ctx),
-        _repository.fetchCommitted(userId: userId, context: ctx),
+        _repository.fetchAuthoredActive(userId: userId, context: ctx),
+        _repository.fetchAuthoredClosed(userId: userId, context: ctx),
+        _repository.fetchCommittedActive(userId: userId, context: ctx),
+        _repository.fetchCommittedClosed(userId: userId, context: ctx),
       ]);
       if (isClosed || seq != _fetchSeq) {
         return;
@@ -70,8 +74,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         state.copyWith(
           status: const StateIsSuccess(),
           context: ctx,
-          authored: results[0],
-          committed: results[1],
+          authoredActive: results[0],
+          authoredClosed: results[1],
+          committedActive: results[2],
+          committedClosed: results[3],
         ),
       );
     } catch (e) {
@@ -86,15 +92,24 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     emit(state.copyWith(filter: filter));
   }
 
+  void setSection(MyWorkSection section) {
+    emit(state.copyWith(section: section));
+  }
+
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
-    RepositoryEventUpdate<Beacon>(value: final b) => emit(state.copyWith(
-      authored: [for (final a in state.authored) a.id == b.id ? b : a],
-      committed: [for (final c in state.committed) c.id == b.id ? b : c],
-    )),
-    RepositoryEventDelete<Beacon>(value: final b) => emit(state.copyWith(
-      authored: state.authored.where((e) => e.id != b.id).toList(),
-      committed: state.committed.where((e) => e.id != b.id).toList(),
-    )),
+    RepositoryEventUpdate<Beacon>() => unawaited(fetch()),
+    RepositoryEventDelete<Beacon>(value: final b) => emit(
+      state.copyWith(
+        authoredActive:
+            state.authoredActive.where((e) => e.id != b.id).toList(),
+        authoredClosed:
+            state.authoredClosed.where((e) => e.id != b.id).toList(),
+        committedActive:
+            state.committedActive.where((e) => e.id != b.id).toList(),
+        committedClosed:
+            state.committedClosed.where((e) => e.id != b.id).toList(),
+      ),
+    ),
     _ => null,
   };
 }

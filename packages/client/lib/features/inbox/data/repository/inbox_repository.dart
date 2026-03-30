@@ -4,6 +4,7 @@ import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/inbox_item.dart';
+import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
 import '../gql/_g/inbox_fetch.req.gql.dart';
 import '../gql/_g/inbox_set_status.req.gql.dart';
@@ -29,6 +30,7 @@ class InboxRepository {
                 latestNotePreview: e.latest_note_preview,
                 status: inboxItemStatusFromSmallint(e.status),
                 rejectionMessage: e.rejection_message,
+                provenance: InboxProvenance.parse(e.inbox_provenance_data),
                 beacon: (e.beacon as BeaconModel).toEntity(),
               ),
             )

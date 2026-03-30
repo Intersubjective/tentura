@@ -131,3 +131,17 @@ Remove the serializers if Hasura (or the MeritRank integration) consistently
 returns numeric JSON for these scalars everywhere, and no query still receives
 string-encoded values — then verify with `FriendsFetch` / `UserModel.scores` and
 other selections that include `mutual_score`.
+
+---
+
+## 4. Hasura: `inbox_item.inbox_provenance_data` computed field
+
+**Migration:** `m0015` defines `public.inbox_item_inbox_provenance_data(inbox_row, hasura_session)`.
+
+**Deploy:** In Hasura Console, add a computed field on table `inbox_item`:
+
+- Name: `inbox_provenance_data`
+- Definition: SQL function `inbox_item_inbox_provenance_data`
+- Session argument: `hasura_session` → `Hasura-Session-Variable`
+
+Reload metadata and re-introspect the client `schema.graphql` if the field type differs from `String`.
