@@ -28,16 +28,20 @@ class TimelineCommitment extends TimelineEntry {
     required this.message,
     required this.createdAt,
     required this.updatedAt,
+    this.isWithdrawn = false,
   });
   final Profile user;
   final String message;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool isWithdrawn;
 
   @override
-  DateTime get timestamp => createdAt;
+  DateTime get timestamp =>
+      isWithdrawn ? updatedAt : createdAt;
 
   bool get isEdited =>
+      !isWithdrawn &&
       updatedAt.difference(createdAt).inSeconds.abs() > 1;
 }
 

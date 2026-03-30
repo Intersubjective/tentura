@@ -23,11 +23,11 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       coordinates: i.lat == null || i.long == null
           ? Coordinates.zero
           : Coordinates(
-              lat: double.tryParse(i.lat?.value ?? '') ?? 0,
-              long: double.tryParse(i.long?.value ?? '') ?? 0,
+              lat: i.lat ?? 0,
+              long: i.long ?? 0,
             ),
-      rScore: double.tryParse(i.scores?.firstOrNull?.src_score?.value ?? '') ?? 0,
-      score: double.tryParse(i.scores?.firstOrNull?.dst_score?.value ?? '') ?? 0,
+      rScore: i.scores?.firstOrNull?.src_score ?? 0,
+      score: i.scores?.firstOrNull?.dst_score ?? 0,
       polling: (i.polling as PollingModel?)?.toEntity(author: author),
       image: (i.image as ImageModel?)?.asEntity ?? image?.asEntity,
       tags: {

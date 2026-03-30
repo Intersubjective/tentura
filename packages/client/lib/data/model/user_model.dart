@@ -10,13 +10,7 @@ extension type const UserModel(GUserModel i) implements GUserModel {
     description: i.description,
     myVote: i.my_vote ?? 0,
     image: (i.image as ImageModel?)?.asEntity ?? image?.asEntity,
-    score: double.tryParse(
-          i.scores?.firstOrNull?.dst_score?.value ?? '',
-        ) ??
-        0,
-    rScore: double.tryParse(
-          i.scores?.firstOrNull?.src_score?.value ?? '',
-        ) ??
-        0,
+    score: i.scores?.firstOrNull?.dst_score ?? 0,
+    rScore: i.scores?.firstOrNull?.src_score ?? 0,
   );
 }

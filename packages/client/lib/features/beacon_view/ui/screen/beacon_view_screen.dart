@@ -319,7 +319,7 @@ class _TabSectionState extends State<_TabSection>
             CommitmentTile(
               commitment: c,
               isMine: c.user.id == widget.myUserId,
-              onEdit: c.user.id == widget.myUserId
+              onEdit: c.user.id == widget.myUserId && !c.isWithdrawn
                   ? () => unawaited(widget.onEditCommitment(c))
                   : null,
             ),
@@ -367,19 +367,28 @@ class _TimelineEntryTile extends StatelessWidget {
         final TimelineCommitment e => Row(
             children: [
               Icon(
-                Icons.handshake,
+                e.isWithdrawn ? Icons.heart_broken : Icons.handshake,
                 size: 18,
-                color: theme.colorScheme.tertiary,
+                color: e.isWithdrawn
+                    ? theme.colorScheme.error
+                    : theme.colorScheme.tertiary,
               ),
               const SizedBox(width: kSpacingSmall),
               Expanded(
                 child: Text(
-                  e.message.isNotEmpty
-                      ? l10n.timelineCommittedWithMessage(
-                          e.user.title,
-                          e.message,
-                        )
-                      : l10n.timelineCommitted(e.user.title),
+                  e.isWithdrawn
+                      ? (e.message.isNotEmpty
+                          ? l10n.timelineWithdrewWithMessage(
+                              e.user.title,
+                              e.message,
+                            )
+                          : l10n.timelineWithdrew(e.user.title))
+                      : (e.message.isNotEmpty
+                          ? l10n.timelineCommittedWithMessage(
+                              e.user.title,
+                              e.message,
+                            )
+                          : l10n.timelineCommitted(e.user.title)),
                   style: theme.textTheme.bodySmall,
                 ),
               ),

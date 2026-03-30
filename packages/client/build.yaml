@@ -41,6 +41,15 @@ targets:
               name: MultipartFile
               import: 'package:http/http.dart'
 
+            smallint:
+              name: int
+
+            float8:
+              name: double
+
+            uuid:
+              name: String
+
       ferry_generator|serializer_builder:
         enabled: true
         options:
@@ -57,6 +66,15 @@ targets:
             Upload:
               name: MultipartFile
               import: 'package:http/http.dart'
+
+            smallint:
+              name: int
+
+            float8:
+              name: double
+
+            uuid:
+              name: String
 
           custom_serializers:
             - import: "package:tentura/data/gql/timestamptz_serializer.dart"

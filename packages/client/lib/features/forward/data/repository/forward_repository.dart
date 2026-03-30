@@ -70,6 +70,7 @@ class ForwardRepository {
                 String message,
                 DateTime createdAt,
                 DateTime updatedAt,
+                bool isWithdrawn,
               })>>
       fetchCommitments({required String beaconId}) => _remoteApiService
           .request(
@@ -86,6 +87,7 @@ class ForwardRepository {
                     message: e.message,
                     createdAt: e.created_at,
                     updatedAt: e.updated_at,
+                    isWithdrawn: e.status == 1,
                   ),
                 )
                 .toList(),

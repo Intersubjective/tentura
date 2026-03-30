@@ -827,6 +827,26 @@
       "message": { "type": "String" }
     }
   },
+  "timelineWithdrew": "{user} отказался(-ась)",
+  "@timelineWithdrew": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "user": { "type": "String" }
+    }
+  },
+  "timelineWithdrewWithMessage": "{user} отказался(-ась): \"{message}\"",
+  "@timelineWithdrewWithMessage": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "user": { "type": "String" },
+      "message": { "type": "String" }
+    }
+  },
+  "labelWithdrawn": "Отказ",
+  "@labelWithdrawn": {
+    "context": "BeaconViewScreen",
+    "description": "Badge for withdrawn commitment in commitments list"
+  },
   "timelineUpdate": "{author}: {content}",
   "@timelineUpdate": {
     "context": "BeaconViewScreen",

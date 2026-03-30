@@ -4,7 +4,7 @@ import '../gql/_g/image_model.data.gql.dart';
 
 extension type const ImageModel(GImageModel i) implements GImageModel {
   ImageEntity get asEntity => ImageEntity(
-    id: i.id.value,
+    id: i.id,
     authorId: i.author_id,
     blurHash: i.hash,
     height: i.height,

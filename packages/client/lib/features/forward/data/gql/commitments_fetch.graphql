@@ -2,10 +2,11 @@
 
 query CommitmentsFetch($beaconId: String!) {
   beacon_commitment(
-    where: {beacon_id: {_eq: $beaconId}, status: {_eq: 0}},
+    where: {beacon_id: {_eq: $beaconId}},
     order_by: {updated_at: desc}
   ) {
     message
+    status
     created_at
     updated_at
     user {
