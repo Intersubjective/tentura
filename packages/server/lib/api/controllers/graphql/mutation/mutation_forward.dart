@@ -1,3 +1,5 @@
+import 'dart:convert' show json;
+
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
 import '../gql_nodel_base.dart';
@@ -12,6 +14,7 @@ final class MutationForward extends GqlNodeBase {
   final _note = InputFieldString(fieldName: 'note');
   final _context = InputFieldString(fieldName: 'context');
   final _parentEdgeId = InputFieldString(fieldName: 'parentEdgeId');
+  final _perRecipientNotes = InputFieldString(fieldName: 'perRecipientNotes');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [forward];
 
@@ -22,6 +25,7 @@ final class MutationForward extends GqlNodeBase {
       InputFieldId.field,
       InputFieldRecipientIds.field,
       _note.fieldNullable,
+      _perRecipientNotes.fieldNullable,
       _context.fieldNullable,
       _parentEdgeId.fieldNullable,
     ],
@@ -32,6 +36,14 @@ final class MutationForward extends GqlNodeBase {
       sharedNote: _note.fromArgs(args) ?? '',
       context: _context.fromArgs(args),
       parentEdgeId: _parentEdgeId.fromArgs(args),
+      perRecipientNotes: switch (_perRecipientNotes.fromArgs(args)) {
+        final String s when s.isNotEmpty => Map<String, String>.from(
+          (json.decode(s) as Map).map(
+            (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
+          ),
+        ),
+        _ => null,
+      },
     ),
   );
 }

@@ -849,6 +849,84 @@
   "@selectRecipients": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardFilterAll": "All",
+  "@forwardFilterAll": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardFilterBestNext": "Best next",
+  "@forwardFilterBestNext": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardFilterUnseen": "Unseen",
+  "@forwardFilterUnseen": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardFilterInvolved": "Already involved",
+  "@forwardFilterInvolved": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSectionRecommended": "Recommended",
+  "@forwardSectionRecommended": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSectionOthers": "Others",
+  "@forwardSectionOthers": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSectionNotReachable": "Not reachable",
+  "@forwardSectionNotReachable": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSectionUnavailable": "Cannot forward",
+  "@forwardSectionUnavailable": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardAlreadyForwarded": "Already forwarded",
+  "@forwardAlreadyForwarded": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardCommitted": "Committed",
+  "@forwardCommitted": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardWithdrawn": "Withdrew commitment",
+  "@forwardWithdrawn": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardAuthor": "Beacon author",
+  "@forwardAuthor": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardPersonalizeNotes": "Personalize notes ({count})",
+  "@forwardPersonalizeNotes": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forwardRecipientNoteHint": "Note for {name}",
+  "@forwardRecipientNoteHint": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardSharedNoteHint": "Shared note (optional)",
+  "@forwardSharedNoteHint": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSortedByMr": "Sorted by MR score",
+  "@forwardSortedByMr": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardHidePersonalizedNotes": "Hide personalized notes",
+  "@forwardHidePersonalizedNotes": {
+    "context": "ForwardBeaconScreen"
+  },
   "myWorkFilterAll": "All",
   "@myWorkFilterAll": {
     "context": "MyWorkScreen"

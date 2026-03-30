@@ -1,5 +1,0 @@
-query ForwardRejectedIdsFetch($beaconId: String!) {
-  beacon_by_pk(id: $beaconId) {
-    rejected_user_ids
-  }
-}

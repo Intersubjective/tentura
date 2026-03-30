@@ -163,6 +163,20 @@ flutter gen-l10n
   docker compose run --rm schema_fetcher
   ```
 
+The app calls Hasura at `/api/v1/graphql`, which merges Postgres with the **Tentura remote schema** (`TENTURA_GRAPHQL_URL` → Tentura API on port 2080). Hasura caches that schema from introspection. If you add or change arguments on Tentura-only mutations (for example `beaconWithdraw`), validation errors such as `beaconWithdraw has no argument named 'message'` mean Hasura’s cache is stale.
+
+**Fix:** Start or restart the Tentura server with the new code, then reload the remote schema:
+
+- **Console:** Settings → Remote Schemas → `tentura` → **Reload**
+- **CLI:**
+
+  ```bash
+  curl -sS -X POST http://localhost:8080/v1/metadata \
+    -H "X-Hasura-Admin-Secret: password" \
+    -H "Content-Type: application/json" \
+    -d '{"type":"reload_remote_schema","args":{"name":"tentura"}}'
+  ```
+
 ## MinIO
 
 - Console: <http://localhost:9001> (user: `minioadmin`, password: `minioadmin`)

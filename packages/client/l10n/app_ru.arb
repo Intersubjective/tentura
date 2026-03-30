@@ -849,6 +849,84 @@
   "@selectRecipients": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardFilterAll": "Все",
+  "@forwardFilterAll": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardFilterBestNext": "Лучшие дальше",
+  "@forwardFilterBestNext": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardFilterUnseen": "Не видели",
+  "@forwardFilterUnseen": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardFilterInvolved": "Уже вовлечены",
+  "@forwardFilterInvolved": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSectionRecommended": "Рекомендуемые",
+  "@forwardSectionRecommended": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSectionOthers": "Остальные",
+  "@forwardSectionOthers": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSectionNotReachable": "Недоступны",
+  "@forwardSectionNotReachable": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSectionUnavailable": "Нельзя переслать",
+  "@forwardSectionUnavailable": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardAlreadyForwarded": "Уже переслано",
+  "@forwardAlreadyForwarded": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardCommitted": "Взяли обязательство",
+  "@forwardCommitted": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardWithdrawn": "Отозвали обязательство",
+  "@forwardWithdrawn": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardAuthor": "Автор маяка",
+  "@forwardAuthor": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardPersonalizeNotes": "Персональные заметки ({count})",
+  "@forwardPersonalizeNotes": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forwardRecipientNoteHint": "Заметка для {name}",
+  "@forwardRecipientNoteHint": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "forwardSharedNoteHint": "Общая заметка (необязательно)",
+  "@forwardSharedNoteHint": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardSortedByMr": "Сортировка по MR",
+  "@forwardSortedByMr": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardHidePersonalizedNotes": "Скрыть персональные заметки",
+  "@forwardHidePersonalizedNotes": {
+    "context": "ForwardBeaconScreen"
+  },
   "myWorkFilterAll": "Все",
   "@myWorkFilterAll": {
     "context": "MyWorkScreen"
