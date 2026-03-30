@@ -4,7 +4,7 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Execution is for follow-up agents.** Remaining open questions are minor unless marked.
 
-**Recently implemented:** §2 (inbox row provenance + lifecycle badge) and §4 (`beacon.state` lifecycle, My Work Active/Closed, client no longer uses `enabled` on `BeaconModel`). See those sections for details and ops follow-ups.
+**Recently implemented:** §2 (inbox row provenance + lifecycle badge), §4 (`beacon.state` lifecycle, My Work Active/Closed, client no longer uses `enabled` on `BeaconModel`), and §3 forward screen (header, filters, MR-sorted sectioned list, involvement-driven buckets, shared + per-recipient notes, `computeBeaconListSections` single-pass UI data). See those sections for details and ops follow-ups.
 
 ---
 
@@ -53,21 +53,21 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Brief:** Beacon summary header; filters; sort; grouped sections; reachability hints; sticky bar; optional per-recipient notes.
 
-**Decision:** **Client-side filters** on candidates plus **optional new API** for **beacon involvement** (forwarded, unseen, already involved including committed/uncommitted/declined, author). See `product-decisions.md`.
+**Decision:** **Client-side filters** on candidates plus **beacon involvement** (forwarded, unseen, already involved including committed/withdrawn/declined, author). See `product-decisions.md`.
 
-**Current behavior**
+**Status:** **Largely implemented** (client + server involvement inputs + forward mutation with per-recipient notes). **Still open:** `parentEdgeId` not passed from cubit; route presentation (`fullscreenDialog: true` on `ForwardBeaconRoute` — align with §7 / contradictions plan).
 
-- `root_router.dart` — `ForwardBeaconRoute` still `fullscreenDialog: true` (align with **AppBar shell** / normal push — see §7 and contradictions plan).
-- `forward_beacon_screen.dart` / `forward_cubit.dart` — flat friends list; `forward_repository.dart` has `parentEdgeId` unused in cubit.
+**Implemented behavior**
 
-**Likely work**
+- **Client data:** `beacon_involvement_fetch.graphql` + `ForwardRepository.fetchBeaconInvolvement` supplies beacon, author, `forwardedToIds`, `committedIds`, `withdrawnIds`, `rejectedIds` (declined); merged with friends list into `ForwardCandidate` + `CandidateInvolvement`.
+- **UI:** `BeaconForwardHeader`, `ForwardFilterBar` (All / Best next / Unseen / Already involved), search field, `ForwardCandidateTile` with involvement copy; bottom bar: shared note, `PerRecipientNotesPanel`, forward CTA.
+- **Sections (All):** **Recommended** (reachable, can forward, unseen), **Others** (reachable, already involved, excluding author/declined), **Cannot forward** (author + declined, reachable), **Not reachable** — MR sort within each bucket via **`ForwardState.computeBeaconListSections()`** (single search pass + one sort per bucket; avoids repeated getter work).
+- **Mutation:** `forward_beacon.graphql` / `beaconForward` with `perRecipientNotes` map.
 
-- **Server:** Query or fields: involvement per user for this beacon (for filters + “already involved” bucket).
-- **Client:** Header, filter chips, sort, sectioned list, wire `parentEdgeId` when chain rules are fixed; step-2 notes if still in scope.
+**Remaining**
 
-**Open**
-
-- `parentEdgeId` selection rule per branch (product).
+- **Product + client:** Wire **`parentEdgeId`** from the forward context (edge / branch rule) when chain semantics are finalized; repository API already accepts it.
+- **Shell:** Consider normal push vs fullscreen dialog when global AppBar work (§7) lands.
 
 ---
 
@@ -217,7 +217,7 @@ Post-implementation review of the shipped stack (server migrations, Hasura contr
 |---|---------|--------|------------------|
 | 1 | Inbox sort (MR server) | Open | `inbox_fetch.graphql`, inbox cubit/UI, server MR field |
 | 2 | Inbox row | **Done** | `inbox_fetch.graphql`, `inbox_provenance.dart`, `inbox_item_tile.dart`, m0015 + Hasura (WORKAROUNDS §4) |
-| 3 | Forward UX + involvement API | Open | `forward_*`, new GraphQL as needed |
+| 3 | Forward UX + involvement | **Largely done** | `beacon_involvement_fetch.graphql`, `forward_beacon.graphql`, `forward_repository.dart`, `forward_cubit.dart`, `forward_state.dart` (`computeBeaconListSections`), `forward_beacon_screen.dart`, widgets under `forward/ui/widget/`; **open:** `parentEdgeId` in cubit, route shell (§7) |
 | 4 | Lifecycle + My Work Active/Closed | **Done** | m0015, `beacon_lifecycle.dart`, `beacon_model.graphql`, `my_work_fetch.graphql`, `my_work_*`, `beacon_repository`, beacon mine/view controls |
 | 5 | Network IA + chat | Open | `friends_screen.dart` |
 | 6 | Me sections | Open | profile, server |

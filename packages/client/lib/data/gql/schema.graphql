@@ -2050,7 +2050,7 @@ type mutation_root {
   beaconCommit(id: String!, message: String): Boolean!
   beaconCreate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, image: Upload = {}, polling: PollingInput, startAt: String, tags: String, title: String!): Beacon!
   beaconDeleteById(id: String!): Boolean!
-  beaconForward(context: String, id: String!, note: String, parentEdgeId: String, recipientIds: [String!]!): String!
+  beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]!): String!
   beaconWithdraw(id: String!, message: String): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
 

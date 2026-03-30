@@ -3,11 +3,15 @@ import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
 
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 
+import '../../domain/entity/forward_candidate.dart';
 import '../bloc/forward_cubit.dart';
+import '../widget/beacon_forward_header.dart';
+import '../widget/forward_candidate_tile.dart';
+import '../widget/forward_filter_bar.dart';
+import '../widget/per_recipient_notes_panel.dart';
 
 @RoutePage()
 class ForwardBeaconScreen extends StatelessWidget
@@ -31,6 +35,13 @@ class ForwardBeaconScreen extends StatelessWidget
     ),
   );
 
+  bool _listIsEmpty(ForwardBeaconListSections sections, ForwardState state) {
+    if (state.activeFilter == ForwardFilter.all) {
+      return sections.isEmptyAllLayout;
+    }
+    return sections.filteredFlatList.isEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -41,144 +52,178 @@ class ForwardBeaconScreen extends StatelessWidget
         title: Text(l10n.forwardBeaconTitle),
       ),
       body: BlocBuilder<ForwardCubit, ForwardState>(
-        buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
         builder: (_, state) {
           if (state.isLoading && state.candidates.isEmpty) {
             return const Center(
               child: CircularProgressIndicator.adaptive(),
             );
           }
-          final filtered = state.filteredCandidates;
+          final sections = state.computeBeaconListSections();
+          final beacon = state.beacon;
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Search
+              if (beacon != null && beacon.id.isNotEmpty)
+                BeaconForwardHeader(beacon: beacon),
+              ForwardFilterBar(
+                activeFilter: state.activeFilter,
+                onFilterSelected: cubit.setFilter,
+              ),
               Padding(
                 padding: kPaddingH,
                 child: TextField(
                   decoration: InputDecoration(
                     hintText: l10n.searchContacts,
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                     isDense: true,
                   ),
                   onChanged: cubit.setSearchQuery,
                 ),
               ),
-
-              // Candidates list
               Expanded(
-                child: filtered.isEmpty
+                child: _listIsEmpty(sections, state)
                     ? Center(
                         child: Text(
-                          l10n.noReachableContacts,
+                          state.candidates.isEmpty
+                              ? l10n.noReachableContacts
+                              : l10n.labelNothingHere,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       )
-                    : ListView.separated(
+                    : ListView(
                         padding: kPaddingSmallV,
-                        itemCount: filtered.length,
-                        separatorBuilder: separatorBuilder,
-                        itemBuilder: (_, i) {
-                          final profile = filtered[i];
-                          final isSelected =
-                              state.selectedIds.contains(profile.id);
-                          final declined =
-                              state.rejectedUserIds.contains(profile.id);
-                          final canSelect =
-                              profile.isSeeingMe && !declined;
-                          final subtitleText = declined
-                              ? l10n.forwardDeclined
-                              : (!profile.isSeeingMe
-                                  ? l10n.notReachable
-                                  : null);
-                          return ListTile(
-                            enabled: canSelect,
-                            leading: AvatarRated(
-                              size: 40,
-                              profile: profile,
+                        children: [
+                          if (state.activeFilter == ForwardFilter.all) ...[
+                            if (sections.recommended.isNotEmpty) ...[
+                              _SectionTitle(l10n.forwardSectionRecommended),
+                              ..._tiles(
+                                sections.recommended,
+                                state,
+                                cubit,
+                              ),
+                            ],
+                            if (sections.other.isNotEmpty) ...[
+                              _SectionTitle(l10n.forwardSectionOthers),
+                              ..._tiles(
+                                sections.other,
+                                state,
+                                cubit,
+                              ),
+                            ],
+                            if (sections.unavailable.isNotEmpty) ...[
+                              _SectionTitle(l10n.forwardSectionUnavailable),
+                              ..._tiles(
+                                sections.unavailable,
+                                state,
+                                cubit,
+                              ),
+                            ],
+                            if (sections.notReachable.isNotEmpty) ...[
+                              _SectionTitle(l10n.forwardSectionNotReachable),
+                              ..._tiles(
+                                sections.notReachable,
+                                state,
+                                cubit,
+                              ),
+                            ],
+                          ] else ...[
+                            ..._tiles(
+                              sections.filteredFlatList,
+                              state,
+                              cubit,
                             ),
-                            title: Text(
-                              profile.title,
-                              style: canSelect
-                                  ? null
-                                  : theme.textTheme.bodyLarge?.copyWith(
-                                      color: theme.colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                            ),
-                            subtitle: subtitleText == null
-                                ? null
-                                : Text(
-                                    subtitleText,
-                                    style:
-                                        theme.textTheme.bodySmall?.copyWith(
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                            trailing: canSelect
-                                ? Checkbox(
-                                    value: isSelected,
-                                    onChanged: (_) =>
-                                        cubit.toggleSelection(profile.id),
-                                  )
-                                : Icon(
-                                    declined
-                                        ? Icons.block
-                                        : Icons.visibility_off,
-                                    size: 20,
-                                    color:
-                                        theme.colorScheme.onSurfaceVariant,
-                                  ),
-                            onTap: canSelect
-                                ? () => cubit.toggleSelection(profile.id)
-                                : null,
-                          );
-                        },
+                          ],
+                        ],
                       ),
               ),
             ],
           );
         },
       ),
-      bottomNavigationBar:
-          BlocSelector<ForwardCubit, ForwardState, int>(
-        selector: (state) => state.selectedCount,
-        builder: (_, count) => SafeArea(
-          child: Padding(
-            padding: kPaddingAll,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Note field
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: l10n.addNoteOptional,
-                    border: OutlineInputBorder(),
-                    isDense: true,
+      bottomNavigationBar: BlocBuilder<ForwardCubit, ForwardState>(
+        builder: (_, state) {
+          final profilesById = {
+            for (final c in state.candidates) c.id: c.profile,
+          };
+          return SafeArea(
+            child: Padding(
+              padding: kPaddingAll,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: l10n.forwardSharedNoteHint,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    maxLines: 2,
+                    onChanged: cubit.setNote,
                   ),
-                  maxLines: 2,
-                  onChanged: cubit.setNote,
-                ),
-                const SizedBox(height: kSpacingSmall),
-                // Forward button
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: count > 0 ? cubit.forward : null,
-                    icon: const Icon(Icons.send),
-                    label: Text(
-                      count > 0
-                          ? l10n.forwardToCount(count)
-                          : l10n.selectRecipients,
+                  PerRecipientNotesPanel(
+                    selectedIds: state.selectedIds,
+                    profilesById: profilesById,
+                    notes: state.perRecipientNotes,
+                    onNoteChanged: cubit.setRecipientNote,
+                  ),
+                  const SizedBox(height: kSpacingSmall),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: state.selectedCount > 0
+                          ? cubit.forward
+                          : null,
+                      icon: const Icon(Icons.send),
+                      label: Text(
+                        state.selectedCount > 0
+                            ? l10n.forwardToCount(state.selectedCount)
+                            : l10n.selectRecipients,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          );
+        },
+      ),
+    );
+  }
+
+  static List<Widget> _tiles(
+    List<ForwardCandidate> candidates,
+    ForwardState state,
+    ForwardCubit cubit,
+  ) => [
+    for (var i = 0; i < candidates.length; i++) ...[
+      if (i > 0) separatorBuilder(null, null),
+      ForwardCandidateTile(
+        candidate: candidates[i],
+        isSelected: state.selectedIds.contains(candidates[i].id),
+        onToggle: () => cubit.toggleSelection(candidates[i].id),
+      ),
+    ],
+  ];
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: kPaddingH.add(kPaddingSmallT),
+      child: Text(
+        text,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
         ),
       ),
     );
