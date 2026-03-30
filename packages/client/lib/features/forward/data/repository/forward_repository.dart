@@ -11,6 +11,7 @@ import '../gql/_g/beacon_commit.req.gql.dart';
 import '../gql/_g/beacon_withdraw.req.gql.dart';
 import '../gql/_g/commitments_fetch.req.gql.dart';
 import '../gql/_g/beacon_updates_fetch.req.gql.dart';
+import '../gql/_g/forward_rejected_ids_fetch.req.gql.dart';
 
 @lazySingleton
 class ForwardRepository {
@@ -58,9 +59,28 @@ class ForwardRepository {
                     createdAt: e.created_at,
                     sender: (e.sender as UserModel).toEntity(),
                     recipient: (e.recipient as UserModel).toEntity(),
+                    recipientRejected: e.recipient_rejected,
+                    recipientRejectionMessage: e.recipient_rejection_message,
                   ),
                 )
                 .toList(),
+          );
+
+  Future<Set<String>> fetchRejectedUserIds({required String beaconId}) =>
+      _remoteApiService
+          .request(
+            GForwardRejectedIdsFetchReq((r) => r..vars.beaconId = beaconId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) {
+              final ids = r
+                  .dataOrThrow(label: _label)
+                  .beacon_by_pk
+                  ?.rejected_user_ids;
+              if (ids == null) return <String>{};
+              return ids.toSet();
+            },
           );
 
   Future<

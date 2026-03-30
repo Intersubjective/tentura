@@ -91,5 +91,7 @@ class ForwardEdgeRepository {
         parentEdgeId: row.parentEdgeId,
         batchId: row.batchId,
         createdAt: (row.createdAt as PgDateTime).dateTime,
+        recipientRejected: row.recipientRejected,
+        recipientRejectionMessage: row.recipientRejectionMessage,
       );
 }

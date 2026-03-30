@@ -6,20 +6,25 @@ import 'package:tentura/ui/widget/author_info.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 
 import '../../domain/entity/inbox_item.dart';
+import '../../domain/enum.dart';
 
 class InboxItemTile extends StatelessWidget {
   const InboxItemTile({
     required this.item,
     required this.onTap,
-    required this.onHide,
-    required this.onToggleWatch,
+    this.onWatch,
+    this.onStopWatching,
+    this.onCantHelp,
+    this.onMoveToInbox,
     super.key,
   });
 
   final InboxItem item;
   final VoidCallback onTap;
-  final VoidCallback onHide;
-  final VoidCallback onToggleWatch;
+  final VoidCallback? onWatch;
+  final VoidCallback? onStopWatching;
+  final Future<void> Function()? onCantHelp;
+  final VoidCallback? onMoveToInbox;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +45,6 @@ class InboxItemTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Forward provenance row
               Row(
                 children: [
                   Icon(
@@ -62,42 +66,45 @@ class InboxItemTile extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
-                  // Actions menu
                   PopupMenuButton<String>(
                     itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'watch',
-                        child: Text(
-                          item.isWatching
-                              ? l10n.actionStopWatching
-                              : l10n.actionWatch,
+                      if (onWatch != null)
+                        PopupMenuItem(
+                          value: 'watch',
+                          child: Text(l10n.actionWatch),
                         ),
-                      ),
-                      PopupMenuItem(
-                        value: 'hide',
-                        child: Text(l10n.actionHide),
-                      ),
+                      if (onStopWatching != null)
+                        PopupMenuItem(
+                          value: 'stop_watch',
+                          child: Text(l10n.actionStopWatching),
+                        ),
+                      if (onCantHelp != null)
+                        PopupMenuItem(
+                          value: 'cant_help',
+                          child: Text(l10n.actionCantHelp),
+                        ),
+                      if (onMoveToInbox != null)
+                        PopupMenuItem(
+                          value: 'move_inbox',
+                          child: Text(l10n.actionMoveToInbox),
+                        ),
                     ],
-                    onSelected: (v) {
-                      if (v == 'hide') onHide();
-                      if (v == 'watch') onToggleWatch();
+                    onSelected: (v) async {
+                      if (v == 'watch') onWatch?.call();
+                      if (v == 'stop_watch') onStopWatching?.call();
+                      if (v == 'cant_help') await onCantHelp?.call();
+                      if (v == 'move_inbox') onMoveToInbox?.call();
                     },
                     child: const Icon(Icons.more_vert, size: 20),
                   ),
                 ],
               ),
-
-              // Author
               AuthorInfo(author: beacon.author),
-
-              // Beacon info
               BeaconInfo(
                 beacon: beacon,
                 isTitleLarge: true,
                 isShowBeaconEnabled: false,
               ),
-
-              // Latest note preview
               if (item.latestNotePreview.isNotEmpty)
                 Padding(
                   padding: kPaddingSmallT,
@@ -123,18 +130,29 @@ class InboxItemTile extends StatelessWidget {
                     ],
                   ),
                 ),
-
-              // Watching badge
-              if (item.isWatching)
+              if (item.status == InboxItemStatus.watching)
                 Padding(
                   padding: kPaddingSmallT,
                   child: Chip(
-                    label: Text(l10n.inboxWatching),
+                    label: Text(l10n.inboxTabWatching),
                     avatar: const Icon(Icons.visibility, size: 16),
                     backgroundColor:
                         theme.colorScheme.secondaryContainer,
                     labelStyle: theme.textTheme.labelSmall,
                     visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              if (item.status == InboxItemStatus.rejected &&
+                  item.rejectionMessage.isNotEmpty)
+                Padding(
+                  padding: kPaddingSmallT,
+                  child: Text(
+                    item.rejectionMessage,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
             ],

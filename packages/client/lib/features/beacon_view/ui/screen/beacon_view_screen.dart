@@ -346,27 +346,52 @@ class _TimelineEntryTile extends StatelessWidget {
     return Padding(
       padding: kPaddingSmallV,
       child: switch (entry) {
-        final TimelineForward e => Row(
+        final TimelineForward e => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.forward_to_inbox,
-                size: 18,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: kSpacingSmall),
-              Expanded(
-                child: Text(
-                  l10n.timelineForwarded(
-                    e.edge.sender.title,
-                    e.edge.recipient.title,
+              Row(
+                children: [
+                  Icon(
+                    Icons.forward_to_inbox,
+                    size: 18,
+                    color: theme.colorScheme.primary,
                   ),
-                  style: theme.textTheme.bodySmall,
+                  const SizedBox(width: kSpacingSmall),
+                  Expanded(
+                    child: Text(
+                      l10n.timelineForwarded(
+                        e.edge.sender.title,
+                        e.edge.recipient.title,
+                      ),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  Text(
+                    _timelineEventTimestamp(e.timestamp),
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ],
+              ),
+              if (e.edge.recipientRejected) ...[
+                const SizedBox(height: kSpacingSmall),
+                Wrap(
+                  spacing: kSpacingSmall,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Chip(
+                      label: Text(l10n.timelineDeclined),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    if (e.edge.recipientRejectionMessage.isNotEmpty)
+                      Text(
+                        e.edge.recipientRejectionMessage,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-              Text(
-                _timelineEventTimestamp(e.timestamp),
-                style: theme.textTheme.labelSmall,
-              ),
+              ],
             ],
           ),
         final TimelineCommitment e => Row(

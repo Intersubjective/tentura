@@ -4,7 +4,6 @@ query InboxFetch($context: String = "") {
   inbox_item(
     order_by: {latest_forward_at: desc},
     where: {
-      is_hidden: {_eq: false},
       _or: [
         {context: {_eq: $context}},
         {context: {_is_null: true}}
@@ -16,8 +15,8 @@ query InboxFetch($context: String = "") {
     forward_count
     latest_forward_at
     latest_note_preview
-    is_hidden
-    is_watching
+    status
+    rejection_message
     beacon {
       ...BeaconModel
     }

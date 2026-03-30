@@ -27,11 +27,11 @@ class InboxItems extends Table {
   late final latestNotePreview = text()
       .withDefault(const Constant(''))();
 
-  late final isHidden = boolean()
-      .withDefault(const Constant(false))();
+  /// 0 = needs_me, 1 = watching, 2 = rejected
+  late final status = integer().withDefault(const Constant(0))();
 
-  late final isWatching = boolean()
-      .withDefault(const Constant(false))();
+  late final rejectionMessage = text()
+      .withDefault(const Constant(''))();
 
   @override
   Set<Column<Object>> get primaryKey => {userId, beaconId};

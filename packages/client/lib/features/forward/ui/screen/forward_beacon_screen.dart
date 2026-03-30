@@ -84,7 +84,15 @@ class ForwardBeaconScreen extends StatelessWidget
                           final profile = filtered[i];
                           final isSelected =
                               state.selectedIds.contains(profile.id);
-                          final canSelect = profile.isSeeingMe;
+                          final declined =
+                              state.rejectedUserIds.contains(profile.id);
+                          final canSelect =
+                              profile.isSeeingMe && !declined;
+                          final subtitleText = declined
+                              ? l10n.forwardDeclined
+                              : (!profile.isSeeingMe
+                                  ? l10n.notReachable
+                                  : null);
                           return ListTile(
                             enabled: canSelect,
                             leading: AvatarRated(
@@ -100,10 +108,10 @@ class ForwardBeaconScreen extends StatelessWidget
                                           .onSurfaceVariant,
                                     ),
                             ),
-                            subtitle: canSelect
+                            subtitle: subtitleText == null
                                 ? null
                                 : Text(
-                                    l10n.notReachable,
+                                    subtitleText,
                                     style:
                                         theme.textTheme.bodySmall?.copyWith(
                                       color:
@@ -117,7 +125,9 @@ class ForwardBeaconScreen extends StatelessWidget
                                         cubit.toggleSelection(profile.id),
                                   )
                                 : Icon(
-                                    Icons.visibility_off,
+                                    declined
+                                        ? Icons.block
+                                        : Icons.visibility_off,
                                     size: 20,
                                     color:
                                         theme.colorScheme.onSurfaceVariant,

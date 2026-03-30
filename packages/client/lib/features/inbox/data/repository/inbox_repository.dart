@@ -4,9 +4,9 @@ import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
 import '../../domain/entity/inbox_item.dart';
+import '../../domain/enum.dart';
 import '../gql/_g/inbox_fetch.req.gql.dart';
-import '../gql/_g/inbox_set_hidden.req.gql.dart';
-import '../gql/_g/inbox_set_watching.req.gql.dart';
+import '../gql/_g/inbox_set_status.req.gql.dart';
 
 @lazySingleton
 class InboxRepository {
@@ -27,33 +27,25 @@ class InboxRepository {
                 forwardCount: e.forward_count,
                 latestForwardAt: e.latest_forward_at,
                 latestNotePreview: e.latest_note_preview,
-                isHidden: e.is_hidden,
-                isWatching: e.is_watching,
+                status: inboxItemStatusFromSmallint(e.status),
+                rejectionMessage: e.rejection_message,
                 beacon: (e.beacon as BeaconModel).toEntity(),
               ),
             )
             .toList(),
       );
 
-  Future<void> setHidden({
+  Future<void> setStatus({
     required String beaconId,
-    required bool isHidden,
+    required InboxItemStatus status,
+    String rejectionMessage = '',
   }) => _remoteApiService
       .request(
-        GInboxSetHiddenReq(
-          (r) => r..vars.beaconId = beaconId..vars.isHidden = isHidden,
-        ),
-      )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label));
-
-  Future<void> setWatching({
-    required String beaconId,
-    required bool isWatching,
-  }) => _remoteApiService
-      .request(
-        GInboxSetWatchingReq(
-          (r) => r..vars.beaconId = beaconId..vars.isWatching = isWatching,
+        GInboxSetStatusReq(
+          (r) => r
+            ..vars.beaconId = beaconId
+            ..vars.status = status.toSmallint
+            ..vars.rejectionMessage = rejectionMessage,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
