@@ -34,6 +34,8 @@ Future<Client> buildClient({
       OperationType.subscription: FetchPolicy.NoCache,
     },
     link: Link.from([
+      _HasuraSetofScalarFixLink(),
+
       DedupeLink(),
 
       AuthLink(getToken),
@@ -120,5 +122,29 @@ class _V2RoutingLink extends Link {
   Future<void> dispose() async {
     await hasuraLink.dispose();
     await tenturaV2Link.dispose();
+  }
+}
+
+/// Normalizes Hasura `SETOF scalar` computed fields that are serialized as a
+/// bare value instead of a JSON array when the result set contains exactly one
+/// row.  See `packages/server/WORKAROUNDS.md` § 5.
+class _HasuraSetofScalarFixLink extends Link {
+  @override
+  Stream<Response> request(Request request, [NextLink? forward]) {
+    return forward!(request).map((response) {
+      _wrapBareRejectedUserIds(response.data);
+      return response;
+    });
+  }
+
+  static void _wrapBareRejectedUserIds(Map<String, dynamic>? data) {
+    if (data == null) return;
+    final beacon = data['beacon_by_pk'];
+    if (beacon is Map<String, dynamic>) {
+      final val = beacon['rejected_user_ids'];
+      if (val is String) {
+        beacon['rejected_user_ids'] = <String>[val];
+      }
+    }
   }
 }
