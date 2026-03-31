@@ -21,7 +21,6 @@ abstract class BeaconEntity with _$BeaconEntity {
     required UserEntity author,
     required DateTime createdAt,
     required DateTime updatedAt,
-    @Default(true) bool isEnabled,
     @Default(0) int state,
     @Default('') String description,
     Coordinates? coordinates,

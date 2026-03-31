@@ -12,7 +12,7 @@ abstract class BeaconState extends StateBase with _$BeaconState {
     @Default(false) bool isMine,
     @Default([]) List<Beacon> beacons,
     @Default(false) bool hasReachedLast,
-    @Default(BeaconFilter.enabled) BeaconFilter filter,
+    @Default(BeaconFilter.active) BeaconFilter filter,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconState;
 

@@ -84,7 +84,6 @@ type beacon {
   context: String
   created_at: timestamptz!
   description: String!
-  enabled: Boolean!
   end_at: timestamptz
 
   """An array relationship"""
@@ -238,7 +237,6 @@ input beacon_bool_exp {
   context: String_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
-  enabled: Boolean_comparison_exp
   end_at: timestamptz_comparison_exp
   forward_edges: beacon_forward_edge_bool_exp
   id: String_comparison_exp
@@ -832,7 +830,6 @@ input beacon_order_by {
   context: order_by
   created_at: order_by
   description: order_by
-  enabled: order_by
   end_at: order_by
   forward_edges_aggregate: beacon_forward_edge_aggregate_order_by
   id: order_by
@@ -1006,9 +1003,6 @@ enum beacon_select_column {
   description
 
   """column name"""
-  enabled
-
-  """column name"""
   end_at
 
   """column name"""
@@ -1049,7 +1043,6 @@ enum beacon_select_column {
 input type for updating data in table "beacon"
 """
 input beacon_set_input {
-  enabled: Boolean
   state: smallint
 }
 
@@ -1096,7 +1089,6 @@ input beacon_stream_cursor_value_input {
   context: String
   created_at: timestamptz
   description: String
-  enabled: Boolean
   end_at: timestamptz
   id: String
   image_id: uuid

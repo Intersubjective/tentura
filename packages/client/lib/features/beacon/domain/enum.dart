@@ -1,1 +1,1 @@
-enum BeaconFilter { enabled, disabled }
+enum BeaconFilter { active, closed }

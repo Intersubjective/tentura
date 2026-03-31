@@ -17,7 +17,6 @@ BeaconEntity beaconModelToEntity(
   id: model.id,
   title: model.title,
   context: model.context,
-  isEnabled: model.isEnabled,
   state: model.state,
   description: model.description,
   author: userModelToEntity(author),

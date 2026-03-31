@@ -196,24 +196,24 @@
   "@beaconsTitle": {
     "context": "BeaconScreen"
   },
-  "beaconsFilterEnabled": "Активные",
-  "@beaconsFilterEnabled": {
+  "beaconsFilterActive": "Активные",
+  "@beaconsFilterActive": {
     "context": "BeaconScreen"
   },
-  "beaconsFilterDisabled": "Скрытые",
-  "@beaconsFilterDisabled": {
+  "beaconsFilterClosed": "Закрытые",
+  "@beaconsFilterClosed": {
     "context": "BeaconScreen"
   },
   "noBeaconsMessage": "Мяков пока нет",
   "@noBeaconsMessage": {
     "context": "BeaconScreen"
   },
-  "disableBeacon": "Скрыть маяк",
-  "@disableBeacon": {
+  "closeBeacon": "Закрыть маяк",
+  "@closeBeacon": {
     "context": "BeaconMineControl"
   },
-  "enableBeacon": "Включить маяк",
-  "@enableBeacon": {
+  "openBeacon": "Открыть маяк",
+  "@openBeacon": {
     "context": "BeaconMineControl"
   },
   "deleteBeacon": "Удалить маяк",

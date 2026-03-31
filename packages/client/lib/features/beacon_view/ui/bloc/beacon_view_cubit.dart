@@ -50,7 +50,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> toggleEnabled() async {
+  Future<void> toggleLifecycle() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final next = state.beacon.isListed

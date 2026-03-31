@@ -196,24 +196,24 @@
   "@beaconsTitle": {
     "context": "BeaconScreen"
   },
-  "beaconsFilterEnabled": "Enabled",
-  "@beaconsFilterEnabled": {
+  "beaconsFilterActive": "Active",
+  "@beaconsFilterActive": {
     "context": "BeaconScreen"
   },
-  "beaconsFilterDisabled": "Disabled",
-  "@beaconsFilterDisabled": {
+  "beaconsFilterClosed": "Closed",
+  "@beaconsFilterClosed": {
     "context": "BeaconScreen"
   },
   "noBeaconsMessage": "There are no beacons yet",
   "@noBeaconsMessage": {
     "context": "BeaconScreen"
   },
-  "disableBeacon": "Disable Beacon",
-  "@disableBeacon": {
+  "closeBeacon": "Close Beacon",
+  "@closeBeacon": {
     "context": "BeaconMineControl"
   },
-  "enableBeacon": "Enable Beacon",
-  "@enableBeacon": {
+  "openBeacon": "Open Beacon",
+  "@openBeacon": {
     "context": "BeaconMineControl"
   },
   "deleteBeacon": "Delete Beacon",

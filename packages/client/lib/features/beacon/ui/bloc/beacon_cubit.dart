@@ -58,7 +58,7 @@ class BeaconCubit extends Cubit<BeaconState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final myAccountId = await _authLocalRepository.getCurrentAccountId();
-      final lifecycleStates = state.filter == BeaconFilter.enabled
+      final lifecycleStates = state.filter == BeaconFilter.active
           ? [
               BeaconLifecycle.open.smallintValue,
               BeaconLifecycle.draft.smallintValue,

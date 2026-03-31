@@ -89,12 +89,12 @@ class _BeaconScreenState extends State<BeaconScreen> {
               icon: const Icon(Icons.filter_alt),
               items: [
                 DropdownMenuItem(
-                  value: BeaconFilter.enabled,
-                  child: Text(_l10n.beaconsFilterEnabled),
+                  value: BeaconFilter.active,
+                  child: Text(_l10n.beaconsFilterActive),
                 ),
                 DropdownMenuItem(
-                  value: BeaconFilter.disabled,
-                  child: Text(_l10n.beaconsFilterDisabled),
+                  value: BeaconFilter.closed,
+                  child: Text(_l10n.beaconsFilterClosed),
                 ),
               ],
               onChanged: _beaconCubit.setFilter,

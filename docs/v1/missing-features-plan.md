@@ -81,14 +81,14 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Implemented behavior**
 
-- **Server (m0015):** Backfill `beacon.state` from legacy `enabled` while preserving `state = 2` (deleted); `CHECK (state >= 0 AND state <= 4)`; trigger `beacon_sync_enabled_from_state` keeps column **`enabled`** in sync for legacy DB readers (`enabled` = true when `state IN (0,3,4)`).
+- **Server (m0015 + m0016):** m0015 backfilled `beacon.state` from legacy `enabled` while preserving `state = 2` (deleted); `CHECK (state >= 0 AND state <= 4)`; a temporary trigger synced **`enabled`** until **m0016** dropped **`enabled`** and that trigger entirely.
 - **Client domain:** `BeaconLifecycle` (`beacon_lifecycle.dart`), `Beacon.lifecycle`, `isListed`; `BeaconModel` / `beacon_model.graphql` use **`state`**, not `enabled`.
 - **Mutations:** `beacon_update_by_id.graphql` sets **`state`**; `BeaconRepository.setBeaconLifecycle`; profile beacon list (`beacons_fetch_by_user_id.graphql`) and **`my_field_fetch.graphql`** filter by **`state`**; mine / view controls toggle **OPEN ↔ CLOSED** (not deleted).
 - **My Work:** Four queries in `my_work_fetch.graphql` — `MyWorkAuthoredActive` / `MyWorkAuthoredClosed` / `MyWorkCommittedActive` / `MyWorkCommittedClosed` with `state` filters; `MyWorkSection` + chips on `my_work_screen.dart`; cubit fetches all four lists; beacon repo events trigger **refetch** on update.
 
 **Remaining (optional / follow-up)**
 
-- Drop **`enabled`** from Postgres / Hasura once no external reader depends on it (currently still maintained by trigger).
+- ~~Drop **`enabled`** from Postgres / Hasura~~ — done (migration **m0016** drops column + sync trigger; Hasura permissions updated).
 - Product tweak if **PENDING_REVIEW** should appear under Closed instead of Active.
 
 ---
@@ -190,7 +190,7 @@ Post-implementation review of the shipped stack (server migrations, Hasura contr
 
 1. **Hasura computed field** — Full inbox row (avatars + MR-ranked note) needs `inbox_item.inbox_provenance_data` registered against `inbox_item_inbox_provenance_data` ([`packages/server/WORKAROUNDS.md`](../../packages/server/WORKAROUNDS.md) §4). Without it, the UI still works but only with fallback note and no forwarder strip.
 2. **Backfill vs `state` 3/4** — m0015 `UPDATE beacon SET state = CASE …` preserves `state = 2` (deleted) but otherwise derives from `enabled`. Any rows that already used `DRAFT`/`PENDING_REVIEW` (3/4) before migration would be reset to OPEN/CLOSED—safe only if those values were never persisted pre-migration.
-3. **`enabled` / `state` drift** — Trigger `beacon_sync_enabled_from_state` runs on `state` changes only. Direct updates to **`enabled`** alone (legacy paths, raw SQL) can desync until `state` is updated again.
+3. ~~**`enabled` / `state` drift**~~ — Resolved: **`enabled`** column removed (m0016); **`state`** is the only lifecycle column.
 4. **Mine menu = OPEN ↔ CLOSED only** — Author toggle does not drive `DRAFT`, `PENDING_REVIEW`, or `DELETED`. Closing from `DRAFT`/`PENDING_REVIEW` becomes `CLOSED` (by design for V1; document for support).
 5. **Unknown `state`** — Client `BeaconLifecycle.fromSmallint` maps out-of-range values to **`open`**, which can mis-label data if the CHECK constraint is bypassed or schema drifts.
 6. **My Work refresh cost** — `RepositoryEventUpdate<Beacon>` triggers a full four-query **`fetch()`**; correct but chatty if many updates arrive in succession.
