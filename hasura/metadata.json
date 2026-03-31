@@ -159,7 +159,6 @@
                     "context",
                     "created_at",
                     "description",
-                    "enabled",
                     "end_at",
                     "id",
                     "image_id",
@@ -188,7 +187,6 @@
                 "role": "user",
                 "permission": {
                   "columns": [
-                    "enabled",
                     "state"
                   ],
                   "filter": {
@@ -1484,6 +1482,19 @@
                 }
               }
             ],
+            "computed_fields": [
+              {
+                "name": "inbox_provenance_data",
+                "definition": {
+                  "function": {
+                    "name": "inbox_item_inbox_provenance_data",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "inbox_row"
+                }
+              }
+            ],
             "select_permissions": [
               {
                 "role": "user",
@@ -1497,6 +1508,9 @@
                     "latest_note_preview",
                     "status",
                     "rejection_message"
+                  ],
+                  "computed_fields": [
+                    "inbox_provenance_data"
                   ],
                   "filter": {
                     "user_id": {

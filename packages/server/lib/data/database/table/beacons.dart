@@ -16,10 +16,6 @@ class Beacons extends Table
   @ReferenceName('author')
   late final userId = text().references(Users, #id)();
 
-  late final isEnabled = boolean()
-      .named('enabled')
-      .withDefault(const Constant(true))();
-
   late final imageId = customType(
     PgTypes.uuid,
   ).nullable().references(Images, #id)();

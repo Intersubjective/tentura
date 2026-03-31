@@ -35,13 +35,13 @@ class BeaconMineControl extends StatelessWidget {
         // Menu
         PopupMenuButton<void>(
           itemBuilder: (context) => [
-            // Enable / Disable
+            // Open / Close lifecycle
             PopupMenuItem<void>(
-              onTap: beaconViewCubit.toggleEnabled,
+              onTap: beaconViewCubit.toggleLifecycle,
               child: Text(
                 beaconViewCubit.state.beacon.isListed
-                    ? l10n.disableBeacon
-                    : l10n.enableBeacon,
+                    ? l10n.closeBeacon
+                    : l10n.openBeacon,
               ),
             ),
             const PopupMenuDivider(),

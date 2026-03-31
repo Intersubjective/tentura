@@ -24,7 +24,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     @Default('') String description,
     @Default(false) bool isPinned,
     @Default(BeaconLifecycle.open) BeaconLifecycle lifecycle,
-    @Default({}) Set<String> rejectedUserIds,
     @Default(0) double rScore,
     @Default(0) double score,
     @Default(0) int myVote,
@@ -39,7 +38,7 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
   const Beacon._();
 
-  /// Legacy: "listed" in profile filters (OPEN / DRAFT / PENDING_REVIEW).
+  /// Active-section beacon (OPEN / DRAFT / PENDING_REVIEW); used for profile filters and author controls.
   bool get isListed => lifecycle.isActiveSection;
 
   @override
