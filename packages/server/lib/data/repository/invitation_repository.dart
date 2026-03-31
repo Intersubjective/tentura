@@ -24,13 +24,30 @@ class InvitationRepository {
         .filter((f) => f.id(invitationId))
         .withReferences((p) => p(userId: true, invitedId: true))
         .getSingleOrNull();
-    return result == null
+    if (result == null) {
+      return null;
+    }
+    final issuer = await result.$2.userId.getSingle();
+    final invited = await result.$2.invitedId?.getSingleOrNull();
+    final issuerImgId = issuer.imageId;
+    final issuerImage = issuerImgId == null
         ? null
-        : invitationModelToEntity(
-            result.$1,
-            issuer: await result.$2.userId.getSingle(),
-            invited: await result.$2.invitedId?.getSingleOrNull(),
-          );
+        : await _database.managers.images
+            .filter((e) => e.id(issuerImgId))
+            .getSingleOrNull();
+    final invitedImgId = invited?.imageId;
+    final invitedImage = invitedImgId == null
+        ? null
+        : await _database.managers.images
+            .filter((e) => e.id(invitedImgId))
+            .getSingleOrNull();
+    return invitationModelToEntity(
+      result.$1,
+      issuer: issuer,
+      invited: invited,
+      issuerImage: issuerImage,
+      invitedImage: invitedImage,
+    );
   }
 
   Future<bool> deleteById({

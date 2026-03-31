@@ -10,6 +10,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInvitation,
   gqlTypeProfile,
   gqlTypeBeacon,
+  gqlTypeMutualScore,
+  gqlTypeImagePublic,
+  gqlTypeUserPublic,
 ];
 
 final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
@@ -26,9 +29,42 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
     field('id', graphQLString.nonNullable()),
   ]);
 
+/// Return type for `userUpdate` / remote-schema mutations (minimal).
 final gqlTypeProfile = GraphQLObjectType('User', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
+  ]);
+
+/// Matches Hasura `mutual_score` for `UserModel.scores { src_score, dst_score }`.
+final gqlTypeMutualScore = GraphQLObjectType('mutual_score', null)
+  ..fields.addAll([
+    field('src_score', graphQLFloat),
+    field('dst_score', graphQLFloat),
+  ]);
+
+/// Matches Hasura `image` table shape for `UserModel.image`.
+final gqlTypeImagePublic = GraphQLObjectType('image', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('hash', graphQLString.nonNullable()),
+    field('height', graphQLInt.nonNullable()),
+    field('width', graphQLInt.nonNullable()),
+    field('author_id', graphQLString.nonNullable()),
+    field('created_at', graphQLString.nonNullable()),
+  ]);
+
+/// Matches Hasura `user` table shape for `invitationById.issuer` / `UserModel`.
+final gqlTypeUserPublic = GraphQLObjectType('user', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('title', graphQLString.nonNullable()),
+    field('description', graphQLString.nonNullable()),
+    field('my_vote', graphQLInt),
+    field('image', gqlTypeImagePublic),
+    field(
+      'scores',
+      GraphQLListType(gqlTypeMutualScore.nonNullable()),
+    ),
   ]);
 
 final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
@@ -38,4 +74,5 @@ final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
     field('invited_id', graphQLString),
     field('created_at', graphQLString.nonNullable()),
     field('updated_at', graphQLString.nonNullable()),
+    field('issuer', gqlTypeUserPublic.nonNullable()),
   ]);

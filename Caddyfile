@@ -15,22 +15,7 @@
 
 	encode gzip
 
-	# Multipart /api/v1/graphql -> Tentura at /api/v2/graphql
-	@multipart_v1 {
-		path /api/v1/graphql
-		header Content-Type *multipart*
-	}
-	handle @multipart_v1 {
-		rewrite * /api/v2/graphql
-		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
-			transport http {
-				read_timeout 1h
-				write_timeout 1h
-			}
-		}
-	}
-
-	# Non-multipart /api/v1/graphql -> Hasura at /v1/graphql
+	# /api/v1/graphql -> Hasura at /v1/graphql (client sends V2 ops to /api/v2/graphql explicitly)
 	handle /api/v1/graphql {
 		rewrite * /v1/graphql
 		reverse_proxy {$HASURA_UPSTREAM:hasura:8080} {

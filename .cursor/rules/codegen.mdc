@@ -26,6 +26,7 @@ This project uses multiple code generators that work together. Always run `dart 
   - Use `GQueryNameReq()` for requests
   - Access response via `r.dataOrThrow(label: 'Label').field`
   - Hasura `type_overrides` for `smallint` / `float8` / `uuid` plus `Float8Serializer` / `SmallintSerializer` in `custom_serializers` when MeritRank `mr_*` paths return string-encoded numbers — see `DEV_GUIDELINES.md` (Ferry custom scalars) and `packages/server/WORKAROUNDS.md` section 3
+  - **V2 vs Hasura routing:** new Tentura V2 operations must be registered in `_tenturaDirectOperationNames` in `packages/client/lib/data/service/remote_api_client/build_client.dart` — see `DEV_GUIDELINES.md` (V2 direct routing) and `quick-reference.mdc` (V2 Routing)
 
 ### 2. Freezed (Immutable Classes)
 - **Purpose**: Generates immutable data classes with `copyWith`, equality, etc.

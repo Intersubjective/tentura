@@ -5,6 +5,7 @@ import '../database/tentura_db.dart';
 ImageEntity imageModelToEntity(Image model) => ImageEntity(
   id: model.id.uuid,
   authorId: model.authorId,
+  createdAt: model.createdAt.dateTime,
   blurHash: model.hash,
   height: model.height,
   width: model.width,

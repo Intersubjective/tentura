@@ -9,6 +9,10 @@ One-line rules for quick lookup. See detailed files for explanations.
 ## Planning
 - When planning implementation (UI flows, navigation, async-loaded screens), read **`DEV_GUIDELINES.md`** at the repository root alongside these rules.
 
+## V2 Routing
+- Every Tentura V2 GraphQL operation must be listed in `_tenturaDirectOperationNames` in `packages/client/lib/data/service/remote_api_client/build_client.dart` so the client hits `/api/v2/graphql` directly, not Hasura V1
+- When adding a V2 query/mutation: add the client `.graphql` operation name to that set; ensure the V2 server schema exposes matching types/fields for everything the operation selects (see `DEV_GUIDELINES.md` § V2 direct routing)
+
 ## Codegen
 - Run `dart run build_runner build -d` after codegen changes
 - Never commit `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `_g/`, `di.config.dart`

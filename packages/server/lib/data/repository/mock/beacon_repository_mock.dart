@@ -53,6 +53,7 @@ class BeaconRepositoryMock implements BeaconRepository {
           : ImageEntity(
               id: imageId,
               authorId: authorId,
+              createdAt: DateTime.utc(2020, 1, 1),
             ),
       tags: tags,
     );
