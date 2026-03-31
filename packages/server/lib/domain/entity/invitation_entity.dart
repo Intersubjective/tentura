@@ -32,4 +32,26 @@ abstract class InvitationEntity with _$InvitationEntity {
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
   };
+
+  /// GraphQL `invitationById` with `issuer { ...UserModel }` (V2 direct path).
+  Map<String, Object?> get asMapWithIssuer => {
+    ...asMap,
+    'issuer': {
+      'id': issuer.id,
+      'title': issuer.title,
+      'description': issuer.description,
+      'my_vote': null,
+      'image': issuer.image == null
+          ? null
+          : {
+              'id': issuer.image!.id,
+              'hash': issuer.image!.blurHash,
+              'height': issuer.image!.height,
+              'width': issuer.image!.width,
+              'author_id': issuer.image!.authorId,
+              'created_at': issuer.image!.createdAt.toIso8601String(),
+            },
+      'scores': <Object>[],
+    },
+  };
 }

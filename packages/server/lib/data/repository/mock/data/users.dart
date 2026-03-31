@@ -7,13 +7,14 @@ const kGandalfKey = 'DpywC3XZqDJFLyey0w11Ms1dX2I1RWgEl5Ps-tONuo8';
 const kPussyCatKey = '2CmIb3Ho2eb6m8WIog6KiyzCY05sbyX04PiGlH5baDw';
 const kThorinKey = 'iqjH7nwdD1CBa-XgaW90yY443ghL8RC0Za-hKv-aeGg';
 
-const kUserThorin = UserEntity(
+final kUserThorin = UserEntity(
   id: 'U286f94380611',
   title: 'Thorin Oakenshield',
   description: 'Son of Thrain, son of Thror, King under the Mountain',
   image: ImageEntity(
     id: '5edb9b09-e0af-408e-8c45-4b047abf1237',
     authorId: 'U286f94380611',
+    createdAt: DateTime.utc(2020, 1, 1),
     blurHash:
         r'-HB2.D%20$Ip-U%1$koLEgR*s:t6I=WV%1WVNGRk5RNG-TxZI:Rk9]WC-TxZW'
         'VS3oyj[WBoLofj[t6a}RkafkCoyj[oeoej[aeRk',
@@ -22,7 +23,7 @@ const kUserThorin = UserEntity(
   ),
 );
 
-const kUserDain = UserEntity(
+final kUserDain = UserEntity(
   id: 'U8ebde6fbfd3f',
   title: 'Dain Ironfoot',
   description:
@@ -35,6 +36,7 @@ const kUserDain = UserEntity(
   image: ImageEntity(
     id: '1d2f8fae-28ab-47e6-b9ae-361f35013dab',
     authorId: 'U8ebde6fbfd3f',
+    createdAt: DateTime.utc(2020, 1, 1),
     blurHash:
         r'qECY,UodSz~BX8M{xZn$-p%1xt%1s,oc$%WXV@RjM|R*ayoexaofI;NGIpNHR+kCj['
         'R*D*R-NbNGNHkCbHWXIokCkCNGa}ofoeoe',
@@ -43,7 +45,7 @@ const kUserDain = UserEntity(
   ),
 );
 
-const kUserGandalf = UserEntity(
+final kUserGandalf = UserEntity(
   id: 'U2becfc64c13b',
   title: 'Gandalf the Gray',
   description:
@@ -55,6 +57,7 @@ const kUserGandalf = UserEntity(
   image: ImageEntity(
     id: 'd2595507-884d-4cf0-bb10-600d89a9e474',
     authorId: 'U2becfc64c13b',
+    createdAt: DateTime.utc(2020, 1, 1),
     blurHash:
         '-#G+adIU%MozWBWB~qj?xuj[WBWV?bj[jsozRjayxut7RjofWBWBWBxtRkWBt7WBjZa'
         'yWBWBt7f6WBWBRkWBofofofRjaeWBfQt7',
@@ -73,7 +76,7 @@ Activist, publicist, concerned neighbor and representative of one of the largest
 );
 
 /// Mock data for tests and dev mode
-const kUserByPublicKey = <String, UserEntity>{
+final kUserByPublicKey = <String, UserEntity>{
   kDainKey: kUserDain,
   kThorinKey: kUserThorin,
   kGandalfKey: kUserGandalf,

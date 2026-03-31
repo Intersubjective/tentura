@@ -58,3 +58,23 @@ corresponding `type_overrides` entry before running codegen.
 If the Dart type is not a JSON primitive, or the same GraphQL scalar can arrive
 as both number and string (MeritRank / computed fields), also add a
 `custom_serializers` entry (see `TimestamptzSerializer`, `Float8Serializer`).
+
+## V2 direct routing (client → Tentura, bypassing Hasura)
+
+Operations implemented on the Tentura V2 server must be called at
+`/api/v2/graphql`. The client’s `_V2RoutingLink` in
+`packages/client/lib/data/service/remote_api_client/build_client.dart`
+routes by **operation name**: if the name is in `_tenturaDirectOperationNames`,
+the request goes to V2; otherwise it goes to Hasura V1 (`/api/v1/graphql`).
+
+When adding a new V2 server query or mutation:
+
+1. Add the client-side **operation name** (from the `.graphql` file) to
+   `_tenturaDirectOperationNames` in `build_client.dart`.
+2. Ensure the V2 GraphQL schema defines every type and field the client selects.
+   If the query uses shared fragments (e.g. `UserModel` on `user`), V2 must
+   expose matching GraphQL types and field names (aligned with Hasura’s schema
+   from which Ferry is generated).
+3. No Caddy change is required for routing: `/api/v2/graphql` is already
+   proxied to Tentura in production (`Caddyfile`) and in local web dev
+   (`packages/client/web_dev_config.yaml`).

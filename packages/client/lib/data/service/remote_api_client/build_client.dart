@@ -6,7 +6,6 @@ import 'package:gql_exec/gql_exec.dart' show Request, Response;
 import 'package:gql_http_link/gql_http_link.dart';
 import 'package:gql_error_link/gql_error_link.dart';
 import 'package:gql_dedupe_link/gql_dedupe_link.dart';
-import 'package:http/http.dart' show MultipartFile;
 
 import 'package:tentura_root/consts.dart';
 
@@ -50,12 +49,12 @@ Future<Client> buildClient({
         },
       ),
 
-      _FileRoutingLink(
-        defaultLink: HttpLink(
+      _V2RoutingLink(
+        hasuraLink: HttpLink(
           params.apiEndpointUrl,
           defaultHeaders: defaultHeaders,
         ),
-        fileUploadLink: HttpLink(
+        tenturaV2Link: HttpLink(
           params.apiEndpointUrlV2,
           defaultHeaders: defaultHeaders,
         ),
@@ -64,48 +63,62 @@ Future<Client> buildClient({
   );
 }
 
-/// Routes requests with file uploads or selected Tentura-only operations to
-/// [fileUploadLink] (v2). Everything else goes to [defaultLink] (v1 / Hasura).
+/// Routes each request to Hasura v1 or Tentura v2 by **operation name** only.
 ///
-/// Mutations implemented only on Tentura must hit v2 directly: Hasura remote
-/// schema forwarding can mangle list arguments (e.g. `beaconForward.recipientIds`).
-/// Mirrors the content-type split that Caddy does in production between Hasura
-/// (v1) and Tentura (v2).
-class _FileRoutingLink extends Link {
-  _FileRoutingLink({required this.defaultLink, required this.fileUploadLink});
+/// Operations implemented on Tentura V2 (`/api/v2/graphql`) **must** be
+/// listed in [_tenturaDirectOperationNames] so the client calls V2 directly
+/// instead of going through Hasura (which would proxy to V2 via remote schema,
+/// adding latency and coupling V2 availability to Hasura).
+///
+/// When adding a new V2 query or mutation on the server:
+/// 1. Add the operation name (as in the client `.graphql` file) to
+///    [_tenturaDirectOperationNames].
+/// 2. Ensure the client operation selects only fields/types V2 exposes (same
+///    names as in Hasura-introspected `schema.graphql` where applicable).
+/// 3. File uploads use multipart on V2; the server `GraphqlController`
+///    accepts both JSON and multipart — no extra client routing is needed.
+///
+/// Operations not listed here use [hasuraLink] (Hasura `/api/v1/graphql`).
+class _V2RoutingLink extends Link {
+  _V2RoutingLink({
+    required this.hasuraLink,
+    required this.tenturaV2Link,
+  });
 
-  final Link defaultLink;
-  final Link fileUploadLink;
+  final Link hasuraLink;
+  final Link tenturaV2Link;
 
-  /// Operation names that must use Tentura's `/api/v2/graphql` (not Hasura v1).
-  static const _tenturaDirectOperationNames = {'ForwardBeacon'};
+  /// Client operation names whose resolvers live on Tentura V2.
+  static const _tenturaDirectOperationNames = {
+    'BeaconCommit',
+    'BeaconCreate',
+    'BeaconDeleteById',
+    'BeaconWithdraw',
+    'CreateComplaint',
+    'FcmRegisterToken',
+    'ForwardBeacon',
+    'InvitationAccept',
+    'InvitationById',
+    'InvitationDeleteById',
+    'PollingAct',
+    'ProfileDelete',
+    'ProfileUpdate',
+    'SignIn',
+    'SignOut',
+    'SignUp',
+  };
 
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
-    if (_hasFiles(request.variables) ||
-        _tenturaDirectOperationNames.contains(request.operation.operationName)) {
-      return fileUploadLink.request(request, forward);
+    if (_tenturaDirectOperationNames.contains(request.operation.operationName)) {
+      return tenturaV2Link.request(request, forward);
     }
-    return defaultLink.request(request, forward);
-  }
-
-  static bool _hasFiles(Map<String, dynamic> vars) {
-    for (final value in vars.values) {
-      if (_isOrContainsFile(value)) return true;
-    }
-    return false;
-  }
-
-  static bool _isOrContainsFile(dynamic value) {
-    if (value is MultipartFile) return true;
-    if (value is Map<String, dynamic>) return _hasFiles(value);
-    if (value is List) return value.any(_isOrContainsFile);
-    return false;
+    return hasuraLink.request(request, forward);
   }
 
   @override
   Future<void> dispose() async {
-    await defaultLink.dispose();
-    await fileUploadLink.dispose();
+    await hasuraLink.dispose();
+    await tenturaV2Link.dispose();
   }
 }

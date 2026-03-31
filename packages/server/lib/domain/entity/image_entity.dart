@@ -7,6 +7,7 @@ abstract class ImageEntity with _$ImageEntity {
   const factory ImageEntity({
     required String id,
     required String authorId,
+    required DateTime createdAt,
     @Default(0) int height,
     @Default(0) int width,
     @Default('') String blurHash,

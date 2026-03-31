@@ -7,10 +7,12 @@ InvitationEntity invitationModelToEntity(
   Invitation model, {
   required User issuer,
   User? invited,
+  Image? issuerImage,
+  Image? invitedImage,
 }) => InvitationEntity(
   id: model.id,
-  issuer: userModelToEntity(issuer),
-  invited: invited == null ? null : userModelToEntity(invited),
+  issuer: userModelToEntity(issuer, image: issuerImage),
+  invited: invited == null ? null : userModelToEntity(invited, image: invitedImage),
   createdAt: model.createdAt.dateTime,
   updatedAt: model.updatedAt.dateTime,
 );
