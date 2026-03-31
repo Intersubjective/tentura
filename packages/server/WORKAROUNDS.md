@@ -145,3 +145,34 @@ other selections that include `mutual_score`.
 - Session argument: `hasura_session` → `Hasura-Session-Variable`
 
 Reload metadata and re-introspect the client `schema.graphql` if the field type differs from `String`.
+
+---
+
+## 5. Hasura: `beacon.rejected_user_ids` computed field (SETOF scalar serialization)
+
+**Server function:** `public.beacon_get_rejected_user_ids` — `RETURNS SETOF text`.
+**Client fix:** `_HasuraSetofScalarFixLink` in
+`packages/client/lib/data/service/remote_api_client/build_client.dart`.
+
+### Bug
+
+Hasura computed fields only support base scalar types or `SETOF <table_type>`.
+`SETOF text` (a scalar, not a table) is accepted by Hasura metadata, but when the
+result set contains exactly one row, Hasura serializes it as a bare JSON string
+(e.g. `"U783..."`) instead of a one-element array (`["U783..."]`). Ferry then fails
+deserializing to `BuiltList<String>`.
+
+Changing the function to `RETURNS text[]` does not work either — Hasura rejects array
+return types for computed fields ("type _text is not a BASE type").
+
+### Workaround
+
+A Ferry link (`_HasuraSetofScalarFixLink`) sits first in the client link chain and
+normalizes the `beacon_by_pk.rejected_user_ids` field: if it is a bare string, it
+wraps it into a single-element list before Ferry's `TypedLink` deserializes.
+
+### Removal condition
+
+Remove the link when Hasura correctly serializes `SETOF scalar` results as JSON arrays
+for all cardinalities (0, 1, N), or when this computed field is replaced by a proper
+array relationship or `SETOF <table_type>`.
