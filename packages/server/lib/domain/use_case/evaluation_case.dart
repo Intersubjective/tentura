@@ -613,10 +613,9 @@ class EvaluationCase {
         evaluationCode: EvaluationExceptionCode.notEligible,
       );
     }
+    // Idempotent: double "Finish", or Finish after Skip, should succeed.
     if (st == 2 || st == 3) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.evaluationAlreadySubmitted,
-      );
+      return true;
     }
     await _evaluationRepository.setReviewUserStatus(
       beaconId: beaconId,
