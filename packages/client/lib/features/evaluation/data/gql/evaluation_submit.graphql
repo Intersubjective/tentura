@@ -1,0 +1,15 @@
+mutation EvaluationSubmit(
+  $id: String!
+  $evaluatedUserId: String!
+  $value: Int!
+  $reasonTags: [String!]
+  $note: String
+) {
+  evaluationSubmit(
+    id: $id
+    evaluatedUserId: $evaluatedUserId
+    value: $value
+    reasonTags: $reasonTags
+    note: $note
+  )
+}

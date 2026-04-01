@@ -12,6 +12,7 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/author_info.dart';
 
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
+import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/beacon_view_cubit.dart';
@@ -121,6 +122,11 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 isTitleLarge: true,
                 isShowMoreEnabled: false,
                 isShowBeaconEnabled: false,
+              ),
+
+              BeaconEvaluationHooks(
+                beaconId: beacon.id,
+                lifecycle: beacon.lifecycle,
               ),
 
               // Beacon owner controls

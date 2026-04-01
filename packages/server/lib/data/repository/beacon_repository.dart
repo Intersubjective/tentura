@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
 
@@ -114,4 +115,11 @@ class BeaconRepository {
 
   Future<void> deleteBeaconById(String id) =>
       _database.managers.beacons.filter((e) => e.id.equals(id)).delete();
+
+  Future<void> updateBeaconState({
+    required String beaconId,
+    required int state,
+  }) => _database.managers.beacons
+      .filter((e) => e.id.equals(beaconId))
+      .update((o) => o(state: Value(state)));
 }

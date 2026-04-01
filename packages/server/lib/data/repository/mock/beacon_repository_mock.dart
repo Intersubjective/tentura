@@ -76,4 +76,15 @@ class BeaconRepositoryMock implements BeaconRepository {
   @override
   Future<void> deleteBeaconById(String id) async =>
       storageById.removeWhere((key, value) => value.id == id);
+
+  @override
+  Future<void> updateBeaconState({
+    required String beaconId,
+    required int state,
+  }) async {
+    final b = storageById[beaconId];
+    if (b != null) {
+      storageById[beaconId] = b.copyWith(state: state);
+    }
+  }
 }

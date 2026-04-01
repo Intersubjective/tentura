@@ -127,3 +127,13 @@ final class BeaconCreateException extends ExceptionBase {
         description: description ?? 'Beacon create error',
       );
 }
+
+final class EvaluationException extends ExceptionBase {
+  EvaluationException({
+    required EvaluationExceptionCode evaluationCode,
+    String? description,
+  }) : super(
+         code: EvaluationExceptionCodes(evaluationCode),
+         description: description ?? evaluationCode.name,
+       );
+}

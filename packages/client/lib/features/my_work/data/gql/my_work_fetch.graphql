@@ -4,7 +4,7 @@ query MyWorkAuthoredActive($userId: String!, $context: String = "") {
   beacon(
     where: {
       user_id: {_eq: $userId},
-      state: {_in: [0, 3, 4]},
+      state: {_in: [0, 3, 4, 5]},
       _or: [
         {context: {_eq: $context}},
         {context: {_is_null: true}}
@@ -20,7 +20,7 @@ query MyWorkAuthoredClosed($userId: String!, $context: String = "") {
   beacon(
     where: {
       user_id: {_eq: $userId},
-      state: {_in: [1, 2]},
+      state: {_in: [1, 2, 6]},
       _or: [
         {context: {_eq: $context}},
         {context: {_is_null: true}}
@@ -38,7 +38,7 @@ query MyWorkCommittedActive($userId: String!, $context: String = "") {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
-        state: {_in: [0, 3, 4]},
+        state: {_in: [0, 3, 4, 5]},
         _or: [
           {context: {_eq: $context}},
           {context: {_is_null: true}}
@@ -59,7 +59,7 @@ query MyWorkCommittedClosed($userId: String!, $context: String = "") {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
-        state: {_in: [1, 2]},
+        state: {_in: [1, 2, 6]},
         _or: [
           {context: {_eq: $context}},
           {context: {_is_null: true}}

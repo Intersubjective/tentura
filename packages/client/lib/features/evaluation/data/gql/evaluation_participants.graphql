@@ -1,0 +1,13 @@
+query EvaluationParticipants($id: String!) {
+  evaluationParticipants(id: $id) {
+    userId
+    title
+    imageId
+    role
+    contributionSummary
+    causalHint
+    value
+    reasonTags
+    note
+  }
+}

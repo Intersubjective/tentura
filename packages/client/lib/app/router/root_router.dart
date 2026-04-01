@@ -175,6 +175,13 @@ class RootRouter extends RootStackRouter {
       path: '$kPathBeaconView/:id',
     ),
 
+    AutoRoute(
+      usesPathAsKey: true,
+      maintainState: false,
+      page: ReviewContributionsRoute.page,
+      path: '$kPathReviewContributions/:id',
+    ),
+
     // Forward Beacon
     AutoRoute(
       keepHistory: false,
