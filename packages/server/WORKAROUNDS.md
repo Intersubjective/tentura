@@ -176,3 +176,17 @@ wraps it into a single-element list before Ferry's `TypedLink` deserializes.
 Remove the link when Hasura correctly serializes `SETOF scalar` results as JSON arrays
 for all cardinalities (0, 1, N), or when this computed field is replaced by a proper
 array relationship or `SETOF <table_type>`.
+
+### Additional bug: empty `SETOF text` eliminates parent `beacon_by_pk` row
+
+When the computed function returns **zero rows**, selecting `rejected_user_ids` in the same `beacon_by_pk` selection can make Hasura return **`beacon_by_pk: null`** (no GraphQL `errors`), so the client sees "beacon not found" even though the beacon exists.
+
+**Repro (Hasura console):** query `beacon_by_pk { id rejected_user_ids }` with a beacon that has no rejecting inbox rows.
+
+### Fix (app)
+
+- **Forward screen:** load the beacon via the normal Hasura `BeaconFetchById` / `BeaconModel` query **without** `rejected_user_ids`.
+- Load involvement id sets from **Tentura V2** query `beaconInvolvement(id: …)` (`BeaconInvolvementCase` + `QueryBeaconInvolvement`), which reads Postgres directly.
+- Client: `ForwardRepository.fetchBeaconInvolvement` runs those two requests in parallel (`packages/client/lib/features/forward/data/repository/forward_repository.dart`).
+
+The `_HasuraSetofScalarFixLink` workaround remains relevant for any **other** code paths that still select `rejected_user_ids` on `beacon_by_pk`.

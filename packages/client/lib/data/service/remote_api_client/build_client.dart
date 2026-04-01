@@ -94,6 +94,7 @@ class _V2RoutingLink extends Link {
   static const _tenturaDirectOperationNames = {
     'BeaconCommit',
     'BeaconCreate',
+    'BeaconInvolvementData',
     'BeaconDeleteById',
     'BeaconWithdraw',
     'CreateComplaint',

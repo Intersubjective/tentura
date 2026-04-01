@@ -1,0 +1,11 @@
+# V2: involvement id sets (see WORKAROUNDS.md — do not use Hasura
+# beacon_by_pk { rejected_user_ids } on the forward screen).
+
+query BeaconInvolvementData($id: String!) {
+  beaconInvolvement(id: $id) {
+    forwardedToIds
+    committedIds
+    withdrawnIds
+    rejectedIds
+  }
+}

@@ -1,6 +1,6 @@
 # V1 missing features — implementation plan (overview)
 
-Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visibility. **Canonical locks:** [`product-decisions.md`](./product-decisions.md).
+Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visibility. **Canonical locks:** `[product-decisions.md](./product-decisions.md)`.
 
 **Execution is for follow-up agents.** Remaining open questions are minor unless marked.
 
@@ -16,8 +16,12 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Current behavior**
 
-- `packages/client/lib/features/inbox/data/gql/inbox_fetch.graphql` — `order_by: { latest_forward_at: desc }` only.
-- `InboxCubit` / `InboxScreen` — no sort UI or state.
+- `packages/client/lib/features/inbox/ui/screen/inbox_screen.dart` — sort UI exists (choice chips): Recent / MeritRank / Deadline.
+- `packages/client/lib/features/inbox/ui/bloc/inbox_state.dart` — sorting is **client-side**:
+  - Recent: `latestForwardAt` desc
+  - MeritRank: `beacon.score` desc (from `BeaconModel.scores.dst_score`)
+  - Deadline: `beacon.endAt` asc (nulls last)
+- `packages/client/lib/features/inbox/data/gql/inbox_fetch.graphql` — query still requests `order_by: { latest_forward_at: desc }` only (server-side), then client re-sorts per tab.
 
 **Likely work**
 
@@ -34,7 +38,7 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Brief:** Forward count, **who forwarded** (top senders), note preview, **status badge**, compact author/context line.
 
-**Status:** **Implemented** (client + DB function). **Ops:** register Hasura computed field so `inbox_provenance_data` is non-null in production — see [`packages/server/WORKAROUNDS.md`](../../packages/server/WORKAROUNDS.md) §4.
+**Status:** **Implemented** (client + DB function). **Ops:** register Hasura computed field so `inbox_provenance_data` is non-null in production — see `[packages/server/WORKAROUNDS.md](../../packages/server/WORKAROUNDS.md)` §4.
 
 **Implemented behavior**
 
@@ -59,14 +63,14 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Implemented behavior**
 
-- **Client data:** `beacon_involvement_fetch.graphql` + `ForwardRepository.fetchBeaconInvolvement` supplies beacon, author, `forwardedToIds`, `committedIds`, `withdrawnIds`, `rejectedIds` (declined); merged with friends list into `ForwardCandidate` + `CandidateInvolvement`.
+- **Client data:** `beacon_involvement_data.graphql` (V2 `beaconInvolvement`) + `ForwardRepository.fetchBeaconInvolvement` supplies beacon, author, `forwardedToIds`, `committedIds`, `withdrawnIds`, `rejectedIds` (declined); merged with friends list into `ForwardCandidate` + `CandidateInvolvement`.
 - **UI:** `BeaconForwardHeader`, `ForwardFilterBar` (All / Best next / Unseen / Already involved), search field, `ForwardCandidateTile` with involvement copy; bottom bar: shared note, `PerRecipientNotesPanel`, forward CTA.
-- **Sections (All):** **Recommended** (reachable, can forward, unseen), **Others** (reachable, already involved, excluding author/declined), **Cannot forward** (author + declined, reachable), **Not reachable** — MR sort within each bucket via **`ForwardState.computeBeaconListSections()`** (single search pass + one sort per bucket; avoids repeated getter work).
+- **Sections (All):** **Recommended** (reachable, can forward, unseen), **Others** (reachable, already involved, excluding author/declined), **Cannot forward** (author + declined, reachable), **Not reachable** — MR sort within each bucket via `**ForwardState.computeBeaconListSections()`** (single search pass + one sort per bucket; avoids repeated getter work).
 - **Mutation:** `forward_beacon.graphql` / `beaconForward` with `perRecipientNotes` map.
 
 **Remaining**
 
-- **Product + client:** Wire **`parentEdgeId`** from the forward context (edge / branch rule) when chain semantics are finalized; repository API already accepts it.
+- **Product + client:** Wire `**parentEdgeId`** from the forward context (edge / branch rule) when chain semantics are finalized; repository API already accepts it.
 - **Shell:** Consider normal push vs fullscreen dialog when global AppBar work (§7) lands.
 
 ---
@@ -75,20 +79,20 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Brief:** Active / Closed sections; inside Active: All / Authored / Committed.
 
-**Decision:** Replace **`enabled`** with **lifecycle** driven by **`beacon.state`** (`OPEN`, `CLOSED`, `DELETED`, `DRAFT`, `PENDING_REVIEW` as smallints 0–4). **Active** = `OPEN` / `DRAFT` / `PENDING_REVIEW`; **Closed** = `CLOSED` / `DELETED`.
+**Decision:** Replace `**enabled`** with **lifecycle** driven by `**beacon.state`** (`OPEN`, `CLOSED`, `DELETED`, `DRAFT`, `PENDING_REVIEW` as smallints 0–4). **Active** = `OPEN` / `DRAFT` / `PENDING_REVIEW`; **Closed** = `CLOSED` / `DELETED`.
 
 **Status:** **Implemented** (stack: m0015 backfill + CHECK + trigger; client domain + queries + UI).
 
 **Implemented behavior**
 
-- **Server (m0015 + m0016):** m0015 backfilled `beacon.state` from legacy `enabled` while preserving `state = 2` (deleted); `CHECK (state >= 0 AND state <= 4)`; a temporary trigger synced **`enabled`** until **m0016** dropped **`enabled`** and that trigger entirely.
-- **Client domain:** `BeaconLifecycle` (`beacon_lifecycle.dart`), `Beacon.lifecycle`, `isListed`; `BeaconModel` / `beacon_model.graphql` use **`state`**, not `enabled`.
-- **Mutations:** `beacon_update_by_id.graphql` sets **`state`**; `BeaconRepository.setBeaconLifecycle`; profile beacon list (`beacons_fetch_by_user_id.graphql`) and **`my_field_fetch.graphql`** filter by **`state`**; mine / view controls toggle **OPEN ↔ CLOSED** (not deleted).
+- **Server (m0015 + m0016):** m0015 backfilled `beacon.state` from legacy `enabled` while preserving `state = 2` (deleted); `CHECK (state >= 0 AND state <= 4)`; a temporary trigger synced `**enabled`** until **m0016** dropped `**enabled`** and that trigger entirely.
+- **Client domain:** `BeaconLifecycle` (`beacon_lifecycle.dart`), `Beacon.lifecycle`, `isListed`; `BeaconModel` / `beacon_model.graphql` use `**state`**, not `enabled`.
+- **Mutations:** `beacon_update_by_id.graphql` sets `**state`**; `BeaconRepository.setBeaconLifecycle`; profile beacon list (`beacons_fetch_by_user_id.graphql`) and `**my_field_fetch.graphql**` filter by `**state**`; mine / view controls toggle **OPEN ↔ CLOSED** (not deleted).
 - **My Work:** Four queries in `my_work_fetch.graphql` — `MyWorkAuthoredActive` / `MyWorkAuthoredClosed` / `MyWorkCommittedActive` / `MyWorkCommittedClosed` with `state` filters; `MyWorkSection` + chips on `my_work_screen.dart`; cubit fetches all four lists; beacon repo events trigger **refetch** on update.
 
 **Remaining (optional / follow-up)**
 
-- ~~Drop **`enabled`** from Postgres / Hasura~~ — done (migration **m0016** drops column + sync trigger; Hasura permissions updated).
+- ~~Drop `**enabled`** from Postgres / Hasura~~ — done (migration **m0016** drops column + sync trigger; Hasura permissions updated).
 - Product tweak if **PENDING_REVIEW** should appear under Closed instead of Active.
 
 ---
@@ -135,7 +139,9 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Current behavior**
 
-- `ContextDropDown` only on Inbox/My Work; new beacon in `profile_body.dart`; scan via Friends FAB.
+- `ContextDropDown` appears on multiple screens (at least Inbox, My Work, My Field, Rating, Graph), but global actions are not yet unified into a shared AppBar.
+- New beacon action lives in `profile_body.dart` (profile screen content).
+- Scan/connect entry is via Friends screen FAB (connect bottom sheet).
 
 **Likely work**
 
@@ -188,12 +194,12 @@ Post-implementation review of the shipped stack (server migrations, Hasura contr
 
 ### Risks and gaps
 
-1. **Hasura computed field** — Full inbox row (avatars + MR-ranked note) needs `inbox_item.inbox_provenance_data` registered against `inbox_item_inbox_provenance_data` ([`packages/server/WORKAROUNDS.md`](../../packages/server/WORKAROUNDS.md) §4). Without it, the UI still works but only with fallback note and no forwarder strip.
+1. **Hasura computed field** — Full inbox row (avatars + MR-ranked note) needs `inbox_item.inbox_provenance_data` registered against `inbox_item_inbox_provenance_data` (`[packages/server/WORKAROUNDS.md](../../packages/server/WORKAROUNDS.md)` §4). Without it, the UI still works but only with fallback note and no forwarder strip.
 2. **Backfill vs `state` 3/4** — m0015 `UPDATE beacon SET state = CASE …` preserves `state = 2` (deleted) but otherwise derives from `enabled`. Any rows that already used `DRAFT`/`PENDING_REVIEW` (3/4) before migration would be reset to OPEN/CLOSED—safe only if those values were never persisted pre-migration.
-3. ~~**`enabled` / `state` drift**~~ — Resolved: **`enabled`** column removed (m0016); **`state`** is the only lifecycle column.
+3. ~~`**enabled` / `state` drift**~~ — Resolved: `**enabled`** column removed (m0016); `**state**` is the only lifecycle column.
 4. **Mine menu = OPEN ↔ CLOSED only** — Author toggle does not drive `DRAFT`, `PENDING_REVIEW`, or `DELETED`. Closing from `DRAFT`/`PENDING_REVIEW` becomes `CLOSED` (by design for V1; document for support).
-5. **Unknown `state`** — Client `BeaconLifecycle.fromSmallint` maps out-of-range values to **`open`**, which can mis-label data if the CHECK constraint is bypassed or schema drifts.
-6. **My Work refresh cost** — `RepositoryEventUpdate<Beacon>` triggers a full four-query **`fetch()`**; correct but chatty if many updates arrive in succession.
+5. **Unknown `state`** — Client `BeaconLifecycle.fromSmallint` maps out-of-range values to `**open**`, which can mis-label data if the CHECK constraint is bypassed or schema drifts.
+6. **My Work refresh cost** — `RepositoryEventUpdate<Beacon>` triggers a full four-query `**fetch()`**; correct but chatty if many updates arrive in succession.
 7. **Inbox header density** — First row combines forward count, lifecycle chip, date, and overflow menu; very narrow widths or long translations may clip (chip is not `Flexible`).
 8. **Tests** — Plan validation called for migration/provenance/My Work tests; **not added** in the initial delivery—treat as explicit debt.
 
@@ -213,15 +219,18 @@ Post-implementation review of the shipped stack (server migrations, Hasura contr
 
 ## Summary
 
-| # | Feature | Status | Main touchpoints |
-|---|---------|--------|------------------|
-| 1 | Inbox sort (MR server) | Open | `inbox_fetch.graphql`, inbox cubit/UI, server MR field |
-| 2 | Inbox row | **Done** | `inbox_fetch.graphql`, `inbox_provenance.dart`, `inbox_item_tile.dart`, m0015 + Hasura (WORKAROUNDS §4) |
-| 3 | Forward UX + involvement | **Largely done** | `beacon_involvement_fetch.graphql`, `forward_beacon.graphql`, `forward_repository.dart`, `forward_cubit.dart`, `forward_state.dart` (`computeBeaconListSections`), `forward_beacon_screen.dart`, widgets under `forward/ui/widget/`; **open:** `parentEdgeId` in cubit, route shell (§7) |
-| 4 | Lifecycle + My Work Active/Closed | **Done** | m0015, `beacon_lifecycle.dart`, `beacon_model.graphql`, `my_work_fetch.graphql`, `my_work_*`, `beacon_repository`, beacon mine/view controls |
-| 5 | Network IA + chat | Open | `friends_screen.dart` |
-| 6 | Me sections | Open | profile, server |
-| 7 | AppBar shell | Open | `home_screen.dart`, tab screens, router |
-| 8 | Beacon graph tab | Open | `beacon_view_screen.dart` |
-| 9 | Hide | Open | `beacon_view_screen.dart` |
-| 10 | Updates cleanup | Open | router, `features/updates` |
+
+| #   | Feature                           | Status           | Main touchpoints                                                                                                                                                                                                                                                                         |
+| --- | --------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Inbox sort (MR server)            | Open             | `inbox_fetch.graphql`, inbox cubit/UI, server MR field                                                                                                                                                                                                                                   |
+| 2   | Inbox row                         | **Done**         | `inbox_fetch.graphql`, `inbox_provenance.dart`, `inbox_item_tile.dart`, m0015 + Hasura (WORKAROUNDS §4)                                                                                                                                                                                  |
+| 3   | Forward UX + involvement          | **Largely done** | `beacon_involvement_data.graphql` (V2), `forward_beacon.graphql`, `forward_repository.dart`, `forward_cubit.dart`, `forward_state.dart` (`computeBeaconListSections`), `forward_beacon_screen.dart`, widgets under `forward/ui/widget/`; **open:** `parentEdgeId` in cubit, route shell (§7) |
+| 4   | Lifecycle + My Work Active/Closed | **Done**         | m0015, `beacon_lifecycle.dart`, `beacon_model.graphql`, `my_work_fetch.graphql`, `my_work_`*, `beacon_repository`, beacon mine/view controls                                                                                                                                             |
+| 5   | Network IA + chat                 | Open             | `friends_screen.dart`                                                                                                                                                                                                                                                                    |
+| 6   | Me sections                       | Open             | profile, server                                                                                                                                                                                                                                                                          |
+| 7   | AppBar shell                      | Open             | `home_screen.dart`, tab screens, router                                                                                                                                                                                                                                                  |
+| 8   | Beacon graph tab                  | Open             | `beacon_view_screen.dart`                                                                                                                                                                                                                                                                |
+| 9   | Hide                              | Open             | `beacon_view_screen.dart`                                                                                                                                                                                                                                                                |
+| 10  | Updates cleanup                   | Open             | router, `features/updates`                                                                                                                                                                                                                                                               |
+
+

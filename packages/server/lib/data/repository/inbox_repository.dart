@@ -29,6 +29,15 @@ class InboxRepository {
       .get(limit: limit, offset: offset)
       .then((rows) => rows.map(_toEntity).toList());
 
+  /// User ids who rejected this beacon (inbox_item.status == 2), any context.
+  Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) =>
+      _database.managers.inboxItems
+          .filter(
+            (e) => e.beaconId.id(beaconId) & e.status.equals(2),
+          )
+          .get()
+          .then((rows) => rows.map((r) => r.userId).toList());
+
   Future<void> setStatus({
     required String userId,
     required String beaconId,

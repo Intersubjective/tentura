@@ -10,6 +10,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInvitation,
   gqlTypeProfile,
   gqlTypeBeacon,
+  gqlTypeBeaconInvolvement,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
   gqlTypeUserPublic,
@@ -27,6 +28,28 @@ final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
 final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
+  ]);
+
+/// V2-only: forward-screen involvement id sets (see `beaconInvolvement` query).
+/// List fields are nullable in GraphQL to match Hasura remote-schema merge; resolver always returns lists.
+final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
+  ..fields.addAll([
+    field(
+      'forwardedToIds',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field(
+      'committedIds',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field(
+      'withdrawnIds',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field(
+      'rejectedIds',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
   ]);
 
 /// Return type for `userUpdate` / remote-schema mutations (minimal).
