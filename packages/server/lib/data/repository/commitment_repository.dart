@@ -57,6 +57,13 @@ class CommitmentRepository {
           .get()
           .then((rows) => rows.map(_toEntity).toList());
 
+  /// Active and withdrawn rows (status 0 and 1). Used for forward involvement.
+  Future<List<CommitmentEntity>> fetchAllByBeaconId(String beaconId) =>
+      _database.managers.beaconCommitments
+          .filter((e) => e.beaconId.id(beaconId))
+          .get()
+          .then((rows) => rows.map(_toEntity).toList());
+
   Future<List<CommitmentEntity>> fetchByUserId(String userId) =>
       _database.managers.beaconCommitments
           .filter((e) => e.userId.id(userId) & e.status.equals(0))

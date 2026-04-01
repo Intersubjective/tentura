@@ -197,6 +197,13 @@ type Beacon {
   id: String!
 }
 
+type BeaconInvolvement {
+  forwardedToIds: [String!]
+  committedIds: [String!]
+  withdrawnIds: [String!]
+  rejectedIds: [String!]
+}
+
 """
 order by aggregate values of table "beacon"
 """
@@ -3597,6 +3604,7 @@ type query_root {
     where: invitation_bool_exp
   ): [invitation!]!
   invitationById(id: String!): Invitation
+  beaconInvolvement(id: String!): BeaconInvolvement!
 
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation

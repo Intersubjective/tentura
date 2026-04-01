@@ -2,14 +2,15 @@ import 'dart:convert' show jsonEncode;
 
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
 import '../../domain/entity/forward_edge.dart';
-import '../gql/_g/beacon_involvement_fetch.req.gql.dart';
+import '../gql/_g/beacon_involvement_data.data.gql.dart';
+import '../gql/_g/beacon_involvement_data.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
 import '../gql/_g/beacon_commit.req.gql.dart';
@@ -27,9 +28,13 @@ typedef BeaconInvolvementData = ({
 
 @lazySingleton
 class ForwardRepository {
-  ForwardRepository(this._remoteApiService);
+  ForwardRepository(
+    this._remoteApiService,
+    this._beaconRepository,
+  );
 
   final RemoteApiService _remoteApiService;
+  final BeaconRepository _beaconRepository;
 
   Future<String> forwardBeacon({
     required String beaconId,
@@ -55,32 +60,38 @@ class ForwardRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beaconForward);
 
+  /// Loads beacon header + forward-screen involvement in parallel.
+  ///
+  /// **Do not** merge Hasura `beacon_by_pk { rejected_user_ids, ... }` into one
+  /// request: when `public.beacon_get_rejected_user_ids` returns zero rows,
+  /// Hasura drops the entire `beacon_by_pk` row (see `packages/server/WORKAROUNDS.md`).
+  /// Involvement ids come from the V2 `beaconInvolvement` query instead.
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
-  }) => _remoteApiService
-      .request(
-        GBeaconInvolvementFetchReq((r) => r..vars.beaconId = beaconId),
-      )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) {
-        final b = r.dataOrThrow(label: _label).beacon_by_pk;
-        if (b == null) {
-          throw StateError('Beacon not found: $beaconId');
-        }
-        return (
-          beacon: BeaconModel(b).toEntity(),
-          forwardedToIds: b.forward_edges.map((e) => e.recipient_id).toSet(),
-          committedIds: b.commitments
-              .where((c) => c.status == 0)
-              .map((c) => c.user_id)
-              .toSet(),
-          withdrawnIds: b.commitments
-              .where((c) => c.status == 1)
-              .map((c) => c.user_id)
-              .toSet(),
-          rejectedIds: b.rejected_user_ids?.toSet() ?? <String>{},
-        );
-      });
+  }) async {
+    final results = await Future.wait([
+      _beaconRepository.fetchBeaconById(beaconId),
+      _remoteApiService
+          .request(
+            GBeaconInvolvementDataReq((r) => r..vars.id = beaconId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) => r.dataOrThrow(label: _label).beaconInvolvement,
+          ),
+    ]);
+
+    final beacon = results[0] as Beacon;
+    final inv = results[1] as GBeaconInvolvementDataData_beaconInvolvement;
+
+    return (
+      beacon: beacon,
+      forwardedToIds: inv.forwardedToIds?.toSet() ?? {},
+      committedIds: inv.committedIds?.toSet() ?? {},
+      withdrawnIds: inv.withdrawnIds?.toSet() ?? {},
+      rejectedIds: inv.rejectedIds?.toSet() ?? {},
+    );
+  }
 
   Future<List<ForwardEdge>> fetchEdges({required String beaconId}) =>
       _remoteApiService
