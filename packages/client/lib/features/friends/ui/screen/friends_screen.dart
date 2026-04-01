@@ -14,7 +14,6 @@ import 'package:tentura/features/chat/ui/widget/chat_peer_list_tile.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/friends_cubit.dart';
 
@@ -46,43 +45,16 @@ class _FriendsScreenState extends State<FriendsScreen>
     super.dispose();
   }
 
-  Future<void> _onFabPressed(BuildContext context) async {
+  Future<void> _onCreateInvitation(BuildContext context) async {
     final l10n = L10n.of(context)!;
-    if (!context.mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.link),
-              title: Text(l10n.friendsFabEnterCode),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                unawaited(ConnectBottomSheet.show(context));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_add_alt_1),
-              title: Text(l10n.friendsFabCreateInvitation),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                final invitation = await _invitationCubit.createInvitation();
-                if (invitation == null || !context.mounted) return;
-                await ShareCodeDialog.show(
-                  context,
-                  header: l10n.labelInvitationCode,
-                  link: Uri.parse(kServerName).replace(
-                    path: kPathAppLinkView,
-                    queryParameters: {'id': invitation.id},
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+    final invitation = await _invitationCubit.createInvitation();
+    if (invitation == null || !context.mounted) return;
+    await ShareCodeDialog.show(
+      context,
+      header: l10n.labelInvitationCode,
+      link: Uri.parse(kServerName).replace(
+        path: kPathAppLinkView,
+        queryParameters: {'id': invitation.id},
       ),
     );
   }
@@ -102,15 +74,21 @@ class _FriendsScreenState extends State<FriendsScreen>
           ),
         ],
         child: Scaffold(
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              unawaited(_onFabPressed(context));
-            },
-            child: const Icon(TenturaIcons.affiliation),
-          ),
           appBar: AppBar(
             title: Text(l10n.friendsTitle),
             automaticallyImplyLeading: false,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.link),
+                tooltip: l10n.friendsEnterCode,
+                onPressed: () => unawaited(ConnectBottomSheet.show(context)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.person_add_alt_1),
+                tooltip: l10n.friendsCreateInvitation,
+                onPressed: () => unawaited(_onCreateInvitation(context)),
+              ),
+            ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(52),
               child: Column(
