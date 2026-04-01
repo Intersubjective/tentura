@@ -1,0 +1,159 @@
+import 'package:built_collection/built_collection.dart';
+import 'package:injectable/injectable.dart';
+
+import 'package:tentura/data/service/remote_api_service.dart';
+
+import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+
+import '../gql/_g/beacon_close_with_review.req.gql.dart';
+import '../gql/_g/evaluation_finalize.req.gql.dart';
+import '../gql/_g/evaluation_participants.req.gql.dart';
+import '../gql/_g/evaluation_skip.req.gql.dart';
+import '../gql/_g/evaluation_submit.req.gql.dart';
+import '../gql/_g/evaluation_summary.req.gql.dart';
+import '../gql/_g/review_window_status.req.gql.dart';
+
+@lazySingleton
+class EvaluationRepository {
+  EvaluationRepository(this._remoteApiService);
+
+  final RemoteApiService _remoteApiService;
+
+  static const _label = 'EvaluationRepository';
+
+  Future<List<EvaluationParticipant>> fetchParticipants(String beaconId) =>
+      _remoteApiService
+          .request(
+            GEvaluationParticipantsReq(
+              (b) => b.vars.id = beaconId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) => r.dataOrThrow(label: _label).evaluationParticipants.map(
+                  (e) {
+                    final tags = e.reasonTags?.toList() ?? const <String>[];
+                    return EvaluationParticipant(
+                      userId: e.userId,
+                      title: e.title,
+                      imageId: e.imageId,
+                      role: _roleFromInt(e.role),
+                      contributionSummary: e.contributionSummary,
+                      causalHint: e.causalHint,
+                      currentValue: EvaluationValue.fromWire(e.value),
+                      reasonTags: tags,
+                      note: e.note,
+                    );
+                  },
+                ).toList(),
+          );
+
+  Future<ReviewWindowInfo> fetchReviewWindowStatus(String beaconId) =>
+      _remoteApiService
+          .request(
+            GReviewWindowStatusReq(
+              (b) => b.vars.id = beaconId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) {
+            final s = r.dataOrThrow(label: _label).reviewWindowStatus;
+            return ReviewWindowInfo(
+              beaconId: s.beaconId,
+              hasWindow: s.hasWindow,
+              openedAt: s.openedAt,
+              closesAt: s.closesAt,
+              windowComplete: s.windowComplete ?? false,
+              userReviewStatus: s.userReviewStatus,
+              reviewedCount: s.reviewedCount ?? 0,
+              totalCount: s.totalCount ?? 0,
+            );
+          });
+
+  Future<EvaluationSummary> fetchSummary(String beaconId) =>
+      _remoteApiService
+          .request(
+            GEvaluationSummaryReq(
+              (b) => b.vars.id = beaconId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) {
+            final s = r.dataOrThrow(label: _label).evaluationSummary;
+            return EvaluationSummary(
+              suppressed: s.suppressed,
+              tone: s.tone,
+              message: s.message,
+              topReasonTags: s.topReasonTags?.toList() ?? const [],
+              neg2: s.neg2,
+              neg1: s.neg1,
+              zero: s.zero,
+              pos1: s.pos1,
+              pos2: s.pos2,
+            );
+          });
+
+  Future<void> submit({
+    required String beaconId,
+    required String evaluatedUserId,
+    required int value,
+    List<String> reasonTags = const [],
+    String note = '',
+  }) async {
+    await _remoteApiService
+        .request(
+          GEvaluationSubmitReq(
+            (b) => b.vars
+              ..id = beaconId
+              ..evaluatedUserId = evaluatedUserId
+              ..value = value
+              ..reasonTags = ListBuilder<String>(reasonTags)
+              ..note = note.isEmpty ? null : note,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label));
+  }
+
+  Future<void> finalize(String beaconId) async {
+    await _remoteApiService
+        .request(
+          GEvaluationFinalizeReq((b) => b.vars.id = beaconId),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label));
+  }
+
+  Future<void> skip(String beaconId) async {
+    await _remoteApiService
+        .request(
+          GEvaluationSkipReq((b) => b.vars.id = beaconId),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label));
+  }
+
+  /// Returns new beacon state (5) and review end time.
+  Future<({String closesAt})> beaconCloseWithReview(String beaconId) =>
+      _remoteApiService
+          .request(
+            GBeaconCloseWithReviewReq((b) => b.vars.id = beaconId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) => (
+              closesAt: r.dataOrThrow(label: _label).beaconCloseWithReview
+                  .closesAt,
+            ),
+          );
+}
+
+EvaluationParticipantRole _roleFromInt(int v) => switch (v) {
+      0 => EvaluationParticipantRole.author,
+      1 => EvaluationParticipantRole.committer,
+      2 => EvaluationParticipantRole.forwarder,
+      _ => EvaluationParticipantRole.committer,
+    };

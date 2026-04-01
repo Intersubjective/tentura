@@ -204,6 +204,47 @@ type BeaconInvolvement {
   rejectedIds: [String!]
 }
 
+type BeaconCloseReviewResult {
+  id: String!
+  state: Int!
+  closesAt: String!
+}
+
+type EvaluationParticipant {
+  userId: String!
+  title: String!
+  imageId: String!
+  role: Int!
+  contributionSummary: String!
+  causalHint: String!
+  value: Int
+  reasonTags: [String!]
+  note: String!
+}
+
+type ReviewWindowStatus {
+  beaconId: String!
+  hasWindow: Boolean!
+  openedAt: String
+  closesAt: String
+  windowComplete: Boolean
+  userReviewStatus: Int
+  reviewedCount: Int
+  totalCount: Int
+}
+
+type EvaluationSummary {
+  suppressed: Boolean!
+  tone: String!
+  message: String!
+  topReasonTags: [String!]
+  neg2: Int
+  neg1: Int
+  zero: Int
+  pos1: Int
+  pos2: Int
+}
+
 """
 order by aggregate values of table "beacon"
 """
@@ -2049,6 +2090,16 @@ type mutation_root {
   beaconCommit(id: String!, message: String): Boolean!
   beaconCreate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, image: Upload = {}, polling: PollingInput, startAt: String, tags: String, title: String!): Beacon!
   beaconDeleteById(id: String!): Boolean!
+  beaconCloseWithReview(id: String!): BeaconCloseReviewResult!
+  evaluationSubmit(
+    evaluatedUserId: String!
+    id: String!
+    note: String
+    reasonTags: [String!]
+    value: Int!
+  ): Boolean!
+  evaluationFinalize(id: String!): Boolean!
+  evaluationSkip(id: String!): Boolean!
   beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]!): String!
   beaconWithdraw(id: String!, message: String): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
@@ -3605,6 +3656,9 @@ type query_root {
   ): [invitation!]!
   invitationById(id: String!): Invitation
   beaconInvolvement(id: String!): BeaconInvolvement!
+  evaluationParticipants(id: String!): [EvaluationParticipant!]!
+  reviewWindowStatus(id: String!): ReviewWindowStatus!
+  evaluationSummary(id: String!): EvaluationSummary!
 
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation

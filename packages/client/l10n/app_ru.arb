@@ -804,6 +804,14 @@
   "@beaconLifecyclePendingReview": {
     "context": "InboxItemTile"
   },
+  "beaconLifecycleClosedReviewOpen": "Отзыв открыт",
+  "@beaconLifecycleClosedReviewOpen": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecycleClosedReviewComplete": "Отзыв завершён",
+  "@beaconLifecycleClosedReviewComplete": {
+    "context": "InboxItemTile"
+  },
   "actionStopWatching": "Прекратить наблюдение",
   "@actionStopWatching": {
     "context": "InboxItemTile"
@@ -1130,5 +1138,29 @@
   "chatClearConfirmTitle": "Удалить все сообщения в этом чате?",
   "@chatClearConfirmTitle": {
     "context": "Chat"
-  }
+  },
+  "evaluationBannerTitle": "Маяк закрыт — отзыв о вкладе",
+  "evaluationBannerSubtitle": "Приватно, только для этого маяка. Не публично.",
+  "evaluationBannerReview": "Оценить",
+  "evaluationBannerLater": "Позже",
+  "evaluationAcknowledgeTitle": "Признать вклад",
+  "evaluationPrivacyBlock": "Ваш отзыв приватен. Он не публикуется, и другие участники не видят ваши ответы по умолчанию.",
+  "evaluationSubmitFinish": "Отправить и завершить",
+  "evaluationSkipForNow": "Пропустить",
+  "evaluationProgress": "{reviewed} из {total} оценено",
+  "@evaluationProgress": {
+    "placeholders": {
+      "reviewed": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "evaluationPrivateHint": "Приватный отзыв только для этого маяка.",
+  "evaluationSave": "Сохранить",
+  "evaluationSummaryTitle": "Ваш отзыв по этому маяку",
+  "evaluationNotReviewed": "Не оценено",
+  "evaluationReviewed": "Оценено",
+  "evaluationNoBasisLabel": "Нет оснований",
+  "evaluationTonePositive": "В основном положительно",
+  "evaluationToneMixed": "Смешанно",
+  "evaluationToneNegative": "В основном отрицательно"
 }

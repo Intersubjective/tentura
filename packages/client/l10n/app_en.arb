@@ -804,6 +804,14 @@
   "@beaconLifecyclePendingReview": {
     "context": "InboxItemTile"
   },
+  "beaconLifecycleClosedReviewOpen": "Review open",
+  "@beaconLifecycleClosedReviewOpen": {
+    "context": "InboxItemTile"
+  },
+  "beaconLifecycleClosedReviewComplete": "Review complete",
+  "@beaconLifecycleClosedReviewComplete": {
+    "context": "InboxItemTile"
+  },
   "actionStopWatching": "Stop watching",
   "@actionStopWatching": {
     "context": "InboxItemTile"
@@ -1130,5 +1138,29 @@
   "chatClearConfirmTitle": "Are you sure you want to delete all messages from this chat?",
   "@chatClearConfirmTitle": {
     "context": "Chat"
-  }
+  },
+  "evaluationBannerTitle": "Beacon closed — review contributions",
+  "evaluationBannerSubtitle": "Private, beacon-local feedback. Not public.",
+  "evaluationBannerReview": "Review",
+  "evaluationBannerLater": "Later",
+  "evaluationAcknowledgeTitle": "Acknowledge contributions",
+  "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this beacon will not see your answers by default. It is only used to improve your own local trust view.",
+  "evaluationSubmitFinish": "Submit and finish",
+  "evaluationSkipForNow": "Skip for now",
+  "evaluationProgress": "{reviewed} of {total} reviewed",
+  "@evaluationProgress": {
+    "placeholders": {
+      "reviewed": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "evaluationPrivateHint": "Private feedback for this beacon only.",
+  "evaluationSave": "Save",
+  "evaluationSummaryTitle": "Your feedback in this beacon",
+  "evaluationNotReviewed": "Not reviewed",
+  "evaluationReviewed": "Reviewed",
+  "evaluationNoBasisLabel": "No basis",
+  "evaluationTonePositive": "Mostly positive",
+  "evaluationToneMixed": "Mixed",
+  "evaluationToneNegative": "Mostly negative"
 }

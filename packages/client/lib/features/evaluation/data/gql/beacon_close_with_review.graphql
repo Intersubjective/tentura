@@ -1,0 +1,7 @@
+mutation BeaconCloseWithReview($id: String!) {
+  beaconCloseWithReview(id: $id) {
+    id
+    state
+    closesAt
+  }
+}

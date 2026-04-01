@@ -18,6 +18,9 @@ String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
       BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
       BeaconLifecycle.draft => l10n.beaconLifecycleDraft,
       BeaconLifecycle.pendingReview => l10n.beaconLifecyclePendingReview,
+      BeaconLifecycle.closedReviewOpen => l10n.beaconLifecycleClosedReviewOpen,
+      BeaconLifecycle.closedReviewComplete =>
+        l10n.beaconLifecycleClosedReviewComplete,
     };
 
 class InboxItemTile extends StatelessWidget {

@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 
@@ -24,10 +25,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     BeaconRepository? beaconRepository,
     BeaconViewRepository? beaconViewRepository,
     ForwardRepository? forwardRepository,
+    EvaluationRepository? evaluationRepository,
   }) : _beaconViewRepository =
            beaconViewRepository ?? GetIt.I<BeaconViewRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
+       _evaluationRepository =
+           evaluationRepository ?? GetIt.I<EvaluationRepository>(),
        super(_idToState(id, myProfile)) {
     unawaited(
       state.hasFocusedComment
@@ -39,6 +43,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   final BeaconRepository _beaconRepository;
   final BeaconViewRepository _beaconViewRepository;
   final ForwardRepository _forwardRepository;
+
+  final EvaluationRepository _evaluationRepository;
 
   Future<void> delete(String beaconId) async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -56,8 +62,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final next = state.beacon.isListed
           ? BeaconLifecycle.closed
           : BeaconLifecycle.open;
-      await _beaconRepository.setBeaconLifecycle(next, id: state.beacon.id);
-      emit(state.copyWith(status: StateStatus.isSuccess));
+      if (state.isBeaconMine &&
+          next == BeaconLifecycle.closed &&
+          state.beacon.lifecycle == BeaconLifecycle.open) {
+        await _evaluationRepository.beaconCloseWithReview(state.beacon.id);
+      } else {
+        await _beaconRepository.setBeaconLifecycle(next, id: state.beacon.id);
+      }
+      await _fetchBeaconByIdWithTimeline();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

@@ -37,7 +37,7 @@ class Beacons extends Table
 
   late final tags = text().withDefault(const Constant(''))();
 
-  // 0=OPEN, 1=CLOSED, 2=DELETED, 3=DRAFT, 4=PENDING_REVIEW
+  // 0=OPEN, 1=CLOSED, 2=DELETED, 3=DRAFT, 4=PENDING_REVIEW, 5=CLOSED_REVIEW_OPEN, 6=CLOSED_REVIEW_COMPLETE
   late final Column<int> state = integer()
       .withDefault(const Constant(0))();
 

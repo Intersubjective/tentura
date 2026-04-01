@@ -8,6 +8,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
+import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/polling/ui/widget/poll_button.dart';
 
 import '../../data/repository/beacon_repository.dart';
@@ -22,6 +23,7 @@ class BeaconMineControl extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final repo = GetIt.I<BeaconRepository>();
+    final evaluationRepo = GetIt.I<EvaluationRepository>();
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -52,7 +54,12 @@ class BeaconMineControl extends StatelessWidget {
                   final next = beacon.isListed
                       ? BeaconLifecycle.closed
                       : BeaconLifecycle.open;
-                  await repo.setBeaconLifecycle(next, id: beacon.id);
+                  if (next == BeaconLifecycle.closed &&
+                      beacon.lifecycle == BeaconLifecycle.open) {
+                    await evaluationRepo.beaconCloseWithReview(beacon.id);
+                  } else {
+                    await repo.setBeaconLifecycle(next, id: beacon.id);
+                  }
                 } catch (e) {
                   if (context.mounted) {
                     showSnackBar(context, isError: true, text: e.toString());

@@ -21,6 +21,10 @@ class BeaconForwardHeader extends StatelessWidget {
         BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
         BeaconLifecycle.draft => l10n.beaconLifecycleDraft,
         BeaconLifecycle.pendingReview => l10n.beaconLifecyclePendingReview,
+        BeaconLifecycle.closedReviewOpen =>
+          l10n.beaconLifecycleClosedReviewOpen,
+        BeaconLifecycle.closedReviewComplete =>
+          l10n.beaconLifecycleClosedReviewComplete,
       };
 
   @override

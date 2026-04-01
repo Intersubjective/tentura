@@ -14,6 +14,10 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeMutualScore,
   gqlTypeImagePublic,
   gqlTypeUserPublic,
+  gqlTypeBeaconCloseReviewResult,
+  gqlTypeEvaluationParticipant,
+  gqlTypeReviewWindowStatus,
+  gqlTypeEvaluationSummary,
 ];
 
 final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
@@ -98,4 +102,68 @@ final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
     field('created_at', graphQLString.nonNullable()),
     field('updated_at', graphQLString.nonNullable()),
     field('issuer', gqlTypeUserPublic.nonNullable()),
+  ]);
+
+/// `beaconCloseWithReview` result.
+final gqlTypeBeaconCloseReviewResult = GraphQLObjectType(
+  'BeaconCloseReviewResult',
+  null,
+)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('state', graphQLInt.nonNullable()),
+    field('closesAt', graphQLString.nonNullable()),
+  ]);
+
+final gqlTypeEvaluationParticipant = GraphQLObjectType(
+  'EvaluationParticipant',
+  null,
+)
+  ..fields.addAll([
+    field('userId', graphQLString.nonNullable()),
+    field('title', graphQLString.nonNullable()),
+    field('imageId', graphQLString.nonNullable()),
+    field('role', graphQLInt.nonNullable()),
+    field('contributionSummary', graphQLString.nonNullable()),
+    field('causalHint', graphQLString.nonNullable()),
+    field('value', graphQLInt),
+    field(
+      'reasonTags',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field('note', graphQLString.nonNullable()),
+  ]);
+
+final gqlTypeReviewWindowStatus = GraphQLObjectType(
+  'ReviewWindowStatus',
+  null,
+)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('hasWindow', graphQLBoolean.nonNullable()),
+    field('openedAt', graphQLString),
+    field('closesAt', graphQLString),
+    field('windowComplete', graphQLBoolean),
+    field('userReviewStatus', graphQLInt),
+    field('reviewedCount', graphQLInt),
+    field('totalCount', graphQLInt),
+  ]);
+
+final gqlTypeEvaluationSummary = GraphQLObjectType(
+  'EvaluationSummary',
+  null,
+)
+  ..fields.addAll([
+    field('suppressed', graphQLBoolean.nonNullable()),
+    field('tone', graphQLString.nonNullable()),
+    field('message', graphQLString.nonNullable()),
+    field(
+      'topReasonTags',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field('neg2', graphQLInt),
+    field('neg1', graphQLInt),
+    field('zero', graphQLInt),
+    field('pos1', graphQLInt),
+    field('pos2', graphQLInt),
   ]);

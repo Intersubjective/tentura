@@ -76,3 +76,28 @@ class BeaconExceptionCodes extends ExceptionCodes {
   @override
   int get codeNumber => codeSpace + exceptionCode.index;
 }
+
+// Evaluation (beacon-local review)
+
+enum EvaluationExceptionCode {
+  unspecified,
+  reviewWindowNotOpen,
+  notEligible,
+  evaluationAlreadySubmitted,
+  reasonTagRequired,
+  reviewWindowExpired,
+  beaconNotClosable,
+  invalidEvaluationValue,
+  invalidReasonTags,
+}
+
+class EvaluationExceptionCodes extends ExceptionCodes {
+  static const codeSpace = 1400;
+
+  const EvaluationExceptionCodes(this.exceptionCode);
+
+  final EvaluationExceptionCode exceptionCode;
+
+  @override
+  int get codeNumber => codeSpace + exceptionCode.index;
+}

@@ -18,7 +18,12 @@ import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 import 'table/beacon_commitments.dart';
+import 'table/beacon_evaluation_participants.dart';
+import 'table/beacon_evaluation_visibility.dart';
+import 'table/beacon_evaluations.dart';
 import 'table/beacon_forward_edges.dart';
+import 'table/beacon_review_statuses.dart';
+import 'table/beacon_review_windows.dart';
 import 'table/beacon_updates.dart';
 import 'table/beacons.dart';
 import 'table/comments.dart';
@@ -45,7 +50,12 @@ part 'tentura_db.g.dart';
 @DriftDatabase(
   tables: [
     BeaconCommitments,
+    BeaconEvaluationParticipants,
+    BeaconEvaluationVisibility,
+    BeaconEvaluations,
     BeaconForwardEdges,
+    BeaconReviewStatuses,
+    BeaconReviewWindows,
     BeaconUpdates,
     Beacons,
     Comments,

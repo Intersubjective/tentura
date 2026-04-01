@@ -4,7 +4,11 @@ enum BeaconLifecycle {
   closed(1),
   deleted(2),
   draft(3),
-  pendingReview(4);
+  pendingReview(4),
+  /// Post-success review window open (Phase 1 evaluation).
+  closedReviewOpen(5),
+  /// Review window completed; beacon remains closed for listing.
+  closedReviewComplete(6);
 
   const BeaconLifecycle(this.smallintValue);
 
@@ -16,12 +20,21 @@ enum BeaconLifecycle {
         2 => BeaconLifecycle.deleted,
         3 => BeaconLifecycle.draft,
         4 => BeaconLifecycle.pendingReview,
+        5 => BeaconLifecycle.closedReviewOpen,
+        6 => BeaconLifecycle.closedReviewComplete,
         _ => BeaconLifecycle.open,
       };
 
-  /// OPEN, DRAFT, PENDING_REVIEW — shown in My Work "Active".
-  bool get isActiveSection => this == open || this == draft || this == pendingReview;
+  /// OPEN, DRAFT, PENDING_REVIEW, CLOSED_REVIEW_OPEN — shown in My Work "Active".
+  bool get isActiveSection =>
+      this == open ||
+      this == draft ||
+      this == pendingReview ||
+      this == closedReviewOpen;
 
-  /// CLOSED, DELETED — shown in My Work "Closed".
-  bool get isClosedSection => this == closed || this == deleted;
+  /// CLOSED, DELETED, CLOSED_REVIEW_COMPLETE — shown in My Work "Closed".
+  bool get isClosedSection =>
+      this == closed || this == deleted || this == closedReviewComplete;
+
+  bool get isReviewWindowOpen => this == closedReviewOpen;
 }

@@ -1,0 +1,13 @@
+query EvaluationSummary($id: String!) {
+  evaluationSummary(id: $id) {
+    suppressed
+    tone
+    message
+    topReasonTags
+    neg2
+    neg1
+    zero
+    pos1
+    pos2
+  }
+}

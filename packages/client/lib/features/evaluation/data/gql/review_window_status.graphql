@@ -1,0 +1,12 @@
+query ReviewWindowStatus($id: String!) {
+  reviewWindowStatus(id: $id) {
+    beaconId
+    hasWindow
+    openedAt
+    closesAt
+    windowComplete
+    userReviewStatus
+    reviewedCount
+    totalCount
+  }
+}
