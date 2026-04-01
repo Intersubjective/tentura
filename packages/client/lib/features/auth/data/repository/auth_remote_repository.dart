@@ -49,6 +49,7 @@ class AuthRemoteRepository {
   /// Returns userId
   ///
   Future<String> signIn(String seed) async {
+    await _remoteApiService.dropAuth();
     await _remoteApiService.setAuth(
       seed: seed,
       authTokenFetcher: authTokenFetcher,

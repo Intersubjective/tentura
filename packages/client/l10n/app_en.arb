@@ -483,13 +483,13 @@
   "@communityFeedback": {
     "context": "Profile"
   },
-  "addToMyField": "Add to My Field",
+  "addToMyField": "Add friend",
   "@addToMyField": {
-    "context": "Profile"
+    "context": "ProfileViewBody"
   },
-  "removeFromMyField": "Remove from my field",
+  "removeFromMyField": "Remove from friends",
   "@removeFromMyField": {
-    "context": "Profile"
+    "context": "ProfileViewAppBar"
   },
   "onlyOneOpinion": "You can have only one opinion",
   "@onlyOneOpinion": {

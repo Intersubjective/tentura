@@ -26,6 +26,8 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
     required AuthTokenFetcher authTokenFetcher,
     AuthRequestIntent? returnAuthRequestToken,
   }) async {
+    await _gqlClient?.dispose();
+    _gqlClient = null;
     _gqlClient = await buildClient(
       params: (
         apiEndpointUrl: apiEndpointUrl,

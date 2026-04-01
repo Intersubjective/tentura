@@ -483,13 +483,13 @@
   "@communityFeedback": {
     "context": "Profile"
   },
-  "addToMyField": "Добавить в моё поле",
+  "addToMyField": "Добавить в друзья",
   "@addToMyField": {
-    "context": "Profile"
+    "context": "ProfileViewBody"
   },
-  "removeFromMyField": "Убрать из моего поля",
+  "removeFromMyField": "Убрать из друзей",
   "@removeFromMyField": {
-    "context": "Profile"
+    "context": "ProfileViewAppBar"
   },
   "onlyOneOpinion": "Вы можете оставить только одно мнение",
   "@onlyOneOpinion": {

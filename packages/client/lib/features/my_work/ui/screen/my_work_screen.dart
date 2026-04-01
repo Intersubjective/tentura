@@ -19,7 +19,8 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
       BlocSelector<AuthCubit, AuthState, String>(
         bloc: GetIt.I<AuthCubit>(),
         selector: (state) => state.currentAccountId,
-        builder: (_, _) => BlocProvider(
+        builder: (_, accountId) => BlocProvider(
+          key: ValueKey(accountId),
           create: (_) => MyWorkCubit(
             initialContext: context.read<ContextCubit>().state.selected,
           ),
