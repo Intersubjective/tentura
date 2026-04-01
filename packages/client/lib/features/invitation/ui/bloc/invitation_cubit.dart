@@ -20,7 +20,12 @@ class InvitationCubit extends Cubit<InvitationState> {
   final InvitationRepository _invitationRepository;
 
   Future<void> fetch({bool clear = true}) async {
-    if (state.isLoading || state.hasReachedMax) return;
+    if (state.isLoading) {
+      return;
+    }
+    if (!clear && state.hasReachedMax) {
+      return;
+    }
 
     if (clear) {
       emit(

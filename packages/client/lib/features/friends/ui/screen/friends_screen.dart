@@ -12,6 +12,7 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/chat/ui/widget/chat_peer_list_tile.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
+import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
 
@@ -30,16 +31,24 @@ class _FriendsScreenState extends State<FriendsScreen>
   late final TabController _tabController;
   late final InvitationCubit _invitationCubit;
 
+  late final StreamSubscription<String> _authChanges;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _invitationCubit = InvitationCubit();
-    unawaited(_invitationCubit.fetch());
+    _authChanges = GetIt.I<AuthCase>().currentAccountChanges().listen((id) {
+      if (id.isEmpty) {
+        return;
+      }
+      unawaited(_invitationCubit.fetch(clear: true));
+    });
   }
 
   @override
   void dispose() {
+    unawaited(_authChanges.cancel());
     _tabController.dispose();
     unawaited(_invitationCubit.close());
     super.dispose();
