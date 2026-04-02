@@ -8,6 +8,20 @@ import 'package:tentura/domain/entity/beacon.dart';
 
 import '../gql/_g/my_work_fetch.req.gql.dart';
 
+/// Result of [MyWorkRepository.fetchInit] (non-closed full rows + closed id hints).
+typedef MyWorkInitResult = ({
+  List<Beacon> authoredNonClosed,
+  List<Beacon> committedNonClosed,
+  List<String> authoredClosedIds,
+  List<String> committedClosedIds,
+});
+
+/// Result of [MyWorkRepository.fetchClosed] (full closed rows).
+typedef MyWorkClosedResult = ({
+  List<Beacon> authoredClosed,
+  List<Beacon> committedClosed,
+});
+
 @lazySingleton
 class MyWorkRepository {
   MyWorkRepository(this._remoteApiService);
@@ -16,68 +30,52 @@ class MyWorkRepository {
 
   static const _kNetworkTimeout = Duration(seconds: 60);
 
-  Future<List<Beacon>> fetchAuthoredActive({
+  Future<MyWorkInitResult> fetchInit({
     required String userId,
     required String context,
   }) async {
     final r = await _remoteApiService
         .request(
-          GMyWorkAuthoredActiveReq(
-            (r) => r..vars.userId = userId..vars.context = context,
+          GMyWorkInitReq(
+            (b) => b..vars.userId = userId..vars.context = context,
           ),
         )
         .timeout(_kNetworkTimeout)
         .first;
-    final v = r.dataOrThrow(label: _label).beacon;
-    return v.map((e) => (e as BeaconModel).toEntity()).toList();
+    final d = r.dataOrThrow(label: _label);
+    return (
+      authoredNonClosed: d.authoredNonClosed
+          .map((e) => BeaconModel(e).toEntity())
+          .toList(),
+      committedNonClosed: d.committedNonClosed
+          .map((e) => BeaconModel(e.beacon).toEntity())
+          .toList(),
+      authoredClosedIds: d.authoredClosedIds.map((e) => e.id).toList(),
+      committedClosedIds:
+          d.committedClosedIds.map((e) => e.beacon.id).toList(),
+    );
   }
 
-  Future<List<Beacon>> fetchAuthoredClosed({
+  Future<MyWorkClosedResult> fetchClosed({
     required String userId,
     required String context,
   }) async {
     final r = await _remoteApiService
         .request(
-          GMyWorkAuthoredClosedReq(
-            (r) => r..vars.userId = userId..vars.context = context,
+          GMyWorkClosedReq(
+            (b) => b..vars.userId = userId..vars.context = context,
           ),
         )
         .timeout(_kNetworkTimeout)
         .first;
-    final v = r.dataOrThrow(label: _label).beacon;
-    return v.map((e) => (e as BeaconModel).toEntity()).toList();
-  }
-
-  Future<List<Beacon>> fetchCommittedActive({
-    required String userId,
-    required String context,
-  }) async {
-    final r = await _remoteApiService
-        .request(
-          GMyWorkCommittedActiveReq(
-            (r) => r..vars.userId = userId..vars.context = context,
-          ),
-        )
-        .timeout(_kNetworkTimeout)
-        .first;
-    final v = r.dataOrThrow(label: _label).beacon_commitment;
-    return v.map((e) => (e.beacon as BeaconModel).toEntity()).toList();
-  }
-
-  Future<List<Beacon>> fetchCommittedClosed({
-    required String userId,
-    required String context,
-  }) async {
-    final r = await _remoteApiService
-        .request(
-          GMyWorkCommittedClosedReq(
-            (r) => r..vars.userId = userId..vars.context = context,
-          ),
-        )
-        .timeout(_kNetworkTimeout)
-        .first;
-    final v = r.dataOrThrow(label: _label).beacon_commitment;
-    return v.map((e) => (e.beacon as BeaconModel).toEntity()).toList();
+    final d = r.dataOrThrow(label: _label);
+    return (
+      authoredClosed:
+          d.authoredClosed.map((e) => BeaconModel(e).toEntity()).toList(),
+      committedClosed: d.committedClosed
+          .map((e) => BeaconModel(e.beacon).toEntity())
+          .toList(),
+    );
   }
 
   static const _label = 'MyWork';

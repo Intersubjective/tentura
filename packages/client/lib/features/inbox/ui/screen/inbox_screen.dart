@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
@@ -61,28 +62,43 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
             const ContextDropDown(),
             BlocSelector<InboxCubit, InboxState, InboxSort>(
               selector: (state) => state.sort,
-              builder: (_, sort) => Padding(
-                padding: kPaddingSmallV,
-                child: Wrap(
-                  spacing: kSpacingSmall,
-                  children: [
-                    for (final s in InboxSort.values)
-                      ChoiceChip(
-                        selected: sort == s,
-                        label: Text(
-                          switch (s) {
-                            InboxSort.recent => l10n.inboxSortRecent,
-                            InboxSort.meritRank => l10n.inboxSortMeritRank,
-                            InboxSort.deadline => l10n.inboxSortDeadline,
-                          },
+              builder: (_, sort) {
+                final chipStyle = AppChoiceChipStyle(theme.colorScheme);
+                return Padding(
+                  padding: kPaddingSmallV,
+                  child: Wrap(
+                    spacing: kSpacingSmall,
+                    children: [
+                      for (final s in InboxSort.values)
+                        ChoiceChip(
+                          color: chipStyle.background,
+                          labelStyle: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: chipStyle.labelForeground,
+                          ),
+                          checkmarkColor: chipStyle.checkmarkColor,
+                          side: chipStyle.outline,
+                          selected: sort == s,
+                          label: Text(
+                            switch (s) {
+                              InboxSort.recent => l10n.inboxSortRecent,
+                              InboxSort.meritRank => l10n.inboxSortMeritRank,
+                              InboxSort.deadline => l10n.inboxSortDeadline,
+                            },
+                          ),
+                          onSelected: (_) => inboxCubit.setSort(s),
                         ),
-                        onSelected: (_) => inboxCubit.setSort(s),
-                      ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
             TabBar(
+              automaticIndicatorColorAdjustment: false,
+              labelColor: theme.colorScheme.primary,
+              unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+              indicatorColor: theme.colorScheme.primary,
+              dividerColor: theme.colorScheme.outlineVariant,
               tabs: [
                 Tab(text: l10n.inboxTabNeedsMe),
                 Tab(text: l10n.inboxTabWatching),

@@ -1,7 +1,7 @@
 # import '/data/gql/beacon_model.graphql'
 
-query MyWorkAuthoredActive($userId: String!, $context: String = "") {
-  beacon(
+query MyWorkInit($userId: String!, $context: String = "") {
+  authoredNonClosed: beacon(
     where: {
       user_id: {_eq: $userId},
       state: {_in: [0, 3, 4, 5]},
@@ -14,26 +14,7 @@ query MyWorkAuthoredActive($userId: String!, $context: String = "") {
   ) {
     ...BeaconModel
   }
-}
-
-query MyWorkAuthoredClosed($userId: String!, $context: String = "") {
-  beacon(
-    where: {
-      user_id: {_eq: $userId},
-      state: {_in: [1, 2, 6]},
-      _or: [
-        {context: {_eq: $context}},
-        {context: {_is_null: true}}
-      ]
-    },
-    order_by: {updated_at: desc}
-  ) {
-    ...BeaconModel
-  }
-}
-
-query MyWorkCommittedActive($userId: String!, $context: String = "") {
-  beacon_commitment(
+  committedNonClosed: beacon_commitment(
     where: {
       user_id: {_eq: $userId},
       status: {_eq: 0},
@@ -51,10 +32,54 @@ query MyWorkCommittedActive($userId: String!, $context: String = "") {
       ...BeaconModel
     }
   }
+  authoredClosedIds: beacon(
+    where: {
+      user_id: {_eq: $userId},
+      state: {_in: [1, 2, 6]},
+      _or: [
+        {context: {_eq: $context}},
+        {context: {_is_null: true}}
+      ]
+    },
+    order_by: {updated_at: desc}
+  ) {
+    id
+  }
+  committedClosedIds: beacon_commitment(
+    where: {
+      user_id: {_eq: $userId},
+      status: {_eq: 0},
+      beacon: {
+        state: {_in: [1, 2, 6]},
+        _or: [
+          {context: {_eq: $context}},
+          {context: {_is_null: true}}
+        ]
+      }
+    },
+    order_by: {updated_at: desc}
+  ) {
+    beacon {
+      id
+    }
+  }
 }
 
-query MyWorkCommittedClosed($userId: String!, $context: String = "") {
-  beacon_commitment(
+query MyWorkClosed($userId: String!, $context: String = "") {
+  authoredClosed: beacon(
+    where: {
+      user_id: {_eq: $userId},
+      state: {_in: [1, 2, 6]},
+      _or: [
+        {context: {_eq: $context}},
+        {context: {_is_null: true}}
+      ]
+    },
+    order_by: {updated_at: desc}
+  ) {
+    ...BeaconModel
+  }
+  committedClosed: beacon_commitment(
     where: {
       user_id: {_eq: $userId},
       status: {_eq: 0},

@@ -119,11 +119,9 @@ ThemeData createAppTheme(ColorScheme colorScheme) {
           bodyColor: colorScheme.onSurface,
           displayColor: colorScheme.onSurface,
         ),
-
-    //
-    chipTheme: ChipThemeData(
-      labelStyle: TextStyle(color: colorScheme.onPrimary),
-      backgroundColor: colorScheme.primary,
-    ),
+    // Omit global chip label/background overrides so Material 3 [ChoiceChip]
+    // uses per-state colors (onSurfaceVariant / onSecondaryContainer) from
+    // defaults. A single onPrimary label broke contrast when the selected fill
+    // is secondaryContainer.
   );
 }
