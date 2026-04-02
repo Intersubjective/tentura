@@ -52,19 +52,32 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
         children: [
           const ContextDropDown(),
 
-          // Active / Closed
+          // Drafts / Active / Review / Closed
           BlocSelector<MyWorkCubit, MyWorkState, MyWorkSection>(
             selector: (state) => state.section,
             builder: (_, section) => Padding(
               padding: kPaddingSmallV,
               child: Wrap(
                 spacing: kSpacingSmall,
+                runSpacing: kSpacingSmall,
                 children: [
+                  ChoiceChip(
+                    selected: section == MyWorkSection.drafts,
+                    label: Text(l10n.myWorkSectionDrafts),
+                    onSelected: (_) =>
+                        cubit.setSection(MyWorkSection.drafts),
+                  ),
                   ChoiceChip(
                     selected: section == MyWorkSection.active,
                     label: Text(l10n.myWorkSectionActive),
                     onSelected: (_) =>
                         cubit.setSection(MyWorkSection.active),
+                  ),
+                  ChoiceChip(
+                    selected: section == MyWorkSection.review,
+                    label: Text(l10n.myWorkSectionReview),
+                    onSelected: (_) =>
+                        cubit.setSection(MyWorkSection.review),
                   ),
                   ChoiceChip(
                     selected: section == MyWorkSection.closed,
@@ -126,9 +139,12 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
                         ),
                         const SizedBox(height: kSpacingMedium),
                         Text(
-                          state.section == MyWorkSection.active
-                              ? l10n.myWorkEmptyActive
-                              : l10n.myWorkEmptyClosed,
+                          switch (state.section) {
+                            MyWorkSection.drafts => l10n.myWorkEmptyDrafts,
+                            MyWorkSection.active => l10n.myWorkEmptyActive,
+                            MyWorkSection.review => l10n.myWorkEmptyReview,
+                            MyWorkSection.closed => l10n.myWorkEmptyClosed,
+                          },
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
