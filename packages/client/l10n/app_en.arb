@@ -951,16 +951,32 @@
   "@myWorkEmpty": {
     "context": "MyWorkScreen"
   },
+  "myWorkSectionDrafts": "Drafts",
+  "@myWorkSectionDrafts": {
+    "context": "MyWorkScreen"
+  },
   "myWorkSectionActive": "Active",
   "@myWorkSectionActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSectionReview": "Review",
+  "@myWorkSectionReview": {
     "context": "MyWorkScreen"
   },
   "myWorkSectionClosed": "Closed",
   "@myWorkSectionClosed": {
     "context": "MyWorkScreen"
   },
+  "myWorkEmptyDrafts": "No drafts",
+  "@myWorkEmptyDrafts": {
+    "context": "MyWorkScreen"
+  },
   "myWorkEmptyActive": "No active work",
   "@myWorkEmptyActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyReview": "Nothing in review",
+  "@myWorkEmptyReview": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyClosed": "No closed work",

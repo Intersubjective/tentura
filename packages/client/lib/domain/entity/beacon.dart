@@ -38,7 +38,7 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
   const Beacon._();
 
-  /// Active-section beacon (OPEN / DRAFT / PENDING_REVIEW); used for profile filters and author controls.
+  /// Non-closed listing (OPEN, DRAFT, PENDING_REVIEW, CLOSED_REVIEW_OPEN); profile filters and author controls.
   bool get isListed => lifecycle.isActiveSection;
 
   @override

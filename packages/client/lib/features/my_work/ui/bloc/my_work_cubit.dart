@@ -13,6 +13,24 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'my_work_state.dart';
 
+/// Splits non-closed My Work fetch results into Drafts / Active / Review tabs.
+({List<Beacon> drafts, List<Beacon> active, List<Beacon> review})
+partitionMyWorkNonClosed(Iterable<Beacon> beacons) {
+  final drafts = <Beacon>[];
+  final active = <Beacon>[];
+  final review = <Beacon>[];
+  for (final b in beacons) {
+    if (b.lifecycle.isMyWorkDraftsTab) {
+      drafts.add(b);
+    } else if (b.lifecycle.isMyWorkActiveTab) {
+      active.add(b);
+    } else if (b.lifecycle.isMyWorkReviewTab) {
+      review.add(b);
+    }
+  }
+  return (drafts: drafts, active: active, review: review);
+}
+
 class MyWorkCubit extends Cubit<MyWorkState> {
   MyWorkCubit({
     String initialContext = '',
@@ -51,9 +69,13 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         state.copyWith(
           status: const StateIsSuccess(),
           context: ctx,
+          authoredDrafts: const [],
           authoredActive: const [],
+          authoredReview: const [],
           authoredClosed: const [],
+          committedDrafts: const [],
           committedActive: const [],
+          committedReview: const [],
           committedClosed: const [],
         ),
       );
@@ -70,13 +92,19 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       if (isClosed || seq != _fetchSeq) {
         return;
       }
+      final authored = partitionMyWorkNonClosed(results[0]);
+      final committed = partitionMyWorkNonClosed(results[2]);
       emit(
         state.copyWith(
           status: const StateIsSuccess(),
           context: ctx,
-          authoredActive: results[0],
+          authoredDrafts: authored.drafts,
+          authoredActive: authored.active,
+          authoredReview: authored.review,
           authoredClosed: results[1],
-          committedActive: results[2],
+          committedDrafts: committed.drafts,
+          committedActive: committed.active,
+          committedReview: committed.review,
           committedClosed: results[3],
         ),
       );
@@ -97,19 +125,27 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
-    RepositoryEventUpdate<Beacon>() => unawaited(fetch()),
-    RepositoryEventDelete<Beacon>(value: final b) => emit(
-      state.copyWith(
-        authoredActive:
-            state.authoredActive.where((e) => e.id != b.id).toList(),
-        authoredClosed:
-            state.authoredClosed.where((e) => e.id != b.id).toList(),
-        committedActive:
-            state.committedActive.where((e) => e.id != b.id).toList(),
-        committedClosed:
-            state.committedClosed.where((e) => e.id != b.id).toList(),
-      ),
-    ),
-    _ => null,
-  };
+        RepositoryEventUpdate<Beacon>() => unawaited(fetch()),
+        RepositoryEventDelete<Beacon>(value: final b) => emit(
+          state.copyWith(
+            authoredDrafts:
+                state.authoredDrafts.where((e) => e.id != b.id).toList(),
+            authoredActive:
+                state.authoredActive.where((e) => e.id != b.id).toList(),
+            authoredReview:
+                state.authoredReview.where((e) => e.id != b.id).toList(),
+            authoredClosed:
+                state.authoredClosed.where((e) => e.id != b.id).toList(),
+            committedDrafts:
+                state.committedDrafts.where((e) => e.id != b.id).toList(),
+            committedActive:
+                state.committedActive.where((e) => e.id != b.id).toList(),
+            committedReview:
+                state.committedReview.where((e) => e.id != b.id).toList(),
+            committedClosed:
+                state.committedClosed.where((e) => e.id != b.id).toList(),
+          ),
+        ),
+        _ => null,
+      };
 }

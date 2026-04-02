@@ -7,15 +7,19 @@ part 'my_work_state.freezed.dart';
 
 enum MyWorkFilter { all, authored, committed }
 
-enum MyWorkSection { active, closed }
+enum MyWorkSection { drafts, active, review, closed }
 
 @freezed
 abstract class MyWorkState extends StateBase with _$MyWorkState {
   const factory MyWorkState({
     @Default('') String context,
+    @Default([]) List<Beacon> authoredDrafts,
     @Default([]) List<Beacon> authoredActive,
+    @Default([]) List<Beacon> authoredReview,
     @Default([]) List<Beacon> authoredClosed,
+    @Default([]) List<Beacon> committedDrafts,
     @Default([]) List<Beacon> committedActive,
+    @Default([]) List<Beacon> committedReview,
     @Default([]) List<Beacon> committedClosed,
     @Default(MyWorkSection.active) MyWorkSection section,
     @Default(MyWorkFilter.all) MyWorkFilter filter,
@@ -24,20 +28,28 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
 
   const MyWorkState._();
 
-  List<Beacon> get _authoredForSection =>
-      section == MyWorkSection.active ? authoredActive : authoredClosed;
+  List<Beacon> get _authoredForSection => switch (section) {
+        MyWorkSection.drafts => authoredDrafts,
+        MyWorkSection.active => authoredActive,
+        MyWorkSection.review => authoredReview,
+        MyWorkSection.closed => authoredClosed,
+      };
 
-  List<Beacon> get _committedForSection =>
-      section == MyWorkSection.active ? committedActive : committedClosed;
+  List<Beacon> get _committedForSection => switch (section) {
+        MyWorkSection.drafts => committedDrafts,
+        MyWorkSection.active => committedActive,
+        MyWorkSection.review => committedReview,
+        MyWorkSection.closed => committedClosed,
+      };
 
   List<Beacon> get visibleBeacons => switch (filter) {
-    MyWorkFilter.all => [
-      ..._authoredForSection,
-      ..._committedForSection.where(
-        (c) => !_authoredForSection.any((a) => a.id == c.id),
-      ),
-    ],
-    MyWorkFilter.authored => _authoredForSection,
-    MyWorkFilter.committed => _committedForSection,
-  };
+        MyWorkFilter.all => [
+          ..._authoredForSection,
+          ..._committedForSection.where(
+            (c) => !_authoredForSection.any((a) => a.id == c.id),
+          ),
+        ],
+        MyWorkFilter.authored => _authoredForSection,
+        MyWorkFilter.committed => _committedForSection,
+      };
 }

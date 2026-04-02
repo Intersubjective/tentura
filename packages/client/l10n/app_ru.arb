@@ -951,16 +951,32 @@
   "@myWorkEmpty": {
     "context": "MyWorkScreen"
   },
+  "myWorkSectionDrafts": "Черновики",
+  "@myWorkSectionDrafts": {
+    "context": "MyWorkScreen"
+  },
   "myWorkSectionActive": "Активные",
   "@myWorkSectionActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSectionReview": "На проверке",
+  "@myWorkSectionReview": {
     "context": "MyWorkScreen"
   },
   "myWorkSectionClosed": "Закрытые",
   "@myWorkSectionClosed": {
     "context": "MyWorkScreen"
   },
+  "myWorkEmptyDrafts": "Нет черновиков",
+  "@myWorkEmptyDrafts": {
+    "context": "MyWorkScreen"
+  },
   "myWorkEmptyActive": "Нет активных дел",
   "@myWorkEmptyActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyReview": "Нет дел на проверке",
+  "@myWorkEmptyReview": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyClosed": "Нет закрытых дел",
