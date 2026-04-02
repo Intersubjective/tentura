@@ -67,42 +67,50 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    return AutoTabsScaffold(
-      bottomNavigationBuilder: (context, tabsRouter) {
-        return NavigationBar(
-          onDestinationSelected: tabsRouter.setActiveIndex,
-          indicatorColor: Theme.of(context).colorScheme.primaryFixed,
-          selectedIndex: tabsRouter.activeIndex,
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.inbox_outlined),
-              selectedIcon: const Icon(Icons.inbox),
-              label: l10n.inbox,
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.work_outline),
-              selectedIcon: const Icon(Icons.work),
-              label: l10n.myWork,
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.people_outline),
-              selectedIcon: const Icon(Icons.people),
-              label: l10n.network,
-            ),
-            NavigationDestination(
-              icon: const ProfileNavBarItem(),
-              label: l10n.labelMe,
-            ),
+    return BlocSelector<ProfileCubit, ProfileState, String>(
+      bloc: GetIt.I<ProfileCubit>(),
+      selector: (state) => state.profile.title,
+      builder: (context, profileTitle) {
+        final profileTabLabel =
+            profileTitle.isEmpty ? l10n.noName : profileTitle;
+        return AutoTabsScaffold(
+          bottomNavigationBuilder: (context, tabsRouter) {
+            return NavigationBar(
+              onDestinationSelected: tabsRouter.setActiveIndex,
+              indicatorColor: Theme.of(context).colorScheme.primaryFixed,
+              selectedIndex: tabsRouter.activeIndex,
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Icons.inbox_outlined),
+                  selectedIcon: const Icon(Icons.inbox),
+                  label: l10n.inbox,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.work_outline),
+                  selectedIcon: const Icon(Icons.work),
+                  label: l10n.myWork,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.people_outline),
+                  selectedIcon: const Icon(Icons.people),
+                  label: l10n.network,
+                ),
+                NavigationDestination(
+                  icon: const ProfileNavBarItem(),
+                  label: profileTabLabel,
+                ),
+              ],
+            );
+          },
+          resizeToAvoidBottomInset: false,
+          routes: const [
+            InboxRoute(),
+            MyWorkRoute(),
+            FriendsRoute(),
+            ProfileRoute(),
           ],
         );
       },
-      resizeToAvoidBottomInset: false,
-      routes: const [
-        InboxRoute(),
-        MyWorkRoute(),
-        FriendsRoute(),
-        ProfileRoute(),
-      ],
     );
   }
 }
