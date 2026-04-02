@@ -11,6 +11,18 @@ import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 
 import '../bloc/my_work_cubit.dart';
 
+/// Left-to-right tab order (must stay in sync with [TabController] length).
+const _kSectionTabOrder = <MyWorkSection>[
+  MyWorkSection.active,
+  MyWorkSection.review,
+  MyWorkSection.closed,
+  MyWorkSection.drafts,
+];
+
+int _indexForSection(MyWorkSection s) => _kSectionTabOrder.indexOf(s);
+
+MyWorkSection _sectionAtIndex(int i) => _kSectionTabOrder[i];
+
 @RoutePage()
 class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
   const MyWorkScreen({super.key});
@@ -43,17 +55,61 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
 
   @override
   Widget build(BuildContext context) {
+    return const SafeArea(
+      minimum: kPaddingSmallH,
+      child: _MyWorkBody(),
+    );
+  }
+}
+
+class _MyWorkBody extends StatefulWidget {
+  const _MyWorkBody();
+
+  @override
+  State<_MyWorkBody> createState() => _MyWorkBodyState();
+}
+
+class _MyWorkBodyState extends State<_MyWorkBody>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    final section = context.read<MyWorkCubit>().state.section;
+    _tabController = TabController(
+      length: _kSectionTabOrder.length,
+      vsync: this,
+      initialIndex: _indexForSection(section),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final cubit = context.read<MyWorkCubit>();
-    return SafeArea(
-      minimum: kPaddingSmallH,
+
+    return BlocListener<MyWorkCubit, MyWorkState>(
+      listenWhen: (p, c) => p.section != c.section,
+      listener: (context, state) {
+        final idx = _indexForSection(state.section);
+        if (_tabController.index != idx) {
+          _tabController.animateTo(idx);
+        }
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const ContextDropDown(),
 
-          // Drafts / Active / Review / Closed
+          // Active / Review / Closed / Drafts
           BlocSelector<
               MyWorkCubit,
               MyWorkState,
@@ -67,50 +123,48 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
             ),
             builder: (_, data) {
               final (
-                section,
+                _,
                 draftsCount,
                 activeCount,
                 reviewCount,
                 closedCount,
               ) = data;
-              final chipStyle = AppChoiceChipStyle(theme.colorScheme);
               return Padding(
                 padding: kPaddingSmallV,
-                child: Wrap(
-                  spacing: kSpacingSmall,
-                  runSpacing: kSpacingSmall,
-                  children: [
-                    _MyWorkSectionChip(
-                      chipStyle: chipStyle,
-                      title: l10n.myWorkSectionDrafts,
-                      count: draftsCount,
-                      selected: section == MyWorkSection.drafts,
-                      onSelected: () =>
-                          cubit.setSection(MyWorkSection.drafts),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  automaticIndicatorColorAdjustment: false,
+                  labelColor: theme.colorScheme.primary,
+                  unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+                  indicatorColor: theme.colorScheme.primary,
+                  dividerColor: theme.colorScheme.outlineVariant,
+                  onTap: (i) => cubit.setSection(_sectionAtIndex(i)),
+                  tabs: [
+                    Tab(
+                      child: _MyWorkSectionTabLabel(
+                        title: l10n.myWorkSectionActive,
+                        count: activeCount,
+                      ),
                     ),
-                    _MyWorkSectionChip(
-                      chipStyle: chipStyle,
-                      title: l10n.myWorkSectionActive,
-                      count: activeCount,
-                      selected: section == MyWorkSection.active,
-                      onSelected: () =>
-                          cubit.setSection(MyWorkSection.active),
+                    Tab(
+                      child: _MyWorkSectionTabLabel(
+                        title: l10n.myWorkSectionReview,
+                        count: reviewCount,
+                      ),
                     ),
-                    _MyWorkSectionChip(
-                      chipStyle: chipStyle,
-                      title: l10n.myWorkSectionReview,
-                      count: reviewCount,
-                      selected: section == MyWorkSection.review,
-                      onSelected: () =>
-                          cubit.setSection(MyWorkSection.review),
+                    Tab(
+                      child: _MyWorkSectionTabLabel(
+                        title: l10n.myWorkSectionClosed,
+                        count: closedCount,
+                      ),
                     ),
-                    _MyWorkSectionChip(
-                      chipStyle: chipStyle,
-                      title: l10n.myWorkSectionClosed,
-                      count: closedCount,
-                      selected: section == MyWorkSection.closed,
-                      onSelected: () =>
-                          cubit.setSection(MyWorkSection.closed),
+                    Tab(
+                      child: _MyWorkSectionTabLabel(
+                        title: l10n.myWorkSectionDrafts,
+                        count: draftsCount,
+                      ),
                     ),
                   ],
                 ),
@@ -239,62 +293,46 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
   }
 }
 
-class _MyWorkSectionChip extends StatelessWidget {
-  const _MyWorkSectionChip({
-    required this.chipStyle,
+class _MyWorkSectionTabLabel extends StatelessWidget {
+  const _MyWorkSectionTabLabel({
     required this.title,
     required this.count,
-    required this.selected,
-    required this.onSelected,
   });
 
-  final AppChoiceChipStyle chipStyle;
   final String title;
   final int count;
-  final bool selected;
-  final VoidCallback onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final semanticsLabel =
-        count > 0 ? '$title, $count items' : title;
-    return ChoiceChip(
-      color: chipStyle.background,
-      labelStyle: theme.textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w500,
-        color: chipStyle.labelForeground,
-      ),
-      checkmarkColor: chipStyle.checkmarkColor,
-      side: chipStyle.outline,
-      selected: selected,
-      label: Builder(
+    final semanticsLabel = count > 0 ? '$title, $count items' : title;
+    return Semantics(
+      label: semanticsLabel,
+      child: Builder(
         builder: (context) {
           final baseStyle = DefaultTextStyle.of(context).style;
-          final countColor =
-              chipStyle.counterForeground(chipSelected: selected);
-          return Semantics(
-            label: semanticsLabel,
-            child: Text.rich(
-              TextSpan(
-                style: baseStyle,
-                children: [
-                  TextSpan(text: title),
-                  if (count > 0)
-                    TextSpan(
-                      text: ' $count',
-                      style: baseStyle.copyWith(
-                        fontSize: (baseStyle.fontSize ?? 14) * 0.92,
-                        color: countColor,
-                      ),
+          final baseColor = baseStyle.color;
+          final countColor = baseColor?.withValues(alpha: 0.85) ?? baseColor;
+          return Text.rich(
+            TextSpan(
+              style: baseStyle,
+              children: [
+                TextSpan(text: title),
+                if (count > 0)
+                  TextSpan(
+                    text: ' $count',
+                    style: baseStyle.copyWith(
+                      fontSize: (baseStyle.fontSize ?? 14) * 0.92,
+                      color: countColor,
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
+            maxLines: 1,
+            overflow: TextOverflow.fade,
+            softWrap: false,
           );
         },
       ),
-      onSelected: (_) => onSelected(),
     );
   }
 }
