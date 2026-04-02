@@ -77,37 +77,46 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           committedActive: const [],
           committedReview: const [],
           committedClosed: const [],
+          authoredClosedIdHints: const [],
+          committedClosedIdHints: const [],
+          closedDataFetched: false,
+          closedFetchInProgress: false,
         ),
       );
       return;
     }
-    emit(state.copyWith(status: StateStatus.isLoading));
+    emit(
+      state.copyWith(
+        status: StateStatus.isLoading,
+        closedFetchInProgress: false,
+      ),
+    );
     try {
-      final results = await Future.wait([
-        _repository.fetchAuthoredActive(userId: userId, context: ctx),
-        _repository.fetchAuthoredClosed(userId: userId, context: ctx),
-        _repository.fetchCommittedActive(userId: userId, context: ctx),
-        _repository.fetchCommittedClosed(userId: userId, context: ctx),
-      ]);
+      final init = await _repository.fetchInit(userId: userId, context: ctx);
       if (isClosed || seq != _fetchSeq) {
         return;
       }
-      final authored = partitionMyWorkNonClosed(results[0]);
-      final committed = partitionMyWorkNonClosed(results[2]);
-      emit(
-        state.copyWith(
-          status: const StateIsSuccess(),
-          context: ctx,
-          authoredDrafts: authored.drafts,
-          authoredActive: authored.active,
-          authoredReview: authored.review,
-          authoredClosed: results[1],
-          committedDrafts: committed.drafts,
-          committedActive: committed.active,
-          committedReview: committed.review,
-          committedClosed: results[3],
-        ),
+      final authored = partitionMyWorkNonClosed(init.authoredNonClosed);
+      final committed = partitionMyWorkNonClosed(init.committedNonClosed);
+      final next = state.copyWith(
+        status: const StateIsSuccess(),
+        context: ctx,
+        authoredDrafts: authored.drafts,
+        authoredActive: authored.active,
+        authoredReview: authored.review,
+        authoredClosed: const [],
+        committedDrafts: committed.drafts,
+        committedActive: committed.active,
+        committedReview: committed.review,
+        committedClosed: const [],
+        authoredClosedIdHints: init.authoredClosedIds,
+        committedClosedIdHints: init.committedClosedIds,
+        closedDataFetched: false,
       );
+      emit(next);
+      if (next.section == MyWorkSection.closed && !next.closedDataFetched) {
+        unawaited(_fetchClosed(seq));
+      }
     } catch (e) {
       if (isClosed || seq != _fetchSeq) {
         return;
@@ -121,7 +130,52 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   void setSection(MyWorkSection section) {
+    if (section == MyWorkSection.closed &&
+        !state.closedDataFetched &&
+        !state.closedFetchInProgress) {
+      emit(state.copyWith(section: section, closedFetchInProgress: true));
+      unawaited(_fetchClosed(_fetchSeq));
+      return;
+    }
     emit(state.copyWith(section: section));
+  }
+
+  Future<void> _fetchClosed(int seq) async {
+    final userId = _profileCubit.state.profile.id;
+    final ctx = state.context;
+    if (userId.isEmpty) {
+      if (!isClosed && seq == _fetchSeq) {
+        emit(state.copyWith(closedFetchInProgress: false));
+      }
+      return;
+    }
+    try {
+      final closed = await _repository.fetchClosed(
+        userId: userId,
+        context: ctx,
+      );
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          closedFetchInProgress: false,
+          closedDataFetched: true,
+          authoredClosed: closed.authoredClosed,
+          committedClosed: closed.committedClosed,
+        ),
+      );
+    } catch (e) {
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          closedFetchInProgress: false,
+          status: StateHasError(e),
+        ),
+      );
+    }
   }
 
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
@@ -144,6 +198,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
                 state.committedReview.where((e) => e.id != b.id).toList(),
             committedClosed:
                 state.committedClosed.where((e) => e.id != b.id).toList(),
+            authoredClosedIdHints:
+                state.authoredClosedIdHints.where((id) => id != b.id).toList(),
+            committedClosedIdHints:
+                state.committedClosedIdHints.where((id) => id != b.id).toList(),
           ),
         ),
         _ => null,
