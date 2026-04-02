@@ -80,4 +80,50 @@ void main() {
     );
     expect(s.countForSection(MyWorkSection.closed), 1);
   });
+
+  test(
+      'visibleBeacons on Drafts tab merges All even when filter is Committed',
+      () {
+    final authored = _beacon('a', BeaconLifecycle.draft);
+    final committedOnly = _beacon('b', BeaconLifecycle.draft);
+    final s = MyWorkState(
+      section: MyWorkSection.drafts,
+      filter: MyWorkFilter.committed,
+      authoredDrafts: [authored],
+      committedDrafts: [committedOnly],
+      status: const StateIsSuccess(),
+    );
+    expect(s.visibleBeacons.map((e) => e.id).toList(), ['a', 'b']);
+  });
+
+  test(
+      'countForSection drafts respects filter when not on Drafts; '
+      'uses All when on Drafts tab',
+      () {
+    final authored = _beacon('a', BeaconLifecycle.draft);
+    final committedOnly = _beacon('b', BeaconLifecycle.draft);
+    final onActive = MyWorkState(
+      section: MyWorkSection.active,
+      filter: MyWorkFilter.committed,
+      authoredDrafts: [authored],
+      committedDrafts: [committedOnly],
+      status: const StateIsSuccess(),
+    );
+    expect(onActive.countForSection(MyWorkSection.drafts), 1);
+
+    final onDrafts = onActive.copyWith(section: MyWorkSection.drafts);
+    expect(onDrafts.countForSection(MyWorkSection.drafts), 2);
+  });
+
+  test('tileIsMine on Drafts is false for committed-only draft', () {
+    final committedOnly = _beacon('b', BeaconLifecycle.draft);
+    final s = MyWorkState(
+      section: MyWorkSection.drafts,
+      filter: MyWorkFilter.all,
+      authoredDrafts: const [],
+      committedDrafts: [committedOnly],
+      status: const StateIsSuccess(),
+    );
+    expect(s.tileIsMine(committedOnly), isFalse);
+  });
 }

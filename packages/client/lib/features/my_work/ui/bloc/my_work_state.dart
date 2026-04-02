@@ -47,11 +47,11 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
         MyWorkSection.closed => committedClosed,
       };
 
-  /// Beacons visible for [section] with the current [filter] (dedupes committed vs authored for All).
-  List<Beacon> visibleBeaconsForSection(MyWorkSection section) {
-    final authored = _authoredList(section);
-    final committed = _committedList(section);
-    return switch (filter) {
+  /// Beacons for [s] with explicit [f] (dedupes committed vs authored for All).
+  List<Beacon> visibleBeaconsForSectionAndFilter(MyWorkSection s, MyWorkFilter f) {
+    final authored = _authoredList(s);
+    final committed = _committedList(s);
+    return switch (f) {
       MyWorkFilter.all => [
         ...authored,
         ...committed.where((c) => !authored.any((a) => a.id == c.id)),
@@ -61,7 +61,17 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
     };
   }
 
-  List<Beacon> get visibleBeacons => visibleBeaconsForSection(section);
+  /// Beacons visible for [section] with the current [filter] (dedupes committed vs authored for All).
+  List<Beacon> visibleBeaconsForSection(MyWorkSection section) =>
+      visibleBeaconsForSectionAndFilter(section, filter);
+
+  /// Main list: on Drafts tab, always merged All (filter chips hidden); elsewhere respects [filter].
+  List<Beacon> get visibleBeacons => section == MyWorkSection.drafts
+      ? visibleBeaconsForSectionAndFilter(
+          MyWorkSection.drafts,
+          MyWorkFilter.all,
+        )
+      : visibleBeaconsForSectionAndFilter(section, filter);
 
   int _closedCountFromHints() => switch (filter) {
         MyWorkFilter.authored => authoredClosedIdHints.length,
@@ -73,11 +83,27 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
                   .length,
       };
 
-  /// Count for a section chip; matches [visibleBeaconsForSection] except closed before lazy fetch uses id hints.
+  /// Count for a section chip; matches list semantics except closed before lazy fetch uses id hints.
   int countForSection(MyWorkSection s) {
     if (s == MyWorkSection.closed && !closedDataFetched) {
       return _closedCountFromHints();
     }
-    return visibleBeaconsForSection(s).length;
+    final f = s == MyWorkSection.drafts && section == MyWorkSection.drafts
+        ? MyWorkFilter.all
+        : filter;
+    return visibleBeaconsForSectionAndFilter(s, f).length;
+  }
+
+  /// [BeaconTile.isMine]: correct for merged Drafts and for All on other tabs.
+  bool tileIsMine(Beacon beacon) {
+    if (section == MyWorkSection.drafts) {
+      return authoredDrafts.any((a) => a.id == beacon.id);
+    }
+    return switch (filter) {
+      MyWorkFilter.committed => false,
+      MyWorkFilter.authored => true,
+      MyWorkFilter.all =>
+        _authoredList(section).any((a) => a.id == beacon.id),
+    };
   }
 }

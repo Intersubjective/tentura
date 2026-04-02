@@ -118,10 +118,17 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
             },
           ),
 
-          // Filter chips
-          BlocSelector<MyWorkCubit, MyWorkState, MyWorkFilter>(
-            selector: (state) => state.filter,
-            builder: (_, filter) {
+          // Filter chips (hidden on Drafts — that tab always shows merged list)
+          BlocSelector<
+              MyWorkCubit,
+              MyWorkState,
+              (MyWorkSection, MyWorkFilter)>(
+            selector: (state) => (state.section, state.filter),
+            builder: (_, data) {
+              final (section, filter) = data;
+              if (section == MyWorkSection.drafts) {
+                return const SizedBox.shrink();
+              }
               final chipStyle = AppChoiceChipStyle(theme.colorScheme);
               return Padding(
                 padding: kPaddingSmallV,
@@ -217,7 +224,7 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
                         child: BeaconTile(
                           key: ValueKey(beacon),
                           beacon: beacon,
-                          isMine: state.filter != MyWorkFilter.committed,
+                          isMine: state.tileIsMine(beacon),
                         ),
                       );
                     },
