@@ -64,9 +64,16 @@ class BeaconForwardHeader extends StatelessWidget {
                   ),
                 ),
                 Chip(
-                  label: Text(_lifecycleLabel(l10n)),
+                  label: Text(
+                    _lifecycleLabel(l10n),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
+                  backgroundColor: theme.colorScheme.secondaryContainer,
+                  side: BorderSide.none,
                 ),
               ],
             ),

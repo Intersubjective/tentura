@@ -81,6 +81,9 @@ type beacon {
     """filter the rows returned"""
     where: beacon_commitment_bool_exp
   ): [beacon_commitment!]!
+
+  """An object relationship"""
+  beacon_review_window: beacon_review_window
   context: String
   created_at: timestamptz!
   description: String!
@@ -322,6 +325,20 @@ type beacon_commitment {
   """An object relationship"""
   user: user!
   user_id: String!
+}
+
+"""
+columns and relationships of "beacon_review_window"
+"""
+type beacon_review_window {
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+  closes_at: timestamptz!
+  created_at: timestamptz!
+  opened_at: timestamptz!
+  status: Int!
+  updated_at: timestamptz!
 }
 
 """

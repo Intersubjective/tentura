@@ -99,12 +99,16 @@ class InboxItemTile extends StatelessWidget {
                   Chip(
                     label: Text(
                       _lifecycleLabel(l10n, beacon.lifecycle),
-                      style: theme.textTheme.labelSmall,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
                     ),
                     visualDensity: VisualDensity.compact,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: EdgeInsets.zero,
                     labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                    backgroundColor: theme.colorScheme.secondaryContainer,
+                    side: BorderSide.none,
                   ),
                   const Spacer(),
                   Text(

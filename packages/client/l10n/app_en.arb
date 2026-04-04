@@ -1178,5 +1178,32 @@
   "evaluationNoBasisLabel": "No basis",
   "evaluationTonePositive": "Mostly positive",
   "evaluationToneMixed": "Mixed",
-  "evaluationToneNegative": "Mostly negative"
+  "evaluationToneNegative": "Mostly negative",
+  "evaluationReviewPeriodEndsIn": "Review period ends in {remaining}.",
+  "@evaluationReviewPeriodEndsIn": {
+    "placeholders": {
+      "remaining": { "type": "String" }
+    }
+  },
+  "evaluationReviewDurationDaysHours": "{days}d {hours}h",
+  "@evaluationReviewDurationDaysHours": {
+    "placeholders": {
+      "days": { "type": "int" },
+      "hours": { "type": "int" }
+    }
+  },
+  "evaluationReviewDurationHoursMinutes": "{hours}h {minutes}m",
+  "@evaluationReviewDurationHoursMinutes": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "int" }
+    }
+  },
+  "evaluationReviewDurationMinutes": "{minutes}m",
+  "@evaluationReviewDurationMinutes": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "evaluationReviewDurationLessThanMinute": "<1m"
 }

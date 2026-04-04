@@ -387,6 +387,12 @@ class _TimelineEntryTile extends StatelessWidget {
                     Chip(
                       label: Text(l10n.timelineDeclined),
                       visualDensity: VisualDensity.compact,
+                      backgroundColor: theme.colorScheme.errorContainer,
+                      labelStyle: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                      side: BorderSide.none,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     if (e.edge.recipientRejectionMessage.isNotEmpty)
                       Text(
