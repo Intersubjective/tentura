@@ -30,4 +30,9 @@ fragment BeaconModel on beacon {
     src_score
     dst_score
   }
+  beacon_review_window {
+    closes_at
+    opened_at
+    status
+  }
 }

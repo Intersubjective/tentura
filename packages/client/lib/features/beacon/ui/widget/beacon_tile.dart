@@ -7,6 +7,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/author_info.dart';
 
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
+import 'package:tentura/features/evaluation/ui/widget/beacon_review_countdown_row.dart';
 
 import 'beacon_info.dart';
 import 'beacon_mine_control.dart';
@@ -97,6 +98,8 @@ class BeaconTile extends StatelessWidget {
               isShowBeaconEnabled: true,
               onClickTag: onClickTag,
             ),
+
+            BeaconReviewCountdownRow(beacon: beacon),
 
             // Beacon Control
             Padding(

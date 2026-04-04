@@ -1178,5 +1178,32 @@
   "evaluationNoBasisLabel": "Нет оснований",
   "evaluationTonePositive": "В основном положительно",
   "evaluationToneMixed": "Смешанно",
-  "evaluationToneNegative": "В основном отрицательно"
+  "evaluationToneNegative": "В основном отрицательно",
+  "evaluationReviewPeriodEndsIn": "Период отзыва закончится через {remaining}.",
+  "@evaluationReviewPeriodEndsIn": {
+    "placeholders": {
+      "remaining": { "type": "String" }
+    }
+  },
+  "evaluationReviewDurationDaysHours": "{days} дн. {hours} ч.",
+  "@evaluationReviewDurationDaysHours": {
+    "placeholders": {
+      "days": { "type": "int" },
+      "hours": { "type": "int" }
+    }
+  },
+  "evaluationReviewDurationHoursMinutes": "{hours} ч. {minutes} мин.",
+  "@evaluationReviewDurationHoursMinutes": {
+    "placeholders": {
+      "hours": { "type": "int" },
+      "minutes": { "type": "int" }
+    }
+  },
+  "evaluationReviewDurationMinutes": "{minutes} мин.",
+  "@evaluationReviewDurationMinutes": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "evaluationReviewDurationLessThanMinute": "<1 мин."
 }

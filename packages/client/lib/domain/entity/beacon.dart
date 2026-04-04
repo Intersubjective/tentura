@@ -34,6 +34,10 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     Polling? polling,
     DateTime? startAt,
     DateTime? endAt,
+    /// From Hasura `beacon_review_window.closes_at` when tracked; null if no row.
+    DateTime? reviewClosesAt,
+    /// `beacon_review_window.status` (0=open, 1=complete); null if no row.
+    int? reviewWindowStatus,
   }) = _Beacon;
 
   const Beacon._();
