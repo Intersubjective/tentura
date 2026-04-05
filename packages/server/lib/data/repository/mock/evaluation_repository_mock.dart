@@ -31,6 +31,13 @@ class EvaluationRepositoryMock implements EvaluationRepository {
       null;
 
   @override
+  Future<List<BeaconEvaluation>> listEvaluationsForEvaluator({
+    required String beaconId,
+    required String evaluatorId,
+  }) async =>
+      [];
+
+  @override
   Future<BeaconReviewWindow?> getReviewWindow(String beaconId) async => null;
 
   @override

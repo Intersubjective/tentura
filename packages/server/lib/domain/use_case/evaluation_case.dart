@@ -14,6 +14,8 @@ import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.da
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_reason_tags.dart';
+import 'package:tentura_server/domain/evaluation/evaluation_summary_rules.dart';
+import 'package:tentura_server/domain/evaluation/evaluation_visibility_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
@@ -45,7 +47,7 @@ class EvaluationCase {
   Future<({
     String authorId,
     List<_ParticipantDraft> participants,
-    List<_Vis> visibility,
+    List<EvaluationVisibilityPair> visibility,
     Map<String, ForwardEdgeEntity> latestEdgeToCommitter,
   })> _buildParticipantGraph({
     required String beaconId,
@@ -137,9 +139,16 @@ class EvaluationCase {
       );
     }
 
-    final visibility = _buildVisibility(
+    final visibility = buildEvaluationVisibility(
       authorId: authorId,
-      participants: participants,
+      participants: participants
+          .map(
+            (p) => EvaluationVisibilityParticipant(
+              userId: p.userId,
+              role: p.role,
+            ),
+          )
+          .toList(),
       latestEdgeToCommitter: latestEdgeToCommitter,
     );
 
@@ -274,60 +283,6 @@ class EvaluationCase {
     };
   }
 
-  static List<_Vis> _buildVisibility({
-    required String authorId,
-    required List<_ParticipantDraft> participants,
-    required Map<String, ForwardEdgeEntity> latestEdgeToCommitter,
-  }) {
-    final byId = {for (final p in participants) p.userId: p};
-    final out = <_Vis>[];
-
-    void add(String a, String b) {
-      if (a != b) {
-        out.add(_Vis(evaluatorId: a, participantId: b));
-      }
-    }
-
-    for (final e in participants) {
-      final eid = e.userId;
-      if (e.role == EvaluationParticipantRole.author) {
-        for (final p in participants) {
-          if (p.userId == authorId) {
-            continue;
-          }
-          add(eid, p.userId);
-        }
-        continue;
-      }
-      if (e.role == EvaluationParticipantRole.committer) {
-        add(eid, authorId);
-        for (final p in participants) {
-          if (p.role == EvaluationParticipantRole.committer && p.userId != eid) {
-            add(eid, p.userId);
-          }
-        }
-        final edge = latestEdgeToCommitter[e.userId];
-        if (edge != null) {
-          final fwd = edge.senderId;
-          if (fwd != authorId && byId.containsKey(fwd)) {
-            add(eid, fwd);
-          }
-        }
-        continue;
-      }
-      if (e.role == EvaluationParticipantRole.forwarder) {
-        add(eid, authorId);
-        for (final entry in latestEdgeToCommitter.entries) {
-          if (entry.value.senderId == eid) {
-            add(eid, entry.key);
-          }
-        }
-      }
-    }
-
-    return out;
-  }
-
   Future<void> _notifyReviewOpened({
     required String beaconId,
     required String beaconTitle,
@@ -384,6 +339,11 @@ class EvaluationCase {
     final latestEdgeToCommitter =
         await _latestEdgesToCommitters(beaconId: beaconId, committerIds: committerIds);
 
+    final evByTarget = await _evaluationsByTargetForEvaluator(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+    );
+
     final out = <Map<String, dynamic>>[];
     for (final v in vis) {
       final pid = v.participantId;
@@ -392,11 +352,7 @@ class EvaluationCase {
         continue;
       }
       final u = await _userRepository.getById(pid);
-      final ev = await _evaluationRepository.getEvaluation(
-        beaconId: beaconId,
-        evaluatorId: evaluatorId,
-        evaluatedUserId: pid,
-      );
+      final ev = evByTarget[pid];
       out.add({
         'userId': pid,
         'title': u.title,
@@ -436,6 +392,17 @@ class EvaluationCase {
     return latestEdgeToCommitter;
   }
 
+  Future<Map<String, BeaconEvaluation>> _evaluationsByTargetForEvaluator({
+    required String beaconId,
+    required String evaluatorId,
+  }) async {
+    final rows = await _evaluationRepository.listEvaluationsForEvaluator(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+    );
+    return {for (final r in rows) r.evaluatedUserId: r};
+  }
+
   /// Open-beacon draft targets: same visibility as at closure, for current graph.
   Future<List<Map<String, dynamic>>> evaluationDraftParticipants({
     required String beaconId,
@@ -455,6 +422,10 @@ class EvaluationCase {
     if (!byId.containsKey(evaluatorId)) {
       return [];
     }
+    final evByTarget = await _evaluationsByTargetForEvaluator(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+    );
     final out = <Map<String, dynamic>>[];
     for (final v in graph.visibility) {
       if (v.evaluatorId != evaluatorId) {
@@ -466,11 +437,7 @@ class EvaluationCase {
         continue;
       }
       final u = await _userRepository.getById(pid);
-      final ev = await _evaluationRepository.getEvaluation(
-        beaconId: beaconId,
-        evaluatorId: evaluatorId,
-        evaluatedUserId: pid,
-      );
+      final ev = evByTarget[pid];
       final useEv =
           ev != null && ev.status == BeaconEvaluationRowStatus.draft ? ev : null;
       out.add({
@@ -624,14 +591,13 @@ class EvaluationCase {
       beaconId,
       userId,
     );
+    final evByTarget = await _evaluationsByTargetForEvaluator(
+      beaconId: beaconId,
+      evaluatorId: userId,
+    );
     var reviewed = 0;
     for (final v in vis) {
-      final ev = await _evaluationRepository.getEvaluation(
-        beaconId: beaconId,
-        evaluatorId: userId,
-        evaluatedUserId: v.participantId,
-      );
-      if (ev != null) {
+      if (evByTarget[v.participantId] != null) {
         reviewed++;
       }
     }
@@ -654,15 +620,6 @@ class EvaluationCase {
   }) async {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.state != 6) {
-      return {
-        'suppressed': true,
-        'tone': 'mixed',
-        'message': '',
-        'topReasonTags': <String>[],
-        'roleSummaryLine': '',
-      };
-    }
     final parts = await _evaluationRepository.listParticipants(beaconId);
     BeaconEvaluationParticipant? me;
     for (final p in parts) {
@@ -679,108 +636,22 @@ class EvaluationCase {
       beaconId: beaconId,
       evaluatedUserId: userId,
     );
-    if (rows.isEmpty) {
-      return {
-        'suppressed': true,
-        'tone': 'mixed',
-        'message': 'No feedback',
-        'topReasonTags': <String>[],
-        'roleSummaryLine': '',
-      };
-    }
-    final tone = _toneFromRows(rows);
-    if (n < 3) {
-      return {
-        'suppressed': true,
-        'tone': tone,
-        'message': 'Feedback in this beacon (details limited for privacy)',
-        'topReasonTags': <String>[],
-        'roleSummaryLine': '',
-      };
-    }
-    var neg2 = 0;
-    var neg1 = 0;
-    var zero = 0;
-    var pos1 = 0;
-    var pos2 = 0;
-    final tagCounts = <String, int>{};
-    for (final r in rows) {
-      switch (r.value) {
-        case BeaconEvaluationValue.neg2:
-          neg2++;
-        case BeaconEvaluationValue.neg1:
-          neg1++;
-        case BeaconEvaluationValue.zero:
-          zero++;
-        case BeaconEvaluationValue.pos1:
-          pos1++;
-        case BeaconEvaluationValue.pos2:
-          pos2++;
-        default:
-          break;
-      }
-      for (final t in r.reasonTags.split(',')) {
-        if (t.isEmpty) {
-          continue;
-        }
-        tagCounts[t] = (tagCounts[t] ?? 0) + 1;
-      }
-    }
-    final topTags = tagCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    return {
-      'suppressed': false,
-      'tone': tone,
-      'message': '',
-      'topReasonTags': topTags.take(5).map((e) => e.key).toList(),
-      'neg2': neg2,
-      'neg1': neg1,
-      'zero': zero,
-      'pos1': pos1,
-      'pos2': pos2,
-      'roleSummaryLine': _roleSummaryLineFrom(me: me, tone: tone),
-    };
-  }
-
-  static String _roleSummaryLineFrom({
-    required BeaconEvaluationParticipant? me,
-    required String tone,
-  }) {
-    if (me == null) {
-      return '';
-    }
-    final label = switch (EvaluationParticipantRole.fromDb(me.role)) {
-      EvaluationParticipantRole.author => 'Author',
-      EvaluationParticipantRole.committer => 'Committer',
-      EvaluationParticipantRole.forwarder => 'Forwarder',
-    };
-    final toneWord = switch (tone) {
-      'positive' => 'mostly positive',
-      'negative' => 'mostly negative',
-      _ => 'mixed',
-    };
-    return 'As $label: $toneWord';
-  }
-
-  static String _toneFromRows(List<BeaconEvaluation> rows) {
-    var score = 0;
-    for (final r in rows) {
-      score += switch (r.value) {
-        BeaconEvaluationValue.neg2 => -2,
-        BeaconEvaluationValue.neg1 => -1,
-        BeaconEvaluationValue.zero => 0,
-        BeaconEvaluationValue.pos1 => 1,
-        BeaconEvaluationValue.pos2 => 2,
-        _ => 0,
-      };
-    }
-    if (score > 0) {
-      return 'positive';
-    }
-    if (score < 0) {
-      return 'negative';
-    }
-    return 'mixed';
+    final rowInputs = rows
+        .map(
+          (r) => (
+            value: r.value,
+            reasonTagsCsv: r.reasonTags,
+          ),
+        )
+        .toList();
+    final viewerRole =
+        me == null ? null : EvaluationParticipantRole.fromDb(me.role);
+    return buildEvaluationSummaryGraphqlPayload(
+      beaconState: beacon.state,
+      distinctEvaluatorCount: n,
+      rows: rowInputs,
+      viewerRole: viewerRole,
+    );
   }
 
   Future<bool> evaluationSubmit({
@@ -839,7 +710,6 @@ class EvaluationCase {
       value: value,
       reasonTagsCsv: csv,
       note: note,
-      status: BeaconEvaluationRowStatus.submitted,
     );
 
     final st = await _evaluationRepository.getReviewUserStatus(
@@ -972,11 +842,4 @@ class _ParticipantDraft {
   final EvaluationParticipantRole role;
   final String contributionSummary;
   final String causalHint;
-}
-
-class _Vis {
-  _Vis({required this.evaluatorId, required this.participantId});
-
-  final String evaluatorId;
-  final String participantId;
 }
