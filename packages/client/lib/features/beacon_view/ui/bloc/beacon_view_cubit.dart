@@ -12,6 +12,7 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 
 import '../../data/repository/beacon_view_repository.dart';
+import '../message/commitment_messages.dart';
 import 'beacon_view_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -76,13 +77,22 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> commit({required String message}) async {
+    final wasAlreadyCommitted = state.isCommitted;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _forwardRepository.commit(
         beaconId: state.beacon.id,
         message: message,
+        notifyCommitmentListeners: !wasAlreadyCommitted,
       );
       await _fetchBeaconByIdWithTimeline();
+      if (!state.hasError && !wasAlreadyCommitted) {
+        emit(
+          state.copyWith(
+            status: StateIsMessaging(const MovedToMyWorkMessage()),
+          ),
+        );
+      }
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -96,6 +106,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         message: message,
       );
       await _fetchBeaconByIdWithTimeline();
+      if (!state.hasError) {
+        emit(
+          state.copyWith(
+            status: StateIsMessaging(const MovedToInboxMessage()),
+          ),
+        );
+      }
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

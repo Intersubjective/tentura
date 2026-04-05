@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert' show jsonEncode;
 
 import 'package:injectable/injectable.dart';
@@ -8,6 +9,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
+import '../../domain/entity/commitment_event.dart';
 import '../../domain/entity/forward_edge.dart';
 import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
@@ -35,6 +37,15 @@ class ForwardRepository {
 
   final RemoteApiService _remoteApiService;
   final BeaconRepository _beaconRepository;
+
+  final _commitmentController =
+      StreamController<CommitmentEvent>.broadcast();
+
+  Stream<CommitmentEvent> get commitmentChanges =>
+      _commitmentController.stream;
+
+  @disposeMethod
+  Future<void> dispose() => _commitmentController.close();
 
   Future<String> forwardBeacon({
     required String beaconId,
@@ -174,26 +185,39 @@ class ForwardRepository {
   Future<bool> commit({
     required String beaconId,
     String? message,
-  }) => _remoteApiService
-      .request(
-        GBeaconCommitReq(
-          (r) => r..vars.beaconId = beaconId..vars.message = message,
-        ),
-      )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).beaconCommit);
+    bool notifyCommitmentListeners = true,
+  }) async {
+    final ok = await _remoteApiService
+        .request(
+          GBeaconCommitReq(
+            (r) => r..vars.beaconId = beaconId..vars.message = message,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconCommit);
+    if (ok && notifyCommitmentListeners) {
+      _commitmentController.add(CommitmentCreated(beaconId));
+    }
+    return ok;
+  }
 
   Future<bool> withdraw({
     required String beaconId,
     String? message,
-  }) => _remoteApiService
-      .request(
-        GBeaconWithdrawReq(
-          (r) => r..vars.beaconId = beaconId..vars.message = message,
-        ),
-      )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).beaconWithdraw);
+  }) async {
+    final ok = await _remoteApiService
+        .request(
+          GBeaconWithdrawReq(
+            (r) => r..vars.beaconId = beaconId..vars.message = message,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconWithdraw);
+    if (ok) {
+      _commitmentController.add(CommitmentWithdrawn(beaconId));
+    }
+    return ok;
+  }
 
   static const _label = 'Forward';
 }
