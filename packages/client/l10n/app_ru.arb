@@ -1156,13 +1156,28 @@
     "context": "Chat"
   },
   "evaluationBannerTitle": "Маяк закрыт — отзыв о вкладе",
+  "evaluationBannerTitleDraft": "Приватные черновики",
   "evaluationBannerSubtitle": "Приватно, только для этого маяка. Не публично.",
+  "evaluationBannerSubtitleDraft": "Сохраняйте приватные заметки до закрытия маяка. Они не учитываются, пока вы не отправите отзыв после закрытия.",
   "evaluationBannerReview": "Оценить",
-  "evaluationBannerLater": "Позже",
+  "evaluationBannerDraftReview": "Черновик отзыва",
   "evaluationAcknowledgeTitle": "Признать вклад",
-  "evaluationPrivacyBlock": "Ваш отзыв приватен. Он не публикуется, и другие участники не видят ваши ответы по умолчанию.",
+  "evaluationAcknowledgeTitleDraft": "Черновик отзыва",
+  "evaluationPrivacyBlock": "Ваш отзыв здесь приватен. Он не будет показан публично, и другие участники маяка по умолчанию не увидят ваши ответы. Он используется только для улучшения вашего локального представления о доверии: кому вы можете больше доверять, кому меньше или через кого маршрутизировать маяки в следующий раз. Проще говоря: ответы помогают Tentura давать вам более точные персональные рекомендации и подбор относительно людей здесь и связанных с ними. Оценивайте только то, что вы реально видели в этом маяке. Если не уверены, выберите «Нет оснований».",
+  "evaluationDraftDone": "Готово",
+  "evaluationSectionAuthor": "Автор",
+  "evaluationSectionCommitter": "Исполнители",
+  "evaluationSectionForwarder": "Переславшие",
+  "evaluationReviewDeadline": "Окно отзывов до {date}",
+  "@evaluationReviewDeadline": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
   "evaluationSubmitFinish": "Отправить и завершить",
   "evaluationSkipForNow": "Пропустить",
+  "evaluationAllNoBasisConfirmTitle": "Сохранено",
+  "evaluationAllNoBasisConfirmBody": "Этот маяк всё равно поможет откалибровать ваше локальное представление.",
   "evaluationProgress": "{reviewed} из {total} оценено",
   "@evaluationProgress": {
     "placeholders": {
@@ -1170,7 +1185,12 @@
       "total": { "type": "int" }
     }
   },
-  "evaluationPrivateHint": "Приватный отзыв только для этого маяка.",
+  "evaluationPrivateHint": "Приватный отзыв только для этого маяка. Ответ используется только для вашей персональной логики доверия и рекомендаций. Это не публичный балл, и другие участники не видят вашу оценку с привязкой к имени.",
+  "evaluationPromptAuthor": "Как вклад автора повлиял на этот маяк?",
+  "evaluationPromptCommitter": "Как обязательство этого человека повлияло на маяк?",
+  "evaluationPromptCommitterHandoff": "Как этот человек вёл себя после пересылки маяка ему?",
+  "evaluationPromptForwarder": "Помогла или помешала эта пересылка маяку?",
+  "evaluationEmptyTargets": "Пока некого оценивать по этому маяку.",
   "evaluationSave": "Сохранить",
   "evaluationSummaryTitle": "Ваш отзыв по этому маяку",
   "evaluationNotReviewed": "Не оценено",

@@ -26,9 +26,35 @@ Companion to [beacon-evaluation-principles.md](./beacon-evaluation-principles.md
 
 ## Core flow
 
-1. Author invokes **`beaconCloseWithReview`** → server sets state **5**, opens review window, materializes participants + visibility, creates per-user review status, sends **one** FCM per eligible user (dev: no-op mock).
-2. Eligible users complete **`evaluationSubmit`** / **`evaluationFinalize`** / **`evaluationSkip`** during the window.
-3. On window expiry (`closes_at`), server sets window **closed**, beacon state **6**, expires pending statuses; summaries computed on read with **k-anonymity** (see Privacy).
+### Phase A — active beacon (draft pre-flow)
+
+While `beacon.state = 0` (open), eligible users may save **private draft** evaluations via **`evaluationDraftSave`** (memory aids only). Drafts:
+
+- are private to the drafter
+- do not count toward summaries until explicitly submitted after closure
+- are validated at closure: rows whose (evaluator, evaluated) pair is **not** in the frozen visibility set are **deleted**
+
+**Queries:** `evaluationDrafts(beaconId)` — current user’s drafts for that beacon.  
+**Mutations:** `evaluationDraftSave`, `evaluationDraftDelete`.
+
+### Phase B — author closes successfully
+
+1. Author invokes **`beaconCloseWithReview`** → server sets state **5**, opens review window, materializes participants + visibility, creates per-user review status, preserves valid drafts / drops invalid ones, sends **one** FCM per eligible user (dev: no-op mock).
+2. Eligible users complete **`evaluationSubmit`** / **`evaluationFinalize`** / **`evaluationSkip`** during the window. Submitted rows use **`beacon_evaluation.status = submitted`** (1).
+3. On window expiry (`closes_at`), server sets window **closed**, beacon state **6**, expires pending user statuses; **submitted** evaluation rows become **final** (2); remaining **draft** rows (never submitted) are removed without effect.
+
+### Phase C — after freeze
+
+Summaries computed on read with **k-anonymity** (see Privacy). Only **submitted** and **final** rows participate in aggregates (not draft).
+
+## Per-evaluation item states (`beacon_evaluation.status`)
+
+| Int | Meaning |
+|-----|---------|
+| 0 | `draft` — pre-closure memory aid or unsubmitted during window |
+| 1 | `submitted` — saved during open review window |
+| 2 | `final` — window closed; submission frozen |
+| 3 | `responded` — reserved (Phase 2 response window) |
 
 ## Data model (Postgres)
 
@@ -37,7 +63,7 @@ Companion to [beacon-evaluation-principles.md](./beacon-evaluation-principles.md
 | `beacon_review_window` | One row per beacon: `opened_at`, `closes_at`, `status` (open/complete). |
 | `beacon_evaluation_participant` | Frozen eligibility + `contribution_summary` + `causal_hint` per user. |
 | `beacon_evaluation_visibility` | Evaluator × evaluatee pairs allowed for Phase 1. |
-| `beacon_evaluation` | Private raw row: evaluator, evaluated, value, reason tags, note. |
+| `beacon_evaluation` | Private raw row: evaluator, evaluated, `value`, `reason_tags`, `note`, **`status`**. |
 | `beacon_review_status` | Per user: not_started / in_progress / submitted / skipped / expired. |
 
 ## Evaluation value encoding (DB `beacon_evaluation.value`)
@@ -66,28 +92,40 @@ Companion to [beacon-evaluation-principles.md](./beacon-evaluation-principles.md
 For participants `E` (evaluator) and `P` (evaluated), `E ≠ P`:
 
 - **Author** may evaluate: every committer; every **forwarder** participant (adjacent only; they are already filtered).
-- **Committer `C`** may evaluate: author `A`; the **forwarder who sent to `C`** (sender of chosen edge to `C`), if that user is a participant and ≠ `C`.
-- **Forwarder `F`** may evaluate: each **committer `C`** such that `F` is the adjacent forwarder for `C` (edge `F → C`).
+- **Committer `C`** may evaluate: author `A`; **every other committer**; the **forwarder who sent to `C`** (sender of chosen edge to `C`), if that user is a participant and ≠ `C`.
+- **Forwarder `F`** may evaluate: **author `A`**; each **committer `C`** such that `F` is the adjacent forwarder for `C` (edge `F → C`).
 
 No other pairs are inserted into `beacon_evaluation_visibility`.
 
+### Restricted prompt: forwarder → committer
+
+When `F` evaluates downstream committer `C`, the UI uses **handoff** prompt variant (not full committer rubric). Server exposes `promptVariant: "handoff" | "full"` on each card in **`evaluationParticipants`**.
+
 ## Privacy: evaluated-user summary
 
-- Aggregates **only** rows where `value != 0` (NO_BASIS excluded from signal).
+- Aggregates **only** rows where `value != 0` (NO_BASIS excluded) and **`status` ≥ 1** (submitted/final; never draft).
 - Let **N** = count of **distinct evaluators** with at least one qualifying row.
 - If **N < 3**: return **suppressed** summary (tone-only copy, no bucket counts, no reason-tag breakdown).
 - If **N ≥ 3**: tone + bucket counts + top reason tags (still **no** per-evaluator or named data).
 
 ## V2 GraphQL (client routed via `_tenturaDirectOperationNames`)
 
-**Queries:** `evaluationParticipants`, `evaluationSummary`, `reviewWindowStatus`  
-**Mutations:** `evaluationSubmit`, `evaluationFinalize`, `evaluationSkip`, `beaconCloseWithReview`
+**Queries:** `evaluationParticipants`, `evaluationSummary`, `reviewWindowStatus`, `evaluationDrafts`  
+**Mutations:** `evaluationSubmit`, `evaluationFinalize`, `evaluationSkip`, `beaconCloseWithReview`, `evaluationDraftSave`, `evaluationDraftDelete`
 
 ## Client integration
 
-- **Beacon detail:** banner when state **5** and user has ≥1 visible card; summary card when state **6** and summary not empty.
+- **Beacon detail (open):** banner for draft-eligible users; primary CTA **Draft review** → draft flow (same route as review, draft mode).
+- **Beacon detail (state 5):** banner; primary CTA **Review**; no secondary “Later” (deferral = review window + drafts).
+- **Beacon detail (state 6):** summary card when summary available.
 - **Author close:** `beaconCloseWithReview` instead of Hasura-only close for the happy path.
 - **My Work / profile lists:** active states include **5**; closed states include **6** (and **1**, **2** as before).
+
+### Required microcopy (l10n)
+
+- Extended privacy block on **Acknowledge contributions** screen (private, not public, personal trust calibration, judge only what you saw, use “No basis” if unsure).
+- Evaluation detail: helper lines for private beacon-local feedback.
+- Empty / clean submission: confirmation per product spec where applicable.
 
 ## Notifications
 
@@ -98,9 +136,15 @@ No other pairs are inserted into `beacon_evaluation_visibility`.
 
 Stored as comma-separated keys; validated server-side against role-specific allowlists.
 
-See implementation: `packages/server/lib/domain/evaluation/evaluation_reason_tags.dart` (or equivalent).
+See implementation: `packages/server/lib/domain/evaluation/evaluation_reason_tags.dart`.
+
+## UX corner cases (Phase 1 handling)
+
+- **No basis vs zero:** distinct values and copy; server rejects tags on NO_BASIS.
+- **Tiny N:** summary suppression when distinct evaluators &lt; 3.
+- **Forwarder → committer:** handoff-only prompt variant; same tag sets as full committer evaluation for validation.
+- **Drafts never submitted:** dropped or non-counting at window end.
 
 ## References
 
 - Principles: [beacon-evaluation-principles.md](./beacon-evaluation-principles.md)
-- Implementation plan: workspace plan `beacon_evaluation_feature` (do not edit from code)

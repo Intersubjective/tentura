@@ -7,7 +7,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 void main() {
   test('reviewedCount counts answered cards', () {
-    final s = EvaluationState(
+    const s = EvaluationState(
       beaconId: 'B1',
       participants: [
         EvaluationParticipant(
@@ -16,6 +16,7 @@ void main() {
           role: EvaluationParticipantRole.author,
           contributionSummary: '',
           causalHint: '',
+          promptVariant: 'full',
           currentValue: EvaluationValue.pos1,
         ),
         EvaluationParticipant(
@@ -24,6 +25,7 @@ void main() {
           role: EvaluationParticipantRole.committer,
           contributionSummary: '',
           causalHint: '',
+          promptVariant: 'full',
         ),
       ],
       status: const StateIsSuccess(),

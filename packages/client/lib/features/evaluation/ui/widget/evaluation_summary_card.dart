@@ -33,6 +33,15 @@ class EvaluationSummaryCard extends StatelessWidget {
               toneLabel,
               style: theme.textTheme.bodyMedium,
             ),
+            if (summary.roleSummaryLine.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                summary.roleSummaryLine,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             if (summary.message.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(

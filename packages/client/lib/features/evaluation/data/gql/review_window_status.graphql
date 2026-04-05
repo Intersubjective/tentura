@@ -2,6 +2,7 @@ query ReviewWindowStatus($id: String!) {
   reviewWindowStatus(id: $id) {
     beaconId
     hasWindow
+    beaconTitle
     openedAt
     closesAt
     windowComplete

@@ -35,14 +35,17 @@ Future<void> showEvaluationDetailSheet({
     };
   }
 
-  String prompt(EvaluationParticipantRole r) => switch (r) {
-        EvaluationParticipantRole.author =>
-          'How did the author’s contribution affect this beacon?',
-        EvaluationParticipantRole.committer =>
-          'How did this person’s commitment affect this beacon?',
-        EvaluationParticipantRole.forwarder =>
-          'How did this forwarding help or hurt this beacon?',
-      };
+  String promptText() {
+    if (participant.role == EvaluationParticipantRole.committer &&
+        participant.promptVariant == 'handoff') {
+      return l10n.evaluationPromptCommitterHandoff;
+    }
+    return switch (participant.role) {
+      EvaluationParticipantRole.author => l10n.evaluationPromptAuthor,
+      EvaluationParticipantRole.committer => l10n.evaluationPromptCommitter,
+      EvaluationParticipantRole.forwarder => l10n.evaluationPromptForwarder,
+    };
+  }
 
   await showModalBottomSheet<void>(
     context: context,
@@ -73,7 +76,7 @@ Future<void> showEvaluationDetailSheet({
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    prompt(participant.role),
+                    promptText(),
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 12),

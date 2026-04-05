@@ -12,6 +12,8 @@ final class QueryEvaluation extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     evaluationParticipants,
+    evaluationDraftParticipants,
+    evaluationDrafts,
     reviewWindowStatus,
     evaluationSummary,
   ];
@@ -24,6 +26,34 @@ final class QueryEvaluation extends GqlNodeBase {
         resolve: (_, args) {
           final jwt = getCredentials(args);
           return _evaluationCase.evaluationParticipants(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            evaluatorId: jwt.sub,
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get evaluationDraftParticipants =>
+      GraphQLObjectField(
+        'evaluationDraftParticipants',
+        GraphQLListType(gqlTypeEvaluationParticipant.nonNullable()),
+        arguments: [InputFieldId.field],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase.evaluationDraftParticipants(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            evaluatorId: jwt.sub,
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get evaluationDrafts =>
+      GraphQLObjectField(
+        'evaluationDrafts',
+        GraphQLListType(gqlTypeEvaluationDraftRow.nonNullable()),
+        arguments: [InputFieldId.field],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase.evaluationDrafts(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             evaluatorId: jwt.sub,
           );

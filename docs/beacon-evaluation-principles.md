@@ -18,6 +18,12 @@ It is not a public reputation ritual, not a morality scoreboard, and not a perfo
 * Make strong judgments require a reason.
 * Keep single-beacon effects bounded; no one beacon should define a person.
 
+### Draft pre-flow (Phase A)
+
+* While a beacon is still **open**, users who will later be eligible may save **private draft** notes (same structure as a review row) as **memory aids**.
+* Drafts are **not** shown to the person being described, **do not** count in summaries, and are **discarded or ignored** if never submitted before the review window closes (after invalid pairs are removed at closure).
+* This reduces forced-opinion noise after closure (“I forgot what happened”) without turning drafts into a shadow reputation layer.
+
 ## What evaluation is for
 
 * remembering which paths worked

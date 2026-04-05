@@ -10,6 +10,7 @@ import 'package:tentura_server/data/repository/fcm_remote_repository.dart';
 import 'package:tentura_server/data/repository/fcm_token_repository.dart';
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -132,6 +133,29 @@ class _FakeEvaluationRepository implements EvaluationRepository {
       visibilityResult;
 
   @override
+  Future<List<BeaconEvaluationVisibilityData>> listAllVisibility(
+    String beaconId,
+  ) async =>
+      visibilityResult;
+
+  @override
+  Future<List<BeaconEvaluation>> listDraftRowsForBeacon(String beaconId) async =>
+      [];
+
+  @override
+  Future<void> deleteEvaluationRow({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+  }) async {}
+
+  @override
+  Future<void> finalizeSubmittedEvaluationsForBeacon(String beaconId) async {}
+
+  @override
+  Future<void> deleteDraftEvaluationsForBeacon(String beaconId) async {}
+
+  @override
   Future<void> setReviewUserStatus({
     required String beaconId,
     required String userId,
@@ -148,6 +172,7 @@ class _FakeEvaluationRepository implements EvaluationRepository {
     required int value,
     required String reasonTagsCsv,
     required String note,
+    int status = BeaconEvaluationRowStatus.submitted,
   }) async {}
 }
 
@@ -290,7 +315,7 @@ void main() {
         closesAt: now.subtract(const Duration(days: 1)),
       );
       evalRepo.visibilityResult = [
-        BeaconEvaluationVisibilityData(
+        const BeaconEvaluationVisibilityData(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
           participantId: evaluatedId,
@@ -323,14 +348,14 @@ void main() {
       evalRepo.reviewWindowResult = openWindow();
       evalRepo.reviewUserStatusResult = 0;
       evalRepo.visibilityResult = [
-        BeaconEvaluationVisibilityData(
+        const BeaconEvaluationVisibilityData(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
           participantId: evaluatedId,
         ),
       ];
       evalRepo.participantsResult = [
-        BeaconEvaluationParticipant(
+        const BeaconEvaluationParticipant(
           beaconId: beaconId,
           userId: evaluatedId,
           role: 0,
@@ -364,14 +389,14 @@ void main() {
       evalRepo.reviewWindowResult = openWindow();
       evalRepo.reviewUserStatusResult = 1;
       evalRepo.visibilityResult = [
-        BeaconEvaluationVisibilityData(
+        const BeaconEvaluationVisibilityData(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
           participantId: evaluatedId,
         ),
       ];
       evalRepo.participantsResult = [
-        BeaconEvaluationParticipant(
+        const BeaconEvaluationParticipant(
           beaconId: beaconId,
           userId: evaluatedId,
           role: 0,
@@ -393,6 +418,38 @@ void main() {
       );
 
       expect(evalRepo.setReviewUserStatusCalls, isEmpty);
+    });
+  });
+
+  group('evaluationSkip', () {
+    test('throws notEligible when user has no review row', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      evalRepo.reviewUserStatusResult = null;
+
+      expect(
+        () => evaluationCase.evaluationSkip(beaconId: beaconId, userId: userId),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(EvaluationExceptionCode.notEligible).codeNumber,
+          ),
+        ),
+      );
+    });
+
+    test('sets skipped status when user is eligible', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      evalRepo.reviewUserStatusResult = 0;
+
+      expect(
+        await evaluationCase.evaluationSkip(beaconId: beaconId, userId: userId),
+        isTrue,
+      );
+      expect(
+        evalRepo.setReviewUserStatusCalls,
+        const [_SetStatusCall(beaconId, userId, 3)],
+      );
     });
   });
 }
