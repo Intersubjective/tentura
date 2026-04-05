@@ -9,6 +9,8 @@ const colorSchemeLight = ColorScheme(
   onPrimary: Color(0xFFE5E7EB),
   secondary: Color(0xFF6CBCE3),
   onSecondary: Color(0xFFE1E1E1),
+  secondaryContainer: Color(0xFF014F86),
+  onSecondaryContainer: Color(0xFFE5E7EB),
   error: Color(0xFFD14343),
   onError: Colors.white,
   surface: Color(0xFFF4F4F4),
@@ -25,6 +27,8 @@ const colorSchemeDark = ColorScheme(
   onPrimary: Color(0xFF0A1826),
   secondary: Color(0xFF014F86),
   onSecondary: Color(0xFFE1E1E1),
+  secondaryContainer: Color(0xFF014F86),
+  onSecondaryContainer: Color(0xFFE1E1E1),
   error: Color(0xFFD14343),
   onError: Colors.white,
   surface: Color(0xFF0A1826),
@@ -48,7 +52,7 @@ ThemeData createAppTheme(ColorScheme colorScheme) {
   return ThemeData(
     colorScheme: colorScheme,
     brightness: colorScheme.brightness,
-    canvasColor: colorScheme.surfaceTint,
+    canvasColor: colorScheme.surface,
     scaffoldBackgroundColor: colorScheme.surface,
     unselectedWidgetColor: colorScheme.onSurface,
 
@@ -119,9 +123,9 @@ ThemeData createAppTheme(ColorScheme colorScheme) {
           bodyColor: colorScheme.onSurface,
           displayColor: colorScheme.onSurface,
         ),
-    // Omit global chip label/background overrides so Material 3 [ChoiceChip]
-    // uses per-state colors (onSurfaceVariant / onSecondaryContainer) from
-    // defaults. A single onPrimary label broke contrast when the selected fill
-    // is secondaryContainer.
+    // No global ChipTheme: labelStyle is a single TextStyle and cannot track
+    // selected vs unselected. M3 [ChoiceChip]/[FilterChip] use
+    // secondaryContainer/onSecondaryContainer for selected state — set explicitly
+    // on [colorSchemeLight]/[colorSchemeDark] so defaults stay legible.
   );
 }

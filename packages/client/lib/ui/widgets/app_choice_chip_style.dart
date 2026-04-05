@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-/// Shared `ChoiceChip` colors for screens like My Work and Inbox.
+/// Shared colors for [ChoiceChip] and [FilterChip] when you want a **filled**
+/// unselected state (`surfaceContainerHighest`) and no outline on selected.
 ///
-/// Light: selected fill uses `ColorScheme.primary` with `onPrimary` because the
-/// generated secondary-container pair is too low-contrast for this palette.
-///
-/// Dark: selected fill keeps secondary-container tones.
+/// Default Material 3 chips (no overrides) now stay legible because
+/// [ColorScheme.secondaryContainer] / [ColorScheme.onSecondaryContainer] are set
+/// in `colorSchemeLight` and `colorSchemeDark` in `ui/theme.dart`.
+/// Use this class only where the default outlined unselected look should match
+/// Inbox / My Work.
 class AppChoiceChipStyle {
   AppChoiceChipStyle(this.scheme);
 
