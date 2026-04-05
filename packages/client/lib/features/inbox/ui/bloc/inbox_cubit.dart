@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
+
 import '../../data/repository/inbox_repository.dart';
 import '../../domain/enum.dart';
 import 'inbox_state.dart';
@@ -13,12 +16,42 @@ class InboxCubit extends Cubit<InboxState> {
   InboxCubit({
     String initialContext = '',
     InboxRepository? repository,
+    ForwardRepository? forwardRepository,
   }) : _repository = repository ?? GetIt.I<InboxRepository>(),
+       _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        super(const InboxState()) {
+    _commitmentChanges = _forwardRepository.commitmentChanges.listen(
+      _onCommitmentChanged,
+      cancelOnError: false,
+    );
     unawaited(fetch(initialContext));
   }
 
   final InboxRepository _repository;
+  final ForwardRepository _forwardRepository;
+
+  late final StreamSubscription<CommitmentEvent> _commitmentChanges;
+
+  void _onCommitmentChanged(CommitmentEvent event) => switch (event) {
+        CommitmentCreated(:final beaconId) => _removeInboxItem(beaconId),
+        CommitmentWithdrawn() => unawaited(fetch()),
+      };
+
+  void _removeInboxItem(String beaconId) {
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        items: state.items.where((e) => e.beaconId != beaconId).toList(),
+        status: const StateIsSuccess(),
+      ),
+    );
+  }
+
+  @override
+  Future<void> close() async {
+    await _commitmentChanges.cancel();
+    return super.close();
+  }
 
   Future<void> fetch([String? contextName]) async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -62,7 +95,6 @@ class InboxCubit extends Cubit<InboxState> {
     await _updateStatus(
       beaconId,
       InboxItemStatus.needsMe,
-      rejectionMessage: '',
     );
   }
 

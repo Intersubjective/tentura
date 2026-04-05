@@ -4,6 +4,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../../data/repository/my_work_repository.dart';
@@ -37,12 +39,17 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     MyWorkRepository? repository,
     ProfileCubit? profileCubit,
     BeaconRepository? beaconRepository,
+    ForwardRepository? forwardRepository,
   }) : _repository = repository ?? GetIt.I<MyWorkRepository>(),
        _profileCubit = profileCubit ?? GetIt.I<ProfileCubit>(),
        super(const MyWorkState()) {
     _beaconChanges = (beaconRepository ?? GetIt.I<BeaconRepository>())
         .changes
         .listen(_onBeaconChanged, cancelOnError: false);
+    _commitmentChanges =
+        (forwardRepository ?? GetIt.I<ForwardRepository>())
+            .commitmentChanges
+            .listen((_) => unawaited(fetch()), cancelOnError: false);
     unawaited(fetch(initialContext));
   }
 
@@ -54,9 +61,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
+  late final StreamSubscription<CommitmentEvent> _commitmentChanges;
+
   @override
   Future<void> close() async {
     await _beaconChanges.cancel();
+    await _commitmentChanges.cancel();
     return super.close();
   }
 
