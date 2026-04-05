@@ -12,6 +12,7 @@ import 'package:tentura/features/evaluation/ui/widget/beacon_review_countdown_ro
 import 'beacon_info.dart';
 import 'beacon_mine_control.dart';
 import 'beacon_tile_control.dart';
+import 'coordination_ui.dart';
 
 class BeaconTile extends StatelessWidget {
   const BeaconTile({
@@ -97,6 +98,16 @@ class BeaconTile extends StatelessWidget {
               isTitleLarge: true,
               isShowBeaconEnabled: true,
               onClickTag: onClickTag,
+            ),
+
+            Padding(
+              padding: kPaddingSmallT,
+              child: Text(
+                coordinationStatusLabel(l10n, beacon.coordinationStatus),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
 
             BeaconReviewCountdownRow(beacon: beacon),

@@ -1,4 +1,5 @@
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -29,12 +30,18 @@ class TimelineCommitment extends TimelineEntry {
     required this.createdAt,
     required this.updatedAt,
     this.isWithdrawn = false,
+    this.helpType,
+    this.coordinationResponse,
+    this.uncommitReason,
   });
   final Profile user;
   final String message;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isWithdrawn;
+  final String? helpType;
+  final CoordinationResponseType? coordinationResponse;
+  final String? uncommitReason;
 
   @override
   DateTime get timestamp =>

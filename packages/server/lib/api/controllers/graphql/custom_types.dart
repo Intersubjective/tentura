@@ -19,6 +19,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeEvaluationDraftRow,
   gqlTypeReviewWindowStatus,
   gqlTypeEvaluationSummary,
+  gqlTypeCoordinationStatusResult,
+  gqlTypeCommitmentWithCoordinationRow,
 ];
 
 final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
@@ -185,4 +187,33 @@ final gqlTypeEvaluationSummary = GraphQLObjectType(
     field('pos1', graphQLInt),
     field('pos2', graphQLInt),
     field('roleSummaryLine', graphQLString.nonNullable()),
+  ]);
+
+/// Result of `setCoordinationResponse` (V2).
+final gqlTypeCoordinationStatusResult = GraphQLObjectType(
+  'CoordinationStatusResult',
+  null,
+)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('coordinationStatus', graphQLInt.nonNullable()),
+    field('coordinationStatusUpdatedAt', graphQLString),
+  ]);
+
+/// One commitment row with optional author coordination response (V2).
+final gqlTypeCommitmentWithCoordinationRow = GraphQLObjectType(
+  'CommitmentWithCoordinationRow',
+  null,
+)
+  ..fields.addAll([
+    field('beaconId', graphQLString.nonNullable()),
+    field('userId', graphQLString.nonNullable()),
+    field('message', graphQLString.nonNullable()),
+    field('helpType', graphQLString),
+    field('status', graphQLInt.nonNullable()),
+    field('uncommitReason', graphQLString),
+    field('createdAt', graphQLString.nonNullable()),
+    field('updatedAt', graphQLString.nonNullable()),
+    field('responseType', graphQLInt),
+    field('user', gqlTypeUserPublic.nonNullable()),
   ]);

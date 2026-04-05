@@ -1,5 +1,6 @@
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import '../gql/_g/beacon_model.data.gql.dart';
 import 'image_model.dart';
@@ -38,6 +39,10 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       endAt: i.end_at,
       reviewClosesAt: reviewWindow?.closes_at,
       reviewWindowStatus: reviewWindow?.status,
+      coordinationStatus: BeaconCoordinationStatus.fromSmallint(
+        i.coordination_status,
+      ),
+      coordinationStatusUpdatedAt: i.coordination_status_updated_at,
     );
   }
 }

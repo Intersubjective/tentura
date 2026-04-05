@@ -6,6 +6,8 @@ query CommitmentsFetch($beaconId: String!) {
     order_by: {updated_at: desc}
   ) {
     message
+    help_type
+    uncommit_reason
     status
     created_at
     updated_at

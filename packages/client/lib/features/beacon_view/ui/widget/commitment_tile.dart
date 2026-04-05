@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
@@ -13,12 +14,16 @@ class CommitmentTile extends StatelessWidget {
     required this.commitment,
     this.isMine = false,
     this.onEdit,
+    this.isAuthorView = false,
+    this.onAuthorTapCoordination,
     super.key,
   });
 
   final TimelineCommitment commitment;
   final bool isMine;
   final VoidCallback? onEdit;
+  final bool isAuthorView;
+  final VoidCallback? onAuthorTapCoordination;
 
   @override
   Widget build(BuildContext context) {
@@ -116,9 +121,65 @@ class CommitmentTile extends StatelessWidget {
                             ),
                           ),
                         ),
+                      if (helpTypeLabel(l10n, commitment.helpType) != null)
+                        Padding(
+                          padding: kPaddingSmallT,
+                          child: Chip(
+                            label: Text(helpTypeLabel(
+                              l10n,
+                              commitment.helpType,
+                            )!),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            backgroundColor:
+                                theme.colorScheme.surfaceContainerHighest,
+                            side: BorderSide.none,
+                          ),
+                        ),
+                      if (coordinationResponseLabel(
+                            l10n,
+                            commitment.coordinationResponse,
+                          ) !=
+                          null)
+                        Padding(
+                          padding: kPaddingSmallT,
+                          child: Text(
+                            coordinationResponseLabel(
+                              l10n,
+                              commitment.coordinationResponse,
+                            )!,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      if (isWithdrawn &&
+                          uncommitReasonLabel(l10n, commitment.uncommitReason) !=
+                              null)
+                        Padding(
+                          padding: kPaddingSmallT,
+                          child: Text(
+                            uncommitReasonLabel(
+                              l10n,
+                              commitment.uncommitReason,
+                            )!,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
+                if (isAuthorView &&
+                    onAuthorTapCoordination != null &&
+                    !isWithdrawn)
+                  IconButton(
+                    tooltip: l10n.labelSetCoordinationResponse,
+                    icon: const Icon(Icons.flag_outlined, size: 20),
+                    onPressed: onAuthorTapCoordination,
+                  ),
                 if (isMine && onEdit != null)
                   IconButton(
                     icon: const Icon(Icons.edit, size: 18),

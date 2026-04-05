@@ -137,3 +137,13 @@ final class EvaluationException extends ExceptionBase {
          description: description ?? evaluationCode.name,
        );
 }
+
+final class CommitmentCoordinationException extends ExceptionBase {
+  CommitmentCoordinationException({
+    required CommitmentCoordinationExceptionCode coordinationCode,
+    String? description,
+  }) : super(
+         code: CommitmentCoordinationExceptionCodes(coordinationCode),
+         description: description ?? coordinationCode.name,
+       );
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -109,6 +110,16 @@ class InboxItemTile extends StatelessWidget {
                     labelPadding: const EdgeInsets.symmetric(horizontal: 6),
                     backgroundColor: theme.colorScheme.secondaryContainer,
                     side: BorderSide.none,
+                  ),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      coordinationStatusLabel(l10n, beacon.coordinationStatus),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   const Spacer(),
                   Text(

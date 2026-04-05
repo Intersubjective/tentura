@@ -64,6 +64,13 @@ Amendments and locks for implementation agents. These **override** older phrasin
 
 ---
 
+## Commit and overcommit coordination (Phase 1)
+
+- **Commit stays open by default** — no mandatory pre-approval for ordinary commits.
+- **Author coordination responses** describe **coverage / fit of the beacon’s need**, not approval or rejection of a person. UI and data model must keep that framing (see [`../overcommit-coordination-feature-design.md`](../overcommit-coordination-feature-design.md)).
+
+---
+
 ## Document map
 
 | Document | Role |
@@ -71,3 +78,4 @@ Amendments and locks for implementation agents. These **override** older phrasin
 | `product-decisions.md` (this file) | Locks and amended goals |
 | `missing-features-plan.md` | What to build; references this file |
 | `contradictions-plan.md` | Code vs brief conflicts still to fix |
+| `../overcommit-coordination-feature-design.md` | Overcommit coordination (active beacon), commit / uncommit / status |

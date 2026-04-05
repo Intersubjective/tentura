@@ -137,6 +137,8 @@ class ForwardRepository {
               ({
                 Profile user,
                 String message,
+                String? helpType,
+                String? uncommitReason,
                 DateTime createdAt,
                 DateTime updatedAt,
                 bool isWithdrawn,
@@ -154,6 +156,8 @@ class ForwardRepository {
                   (e) => (
                     user: (e.user as UserModel).toEntity(),
                     message: e.message,
+                    helpType: e.help_type,
+                    uncommitReason: e.uncommit_reason,
                     createdAt: e.created_at,
                     updatedAt: e.updated_at,
                     isWithdrawn: e.status == 1,
@@ -185,12 +189,16 @@ class ForwardRepository {
   Future<bool> commit({
     required String beaconId,
     String? message,
+    String? helpType,
     bool notifyCommitmentListeners = true,
   }) async {
     final ok = await _remoteApiService
         .request(
           GBeaconCommitReq(
-            (r) => r..vars.beaconId = beaconId..vars.message = message,
+            (r) => r
+              ..vars.beaconId = beaconId
+              ..vars.message = message
+              ..vars.helpType = helpType,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -203,12 +211,16 @@ class ForwardRepository {
 
   Future<bool> withdraw({
     required String beaconId,
+    required String uncommitReason,
     String? message,
   }) async {
     final ok = await _remoteApiService
         .request(
           GBeaconWithdrawReq(
-            (r) => r..vars.beaconId = beaconId..vars.message = message,
+            (r) => r
+              ..vars.beaconId = beaconId
+              ..vars.message = message
+              ..vars.uncommitReason = uncommitReason,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)

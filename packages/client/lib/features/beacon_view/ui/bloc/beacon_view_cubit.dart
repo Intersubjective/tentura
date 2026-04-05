@@ -3,6 +3,8 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -12,6 +14,7 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 
 import '../../data/repository/beacon_view_repository.dart';
+import '../../data/repository/coordination_repository.dart';
 import '../message/commitment_messages.dart';
 import 'beacon_view_state.dart';
 
@@ -27,12 +30,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     BeaconViewRepository? beaconViewRepository,
     ForwardRepository? forwardRepository,
     EvaluationRepository? evaluationRepository,
+    CoordinationRepository? coordinationRepository,
   }) : _beaconViewRepository =
            beaconViewRepository ?? GetIt.I<BeaconViewRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _evaluationRepository =
            evaluationRepository ?? GetIt.I<EvaluationRepository>(),
+       _coordinationRepository =
+           coordinationRepository ?? GetIt.I<CoordinationRepository>(),
        super(_idToState(id, myProfile)) {
     unawaited(
       state.hasFocusedComment
@@ -46,6 +52,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   final ForwardRepository _forwardRepository;
 
   final EvaluationRepository _evaluationRepository;
+
+  final CoordinationRepository _coordinationRepository;
 
   Future<void> delete(String beaconId) async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -76,13 +84,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> commit({required String message}) async {
+  Future<void> commit({
+    required String message,
+    String? helpType,
+  }) async {
     final wasAlreadyCommitted = state.isCommitted;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _forwardRepository.commit(
         beaconId: state.beacon.id,
         message: message,
+        helpType: helpType,
         notifyCommitmentListeners: !wasAlreadyCommitted,
       );
       await _fetchBeaconByIdWithTimeline();
@@ -98,12 +110,16 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> withdraw({required String message}) async {
+  Future<void> withdraw({
+    required String message,
+    required String uncommitReason,
+  }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _forwardRepository.withdraw(
         beaconId: state.beacon.id,
         message: message,
+        uncommitReason: uncommitReason,
       );
       await _fetchBeaconByIdWithTimeline();
       if (!state.hasError) {
@@ -118,6 +134,36 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
+  Future<void> setCoordinationResponse({
+    required String commitUserId,
+    required int responseType,
+  }) async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _coordinationRepository.setCoordinationResponse(
+        beaconId: state.beacon.id,
+        commitUserId: commitUserId,
+        responseType: responseType,
+      );
+      await _fetchBeaconByIdWithTimeline();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> setBeaconCoordinationStatus(BeaconCoordinationStatus status) async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _coordinationRepository.setBeaconCoordinationStatus(
+        beaconId: state.beacon.id,
+        coordinationStatus: status.smallintValue,
+      );
+      await _fetchBeaconByIdWithTimeline();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> _fetchBeaconByIdWithTimeline() async {
     try {
       final beaconId = state.beacon.id;
@@ -126,7 +172,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final results = await Future.wait([
         _beaconRepository.fetchBeaconById(beaconId),
         _forwardRepository.fetchEdges(beaconId: beaconId),
-        _forwardRepository.fetchCommitments(beaconId: beaconId),
+        _coordinationRepository.fetchCommitmentsWithCoordination(
+          beaconId: beaconId,
+        ),
         _forwardRepository.fetchUpdates(beaconId: beaconId),
       ]);
 
@@ -134,18 +182,23 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final forwardEdges = results[1] as List<ForwardEdge>;
       final commitments = results[2] as List<
           ({
+            String beaconId,
+            String userId,
             Profile user,
             String message,
+            String? helpType,
+            int status,
+            String? uncommitReason,
             DateTime createdAt,
             DateTime updatedAt,
-            bool isWithdrawn,
+            int? responseType,
           })>;
       final updates = results[3]
           as List<({Profile author, String content, DateTime createdAt})>;
 
       final isCommitted = commitments
-          .where((c) => !c.isWithdrawn)
-          .any((c) => c.user.id == myUserId);
+          .where((c) => c.status == 0)
+          .any((c) => c.userId == myUserId);
 
       final commitmentsList = <TimelineCommitment>[
         for (final c in commitments)
@@ -154,7 +207,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             message: c.message,
             createdAt: c.createdAt,
             updatedAt: c.updatedAt,
-            isWithdrawn: c.isWithdrawn,
+            isWithdrawn: c.status == 1,
+            helpType: c.helpType,
+            coordinationResponse:
+                CoordinationResponseType.tryFromInt(c.responseType),
+            uncommitReason: c.uncommitReason,
           ),
       ];
 

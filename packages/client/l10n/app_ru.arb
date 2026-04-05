@@ -1225,5 +1225,38 @@
       "minutes": { "type": "int" }
     }
   },
-  "evaluationReviewDurationLessThanMinute": "<1 мин."
+  "evaluationReviewDurationLessThanMinute": "<1 мин.",
+  "labelHelpTypeOptional": "Тип помощи (необязательно)",
+  "labelUncommitReasonRequired": "Почему вы откладываете участие?",
+  "coordinationNoCommitments": "Пока нет обязательств",
+  "coordinationWaitingForReview": "Обязательства ждут просмотра",
+  "coordinationMoreHelpNeeded": "Нужна другая или большая помощь",
+  "coordinationEnoughHelp": "Достаточно помощи",
+  "coordinationUseful": "Полезно",
+  "coordinationOverlapping": "Пересекается",
+  "coordinationNeedDifferentSkill": "Нужен другой навык",
+  "coordinationNeedCoordination": "Нужна координация",
+  "coordinationNotSuitable": "Не подходит",
+  "helpTypeMoney": "Деньги",
+  "helpTypeTime": "Время",
+  "helpTypeSkill": "Навык",
+  "helpTypeVerification": "Проверка",
+  "helpTypeContact": "Контакт / знакомство",
+  "helpTypeTransport": "Транспорт",
+  "helpTypeOther": "Другое",
+  "uncommitCantDoIt": "Больше не могу",
+  "uncommitTimingChanged": "Не сходится по времени",
+  "uncommitWrongFit": "Не мой формат",
+  "uncommitSomeoneElseTookOver": "Кто-то другой подхватил",
+  "uncommitOther": "Другое",
+  "labelCoordinationStatus": "Координация",
+  "labelCommitmentCount": "{count} обязательств",
+  "@labelCommitmentCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "labelSetCoordinationResponse": "Сигнал координации",
+  "labelBeaconCoordinationSummary": "Покрытие потребности маяка",
+  "coordinationSetOverallStatus": "Общий статус координации"
 }
