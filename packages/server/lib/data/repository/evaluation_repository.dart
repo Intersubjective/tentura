@@ -1,7 +1,7 @@
-import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 
 import '../database/tentura_db.dart';
@@ -112,6 +112,12 @@ class EvaluationRepository {
       )
       .get();
 
+  Future<List<BeaconEvaluationVisibilityData>> listAllVisibility(
+    String beaconId,
+  ) => _db.managers.beaconEvaluationVisibility
+      .filter((e) => e.beaconId.id(beaconId))
+      .get();
+
   Future<BeaconEvaluation?> getEvaluation({
     required String beaconId,
     required String evaluatorId,
@@ -132,6 +138,7 @@ class EvaluationRepository {
     required int value,
     required String reasonTagsCsv,
     required String note,
+    int status = BeaconEvaluationRowStatus.submitted,
   }) => _db.into(_db.beaconEvaluations).insert(
         BeaconEvaluationsCompanion.insert(
           beaconId: beaconId,
@@ -140,12 +147,14 @@ class EvaluationRepository {
           value: value,
           reasonTags: Value(reasonTagsCsv),
           note: Value(note),
+          status: Value(status),
         ),
         onConflict: DoUpdate(
           (_) => BeaconEvaluationsCompanion(
             value: Value(value),
             reasonTags: Value(reasonTagsCsv),
             note: Value(note),
+            status: Value(status),
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
           ),
         ),
@@ -163,7 +172,11 @@ class EvaluationRepository {
         )
         .get();
     return rows
-        .where((r) => r.value != BeaconEvaluationValue.noBasis)
+        .where(
+          (r) =>
+              r.value != BeaconEvaluationValue.noBasis &&
+              BeaconEvaluationRowStatus.countsTowardSummary(r.status),
+        )
         .toList();
   }
 
@@ -177,6 +190,50 @@ class EvaluationRepository {
     );
     return rows.map((r) => r.evaluatorId).toSet().length;
   }
+
+  /// All draft rows for a beacon (any evaluator).
+  Future<List<BeaconEvaluation>> listDraftRowsForBeacon(String beaconId) =>
+      _db.managers.beaconEvaluations
+          .filter(
+            (e) => e.beaconId.id(beaconId) & e.status.equals(BeaconEvaluationRowStatus.draft),
+          )
+          .get();
+
+  Future<void> deleteEvaluationRow({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+  }) => _db.managers.beaconEvaluations
+      .filter(
+        (e) =>
+            e.beaconId.id(beaconId) &
+            e.evaluatorId.id(evaluatorId) &
+            e.evaluatedUserId.id(evaluatedUserId),
+      )
+      .delete();
+
+  Future<void> finalizeSubmittedEvaluationsForBeacon(String beaconId) =>
+      _db.managers.beaconEvaluations
+          .filter(
+            (e) =>
+                e.beaconId.id(beaconId) &
+                e.status.equals(BeaconEvaluationRowStatus.submitted),
+          )
+          .update(
+            (o) => o(
+              status: const Value(BeaconEvaluationRowStatus.final_),
+              updatedAt: Value(PgDateTime(DateTime.timestamp())),
+            ),
+          );
+
+  Future<void> deleteDraftEvaluationsForBeacon(String beaconId) =>
+      _db.managers.beaconEvaluations
+          .filter(
+            (e) =>
+                e.beaconId.id(beaconId) &
+                e.status.equals(BeaconEvaluationRowStatus.draft),
+          )
+          .delete();
 
   Future<void> closeExpiredWindows() => _db.transaction(() async {
         final now = DateTime.timestamp();
@@ -213,6 +270,9 @@ class EvaluationRepository {
                   updatedAt: Value(PgDateTime(DateTime.timestamp())),
                 ),
               );
+
+          await finalizeSubmittedEvaluationsForBeacon(w.beaconId);
+          await deleteDraftEvaluationsForBeacon(w.beaconId);
         }
       });
 }

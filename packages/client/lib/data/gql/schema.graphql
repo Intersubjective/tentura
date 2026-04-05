@@ -223,11 +223,20 @@ type EvaluationParticipant {
   value: Int
   reasonTags: [String!]
   note: String!
+  promptVariant: String!
+}
+
+type EvaluationDraftRow {
+  evaluatedUserId: String!
+  value: Int!
+  reasonTags: [String!]
+  note: String!
 }
 
 type ReviewWindowStatus {
   beaconId: String!
   hasWindow: Boolean!
+  beaconTitle: String!
   openedAt: String
   closesAt: String
   windowComplete: Boolean
@@ -246,6 +255,7 @@ type EvaluationSummary {
   zero: Int
   pos1: Int
   pos2: Int
+  roleSummaryLine: String!
 }
 
 """
@@ -2117,6 +2127,14 @@ type mutation_root {
   ): Boolean!
   evaluationFinalize(id: String!): Boolean!
   evaluationSkip(id: String!): Boolean!
+  evaluationDraftSave(
+    evaluatedUserId: String!
+    id: String!
+    note: String
+    reasonTags: [String!]
+    value: Int!
+  ): Boolean!
+  evaluationDraftDelete(evaluatedUserId: String!, id: String!): Boolean!
   beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]!): String!
   beaconWithdraw(id: String!, message: String): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
@@ -3674,6 +3692,8 @@ type query_root {
   invitationById(id: String!): Invitation
   beaconInvolvement(id: String!): BeaconInvolvement!
   evaluationParticipants(id: String!): [EvaluationParticipant!]!
+  evaluationDraftParticipants(id: String!): [EvaluationParticipant!]!
+  evaluationDrafts(id: String!): [EvaluationDraftRow!]!
   reviewWindowStatus(id: String!): ReviewWindowStatus!
   evaluationSummary(id: String!): EvaluationSummary!
 

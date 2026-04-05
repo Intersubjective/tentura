@@ -1,0 +1,15 @@
+mutation EvaluationDraftSave(
+  $id: String!
+  $evaluatedUserId: String!
+  $value: Int!
+  $reasonTags: [String!]
+  $note: String
+) {
+  evaluationDraftSave(
+    id: $id
+    evaluatedUserId: $evaluatedUserId
+    value: $value
+    reasonTags: $reasonTags
+    note: $note
+  )
+}

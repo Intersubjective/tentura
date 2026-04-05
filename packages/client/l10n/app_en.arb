@@ -1156,13 +1156,28 @@
     "context": "Chat"
   },
   "evaluationBannerTitle": "Beacon closed — review contributions",
+  "evaluationBannerTitleDraft": "Private draft notes",
   "evaluationBannerSubtitle": "Private, beacon-local feedback. Not public.",
+  "evaluationBannerSubtitleDraft": "Save private notes for after closure. They do not count until you submit after the beacon closes.",
   "evaluationBannerReview": "Review",
-  "evaluationBannerLater": "Later",
+  "evaluationBannerDraftReview": "Draft review",
   "evaluationAcknowledgeTitle": "Acknowledge contributions",
-  "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this beacon will not see your answers by default. It is only used to improve your own local trust view.",
+  "evaluationAcknowledgeTitleDraft": "Draft review notes",
+  "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this beacon will not see your answers by default. It is only used to improve your own local trust view: who you may want to trust more, trust less, or route beacons through next time. In simple terms: your answers help Tentura make better personal recommendations and matching for you around the people involved here and the people connected to them. Please judge only what you actually saw in this beacon. If you are not sure, choose \"No basis\".",
+  "evaluationDraftDone": "Done",
+  "evaluationSectionAuthor": "Author",
+  "evaluationSectionCommitter": "Committers",
+  "evaluationSectionForwarder": "Forwarders",
+  "evaluationReviewDeadline": "Review closes {date}",
+  "@evaluationReviewDeadline": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
   "evaluationSubmitFinish": "Submit and finish",
   "evaluationSkipForNow": "Skip for now",
+  "evaluationAllNoBasisConfirmTitle": "Saved",
+  "evaluationAllNoBasisConfirmBody": "This beacon will still help calibrate your local view.",
   "evaluationProgress": "{reviewed} of {total} reviewed",
   "@evaluationProgress": {
     "placeholders": {
@@ -1170,7 +1185,12 @@
       "total": { "type": "int" }
     }
   },
-  "evaluationPrivateHint": "Private feedback for this beacon only.",
+  "evaluationPrivateHint": "Private feedback for this beacon only. Your answer is used only to improve your own personalized trust and recommendation logic. It is not a public score, and it is not shown to other people here as your named rating.",
+  "evaluationPromptAuthor": "How did the author’s contribution affect this beacon?",
+  "evaluationPromptCommitter": "How did this person’s commitment affect this beacon?",
+  "evaluationPromptCommitterHandoff": "How did this person handle the handoff after you forwarded the beacon to them?",
+  "evaluationPromptForwarder": "How did this forwarding help or hurt this beacon?",
+  "evaluationEmptyTargets": "There is no one to review for this beacon yet.",
   "evaluationSave": "Save",
   "evaluationSummaryTitle": "Your feedback in this beacon",
   "evaluationNotReviewed": "Not reviewed",

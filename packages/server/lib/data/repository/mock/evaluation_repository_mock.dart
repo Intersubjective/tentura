@@ -57,6 +57,29 @@ class EvaluationRepositoryMock implements EvaluationRepository {
       [];
 
   @override
+  Future<List<BeaconEvaluationVisibilityData>> listAllVisibility(
+    String beaconId,
+  ) async =>
+      [];
+
+  @override
+  Future<List<BeaconEvaluation>> listDraftRowsForBeacon(String beaconId) async =>
+      [];
+
+  @override
+  Future<void> deleteEvaluationRow({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+  }) async {}
+
+  @override
+  Future<void> finalizeSubmittedEvaluationsForBeacon(String beaconId) async {}
+
+  @override
+  Future<void> deleteDraftEvaluationsForBeacon(String beaconId) async {}
+
+  @override
   Future<void> insertParticipant({
     required String beaconId,
     required String userId,
@@ -101,5 +124,6 @@ class EvaluationRepositoryMock implements EvaluationRepository {
     required int value,
     required String reasonTagsCsv,
     required String note,
+    int status = 1,
   }) async {}
 }

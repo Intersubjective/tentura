@@ -15,10 +15,12 @@ abstract class EvaluationParticipant with _$EvaluationParticipant {
   const factory EvaluationParticipant({
     required String userId,
     required String title,
-    @Default('') String imageId,
     required EvaluationParticipantRole role,
     required String contributionSummary,
     required String causalHint,
+    @Default('') String imageId,
+    /// Server: `full` or `handoff` (forwarder → committer).
+    @Default('full') String promptVariant,
     EvaluationValue? currentValue,
     @Default([]) List<String> reasonTags,
     @Default('') String note,

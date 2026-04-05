@@ -7,13 +7,14 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 
 import 'evaluation_summary_card.dart';
 import 'review_banner.dart';
 
-/// Loads review window / summary for beacon detail (no global BLoC).
+/// Loads review window / draft targets / summary for beacon detail (no global BLoC).
 class BeaconEvaluationHooks extends StatefulWidget {
   const BeaconEvaluationHooks({
     required this.beaconId,
@@ -33,6 +34,9 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
   EvaluationSummary? _summary;
   Object? _error;
 
+  /// Non-null after load attempt while beacon is open: list may be empty.
+  List<EvaluationParticipant>? _draftTargetsLoaded;
+
   @override
   void initState() {
     super.initState();
@@ -49,25 +53,39 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
   }
 
   Future<void> _load() async {
-    if (widget.lifecycle != BeaconLifecycle.closedReviewOpen &&
+    if (widget.lifecycle != BeaconLifecycle.open &&
+        widget.lifecycle != BeaconLifecycle.closedReviewOpen &&
         widget.lifecycle != BeaconLifecycle.closedReviewComplete) {
       return;
     }
     setState(() {
       _error = null;
+      if (widget.lifecycle == BeaconLifecycle.open) {
+        _draftTargetsLoaded = null;
+      }
     });
     try {
       final repo = GetIt.I<EvaluationRepository>();
-      final w = await repo.fetchReviewWindowStatus(widget.beaconId);
-      EvaluationSummary? s;
-      if (widget.lifecycle == BeaconLifecycle.closedReviewComplete) {
-        s = await repo.fetchSummary(widget.beaconId);
+      if (widget.lifecycle == BeaconLifecycle.open) {
+        final list = await repo.fetchDraftParticipants(widget.beaconId);
+        if (mounted) {
+          setState(() => _draftTargetsLoaded = list);
+        }
+        return;
       }
-      if (mounted) {
-        setState(() {
-          _window = w;
-          _summary = s;
-        });
+      if (widget.lifecycle == BeaconLifecycle.closedReviewOpen ||
+          widget.lifecycle == BeaconLifecycle.closedReviewComplete) {
+        final w = await repo.fetchReviewWindowStatus(widget.beaconId);
+        EvaluationSummary? s;
+        if (widget.lifecycle == BeaconLifecycle.closedReviewComplete) {
+          s = await repo.fetchSummary(widget.beaconId);
+        }
+        if (mounted) {
+          setState(() {
+            _window = w;
+            _summary = s;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -78,6 +96,25 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.lifecycle == BeaconLifecycle.open) {
+      if (_draftTargetsLoaded == null && _error == null) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: LinearProgressIndicator(),
+        );
+      }
+      final list = _draftTargetsLoaded;
+      if (list == null || list.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return ReviewBanner(
+        isDraftPhase: true,
+        onPrimary: () => context.router.pushPath(
+          '$kPathReviewContributions/${widget.beaconId}?draft=true',
+        ),
+      );
+    }
+
     if (widget.lifecycle == BeaconLifecycle.closedReviewOpen) {
       if (_window == null && _error == null) {
         return const Padding(
@@ -90,10 +127,10 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
         return const SizedBox.shrink();
       }
       return ReviewBanner(
-        onReview: () => context.router.pushPath(
+        isDraftPhase: false,
+        onPrimary: () => context.router.pushPath(
           '$kPathReviewContributions/${widget.beaconId}',
         ),
-        onLater: () {},
       );
     }
     if (widget.lifecycle == BeaconLifecycle.closedReviewComplete &&

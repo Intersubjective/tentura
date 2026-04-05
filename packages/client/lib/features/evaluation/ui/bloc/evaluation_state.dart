@@ -1,4 +1,3 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
@@ -12,6 +11,7 @@ abstract class EvaluationState extends StateBase with _$EvaluationState {
   const factory EvaluationState({
     required String beaconId,
     @Default('') String beaconTitle,
+    @Default(false) bool isDraftMode,
     @Default([]) List<EvaluationParticipant> participants,
     @Default(null) ReviewWindowInfo? windowInfo,
     @Default(null) EvaluationSummary? summary,

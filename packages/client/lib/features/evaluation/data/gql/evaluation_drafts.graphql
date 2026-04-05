@@ -1,0 +1,8 @@
+query EvaluationDrafts($id: String!) {
+  evaluationDrafts(id: $id) {
+    evaluatedUserId
+    value
+    reasonTags
+    note
+  }
+}

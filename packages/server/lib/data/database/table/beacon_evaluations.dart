@@ -21,6 +21,9 @@ class BeaconEvaluations extends Table {
 
   late final note = text().withDefault(const Constant(''))();
 
+  /// 0 draft, 1 submitted, 2 final, 3 responded (reserved)
+  late final Column<int> status = integer().withDefault(const Constant(1))();
+
   late final createdAt = customType(
     PgTypes.timestampWithTimezone,
   ).clientDefault(() => PgDateTime(DateTime.timestamp()))();

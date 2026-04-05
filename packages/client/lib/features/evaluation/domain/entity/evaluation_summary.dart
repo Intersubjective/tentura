@@ -14,6 +14,7 @@ abstract class EvaluationSummary with _$EvaluationSummary {
     int? zero,
     int? pos1,
     int? pos2,
+    @Default('') String roleSummaryLine,
   }) = _EvaluationSummary;
 
   const EvaluationSummary._();

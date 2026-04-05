@@ -9,5 +9,6 @@ query EvaluationSummary($id: String!) {
     zero
     pos1
     pos2
+    roleSummaryLine
   }
 }

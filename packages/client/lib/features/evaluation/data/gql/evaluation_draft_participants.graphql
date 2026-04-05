@@ -1,5 +1,5 @@
-query EvaluationParticipants($id: String!) {
-  evaluationParticipants(id: $id) {
+query EvaluationDraftParticipants($id: String!) {
+  evaluationDraftParticipants(id: $id) {
     userId
     title
     imageId

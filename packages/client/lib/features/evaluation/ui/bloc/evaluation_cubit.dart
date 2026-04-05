@@ -16,21 +16,25 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     this._repository, {
     required String beaconId,
     String beaconTitle = '',
+    bool isDraftMode = false,
   }) : super(
          EvaluationState(
            beaconId: beaconId,
            beaconTitle: beaconTitle,
+           isDraftMode: isDraftMode,
          ),
        );
 
   factory EvaluationCubit.fromGetIt({
     required String beaconId,
     String beaconTitle = '',
+    bool isDraftMode = false,
   }) =>
       EvaluationCubit(
         GetIt.I<EvaluationRepository>(),
         beaconId: beaconId,
         beaconTitle: beaconTitle,
+        isDraftMode: isDraftMode,
       );
 
   final EvaluationRepository _repository;
@@ -43,12 +47,13 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           ? await _repository.fetchParticipants(state.beaconId)
           : <EvaluationParticipant>[];
       EvaluationSummary? summary;
-      if (window.windowComplete ?? false) {
+      if (window.windowComplete) {
         summary = await _repository.fetchSummary(state.beaconId);
       }
       emit(
         state.copyWith(
           windowInfo: window,
+          beaconTitle: window.beaconTitle,
           participants: participants,
           summary: summary,
           status: StateStatus.isSuccess,
@@ -62,12 +67,24 @@ class EvaluationCubit extends Cubit<EvaluationState> {
   Future<void> loadParticipantsOnly() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      if (state.isDraftMode) {
+        final data = await _repository.fetchDraftModeBootstrap(state.beaconId);
+        emit(
+          state.copyWith(
+            participants: data.participants,
+            beaconTitle: data.window.beaconTitle,
+            status: StateStatus.isSuccess,
+          ),
+        );
+        return;
+      }
       final participants = await _repository.fetchParticipants(state.beaconId);
       final window = await _repository.fetchReviewWindowStatus(state.beaconId);
       emit(
         state.copyWith(
           participants: participants,
           windowInfo: window,
+          beaconTitle: window.beaconTitle,
           status: StateStatus.isSuccess,
         ),
       );
@@ -84,6 +101,24 @@ class EvaluationCubit extends Cubit<EvaluationState> {
   }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      if (state.isDraftMode) {
+        await _repository.draftSave(
+          beaconId: state.beaconId,
+          evaluatedUserId: evaluatedUserId,
+          value: value.wire,
+          reasonTags: reasonTags,
+          note: note,
+        );
+        final participants =
+            await _repository.fetchDraftParticipants(state.beaconId);
+        emit(
+          state.copyWith(
+            participants: participants,
+            status: StateStatus.isSuccess,
+          ),
+        );
+        return;
+      }
       await _repository.submit(
         beaconId: state.beaconId,
         evaluatedUserId: evaluatedUserId,
@@ -97,6 +132,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         state.copyWith(
           participants: participants,
           windowInfo: window,
+          beaconTitle: window.beaconTitle,
           status: StateStatus.isSuccess,
         ),
       );
@@ -106,6 +142,10 @@ class EvaluationCubit extends Cubit<EvaluationState> {
   }
 
   Future<void> finalize() async {
+    if (state.isDraftMode) {
+      emit(state.copyWith(status: StateIsNavigating.back));
+      return;
+    }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _repository.finalize(state.beaconId);
@@ -116,6 +156,10 @@ class EvaluationCubit extends Cubit<EvaluationState> {
   }
 
   Future<void> skip() async {
+    if (state.isDraftMode) {
+      emit(state.copyWith(status: StateIsNavigating.back));
+      return;
+    }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _repository.skip(state.beaconId);

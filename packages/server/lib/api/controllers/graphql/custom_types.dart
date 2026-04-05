@@ -16,6 +16,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeUserPublic,
   gqlTypeBeaconCloseReviewResult,
   gqlTypeEvaluationParticipant,
+  gqlTypeEvaluationDraftRow,
   gqlTypeReviewWindowStatus,
   gqlTypeEvaluationSummary,
 ];
@@ -132,6 +133,22 @@ final gqlTypeEvaluationParticipant = GraphQLObjectType(
       GraphQLListType(graphQLString.nonNullable()),
     ),
     field('note', graphQLString.nonNullable()),
+    field('promptVariant', graphQLString.nonNullable()),
+  ]);
+
+/// One saved draft row for `evaluationDrafts` query.
+final gqlTypeEvaluationDraftRow = GraphQLObjectType(
+  'EvaluationDraftRow',
+  null,
+)
+  ..fields.addAll([
+    field('evaluatedUserId', graphQLString.nonNullable()),
+    field('value', graphQLInt.nonNullable()),
+    field(
+      'reasonTags',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field('note', graphQLString.nonNullable()),
   ]);
 
 final gqlTypeReviewWindowStatus = GraphQLObjectType(
@@ -141,6 +158,7 @@ final gqlTypeReviewWindowStatus = GraphQLObjectType(
   ..fields.addAll([
     field('beaconId', graphQLString.nonNullable()),
     field('hasWindow', graphQLBoolean.nonNullable()),
+    field('beaconTitle', graphQLString.nonNullable()),
     field('openedAt', graphQLString),
     field('closesAt', graphQLString),
     field('windowComplete', graphQLBoolean),
@@ -166,4 +184,5 @@ final gqlTypeEvaluationSummary = GraphQLObjectType(
     field('zero', graphQLInt),
     field('pos1', graphQLInt),
     field('pos2', graphQLInt),
+    field('roleSummaryLine', graphQLString.nonNullable()),
   ]);

@@ -30,6 +30,8 @@ final class MutationEvaluation extends GqlNodeBase {
     evaluationSubmit,
     evaluationFinalize,
     evaluationSkip,
+    evaluationDraftSave,
+    evaluationDraftDelete,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get beaconCloseWithReview =>
@@ -98,6 +100,49 @@ final class MutationEvaluation extends GqlNodeBase {
           return _evaluationCase.evaluationSkip(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get evaluationDraftSave =>
+      GraphQLObjectField(
+        'evaluationDraftSave',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          InputFieldId.field,
+          _evaluatedUserId.field,
+          _valueField,
+          _reasonTagsField,
+          _note.fieldNullable,
+        ],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          final tags = args[_reasonTagsField.name];
+          final list = tags == null
+              ? <String>[]
+              : List<String>.from(tags as List);
+          return _evaluationCase.evaluationDraftSave(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            evaluatorId: jwt.sub,
+            evaluatedUserId: _evaluatedUserId.fromArgsNonNullable(args),
+            value: args[_valueField.name]! as int,
+            reasonTags: list,
+            note: _note.fromArgs(args) ?? '',
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get evaluationDraftDelete =>
+      GraphQLObjectField(
+        'evaluationDraftDelete',
+        graphQLBoolean.nonNullable(),
+        arguments: [InputFieldId.field, _evaluatedUserId.field],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase.evaluationDraftDelete(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            evaluatorId: jwt.sub,
+            evaluatedUserId: _evaluatedUserId.fromArgsNonNullable(args),
           );
         },
       );
