@@ -54,6 +54,7 @@ class _FakeEvaluationRepository implements EvaluationRepository {
   int? reviewUserStatusResult;
   List<BeaconEvaluationParticipant> participantsResult = [];
   List<BeaconEvaluationVisibilityData> visibilityResult = [];
+  List<BeaconEvaluation> listEvaluationsForEvaluatorResult = [];
   final List<_SetStatusCall> setReviewUserStatusCalls = [];
 
   @override
@@ -73,6 +74,18 @@ class _FakeEvaluationRepository implements EvaluationRepository {
     required String evaluatedUserId,
   }) async =>
       null;
+
+  @override
+  Future<List<BeaconEvaluation>> listEvaluationsForEvaluator({
+    required String beaconId,
+    required String evaluatorId,
+  }) async =>
+      listEvaluationsForEvaluatorResult
+          .where(
+            (e) =>
+                e.beaconId == beaconId && e.evaluatorId == evaluatorId,
+          )
+          .toList();
 
   @override
   Future<BeaconReviewWindow?> getReviewWindow(String beaconId) async =>

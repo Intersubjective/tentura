@@ -24,15 +24,15 @@ Related product docs: `beacon-evaluation-feature-design.md`, `beacon-evaluation-
 
 ## Pressure points (technical debt / scale)
 
-1. **Server `EvaluationCase` size** — Visibility, drafts, submit/finalize/skip, summaries, review window, notifications, and more live in one use case. Works for a vertical slice; harder to test and change in isolation as rules grow.
+1. **Server `EvaluationCase` size** — Visibility graph and summary tone/suppression logic now live in **`evaluation_visibility_rules`** / **`evaluation_summary_rules`** (Phase A); orchestration, I/O, and GraphQL-shaped maps remain in the use case. Further splits (e.g. submit/finalize) are optional as rules grow.
 
-2. **`reviewWindowStatus` payload vs. name** — The resolver loads beacon metadata (`beaconTitle`) and computes `reviewedCount` via per-target evaluation lookups. Efficient as a BFF-style bundle, but the **name** no longer matches the full responsibility. Either treat it as the canonical “evaluation screen bootstrap” (and document/rename) or split beacon vs. window concerns.
+2. **`reviewWindowStatus` payload vs. name** — The resolver still bundles beacon metadata (`beaconTitle`) and window/progress fields; `reviewedCount` now uses a **batched** evaluation read (Phase A). The **name** still does not spell out “full evaluation bootstrap”; rename/split remains a Phase B concern.
 
-3. **N+1 pattern in `reviewWindowStatus`** — Loop over visibility rows with `getEvaluation` per row. Prefer a **single repository query** (batch evaluations for `(beaconId, evaluatorId)`) as volume grows.
+3. **N+1 pattern on evaluation rows** — **Addressed (Phase A):** `listEvaluationsForEvaluator(beaconId, evaluatorId)` batches rows; `reviewWindowStatus`, `evaluationParticipants`, and `evaluationDraftParticipants` use one query per call. Per-participant **`getById` for user profile** in participant list flows can still scale with visibility count if that becomes hot.
 
 4. **Untyped `Map<String, dynamic>`** — Use case results are maps consumed by GraphQL. Typed DTOs in the domain layer, mapped at the resolver boundary, would improve refactors and IDE support.
 
-5. **Server-side user-visible strings** — Summary messages (e.g. “No feedback”, privacy-limited copy) are English literals in `EvaluationCase`. For multilingual UX, define whether copy is **client-localized from codes** or **server-rendered with locale**—then implement consistently.
+5. **Server-side user-visible strings** — Summary messages (e.g. “No feedback”, privacy-limited copy) are English literals in **`evaluation_summary_rules.dart`** (Phase A moved them out of `EvaluationCase`). For multilingual UX, define whether copy is **client-localized from codes** or **server-rendered with locale**—then implement consistently (Phase C).
 
 6. **Client loading granularity** — `submitOne` drives **full-screen** loading for the review screen. Acceptable today; consider per-row or overlay “saving” state if UX needs to keep the list visible during saves.
 
@@ -42,10 +42,15 @@ Related product docs: `beacon-evaluation-feature-design.md`, `beacon-evaluation-
 
 ## Phased improvement plan
 
-### Phase A — Server structure and queries (high leverage, low product risk)
+### Phase A — Server structure and queries **(done)**
 
-- Extract **pure, testable** helpers or a small module for **visibility** and **privacy / summary suppression** rules; cover with unit tests without full Drift integration.
-- Replace the **per-row `getEvaluation` loop** in `reviewWindowStatus` with one **batch** read from `EvaluationRepository`.
+**Shipped:**
+
+- **`EvaluationRepository.listEvaluationsForEvaluator`** — single query for all evaluation rows for `(beaconId, evaluatorId)`; used by `reviewWindowStatus`, `evaluationParticipants`, and `evaluationDraftParticipants` (no per-row `getEvaluation` in those paths).
+- **`evaluation_visibility_rules.dart`** — `buildEvaluationVisibility` + types; tests: `test/domain/evaluation/evaluation_visibility_rules_test.dart`.
+- **`evaluation_summary_rules.dart`** — tone, aggregates, suppression policy, role summary line, GraphQL-shaped `buildEvaluationSummaryGraphqlPayload`; tests: `test/domain/evaluation/evaluation_summary_rules_test.dart`.
+
+**Original intent:** pure visibility + summary rules testable without Drift; batch evaluation reads for window/participant flows.
 
 ### Phase B — API clarity
 
@@ -54,7 +59,7 @@ Related product docs: `beacon-evaluation-feature-design.md`, `beacon-evaluation-
 
 ### Phase C — Localization
 
-- Choose strategy: **message codes + client ARB** vs. **server i18n** (e.g. locale-aware resolver). Remove hard-coded English from the use case in favor of that strategy.
+- Choose strategy: **message codes + client ARB** vs. **server i18n** (e.g. locale-aware resolver). Remove hard-coded English from **`evaluation_summary_rules`** (and any remaining literals in the use case) in favor of that strategy.
 
 ### Phase D — Client (when complexity warrants)
 
@@ -74,6 +79,9 @@ Related product docs: `beacon-evaluation-feature-design.md`, `beacon-evaluation-
 | Client cubit | `packages/client/lib/features/evaluation/ui/bloc/evaluation_cubit.dart` |
 | Client repository | `packages/client/lib/features/evaluation/data/repository/evaluation_repository.dart` |
 | Server use case | `packages/server/lib/domain/use_case/evaluation_case.dart` |
+| Evaluation visibility (pure) | `packages/server/lib/domain/evaluation/evaluation_visibility_rules.dart` |
+| Evaluation summary / suppression (pure) | `packages/server/lib/domain/evaluation/evaluation_summary_rules.dart` |
+| Server evaluation persistence | `packages/server/lib/data/repository/evaluation_repository.dart` (`listEvaluationsForEvaluator`, …) |
 | V2 operation routing | `packages/client/lib/data/service/remote_api_client/build_client.dart` |
 | Architecture rules | `.cursor/rules/architecture.mdc`, `.cursor/rules/quick-reference.mdc` |
 | Screen load UX | `DEV_GUIDELINES.md` (initial load / spinner) |

@@ -131,6 +131,18 @@ class EvaluationRepository {
       )
       .getSingleOrNull();
 
+  /// All evaluation rows for one evaluator on a beacon (single query).
+  Future<List<BeaconEvaluation>> listEvaluationsForEvaluator({
+    required String beaconId,
+    required String evaluatorId,
+  }) =>
+      _db.managers.beaconEvaluations
+          .filter(
+            (e) =>
+                e.beaconId.id(beaconId) & e.evaluatorId.id(evaluatorId),
+          )
+          .get();
+
   Future<void> upsertEvaluation({
     required String beaconId,
     required String evaluatorId,
