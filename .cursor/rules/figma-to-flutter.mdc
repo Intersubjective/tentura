@@ -1,0 +1,14 @@
+---
+description: Use the Figma-to-Flutter workflow for any Figma-driven UI task in this repo.
+globs:
+  - "lib/**"
+alwaysApply: true
+---
+
+# Figma to Flutter (project rule)
+
+- For any task mentioning Figma, follow the **Figma-to-Flutter** skill workflow (`.cursor/skills/figma-to-flutter/SKILL.md`).
+- This repository targets Flutter. Never leave final output as web, React, Tailwind, HTML, or CSS.
+- Reuse existing theme, tokens, and shared widgets wherever possible.
+- Avoid hardcoded colors, typography, spacing, radii, and shadows when the project has theme or token equivalents.
+- Validate visually against the Figma screenshot before considering the task complete **if** a Figma screenshot is available through MCP or the skill workflow. Ignore this requirement when no such screenshot is available.
