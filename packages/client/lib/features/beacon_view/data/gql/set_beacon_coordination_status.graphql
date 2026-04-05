@@ -1,0 +1,9 @@
+mutation SetBeaconCoordinationStatus(
+  $beaconId: String!
+  $coordinationStatus: Int!
+) {
+  setBeaconCoordinationStatus(
+    id: $beaconId
+    coordinationStatus: $coordinationStatus
+  )
+}

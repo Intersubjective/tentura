@@ -1,3 +1,11 @@
-mutation BeaconWithdraw($beaconId: String!, $message: String) {
-  beaconWithdraw(id: $beaconId, message: $message)
+mutation BeaconWithdraw(
+  $beaconId: String!
+  $message: String
+  $uncommitReason: String!
+) {
+  beaconWithdraw(
+    id: $beaconId
+    message: $message
+    uncommitReason: $uncommitReason
+  )
 }

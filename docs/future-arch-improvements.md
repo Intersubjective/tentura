@@ -1,8 +1,10 @@
 # Future architecture improvements
 
-This document records **architecture and engineering review outcomes** for the beacon **evaluation** feature (client + server), plus a **phased plan** for more robust long-term design. It is not a commitment schedule; prioritize by product need.
+This document records **architecture and engineering review outcomes** for the beacon **evaluation** feature (client + server) and for **overcommit coordination** (active `OPEN` beacons), plus **phased plans** for more robust long-term design. It is not a commitment schedule; prioritize by product need.
 
 Related product docs: `beacon-evaluation-feature-design.md`, `beacon-evaluation-principles.md`.
+
+**Overcommit coordination** is specified in `overcommit-coordination-feature-design.md`. It is separate from post-close **evaluation**: coordination rows are operational fit/coverage during `OPEN` beacons; evaluation is bounded to the review window after closure and must not be conflated in UX or reputation surfaces.
 
 ---
 
@@ -72,6 +74,65 @@ Related product docs: `beacon-evaluation-feature-design.md`, `beacon-evaluation-
 
 ---
 
+## Overcommit coordination — conformance (current implementation)
+
+### Aligned with project guidelines
+
+- **V2 GraphQL:** Coordination operations are listed in `_tenturaDirectOperationNames` (`packages/client/lib/data/service/remote_api_client/build_client.dart`).
+- **Layering:** Client `BeaconViewCubit` → `CoordinationRepository` / `ForwardRepository` / `BeaconRepository`; Ferry types mapped in data (`UserModel.toEntity()`). Server `CoordinationCase` / `CommitmentCase` orchestrate repositories.
+- **DI:** `@Singleton` use cases, `@lazySingleton` / `@Injectable` repositories per project conventions.
+- **Domain validation:** `help_type` / `uncommit_reason` allowlists live under `packages/server/lib/domain/coordination/`.
+- **Errors:** `CommitmentCoordinationException` with a dedicated code space fits hierarchical server exceptions.
+
+### Acceptable flexibility
+
+- **No client-side use cases** for coordination yet; introduce a thin use case if orchestration grows (retries, analytics, cross-feature flows) — same stance as evaluation (Phase D).
+
+---
+
+## Overcommit coordination — pressure points (technical debt / scale)
+
+1. **Derivation logic location** — Beacon coordination status is derived inside `CoordinationRepository.recomputeAndPersistBeaconCoordinationStatus` (I/O-coupled). Unlike evaluation, there is **no** pure `coordination_status_rules` module with **unit tests** yet. Refactors and product tweaks (mixed responses, staleness nuance) are higher-risk without extraction.
+
+2. **Spec §8.5 staleness vs implementation** — The spec describes staleness using **“commit without a response and created after `coordination_status_updated_at`.”** The shipped logic effectively treats **any active commitment missing a coordination row** as “waiting for review” and updates `coordination_status_updated_at` on recompute. Often stricter than §8.5; **not identical** if product later needs “all older commits answered, only new ones pending.” **Document** the chosen rule in `overcommit-coordination-feature-design.md` or **align** code once rules live in a pure function.
+
+3. **`setBeaconCoordinationStatus` vs automatic recompute** — Manual author status updates do not run the same derivation pipeline as commit/withdraw; the **next** commit/withdraw **recomputes** and may **overwrite** the manual value. Behavior is **implicit** today; risks confusing UX (“I set Enough help and it changed”). **Decide** a product contract: advisory until next event, pinned override until new commits, or always derive — then document and, if needed, implement (e.g. pin flag or post-mutation recompute policy).
+
+4. **Untyped `Map<String, dynamic>`** — `commitmentsWithCoordination` builds maps for GraphQL (same pattern as some evaluation payloads). **Typed DTOs or domain row types** at the use-case/resolver boundary would improve refactors and IDE support (same direction as evaluation Phase B).
+
+5. **N+1 in `commitmentsWithCoordination`** — Per-row user (and related) loads scale poorly with many commitments on one beacon. **Batch or join** before this path becomes hot.
+
+6. **Auditability / timeline (spec §17.3)** — Discrete timeline or audit events for coordination response changes and beacon-level coordination changes are **not** implemented; only existing commitment/withdraw timeline behavior. Harder debugging and weaker “later review context” unless **deferred explicitly** in the design doc.
+
+7. **List surfaces: author response to the viewer’s commitment** — Beacon list tiles expose **beacon-level** coordination; **My Work**-style “author’s response to **this** user’s commit” (per spec) may need a **narrow field** or query to avoid over-fetching every row.
+
+---
+
+## Phased improvement plan — overcommit coordination
+
+### Coordination Phase A — Pure rules and tests
+
+- Extract a **`coordination_status_rules`** (or equivalent) module with a **pure** `deriveBeaconCoordinationStatus(...)` (inputs: active commitments, response map, timestamps as needed).
+- Add **unit tests** mirroring `evaluation_visibility_rules_test.dart` / `evaluation_summary_rules_test.dart`.
+- **Document** staleness behavior vs `overcommit-coordination-feature-design.md` §8.5; **optionally align** implementation to the spec predicate after rules are testable.
+
+### Coordination Phase B — API shape and query efficiency
+
+- Introduce **typed result objects** for `commitmentsWithCoordination` at the use-case or resolver boundary; map once to the GraphQL shape.
+- **Batch or join** user (and image if applicable) loads for `commitmentsWithCoordination` to remove N+1.
+
+### Coordination Phase C — Product contract and audit
+
+- **Document** (in the design doc) or **implement** the chosen model for **manual** `setBeaconCoordinationStatus` vs **derived** status after commit/withdraw.
+- Implement **§17.3** audit/timeline events (or record an explicit **Phase-1 deferral** in the design doc if out of scope).
+
+### Coordination Phase D — Client completeness (when product requires)
+
+- **My Work / list:** add a **minimal** way to show the author’s response to the **current viewer’s** commitment without heavy per-row payloads.
+- Add **client use cases** if coordination orchestration grows (same trigger as evaluation Phase D).
+
+---
+
 ## References (code)
 
 | Area | Location |
@@ -85,3 +146,8 @@ Related product docs: `beacon-evaluation-feature-design.md`, `beacon-evaluation-
 | V2 operation routing | `packages/client/lib/data/service/remote_api_client/build_client.dart` |
 | Architecture rules | `.cursor/rules/architecture.mdc`, `.cursor/rules/quick-reference.mdc` |
 | Screen load UX | `DEV_GUIDELINES.md` (initial load / spinner) |
+| Coordination product spec | `docs/overcommit-coordination-feature-design.md` |
+| Server coordination use case | `packages/server/lib/domain/use_case/coordination_case.dart` |
+| Server coordination persistence / derivation | `packages/server/lib/data/repository/coordination_repository.dart` |
+| Client coordination repository | `packages/client/lib/features/beacon_view/data/repository/coordination_repository.dart` |
+| Beacon view orchestration | `packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart` |

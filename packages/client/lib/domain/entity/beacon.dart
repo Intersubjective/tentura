@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura/consts.dart';
 
 import 'beacon_lifecycle.dart';
+import 'coordination_status.dart';
 import 'coordinates.dart';
 import 'image_entity.dart';
 import 'likable.dart';
@@ -38,6 +39,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     DateTime? reviewClosesAt,
     /// `beacon_review_window.status` (0=open, 1=complete); null if no row.
     int? reviewWindowStatus,
+    @Default(BeaconCoordinationStatus.noCommitmentsYet)
+    BeaconCoordinationStatus coordinationStatus,
+    DateTime? coordinationStatusUpdatedAt,
   }) = _Beacon;
 
   const Beacon._();

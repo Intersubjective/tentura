@@ -11,7 +11,10 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/author_info.dart';
 
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
@@ -19,6 +22,18 @@ import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/beacon_mine_control.dart';
 import '../widget/commitment_tile.dart';
+import '../widget/coordination_response_bottom_sheet.dart';
+
+String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
+      BeaconLifecycle.open => l10n.beaconLifecycleOpen,
+      BeaconLifecycle.closed => l10n.beaconLifecycleClosed,
+      BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
+      BeaconLifecycle.draft => l10n.beaconLifecycleDraft,
+      BeaconLifecycle.pendingReview => l10n.beaconLifecyclePendingReview,
+      BeaconLifecycle.closedReviewOpen => l10n.beaconLifecycleClosedReviewOpen,
+      BeaconLifecycle.closedReviewComplete =>
+        l10n.beaconLifecycleClosedReviewComplete,
+    };
 
 @RoutePage()
 class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -124,6 +139,54 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 isShowBeaconEnabled: false,
               ),
 
+              Padding(
+                padding: kPaddingSmallV,
+                child: Wrap(
+                  spacing: kSpacingSmall,
+                  runSpacing: kSpacingSmall,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Chip(
+                      label: Text(_lifecycleLabel(l10n, beacon.lifecycle)),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    Chip(
+                      label: Text(
+                        coordinationStatusLabel(l10n, beacon.coordinationStatus),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    Chip(
+                      label: Text(
+                        l10n.labelCommitmentCount(
+                          state.commitments
+                              .where((c) => !c.isWithdrawn)
+                              .length,
+                        ),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    if (state.isBeaconMine)
+                      TextButton(
+                        onPressed: () async {
+                          await showBeaconCoordinationStatusBottomSheet(
+                            context: context,
+                            onPick: (s) => unawaited(
+                              beaconViewCubit.setBeaconCoordinationStatus(
+                                BeaconCoordinationStatus.fromSmallint(s),
+                              ),
+                            ),
+                          );
+                        },
+                        child: Text(l10n.coordinationSetOverallStatus),
+                      ),
+                  ],
+                ),
+              ),
+
               BeaconEvaluationHooks(
                 beaconId: beacon.id,
                 lifecycle: beacon.lifecycle,
@@ -151,15 +214,19 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                           builder: (_, isCommitted) => isCommitted
                               ? OutlinedButton.icon(
                                   onPressed: () async {
-                                    final message =
+                                    final outcome =
                                         await CommitmentMessageDialog.show(
                                       context,
                                       title: l10n.dialogWithdrawTitle,
                                       hintText: l10n.hintWithdrawReason,
+                                      allowEmptyMessage: true,
+                                      requireUncommitReason: true,
                                     );
-                                    if (message != null) {
+                                    if (outcome?.uncommitReasonWire != null) {
                                       await beaconViewCubit.withdraw(
-                                        message: message,
+                                        message: outcome!.message,
+                                        uncommitReason:
+                                            outcome.uncommitReasonWire!,
                                       );
                                     }
                                   },
@@ -168,15 +235,18 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                                 )
                               : FilledButton.icon(
                                   onPressed: () async {
-                                    final message =
+                                    final outcome =
                                         await CommitmentMessageDialog.show(
                                       context,
                                       title: l10n.dialogCommitTitle,
                                       hintText: l10n.hintCommitMessage,
+                                      allowEmptyMessage: true,
+                                      showHelpTypeChips: true,
                                     );
-                                    if (message != null) {
+                                    if (outcome != null) {
                                       await beaconViewCubit.commit(
-                                        message: message,
+                                        message: outcome.message,
+                                        helpType: outcome.helpTypeWire,
                                       );
                                     }
                                   },
@@ -221,16 +291,29 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 timeline: state.timeline,
                 commitments: state.commitments,
                 myUserId: state.myProfile.id,
+                isAuthorView: state.isBeaconMine,
                 onEditCommitment: (commitment) async {
-                  final message = await CommitmentMessageDialog.show(
+                  final outcome = await CommitmentMessageDialog.show(
                     context,
                     title: l10n.dialogUpdateCommitTitle,
                     hintText: l10n.hintCommitMessage,
                     initialText: commitment.message,
                   );
-                  if (message != null) {
-                    await beaconViewCubit.commit(message: message);
+                  if (outcome != null && outcome.message.isNotEmpty) {
+                    await beaconViewCubit.commit(message: outcome.message);
                   }
+                },
+                onAuthorCoordination: (commitment) async {
+                  await showCoordinationResponseBottomSheet(
+                    context: context,
+                    commitUserTitle: commitment.user.title,
+                    onPick: (t) => unawaited(
+                      beaconViewCubit.setCoordinationResponse(
+                        commitUserId: commitment.user.id,
+                        responseType: t,
+                      ),
+                    ),
+                  );
                 },
               ),
             ],
@@ -247,12 +330,16 @@ class _TabSection extends StatefulWidget {
     required this.commitments,
     required this.myUserId,
     required this.onEditCommitment,
+    required this.isAuthorView,
+    required this.onAuthorCoordination,
   });
 
   final List<TimelineEntry> timeline;
   final List<TimelineCommitment> commitments;
   final String myUserId;
   final Future<void> Function(TimelineCommitment) onEditCommitment;
+  final bool isAuthorView;
+  final Future<void> Function(TimelineCommitment) onAuthorCoordination;
 
   @override
   State<_TabSection> createState() => _TabSectionState();
@@ -325,6 +412,10 @@ class _TabSectionState extends State<_TabSection>
             CommitmentTile(
               commitment: c,
               isMine: c.user.id == widget.myUserId,
+              isAuthorView: widget.isAuthorView,
+              onAuthorTapCoordination: widget.isAuthorView && !c.isWithdrawn
+                  ? () => unawaited(widget.onAuthorCoordination(c))
+                  : null,
               onEdit: c.user.id == widget.myUserId && !c.isWithdrawn
                   ? () => unawaited(widget.onEditCommitment(c))
                   : null,

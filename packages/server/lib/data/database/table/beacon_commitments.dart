@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/consts.dart';
 
@@ -16,6 +15,10 @@ class BeaconCommitments extends Table with TimestampsFields {
   late final message = text()
       .withLength(max: kDescriptionMaxLength)
       .withDefault(const Constant(''))();
+
+  late final helpType = text().nullable()();
+
+  late final uncommitReason = text().nullable()();
 
   // 0=active, 1=withdrawn
   late final Column<int> status = integer()

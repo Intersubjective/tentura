@@ -1,33 +1,54 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/entity/help_type.dart';
+import 'package:tentura/domain/entity/uncommit_reason.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+/// Result of [CommitmentMessageDialog.show].
+typedef CommitmentDialogOutcome = ({
+  String message,
+  String? helpTypeWire,
+  String? uncommitReasonWire,
+});
 
 class CommitmentMessageDialog extends StatefulWidget {
   const CommitmentMessageDialog({
     required this.title,
     required this.hintText,
     this.initialText = '',
+    this.allowEmptyMessage = false,
+    this.showHelpTypeChips = false,
+    this.requireUncommitReason = false,
     super.key,
   });
 
-  static Future<String?> show(
+  static Future<CommitmentDialogOutcome?> show(
     BuildContext context, {
     required String title,
     required String hintText,
     String initialText = '',
+    bool allowEmptyMessage = false,
+    bool showHelpTypeChips = false,
+    bool requireUncommitReason = false,
   }) =>
-      showAdaptiveDialog<String>(
+      showAdaptiveDialog<CommitmentDialogOutcome>(
         context: context,
         builder: (_) => CommitmentMessageDialog(
           title: title,
           hintText: hintText,
           initialText: initialText,
+          allowEmptyMessage: allowEmptyMessage,
+          showHelpTypeChips: showHelpTypeChips,
+          requireUncommitReason: requireUncommitReason,
         ),
       );
 
   final String title;
   final String hintText;
   final String initialText;
+  final bool allowEmptyMessage;
+  final bool showHelpTypeChips;
+  final bool requireUncommitReason;
 
   @override
   State<CommitmentMessageDialog> createState() =>
@@ -36,6 +57,8 @@ class CommitmentMessageDialog extends StatefulWidget {
 
 class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
   late final TextEditingController _controller;
+  CommitHelpType? _helpType;
+  UncommitReason? _uncommitReason;
 
   @override
   void initState() {
@@ -49,26 +72,93 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
     super.dispose();
   }
 
+  void _submit(L10n l10n) {
+    final text = _controller.text.trim();
+    if (!widget.allowEmptyMessage && text.isEmpty) {
+      return;
+    }
+    if (widget.requireUncommitReason && _uncommitReason == null) {
+      return;
+    }
+    Navigator.of(context).pop((
+      message: text,
+      helpTypeWire: _helpType?.wireKey,
+      uncommitReasonWire: _uncommitReason?.wireKey,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
     return AlertDialog.adaptive(
       title: Text(widget.title),
-      content: TextField(
-        autofocus: true,
-        controller: _controller,
-        maxLines: 3,
-        decoration: InputDecoration(hintText: widget.hintText),
-        onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.showHelpTypeChips) ...[
+              Text(
+                l10n.labelHelpTypeOptional,
+                style: theme.textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final t in CommitHelpType.values)
+                    FilterChip(
+                      label: Text(_helpTypeLabel(l10n, t)),
+                      selected: _helpType == t,
+                      onSelected: (_) {
+                        setState(() {
+                          _helpType = _helpType == t ? null : t;
+                        });
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            if (widget.requireUncommitReason) ...[
+              Text(
+                l10n.labelUncommitReasonRequired,
+                style: theme.textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final r in UncommitReason.values)
+                    FilterChip(
+                      label: Text(_uncommitReasonLabel(l10n, r)),
+                      selected: _uncommitReason == r,
+                      onSelected: (_) {
+                        setState(() {
+                          _uncommitReason = _uncommitReason == r ? null : r;
+                        });
+                      },
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+            TextField(
+              autofocus: !widget.requireUncommitReason,
+              controller: _controller,
+              maxLines: 3,
+              decoration: InputDecoration(hintText: widget.hintText),
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
-          onPressed: () {
-            final text = _controller.text.trim();
-            if (text.isNotEmpty) {
-              Navigator.of(context).pop(text);
-            }
-          },
+          onPressed: () => _submit(l10n),
           child: Text(l10n.buttonOk),
         ),
         TextButton(
@@ -78,4 +168,23 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
       ],
     );
   }
+
+  static String _helpTypeLabel(L10n l10n, CommitHelpType t) => switch (t) {
+        CommitHelpType.money => l10n.helpTypeMoney,
+        CommitHelpType.time => l10n.helpTypeTime,
+        CommitHelpType.skill => l10n.helpTypeSkill,
+        CommitHelpType.verification => l10n.helpTypeVerification,
+        CommitHelpType.contact => l10n.helpTypeContact,
+        CommitHelpType.transport => l10n.helpTypeTransport,
+        CommitHelpType.other => l10n.helpTypeOther,
+      };
+
+  static String _uncommitReasonLabel(L10n l10n, UncommitReason r) =>
+      switch (r) {
+        UncommitReason.cannotDoIt => l10n.uncommitCantDoIt,
+        UncommitReason.timing => l10n.uncommitTimingChanged,
+        UncommitReason.wrongFit => l10n.uncommitWrongFit,
+        UncommitReason.someoneElse => l10n.uncommitSomeoneElseTookOver,
+        UncommitReason.other => l10n.uncommitOther,
+      };
 }

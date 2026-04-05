@@ -18,17 +18,24 @@ class CommitmentRepository {
     required String beaconId,
     required String userId,
     String message = '',
+    String? helpType,
     int status = 0,
   }) => _database.into(_database.beaconCommitments).insert(
     BeaconCommitmentsCompanion.insert(
       beaconId: beaconId,
       userId: userId,
       message: Value(message),
+      helpType: Value(helpType),
+      uncommitReason: const Value.absent(),
       status: Value(status),
     ),
     onConflict: DoUpdate(
       (_) => BeaconCommitmentsCompanion(
         message: Value(message),
+        helpType: Value(helpType),
+        uncommitReason: status == 0
+            ? const Value(null)
+            : const Value.absent(),
         status: Value(status),
         updatedAt: Value(PgDateTime(DateTime.timestamp())),
       ),
@@ -38,6 +45,7 @@ class CommitmentRepository {
   Future<void> withdraw({
     required String beaconId,
     required String userId,
+    required String uncommitReason,
     String message = '',
   }) => _database.managers.beaconCommitments
       .filter(
@@ -47,6 +55,7 @@ class CommitmentRepository {
         (o) => o(
           status: const Value(1),
           message: Value(message),
+          uncommitReason: Value(uncommitReason),
           updatedAt: Value(PgDateTime(DateTime.timestamp())),
         ),
       );
@@ -77,7 +86,9 @@ class CommitmentRepository {
         userId: row.userId,
         message: row.message,
         status: row.status,
-        createdAt: (row.createdAt as PgDateTime).dateTime,
-        updatedAt: (row.updatedAt as PgDateTime).dateTime,
+        helpType: row.helpType,
+        uncommitReason: row.uncommitReason,
+        createdAt: (row.createdAt).dateTime,
+        updatedAt: (row.updatedAt).dateTime,
       );
 }

@@ -11,6 +11,10 @@ final class MutationCommitment extends GqlNodeBase {
 
   final _message = InputFieldString(fieldName: 'message');
 
+  final _helpType = InputFieldString(fieldName: 'helpType');
+
+  final _uncommitReason = InputFieldString(fieldName: 'uncommitReason');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [commit, withdraw];
 
   GraphQLObjectField<dynamic, dynamic> get commit => GraphQLObjectField(
@@ -19,12 +23,14 @@ final class MutationCommitment extends GqlNodeBase {
     arguments: [
       InputFieldId.field,
       _message.fieldNullable,
+      _helpType.fieldNullable,
     ],
     resolve: (_, args) => _commitmentCase
         .commit(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           message: _message.fromArgs(args) ?? '',
+          helpType: _helpType.fromArgs(args),
         )
         .then((_) => true),
   );
@@ -35,12 +41,14 @@ final class MutationCommitment extends GqlNodeBase {
     arguments: [
       InputFieldId.field,
       _message.fieldNullable,
+      _uncommitReason.field,
     ],
     resolve: (_, args) => _commitmentCase
         .withdraw(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           message: _message.fromArgs(args) ?? '',
+          uncommitReason: _uncommitReason.fromArgsNonNullable(args),
         )
         .then((_) => true),
   );

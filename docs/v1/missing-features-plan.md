@@ -6,6 +6,8 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Recently implemented:** §2 (inbox row provenance + lifecycle badge), §4 (`beacon.state` lifecycle, My Work Active/Closed, client no longer uses `enabled` on `BeaconModel`), and §3 forward screen (header, filters, MR-sorted sectioned list, involvement-driven buckets, shared + per-recipient notes, `computeBeaconListSections` single-pass UI data). See those sections for details and ops follow-ups.
 
+**Overcommit coordination (active beacon):** design and implementation map — [`../overcommit-coordination-feature-design.md`](../overcommit-coordination-feature-design.md) (commit note + optional help-type, author per-commit responses, beacon `coordination_status`, uncommit reasons, Inbox/My Work/detail UI).
+
 ---
 
 ## 1. Inbox: sort (MR / Recent / Deadline)

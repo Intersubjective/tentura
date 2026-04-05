@@ -182,7 +182,9 @@
                     "tags",
                     "title",
                     "updated_at",
-                    "user_id"
+                    "user_id",
+                    "coordination_status",
+                    "coordination_status_updated_at"
                   ],
                   "computed_fields": [
                     "is_pinned",
@@ -1395,7 +1397,9 @@
                     "message",
                     "status",
                     "created_at",
-                    "updated_at"
+                    "updated_at",
+                    "help_type",
+                    "uncommit_reason"
                   ],
                   "filter": {}
                 }
@@ -1415,6 +1419,69 @@
                     }
                   },
                   "check": null
+                }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_commitment_coordination",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "author",
+                "using": {
+                  "foreign_key_constraint_on": "author_user_id"
+                }
+              },
+              {
+                "name": "commitment",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "commit_beacon_id": "beacon_id",
+                      "commit_user_id": "user_id"
+                    },
+                    "insertion_order": null,
+                    "remote_table": {
+                      "name": "beacon_commitment",
+                      "schema": "public"
+                    }
+                  }
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "commit_beacon_id",
+                    "commit_user_id",
+                    "author_user_id",
+                    "response_type",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "filter": {
+                    "_or": [
+                      {
+                        "commitment": {
+                          "beacon": {
+                            "user_id": {
+                              "_eq": "X-Hasura-User-Id"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "commit_user_id": {
+                          "_eq": "X-Hasura-User-Id"
+                        }
+                      }
+                    ]
+                  }
                 }
               }
             ]

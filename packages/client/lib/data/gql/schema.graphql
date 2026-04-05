@@ -85,6 +85,8 @@ type beacon {
   """An object relationship"""
   beacon_review_window: beacon_review_window
   context: String
+  coordination_status: smallint!
+  coordination_status_updated_at: timestamptz
   created_at: timestamptz!
   description: String!
   end_at: timestamptz
@@ -258,6 +260,25 @@ type EvaluationSummary {
   roleSummaryLine: String!
 }
 
+type CoordinationStatusResult {
+  beaconId: String!
+  coordinationStatus: Int!
+  coordinationStatusUpdatedAt: String
+}
+
+type CommitmentWithCoordinationRow {
+  beaconId: String!
+  userId: String!
+  message: String!
+  helpType: String
+  status: Int!
+  uncommitReason: String
+  createdAt: String!
+  updatedAt: String!
+  responseType: Int
+  user: user!
+}
+
 """
 order by aggregate values of table "beacon"
 """
@@ -318,6 +339,8 @@ input beacon_bool_exp {
   updates: beacon_update_bool_exp
   user_id: String_comparison_exp
   vote_beacons: vote_beacon_bool_exp
+  coordination_status: smallint_comparison_exp
+  coordination_status_updated_at: timestamptz_comparison_exp
 }
 
 """
@@ -328,8 +351,10 @@ type beacon_commitment {
   beacon: beacon!
   beacon_id: String!
   created_at: timestamptz!
+  help_type: String
   message: String!
   status: smallint!
+  uncommit_reason: String
   updated_at: timestamptz!
 
   """An object relationship"""
@@ -385,8 +410,10 @@ input beacon_commitment_bool_exp {
   beacon: beacon_bool_exp
   beacon_id: String_comparison_exp
   created_at: timestamptz_comparison_exp
+  help_type: String_comparison_exp
   message: String_comparison_exp
   status: smallint_comparison_exp
+  uncommit_reason: String_comparison_exp
   updated_at: timestamptz_comparison_exp
   user: user_bool_exp
   user_id: String_comparison_exp
@@ -490,10 +517,16 @@ enum beacon_commitment_select_column {
   created_at
 
   """column name"""
+  help_type
+
+  """column name"""
   message
 
   """column name"""
   status
+
+  """column name"""
+  uncommit_reason
 
   """column name"""
   updated_at
@@ -1070,6 +1103,12 @@ select columns of table "beacon"
 enum beacon_select_column {
   """column name"""
   context
+
+  """column name"""
+  coordination_status
+
+  """column name"""
+  coordination_status_updated_at
 
   """column name"""
   created_at
@@ -2114,7 +2153,7 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
-  beaconCommit(id: String!, message: String): Boolean!
+  beaconCommit(id: String!, message: String, helpType: String): Boolean!
   beaconCreate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, image: Upload = {}, polling: PollingInput, startAt: String, tags: String, title: String!): Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconCloseWithReview(id: String!): BeaconCloseReviewResult!
@@ -2136,7 +2175,13 @@ type mutation_root {
   ): Boolean!
   evaluationDraftDelete(evaluatedUserId: String!, id: String!): Boolean!
   beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]!): String!
-  beaconWithdraw(id: String!, message: String): Boolean!
+  beaconWithdraw(id: String!, message: String, uncommitReason: String!): Boolean!
+  setCoordinationResponse(
+    commitUserId: String!
+    id: String!
+    responseType: Int!
+  ): CoordinationStatusResult!
+  setBeaconCoordinationStatus(coordinationStatus: Int!, id: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
 
   """
@@ -3696,6 +3741,7 @@ type query_root {
   evaluationDrafts(id: String!): [EvaluationDraftRow!]!
   reviewWindowStatus(id: String!): ReviewWindowStatus!
   evaluationSummary(id: String!): EvaluationSummary!
+  commitmentsWithCoordination(id: String!): [CommitmentWithCoordinationRow!]!
 
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation

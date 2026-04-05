@@ -13,6 +13,8 @@ abstract class CommitmentEntity with _$CommitmentEntity {
     required DateTime updatedAt,
     @Default('') String message,
     @Default(0) int status,
+    String? helpType,
+    String? uncommitReason,
     UserEntity? user,
   }) = _CommitmentEntity;
 

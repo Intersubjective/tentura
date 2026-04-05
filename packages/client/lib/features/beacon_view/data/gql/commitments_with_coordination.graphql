@@ -1,0 +1,18 @@
+# import '/data/gql/user_model.graphql'
+
+query CommitmentsWithCoordination($beaconId: String!) {
+  commitmentsWithCoordination(id: $beaconId) {
+    beaconId
+    userId
+    message
+    helpType
+    status
+    uncommitReason
+    createdAt
+    updatedAt
+    responseType
+    user {
+      ...UserModel
+    }
+  }
+}

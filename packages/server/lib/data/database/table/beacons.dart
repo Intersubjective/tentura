@@ -41,6 +41,14 @@ class Beacons extends Table
   late final Column<int> state = integer()
       .withDefault(const Constant(0))();
 
+  /// 0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  late final Column<int> coordinationStatus = integer()
+      .withDefault(const Constant(0))();
+
+  late final coordinationStatusUpdatedAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

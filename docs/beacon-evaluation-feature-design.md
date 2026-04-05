@@ -7,6 +7,8 @@ Companion to [beacon-evaluation-principles.md](./beacon-evaluation-principles.md
 - **Close the loop** / **Acknowledge contributions** / **How did this contribution affect this beacon?**
 - Never: 360 review, rating people, reputation, leaderboards.
 
+**Not the same as overcommit coordination:** During an **open** beacon, authors may set per-commit **coordination responses** and a beacon-level **coordination status** (coverage / fit of the need — not “approval” of committers). That feature is documented in [`overcommit-coordination-feature-design.md`](./overcommit-coordination-feature-design.md). Evaluation here applies **after** successful closure and the review window; coordination metadata during active work may provide context later but is **not** an evaluation submission.
+
 ## Phase 1 scope
 
 - Successful closure **by beacon author** only (`beaconCloseWithReview` V2 mutation).

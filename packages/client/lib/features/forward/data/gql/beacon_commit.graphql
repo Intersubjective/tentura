@@ -1,3 +1,3 @@
-mutation BeaconCommit($beaconId: String!, $message: String) {
-  beaconCommit(id: $beaconId, message: $message)
+mutation BeaconCommit($beaconId: String!, $message: String, $helpType: String) {
+  beaconCommit(id: $beaconId, message: $message, helpType: $helpType)
 }

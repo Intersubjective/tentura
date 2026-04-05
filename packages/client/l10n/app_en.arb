@@ -1225,5 +1225,38 @@
       "minutes": { "type": "int" }
     }
   },
-  "evaluationReviewDurationLessThanMinute": "<1m"
+  "evaluationReviewDurationLessThanMinute": "<1m",
+  "labelHelpTypeOptional": "Type of help (optional)",
+  "labelUncommitReasonRequired": "Why are you stepping back?",
+  "coordinationNoCommitments": "No commitments yet",
+  "coordinationWaitingForReview": "Commitments waiting for review",
+  "coordinationMoreHelpNeeded": "More or different help needed",
+  "coordinationEnoughHelp": "Enough help committed",
+  "coordinationUseful": "Useful",
+  "coordinationOverlapping": "Overlapping",
+  "coordinationNeedDifferentSkill": "Need different skill",
+  "coordinationNeedCoordination": "Need coordination",
+  "coordinationNotSuitable": "Not suitable",
+  "helpTypeMoney": "Money",
+  "helpTypeTime": "Time",
+  "helpTypeSkill": "Skill",
+  "helpTypeVerification": "Verification",
+  "helpTypeContact": "Contact / intro",
+  "helpTypeTransport": "Transport",
+  "helpTypeOther": "Other",
+  "uncommitCantDoIt": "Cannot do it anymore",
+  "uncommitTimingChanged": "Timing no longer works",
+  "uncommitWrongFit": "Wrong fit",
+  "uncommitSomeoneElseTookOver": "Someone else took over",
+  "uncommitOther": "Other",
+  "labelCoordinationStatus": "Coordination",
+  "labelCommitmentCount": "{count} commitments",
+  "@labelCommitmentCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "labelSetCoordinationResponse": "Set coordination signal",
+  "labelBeaconCoordinationSummary": "Coverage on this beacon",
+  "coordinationSetOverallStatus": "Set overall coordination status"
 }

@@ -1,0 +1,15 @@
+mutation SetCoordinationResponse(
+  $beaconId: String!
+  $commitUserId: String!
+  $responseType: Int!
+) {
+  setCoordinationResponse(
+    id: $beaconId
+    commitUserId: $commitUserId
+    responseType: $responseType
+  ) {
+    beaconId
+    coordinationStatus
+    coordinationStatusUpdatedAt
+  }
+}
