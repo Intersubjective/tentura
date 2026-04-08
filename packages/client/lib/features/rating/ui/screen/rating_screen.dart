@@ -204,7 +204,6 @@ class _RatingHeatmapHeader extends StatelessWidget {
               child: InkWell(
                 onTap: cubit.sortByAlterColumn,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Flexible(

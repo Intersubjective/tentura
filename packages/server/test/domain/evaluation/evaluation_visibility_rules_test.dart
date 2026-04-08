@@ -17,7 +17,7 @@ ForwardEdgeEntity _edge({
       beaconId: 'beacon',
       senderId: senderId,
       recipientId: recipientId,
-      createdAt: DateTime.utc(2024, 1, 1),
+      createdAt: DateTime.utc(2024),
     );
 
 void main() {

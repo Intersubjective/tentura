@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 
@@ -90,7 +89,7 @@ class ForwardEdgeRepository {
         context: row.context,
         parentEdgeId: row.parentEdgeId,
         batchId: row.batchId,
-        createdAt: (row.createdAt as PgDateTime).dateTime,
+        createdAt: row.createdAt.dateTime,
         recipientRejected: row.recipientRejected,
         recipientRejectionMessage: row.recipientRejectionMessage,
       );

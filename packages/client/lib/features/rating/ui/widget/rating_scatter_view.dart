@@ -95,7 +95,6 @@ class _RatingScatterViewState extends State<RatingScatterView> {
                 width: childSize.width,
                 height: childSize.height,
                 child: FittedBox(
-                  fit: BoxFit.contain,
                   child: SizedBox(
                     width: _canvasWidth,
                     height: _canvasHeight,
@@ -154,8 +153,8 @@ class _RatingScatterViewState extends State<RatingScatterView> {
     return Stack(
       clipBehavior: Clip.none,
       children: widget.profiles.map((profile) {
-        final plotW = _canvasWidth - 2 * _plotMargin;
-        final plotH = _canvasHeight - 2 * _plotMargin;
+        const plotW = _canvasWidth - 2 * _plotMargin;
+        const plotH = _canvasHeight - 2 * _plotMargin;
         final mappedR = _stretchBorders(_clamp(profile.rScore));
         final mappedS = _stretchBorders(_clamp(profile.score));
         final x = _plotMargin + mappedR / 100 * plotW;
@@ -172,10 +171,9 @@ class _RatingScatterViewState extends State<RatingScatterView> {
                 context.read<RatingCubit>().showProfile(profile.id),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 AvatarRated(profile: profile, size: _avatarSize),
-                SizedBox(height: _avatarLabelGap),
+                const SizedBox(height: _avatarLabelGap),
                 SizedBox(
                   width: _labelWidth,
                   height: _labelHeight,
@@ -206,8 +204,8 @@ class _RatingScatterViewState extends State<RatingScatterView> {
       child: Stack(
         clipBehavior: Clip.none,
         children: widget.profiles.map((profile) {
-          final plotW = _canvasWidth - 2 * _plotMargin;
-          final plotH = _canvasHeight - 2 * _plotMargin;
+          const plotW = _canvasWidth - 2 * _plotMargin;
+          const plotH = _canvasHeight - 2 * _plotMargin;
           final mappedR = _stretchBorders(_clamp(profile.rScore));
           final mappedS = _stretchBorders(_clamp(profile.score));
           final cx = _plotMargin + mappedR / 100 * plotW;
@@ -228,10 +226,9 @@ class _RatingScatterViewState extends State<RatingScatterView> {
                   context.read<RatingCubit>().showProfile(profile.id),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   AvatarRated(profile: profile, size: _avatarSize),
-                  SizedBox(height: _avatarLabelGap),
+                  const SizedBox(height: _avatarLabelGap),
                   SizedBox(
                     width: _labelWidth,
                     height: _labelHeight,
@@ -359,7 +356,7 @@ class _QuadrantBackgroundPainter extends CustomPainter {
       ..pushStyle(ui.TextStyle(color: textStyle.color))
       ..addText(text);
     final paragraph = builder.build()
-      ..layout(const ui.ParagraphConstraints(width: 200.0));
+      ..layout(const ui.ParagraphConstraints(width: 200));
     canvas.drawParagraph(
       paragraph,
       Offset(

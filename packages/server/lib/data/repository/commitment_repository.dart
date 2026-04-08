@@ -26,7 +26,6 @@ class CommitmentRepository {
       userId: userId,
       message: Value(message),
       helpType: Value(helpType),
-      uncommitReason: const Value.absent(),
       status: Value(status),
     ),
     onConflict: DoUpdate(
@@ -88,7 +87,7 @@ class CommitmentRepository {
         status: row.status,
         helpType: row.helpType,
         uncommitReason: row.uncommitReason,
-        createdAt: (row.createdAt).dateTime,
-        updatedAt: (row.updatedAt).dateTime,
+        createdAt: row.createdAt.dateTime,
+        updatedAt: row.updatedAt.dateTime,
       );
 }

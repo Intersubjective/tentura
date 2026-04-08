@@ -24,7 +24,7 @@ Future<String?> showRejectionDialog(BuildContext context) async {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop<String>(null),
+            onPressed: () => Navigator.of(ctx).pop<String>(),
             child: Text(l10n.buttonCancel),
           ),
           FilledButton(

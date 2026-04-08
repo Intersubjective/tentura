@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
 import '../database/tentura_db.dart';

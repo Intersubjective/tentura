@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/domain/entity/beacon_update_entity.dart';
 
@@ -39,6 +38,6 @@ class BeaconUpdateRepository {
         beaconId: row.beaconId,
         authorId: row.authorId,
         content: row.content,
-        createdAt: (row.createdAt as PgDateTime).dateTime,
+        createdAt: row.createdAt.dateTime,
       );
 }

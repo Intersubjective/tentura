@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_state.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 Beacon _beacon(String id, BeaconLifecycle lifecycle) => Beacon(
       createdAt: DateTime(2024),
@@ -18,8 +17,6 @@ void main() {
     final s = MyWorkState(
       authoredActive: [shared],
       committedActive: [_beacon('same', BeaconLifecycle.open)],
-      filter: MyWorkFilter.all,
-      status: const StateIsSuccess(),
     );
     expect(s.visibleBeaconsForSection(MyWorkSection.active).length, 1);
     expect(s.countForSection(MyWorkSection.active), 1);
@@ -30,29 +27,23 @@ void main() {
       authoredActive: [_beacon('a', BeaconLifecycle.open)],
       committedActive: [_beacon('b', BeaconLifecycle.open)],
       filter: MyWorkFilter.authored,
-      status: const StateIsSuccess(),
     );
     expect(s.visibleBeaconsForSection(MyWorkSection.active).length, 1);
     expect(s.countForSection(MyWorkSection.active), 1);
   });
 
   test('closed count uses id hints with dedupe until closedDataFetched', () {
-    final s = MyWorkState(
-      authoredClosedIdHints: const ['a', 'b'],
-      committedClosedIdHints: const ['b', 'c'],
-      closedDataFetched: false,
-      filter: MyWorkFilter.all,
-      status: const StateIsSuccess(),
+    const s = MyWorkState(
+      authoredClosedIdHints: ['a', 'b'],
+      committedClosedIdHints: ['b', 'c'],
     );
     expect(s.countForSection(MyWorkSection.closed), 3);
   });
 
   test('closed count hints respect Authored and Committed filters', () {
-    final base = MyWorkState(
-      authoredClosedIdHints: const ['a', 'b'],
-      committedClosedIdHints: const ['b', 'c'],
-      closedDataFetched: false,
-      status: const StateIsSuccess(),
+    const base = MyWorkState(
+      authoredClosedIdHints: ['a', 'b'],
+      committedClosedIdHints: ['b', 'c'],
     );
     expect(
       base.copyWith(filter: MyWorkFilter.authored).countForSection(
@@ -75,8 +66,6 @@ void main() {
       authoredClosedIdHints: const ['x'],
       committedClosedIdHints: const ['x'],
       closedDataFetched: true,
-      filter: MyWorkFilter.all,
-      status: const StateIsSuccess(),
     );
     expect(s.countForSection(MyWorkSection.closed), 1);
   });
@@ -91,7 +80,6 @@ void main() {
       filter: MyWorkFilter.committed,
       authoredDrafts: [authored],
       committedDrafts: [committedOnly],
-      status: const StateIsSuccess(),
     );
     expect(s.visibleBeacons.map((e) => e.id).toList(), ['a', 'b']);
   });
@@ -103,11 +91,9 @@ void main() {
     final authored = _beacon('a', BeaconLifecycle.draft);
     final committedOnly = _beacon('b', BeaconLifecycle.draft);
     final onActive = MyWorkState(
-      section: MyWorkSection.active,
       filter: MyWorkFilter.committed,
       authoredDrafts: [authored],
       committedDrafts: [committedOnly],
-      status: const StateIsSuccess(),
     );
     expect(onActive.countForSection(MyWorkSection.drafts), 1);
 
@@ -119,10 +105,7 @@ void main() {
     final committedOnly = _beacon('b', BeaconLifecycle.draft);
     final s = MyWorkState(
       section: MyWorkSection.drafts,
-      filter: MyWorkFilter.all,
-      authoredDrafts: const [],
       committedDrafts: [committedOnly],
-      status: const StateIsSuccess(),
     );
     expect(s.tileIsMine(committedOnly), isFalse);
   });

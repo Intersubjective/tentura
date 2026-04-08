@@ -42,7 +42,6 @@ class CommitmentCase {
       userId: userId,
       message: message,
       helpType: helpType,
-      status: 0,
     );
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,

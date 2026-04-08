@@ -3,55 +3,55 @@ part of '_migrations.dart';
 // Inbox status enum + rejection cascade + beacon rejected_user_ids computed field.
 final m0015 = Migration('0015', [
   // inbox_item: status (0=needs_me, 1=watching, 2=rejected) + optional message
-  r'''
+  '''
 ALTER TABLE public.inbox_item
   ADD COLUMN IF NOT EXISTS status smallint DEFAULT 0 NOT NULL,
   ADD COLUMN IF NOT EXISTS rejection_message text DEFAULT ''::text NOT NULL;
 ''',
-  r'''
+  '''
 ALTER TABLE public.inbox_item
   DROP CONSTRAINT IF EXISTS ii_rejection_message_length;
 ''',
-  r'''
+  '''
 ALTER TABLE public.inbox_item
   ADD CONSTRAINT ii_rejection_message_length
     CHECK (char_length(rejection_message) <= 200);
 ''',
 
   // beacon_forward_edge: denormalized rejection for forwarder / timeline visibility
-  r'''
+  '''
 ALTER TABLE public.beacon_forward_edge
   ADD COLUMN IF NOT EXISTS recipient_rejected boolean DEFAULT false NOT NULL,
   ADD COLUMN IF NOT EXISTS recipient_rejection_message text DEFAULT ''::text NOT NULL;
 ''',
 
   // Migrate booleans -> status (hidden wins over watching)
-  r'''
+  '''
 UPDATE public.inbox_item SET status = 1 WHERE is_watching = true;
 ''',
-  r'''
+  '''
 UPDATE public.inbox_item SET status = 2 WHERE is_hidden = true;
 ''',
 
-  r'''
+  '''
 ALTER TABLE public.inbox_item
   DROP COLUMN IF EXISTS is_watching;
 ''',
-  r'''
+  '''
 ALTER TABLE public.inbox_item
   DROP COLUMN IF EXISTS is_hidden;
 ''',
 
-  r'''
+  '''
 DROP INDEX IF EXISTS ii_user_context_latest;
 ''',
-  r'''
+  '''
 CREATE INDEX IF NOT EXISTS ii_user_context_status_latest
   ON public.inbox_item USING btree (user_id, context, status, latest_forward_at DESC);
 ''',
 
   // Backfill forward edges from inbox_item
-  r'''
+  '''
 UPDATE public.beacon_forward_edge bfe
 SET recipient_rejected = (ii.status = 2),
     recipient_rejection_message = CASE
@@ -84,10 +84,10 @@ BEGIN
 END;
 $$;
 ''',
-  r'''
+  '''
 DROP TRIGGER IF EXISTS inbox_item_on_status_update ON public.inbox_item;
 ''',
-  r'''
+  '''
 CREATE TRIGGER inbox_item_on_status_update
   AFTER UPDATE OF status, rejection_message ON public.inbox_item
   FOR EACH ROW EXECUTE FUNCTION public.inbox_item_on_rejection_update();
@@ -109,18 +109,18 @@ $$;
 ''',
 
   // --- Beacon lifecycle: backfill state from legacy enabled + keep DELETED (2).
-  r'''
+  '''
 UPDATE public.beacon SET state = CASE
   WHEN state = 2 THEN 2
   WHEN enabled = true THEN 0
   ELSE 1
 END;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon
   DROP CONSTRAINT IF EXISTS beacon_state_range;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon
   ADD CONSTRAINT beacon_state_range
   CHECK (state >= 0 AND state <= 4);
@@ -138,10 +138,10 @@ BEGIN
 END;
 $$;
 ''',
-  r'''
+  '''
 DROP TRIGGER IF EXISTS beacon_set_enabled_from_state ON public.beacon;
 ''',
-  r'''
+  '''
 CREATE TRIGGER beacon_set_enabled_from_state
   BEFORE INSERT OR UPDATE OF state ON public.beacon
   FOR EACH ROW EXECUTE FUNCTION public.beacon_sync_enabled_from_state();

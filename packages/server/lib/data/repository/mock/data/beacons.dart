@@ -32,7 +32,7 @@ If you are bold enough to stand among dwarves of valor, reply to this call or se
     image: ImageEntity(
       id: 'e2e9107c-6b73-49f2-a62f-8c010d4434c6',
       authorId: kUserThorin.id,
-      createdAt: DateTime.utc(2020, 1, 1),
+      createdAt: DateTime.utc(2020),
       blurHash:
           'q9DTa-Dk={_L-o?tHtRQRQM{r?4p%foxyB%LV@RjNHj[s.M|s:WBIVs:x@x[WDxtafV[%LofWERjV[RkM|V@RRWBVtayW;j@tjWC',
       height: 337,

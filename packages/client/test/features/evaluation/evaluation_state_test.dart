@@ -16,7 +16,6 @@ void main() {
           role: EvaluationParticipantRole.author,
           contributionSummary: '',
           causalHint: '',
-          promptVariant: 'full',
           currentValue: EvaluationValue.pos1,
         ),
         EvaluationParticipant(
@@ -25,10 +24,9 @@ void main() {
           role: EvaluationParticipantRole.committer,
           contributionSummary: '',
           causalHint: '',
-          promptVariant: 'full',
         ),
       ],
-      status: const StateIsSuccess(),
+      status: StateIsSuccess(),
     );
     expect(s.reviewedCount, 1);
     expect(s.totalCount, 2);

@@ -213,8 +213,11 @@ Widget _tabBody(
         return InboxItemTile(
           key: ValueKey(item.beaconId),
           item: item,
-          onTap: () => context.router.pushPath(
+          onOpenBeacon: () => context.router.pushPath(
             '$kPathBeaconView/${item.beaconId}',
+          ),
+          onTap: () => context.router.pushPath(
+            '$kPathForwardBeacon/${item.beaconId}',
           ),
           onWatch: tabIndex == 0
               ? () => inboxCubit.setWatching(item.beaconId)

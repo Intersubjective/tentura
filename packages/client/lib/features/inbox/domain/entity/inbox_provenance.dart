@@ -37,6 +37,7 @@ class InboxProvenance {
               title: e['title'] as String? ?? '',
               mr: mr is num ? mr.toDouble() : double.tryParse('$mr') ?? 0,
               imageId: e['imageId'] as String?,
+              notePreview: e['notePreview'] as String? ?? '',
             ),
           );
         }
@@ -45,7 +46,9 @@ class InboxProvenance {
       final note = map['strongestNotePreview'] as String? ?? '';
       return InboxProvenance(
         senders: senders,
-        totalDistinctSenders: total is int ? total : int.tryParse('$total') ?? 0,
+        totalDistinctSenders: total is int
+            ? total
+            : int.tryParse('$total') ?? 0,
         strongestNotePreview: note,
       );
     } on Object {
@@ -60,10 +63,14 @@ class InboxForwardSender {
     required this.title,
     required this.mr,
     this.imageId,
+    this.notePreview = '',
   });
 
   final String id;
   final String title;
   final double mr;
   final String? imageId;
+
+  /// Latest forward note from this sender to the viewer (trimmed server-side).
+  final String notePreview;
 }

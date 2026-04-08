@@ -1401,7 +1401,8 @@
                     "help_type",
                     "uncommit_reason"
                   ],
-                  "filter": {}
+                  "filter": {},
+                  "allow_aggregations": true
                 }
               }
             ],
