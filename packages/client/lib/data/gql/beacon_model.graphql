@@ -37,7 +37,7 @@ fragment BeaconModel on beacon {
     opened_at
     status
   }
-  commitments_aggregate {
+  commitments_aggregate(where: { status: { _eq: 0 } }) {
     aggregate {
       count
     }
