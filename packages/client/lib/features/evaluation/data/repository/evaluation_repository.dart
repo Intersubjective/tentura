@@ -95,13 +95,14 @@ class EvaluationRepository {
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .evaluationParticipants
-                .map(_mapParticipant)
-                .toList(),
-          );
+          .then((r) {
+            final rows =
+                r.dataOrThrow(label: _label).evaluationParticipants;
+            if (rows == null) {
+              return <EvaluationParticipant>[];
+            }
+            return rows.map(_mapParticipant).toList();
+          });
 
   Future<List<EvaluationParticipant>> fetchDraftParticipants(String beaconId) =>
       _remoteApiService
@@ -111,13 +112,14 @@ class EvaluationRepository {
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .evaluationDraftParticipants
-                .map(_mapDraftParticipant)
-                .toList(),
-          );
+          .then((r) {
+            final rows =
+                r.dataOrThrow(label: _label).evaluationDraftParticipants;
+            if (rows == null) {
+              return <EvaluationParticipant>[];
+            }
+            return rows.map(_mapDraftParticipant).toList();
+          });
 
   Future<ReviewWindowInfo> fetchReviewWindowStatus(String beaconId) =>
       _remoteApiService

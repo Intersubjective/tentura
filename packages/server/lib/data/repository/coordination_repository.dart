@@ -2,15 +2,21 @@ import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
 import '../database/tentura_db.dart';
+import 'user_presence_repository.dart';
 
 @Injectable(
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
 class CoordinationRepository {
-  const CoordinationRepository(this._database);
+  const CoordinationRepository(
+    this._database,
+    this._userPresenceRepository,
+  );
 
   final TenturaDb _database;
+
+  final UserPresenceRepository _userPresenceRepository;
 
   Future<void> deleteForCommit({
     required String beaconId,
@@ -157,6 +163,7 @@ class CoordinationRepository {
         }
       }
 
+      final presence = await _userPresenceRepository.get(user.id);
       out.add({
         'beaconId': row.beaconId,
         'userId': row.userId,
@@ -174,6 +181,13 @@ class CoordinationRepository {
           'my_vote': null,
           'image': imageMap, // nullable; matches Hasura `user.image`
           'scores': <Map<String, dynamic>>[],
+          'user_presence': presence == null
+              ? null
+              : {
+                  'last_seen_at':
+                      presence.lastSeenAt.toUtc().toIso8601String(),
+                  'status': presence.status.index,
+                },
         },
       });
     }

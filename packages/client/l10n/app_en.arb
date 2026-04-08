@@ -1208,6 +1208,13 @@
       "days": { "type": "int" }
     }
   },
+  "profilePresenceLastSeenOnDate": "Last seen {date}",
+  "@profilePresenceLastSeenOnDate": {
+    "context": "Profile",
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
   "chatMessageCopy": "Copy",
   "@chatMessageCopy": {
     "context": "Chat"

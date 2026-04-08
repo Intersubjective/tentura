@@ -12,4 +12,8 @@ fragment UserModel on user {
     src_score
     dst_score
   }
+  user_presence {
+    last_seen_at
+    status
+  }
 }

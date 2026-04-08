@@ -13,14 +13,6 @@ directive @cached(
   refresh: Boolean! = false
 ) on QUERY
 
-type AuthResponse {
-  access_token: String!
-  expires_in: Int!
-  refresh_token: String
-  subject: String!
-  token_type: String!
-}
-
 """
 columns and relationships of "beacon"
 """
@@ -45,6 +37,9 @@ type beacon {
     """filter the rows returned"""
     where: beacon_pinned_bool_exp
   ): [beacon_pinned!]!
+
+  """An object relationship"""
+  beacon_review_window: beacon_review_window
 
   """An array relationship"""
   comments(
@@ -99,10 +94,11 @@ type beacon {
     """filter the rows returned"""
     where: beacon_commitment_bool_exp
   ): beacon_commitment_aggregate!
-
-  """An object relationship"""
-  beacon_review_window: beacon_review_window
   context: String
+
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
   coordination_status: smallint!
   coordination_status_updated_at: timestamptz
   created_at: timestamptz!
@@ -149,6 +145,11 @@ type beacon {
   polling_id: String
 
   """
+  A computed field, executes function "beacon_get_rejected_user_ids"
+  """
+  rejected_user_ids: String
+
+  """
   A computed field, executes function "beacon_get_scores"
   """
   scores(
@@ -167,11 +168,6 @@ type beacon {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]
-
-  """
-  A computed field, executes function "beacon_get_rejected_user_ids"
-  """
-  rejected_user_ids: [String!]
   start_at: timestamptz
   state: smallint!
   tags: String!
@@ -216,87 +212,6 @@ type beacon {
   ): [vote_beacon!]!
 }
 
-type Beacon {
-  id: String!
-}
-
-type BeaconInvolvement {
-  forwardedToIds: [String!]
-  committedIds: [String!]
-  withdrawnIds: [String!]
-  rejectedIds: [String!]
-}
-
-type BeaconCloseReviewResult {
-  id: String!
-  state: Int!
-  closesAt: String!
-}
-
-type EvaluationParticipant {
-  userId: String!
-  title: String!
-  imageId: String!
-  role: Int!
-  contributionSummary: String!
-  causalHint: String!
-  value: Int
-  reasonTags: [String!]
-  note: String!
-  promptVariant: String!
-}
-
-type EvaluationDraftRow {
-  evaluatedUserId: String!
-  value: Int!
-  reasonTags: [String!]
-  note: String!
-}
-
-type ReviewWindowStatus {
-  beaconId: String!
-  hasWindow: Boolean!
-  beaconTitle: String!
-  openedAt: String
-  closesAt: String
-  windowComplete: Boolean
-  userReviewStatus: Int
-  reviewedCount: Int
-  totalCount: Int
-}
-
-type EvaluationSummary {
-  suppressed: Boolean!
-  tone: String!
-  message: String!
-  topReasonTags: [String!]
-  neg2: Int
-  neg1: Int
-  zero: Int
-  pos1: Int
-  pos2: Int
-  roleSummaryLine: String!
-}
-
-type CoordinationStatusResult {
-  beaconId: String!
-  coordinationStatus: Int!
-  coordinationStatusUpdatedAt: String
-}
-
-type CommitmentWithCoordinationRow {
-  beaconId: String!
-  userId: String!
-  message: String!
-  helpType: String
-  status: Int!
-  uncommitReason: String
-  createdAt: String!
-  updatedAt: String!
-  responseType: Int
-  user: user!
-}
-
 """
 order by aggregate values of table "beacon"
 """
@@ -318,6 +233,10 @@ input beacon_aggregate_order_by {
 order by avg() on columns of table "beacon"
 """
 input beacon_avg_order_by {
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
   lat: order_by
   long: order_by
   state: order_by
@@ -332,9 +251,13 @@ input beacon_bool_exp {
   _or: [beacon_bool_exp!]
   author: user_bool_exp
   beacon_pinneds: beacon_pinned_bool_exp
+  beacon_review_window: beacon_review_window_bool_exp
   comments: comment_bool_exp
   commitments: beacon_commitment_bool_exp
+  commitments_aggregate: beacon_commitment_aggregate_bool_exp
   context: String_comparison_exp
+  coordination_status: smallint_comparison_exp
+  coordination_status_updated_at: timestamptz_comparison_exp
   created_at: timestamptz_comparison_exp
   description: String_comparison_exp
   end_at: timestamptz_comparison_exp
@@ -348,6 +271,7 @@ input beacon_bool_exp {
   my_vote: Int_comparison_exp
   polling: polling_bool_exp
   polling_id: String_comparison_exp
+  rejected_user_ids: String_comparison_exp
   scores: mutual_score_bool_exp
   start_at: timestamptz_comparison_exp
   state: smallint_comparison_exp
@@ -357,8 +281,6 @@ input beacon_bool_exp {
   updates: beacon_update_bool_exp
   user_id: String_comparison_exp
   vote_beacons: vote_beacon_bool_exp
-  coordination_status: smallint_comparison_exp
-  coordination_status_updated_at: timestamptz_comparison_exp
 }
 
 """
@@ -369,9 +291,13 @@ type beacon_commitment {
   beacon: beacon!
   beacon_id: String!
   created_at: timestamptz!
+
+  """Optional help-type tag key (money, time, skill, ...)"""
   help_type: String
   message: String!
   status: smallint!
+
+  """Reason tag key when status=withdrawn"""
   uncommit_reason: String
   updated_at: timestamptz!
 
@@ -388,25 +314,32 @@ type beacon_commitment_aggregate {
   nodes: [beacon_commitment!]!
 }
 
+input beacon_commitment_aggregate_bool_exp {
+  count: beacon_commitment_aggregate_bool_exp_count
+}
+
+input beacon_commitment_aggregate_bool_exp_count {
+  arguments: [beacon_commitment_select_column!]
+  distinct: Boolean
+  filter: beacon_commitment_bool_exp
+  predicate: Int_comparison_exp!
+}
+
 """
 aggregate fields of "beacon_commitment"
 """
 type beacon_commitment_aggregate_fields {
+  avg: beacon_commitment_avg_fields
   count(columns: [beacon_commitment_select_column!], distinct: Boolean): Int!
-}
-
-"""
-columns and relationships of "beacon_review_window"
-"""
-type beacon_review_window {
-  """An object relationship"""
-  beacon: beacon!
-  beacon_id: String!
-  closes_at: timestamptz!
-  created_at: timestamptz!
-  opened_at: timestamptz!
-  status: Int!
-  updated_at: timestamptz!
+  max: beacon_commitment_max_fields
+  min: beacon_commitment_min_fields
+  stddev: beacon_commitment_stddev_fields
+  stddev_pop: beacon_commitment_stddev_pop_fields
+  stddev_samp: beacon_commitment_stddev_samp_fields
+  sum: beacon_commitment_sum_fields
+  var_pop: beacon_commitment_var_pop_fields
+  var_samp: beacon_commitment_var_samp_fields
+  variance: beacon_commitment_variance_fields
 }
 
 """
@@ -424,6 +357,11 @@ input beacon_commitment_aggregate_order_by {
   var_pop: beacon_commitment_var_pop_order_by
   var_samp: beacon_commitment_var_samp_order_by
   variance: beacon_commitment_variance_order_by
+}
+
+"""aggregate avg on columns"""
+type beacon_commitment_avg_fields {
+  status: Float
 }
 
 """
@@ -463,6 +401,99 @@ enum beacon_commitment_constraint {
 }
 
 """
+Author per-commit coordination response; 0=useful,1=overlapping,2=need_different_skill,3=need_coordination,4=not_suitable
+"""
+type beacon_commitment_coordination {
+  """An object relationship"""
+  author: user!
+  author_user_id: String!
+  commit_beacon_id: String!
+  commit_user_id: String!
+
+  """An object relationship"""
+  commitment: beacon_commitment
+  created_at: timestamptz!
+  response_type: smallint!
+  updated_at: timestamptz!
+}
+
+"""
+Boolean expression to filter rows from the table
+"beacon_commitment_coordination". All fields are combined with a logical 'AND'.
+"""
+input beacon_commitment_coordination_bool_exp {
+  _and: [beacon_commitment_coordination_bool_exp!]
+  _not: beacon_commitment_coordination_bool_exp
+  _or: [beacon_commitment_coordination_bool_exp!]
+  author: user_bool_exp
+  author_user_id: String_comparison_exp
+  commit_beacon_id: String_comparison_exp
+  commit_user_id: String_comparison_exp
+  commitment: beacon_commitment_bool_exp
+  created_at: timestamptz_comparison_exp
+  response_type: smallint_comparison_exp
+  updated_at: timestamptz_comparison_exp
+}
+
+"""
+Ordering options when selecting data from "beacon_commitment_coordination".
+"""
+input beacon_commitment_coordination_order_by {
+  author: user_order_by
+  author_user_id: order_by
+  commit_beacon_id: order_by
+  commit_user_id: order_by
+  commitment: beacon_commitment_order_by
+  created_at: order_by
+  response_type: order_by
+  updated_at: order_by
+}
+
+"""
+select columns of table "beacon_commitment_coordination"
+"""
+enum beacon_commitment_coordination_select_column {
+  """column name"""
+  author_user_id
+
+  """column name"""
+  commit_beacon_id
+
+  """column name"""
+  commit_user_id
+
+  """column name"""
+  created_at
+
+  """column name"""
+  response_type
+
+  """column name"""
+  updated_at
+}
+
+"""
+Streaming cursor of the table "beacon_commitment_coordination"
+"""
+input beacon_commitment_coordination_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: beacon_commitment_coordination_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input beacon_commitment_coordination_stream_cursor_value_input {
+  author_user_id: String
+  commit_beacon_id: String
+  commit_user_id: String
+  created_at: timestamptz
+  response_type: smallint
+  updated_at: timestamptz
+}
+
+"""
 input type for incrementing numeric columns in table "beacon_commitment"
 """
 input beacon_commitment_inc_input {
@@ -477,16 +508,54 @@ input beacon_commitment_insert_input {
   message: String
 }
 
+"""aggregate max on columns"""
+type beacon_commitment_max_fields {
+  beacon_id: String
+  created_at: timestamptz
+
+  """Optional help-type tag key (money, time, skill, ...)"""
+  help_type: String
+  message: String
+  status: smallint
+
+  """Reason tag key when status=withdrawn"""
+  uncommit_reason: String
+  updated_at: timestamptz
+  user_id: String
+}
+
 """
 order by max() on columns of table "beacon_commitment"
 """
 input beacon_commitment_max_order_by {
   beacon_id: order_by
   created_at: order_by
+
+  """Optional help-type tag key (money, time, skill, ...)"""
+  help_type: order_by
   message: order_by
   status: order_by
+
+  """Reason tag key when status=withdrawn"""
+  uncommit_reason: order_by
   updated_at: order_by
   user_id: order_by
+}
+
+"""aggregate min on columns"""
+type beacon_commitment_min_fields {
+  beacon_id: String
+  created_at: timestamptz
+
+  """Optional help-type tag key (money, time, skill, ...)"""
+  help_type: String
+  message: String
+  status: smallint
+
+  """Reason tag key when status=withdrawn"""
+  uncommit_reason: String
+  updated_at: timestamptz
+  user_id: String
 }
 
 """
@@ -495,8 +564,14 @@ order by min() on columns of table "beacon_commitment"
 input beacon_commitment_min_order_by {
   beacon_id: order_by
   created_at: order_by
+
+  """Optional help-type tag key (money, time, skill, ...)"""
+  help_type: order_by
   message: order_by
   status: order_by
+
+  """Reason tag key when status=withdrawn"""
+  uncommit_reason: order_by
   updated_at: order_by
   user_id: order_by
 }
@@ -526,8 +601,10 @@ input beacon_commitment_order_by {
   beacon: beacon_order_by
   beacon_id: order_by
   created_at: order_by
+  help_type: order_by
   message: order_by
   status: order_by
+  uncommit_reason: order_by
   updated_at: order_by
   user: user_order_by
   user_id: order_by
@@ -576,6 +653,11 @@ input beacon_commitment_set_input {
   status: smallint
 }
 
+"""aggregate stddev on columns"""
+type beacon_commitment_stddev_fields {
+  status: Float
+}
+
 """
 order by stddev() on columns of table "beacon_commitment"
 """
@@ -583,11 +665,21 @@ input beacon_commitment_stddev_order_by {
   status: order_by
 }
 
+"""aggregate stddev_pop on columns"""
+type beacon_commitment_stddev_pop_fields {
+  status: Float
+}
+
 """
 order by stddev_pop() on columns of table "beacon_commitment"
 """
 input beacon_commitment_stddev_pop_order_by {
   status: order_by
+}
+
+"""aggregate stddev_samp on columns"""
+type beacon_commitment_stddev_samp_fields {
+  status: Float
 }
 
 """
@@ -612,10 +704,21 @@ input beacon_commitment_stream_cursor_input {
 input beacon_commitment_stream_cursor_value_input {
   beacon_id: String
   created_at: timestamptz
+
+  """Optional help-type tag key (money, time, skill, ...)"""
+  help_type: String
   message: String
   status: smallint
+
+  """Reason tag key when status=withdrawn"""
+  uncommit_reason: String
   updated_at: timestamptz
   user_id: String
+}
+
+"""aggregate sum on columns"""
+type beacon_commitment_sum_fields {
+  status: smallint
 }
 
 """
@@ -647,6 +750,11 @@ input beacon_commitment_updates {
   where: beacon_commitment_bool_exp!
 }
 
+"""aggregate var_pop on columns"""
+type beacon_commitment_var_pop_fields {
+  status: Float
+}
+
 """
 order by var_pop() on columns of table "beacon_commitment"
 """
@@ -654,11 +762,21 @@ input beacon_commitment_var_pop_order_by {
   status: order_by
 }
 
+"""aggregate var_samp on columns"""
+type beacon_commitment_var_samp_fields {
+  status: Float
+}
+
 """
 order by var_samp() on columns of table "beacon_commitment"
 """
 input beacon_commitment_var_samp_order_by {
   status: order_by
+}
+
+"""aggregate variance on columns"""
+type beacon_commitment_variance_fields {
+  status: Float
 }
 
 """
@@ -689,12 +807,12 @@ type beacon_forward_edge {
   """An object relationship"""
   recipient: user!
   recipient_id: String!
+  recipient_rejected: Boolean!
+  recipient_rejection_message: String!
 
   """An object relationship"""
   sender: user!
   sender_id: String!
-  recipient_rejected: Boolean!
-  recipient_rejection_message: String!
 }
 
 """
@@ -765,6 +883,7 @@ input beacon_forward_edge_max_order_by {
   note: order_by
   parent_edge_id: order_by
   recipient_id: order_by
+  recipient_rejection_message: order_by
   sender_id: order_by
 }
 
@@ -780,6 +899,7 @@ input beacon_forward_edge_min_order_by {
   note: order_by
   parent_edge_id: order_by
   recipient_id: order_by
+  recipient_rejection_message: order_by
   sender_id: order_by
 }
 
@@ -891,6 +1011,8 @@ input beacon_forward_edge_stream_cursor_value_input {
   note: String
   parent_edge_id: String
   recipient_id: String
+  recipient_rejected: Boolean
+  recipient_rejection_message: String
   sender_id: String
 }
 
@@ -914,6 +1036,12 @@ order by max() on columns of table "beacon"
 """
 input beacon_max_order_by {
   context: order_by
+
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
+  coordination_status_updated_at: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -935,6 +1063,12 @@ order by min() on columns of table "beacon"
 """
 input beacon_min_order_by {
   context: order_by
+
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
+  coordination_status_updated_at: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -966,9 +1100,12 @@ type beacon_mutation_response {
 input beacon_order_by {
   author: user_order_by
   beacon_pinneds_aggregate: beacon_pinned_aggregate_order_by
+  beacon_review_window: beacon_review_window_order_by
   comments_aggregate: comment_aggregate_order_by
   commitments_aggregate: beacon_commitment_aggregate_order_by
   context: order_by
+  coordination_status: order_by
+  coordination_status_updated_at: order_by
   created_at: order_by
   description: order_by
   end_at: order_by
@@ -982,6 +1119,7 @@ input beacon_order_by {
   my_vote: order_by
   polling: polling_order_by
   polling_id: order_by
+  rejected_user_ids: order_by
   scores_aggregate: mutual_score_aggregate_order_by
   start_at: order_by
   state: order_by
@@ -1131,6 +1269,91 @@ input beacon_pk_columns_input {
 }
 
 """
+columns and relationships of "beacon_review_window"
+"""
+type beacon_review_window {
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+  closes_at: timestamptz!
+  created_at: timestamptz!
+  opened_at: timestamptz!
+  status: Int!
+  updated_at: timestamptz!
+}
+
+"""
+Boolean expression to filter rows from the table "beacon_review_window". All fields are combined with a logical 'AND'.
+"""
+input beacon_review_window_bool_exp {
+  _and: [beacon_review_window_bool_exp!]
+  _not: beacon_review_window_bool_exp
+  _or: [beacon_review_window_bool_exp!]
+  beacon: beacon_bool_exp
+  beacon_id: String_comparison_exp
+  closes_at: timestamptz_comparison_exp
+  created_at: timestamptz_comparison_exp
+  opened_at: timestamptz_comparison_exp
+  status: Int_comparison_exp
+  updated_at: timestamptz_comparison_exp
+}
+
+"""Ordering options when selecting data from "beacon_review_window"."""
+input beacon_review_window_order_by {
+  beacon: beacon_order_by
+  beacon_id: order_by
+  closes_at: order_by
+  created_at: order_by
+  opened_at: order_by
+  status: order_by
+  updated_at: order_by
+}
+
+"""
+select columns of table "beacon_review_window"
+"""
+enum beacon_review_window_select_column {
+  """column name"""
+  beacon_id
+
+  """column name"""
+  closes_at
+
+  """column name"""
+  created_at
+
+  """column name"""
+  opened_at
+
+  """column name"""
+  status
+
+  """column name"""
+  updated_at
+}
+
+"""
+Streaming cursor of the table "beacon_review_window"
+"""
+input beacon_review_window_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: beacon_review_window_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input beacon_review_window_stream_cursor_value_input {
+  beacon_id: String
+  closes_at: timestamptz
+  created_at: timestamptz
+  opened_at: timestamptz
+  status: Int
+  updated_at: timestamptz
+}
+
+"""
 select columns of table "beacon"
 """
 enum beacon_select_column {
@@ -1197,6 +1420,10 @@ input beacon_set_input {
 order by stddev() on columns of table "beacon"
 """
 input beacon_stddev_order_by {
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
   lat: order_by
   long: order_by
   state: order_by
@@ -1206,6 +1433,10 @@ input beacon_stddev_order_by {
 order by stddev_pop() on columns of table "beacon"
 """
 input beacon_stddev_pop_order_by {
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
   lat: order_by
   long: order_by
   state: order_by
@@ -1215,6 +1446,10 @@ input beacon_stddev_pop_order_by {
 order by stddev_samp() on columns of table "beacon"
 """
 input beacon_stddev_samp_order_by {
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
   lat: order_by
   long: order_by
   state: order_by
@@ -1234,6 +1469,12 @@ input beacon_stream_cursor_input {
 """Initial value of the column from where the streaming should start"""
 input beacon_stream_cursor_value_input {
   context: String
+
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: smallint
+  coordination_status_updated_at: timestamptz
   created_at: timestamptz
   description: String
   end_at: timestamptz
@@ -1254,6 +1495,10 @@ input beacon_stream_cursor_value_input {
 order by sum() on columns of table "beacon"
 """
 input beacon_sum_order_by {
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
   lat: order_by
   long: order_by
   state: order_by
@@ -1434,6 +1679,10 @@ input beacon_updates {
 order by var_pop() on columns of table "beacon"
 """
 input beacon_var_pop_order_by {
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
   lat: order_by
   long: order_by
   state: order_by
@@ -1443,6 +1692,10 @@ input beacon_var_pop_order_by {
 order by var_samp() on columns of table "beacon"
 """
 input beacon_var_samp_order_by {
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
   lat: order_by
   long: order_by
   state: order_by
@@ -1452,6 +1705,10 @@ input beacon_var_samp_order_by {
 order by variance() on columns of table "beacon"
 """
 input beacon_variance_order_by {
+  """
+  0=no commitments, 1=waiting for review, 2=more help needed, 3=enough help
+  """
+  coordination_status: order_by
   lat: order_by
   long: order_by
   state: order_by
@@ -1692,11 +1949,6 @@ enum comment_update_column {
   _PLACEHOLDER
 }
 
-input Coordinates {
-  lat: Float
-  long: Float
-}
-
 """ordering argument of a cursor"""
 enum cursor_ordering {
   """ascending ordering of the cursor"""
@@ -1893,16 +2145,18 @@ type inbox_item {
   beacon_id: String!
   context: String
   forward_count: Int!
+
+  """
+  A computed field, executes function "inbox_item_inbox_provenance_data"
+  """
+  inbox_provenance_data: String
+
+  """An object relationship"""
+  inbox_user_commitment: beacon_commitment
   latest_forward_at: timestamptz!
   latest_note_preview: String!
   rejection_message: String!
   status: smallint!
-
-  """
-  A computed field, executes function "inbox_item_inbox_provenance_data"
-  JSON string with senderIds, mrScores, totalDistinctSenders, strongestNotePreview
-  """
-  inbox_provenance_data: String
 
   """An object relationship"""
   user: user!
@@ -1920,12 +2174,21 @@ input inbox_item_bool_exp {
   beacon_id: String_comparison_exp
   context: String_comparison_exp
   forward_count: Int_comparison_exp
+  inbox_provenance_data: String_comparison_exp
+  inbox_user_commitment: beacon_commitment_bool_exp
   latest_forward_at: timestamptz_comparison_exp
   latest_note_preview: String_comparison_exp
   rejection_message: String_comparison_exp
   status: smallint_comparison_exp
   user: user_bool_exp
   user_id: String_comparison_exp
+}
+
+"""
+input type for incrementing numeric columns in table "inbox_item"
+"""
+input inbox_item_inc_input {
+  status: smallint
 }
 
 """
@@ -1945,6 +2208,8 @@ input inbox_item_order_by {
   beacon_id: order_by
   context: order_by
   forward_count: order_by
+  inbox_provenance_data: order_by
+  inbox_user_commitment: beacon_commitment_order_by
   latest_forward_at: order_by
   latest_note_preview: order_by
   rejection_message: order_by
@@ -2020,6 +2285,9 @@ input inbox_item_stream_cursor_value_input {
 }
 
 input inbox_item_updates {
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: inbox_item_inc_input
+
   """sets the columns of the filtered rows to the given values"""
   _set: inbox_item_set_input
 
@@ -2057,16 +2325,6 @@ type invitation {
   issuer: user
   updated_at: timestamptz!
   user_id: String!
-}
-
-type Invitation {
-  created_at: String!
-  id: String!
-  invited: user
-  invited_id: String
-  issuer: user
-  issuer_id: String!
-  updated_at: String!
 }
 
 """
@@ -2186,35 +2444,12 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
-  beaconCommit(id: String!, message: String, helpType: String): Boolean!
-  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, image: Upload = {}, polling: PollingInput, startAt: String, tags: String, title: String!): Beacon!
+  beaconCloseWithReview(id: String!): v2_BeaconCloseReviewResult!
+  beaconCommit(helpType: String, id: String!, message: String): Boolean!
+  beaconCreate(context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, image: v2_Upload = {}, polling: v2_PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
-  beaconCloseWithReview(id: String!): BeaconCloseReviewResult!
-  evaluationSubmit(
-    evaluatedUserId: String!
-    id: String!
-    note: String
-    reasonTags: [String!]
-    value: Int!
-  ): Boolean!
-  evaluationFinalize(id: String!): Boolean!
-  evaluationSkip(id: String!): Boolean!
-  evaluationDraftSave(
-    evaluatedUserId: String!
-    id: String!
-    note: String
-    reasonTags: [String!]
-    value: Int!
-  ): Boolean!
-  evaluationDraftDelete(evaluatedUserId: String!, id: String!): Boolean!
-  beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]!): String!
+  beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]): String!
   beaconWithdraw(id: String!, message: String, uncommitReason: String!): Boolean!
-  setCoordinationResponse(
-    commitUserId: String!
-    id: String!
-    responseType: Int!
-  ): CoordinationStatusResult!
-  setBeaconCoordinationStatus(coordinationStatus: Int!, id: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
 
   """
@@ -2281,6 +2516,11 @@ type mutation_root {
   delete single row from the table: "vote_user"
   """
   delete_vote_user_by_pk(object: String!, subject: String!): vote_user
+  evaluationDraftDelete(evaluatedUserId: String!, id: String!): Boolean!
+  evaluationDraftSave(evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
+  evaluationFinalize(id: String!): Boolean!
+  evaluationSkip(id: String!): Boolean!
+  evaluationSubmit(evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
   fcmTokenRegister(appId: String!, platform: String!, token: String!): Boolean!
 
   """
@@ -2528,9 +2768,11 @@ type mutation_root {
   invitationDelete(id: String!): Boolean!
   meritrankInit(forceCalculate: Boolean): Int!
   pollingAct(pollingId: String!, variantId: String!): Boolean!
-  signIn(authRequestToken: String!): AuthResponse!
+  setBeaconCoordinationStatus(coordinationStatus: Int!, id: String!): Boolean!
+  setCoordinationResponse(commitUserId: String!, id: String!, responseType: Int!): v2_CoordinationStatusResult!
+  signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
-  signUp(authRequestToken: String!, title: String!): AuthResponse!
+  signUp(authRequestToken: String!, title: String!): v2_AuthResponse!
 
   """
   update data of the table: "beacon"
@@ -2604,6 +2846,9 @@ type mutation_root {
   update data of the table: "inbox_item"
   """
   update_inbox_item(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: inbox_item_inc_input
+
     """sets the columns of the filtered rows to the given values"""
     _set: inbox_item_set_input
 
@@ -2615,6 +2860,9 @@ type mutation_root {
   update single row of the table: "inbox_item"
   """
   update_inbox_item_by_pk(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: inbox_item_inc_input
+
     """sets the columns of the filtered rows to the given values"""
     _set: inbox_item_set_input
     pk_columns: inbox_item_pk_columns_input!
@@ -2730,7 +2978,7 @@ type mutation_root {
     updates: [vote_user_updates!]!
   ): [vote_user_mutation_response]
   userDelete: Boolean!
-  userUpdate(description: String, dropImage: Boolean, image: Upload = {}, title: String): User!
+  userUpdate(description: String, dropImage: Boolean, image: v2_Upload = {}, title: String): v2_User!
 }
 
 """
@@ -3509,11 +3757,6 @@ input polling_variant_stream_cursor_value_input {
   polling_id: String
 }
 
-input PollingInput {
-  question: String
-  variants: [String]
-}
-
 type query_root {
   """
   fetch data from the table: "beacon"
@@ -3534,6 +3777,7 @@ type query_root {
     """filter the rows returned"""
     where: beacon_bool_exp
   ): [beacon!]!
+  beaconInvolvement(id: String!): v2_BeaconInvolvement!
 
   """fetch data from the table: "beacon" using primary key columns"""
   beacon_by_pk(id: String!): beacon
@@ -3559,9 +3803,54 @@ type query_root {
   ): [beacon_commitment!]!
 
   """
+  fetch aggregated fields from the table: "beacon_commitment"
+  """
+  beacon_commitment_aggregate(
+    """distinct select on columns"""
+    distinct_on: [beacon_commitment_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_commitment_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_commitment_bool_exp
+  ): beacon_commitment_aggregate!
+
+  """
   fetch data from the table: "beacon_commitment" using primary key columns
   """
   beacon_commitment_by_pk(beacon_id: String!, user_id: String!): beacon_commitment
+
+  """
+  fetch data from the table: "beacon_commitment_coordination"
+  """
+  beacon_commitment_coordination(
+    """distinct select on columns"""
+    distinct_on: [beacon_commitment_coordination_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_commitment_coordination_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_commitment_coordination_bool_exp
+  ): [beacon_commitment_coordination!]!
+
+  """
+  fetch data from the table: "beacon_commitment_coordination" using primary key columns
+  """
+  beacon_commitment_coordination_by_pk(commit_beacon_id: String!, commit_user_id: String!): beacon_commitment_coordination
 
   """
   fetch data from the table: "beacon_forward_edge"
@@ -3612,6 +3901,31 @@ type query_root {
   beacon_pinned_by_pk(beacon_id: String!, user_id: String!): beacon_pinned
 
   """
+  fetch data from the table: "beacon_review_window"
+  """
+  beacon_review_window(
+    """distinct select on columns"""
+    distinct_on: [beacon_review_window_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_review_window_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_review_window_bool_exp
+  ): [beacon_review_window!]!
+
+  """
+  fetch data from the table: "beacon_review_window" using primary key columns
+  """
+  beacon_review_window_by_pk(beacon_id: String!): beacon_review_window
+
+  """
   fetch data from the table: "beacon_update"
   """
   beacon_update(
@@ -3656,6 +3970,7 @@ type query_root {
 
   """fetch data from the table: "comment" using primary key columns"""
   comment_by_pk(id: String!): comment
+  commitmentsWithCoordination(id: String!): [v2_CommitmentWithCoordinationRow!]
 
   """
   fetch data from the table: "edge"
@@ -3676,6 +3991,10 @@ type query_root {
     """filter the rows returned"""
     where: edge_bool_exp
   ): [edge!]!
+  evaluationDraftParticipants(id: String!): [v2_EvaluationParticipant!]
+  evaluationDrafts(id: String!): [v2_EvaluationDraftRow!]
+  evaluationParticipants(id: String!): [v2_EvaluationParticipant!]
+  evaluationSummary(id: String!): v2_EvaluationSummary!
 
   """
   execute function "graph" which returns "mutual_score"
@@ -3767,14 +4086,7 @@ type query_root {
     """filter the rows returned"""
     where: invitation_bool_exp
   ): [invitation!]!
-  invitationById(id: String!): Invitation
-  beaconInvolvement(id: String!): BeaconInvolvement!
-  evaluationParticipants(id: String!): [EvaluationParticipant!]!
-  evaluationDraftParticipants(id: String!): [EvaluationParticipant!]!
-  evaluationDrafts(id: String!): [EvaluationDraftRow!]!
-  reviewWindowStatus(id: String!): ReviewWindowStatus!
-  evaluationSummary(id: String!): EvaluationSummary!
-  commitmentsWithCoordination(id: String!): [CommitmentWithCoordinationRow!]!
+  invitationById(id: String!): v2_Invitation
 
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation
@@ -4010,6 +4322,7 @@ type query_root {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]!
+  reviewWindowStatus(id: String!): v2_ReviewWindowStatus!
 
   """
   fetch data from the table: "user"
@@ -4056,6 +4369,29 @@ type query_root {
 
   """fetch data from the table: "user_context" using primary key columns"""
   user_context_by_pk(context_name: String!, user_id: String!): user_context
+
+  """
+  fetch data from the table: "user_presence"
+  """
+  user_presence(
+    """distinct select on columns"""
+    distinct_on: [user_presence_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [user_presence_order_by!]
+
+    """filter the rows returned"""
+    where: user_presence_bool_exp
+  ): [user_presence!]!
+
+  """fetch data from the table: "user_presence" using primary key columns"""
+  user_presence_by_pk(user_id: String!): user_presence
   version: String!
 
   """
@@ -4247,9 +4583,68 @@ type subscription_root {
   ): [beacon_commitment!]!
 
   """
+  fetch aggregated fields from the table: "beacon_commitment"
+  """
+  beacon_commitment_aggregate(
+    """distinct select on columns"""
+    distinct_on: [beacon_commitment_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_commitment_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_commitment_bool_exp
+  ): beacon_commitment_aggregate!
+
+  """
   fetch data from the table: "beacon_commitment" using primary key columns
   """
   beacon_commitment_by_pk(beacon_id: String!, user_id: String!): beacon_commitment
+
+  """
+  fetch data from the table: "beacon_commitment_coordination"
+  """
+  beacon_commitment_coordination(
+    """distinct select on columns"""
+    distinct_on: [beacon_commitment_coordination_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_commitment_coordination_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_commitment_coordination_bool_exp
+  ): [beacon_commitment_coordination!]!
+
+  """
+  fetch data from the table: "beacon_commitment_coordination" using primary key columns
+  """
+  beacon_commitment_coordination_by_pk(commit_beacon_id: String!, commit_user_id: String!): beacon_commitment_coordination
+
+  """
+  fetch data from the table in a streaming manner: "beacon_commitment_coordination"
+  """
+  beacon_commitment_coordination_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [beacon_commitment_coordination_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: beacon_commitment_coordination_bool_exp
+  ): [beacon_commitment_coordination!]!
 
   """
   fetch data from the table in a streaming manner: "beacon_commitment"
@@ -4340,6 +4735,45 @@ type subscription_root {
     """filter the rows returned"""
     where: beacon_pinned_bool_exp
   ): [beacon_pinned!]!
+
+  """
+  fetch data from the table: "beacon_review_window"
+  """
+  beacon_review_window(
+    """distinct select on columns"""
+    distinct_on: [beacon_review_window_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_review_window_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_review_window_bool_exp
+  ): [beacon_review_window!]!
+
+  """
+  fetch data from the table: "beacon_review_window" using primary key columns
+  """
+  beacon_review_window_by_pk(beacon_id: String!): beacon_review_window
+
+  """
+  fetch data from the table in a streaming manner: "beacon_review_window"
+  """
+  beacon_review_window_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [beacon_review_window_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: beacon_review_window_bool_exp
+  ): [beacon_review_window!]!
 
   """
   fetch data from the table in a streaming manner: "beacon"
@@ -4976,6 +5410,43 @@ type subscription_root {
   ): [user_context!]!
 
   """
+  fetch data from the table: "user_presence"
+  """
+  user_presence(
+    """distinct select on columns"""
+    distinct_on: [user_presence_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [user_presence_order_by!]
+
+    """filter the rows returned"""
+    where: user_presence_bool_exp
+  ): [user_presence!]!
+
+  """fetch data from the table: "user_presence" using primary key columns"""
+  user_presence_by_pk(user_id: String!): user_presence
+
+  """
+  fetch data from the table in a streaming manner: "user_presence"
+  """
+  user_presence_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [user_presence_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: user_presence_bool_exp
+  ): [user_presence!]!
+
+  """
   fetch data from the table in a streaming manner: "user"
   """
   user_stream(
@@ -5118,11 +5589,6 @@ input timestamptz_comparison_exp {
   _nin: [timestamptz!]
 }
 
-input Upload {
-  filename: String
-  type: String
-}
-
 """
 columns and relationships of "user"
 """
@@ -5216,6 +5682,9 @@ type user {
   title: String!
   updated_at: timestamptz!
 
+  """An object relationship"""
+  user_presence: user_presence
+
   """An array relationship"""
   voteUsersBySubject(
     """distinct select on columns"""
@@ -5289,10 +5758,6 @@ type user {
   ): [vote_user!]!
 }
 
-type User {
-  id: String!
-}
-
 """
 Boolean expression to filter rows from the table "user". All fields are combined with a logical 'AND'.
 """
@@ -5313,6 +5778,7 @@ input user_bool_exp {
   scores: mutual_score_bool_exp
   title: String_comparison_exp
   updated_at: timestamptz_comparison_exp
+  user_presence: user_presence_bool_exp
   voteUsersBySubject: vote_user_bool_exp
   vote_beacons: vote_beacon_bool_exp
   vote_comments: vote_comment_bool_exp
@@ -5432,10 +5898,76 @@ input user_order_by {
   scores_aggregate: mutual_score_aggregate_order_by
   title: order_by
   updated_at: order_by
+  user_presence: user_presence_order_by
   voteUsersBySubject_aggregate: vote_user_aggregate_order_by
   vote_beacons_aggregate: vote_beacon_aggregate_order_by
   vote_comments_aggregate: vote_comment_aggregate_order_by
   vote_users_aggregate: vote_user_aggregate_order_by
+}
+
+"""
+columns and relationships of "user_presence"
+"""
+type user_presence {
+  last_seen_at: timestamptz!
+  status: smallint!
+
+  """An object relationship"""
+  user: user!
+  user_id: String!
+}
+
+"""
+Boolean expression to filter rows from the table "user_presence". All fields are combined with a logical 'AND'.
+"""
+input user_presence_bool_exp {
+  _and: [user_presence_bool_exp!]
+  _not: user_presence_bool_exp
+  _or: [user_presence_bool_exp!]
+  last_seen_at: timestamptz_comparison_exp
+  status: smallint_comparison_exp
+  user: user_bool_exp
+  user_id: String_comparison_exp
+}
+
+"""Ordering options when selecting data from "user_presence"."""
+input user_presence_order_by {
+  last_seen_at: order_by
+  status: order_by
+  user: user_order_by
+  user_id: order_by
+}
+
+"""
+select columns of table "user_presence"
+"""
+enum user_presence_select_column {
+  """column name"""
+  last_seen_at
+
+  """column name"""
+  status
+
+  """column name"""
+  user_id
+}
+
+"""
+Streaming cursor of the table "user_presence"
+"""
+input user_presence_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: user_presence_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input user_presence_stream_cursor_value_input {
+  last_seen_at: timestamptz
+  status: smallint
+  user_id: String
 }
 
 """
@@ -5501,6 +6033,148 @@ input uuid_comparison_exp {
   _lte: uuid
   _neq: uuid
   _nin: [uuid!]
+}
+
+type v2_AuthResponse {
+  access_token: String!
+  expires_in: Int!
+  refresh_token: String
+  subject: String!
+  token_type: String!
+}
+
+type v2_Beacon {
+  id: String!
+}
+
+type v2_BeaconCloseReviewResult {
+  closesAt: String!
+  id: String!
+  state: Int!
+}
+
+type v2_BeaconInvolvement {
+  committedIds: [String!]
+  forwardedToIds: [String!]
+  rejectedIds: [String!]
+  withdrawnIds: [String!]
+}
+
+type v2_CommitmentWithCoordinationRow {
+  beaconId: String!
+  createdAt: String!
+  helpType: String
+  message: String!
+  responseType: Int
+  status: Int!
+  uncommitReason: String
+  updatedAt: String!
+  user: v2_user!
+  userId: String!
+}
+
+input v2_Coordinates {
+  lat: Float
+  long: Float
+}
+
+type v2_CoordinationStatusResult {
+  beaconId: String!
+  coordinationStatus: Int!
+  coordinationStatusUpdatedAt: String
+}
+
+type v2_EvaluationDraftRow {
+  evaluatedUserId: String!
+  note: String!
+  reasonTags: [String!]
+  value: Int!
+}
+
+type v2_EvaluationParticipant {
+  causalHint: String!
+  contributionSummary: String!
+  imageId: String!
+  note: String!
+  promptVariant: String!
+  reasonTags: [String!]
+  role: Int!
+  title: String!
+  userId: String!
+  value: Int
+}
+
+type v2_EvaluationSummary {
+  message: String!
+  neg1: Int
+  neg2: Int
+  pos1: Int
+  pos2: Int
+  roleSummaryLine: String!
+  suppressed: Boolean!
+  tone: String!
+  topReasonTags: [String!]
+  zero: Int
+}
+
+type v2_image {
+  author_id: String!
+  created_at: timestamptz!
+  hash: String!
+  height: Int!
+  id: String!
+  width: Int!
+}
+
+type v2_Invitation {
+  created_at: String!
+  id: String!
+  invited: user
+  invited_id: String
+  issuer: v2_user!
+  issuer_id: String!
+  updated_at: String!
+}
+
+type v2_mutual_score {
+  dst_score: Float
+  src_score: Float
+}
+
+input v2_PollingInput {
+  question: String
+  variants: [String]
+}
+
+type v2_ReviewWindowStatus {
+  beaconId: String!
+  beaconTitle: String!
+  closesAt: String
+  hasWindow: Boolean!
+  openedAt: String
+  reviewedCount: Int
+  totalCount: Int
+  userReviewStatus: Int
+  windowComplete: Boolean
+}
+
+input v2_Upload {
+  filename: String
+  type: String
+}
+
+type v2_user {
+  description: String!
+  id: String!
+  image: v2_image
+  my_vote: Int
+  scores: [v2_mutual_score!]
+  title: String!
+  user_presence: user_presence
+}
+
+type v2_User {
+  id: String!
 }
 
 """

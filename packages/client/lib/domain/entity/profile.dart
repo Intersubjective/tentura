@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura_root/domain/enums.dart';
 
 import 'image_entity.dart';
 import 'likable.dart';
@@ -19,6 +20,8 @@ abstract class Profile with _$Profile implements Likable, Scorable {
     @Default(0) double score,
     @Default(0) int myVote,
     ImageEntity? image,
+    UserPresenceStatus? presenceStatus,
+    DateTime? presenceLastSeenAt,
   }) = _Profile;
 
   const Profile._();
