@@ -59,12 +59,9 @@ class CommitmentCase {
         coordinationCode: CommitmentCoordinationExceptionCode.invalidUncommitReason,
       );
     }
-    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.state != 0) {
-      throw CommitmentCoordinationException(
-        coordinationCode: CommitmentCoordinationExceptionCode.beaconNotOpen,
-      );
-    }
+    // Withdraw is allowed regardless of beacon lifecycle: users must be able to
+    // uncommit after the author closes the beacon or opens the review window
+    // (server `state` != 0). New commitments still require an open beacon — see commit().
     await _coordinationRepository.deleteForCommit(
       beaconId: beaconId,
       userId: userId,
