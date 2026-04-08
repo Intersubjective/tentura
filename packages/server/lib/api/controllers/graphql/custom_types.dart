@@ -2,18 +2,10 @@ import 'package:graphql_schema2/graphql_schema2.dart';
 
 import 'input/_input_types.dart';
 
-/// Name `timestamptz` matches Hasura so Ferry maps `v2_image.created_at` to
-/// [DateTime] like native `image`; wire values remain ISO-8601 strings.
-final graphQLTimestamptz = GraphQLStringType(
-  name: 'timestamptz',
-  description: 'ISO-8601 instant (Postgres timestamptz).',
-);
-
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
   InputFieldCoordinates.type,
   InputFieldPolling.type,
   InputFieldUpload.type,
-  graphQLTimestamptz,
   gqlTypeAuthResponse,
   gqlTypeInvitation,
   gqlTypeProfile,
@@ -89,7 +81,10 @@ final gqlTypeImagePublic = GraphQLObjectType('image', null)
     field('height', graphQLInt.nonNullable()),
     field('width', graphQLInt.nonNullable()),
     field('author_id', graphQLString.nonNullable()),
-    field('created_at', graphQLTimestamptz.nonNullable()),
+    // Use built-in `Date` scalar so graphql_server2 introspection lists it
+    // (custom `timestamptz` name is not merged into __Schema.types; Hasura
+    // then fails: "Could not find type timestamptz"). Ferry maps `Date` → DateTime.
+    field('created_at', graphQLDate.nonNullable()),
   ]);
 
 /// Matches Hasura `user_presence` for `UserModel.user_presence` on merged `v2_user`.
