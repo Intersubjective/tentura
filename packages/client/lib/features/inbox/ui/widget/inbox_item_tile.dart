@@ -7,7 +7,6 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
-import 'package:tentura/ui/widget/beacon_image.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/entity/inbox_provenance.dart';
@@ -157,12 +156,6 @@ class _InboxItemTileState extends State<InboxItemTile> {
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(8),
-        border: Border(
-          left: BorderSide(
-            color: scheme.secondary,
-            width: 3,
-          ),
-        ),
         boxShadow: [
           BoxShadow(
             color: scheme.shadow.withValues(alpha: 0.08),
@@ -189,13 +182,9 @@ class _InboxItemTileState extends State<InboxItemTile> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: BeaconImage(beacon: beacon),
-                              ),
+                            AvatarRated(
+                              profile: beacon.author,
+                              size: 48,
                             ),
                             const SizedBox(width: kSpacingSmall),
                             Expanded(
