@@ -78,13 +78,20 @@ This distinction must be visible in both data model and UI copy.
 1. **User commits** — optional public note, optional help-type tag; beacon moves to My Work; visible in detail and timeline.
 2. **Author reviews** — lightweight coordination responses per commit (coverage / fit, not person-judgment).
 3. **System updates beacon-level coordination status** — shown on Inbox row, My Work row, beacon detail.
-4. **Committers react** — stay committed, edit note, coordinate via updates, or **uncommit** (active only, with public reason).
+4. **Committers react** — stay committed, edit note, coordinate via updates, or **uncommit** where lifecycle allows (see §9), with public reason.
 
 ---
 
 ## 5. Commit model
 
 Commit means explicit responsibility to help, visible commitment, beacon in My Work. It is not a legal contract, not author-approved membership, not guaranteed success.
+
+**Lifecycle (server `beacon.state` / client `BeaconLifecycle`):**
+
+* **Commit (`beaconCommit`)** is allowed only when the beacon is **OPEN** (`state = 0`). Draft, closed, deleted, pending review, and post-close review lifecycles cannot receive new commitments.
+* **Beacon-level coordination status does not block commit** — including “enough help committed” (`coordination_status = 3`). Authors signal coverage; the system does not treat that as a lock. A new commit can move derivation back to “commitments waiting for review” (§8 rule 2) when that commit has no author coordination row yet.
+* **Author cannot commit** to their own beacon (`authorCannotCommit` on server).
+* **Editing an existing active commitment** (note / help type) uses the same `beaconCommit` upsert path when the user already has an active row (still requires OPEN lifecycle).
 
 **Fields (Postgres / app):** `beacon_id`, `user_id`, `created_at`, `status` (active `0` / withdrawn `1` — existing), `message` (public note), `help_type` (optional text key), `uncommit_reason` (set on withdraw).
 
@@ -131,7 +138,9 @@ On **uncommit**, delete coordination row for that commit (if any) and re-derive.
 
 ## 9. Uncommit flow
 
-Only while beacon is **open** (`state = 0`). Sets `status = 1` (withdrawn), requires **uncommit reason** (tag + optional note in message field). Timeline remains legible; beacon-level status recomputes.
+**Withdraw (`beaconWithdraw`)** sets commitment `status = 1` (withdrawn), requires **uncommit reason** (tag + optional note in message field). Timeline remains legible; beacon-level status recomputes.
+
+**Lifecycle gate:** uncommit is **not** allowed when the beacon is **CLOSED** (`state = 1`), **DRAFT** (`3`), **DELETED** (`2`), or **CLOSED_REVIEW_COMPLETE** (`6`). It **is** allowed for **OPEN** (`0`), **PENDING_REVIEW** (`4`), and **CLOSED_REVIEW_OPEN** (`5`). Server throws `beaconWithdrawForbidden` when blocked; client disables the withdraw control in the same cases.
 
 ---
 
@@ -148,6 +157,8 @@ Only while beacon is **open** (`state = 0`). Sets `status = 1` (withdrawn), requ
 Avoid: Approved, Rejected, Invalid, Commit denied.
 
 Prefer: coverage, fit, overlap, coordination language from the product spec.
+
+When coordination status is **enough help committed**, still allow commit in UI but **soften** the primary action copy (e.g. “Offer help anyway”) so openness is preserved without implying the beacon obviously needs more people.
 
 ---
 

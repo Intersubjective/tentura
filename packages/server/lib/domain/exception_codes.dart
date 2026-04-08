@@ -112,6 +112,8 @@ enum CommitmentCoordinationExceptionCode {
   invalidResponseType,
   invalidCoordinationStatus,
   commitmentNotActive,
+  authorCannotCommit,
+  beaconWithdrawForbidden,
 }
 
 class CommitmentCoordinationExceptionCodes extends ExceptionCodes {

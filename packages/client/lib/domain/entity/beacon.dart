@@ -54,6 +54,15 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   /// Non-closed listing (OPEN, DRAFT, PENDING_REVIEW, CLOSED_REVIEW_OPEN); profile filters and author controls.
   bool get isListed => lifecycle.isActiveSection;
 
+  /// Non-author may start a commitment only when lifecycle is OPEN (matches server `beaconCommit`).
+  bool get allowsNewCommitAsNonAuthor => lifecycle == BeaconLifecycle.open;
+
+  /// Committer may withdraw in OPEN, PENDING_REVIEW, or CLOSED_REVIEW_OPEN (matches server `beaconWithdraw`).
+  bool get allowsWithdrawWhileCommitted =>
+      lifecycle == BeaconLifecycle.open ||
+      lifecycle == BeaconLifecycle.pendingReview ||
+      lifecycle == BeaconLifecycle.closedReviewOpen;
+
   @override
   int get votes => myVote;
 

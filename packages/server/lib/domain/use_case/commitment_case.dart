@@ -37,6 +37,29 @@ class CommitmentCase {
         coordinationCode: CommitmentCoordinationExceptionCode.beaconNotOpen,
       );
     }
+    final hasActive = await _commitmentRepository.hasActiveCommitment(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    // Same mutation updates note/help-type when already committed; only the
+    // initial commit is rejected for author / duplicate-active is N/A (upsert).
+    if (hasActive) {
+      await _commitmentRepository.upsert(
+        beaconId: beaconId,
+        userId: userId,
+        message: message,
+        helpType: helpType,
+      );
+      await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
+        beaconId,
+      );
+      return;
+    }
+    if (beacon.author.id == userId) {
+      throw CommitmentCoordinationException(
+        coordinationCode: CommitmentCoordinationExceptionCode.authorCannotCommit,
+      );
+    }
     await _commitmentRepository.upsert(
       beaconId: beaconId,
       userId: userId,
@@ -59,9 +82,13 @@ class CommitmentCase {
         coordinationCode: CommitmentCoordinationExceptionCode.invalidUncommitReason,
       );
     }
-    // Withdraw is allowed regardless of beacon lifecycle: users must be able to
-    // uncommit after the author closes the beacon or opens the review window
-    // (server `state` != 0). New commitments still require an open beacon — see commit().
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (!beacon.allowsBeaconWithdraw) {
+      throw CommitmentCoordinationException(
+        coordinationCode:
+            CommitmentCoordinationExceptionCode.beaconWithdrawForbidden,
+      );
+    }
     await _coordinationRepository.deleteForCommit(
       beaconId: beaconId,
       userId: userId,

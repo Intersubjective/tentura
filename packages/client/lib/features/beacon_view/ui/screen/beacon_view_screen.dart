@@ -11,6 +11,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/author_info.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
@@ -209,50 +210,71 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                     children: [
                       Expanded(
                         child: BlocSelector<BeaconViewCubit, BeaconViewState,
-                            bool>(
-                          selector: (s) => s.isCommitted,
-                          builder: (_, isCommitted) => isCommitted
-                              ? OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final outcome =
-                                        await CommitmentMessageDialog.show(
-                                      context,
-                                      title: l10n.dialogWithdrawTitle,
-                                      hintText: l10n.hintWithdrawReason,
-                                      allowEmptyMessage: true,
-                                      requireUncommitReason: true,
-                                    );
-                                    if (outcome?.uncommitReasonWire != null) {
-                                      await beaconViewCubit.withdraw(
-                                        message: outcome!.message,
-                                        uncommitReason:
-                                            outcome.uncommitReasonWire!,
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.check_circle),
-                                  label: Text(l10n.labelCommitted),
-                                )
-                              : FilledButton.icon(
-                                  onPressed: () async {
-                                    final outcome =
-                                        await CommitmentMessageDialog.show(
-                                      context,
-                                      title: l10n.dialogCommitTitle,
-                                      hintText: l10n.hintCommitMessage,
-                                      allowEmptyMessage: true,
-                                      showHelpTypeChips: true,
-                                    );
-                                    if (outcome != null) {
-                                      await beaconViewCubit.commit(
-                                        message: outcome.message,
-                                        helpType: outcome.helpTypeWire,
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.handshake),
-                                  label: Text(l10n.labelCommit),
-                                ),
+                            ({bool isCommitted, Beacon beacon})>(
+                          selector: (s) =>
+                              (isCommitted: s.isCommitted, beacon: s.beacon),
+                          builder: (_, row) {
+                            final useCommitAnyway = row.beacon
+                                    .coordinationStatus ==
+                                BeaconCoordinationStatus.enoughHelpCommitted;
+                            return row.isCommitted
+                                ? OutlinedButton.icon(
+                                    onPressed: row.beacon
+                                            .allowsWithdrawWhileCommitted
+                                        ? () async {
+                                            final outcome =
+                                                await CommitmentMessageDialog
+                                                    .show(
+                                              context,
+                                              title: l10n.dialogWithdrawTitle,
+                                              hintText: l10n.hintWithdrawReason,
+                                              allowEmptyMessage: true,
+                                              requireUncommitReason: true,
+                                            );
+                                            if (outcome?.uncommitReasonWire !=
+                                                null) {
+                                              await beaconViewCubit.withdraw(
+                                                message: outcome!.message,
+                                                uncommitReason: outcome
+                                                    .uncommitReasonWire!,
+                                              );
+                                            }
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.check_circle),
+                                    label: Text(l10n.labelCommitted),
+                                  )
+                                : FilledButton.icon(
+                                    onPressed: row.beacon
+                                            .allowsNewCommitAsNonAuthor
+                                        ? () async {
+                                            final outcome =
+                                                await CommitmentMessageDialog
+                                                    .show(
+                                              context,
+                                              title: useCommitAnyway
+                                                  ? l10n.dialogCommitAnywayTitle
+                                                  : l10n.dialogCommitTitle,
+                                              hintText: l10n.hintCommitMessage,
+                                              allowEmptyMessage: true,
+                                              showHelpTypeChips: true,
+                                            );
+                                            if (outcome != null) {
+                                              await beaconViewCubit.commit(
+                                                message: outcome.message,
+                                                helpType: outcome.helpTypeWire,
+                                              );
+                                            }
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.handshake),
+                                    label: Text(
+                                      useCommitAnyway
+                                          ? l10n.labelCommitAnyway
+                                          : l10n.labelCommit,
+                                    ),
+                                  );
+                          },
                         ),
                       ),
                       const SizedBox(width: kSpacingSmall),

@@ -79,6 +79,18 @@ class CommitmentRepository {
           .get()
           .then((rows) => rows.map(_toEntity).toList());
 
+  Future<bool> hasActiveCommitment({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final row = await _database.managers.beaconCommitments
+        .filter(
+          (e) => e.beaconId.id(beaconId) & e.userId.id(userId) & e.status.equals(0),
+        )
+        .getSingleOrNull();
+    return row != null;
+  }
+
   static CommitmentEntity _toEntity(BeaconCommitment row) =>
       CommitmentEntity(
         beaconId: row.beaconId,
