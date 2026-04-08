@@ -108,7 +108,7 @@ class _QRScanDialogState extends State<QRScanDialog> {
               ),
               const SizedBox(width: 16),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(null),
+                onPressed: () => Navigator.of(context).pop(),
                 child: Text(_l10n.buttonCancel),
               ),
             ],

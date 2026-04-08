@@ -14,7 +14,7 @@ final kUserThorin = UserEntity(
   image: ImageEntity(
     id: '5edb9b09-e0af-408e-8c45-4b047abf1237',
     authorId: 'U286f94380611',
-    createdAt: DateTime.utc(2020, 1, 1),
+    createdAt: DateTime.utc(2020),
     blurHash:
         r'-HB2.D%20$Ip-U%1$koLEgR*s:t6I=WV%1WVNGRk5RNG-TxZI:Rk9]WC-TxZW'
         'VS3oyj[WBoLofj[t6a}RkafkCoyj[oeoej[aeRk',
@@ -36,7 +36,7 @@ final kUserDain = UserEntity(
   image: ImageEntity(
     id: '1d2f8fae-28ab-47e6-b9ae-361f35013dab',
     authorId: 'U8ebde6fbfd3f',
-    createdAt: DateTime.utc(2020, 1, 1),
+    createdAt: DateTime.utc(2020),
     blurHash:
         r'qECY,UodSz~BX8M{xZn$-p%1xt%1s,oc$%WXV@RjM|R*ayoexaofI;NGIpNHR+kCj['
         'R*D*R-NbNGNHkCbHWXIokCkCNGa}ofoeoe',
@@ -57,7 +57,7 @@ final kUserGandalf = UserEntity(
   image: ImageEntity(
     id: 'd2595507-884d-4cf0-bb10-600d89a9e474',
     authorId: 'U2becfc64c13b',
-    createdAt: DateTime.utc(2020, 1, 1),
+    createdAt: DateTime.utc(2020),
     blurHash:
         '-#G+adIU%MozWBWB~qj?xuj[WBWV?bj[jsozRjayxut7RjofWBWBWBxtRkWBt7WBjZa'
         'yWBWBt7f6WBWBRkWBofofofRjaeWBfQt7',
@@ -85,7 +85,7 @@ final kUserByPublicKey = <String, UserEntity>{
   kAnonymousKey: kUserAnonymous,
 
   // User for auth test
-  kPussyCatKey: UserEntity(
+  kPussyCatKey: const UserEntity(
     id: 'U3ea0a229ad85',
     title: 'Pussy Cat',
   ),

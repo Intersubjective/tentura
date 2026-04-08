@@ -3,7 +3,7 @@ part of '_migrations.dart';
 /// Post-beacon evaluation (Phase 1): review windows, participants, visibility,
 /// private evaluations, per-user review status.
 final m0019 = Migration('0019', [
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_review_window (
   beacon_id text NOT NULL,
   opened_at timestamp with time zone NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_review_window (
     REFERENCES public.beacon(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_evaluation_participant (
   beacon_id text NOT NULL,
   user_id text NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_evaluation_participant (
     REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_evaluation_visibility (
   beacon_id text NOT NULL,
   evaluator_id text NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_evaluation_visibility (
     REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_evaluation (
   beacon_id text NOT NULL,
   evaluator_id text NOT NULL,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_evaluation (
     REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_review_status (
   beacon_id text NOT NULL,
   user_id text NOT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_review_status (
     REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 ''',
-  r'''
+  '''
 CREATE INDEX IF NOT EXISTS beacon_review_window_closes_at_idx
   ON public.beacon_review_window (closes_at)
   WHERE status = 0;

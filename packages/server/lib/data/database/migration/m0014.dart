@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_forward_edge (
 ''',
 
   // beacon_commitment: explicit responsibility signal
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_commitment (
   beacon_id text NOT NULL,
   user_id text NOT NULL,

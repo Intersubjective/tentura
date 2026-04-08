@@ -19,6 +19,8 @@ const colorSchemeLight = ColorScheme(
   onSurfaceVariant: Color(0xFF4B5563),
   outlineVariant: Color(0xFF4B5563),
   primaryFixed: Color(0xFF014F86),
+  onPrimaryFixed: Color(0xFFE5E7EB),
+  onPrimaryFixedVariant: Color(0xFFCAD5E0),
 );
 
 const colorSchemeDark = ColorScheme(
@@ -37,6 +39,9 @@ const colorSchemeDark = ColorScheme(
   onSurfaceVariant: Color(0xFFE5E7EB),
   outlineVariant: Color(0xFF444746),
   primaryFixed: Color(0xFF014F86),
+  // primaryFixed is dark blue in both themes; text on it must stay light.
+  onPrimaryFixed: Color(0xFFE1E1E1),
+  onPrimaryFixedVariant: Color(0xFFB8C9D9),
 );
 
 ThemeData createAppTheme(ColorScheme colorScheme) {

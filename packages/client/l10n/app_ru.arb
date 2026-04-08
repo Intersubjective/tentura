@@ -824,6 +824,69 @@
   "@actionHide": {
     "context": "InboxItemTile"
   },
+  "inboxProvenanceTrail": "Кто переслал вам",
+  "@inboxProvenanceTrail": {
+    "context": "InboxItemTile"
+  },
+  "inboxProvenanceExpand": "Развернуть",
+  "@inboxProvenanceExpand": {
+    "context": "InboxItemTile"
+  },
+  "inboxProvenanceMore": "Ещё",
+  "@inboxProvenanceMore": {
+    "context": "InboxItemTile"
+  },
+  "inboxProvenanceCollapse": "Свернуть",
+  "@inboxProvenanceCollapse": {
+    "context": "InboxItemTile"
+  },
+  "inboxActionNotForMe": "Не моё",
+  "@inboxActionNotForMe": {
+    "context": "InboxItemTile"
+  },
+  "inboxCardOpenBeacon": "Открыть",
+  "@inboxCardOpenBeacon": {
+    "context": "InboxItemTile"
+  },
+  "inboxDeadlineEnded": "Завершён",
+  "@inboxDeadlineEnded": {
+    "context": "InboxItemTile"
+  },
+  "inboxDeadlineLessThanHour": "< 1 ч",
+  "@inboxDeadlineLessThanHour": {
+    "context": "InboxItemTile"
+  },
+  "inboxDeadlineHoursRemaining": "Осталось {hours} ч",
+  "@inboxDeadlineHoursRemaining": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxDeadlineDaysRemaining": "Осталось {days} дн.",
+  "@inboxDeadlineDaysRemaining": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxCategoryGeneral": "Общее",
+  "@inboxCategoryGeneral": {
+    "context": "InboxItemTile"
+  },
+  "inboxCommitmentsCount": "{count} обязательств",
+  "@inboxCommitmentsCount": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "forwardBeaconTitle": "Переслать маяк",
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"

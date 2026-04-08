@@ -82,6 +82,24 @@ type beacon {
     where: beacon_commitment_bool_exp
   ): [beacon_commitment!]!
 
+  """An aggregate relationship"""
+  commitments_aggregate(
+    """distinct select on columns"""
+    distinct_on: [beacon_commitment_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_commitment_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_commitment_bool_exp
+  ): beacon_commitment_aggregate!
+
   """An object relationship"""
   beacon_review_window: beacon_review_window
   context: String
@@ -360,6 +378,21 @@ type beacon_commitment {
   """An object relationship"""
   user: user!
   user_id: String!
+}
+
+"""
+aggregated selection of "beacon_commitment"
+"""
+type beacon_commitment_aggregate {
+  aggregate: beacon_commitment_aggregate_fields
+  nodes: [beacon_commitment!]!
+}
+
+"""
+aggregate fields of "beacon_commitment"
+"""
+type beacon_commitment_aggregate_fields {
+  count(columns: [beacon_commitment_select_column!], distinct: Boolean): Int!
 }
 
 """

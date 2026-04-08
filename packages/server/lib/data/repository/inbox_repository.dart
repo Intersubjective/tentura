@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/domain/entity/inbox_item_entity.dart';
 
@@ -60,7 +59,7 @@ class InboxRepository {
         beaconId: row.beaconId,
         context: row.context,
         forwardCount: row.forwardCount,
-        latestForwardAt: (row.latestForwardAt as PgDateTime).dateTime,
+        latestForwardAt: row.latestForwardAt.dateTime,
         latestNotePreview: row.latestNotePreview,
         status: row.status,
         rejectionMessage: row.rejectionMessage,

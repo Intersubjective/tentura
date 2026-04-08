@@ -42,7 +42,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       if (id.isEmpty) {
         return;
       }
-      unawaited(_invitationCubit.fetch(clear: true));
+      unawaited(_invitationCubit.fetch());
     });
   }
 

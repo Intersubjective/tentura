@@ -7,7 +7,7 @@ part of '_migrations.dart';
 // The single-element serialization bug (bare string instead of JSON array) is
 // handled client-side — see WORKAROUNDS.md § 5.
 final m0018 = Migration('0018', [
-  r'''
+  '''
 DROP FUNCTION IF EXISTS public.beacon_get_rejected_user_ids(public.beacon, json);
 ''',
   r'''

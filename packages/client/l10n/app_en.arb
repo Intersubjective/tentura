@@ -824,6 +824,69 @@
   "@actionHide": {
     "context": "InboxItemTile"
   },
+  "inboxProvenanceTrail": "Forwarded to you by",
+  "@inboxProvenanceTrail": {
+    "context": "InboxItemTile"
+  },
+  "inboxProvenanceExpand": "Expand",
+  "@inboxProvenanceExpand": {
+    "context": "InboxItemTile"
+  },
+  "inboxProvenanceMore": "More",
+  "@inboxProvenanceMore": {
+    "context": "InboxItemTile"
+  },
+  "inboxProvenanceCollapse": "Collapse",
+  "@inboxProvenanceCollapse": {
+    "context": "InboxItemTile"
+  },
+  "inboxActionNotForMe": "Not for me",
+  "@inboxActionNotForMe": {
+    "context": "InboxItemTile"
+  },
+  "inboxCardOpenBeacon": "Forward",
+  "@inboxCardOpenBeacon": {
+    "context": "InboxItemTile"
+  },
+  "inboxDeadlineEnded": "Ended",
+  "@inboxDeadlineEnded": {
+    "context": "InboxItemTile"
+  },
+  "inboxDeadlineLessThanHour": "< 1h left",
+  "@inboxDeadlineLessThanHour": {
+    "context": "InboxItemTile"
+  },
+  "inboxDeadlineHoursRemaining": "{hours}h left",
+  "@inboxDeadlineHoursRemaining": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxDeadlineDaysRemaining": "{days}d left",
+  "@inboxDeadlineDaysRemaining": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxCategoryGeneral": "General",
+  "@inboxCategoryGeneral": {
+    "context": "InboxItemTile"
+  },
+  "inboxCommitmentsCount": "{count} commitments",
+  "@inboxCommitmentsCount": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "forwardBeaconTitle": "Forward Beacon",
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
