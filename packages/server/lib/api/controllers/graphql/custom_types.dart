@@ -2,10 +2,18 @@ import 'package:graphql_schema2/graphql_schema2.dart';
 
 import 'input/_input_types.dart';
 
+/// Name `timestamptz` matches Hasura so Ferry maps `v2_image.created_at` to
+/// [DateTime] like native `image`; wire values remain ISO-8601 strings.
+final graphQLTimestamptz = GraphQLStringType(
+  name: 'timestamptz',
+  description: 'ISO-8601 instant (Postgres timestamptz).',
+);
+
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
   InputFieldCoordinates.type,
   InputFieldPolling.type,
   InputFieldUpload.type,
+  graphQLTimestamptz,
   gqlTypeAuthResponse,
   gqlTypeInvitation,
   gqlTypeProfile,
@@ -13,6 +21,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconInvolvement,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
+  gqlTypeUserPresence,
   gqlTypeUserPublic,
   gqlTypeBeaconCloseReviewResult,
   gqlTypeEvaluationParticipant,
@@ -80,7 +89,14 @@ final gqlTypeImagePublic = GraphQLObjectType('image', null)
     field('height', graphQLInt.nonNullable()),
     field('width', graphQLInt.nonNullable()),
     field('author_id', graphQLString.nonNullable()),
-    field('created_at', graphQLString.nonNullable()),
+    field('created_at', graphQLTimestamptz.nonNullable()),
+  ]);
+
+/// Matches Hasura `user_presence` for `UserModel.user_presence` on merged `v2_user`.
+final gqlTypeUserPresence = GraphQLObjectType('user_presence', null)
+  ..fields.addAll([
+    field('last_seen_at', graphQLString.nonNullable()),
+    field('status', graphQLInt.nonNullable()),
   ]);
 
 /// Matches Hasura `user` table shape for `invitationById.issuer` / `UserModel`.
@@ -95,6 +111,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
       'scores',
       GraphQLListType(gqlTypeMutualScore.nonNullable()),
     ),
+    field('user_presence', gqlTypeUserPresence),
   ]);
 
 final gqlTypeInvitation = GraphQLObjectType('Invitation', null)

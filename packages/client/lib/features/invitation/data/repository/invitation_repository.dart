@@ -39,7 +39,7 @@ class InvitationRepository {
         createdAt: timestamp,
         updatedAt: timestamp,
       ),
-      issuer: (invitation.issuer! as UserModel).toEntity(),
+      issuer: (invitation.issuer as UserModel).toEntity(),
     );
   }
 

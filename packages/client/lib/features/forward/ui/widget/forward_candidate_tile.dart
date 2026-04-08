@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 
 import '../../domain/entity/candidate_involvement.dart';
@@ -72,11 +73,45 @@ class ForwardCandidateTile extends StatelessWidget {
     );
   }
 
+  Widget? _subtitleWidget(
+    ThemeData theme,
+    String? involvement,
+    String presence,
+  ) {
+    if (involvement == null && presence.isEmpty) {
+      return null;
+    }
+    final style = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    if (involvement != null && presence.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(involvement, style: style),
+          Text(presence, style: style),
+        ],
+      );
+    }
+    return Text(
+      involvement ?? presence,
+      style: style,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final subtitleText = _subtitle(l10n);
+    final involvementText = _subtitle(l10n);
+    final presenceText = profilePresenceDisplayLine(
+      l10n: l10n,
+      locale: Localizations.localeOf(context),
+      status: candidate.profile.presenceStatus,
+      lastSeenAt: candidate.profile.presenceLastSeenAt,
+    );
+    final subtitleWidget = _subtitleWidget(theme, involvementText, presenceText);
     final canSelect = candidate.canForwardTo;
     return ListTile(
       enabled: canSelect,
@@ -91,14 +126,9 @@ class ForwardCandidateTile extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
       ),
-      subtitle: subtitleText == null
-          ? null
-          : Text(
-              subtitleText,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+      subtitle: subtitleWidget,
+      isThreeLine:
+          involvementText != null && presenceText.isNotEmpty,
       trailing: canSelect
           ? Checkbox(
               value: isSelected,

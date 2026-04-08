@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
@@ -36,6 +37,29 @@ class ProfileViewBody extends StatelessWidget {
                 style: theme.textTheme.bodyMedium,
                 colorClickableText: theme.colorScheme.primary,
               ),
+            ),
+
+            Builder(
+              builder: (ctx) {
+                final line = profilePresenceDisplayLine(
+                  l10n: l10n,
+                  locale: Localizations.localeOf(ctx),
+                  status: profile.presenceStatus,
+                  lastSeenAt: profile.presenceLastSeenAt,
+                );
+                if (line.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: kPaddingSmallT,
+                  child: Text(
+                    line,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                );
+              },
             ),
 
             Padding(

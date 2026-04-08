@@ -4,10 +4,12 @@ final class MovedToMyWorkMessage extends LocalizableMessage {
   const MovedToMyWorkMessage();
 
   @override
-  String get toEn => 'Moved to My Work';
+  String get toEn =>
+      'Removed from Inbox and moved to My Work';
 
   @override
-  String get toRu => 'Перемещено в Мои дела';
+  String get toRu =>
+      'Убрано из Входящих и перенесено в Мои дела';
 }
 
 final class MovedToInboxMessage extends LocalizableMessage {

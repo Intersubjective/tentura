@@ -38,10 +38,13 @@ class CoordinationRepository {
             GCommitmentsWithCoordinationReq((r) => r..vars.beaconId = beaconId),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .commitmentsWithCoordination
+          .then((r) {
+            final rows =
+                r.dataOrThrow(label: _label).commitmentsWithCoordination;
+            if (rows == null) {
+              return [];
+            }
+            return rows
                 .map(
                   (e) => (
                     beaconId: e.beaconId,
@@ -56,8 +59,8 @@ class CoordinationRepository {
                     responseType: e.responseType,
                   ),
                 )
-                .toList(),
-          );
+                .toList();
+          });
 
   Future<({BeaconCoordinationStatus status, DateTime? updatedAt})>
   setCoordinationResponse({

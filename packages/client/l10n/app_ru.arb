@@ -1208,6 +1208,13 @@
       "days": { "type": "int" }
     }
   },
+  "profilePresenceLastSeenOnDate": "Был(а) {date}",
+  "@profilePresenceLastSeenOnDate": {
+    "context": "Profile",
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
   "chatMessageCopy": "Копировать",
   "@chatMessageCopy": {
     "context": "Chat"

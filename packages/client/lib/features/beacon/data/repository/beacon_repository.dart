@@ -75,14 +75,14 @@ class BeaconRepository {
         ..endAt = beacon.endAt?.toIso8601String()
         ..coordinates = beacon.coordinates == null
             ? null
-            : (GCoordinatesBuilder()
-                ..lat = beacon.coordinates!.lat
-                ..long = beacon.coordinates!.long)
+            : (Gv2_CoordinatesBuilder()
+                  ..lat = beacon.coordinates!.lat
+                  ..long = beacon.coordinates!.long)
         ..polling = beacon.polling == null
             ? null
-            : (GPollingInputBuilder()
-                ..question = beacon.polling!.question
-                ..variants = ListBuilder(beacon.polling!.variants.values))
+            : (Gv2_PollingInputBuilder()
+                  ..question = beacon.polling!.question
+                  ..variants = ListBuilder(beacon.polling!.variants.values))
         ..image = beacon.image?.imageBytes == null
             ? null
             : MultipartFile.fromBytes(
