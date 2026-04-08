@@ -27,6 +27,15 @@ fi
 payload="$(jq -n --argjson metadata "$(jq '.metadata' "$METADATA_FILE")" \
   '{type: "replace_metadata", args: {metadata: $metadata}}')"
 
+# Refresh remote schema introspection before replace. If the Tentura API
+# changes scalars (e.g. image.created_at), Hasura can stay inconsistent until
+# reload; replace_metadata then fails with errors like "Could not find type
+# timestamptz" even when the live remote already exposes Date.
+curl -sS -o /dev/null -X POST "${HASURA_URL%/}/v1/metadata" \
+  -H "X-Hasura-Admin-Secret: ${ADMIN_SECRET}" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"reload_remote_schema","args":{"name":"tentura"}}' || true
+
 resp="$(curl -sS -w '\n%{http_code}' "${HASURA_URL%/}/v1/metadata" \
   -H "X-Hasura-Admin-Secret: ${ADMIN_SECRET}" \
   -H "Content-Type: application/json" \

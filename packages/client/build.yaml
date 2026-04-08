@@ -34,6 +34,9 @@ targets:
           output_dir: "_g"
 
           type_overrides:
+            Date:
+              name: DateTime
+
             timestamptz:
               name: DateTime
 

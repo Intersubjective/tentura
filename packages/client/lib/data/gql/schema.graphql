@@ -6119,7 +6119,7 @@ type v2_EvaluationSummary {
 
 type v2_image {
   author_id: String!
-  created_at: timestamptz!
+  created_at: Date!
   hash: String!
   height: Int!
   id: String!
