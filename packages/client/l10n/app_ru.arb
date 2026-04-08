@@ -1058,6 +1058,11 @@
   "@labelCommit": {
     "context": "BeaconViewScreen"
   },
+  "labelCommitAnyway": "Всё равно помочь",
+  "@labelCommitAnyway": {
+    "context": "BeaconViewScreen",
+    "description": "Commit button when coordination status is enough help committed"
+  },
   "labelForward": "Переслать",
   "@labelForward": {
     "context": "BeaconViewScreen"
@@ -1134,6 +1139,11 @@
   "@dialogCommitTitle": {
     "context": "BeaconViewScreen",
     "description": "Title for commit dialog"
+  },
+  "dialogCommitAnywayTitle": "Всё равно предложить помощь",
+  "@dialogCommitAnywayTitle": {
+    "context": "BeaconViewScreen",
+    "description": "Commit dialog title when beacon shows enough help committed"
   },
   "dialogWithdrawTitle": "Отказаться от участия",
   "@dialogWithdrawTitle": {

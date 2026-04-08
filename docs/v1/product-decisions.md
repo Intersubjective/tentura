@@ -67,6 +67,8 @@ Amendments and locks for implementation agents. These **override** older phrasin
 ## Commit and overcommit coordination (Phase 1)
 
 - **Commit stays open by default** — no mandatory pre-approval for ordinary commits.
+- **Hard lifecycle gate for commit:** only **OPEN** beacons accept new commitments (`beaconCommit`). Coordination status is **not** a commit lock (including “enough help committed”); use softer UI copy in that case (see overcommit doc §11).
+- **Uncommit:** allowed only when lifecycle is **not** closed, draft, deleted, or closed-review-complete — i.e. allowed on **open**, **pending review**, and **closed review open** (see overcommit doc §9).
 - **Author coordination responses** describe **coverage / fit of the beacon’s need**, not approval or rejection of a person. UI and data model must keep that framing (see [`../overcommit-coordination-feature-design.md`](../overcommit-coordination-feature-design.md)).
 
 ---

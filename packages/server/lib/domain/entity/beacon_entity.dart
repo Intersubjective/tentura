@@ -45,6 +45,10 @@ abstract class BeaconEntity with _$BeaconEntity {
   /// Shown under My Work "Closed" (CLOSED, DELETED, CLOSED_REVIEW_COMPLETE).
   bool get isLifecycleClosed => state == 1 || state == 2 || state == 6;
 
+  /// Uncommit (`beaconWithdraw`) allowed only for OPEN, PENDING_REVIEW, CLOSED_REVIEW_OPEN.
+  bool get allowsBeaconWithdraw =>
+      state == 0 || state == 4 || state == 5;
+
   bool get hasImage => image != null;
 
   String get imageUrl => hasImage
