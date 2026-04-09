@@ -8,6 +8,12 @@ enum InboxItemStatus {
 
   /// 2
   rejected,
+
+  /// 3 — beacon closed before recipient triaged (passive tombstone)
+  closedBeforeResponse,
+
+  /// 4 — beacon deleted (lifecycle) before recipient triaged
+  deletedBeforeResponse,
 }
 
 extension InboxItemStatusSmallint on InboxItemStatus {
@@ -15,12 +21,16 @@ extension InboxItemStatusSmallint on InboxItemStatus {
     InboxItemStatus.needsMe => 0,
     InboxItemStatus.watching => 1,
     InboxItemStatus.rejected => 2,
+    InboxItemStatus.closedBeforeResponse => 3,
+    InboxItemStatus.deletedBeforeResponse => 4,
   };
 }
 
 InboxItemStatus inboxItemStatusFromSmallint(int value) => switch (value) {
   1 => InboxItemStatus.watching,
   2 => InboxItemStatus.rejected,
+  3 => InboxItemStatus.closedBeforeResponse,
+  4 => InboxItemStatus.deletedBeforeResponse,
   _ => InboxItemStatus.needsMe,
 };
 

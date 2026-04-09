@@ -742,6 +742,50 @@
   "@inboxTabRejectedEmpty": {
     "context": "InboxScreen"
   },
+  "inboxTombstoneQueueStatus": "Queue status",
+  "@inboxTombstoneQueueStatus": {
+    "context": "InboxScreen"
+  },
+  "inboxTombstoneSectionTitle": "Resolved beacons",
+  "@inboxTombstoneSectionTitle": {
+    "context": "InboxScreen"
+  },
+  "inboxTombstoneLast24h": "Last 24h",
+  "@inboxTombstoneLast24h": {
+    "context": "InboxScreen"
+  },
+  "inboxTombstoneStatusResolved": "Resolved",
+  "@inboxTombstoneStatusResolved": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneStatusUnavailable": "Unavailable",
+  "@inboxTombstoneStatusUnavailable": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneClosedTitle": "Resolved before you acted",
+  "@inboxTombstoneClosedTitle": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneClosedSubtitle": "This beacon was closed before you responded.",
+  "@inboxTombstoneClosedSubtitle": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneDeletedTitle": "No longer available",
+  "@inboxTombstoneDeletedTitle": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneDeletedSubtitle": "This beacon was removed before you responded.",
+  "@inboxTombstoneDeletedSubtitle": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneDismiss": "Dismiss",
+  "@inboxTombstoneDismiss": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneOpen": "Open",
+  "@inboxTombstoneOpen": {
+    "context": "InboxTombstoneCard"
+  },
   "actionCantHelp": "Can't help",
   "@actionCantHelp": {
     "context": "InboxItemTile"

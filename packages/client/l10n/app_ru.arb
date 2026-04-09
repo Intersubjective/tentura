@@ -742,6 +742,50 @@
   "@inboxTabRejectedEmpty": {
     "context": "InboxScreen"
   },
+  "inboxTombstoneQueueStatus": "Статус очереди",
+  "@inboxTombstoneQueueStatus": {
+    "context": "InboxScreen"
+  },
+  "inboxTombstoneSectionTitle": "Закрытые маяки",
+  "@inboxTombstoneSectionTitle": {
+    "context": "InboxScreen"
+  },
+  "inboxTombstoneLast24h": "За 24 ч",
+  "@inboxTombstoneLast24h": {
+    "context": "InboxScreen"
+  },
+  "inboxTombstoneStatusResolved": "Закрыт",
+  "@inboxTombstoneStatusResolved": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneStatusUnavailable": "Недоступен",
+  "@inboxTombstoneStatusUnavailable": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneClosedTitle": "Закрыт до вашего ответа",
+  "@inboxTombstoneClosedTitle": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneClosedSubtitle": "Этот маяк закрыли до того, как вы отреагировали.",
+  "@inboxTombstoneClosedSubtitle": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneDeletedTitle": "Больше недоступен",
+  "@inboxTombstoneDeletedTitle": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneDeletedSubtitle": "Этот маяк убрали до того, как вы отреагировали.",
+  "@inboxTombstoneDeletedSubtitle": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneDismiss": "Скрыть",
+  "@inboxTombstoneDismiss": {
+    "context": "InboxTombstoneCard"
+  },
+  "inboxTombstoneOpen": "Открыть",
+  "@inboxTombstoneOpen": {
+    "context": "InboxTombstoneCard"
+  },
   "actionCantHelp": "Не могу помочь",
   "@actionCantHelp": {
     "context": "InboxItemTile"

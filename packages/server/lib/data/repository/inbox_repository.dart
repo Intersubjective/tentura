@@ -49,6 +49,22 @@ class InboxRepository {
 
   /// After forward: sender moves to watching when they have no active commitment.
   /// Preserves existing `forward_count` and note preview on conflict.
+  /// After withdraw when the beacon is not OPEN: passive tombstone, not Watching.
+  Future<void> applyTombstoneAfterWithdraw({
+    required String userId,
+    required String beaconId,
+  }) async {
+    await _database
+        .customSelect(
+          r'SELECT inbox_item_apply_tombstone_after_withdraw($1, $2)',
+          variables: [
+            Variable<String>(userId),
+            Variable<String>(beaconId),
+          ],
+        )
+        .getSingle();
+  }
+
   Future<void> upsertWatchingForSender({
     required String senderId,
     required String beaconId,

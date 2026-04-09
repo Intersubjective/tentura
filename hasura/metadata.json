@@ -1673,7 +1673,9 @@
                     "latest_forward_at",
                     "latest_note_preview",
                     "status",
-                    "rejection_message"
+                    "rejection_message",
+                    "before_response_terminal_at",
+                    "tombstone_dismissed_at"
                   ],
                   "computed_fields": [
                     "inbox_provenance_data"
@@ -1705,7 +1707,8 @@
                 "permission": {
                   "columns": [
                     "status",
-                    "rejection_message"
+                    "rejection_message",
+                    "tombstone_dismissed_at"
                   ],
                   "filter": {
                     "user_id": {

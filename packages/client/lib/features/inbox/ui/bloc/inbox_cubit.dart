@@ -112,6 +112,32 @@ class InboxCubit extends Cubit<InboxState> {
     );
   }
 
+  Future<void> dismissTombstone(String beaconId) async {
+    final idx = state.items.indexWhere((e) => e.beaconId == beaconId);
+    if (idx < 0) return;
+    final item = state.items[idx];
+    if (!item.isTombstoneVisible) return;
+    final dismissedAt = DateTime.now().toUtc();
+    try {
+      await _repository.dismissTombstone(
+        beaconId: beaconId,
+        dismissedAt: dismissedAt,
+      );
+      emit(
+        state.copyWith(
+          items: [
+            ...state.items.sublist(0, idx),
+            item.copyWith(tombstoneDismissedAt: dismissedAt),
+            ...state.items.sublist(idx + 1),
+          ],
+          status: const StateIsSuccess(),
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> _updateStatus(
     String beaconId,
     InboxItemStatus status, {

@@ -17,6 +17,8 @@ query InboxFetch($context: String = "") {
     latest_note_preview
     status
     rejection_message
+    before_response_terminal_at
+    tombstone_dismissed_at
     inbox_provenance_data
     beacon {
       ...BeaconModel
