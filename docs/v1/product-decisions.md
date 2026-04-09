@@ -73,6 +73,15 @@ Amendments and locks for implementation agents. These **override** older phrasin
 
 ---
 
+## Watching (Phase 1)
+
+- **Watching** is explicit passive follow: triaged, not rejected, not committed, not owning execution. It lives in **`inbox_item.status = 1`** alongside Needs me (`0`) and rejected (`2`).
+- **Do not** add a third primary CTA (Watch) next to Forward / Not for me on inbox cards. Use overflow, beacon detail, and auto-watch after forward when the user has **no active commitment**.
+- **Forward without commit** moves the sender’s row to **Watching** so Inbox stays a real triage queue.
+- **Recipient lists** (forward screen) must show **Watching** with clear precedence vs Committed / Forwarded onward / Not for me — see [`watching-mechanism.md`](./watching-mechanism.md).
+
+---
+
 ## Document map
 
 | Document | Role |
@@ -81,3 +90,4 @@ Amendments and locks for implementation agents. These **override** older phrasin
 | `missing-features-plan.md` | What to build; references this file |
 | `contradictions-plan.md` | Code vs brief conflicts still to fix |
 | `../overcommit-coordination-feature-design.md` | Overcommit coordination (active beacon), commit / uncommit / status |
+| `watching-mechanism.md` | Watching stance: surfaces, transitions, forward-list precedence, copy |

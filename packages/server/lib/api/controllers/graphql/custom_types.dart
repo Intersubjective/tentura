@@ -58,6 +58,14 @@ final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
       'rejectedIds',
       GraphQLListType(graphQLString.nonNullable()),
     ),
+    field(
+      'watchingIds',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field(
+      'onwardForwarderIds',
+      GraphQLListType(graphQLString.nonNullable()),
+    ),
   ]);
 
 /// Return type for `userUpdate` / remote-schema mutations (minimal).

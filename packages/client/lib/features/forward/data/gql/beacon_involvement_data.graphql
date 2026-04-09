@@ -7,5 +7,7 @@ query BeaconInvolvementData($id: String!) {
     committedIds
     withdrawnIds
     rejectedIds
+    watchingIds
+    onwardForwarderIds
   }
 }

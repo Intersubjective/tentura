@@ -6056,7 +6056,9 @@ type v2_BeaconCloseReviewResult {
 type v2_BeaconInvolvement {
   committedIds: [String!]
   forwardedToIds: [String!]
+  onwardForwarderIds: [String!]
   rejectedIds: [String!]
+  watchingIds: [String!]
   withdrawnIds: [String!]
 }
 

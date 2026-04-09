@@ -9,6 +9,8 @@ Companion to [beacon-evaluation-principles.md](./beacon-evaluation-principles.md
 
 **Not the same as overcommit coordination:** During an **open** beacon, authors may set per-commit **coordination responses** and a beacon-level **coordination status** (coverage / fit of the need — not “approval” of committers). That feature is documented in [`overcommit-coordination-feature-design.md`](./overcommit-coordination-feature-design.md). Evaluation here applies **after** successful closure and the review window; coordination metadata during active work may provide context later but is **not** an evaluation submission.
 
+**Not the same as Watching:** The inbox **Watching** stance ([`docs/v1/watching-mechanism.md`](./v1/watching-mechanism.md)) does **not** by itself confer evaluation eligibility; eligibility follows the participant and visibility rules in this document only.
+
 ## Phase 1 scope
 
 - Successful closure **by beacon author** only (`beaconCloseWithReview` V2 mutation).

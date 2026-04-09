@@ -12,6 +12,8 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
+import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
+import 'package:tentura/features/inbox/domain/enum.dart';
 
 import '../../data/repository/beacon_view_repository.dart';
 import '../../data/repository/coordination_repository.dart';
@@ -31,6 +33,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     ForwardRepository? forwardRepository,
     EvaluationRepository? evaluationRepository,
     CoordinationRepository? coordinationRepository,
+    InboxRepository? inboxRepository,
   }) : _beaconViewRepository =
            beaconViewRepository ?? GetIt.I<BeaconViewRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
@@ -39,6 +42,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
            evaluationRepository ?? GetIt.I<EvaluationRepository>(),
        _coordinationRepository =
            coordinationRepository ?? GetIt.I<CoordinationRepository>(),
+       _inboxRepository = inboxRepository ?? GetIt.I<InboxRepository>(),
        super(_idToState(id, myProfile)) {
     unawaited(
       state.hasFocusedComment
@@ -54,6 +58,21 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   final EvaluationRepository _evaluationRepository;
 
   final CoordinationRepository _coordinationRepository;
+
+  final InboxRepository _inboxRepository;
+
+  Future<void> moveToWatching() async {
+    if (state.inboxStatus != InboxItemStatus.needsMe) return;
+    try {
+      await _inboxRepository.setStatus(
+        beaconId: state.beacon.id,
+        status: InboxItemStatus.watching,
+      );
+      emit(state.copyWith(inboxStatus: InboxItemStatus.watching));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
 
   Future<void> delete(String beaconId) async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -176,6 +195,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           beaconId: beaconId,
         ),
         _forwardRepository.fetchUpdates(beaconId: beaconId),
+        _inboxRepository.fetchStatusForBeacon(beaconId),
       ]);
 
       final beacon = results[0] as Beacon;
@@ -195,6 +215,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           })>;
       final updates = results[3]
           as List<({Profile author, String content, DateTime createdAt})>;
+      final inboxStatus = results[4] as InboxItemStatus?;
 
       final isCommitted = commitments
           .where((c) => c.status == 0)
@@ -233,6 +254,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           timeline: timeline,
           commitments: commitmentsList,
           isCommitted: isCommitted,
+          inboxStatus: inboxStatus,
           status: StateStatus.isSuccess,
         ),
       );

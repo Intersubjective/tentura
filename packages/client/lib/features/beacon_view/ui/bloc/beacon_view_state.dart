@@ -4,6 +4,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
+import 'package:tentura/features/inbox/domain/enum.dart';
 
 part 'beacon_view_state.freezed.dart';
 
@@ -76,6 +77,8 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     @Default([]) List<ForwardEdge> forwardEdges,
     @Default(false) bool isCommitted,
     @Default(Profile()) Profile myProfile,
+    /// Current user's inbox stance for this beacon (`null` = no inbox row).
+    InboxItemStatus? inboxStatus,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconViewState;
 

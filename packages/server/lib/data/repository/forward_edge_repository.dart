@@ -33,6 +33,10 @@ class ForwardEdgeRepository {
     ),
   );
 
+  /// Inserts one batch of forward edges atomically.
+  ///
+  /// [onAfterEdgesInserted] runs inside the same transaction (e.g. sender
+  /// inbox → watching when not committed).
   Future<void> createBatch({
     required String beaconId,
     required String senderId,
@@ -41,6 +45,7 @@ class ForwardEdgeRepository {
     required String Function(String recipientId) noteForRecipient,
     String? context,
     String? parentEdgeId,
+    Future<void> Function()? onAfterEdgesInserted,
   }) => _database.transaction(() async {
     for (final recipientId in recipientIds) {
       await _database.managers.beaconForwardEdges.create(
@@ -55,6 +60,7 @@ class ForwardEdgeRepository {
         ),
       );
     }
+    await onAfterEdgesInserted?.call();
   });
 
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) =>
@@ -63,6 +69,15 @@ class ForwardEdgeRepository {
           .orderBy((e) => e.createdAt.desc())
           .get()
           .then((rows) => rows.map(_toEntity).toList());
+
+  /// Distinct users who sent at least one forward edge for this beacon.
+  Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId) =>
+      _database.managers.beaconForwardEdges
+          .filter((e) => e.beaconId.id(beaconId))
+          .get()
+          .then(
+            (rows) => rows.map((r) => r.senderId).toSet().toList(),
+          );
 
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {

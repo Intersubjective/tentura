@@ -16,8 +16,10 @@ final class MovedToInboxMessage extends LocalizableMessage {
   const MovedToInboxMessage();
 
   @override
-  String get toEn => 'Moved to Inbox';
+  String get toEn =>
+      'Commitment withdrawn — the beacon is in Watching (not in Needs me).';
 
   @override
-  String get toRu => 'Перемещено во Входящие';
+  String get toRu =>
+      'Обязательство отозвано — маяк в «Наблюдении», не в «Нужно мне».';
 }

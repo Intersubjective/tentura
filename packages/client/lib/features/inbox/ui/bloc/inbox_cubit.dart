@@ -24,17 +24,27 @@ class InboxCubit extends Cubit<InboxState> {
       _onCommitmentChanged,
       cancelOnError: false,
     );
-    unawaited(fetch(initialContext));
+    _forwardCompleted = _forwardRepository.forwardCompleted.listen(
+      (_) => unawaited(fetch(showLoading: false)),
+      cancelOnError: false,
+    );
+    _inboxLocalMutations = _repository.localMutations.listen(
+      (_) => unawaited(fetch(showLoading: false)),
+      cancelOnError: false,
+    );
+    unawaited(fetch(contextName: initialContext));
   }
 
   final InboxRepository _repository;
   final ForwardRepository _forwardRepository;
 
   late final StreamSubscription<CommitmentEvent> _commitmentChanges;
+  late final StreamSubscription<void> _forwardCompleted;
+  late final StreamSubscription<void> _inboxLocalMutations;
 
   void _onCommitmentChanged(CommitmentEvent event) => switch (event) {
         CommitmentCreated(:final beaconId) => _removeInboxItem(beaconId),
-        CommitmentWithdrawn() => unawaited(fetch()),
+        CommitmentWithdrawn() => unawaited(fetch(showLoading: false)),
       };
 
   void _removeInboxItem(String beaconId) {
@@ -50,11 +60,15 @@ class InboxCubit extends Cubit<InboxState> {
   @override
   Future<void> close() async {
     await _commitmentChanges.cancel();
+    await _forwardCompleted.cancel();
+    await _inboxLocalMutations.cancel();
     return super.close();
   }
 
-  Future<void> fetch([String? contextName]) async {
-    emit(state.copyWith(status: StateStatus.isLoading));
+  Future<void> fetch({String? contextName, bool showLoading = true}) async {
+    if (showLoading) {
+      emit(state.copyWith(status: StateStatus.isLoading));
+    }
     try {
       final items = await _repository.fetch(
         context: contextName ?? state.context,

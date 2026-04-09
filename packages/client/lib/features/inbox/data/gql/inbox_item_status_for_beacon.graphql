@@ -1,0 +1,5 @@
+query InboxItemStatusForBeacon($beaconId: String!) {
+  inbox_item(where: {beacon_id: {_eq: $beaconId}}, limit: 1) {
+    status
+  }
+}

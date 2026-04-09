@@ -1,3 +1,4 @@
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/inbox_item_entity.dart';
@@ -36,6 +37,45 @@ class InboxRepository {
           )
           .get()
           .then((rows) => rows.map((r) => r.userId).toList());
+
+  /// User ids watching this beacon (`status == 1`), any context.
+  Future<List<String>> fetchWatchingUserIdsByBeacon(String beaconId) =>
+      _database.managers.inboxItems
+          .filter(
+            (e) => e.beaconId.id(beaconId) & e.status.equals(1),
+          )
+          .get()
+          .then((rows) => rows.map((r) => r.userId).toList());
+
+  /// After forward: sender moves to watching when they have no active commitment.
+  /// Preserves existing `forward_count` and note preview on conflict.
+  Future<void> upsertWatchingForSender({
+    required String senderId,
+    required String beaconId,
+    String? context,
+  }) async {
+    final now = PgDateTime(DateTime.timestamp());
+    await _database.into(_database.inboxItems).insert(
+      InboxItemsCompanion.insert(
+        userId: senderId,
+        beaconId: beaconId,
+        context: Value(context),
+        status: const Value(1),
+        forwardCount: const Value(0),
+        latestForwardAt: Value(now),
+        latestNotePreview: const Value(''),
+        rejectionMessage: const Value(''),
+      ),
+      onConflict: DoUpdate(
+        (_) => InboxItemsCompanion(
+          status: const Value(1),
+          rejectionMessage: const Value(''),
+          latestForwardAt: Value(now),
+          context: context != null ? Value(context) : const Value.absent(),
+        ),
+      ),
+    );
+  }
 
   Future<void> setStatus({
     required String userId,

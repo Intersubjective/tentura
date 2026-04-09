@@ -31,10 +31,12 @@ class ForwardCandidateTile extends StatelessWidget {
     }
     return switch (candidate.involvement) {
       CandidateInvolvement.forwarded => l10n.forwardAlreadyForwarded,
+      CandidateInvolvement.watching => l10n.forwardWatching,
       CandidateInvolvement.committed => l10n.forwardCommitted,
       CandidateInvolvement.withdrawn => l10n.forwardWithdrawn,
       CandidateInvolvement.unseen => null,
-      _ => null,
+      CandidateInvolvement.author => null,
+      CandidateInvolvement.declined => null,
     };
   }
 
@@ -66,6 +68,7 @@ class ForwardCandidateTile extends StatelessWidget {
         CandidateInvolvement.committed => Icons.check_circle_outline,
         CandidateInvolvement.withdrawn => Icons.heart_broken,
         CandidateInvolvement.forwarded => Icons.forward_to_inbox,
+        CandidateInvolvement.watching => Icons.visibility_outlined,
         _ => Icons.info_outline,
       },
       size: 20,

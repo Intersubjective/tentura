@@ -29,11 +29,15 @@ class BeaconInvolvementCase {
       _forwardEdgeRepository.fetchByBeaconId(beaconId),
       _commitmentRepository.fetchAllByBeaconId(beaconId),
       _inboxRepository.fetchRejectedUserIdsByBeacon(beaconId),
+      _inboxRepository.fetchWatchingUserIdsByBeacon(beaconId),
+      _forwardEdgeRepository.fetchDistinctSenderIdsByBeaconId(beaconId),
     ]);
 
     final edges = results[0] as List<ForwardEdgeEntity>;
     final commitments = results[1] as List<CommitmentEntity>;
     final rejectedIds = results[2] as List<String>;
+    final watchingIds = results[3] as List<String>;
+    final onwardForwarderIds = results[4] as List<String>;
 
     final forwardedToIds = edges.map((e) => e.recipientId).toSet().toList();
     final committedIds = commitments
@@ -52,6 +56,8 @@ class BeaconInvolvementCase {
       'committedIds': committedIds,
       'withdrawnIds': withdrawnIds,
       'rejectedIds': rejectedIds,
+      'watchingIds': watchingIds,
+      'onwardForwarderIds': onwardForwarderIds,
     };
   }
 }

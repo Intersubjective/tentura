@@ -13,6 +13,7 @@ void main() {
   late MockBeaconRepository beaconRepo;
   late MockCommitmentRepository commitmentRepo;
   late MockCoordinationRepository coordinationRepo;
+  late MockInboxRepository inboxRepo;
   late CommitmentCase case_;
 
   final now = DateTime.utc(2025, 1, 1);
@@ -40,7 +41,13 @@ void main() {
     beaconRepo = MockBeaconRepository();
     commitmentRepo = MockCommitmentRepository();
     coordinationRepo = MockCoordinationRepository();
-    case_ = CommitmentCase(commitmentRepo, beaconRepo, coordinationRepo);
+    inboxRepo = MockInboxRepository();
+    case_ = CommitmentCase(
+      commitmentRepo,
+      beaconRepo,
+      coordinationRepo,
+      inboxRepo,
+    );
   });
 
   group('withdraw lifecycle', () {
@@ -63,6 +70,7 @@ void main() {
         ),
       );
       verifyZeroInteractions(commitmentRepo);
+      verifyZeroInteractions(inboxRepo);
     });
 
     test('rejects DELETED (2)', () async {
@@ -120,6 +128,12 @@ void main() {
       when(
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
       ).thenAnswer((_) async {});
+      when(
+        inboxRepo.upsertWatchingForSender(
+          senderId: 'U1',
+          beaconId: 'B1',
+        ),
+      ).thenAnswer((_) async {});
 
       await case_.withdraw(
         beaconId: 'B1',
@@ -135,6 +149,12 @@ void main() {
           message: '',
         ),
       ).called(1);
+      verify(
+        inboxRepo.upsertWatchingForSender(
+          senderId: 'U1',
+          beaconId: 'B1',
+        ),
+      ).called(1);
     });
 
     test('allows PENDING_REVIEW (4) and CLOSED_REVIEW_OPEN (5)', () async {
@@ -142,6 +162,7 @@ void main() {
         reset(beaconRepo);
         reset(commitmentRepo);
         reset(coordinationRepo);
+        reset(inboxRepo);
         stubBeacon(beacon(id: 'B1', state: state));
         when(
           coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
@@ -157,6 +178,12 @@ void main() {
         when(
           coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
         ).thenAnswer((_) async {});
+        when(
+          inboxRepo.upsertWatchingForSender(
+            senderId: 'U1',
+            beaconId: 'B1',
+          ),
+        ).thenAnswer((_) async {});
 
         await case_.withdraw(
           beaconId: 'B1',
@@ -169,6 +196,12 @@ void main() {
             userId: 'U1',
             uncommitReason: 'timing',
             message: '',
+          ),
+        ).called(1);
+        verify(
+          inboxRepo.upsertWatchingForSender(
+            senderId: 'U1',
+            beaconId: 'B1',
           ),
         ).called(1);
       }

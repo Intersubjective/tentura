@@ -26,6 +26,8 @@ typedef BeaconInvolvementData = ({
   Set<String> committedIds,
   Set<String> withdrawnIds,
   Set<String> rejectedIds,
+  Set<String> watchingIds,
+  Set<String> onwardForwarderIds,
 });
 
 @lazySingleton
@@ -44,8 +46,16 @@ class ForwardRepository {
   Stream<CommitmentEvent> get commitmentChanges =>
       _commitmentController.stream;
 
+  final _forwardCompletedController = StreamController<void>.broadcast();
+
+  /// Fires after a successful [forwardBeacon] (sender may move to Watching).
+  Stream<void> get forwardCompleted => _forwardCompletedController.stream;
+
   @disposeMethod
-  Future<void> dispose() => _commitmentController.close();
+  Future<void> dispose() async {
+    await _commitmentController.close();
+    await _forwardCompletedController.close();
+  }
 
   Future<String> forwardBeacon({
     required String beaconId,
@@ -69,7 +79,13 @@ class ForwardRepository {
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).beaconForward);
+      .then((r) {
+        final id = r.dataOrThrow(label: _label).beaconForward;
+        if (!_forwardCompletedController.isClosed) {
+          _forwardCompletedController.add(null);
+        }
+        return id;
+      });
 
   /// Loads beacon header + forward-screen involvement in parallel.
   ///
@@ -101,6 +117,8 @@ class ForwardRepository {
       committedIds: inv.committedIds?.toSet() ?? {},
       withdrawnIds: inv.withdrawnIds?.toSet() ?? {},
       rejectedIds: inv.rejectedIds?.toSet() ?? {},
+      watchingIds: inv.watchingIds?.toSet() ?? {},
+      onwardForwarderIds: inv.onwardForwarderIds?.toSet() ?? {},
     );
   }
 
