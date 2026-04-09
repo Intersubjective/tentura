@@ -24,9 +24,7 @@ abstract class ForwardCandidate with _$ForwardCandidate {
   double get mrScore => profile.score;
 
   bool get canForwardTo =>
-      isReachable &&
-      involvement != CandidateInvolvement.declined &&
-      involvement != CandidateInvolvement.author;
+      isReachable && involvement == CandidateInvolvement.unseen;
 
   bool get isUnseen => involvement == CandidateInvolvement.unseen;
 }
