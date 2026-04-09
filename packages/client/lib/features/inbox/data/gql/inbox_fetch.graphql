@@ -1,14 +1,8 @@
 # import '/data/gql/beacon_model.graphql'
 
-query InboxFetch($context: String = "") {
+query InboxFetch {
   inbox_item(
-    order_by: {latest_forward_at: desc},
-    where: {
-      _or: [
-        {context: {_eq: $context}},
-        {context: {_is_null: true}}
-      ]
-    }
+    order_by: {latest_forward_at: desc}
   ) {
     beacon_id
     context

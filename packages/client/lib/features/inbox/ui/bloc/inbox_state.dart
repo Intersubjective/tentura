@@ -10,7 +10,6 @@ part 'inbox_state.freezed.dart';
 @freezed
 abstract class InboxState extends StateBase with _$InboxState {
   const factory InboxState({
-    @Default('') String context,
     @Default([]) List<InboxItem> items,
     @Default(InboxSort.recent) InboxSort sort,
     @Default(StateIsSuccess()) StateStatus status,

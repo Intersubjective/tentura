@@ -1410,6 +1410,22 @@
                 "using": {
                   "foreign_key_constraint_on": "user_id"
                 }
+              },
+              {
+                "name": "coordination",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "beacon_id": "commit_beacon_id",
+                      "user_id": "commit_user_id"
+                    },
+                    "insertion_order": null,
+                    "remote_table": {
+                      "name": "beacon_commitment_coordination",
+                      "schema": "public"
+                    }
+                  }
+                }
               }
             ],
             "insert_permissions": [

@@ -1,14 +1,11 @@
 # import '/data/gql/beacon_model.graphql'
+# import '/data/gql/user_model.graphql'
 
-query MyWorkInit($userId: String!, $context: String = "") {
+query MyWorkInit($userId: String!) {
   authoredNonClosed: beacon(
     where: {
       user_id: {_eq: $userId},
-      state: {_in: [0, 3, 4, 5]},
-      _or: [
-        {context: {_eq: $context}},
-        {context: {_is_null: true}}
-      ]
+      state: {_in: [0, 3, 4, 5]}
     },
     order_by: {updated_at: desc}
   ) {
@@ -19,27 +16,29 @@ query MyWorkInit($userId: String!, $context: String = "") {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
-        state: {_in: [0, 3, 4, 5]},
-        _or: [
-          {context: {_eq: $context}},
-          {context: {_is_null: true}}
-        ]
+        state: {_in: [0, 3, 4, 5]}
       }
     },
     order_by: {updated_at: desc}
   ) {
+    message
+    help_type
+    coordination {
+      response_type
+    }
     beacon {
       ...BeaconModel
+      forward_edges(limit: 3, order_by: {created_at: desc}) {
+        sender {
+          ...UserModel
+        }
+      }
     }
   }
   authoredClosedIds: beacon(
     where: {
       user_id: {_eq: $userId},
-      state: {_in: [1, 2, 6]},
-      _or: [
-        {context: {_eq: $context}},
-        {context: {_is_null: true}}
-      ]
+      state: {_in: [1, 2, 6]}
     },
     order_by: {updated_at: desc}
   ) {
@@ -50,11 +49,7 @@ query MyWorkInit($userId: String!, $context: String = "") {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
-        state: {_in: [1, 2, 6]},
-        _or: [
-          {context: {_eq: $context}},
-          {context: {_is_null: true}}
-        ]
+        state: {_in: [1, 2, 6]}
       }
     },
     order_by: {updated_at: desc}
@@ -65,15 +60,11 @@ query MyWorkInit($userId: String!, $context: String = "") {
   }
 }
 
-query MyWorkClosed($userId: String!, $context: String = "") {
+query MyWorkClosed($userId: String!) {
   authoredClosed: beacon(
     where: {
       user_id: {_eq: $userId},
-      state: {_in: [1, 2, 6]},
-      _or: [
-        {context: {_eq: $context}},
-        {context: {_is_null: true}}
-      ]
+      state: {_in: [1, 2, 6]}
     },
     order_by: {updated_at: desc}
   ) {
@@ -84,17 +75,23 @@ query MyWorkClosed($userId: String!, $context: String = "") {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
-        state: {_in: [1, 2, 6]},
-        _or: [
-          {context: {_eq: $context}},
-          {context: {_is_null: true}}
-        ]
+        state: {_in: [1, 2, 6]}
       }
     },
     order_by: {updated_at: desc}
   ) {
+    message
+    help_type
+    coordination {
+      response_type
+    }
     beacon {
       ...BeaconModel
+      forward_edges(limit: 3, order_by: {created_at: desc}) {
+        sender {
+          ...UserModel
+        }
+      }
     }
   }
 }

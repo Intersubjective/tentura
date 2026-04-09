@@ -27,8 +27,8 @@ class InboxRepository {
   @disposeMethod
   Future<void> dispose() => _localMutationController.close();
 
-  Future<List<InboxItem>> fetch({required String context}) => _remoteApiService
-      .request(GInboxFetchReq((r) => r..vars.context = context))
+  Future<List<InboxItem>> fetch() => _remoteApiService
+      .request(GInboxFetchReq())
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).inbox_item)
       .then(

@@ -1058,6 +1058,131 @@
   "@myWorkFilterCommitted": {
     "context": "MyWorkScreen"
   },
+  "myWorkFilterArchived": "Архив",
+  "@myWorkFilterArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyAll": "Пока нет созданных или принятых дел",
+  "@myWorkEmptyAll": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyAuthored": "Нет ваших маяков",
+  "@myWorkEmptyAuthored": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyCommitted": "Нет активных обязательств",
+  "@myWorkEmptyCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyArchived": "Нет архивных записей",
+  "@myWorkEmptyArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkYouAuthor": "Вы (автор)",
+  "@myWorkYouAuthor": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipAuthor": "Автор",
+  "@myWorkChipAuthor": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipActive": "Активно",
+  "@myWorkChipActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipDraft": "Черновик",
+  "@myWorkChipDraft": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipCommitted": "Принято",
+  "@myWorkChipCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipReviewPending": "Ожидает проверки",
+  "@myWorkChipReviewPending": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipReviewWindowOpen": "Окно проверки открыто",
+  "@myWorkChipReviewWindowOpen": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipReadyForReview": "Готово к проверке",
+  "@myWorkChipReadyForReview": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipMoreHelp": "Нужна ещё помощь",
+  "@myWorkChipMoreHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkReviewCommitmentsCta": "Проверить обязательства",
+  "@myWorkReviewCommitmentsCta": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkReviewCta": "Проверить",
+  "@myWorkReviewCta": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEditDraft": "Редактировать черновик",
+  "@myWorkEditDraft": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkArchive": "В архив",
+  "@myWorkArchive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkNoAuthorResponse": "Ответа пока нет",
+  "@myWorkNoAuthorResponse": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkAuthorResponseLine": "Ответ автора: {response}",
+  "@myWorkAuthorResponseLine": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "response": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkYourNoteLine": "Ваша заметка: {note}",
+  "@myWorkYourNoteLine": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkUpdatedLine": "Обновлено {when}",
+  "@myWorkUpdatedLine": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkDraftStatusLine": "{count} обязательств · Разбираемся",
+  "@myWorkDraftStatusLine": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkCommitmentsShort": "{count} обязательств",
+  "@myWorkCommitmentsShort": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkArchivePlaceholder": "Архив появится в следующих версиях",
+  "@myWorkArchivePlaceholder": {
+    "context": "MyWorkScreen"
+  },
   "myWorkEmpty": "Нет активных дел",
   "@myWorkEmpty": {
     "context": "MyWorkScreen"

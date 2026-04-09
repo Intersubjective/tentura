@@ -297,6 +297,9 @@ type beacon_commitment {
   message: String!
   status: smallint!
 
+  """Author coordination feedback for this commitment (if any)."""
+  coordination: beacon_commitment_coordination
+
   """Reason tag key when status=withdrawn"""
   uncommit_reason: String
   updated_at: timestamptz!
@@ -380,6 +383,7 @@ input beacon_commitment_bool_exp {
   _or: [beacon_commitment_bool_exp!]
   beacon: beacon_bool_exp
   beacon_id: String_comparison_exp
+  coordination: beacon_commitment_coordination_bool_exp
   created_at: timestamptz_comparison_exp
   help_type: String_comparison_exp
   message: String_comparison_exp
@@ -600,6 +604,7 @@ input beacon_commitment_on_conflict {
 input beacon_commitment_order_by {
   beacon: beacon_order_by
   beacon_id: order_by
+  coordination: beacon_commitment_coordination_order_by
   created_at: order_by
   help_type: order_by
   message: order_by
