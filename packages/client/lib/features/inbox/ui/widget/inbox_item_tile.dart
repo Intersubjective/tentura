@@ -68,6 +68,14 @@ const _kProvenanceCollapsedAvatarSize = 20.0;
 /// Negative overlap between stacked forwarder avatars (`-space-x-1.5` in mock).
 const _kProvenanceAvatarOverlap = 6.0;
 
+/// More than one distinct forwarder (extra rows or overflow text) — only then
+/// may the user expand/collapse the provenance block.
+bool _provenanceCanExpand(InboxProvenance p) {
+  if (p.senders.isEmpty) return false;
+  final overflow = p.totalDistinctSenders - p.senders.length;
+  return p.senders.length > 1 || overflow > 0;
+}
+
 class InboxItemTile extends StatefulWidget {
   const InboxItemTile({
     required this.item,
@@ -94,6 +102,14 @@ class InboxItemTile extends StatefulWidget {
 
 class _InboxItemTileState extends State<InboxItemTile> {
   var _provenanceExpanded = false;
+
+  @override
+  void didUpdateWidget(covariant InboxItemTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_provenanceCanExpand(widget.item.provenance) && _provenanceExpanded) {
+      _provenanceExpanded = false;
+    }
+  }
 
   Profile _senderProfile(InboxForwardSender s) => Profile(
     id: s.id,
@@ -146,6 +162,7 @@ class _InboxItemTileState extends State<InboxItemTile> {
         widget.item.provenance.senders.length;
     final showOverflow = overflow > 0;
     final hasProvenanceBody = widget.item.provenance.senders.isNotEmpty;
+    final canExpandProvenance = _provenanceCanExpand(widget.item.provenance);
 
     final lifecycleBg = scheme.primaryFixed;
     // onPrimaryFixed pairs with primaryFixed for readable contrast; the
@@ -380,12 +397,14 @@ class _InboxItemTileState extends State<InboxItemTile> {
             if (hasProvenanceBody) ...[
               const SizedBox(height: kSpacingSmall),
               GestureDetector(
-                onTap: () => setState(
-                  () => _provenanceExpanded = !_provenanceExpanded,
-                ),
+                onTap: canExpandProvenance
+                    ? () => setState(
+                        () => _provenanceExpanded = !_provenanceExpanded,
+                      )
+                    : null,
                 behavior: HitTestBehavior.translucent,
                 child: Semantics(
-                  expanded: _provenanceExpanded,
+                  expanded: canExpandProvenance && _provenanceExpanded,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerLow,
@@ -396,51 +415,7 @@ class _InboxItemTileState extends State<InboxItemTile> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (_provenanceExpanded)
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    l10n.inboxProvenanceTrail.toUpperCase(),
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.6,
-                                      color: scheme.onSurfaceVariant,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ),
-                                TextButton(
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: Size.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    foregroundColor: scheme.primary,
-                                  ),
-                                  onPressed: () => setState(
-                                    () => _provenanceExpanded = false,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        l10n.inboxProvenanceCollapse,
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                      const Icon(
-                                        Icons.keyboard_arrow_up,
-                                        size: 18,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            )
-                          else
+                          if (!canExpandProvenance) ...[
                             _ProvenanceCollapsedHeader(
                               primaryProfile: _senderProfile(
                                 widget.item.provenance.senders.first,
@@ -458,42 +433,9 @@ class _InboxItemTileState extends State<InboxItemTile> {
                                   ),
                               ],
                               overflowCount: showOverflow ? overflow : 0,
-                              onExpand: () => setState(
-                                () => _provenanceExpanded = true,
-                              ),
+                              showExpandAction: false,
+                              onExpand: () {},
                             ),
-                          if (_provenanceExpanded) ...[
-                            const SizedBox(height: kSpacingSmall),
-                            for (
-                              var i = 0;
-                              i < widget.item.provenance.senders.length;
-                              i++
-                            ) ...[
-                              if (i > 0) const SizedBox(height: kSpacingMedium),
-                              _ProvenanceSenderBlock(
-                                profile: _senderProfile(
-                                  widget.item.provenance.senders[i],
-                                ),
-                                notePreview: widget
-                                    .item
-                                    .provenance
-                                    .senders[i]
-                                    .notePreview,
-                                borderColor: i == 0
-                                    ? scheme.primary
-                                    : scheme.outlineVariant,
-                              ),
-                            ],
-                            if (showOverflow) ...[
-                              const SizedBox(height: kSpacingSmall),
-                              Text(
-                                l10n.inboxMoreForwarders(overflow),
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ] else ...[
                             const SizedBox(height: kSpacingSmall),
                             _ProvenanceCollapsedQuote(
                               text: _collapsedProvenancePreviewText(
@@ -501,6 +443,121 @@ class _InboxItemTileState extends State<InboxItemTile> {
                               ),
                               borderColor: scheme.primaryFixedDim,
                             ),
+                          ] else ...[
+                            if (!_provenanceExpanded)
+                              _ProvenanceCollapsedHeader(
+                                primaryProfile: _senderProfile(
+                                  widget.item.provenance.senders.first,
+                                ),
+                                primaryName:
+                                    widget.item.provenance.senders.first.title,
+                                restProfiles: [
+                                  for (
+                                    var i = 1;
+                                    i < widget.item.provenance.senders.length;
+                                    i++
+                                  )
+                                    _senderProfile(
+                                      widget.item.provenance.senders[i],
+                                    ),
+                                ],
+                                overflowCount: showOverflow ? overflow : 0,
+                                showExpandAction: true,
+                                onExpand: () => setState(
+                                  () => _provenanceExpanded = true,
+                                ),
+                              ),
+                            if (_provenanceExpanded)
+                              Semantics(
+                                label: l10n.inboxProvenanceTrail,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    for (
+                                      var i = 0;
+                                      i <
+                                          widget.item.provenance.senders.length;
+                                      i++
+                                    ) ...[
+                                      if (i > 0)
+                                        const SizedBox(
+                                          height: kSpacingMedium,
+                                        ),
+                                      _ProvenanceSenderBlock(
+                                        profile: _senderProfile(
+                                          widget.item.provenance.senders[i],
+                                        ),
+                                        notePreview: widget
+                                            .item
+                                            .provenance
+                                            .senders[i]
+                                            .notePreview,
+                                        borderColor: i == 0
+                                            ? scheme.primary
+                                            : scheme.outlineVariant,
+                                        titleRowTrailing: i == 0
+                                            ? TextButton(
+                                              style: TextButton.styleFrom(
+                                                padding: EdgeInsets.zero,
+                                                minimumSize: Size.zero,
+                                                tapTargetSize:
+                                                    MaterialTapTargetSize
+                                                        .shrinkWrap,
+                                                foregroundColor: scheme.primary,
+                                              ),
+                                              onPressed: () => setState(
+                                                () => _provenanceExpanded =
+                                                    false,
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    l10n.inboxProvenanceCollapse,
+                                                    style: theme
+                                                        .textTheme
+                                                        .labelSmall
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
+                                                  ),
+                                                  const Icon(
+                                                    Icons.keyboard_arrow_up,
+                                                    size: 18,
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          : null,
+                                      noteTopSpacing: i == 0
+                                          ? kSpacingSmall
+                                          : 6,
+                                    ),
+                                  ],
+                                  if (showOverflow) ...[
+                                    const SizedBox(height: kSpacingSmall),
+                                    Text(
+                                      l10n.inboxMoreForwarders(overflow),
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (!_provenanceExpanded) ...[
+                              const SizedBox(height: kSpacingSmall),
+                              _ProvenanceCollapsedQuote(
+                                text: _collapsedProvenancePreviewText(
+                                  widget.item,
+                                ),
+                                borderColor: scheme.primaryFixedDim,
+                              ),
+                            ],
                           ],
                         ],
                       ),
@@ -624,6 +681,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
     required this.primaryName,
     required this.restProfiles,
     required this.overflowCount,
+    required this.showExpandAction,
     required this.onExpand,
   });
 
@@ -631,6 +689,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
   final String primaryName;
   final List<Profile> restProfiles;
   final int overflowCount;
+  final bool showExpandAction;
   final VoidCallback onExpand;
 
   @override
@@ -692,27 +751,28 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
             ],
           ),
         ),
-        TextButton(
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.zero,
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            foregroundColor: scheme.primary,
-          ),
-          onPressed: onExpand,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.inboxProvenanceMore,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
+        if (showExpandAction)
+          TextButton(
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: scheme.primary,
+            ),
+            onPressed: onExpand,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.inboxProvenanceMore,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const Icon(Icons.keyboard_arrow_down, size: 18),
-            ],
+                const Icon(Icons.keyboard_arrow_down, size: 18),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
@@ -867,11 +927,15 @@ class _ProvenanceSenderBlock extends StatelessWidget {
     required this.profile,
     required this.notePreview,
     required this.borderColor,
+    this.titleRowTrailing,
+    this.noteTopSpacing = 6,
   });
 
   final Profile profile;
   final String notePreview;
   final Color borderColor;
+  final Widget? titleRowTrailing;
+  final double noteTopSpacing;
 
   @override
   Widget build(BuildContext context) {
@@ -899,10 +963,11 @@ class _ProvenanceSenderBlock extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            ?titleRowTrailing,
           ],
         ),
         if (notePreview.isNotEmpty) ...[
-          const SizedBox(height: 6),
+          SizedBox(height: noteTopSpacing),
           DecoratedBox(
             decoration: BoxDecoration(
               border: Border(
