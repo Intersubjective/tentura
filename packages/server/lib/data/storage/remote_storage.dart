@@ -10,12 +10,19 @@ class RemoteStorage {
 
   final Env env;
 
-  late final _remoteStorage = Minio(
-    accessKey: env.kS3AccessKey,
-    secretKey: env.kS3SecretKey,
-    endPoint: env.kS3Endpoint,
-    pathStyle: env.kS3PathStyle,
-  );
+  late final _remoteStorage = () {
+    final parts = env.kS3Endpoint.split(':');
+    final host = parts.first;
+    final port = parts.length > 1 ? int.tryParse(parts.last) : null;
+    return Minio(
+      endPoint: host,
+      port: port,
+      useSSL: env.kS3UseSSL,
+      accessKey: env.kS3AccessKey,
+      secretKey: env.kS3SecretKey,
+      pathStyle: env.kS3PathStyle,
+    );
+  }();
 
   Future<Uint8List> getObject(String path) async {
     final stream = await _remoteStorage.getObject(env.kS3Bucket, path);

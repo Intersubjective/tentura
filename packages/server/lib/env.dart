@@ -47,6 +47,7 @@ class Env {
     String? kS3Endpoint,
     String? kS3Bucket,
     bool? kS3PathStyle,
+    bool? kS3UseSSL,
 
     // Task Worker
     Duration? taskOnEmptyDelay,
@@ -130,6 +131,7 @@ class Env {
        kS3Endpoint = kS3Endpoint ?? _env['S3_ENDPOINT'] ?? '',
        kS3Bucket = kS3Bucket ?? _env['S3_BUCKET'] ?? '',
        kS3PathStyle = kS3PathStyle ?? _env['S3_PATH_STYLE'] == 'true',
+       kS3UseSSL = kS3UseSSL ?? _env['S3_USE_SSL'] == 'true',
 
        // Meritrank service
        meritrankCalculateTimeout =
@@ -239,12 +241,16 @@ class Env {
 
   final String kS3SecretKey;
 
+  /// Hostname, or `host:port` (e.g. `localhost:9000`). Parsed into host + port for the MinIO client.
   final String kS3Endpoint;
 
   final String kS3Bucket;
 
   /// Path-style URLs (e.g. MinIO at localhost). Virtual-hosted style for S3/Spaces.
   final bool kS3PathStyle;
+
+  /// HTTPS for the S3 API connection (`S3_USE_SSL=true`). Default false (HTTP), e.g. local MinIO.
+  final bool kS3UseSSL;
 
   late final kIsRemoteStorageEnabled =
       kS3Endpoint.isNotEmpty &&

@@ -183,6 +183,17 @@ The app calls Hasura at `/api/v1/graphql`, which merges Postgres with the **Tent
 - S3 API: <http://localhost:9000>
 - Bucket: `tentura`
 
+The Tentura server uses the Dart `minio` client for uploads. Set these in `.env` (see `.env.example`):
+
+| Variable | Purpose |
+|----------|---------|
+| `S3_ENDPOINT` | S3 host only, or `host:port` (e.g. `localhost:9000`). The server splits host and port for the client. |
+| `S3_BUCKET` | Bucket name (e.g. `tentura`). |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | MinIO credentials (default dev: `minioadmin` / `minioadmin`). |
+| `S3_PATH_STYLE` | Set to `true` for MinIO and most self-hosted S3-compatible APIs; `false` for AWS-style virtual-hosted buckets. |
+| `S3_USE_SSL` | Set to `true` when the S3 API is reached over HTTPS (e.g. production behind TLS). Set to `false` for local MinIO on plain HTTP (`http://localhost:9000`). If omitted, it defaults to `false`. |
+| `IMAGE_SERVER` | Public base URL for image links in API responses (scheme + host + port + bucket path as clients resolve URLs), e.g. `http://localhost:9000/tentura`. |
+
 ## pgAdmin
 
 - <http://localhost:5050> (email: `admin@local.host`, password: `password`)
