@@ -1058,6 +1058,131 @@
   "@myWorkFilterCommitted": {
     "context": "MyWorkScreen"
   },
+  "myWorkFilterArchived": "Archived",
+  "@myWorkFilterArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyAll": "No authored or committed work yet",
+  "@myWorkEmptyAll": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyAuthored": "No authored beacons",
+  "@myWorkEmptyAuthored": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyCommitted": "No active commitments",
+  "@myWorkEmptyCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyArchived": "No archived items",
+  "@myWorkEmptyArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkYouAuthor": "You (Author)",
+  "@myWorkYouAuthor": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipAuthor": "Author",
+  "@myWorkChipAuthor": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipActive": "Active",
+  "@myWorkChipActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipDraft": "Draft",
+  "@myWorkChipDraft": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipCommitted": "Committed",
+  "@myWorkChipCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipReviewPending": "Review pending",
+  "@myWorkChipReviewPending": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipReviewWindowOpen": "Review window open",
+  "@myWorkChipReviewWindowOpen": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipReadyForReview": "Ready for review",
+  "@myWorkChipReadyForReview": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkChipMoreHelp": "More help needed",
+  "@myWorkChipMoreHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkReviewCommitmentsCta": "Review commitments",
+  "@myWorkReviewCommitmentsCta": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkReviewCta": "Review",
+  "@myWorkReviewCta": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEditDraft": "Edit draft",
+  "@myWorkEditDraft": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkArchive": "Archive",
+  "@myWorkArchive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkNoAuthorResponse": "No response yet",
+  "@myWorkNoAuthorResponse": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkAuthorResponseLine": "Author response: {response}",
+  "@myWorkAuthorResponseLine": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "response": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkYourNoteLine": "Your note: {note}",
+  "@myWorkYourNoteLine": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkUpdatedLine": "Updated {when}",
+  "@myWorkUpdatedLine": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkDraftStatusLine": "{count} commitments · Investigation in progress",
+  "@myWorkDraftStatusLine": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkCommitmentsShort": "{count} commitments",
+  "@myWorkCommitmentsShort": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkArchivePlaceholder": "Archive will be available in a future update",
+  "@myWorkArchivePlaceholder": {
+    "context": "MyWorkScreen"
+  },
   "myWorkEmpty": "No active work",
   "@myWorkEmpty": {
     "context": "MyWorkScreen"

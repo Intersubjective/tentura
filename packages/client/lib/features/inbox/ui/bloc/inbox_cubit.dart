@@ -14,7 +14,6 @@ export 'inbox_state.dart';
 
 class InboxCubit extends Cubit<InboxState> {
   InboxCubit({
-    String initialContext = '',
     InboxRepository? repository,
     ForwardRepository? forwardRepository,
   }) : _repository = repository ?? GetIt.I<InboxRepository>(),
@@ -32,7 +31,7 @@ class InboxCubit extends Cubit<InboxState> {
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
-    unawaited(fetch(contextName: initialContext));
+    unawaited(fetch());
   }
 
   final InboxRepository _repository;
@@ -65,17 +64,14 @@ class InboxCubit extends Cubit<InboxState> {
     return super.close();
   }
 
-  Future<void> fetch({String? contextName, bool showLoading = true}) async {
+  Future<void> fetch({bool showLoading = true}) async {
     if (showLoading) {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
     try {
-      final items = await _repository.fetch(
-        context: contextName ?? state.context,
-      );
+      final items = await _repository.fetch();
       emit(
         state.copyWith(
-          context: contextName ?? state.context,
           items: items,
           status: const StateIsSuccess(),
         ),

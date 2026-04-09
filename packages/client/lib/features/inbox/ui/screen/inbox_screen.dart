@@ -7,8 +7,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
-import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
@@ -28,20 +26,9 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
         selector: (state) => state.currentAccountId,
         builder: (_, accountId) => BlocProvider(
           key: ValueKey(accountId),
-          create: (_) => InboxCubit(
-            initialContext: context.read<ContextCubit>().state.selected,
-          ),
-          child: MultiBlocListener(
-            listeners: [
-              BlocListener<ContextCubit, ContextState>(
-                listenWhen: (p, c) => p.selected != c.selected,
-                listener: (context, state) =>
-                    context.read<InboxCubit>().fetch(contextName: state.selected),
-              ),
-              const BlocListener<InboxCubit, InboxState>(
-                listener: commonScreenBlocListener,
-              ),
-            ],
+          create: (_) => InboxCubit(),
+          child: BlocListener<InboxCubit, InboxState>(
+            listener: commonScreenBlocListener,
             child: this,
           ),
         ),
@@ -60,7 +47,6 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const ContextDropDown(),
             BlocSelector<InboxCubit, InboxState, InboxSort>(
               selector: (state) => state.sort,
               builder: (_, sort) {
@@ -201,10 +187,7 @@ Widget _needsMeTabBody(
   }
 
   return RefreshIndicator.adaptive(
-    onRefresh: () => Future.wait([
-      inboxCubit.fetch(),
-      context.read<ContextCubit>().fetch(fromCache: false),
-    ]),
+    onRefresh: () => inboxCubit.fetch(),
     child: CustomScrollView(
       slivers: [
         if (tombstones.isNotEmpty) ...[
@@ -355,10 +338,7 @@ Widget _tabBody(
   }
 
   return RefreshIndicator.adaptive(
-    onRefresh: () => Future.wait([
-      inboxCubit.fetch(),
-      context.read<ContextCubit>().fetch(fromCache: false),
-    ]),
+    onRefresh: () => inboxCubit.fetch(),
     child: ListView.separated(
       padding: kPaddingSmallV,
       itemCount: items.length,
