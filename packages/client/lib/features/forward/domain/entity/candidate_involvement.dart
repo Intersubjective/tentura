@@ -1,6 +1,7 @@
 enum CandidateInvolvement {
   unseen,
   forwarded,
+  watching,
   committed,
   withdrawn,
   declined,

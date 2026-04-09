@@ -812,11 +812,11 @@
   "@beaconLifecycleClosedReviewComplete": {
     "context": "InboxItemTile"
   },
-  "actionStopWatching": "Прекратить наблюдение",
+  "actionStopWatching": "Вернуть в «Нужно мне»",
   "@actionStopWatching": {
     "context": "InboxItemTile"
   },
-  "actionWatch": "Наблюдать",
+  "actionWatch": "Переместить в «Наблюдение»",
   "@actionWatch": {
     "context": "InboxItemTile"
   },
@@ -962,6 +962,10 @@
   },
   "forwardWithdrawn": "Отозвали обязательство",
   "@forwardWithdrawn": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardWatching": "Наблюдение",
+  "@forwardWatching": {
     "context": "ForwardBeaconScreen"
   },
   "forwardAuthor": "Автор маяка",

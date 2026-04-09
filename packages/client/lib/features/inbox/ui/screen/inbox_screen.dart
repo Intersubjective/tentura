@@ -35,7 +35,7 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
               BlocListener<ContextCubit, ContextState>(
                 listenWhen: (p, c) => p.selected != c.selected,
                 listener: (context, state) =>
-                    context.read<InboxCubit>().fetch(state.selected),
+                    context.read<InboxCubit>().fetch(contextName: state.selected),
               ),
               const BlocListener<InboxCubit, InboxState>(
                 listener: commonScreenBlocListener,

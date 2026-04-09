@@ -11,8 +11,10 @@ import 'package:tentura_server/data/repository/commitment_repository.dart'
     as _i5;
 import 'package:tentura_server/data/repository/coordination_repository.dart'
     as _i7;
+import 'package:tentura_server/data/repository/inbox_repository.dart' as _i8;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/commitment_entity.dart' as _i6;
+import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i9;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -337,4 +339,84 @@ class MockCoordinationRepository extends _i1.Mock
             ),
           )
           as _i4.Future<List<Map<String, dynamic>>>);
+}
+
+/// A class which mocks [InboxRepository].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockInboxRepository extends _i1.Mock implements _i8.InboxRepository {
+  MockInboxRepository() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i4.Future<List<_i9.InboxItemEntity>> fetchByUserId(
+    String? userId, {
+    String? context,
+    int? limit = 50,
+    int? offset = 0,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #fetchByUserId,
+              [userId],
+              {#context: context, #limit: limit, #offset: offset},
+            ),
+            returnValue: _i4.Future<List<_i9.InboxItemEntity>>.value(
+              <_i9.InboxItemEntity>[],
+            ),
+          )
+          as _i4.Future<List<_i9.InboxItemEntity>>);
+
+  @override
+  _i4.Future<List<String>> fetchRejectedUserIdsByBeacon(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchRejectedUserIdsByBeacon, [beaconId]),
+            returnValue: _i4.Future<List<String>>.value(<String>[]),
+          )
+          as _i4.Future<List<String>>);
+
+  @override
+  _i4.Future<List<String>> fetchWatchingUserIdsByBeacon(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchWatchingUserIdsByBeacon, [beaconId]),
+            returnValue: _i4.Future<List<String>>.value(<String>[]),
+          )
+          as _i4.Future<List<String>>);
+
+  @override
+  _i4.Future<void> upsertWatchingForSender({
+    required String? senderId,
+    required String? beaconId,
+    String? context,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#upsertWatchingForSender, [], {
+              #senderId: senderId,
+              #beaconId: beaconId,
+              #context: context,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> setStatus({
+    required String? userId,
+    required String? beaconId,
+    required int? status,
+    required String? rejectionMessage,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setStatus, [], {
+              #userId: userId,
+              #beaconId: beaconId,
+              #status: status,
+              #rejectionMessage: rejectionMessage,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
 }

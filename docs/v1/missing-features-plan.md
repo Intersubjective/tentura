@@ -219,6 +219,24 @@ Post-implementation review of the shipped stack (server migrations, Hasura contr
 
 ---
 
+## 11. Watching (passive inbox stance)
+
+**Brief:** Triaged passive follow — not Inbox pending, not My Work ownership; visible to upstream forwarders on the forward screen. See [`watching-mechanism.md`](./watching-mechanism.md) and [`product-decisions.md`](./product-decisions.md) (Watching).
+
+**Status:** **Done** (Phase 1 scope) — auto-watch on forward, involvement fields, copy/UX, beacon detail action, uncommit → watching on server.
+
+**Implemented / baseline**
+
+- DB: `inbox_item.status` (`0` needs_me, `1` watching, `2` rejected).
+- Client: Inbox tabs (Needs me / Watching / Rejected); overflow move to watching on Needs me; `InboxRepository.setStatus` via Hasura.
+
+**Shipped**
+
+- Server: `beaconForward` transaction sets sender to watching when no active commitment; V2 `beaconInvolvement` includes `watchingIds` and `onwardForwarderIds`; `beaconWithdraw` upserts sender watching.
+- Client: `CandidateInvolvement.watching`, precedence in `forward_cubit`, forward tiles + l10n, neutral Watching chip on inbox, “Move to Watching” / “Return to Needs me” copy, beacon detail action + `InboxItemStatusForBeacon` query, inbox silent refresh after forward and after local `setStatus`.
+
+---
+
 ## Summary
 
 
@@ -234,5 +252,6 @@ Post-implementation review of the shipped stack (server migrations, Hasura contr
 | 8   | Beacon graph tab                  | Open             | `beacon_view_screen.dart`                                                                                                                                                                                                                                                                |
 | 9   | Hide                              | Open             | `beacon_view_screen.dart`                                                                                                                                                                                                                                                                |
 | 10  | Updates cleanup                   | Open             | router, `features/updates`                                                                                                                                                                                                                                                               |
+| 11  | Watching                          | **Done**         | `watching-mechanism.md`, `forward_case.dart`, `commitment_case.dart`, `beacon_involvement_case.dart`, `beacon_involvement_data.graphql`, `inbox_item_status_for_beacon.graphql`, `forward_cubit.dart`, `inbox_item_tile.dart`, `beacon_view_screen.dart`                                  |
 
 

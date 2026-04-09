@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_repository.dart';
+import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/domain/coordination/help_type.dart';
 import 'package:tentura_server/domain/coordination/uncommit_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -14,11 +15,13 @@ class CommitmentCase {
     this._commitmentRepository,
     this._beaconRepository,
     this._coordinationRepository,
+    this._inboxRepository,
   );
 
   final CommitmentRepository _commitmentRepository;
   final BeaconRepository _beaconRepository;
   final CoordinationRepository _coordinationRepository;
+  final InboxRepository _inboxRepository;
 
   Future<void> commit({
     required String beaconId,
@@ -101,6 +104,10 @@ class CommitmentCase {
     );
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,
+    );
+    await _inboxRepository.upsertWatchingForSender(
+      senderId: userId,
+      beaconId: beaconId,
     );
   }
 }

@@ -17,6 +17,7 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
+import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/beacon_view_cubit.dart';
@@ -288,6 +289,26 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                         ),
                       ),
                     ],
+                  ),
+                ),
+
+              if (state.isBeaconNotMine &&
+                  state.inboxStatus == InboxItemStatus.needsMe)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        unawaited(beaconViewCubit.moveToWatching()),
+                    icon: Icon(
+                      Icons.visibility_outlined,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    label: Text(l10n.actionWatch),
+                    style: TextButton.styleFrom(
+                      foregroundColor:
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
 

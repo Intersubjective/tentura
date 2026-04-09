@@ -304,9 +304,20 @@ class _InboxItemTileState extends State<InboxItemTile> {
                           const SizedBox(height: kSpacingSmall),
                           Chip(
                             label: Text(l10n.inboxTabWatching),
-                            avatar: const Icon(Icons.visibility, size: 16),
-                            backgroundColor: scheme.secondaryContainer,
-                            labelStyle: theme.textTheme.labelSmall,
+                            avatar: Icon(
+                              Icons.visibility_outlined,
+                              size: 16,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            backgroundColor: scheme.surfaceContainerHighest,
+                            side: BorderSide(
+                              color: scheme.outlineVariant.withValues(
+                                alpha: 0.8,
+                              ),
+                            ),
+                            labelStyle: theme.textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
                             visualDensity: VisualDensity.compact,
                           ),
                         ],

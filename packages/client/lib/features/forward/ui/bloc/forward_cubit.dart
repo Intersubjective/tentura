@@ -70,14 +70,20 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (userId == inv.beacon.author.id) {
       return CandidateInvolvement.author;
     }
-    if (inv.rejectedIds.contains(userId)) {
-      return CandidateInvolvement.declined;
-    }
     if (inv.committedIds.contains(userId)) {
       return CandidateInvolvement.committed;
     }
     if (inv.withdrawnIds.contains(userId)) {
       return CandidateInvolvement.withdrawn;
+    }
+    if (inv.onwardForwarderIds.contains(userId)) {
+      return CandidateInvolvement.forwarded;
+    }
+    if (inv.rejectedIds.contains(userId)) {
+      return CandidateInvolvement.declined;
+    }
+    if (inv.watchingIds.contains(userId)) {
+      return CandidateInvolvement.watching;
     }
     if (inv.forwardedToIds.contains(userId)) {
       return CandidateInvolvement.forwarded;

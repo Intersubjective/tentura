@@ -812,11 +812,11 @@
   "@beaconLifecycleClosedReviewComplete": {
     "context": "InboxItemTile"
   },
-  "actionStopWatching": "Stop watching",
+  "actionStopWatching": "Return to Needs me",
   "@actionStopWatching": {
     "context": "InboxItemTile"
   },
-  "actionWatch": "Watch",
+  "actionWatch": "Move to Watching",
   "@actionWatch": {
     "context": "InboxItemTile"
   },
@@ -962,6 +962,10 @@
   },
   "forwardWithdrawn": "Withdrew commitment",
   "@forwardWithdrawn": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardWatching": "Watching",
+  "@forwardWatching": {
     "context": "ForwardBeaconScreen"
   },
   "forwardAuthor": "Beacon author",
