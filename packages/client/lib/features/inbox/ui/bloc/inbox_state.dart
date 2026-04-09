@@ -18,6 +18,26 @@ abstract class InboxState extends StateBase with _$InboxState {
 
   const InboxState._();
 
+  static const _tombstoneWindow = Duration(hours: 24);
+
+  /// Passive tombstones to show under "Resolved beacons" (non-dismissed, last 24h).
+  List<InboxItem> get tombstonesLast24h {
+    final now = DateTime.now();
+    final list = items.where((e) {
+      if (!e.isTombstoneVisible) return false;
+      final t = e.beforeResponseTerminalAt;
+      if (t == null) return false;
+      return now.difference(t) <= _tombstoneWindow;
+    }).toList()
+      ..sort(
+        (a, b) =>
+            (b.beforeResponseTerminalAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+              a.beforeResponseTerminalAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+            ),
+      );
+    return list;
+  }
+
   List<InboxItem> get needsMe => _sorted(
         items.where((e) => e.status == InboxItemStatus.needsMe).toList(),
       );

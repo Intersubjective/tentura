@@ -27,11 +27,20 @@ class InboxItems extends Table {
   late final latestNotePreview = text()
       .withDefault(const Constant(''))();
 
-  /// 0 = needs_me, 1 = watching, 2 = rejected
+  /// 0 = needs_me, 1 = watching, 2 = rejected,
+  /// 3 = closed_before_response, 4 = deleted_before_response
   late final status = integer().withDefault(const Constant(0))();
 
   late final rejectionMessage = text()
       .withDefault(const Constant(''))();
+
+  late final beforeResponseTerminalAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
+
+  late final tombstoneDismissedAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {userId, beaconId};

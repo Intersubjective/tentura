@@ -385,6 +385,21 @@ class MockInboxRepository extends _i1.Mock implements _i8.InboxRepository {
           as _i4.Future<List<String>>);
 
   @override
+  _i4.Future<void> applyTombstoneAfterWithdraw({
+    required String? userId,
+    required String? beaconId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#applyTombstoneAfterWithdraw, [], {
+              #userId: userId,
+              #beaconId: beaconId,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
   _i4.Future<void> upsertWatchingForSender({
     required String? senderId,
     required String? beaconId,

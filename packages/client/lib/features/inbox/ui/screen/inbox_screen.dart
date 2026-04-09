@@ -14,6 +14,7 @@ import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import '../bloc/inbox_cubit.dart';
 import '../widget/inbox_item_tile.dart';
+import '../widget/inbox_tombstone_card.dart';
 import '../widget/rejection_dialog.dart';
 
 @RoutePage()
@@ -145,12 +146,11 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                   }
                   return TabBarView(
                     children: [
-                      _tabBody(
+                      _needsMeTabBody(
                         context,
                         inboxCubit,
-                        state.needsMe,
-                        l10n.inboxTabNeedsEmpty,
-                        0,
+                        state,
+                        l10n,
                       ),
                       _tabBody(
                         context,
@@ -176,6 +176,161 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
       ),
     );
   }
+}
+
+Widget _needsMeTabBody(
+  BuildContext context,
+  InboxCubit inboxCubit,
+  InboxState state,
+  L10n l10n,
+) {
+  final theme = Theme.of(context);
+  final tombstones = state.tombstonesLast24h;
+  final needsMe = state.needsMe;
+
+  if (tombstones.isEmpty && needsMe.isEmpty) {
+    return Center(
+      child: Text(
+        l10n.inboxTabNeedsEmpty,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  return RefreshIndicator.adaptive(
+    onRefresh: () => Future.wait([
+      inboxCubit.fetch(),
+      context.read<ContextCubit>().fetch(fromCache: false),
+    ]),
+    child: CustomScrollView(
+      slivers: [
+        if (tombstones.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: kPaddingSmallV,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.inboxTombstoneQueueStatus,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          letterSpacing: 1.2,
+                          color: theme.colorScheme.outline,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.inboxTombstoneSectionTitle,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      l10n.inboxTombstoneLast24h,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverList.separated(
+            itemCount: tombstones.length,
+            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+            itemBuilder: (_, i) {
+              final item = tombstones[i];
+              return Padding(
+                padding: kPaddingSmallH,
+                child: InboxTombstoneCard(
+                  key: ValueKey('tombstone-${item.beaconId}'),
+                  item: item,
+                  onOpen: () => context.router.pushPath(
+                    '$kPathBeaconView/${item.beaconId}',
+                  ),
+                  onDismiss: () => inboxCubit.dismissTombstone(item.beaconId),
+                ),
+              );
+            },
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: kSpacingMedium)),
+        ],
+        if (needsMe.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: kPaddingSmallH.add(kPaddingSmallV),
+              child: Text(
+                l10n.inboxTabNeedsMe,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+          SliverList.separated(
+            itemCount: needsMe.length,
+            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+            itemBuilder: (_, i) {
+              final item = needsMe[i];
+              return Padding(
+                padding: kPaddingSmallH,
+                child: InboxItemTile(
+                  key: ValueKey(item.beaconId),
+                  item: item,
+                  onOpenBeacon: () => context.router.pushPath(
+                    '$kPathBeaconView/${item.beaconId}',
+                  ),
+                  onTap: () => context.router.pushPath(
+                    '$kPathForwardBeacon/${item.beaconId}',
+                  ),
+                  onWatch: () => inboxCubit.setWatching(item.beaconId),
+                  onCantHelp: () async {
+                    final msg = await showRejectionDialog(context);
+                    if (!context.mounted) return;
+                    if (msg != null) {
+                      await inboxCubit.reject(item.beaconId, message: msg);
+                    }
+                  },
+                ),
+              );
+            },
+          ),
+        ] else if (tombstones.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: kPaddingSmallH.add(const EdgeInsets.only(top: 8)),
+              child: Text(
+                l10n.inboxTabNeedsEmpty,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 Widget _tabBody(

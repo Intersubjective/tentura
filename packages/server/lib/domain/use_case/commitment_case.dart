@@ -105,9 +105,17 @@ class CommitmentCase {
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,
     );
-    await _inboxRepository.upsertWatchingForSender(
-      senderId: userId,
-      beaconId: beaconId,
-    );
+    final beaconAfter = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (beaconAfter.state == 0) {
+      await _inboxRepository.upsertWatchingForSender(
+        senderId: userId,
+        beaconId: beaconId,
+      );
+    } else {
+      await _inboxRepository.applyTombstoneAfterWithdraw(
+        userId: userId,
+        beaconId: beaconId,
+      );
+    }
   }
 }

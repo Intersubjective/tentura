@@ -82,6 +82,14 @@ Amendments and locks for implementation agents. These **override** older phrasin
 
 ---
 
+## Before-response terminal / tombstone (Phase 1)
+
+- If the recipient **never** explicitly triaged (needs_me only: no Watching, no rejected, no active commitment), and the beacon becomes **terminal** (closed / deleted lifecycle / post-close review states per migration rules), set passive inbox **`inbox_item.status`** to **`closed_before_response`** or **`deleted_before_response`** — do **not** infer Watching, Not for me, or ownership.
+- **Actionable** inbox tabs (Needs me / Watching / Rejected) only show statuses **`0` / `1` / `2`**. Tombstones use **`tombstone_dismissed_at`** to hide the passive card without rewriting stance history.
+- **Lifecycle `deleted`** with the **beacon row retained** is the Phase 1 assumption for joinable tombstone titles; hard SQL delete of beacons cascades away `inbox_item` rows — see [`../before-response-terminal-tombstone.md`](../before-response-terminal-tombstone.md).
+
+---
+
 ## Document map
 
 | Document | Role |
@@ -91,3 +99,4 @@ Amendments and locks for implementation agents. These **override** older phrasin
 | `contradictions-plan.md` | Code vs brief conflicts still to fix |
 | `../overcommit-coordination-feature-design.md` | Overcommit coordination (active beacon), commit / uncommit / status |
 | `watching-mechanism.md` | Watching stance: surfaces, transitions, forward-list precedence, copy |
+| `../before-response-terminal-tombstone.md` | Terminal-before-triage: relation states, tombstone UI, dismiss, corner cases |

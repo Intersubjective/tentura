@@ -1,0 +1,11 @@
+mutation InboxTombstoneDismiss(
+  $beaconId: String!,
+  $dismissedAt: timestamptz!
+) {
+  update_inbox_item(
+    where: {beacon_id: {_eq: $beaconId}},
+    _set: {tombstone_dismissed_at: $dismissedAt}
+  ) {
+    affected_rows
+  }
+}

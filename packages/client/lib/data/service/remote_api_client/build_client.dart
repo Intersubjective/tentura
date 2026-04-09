@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:developer';
 import 'package:ferry/ferry.dart'
     show Client, FetchPolicy, Link, NextLink, OperationType;

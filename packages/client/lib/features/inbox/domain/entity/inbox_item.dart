@@ -20,7 +20,17 @@ abstract class InboxItem with _$InboxItem {
     @Default('') String context,
     @Default(InboxProvenance.empty) InboxProvenance provenance,
     Beacon? beacon,
+    DateTime? beforeResponseTerminalAt,
+    DateTime? tombstoneDismissedAt,
   }) = _InboxItem;
 
   const InboxItem._();
+
+  bool get isBeforeResponseTombstone =>
+      status == InboxItemStatus.closedBeforeResponse ||
+      status == InboxItemStatus.deletedBeforeResponse;
+
+  /// Shown in inbox tombstone section until dismissed.
+  bool get isTombstoneVisible =>
+      isBeforeResponseTombstone && tombstoneDismissedAt == null;
 }

@@ -11,6 +11,7 @@ import '../../domain/enum.dart';
 import '../gql/_g/inbox_fetch.req.gql.dart';
 import '../gql/_g/inbox_item_status_for_beacon.req.gql.dart';
 import '../gql/_g/inbox_set_status.req.gql.dart';
+import '../gql/_g/inbox_tombstone_dismiss.req.gql.dart';
 
 @lazySingleton
 class InboxRepository {
@@ -41,6 +42,8 @@ class InboxRepository {
                 latestNotePreview: e.latest_note_preview,
                 status: inboxItemStatusFromSmallint(e.status),
                 rejectionMessage: e.rejection_message,
+                beforeResponseTerminalAt: e.before_response_terminal_at,
+                tombstoneDismissedAt: e.tombstone_dismissed_at,
                 provenance: InboxProvenance.parse(e.inbox_provenance_data),
                 beacon: (e.beacon as BeaconModel).toEntity(),
               ),
@@ -75,6 +78,26 @@ class InboxRepository {
               ..vars.beaconId = beaconId
               ..vars.status = status.toSmallint
               ..vars.rejectionMessage = rejectionMessage,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label));
+    if (!_localMutationController.isClosed) {
+      _localMutationController.add(null);
+    }
+  }
+
+  Future<void> dismissTombstone({
+    required String beaconId,
+    DateTime? dismissedAt,
+  }) async {
+    final at = dismissedAt ?? DateTime.now().toUtc();
+    await _remoteApiService
+        .request(
+          GInboxTombstoneDismissReq(
+            (r) => r
+              ..vars.beaconId = beaconId
+              ..vars.dismissedAt = at,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
