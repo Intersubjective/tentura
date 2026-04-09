@@ -235,6 +235,39 @@ class _AuthoredActiveCard extends StatelessWidget {
                 ),
             ],
           ),
+          const SizedBox(height: kSpacingSmall),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => unawaited(
+                context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.arrow_forward,
+                    size: 18,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    l10n.inboxCardOpenBeacon,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
