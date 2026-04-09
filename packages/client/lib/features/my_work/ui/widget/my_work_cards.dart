@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -180,7 +181,6 @@ class _AuthoredActiveCard extends StatelessWidget {
           _CardHeaderRow(
             beacon: b,
             subline: l10n.myWorkYouAuthor,
-            draftPlaceholder: false,
             menu: _AuthoredOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -270,7 +270,6 @@ class _CommittedActiveCard extends StatelessWidget {
           _CardHeaderRow(
             beacon: b,
             subline: b.author.title.isEmpty ? '—' : b.author.title,
-            draftPlaceholder: false,
             menu: _CommittedOverflowMenu(beaconId: b.id),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -367,7 +366,6 @@ class _DraftAuthoredCard extends StatelessWidget {
           _CardHeaderRow(
             beacon: b,
             subline: l10n.myWorkYouAuthor,
-            draftPlaceholder: true,
             menu: _DraftOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -431,7 +429,6 @@ class _ClosedAuthoredCard extends StatelessWidget {
           _CardHeaderRow(
             beacon: b,
             subline: l10n.myWorkYouAuthor,
-            draftPlaceholder: false,
             menu: _AuthoredOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -484,7 +481,6 @@ class _ClosedCommittedCard extends StatelessWidget {
           _CardHeaderRow(
             beacon: b,
             subline: b.author.title.isEmpty ? '—' : b.author.title,
-            draftPlaceholder: false,
             menu: _CommittedOverflowMenu(beaconId: b.id),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -522,53 +518,24 @@ class _CardHeaderRow extends StatelessWidget {
   const _CardHeaderRow({
     required this.beacon,
     required this.subline,
-    required this.draftPlaceholder,
     required this.menu,
   });
 
   final Beacon beacon;
   final String subline;
-  final bool draftPlaceholder;
   final Widget menu;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final thumb = draftPlaceholder
-        ? Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.analytics_outlined,
-              color: theme.colorScheme.outline,
-            ),
-          )
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              beacon.imageUrl,
-              width: 48,
-              height: 48,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                width: 48,
-                height: 48,
-                color: theme.colorScheme.surfaceContainerHigh,
-                alignment: Alignment.center,
-                child: Icon(Icons.image_outlined, color: theme.colorScheme.outline),
-              ),
-            ),
-          );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        thumb,
+        AvatarRated(
+          profile: beacon.author,
+          size: 48,
+        ),
         const SizedBox(width: kSpacingSmall),
         Expanded(
           child: Column(
