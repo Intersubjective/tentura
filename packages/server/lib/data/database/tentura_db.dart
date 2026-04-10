@@ -102,9 +102,11 @@ class TenturaDb extends _$TenturaDb {
     String userId,
     Future<T> Function() action,
   ) => transaction(() async {
+    // `customStatement` binds raw Dart values; do not pass drift `Variable`
+    // here (unlike `customSelect`).
     await customStatement(
       r"SELECT set_config('tentura.mutating_user_id', $1, true)",
-      [Variable(userId)],
+      [userId],
     );
     return action();
   });
