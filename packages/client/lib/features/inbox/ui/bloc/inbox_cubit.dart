@@ -38,12 +38,14 @@ class InboxCubit extends Cubit<InboxState> {
   final ForwardRepository _forwardRepository;
 
   late final StreamSubscription<CommitmentEvent> _commitmentChanges;
-  late final StreamSubscription<void> _forwardCompleted;
+  late final StreamSubscription<String> _forwardCompleted;
   late final StreamSubscription<void> _inboxLocalMutations;
 
   void _onCommitmentChanged(CommitmentEvent event) => switch (event) {
         CommitmentCreated(:final beaconId) => _removeInboxItem(beaconId),
-        CommitmentWithdrawn() => unawaited(fetch(showLoading: false)),
+        CommitmentWithdrawn() ||
+        CommitmentInvalidated() =>
+          unawaited(fetch(showLoading: false)),
       };
 
   void _removeInboxItem(String beaconId) {

@@ -21,17 +21,19 @@ class ForwardEdgeRepository {
     String? context,
     String? parentEdgeId,
     String? batchId,
-  }) => _database.managers.beaconForwardEdges.create(
-    (o) => o(
-      beaconId: beaconId,
-      senderId: senderId,
-      recipientId: recipientId,
-      note: Value(note),
-      context: Value(context),
-      parentEdgeId: Value(parentEdgeId),
-      batchId: Value(batchId),
-    ),
-  );
+  }) => _database.withMutatingUser(senderId, () async {
+    await _database.managers.beaconForwardEdges.create(
+      (o) => o(
+        beaconId: beaconId,
+        senderId: senderId,
+        recipientId: recipientId,
+        note: Value(note),
+        context: Value(context),
+        parentEdgeId: Value(parentEdgeId),
+        batchId: Value(batchId),
+      ),
+    );
+  });
 
   /// Inserts one batch of forward edges atomically.
   ///
@@ -46,7 +48,7 @@ class ForwardEdgeRepository {
     String? context,
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
-  }) => _database.transaction(() async {
+  }) => _database.withMutatingUser(senderId, () async {
     for (final recipientId in recipientIds) {
       await _database.managers.beaconForwardEdges.create(
         (o) => o(

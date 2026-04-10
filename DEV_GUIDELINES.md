@@ -78,3 +78,115 @@ When adding a new V2 server query or mutation:
 3. No Caddy change is required for routing: `/api/v2/graphql` is already
    proxied to Tentura in production (`Caddyfile`) and in local web dev
    (`packages/client/web_dev_config.yaml`).
+
+## Entity invalidation (real-time)
+
+Near-real-time updates for entity changes (beacons, commitments, forwards) are
+delivered via lightweight **invalidation signals** over the existing V2 WebSocket
+(`/api/v2/ws`). This is **not** Hasura GraphQL subscriptions and **not** HTTP
+polling.
+
+### Data flow
+
+```
+PG trigger (AFTER INSERT/UPDATE/DELETE)
+  → NOTIFY entity_changes (JSON: entity, id, user_ids)
+  → PgNotificationService (packages/server/…/pg_notification_service.dart)
+  → WebsocketRouterBase._onEntityChangeNotification
+  → WebsocketPathEntityChanges.fanOutEntityChange (targets sessions by user_ids)
+  → WS message to client
+  → InvalidationService (packages/client/…/invalidation_service.dart)
+  → Repository emits RepositoryEventInvalidate / CommitmentInvalidated
+  → Cubit refetches via existing fetch()
+```
+
+### WebSocket message format
+
+```json
+{
+  "type": "subscription",
+  "path": "entity_changes",
+  "payload": {
+    "entity": "beacon",
+    "id": "beacon-uuid",
+    "event": "update"
+  }
+}
+```
+
+`entity` is one of `"beacon"`, `"commitment"`, or `"forward"`.
+`event` is the lowercase Postgres `TG_OP`: `"insert"`, `"update"`, or `"delete"`.
+
+### Fan-out strategy (phase 1)
+
+Relationship-based targeting — the PG trigger embeds the affected user IDs:
+
+| Entity | Notified users |
+|--------|----------------|
+| `beacon` | Beacon author (`user_id`) |
+| `commitment` | Committing user + beacon author (looked up from `beacon`) |
+| `forward` | Sender + recipient of the forward edge |
+
+No client-side subscription registration is needed. Phase 2 may add
+`watch_authors` subscriptions similar to how `user_presence` tracks `peer_ids`.
+
+### Echo suppression
+
+When a V2 mutation modifies a trigger-carrying table, the originating user
+should **not** receive the invalidation signal back (the client already handled
+the change locally). Two layers prevent this:
+
+**Server side (primary):** The PG trigger function `notify_entity_change()`
+reads `current_setting('tentura.mutating_user_id', true)` and removes that
+user from the `user_ids` array before calling `pg_notify`. Server-side
+repositories set this GUC inside a transaction via
+`TenturaDb.withMutatingUser(userId, () => ...)`. External writes (Hasura,
+raw SQL) never set the GUC, so all users are still notified normally.
+
+When adding a new V2 mutation that touches a trigger-carrying table, wrap
+the repository call in `_database.withMutatingUser(userId, () => ...)`.
+
+**Client side (residual):** `InvalidationService` buffers incoming IDs using
+`rxdart` `bufferTime(500ms)` and deduplicates within each window. This
+collapses batch operations (e.g. multi-recipient forwards) into a single
+invalidation event per entity ID.
+
+### Adding real-time updates for a new entity
+
+**Server side:**
+
+1. Add a PG trigger on the table in a new migration
+   (`EXECUTE FUNCTION public.notify_entity_change('entity_name')`).
+   The generic `notify_entity_change()` function handles the entity via
+   `TG_ARGV[0]`; add an `ELSIF entity_type = '...'` branch that sets
+   `entity_id` and `user_ids`.
+2. Wrap the repository mutation in `_database.withMutatingUser(userId, ...)`
+   so the trigger suppresses the echo back to the originating user.
+3. No changes needed in `PgNotificationService` — it listens on the
+   `entity_changes` channel generically.
+4. No changes needed in `WebsocketPathEntityChanges.fanOutEntityChange` —
+   it reads `user_ids` from the payload generically.
+
+**Client side:**
+
+1. Add a new broadcast stream to `InvalidationService`
+   (e.g. `Stream<String> get fooInvalidations`).
+2. Add a `case` in `InvalidationService._onInvalidation` for the new entity
+   key.
+3. Inject `InvalidationService` into the relevant repository; listen and emit
+   on the repository's existing `changes` stream using
+   `RepositoryEventInvalidate` (or an equivalent domain event type).
+4. Ensure the cubit already reacts to the repository event stream. If the
+   cubit uses an exhaustive `switch`, add the new variant. Add debouncing if
+   rapid-fire invalidations are expected.
+
+### What NOT to do
+
+- Do **not** add Hasura GraphQL subscriptions (`gql_websocket_link`,
+  `subscription` operations) for this purpose.
+- Do **not** add HTTP polling timers (`Timer.periodic` with `fetch()`).
+- Do **not** parse WS messages directly in repositories — all invalidation
+  goes through the single `InvalidationService` singleton
+  (`packages/client/lib/data/service/invalidation_service.dart`).
+- Do **not** put refetch logic in repositories; repositories emit signals,
+  cubits own the fetch lifecycle.

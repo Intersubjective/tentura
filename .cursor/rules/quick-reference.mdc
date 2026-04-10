@@ -13,6 +13,15 @@ One-line rules for quick lookup. See detailed files for explanations.
 - Every Tentura V2 GraphQL operation must be listed in `_tenturaDirectOperationNames` in `packages/client/lib/data/service/remote_api_client/build_client.dart` so the client hits `/api/v2/graphql` directly, not Hasura V1
 - When adding a V2 query/mutation: add the client `.graphql` operation name to that set; ensure the V2 server schema exposes matching types/fields for everything the operation selects (see `DEV_GUIDELINES.md` § V2 direct routing)
 
+## Real-Time Invalidation
+- Server-pushed entity invalidation uses the existing V2 WebSocket (`/api/v2/ws`), NOT Hasura subscriptions or HTTP polling
+- Data flow: PG trigger -> `PgNotificationService` (`entity_changes` channel) -> `WebsocketRouterBase` fan-out -> client `InvalidationService` -> repository `changes` stream -> cubit refetch
+- When adding real-time updates for a new entity, follow the checklist in `DEV_GUIDELINES.md` section "Entity invalidation (real-time)"
+- All client-side invalidation goes through `InvalidationService` (`packages/client/lib/data/service/invalidation_service.dart`); do NOT parse WS messages directly in repositories
+- Server fan-out targets users by DB relationships (author, committer, sender/receiver); no client-side subscription registration in phase 1
+- Server mutations wrap in `db.withMutatingUser(userId, ...)` to suppress echo back to originating user -- see `DEV_GUIDELINES.md` § Echo suppression
+- Client uses `rxdart` `bufferTime` for debounced invalidation streams -- see `DEV_GUIDELINES.md` § Echo suppression
+
 ## Codegen
 - Run `dart run build_runner build -d` after codegen changes
 - Never commit `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `_g/`, `di.config.dart`

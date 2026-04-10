@@ -142,6 +142,7 @@ class ContextCubit extends Cubit<ContextState> {
         ),
         RepositoryEventUpdate<ContextEntity>() => null,
         RepositoryEventFetch<ContextEntity>() => null,
+        RepositoryEventInvalidate<ContextEntity>() => null,
       };
 
   ///

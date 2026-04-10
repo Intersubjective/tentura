@@ -28,3 +28,10 @@ final class RepositoryEventDelete<T extends Identifiable>
     extends RepositoryEvent<T> {
   const RepositoryEventDelete(super.value);
 }
+
+/// Server-pushed invalidation: the entity with [id] was changed by another
+/// user or session.  The [value] carries only the id; the cubit should refetch.
+final class RepositoryEventInvalidate<T extends Identifiable>
+    extends RepositoryEvent<T> {
+  const RepositoryEventInvalidate(super.value);
+}

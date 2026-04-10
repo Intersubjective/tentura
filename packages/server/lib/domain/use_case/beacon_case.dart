@@ -126,7 +126,7 @@ class BeaconCase {
       );
     }
 
-    await _beaconRepository.deleteBeaconById(beacon.id);
+    await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
 
     return true;
   }
