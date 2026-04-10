@@ -157,7 +157,9 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
-        RepositoryEventUpdate<Beacon>() => unawaited(fetch()),
+        RepositoryEventUpdate<Beacon>() ||
+        RepositoryEventInvalidate<Beacon>() =>
+          unawaited(fetch()),
         RepositoryEventDelete<Beacon>(value: final b) => emit(
           state.copyWith(
             nonArchivedCards: state.nonArchivedCards

@@ -20,44 +20,48 @@ class CommitmentRepository {
     String message = '',
     String? helpType,
     int status = 0,
-  }) => _database.into(_database.beaconCommitments).insert(
-    BeaconCommitmentsCompanion.insert(
-      beaconId: beaconId,
-      userId: userId,
-      message: Value(message),
-      helpType: Value(helpType),
-      status: Value(status),
-    ),
-    onConflict: DoUpdate(
-      (_) => BeaconCommitmentsCompanion(
+  }) => _database.withMutatingUser(userId, () async {
+    await _database.into(_database.beaconCommitments).insert(
+      BeaconCommitmentsCompanion.insert(
+        beaconId: beaconId,
+        userId: userId,
         message: Value(message),
         helpType: Value(helpType),
-        uncommitReason: status == 0
-            ? const Value(null)
-            : const Value.absent(),
         status: Value(status),
-        updatedAt: Value(PgDateTime(DateTime.timestamp())),
       ),
-    ),
-  );
+      onConflict: DoUpdate(
+        (_) => BeaconCommitmentsCompanion(
+          message: Value(message),
+          helpType: Value(helpType),
+          uncommitReason: status == 0
+              ? const Value(null)
+              : const Value.absent(),
+          status: Value(status),
+          updatedAt: Value(PgDateTime(DateTime.timestamp())),
+        ),
+      ),
+    );
+  });
 
   Future<void> withdraw({
     required String beaconId,
     required String userId,
     required String uncommitReason,
     String message = '',
-  }) => _database.managers.beaconCommitments
-      .filter(
-        (e) => e.beaconId.id(beaconId) & e.userId.id(userId),
-      )
-      .update(
-        (o) => o(
-          status: const Value(1),
-          message: Value(message),
-          uncommitReason: Value(uncommitReason),
-          updatedAt: Value(PgDateTime(DateTime.timestamp())),
-        ),
-      );
+  }) => _database.withMutatingUser(userId, () async {
+    await _database.managers.beaconCommitments
+        .filter(
+          (e) => e.beaconId.id(beaconId) & e.userId.id(userId),
+        )
+        .update(
+          (o) => o(
+            status: const Value(1),
+            message: Value(message),
+            uncommitReason: Value(uncommitReason),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+  });
 
   Future<List<CommitmentEntity>> fetchByBeaconId(String beaconId) =>
       _database.managers.beaconCommitments

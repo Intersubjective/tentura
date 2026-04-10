@@ -11,3 +11,8 @@ final class CommitmentCreated extends CommitmentEvent {
 final class CommitmentWithdrawn extends CommitmentEvent {
   const CommitmentWithdrawn(super.beaconId);
 }
+
+/// Server-pushed invalidation: commitments for [beaconId] changed externally.
+final class CommitmentInvalidated extends CommitmentEvent {
+  const CommitmentInvalidated(super.beaconId);
+}

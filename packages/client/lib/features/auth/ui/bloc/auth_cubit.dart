@@ -305,6 +305,7 @@ class AuthCubit extends Cubit<AuthState> {
         }
 
       case RepositoryEventCreate<Profile>():
+      case RepositoryEventInvalidate<Profile>():
     }
   }
 

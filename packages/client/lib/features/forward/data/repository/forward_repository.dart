@@ -4,6 +4,7 @@ import 'dart:convert' show jsonEncode;
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -35,10 +36,27 @@ class ForwardRepository {
   ForwardRepository(
     this._remoteApiService,
     this._beaconRepository,
-  );
+    InvalidationService invalidationService,
+  ) {
+    _commitmentInvalidationSub =
+        invalidationService.commitmentInvalidations.listen(
+      (id) => _commitmentController.add(CommitmentInvalidated(id)),
+    );
+    _forwardInvalidationSub =
+        invalidationService.forwardInvalidations.listen(
+      (id) {
+        if (!_forwardCompletedController.isClosed) {
+          _forwardCompletedController.add(id);
+        }
+      },
+    );
+  }
 
   final RemoteApiService _remoteApiService;
   final BeaconRepository _beaconRepository;
+
+  late final StreamSubscription<String> _commitmentInvalidationSub;
+  late final StreamSubscription<String> _forwardInvalidationSub;
 
   final _commitmentController =
       StreamController<CommitmentEvent>.broadcast();
@@ -46,13 +64,16 @@ class ForwardRepository {
   Stream<CommitmentEvent> get commitmentChanges =>
       _commitmentController.stream;
 
-  final _forwardCompletedController = StreamController<void>.broadcast();
+  final _forwardCompletedController = StreamController<String>.broadcast();
 
   /// Fires after a successful [forwardBeacon] (sender may move to Watching).
-  Stream<void> get forwardCompleted => _forwardCompletedController.stream;
+  /// Carries the beacon ID that was forwarded.
+  Stream<String> get forwardCompleted => _forwardCompletedController.stream;
 
   @disposeMethod
   Future<void> dispose() async {
+    await _commitmentInvalidationSub.cancel();
+    await _forwardInvalidationSub.cancel();
     await _commitmentController.close();
     await _forwardCompletedController.close();
   }
@@ -82,7 +103,7 @@ class ForwardRepository {
       .then((r) {
         final id = r.dataOrThrow(label: _label).beaconForward;
         if (!_forwardCompletedController.isClosed) {
-          _forwardCompletedController.add(null);
+          _forwardCompletedController.add(beaconId);
         }
         return id;
       });

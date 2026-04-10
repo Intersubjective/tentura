@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:tentura_server/domain/use_case/p2p_chat_case.dart';
 import 'package:tentura_server/data/service/pg_notification_service.dart';
 
+import '../path_handler/websocket_path_entity_changes.dart';
 import '../path_handler/websocket_path_p2p_chat.dart';
 import '../path_handler/websocket_path_user_presence.dart';
 import 'websocket_message_router.dart';
@@ -14,6 +15,7 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     with
         WebsocketPathP2pChat,
         WebsocketPathUserPresence,
+        WebsocketPathEntityChanges,
         WebsocketMessageRouter,
         WebsocketSubscriptionRouter {
   WebsocketRouterBase(
@@ -30,6 +32,13 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
         '[WebsocketRouterBase] PG notification error: $e',
       ),
     );
+    _entityChangeSubscription =
+        pgNotificationService.entityChangeNotifications.listen(
+      _onEntityChangeNotification,
+      onError: (Object e) => logger.severe(
+        '[WebsocketRouterBase] PG entity_changes error: $e',
+      ),
+    );
   }
 
   @override
@@ -38,9 +47,11 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
   final PgNotificationService pgNotificationService;
 
   late final StreamSubscription<String> _notificationSubscription;
+  late final StreamSubscription<String> _entityChangeSubscription;
 
   Future<void> dispose() async {
     await _notificationSubscription.cancel();
+    await _entityChangeSubscription.cancel();
   }
 
   void _onPgNotification(String payload) {
@@ -59,6 +70,17 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
       }
     } catch (e) {
       logger.severe('[WebsocketRouterBase] Failed to handle notification: $e');
+    }
+  }
+
+  void _onEntityChangeNotification(String payload) {
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      fanOutEntityChange(data);
+    } catch (e) {
+      logger.severe(
+        '[WebsocketRouterBase] Failed to handle entity change: $e',
+      );
     }
   }
 

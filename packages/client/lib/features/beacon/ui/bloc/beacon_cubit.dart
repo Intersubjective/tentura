@@ -50,8 +50,8 @@ class BeaconCubit extends Cubit<BeaconState> {
     return super.close();
   }
 
-  Future<void> fetch() async {
-    if (state.hasReachedLast || state.status is StateIsLoading) {
+  Future<void> fetch({bool reset = false}) async {
+    if (!reset && (state.hasReachedLast || state.status is StateIsLoading)) {
       return;
     }
 
@@ -70,15 +70,16 @@ class BeaconCubit extends Cubit<BeaconState> {
               BeaconLifecycle.deleted.smallintValue,
               BeaconLifecycle.closedReviewComplete.smallintValue,
             ];
+      final offset = reset ? 0 : state.beacons.length;
       final beacons = await _beaconRepository.fetchBeacons(
         lifecycleStates: lifecycleStates,
-        offset: state.beacons.length,
+        offset: offset,
         profileId: state.profileId,
       );
       emit(
         state.copyWith(
           isMine: myAccountId == state.profileId,
-          beacons: state.beacons..addAll(beacons),
+          beacons: reset ? beacons.toList() : (state.beacons..addAll(beacons)),
           hasReachedLast: beacons.length < kFetchWindowSize,
           status: StateStatus.isSuccess,
         ),
@@ -110,6 +111,9 @@ class BeaconCubit extends Cubit<BeaconState> {
       beacons: state.beacons.where((e) => e.id != b.id).toList(),
       status: StateStatus.isSuccess,
     )),
+    RepositoryEventInvalidate<Beacon>() when state.isMine => _refetchAll(),
     _ => null,
   };
+
+  void _refetchAll() => unawaited(fetch(reset: true));
 }

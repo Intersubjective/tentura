@@ -95,6 +95,20 @@ class TenturaDb extends _$TenturaDb {
   @override
   int get schemaVersion => 1;
 
+  /// Runs [action] inside a transaction with the `tentura.mutating_user_id`
+  /// GUC set to [userId], so `notify_entity_change()` can suppress the
+  /// echo notification back to the originating user.
+  Future<T> withMutatingUser<T>(
+    String userId,
+    Future<T> Function() action,
+  ) => transaction(() async {
+    await customStatement(
+      r"SELECT set_config('tentura.mutating_user_id', $1, true)",
+      [Variable(userId)],
+    );
+    return action();
+  });
+
   @disposeMethod
   Future<void> dispose() => super.close();
 }

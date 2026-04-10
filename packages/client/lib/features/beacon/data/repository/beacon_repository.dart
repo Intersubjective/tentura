@@ -7,6 +7,7 @@ import 'package:built_collection/built_collection.dart' show ListBuilder;
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/model/beacon_model.dart';
+import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
@@ -21,16 +22,30 @@ import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
 
 @lazySingleton
 class BeaconRepository {
-  BeaconRepository(this._remoteApiService);
+  BeaconRepository(
+    this._remoteApiService,
+    InvalidationService invalidationService,
+  ) {
+    _invalidationSub = invalidationService.beaconInvalidations.listen(
+      (id) => _controller.add(
+        RepositoryEventInvalidate(Beacon.empty.copyWith(id: id)),
+      ),
+    );
+  }
 
   final RemoteApiService _remoteApiService;
+
+  late final StreamSubscription<String> _invalidationSub;
 
   final _controller = StreamController<RepositoryEvent<Beacon>>.broadcast();
 
   Stream<RepositoryEvent<Beacon>> get changes => _controller.stream;
 
   @disposeMethod
-  Future<void> dispose() => _controller.close();
+  Future<void> dispose() async {
+    await _invalidationSub.cancel();
+    await _controller.close();
+  }
 
   //
   //

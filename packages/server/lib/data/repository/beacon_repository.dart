@@ -34,7 +34,7 @@ class BeaconRepository {
     ({String question, List<String> variants})? polling,
     Set<String>? tags,
     int ticker = 0,
-  }) async {
+  }) => _database.withMutatingUser(authorId, () async {
     final pollingModel = polling == null
         ? null
         : await _database.transaction<Polling>(() async {
@@ -87,7 +87,7 @@ class BeaconRepository {
       polling: pollingModel,
       variants: pollingVariants,
     );
-  }
+  });
 
   ///
   /// Query Beacon by beaconId, filter by userId if set
@@ -112,8 +112,12 @@ class BeaconRepository {
     );
   }
 
-  Future<void> deleteBeaconById(String id) =>
-      _database.managers.beacons.filter((e) => e.id.equals(id)).delete();
+  Future<void> deleteBeaconById(String id, {required String userId}) =>
+      _database.withMutatingUser(userId, () async {
+        await _database.managers.beacons
+            .filter((e) => e.id.equals(id))
+            .delete();
+      });
 
   Future<void> updateBeaconState({
     required String beaconId,
