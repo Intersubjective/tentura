@@ -726,6 +726,10 @@
   "@inboxTabWatching": {
     "context": "InboxScreen"
   },
+  "inboxForwardedByMe": "Forwarded",
+  "@inboxForwardedByMe": {
+    "context": "InboxScreen"
+  },
   "inboxTabRejected": "Rejected",
   "@inboxTabRejected": {
     "context": "InboxScreen"

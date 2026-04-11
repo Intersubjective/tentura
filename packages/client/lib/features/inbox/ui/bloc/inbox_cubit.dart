@@ -14,9 +14,11 @@ export 'inbox_state.dart';
 
 class InboxCubit extends Cubit<InboxState> {
   InboxCubit({
+    required String userId,
     InboxRepository? repository,
     ForwardRepository? forwardRepository,
-  }) : _repository = repository ?? GetIt.I<InboxRepository>(),
+  }) : _userId = userId,
+       _repository = repository ?? GetIt.I<InboxRepository>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        super(const InboxState()) {
     _commitmentChanges = _forwardRepository.commitmentChanges.listen(
@@ -34,6 +36,7 @@ class InboxCubit extends Cubit<InboxState> {
     unawaited(fetch());
   }
 
+  final String _userId;
   final InboxRepository _repository;
   final ForwardRepository _forwardRepository;
 
@@ -71,7 +74,7 @@ class InboxCubit extends Cubit<InboxState> {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
     try {
-      final items = await _repository.fetch();
+      final items = await _repository.fetch(userId: _userId);
       emit(
         state.copyWith(
           items: items,

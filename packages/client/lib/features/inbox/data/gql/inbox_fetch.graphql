@@ -1,6 +1,6 @@
 # import '/data/gql/beacon_model.graphql'
 
-query InboxFetch {
+query InboxFetch($userId: String!) {
   inbox_item(
     order_by: {latest_forward_at: desc}
   ) {
@@ -16,6 +16,12 @@ query InboxFetch {
     inbox_provenance_data
     beacon {
       ...BeaconModel
+      my_forward_edges: forward_edges(
+        where: {sender_id: {_eq: $userId}}
+        limit: 1
+      ) {
+        id
+      }
     }
   }
 }

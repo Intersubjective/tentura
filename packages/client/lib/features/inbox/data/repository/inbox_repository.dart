@@ -27,8 +27,8 @@ class InboxRepository {
   @disposeMethod
   Future<void> dispose() => _localMutationController.close();
 
-  Future<List<InboxItem>> fetch() => _remoteApiService
-      .request(GInboxFetchReq())
+  Future<List<InboxItem>> fetch({required String userId}) => _remoteApiService
+      .request(GInboxFetchReq((r) => r..vars.userId = userId))
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).inbox_item)
       .then(
@@ -45,6 +45,7 @@ class InboxRepository {
                 beforeResponseTerminalAt: e.before_response_terminal_at,
                 tombstoneDismissedAt: e.tombstone_dismissed_at,
                 provenance: InboxProvenance.parse(e.inbox_provenance_data),
+                isForwardedByMe: e.beacon.my_forward_edges.isNotEmpty,
                 beacon: (e.beacon as BeaconModel).toEntity(),
               ),
             )

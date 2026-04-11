@@ -726,6 +726,10 @@
   "@inboxTabWatching": {
     "context": "InboxScreen"
   },
+  "inboxForwardedByMe": "Переслано",
+  "@inboxForwardedByMe": {
+    "context": "InboxScreen"
+  },
   "inboxTabRejected": "Отклонённые",
   "@inboxTabRejected": {
     "context": "InboxScreen"

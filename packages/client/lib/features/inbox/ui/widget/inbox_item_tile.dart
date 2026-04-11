@@ -317,25 +317,57 @@ class _InboxItemTileState extends State<InboxItemTile> {
                               ),
                           ],
                         ),
-                        if (widget.item.status == InboxItemStatus.watching) ...[
+                        if (widget.item.status == InboxItemStatus.watching ||
+                            widget.item.isForwardedByMe) ...[
                           const SizedBox(height: kSpacingSmall),
-                          Chip(
-                            label: Text(l10n.inboxTabWatching),
-                            avatar: Icon(
-                              Icons.visibility_outlined,
-                              size: 16,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            backgroundColor: scheme.surfaceContainerHighest,
-                            side: BorderSide(
-                              color: scheme.outlineVariant.withValues(
-                                alpha: 0.8,
-                              ),
-                            ),
-                            labelStyle: theme.textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            visualDensity: VisualDensity.compact,
+                          Wrap(
+                            spacing: kSpacingSmall,
+                            runSpacing: kSpacingSmall,
+                            children: [
+                              if (widget.item.status ==
+                                  InboxItemStatus.watching)
+                                Chip(
+                                  label: Text(l10n.inboxTabWatching),
+                                  avatar: Icon(
+                                    Icons.visibility_outlined,
+                                    size: 16,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  backgroundColor:
+                                      scheme.surfaceContainerHighest,
+                                  side: BorderSide(
+                                    color: scheme.outlineVariant.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                  ),
+                                  labelStyle:
+                                      theme.textTheme.labelSmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              if (widget.item.isForwardedByMe)
+                                Chip(
+                                  label: Text(l10n.inboxForwardedByMe),
+                                  avatar: Icon(
+                                    Icons.shortcut,
+                                    size: 16,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  backgroundColor:
+                                      scheme.surfaceContainerHighest,
+                                  side: BorderSide(
+                                    color: scheme.outlineVariant.withValues(
+                                      alpha: 0.8,
+                                    ),
+                                  ),
+                                  labelStyle:
+                                      theme.textTheme.labelSmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                            ],
                           ),
                         ],
                         if (widget.item.status == InboxItemStatus.rejected &&
