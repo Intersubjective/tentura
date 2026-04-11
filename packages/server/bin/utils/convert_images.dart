@@ -28,25 +28,8 @@ Future<void> convertImages([Env? env]) async {
     print(e);
   }
 
-  final beacons = await database.managers.beacons
-      .filter((e) => e.imageId.id.isNotNull())
-      .get();
-  print('Found ${beacons.length} beacons');
-
-  try {
-    for (final beacon in beacons) {
-      await remoteStorage.putObject(
-        '$kImagesPath/${beacon.userId}/${beacon.imageId!.uuid}.$kImageExt',
-        Stream.fromFuture(
-          remoteStorage.getObject(
-            '$kImagesPath/${beacon.userId}/${beacon.id}.$kImageExt',
-          ),
-        ),
-      );
-    }
-  } catch (e) {
-    print(e);
-  }
+  // beacon.image_id was removed in m0029; beacon images are now in
+  // the beacon_image join table — no legacy conversion needed.
 
   await getIt.reset();
 }

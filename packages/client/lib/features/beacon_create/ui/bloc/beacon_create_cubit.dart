@@ -61,11 +61,17 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   ///
   ///
-  Future<void> pickImage() async {
+  static const kMaxImagesPerBeacon = 10;
+
+  Future<void> pickImages() async {
     try {
-      final image = await _imageRepository.pickImage();
-      if (image != null) {
-        emit(state.copyWith(image: image));
+      final images = await _imageRepository.pickMultipleImages();
+      if (images.isNotEmpty) {
+        final combined = [...state.images, ...images];
+        if (combined.length > kMaxImagesPerBeacon) {
+          combined.length = kMaxImagesPerBeacon;
+        }
+        emit(state.copyWith(images: combined));
       }
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
@@ -74,11 +80,24 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   ///
   ///
-  void clearImage() => emit(
-    state.copyWith(
-      image: null,
-    ),
-  );
+  void removeImage(int index) {
+    final images = [...state.images]..removeAt(index);
+    emit(state.copyWith(images: images));
+  }
+
+  ///
+  ///
+  void clearAllImages() => emit(state.copyWith(images: []));
+
+  ///
+  ///
+  void reorderImages(int oldIndex, int newIndex) {
+    final images = [...state.images];
+    final item = images.removeAt(oldIndex);
+    final adjustedIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    images.insert(adjustedIndex, item);
+    emit(state.copyWith(images: images));
+  }
 
   ///
   ///
@@ -194,7 +213,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           description: state.description,
           startAt: state.startAt,
           endAt: state.endAt,
-          image: state.image,
+          images: state.images,
           polling: hasPolling
               ? Polling(
                   createdAt: now,

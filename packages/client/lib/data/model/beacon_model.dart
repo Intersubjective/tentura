@@ -8,7 +8,7 @@ import 'polling_model.dart';
 import 'user_model.dart';
 
 extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
-  Beacon toEntity({ImageModel? image}) {
+  Beacon toEntity() {
     final author = (i.author as UserModel).toEntity();
     final reviewWindow = i.beacon_review_window;
     return Beacon(
@@ -31,7 +31,10 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       rScore: i.scores?.firstOrNull?.src_score ?? 0,
       score: i.scores?.firstOrNull?.dst_score ?? 0,
       polling: (i.polling as PollingModel?)?.toEntity(author: author),
-      image: (i.image as ImageModel?)?.asEntity ?? image?.asEntity,
+      images: [
+        for (final bi in i.beacon_images)
+          (bi.image as ImageModel).asEntity,
+      ],
       tags: {
         if (i.tags.isNotEmpty) ...i.tags.split(','),
       },

@@ -5,7 +5,6 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 
 import '../common_fields.dart';
-import 'images.dart';
 import 'pollings.dart';
 import 'users.dart';
 
@@ -15,10 +14,6 @@ class Beacons extends Table
 
   @ReferenceName('author')
   late final userId = text().references(Users, #id)();
-
-  late final imageId = customType(
-    PgTypes.uuid,
-  ).nullable().references(Images, #id)();
 
   late final context = text().nullable().withLength(
     min: kTitleMinLength,

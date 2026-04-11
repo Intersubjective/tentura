@@ -23,9 +23,9 @@ abstract class BeaconEntity with _$BeaconEntity {
     required DateTime updatedAt,
     @Default(0) int state,
     @Default('') String description,
+    @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
     PollingEntity? polling,
-    ImageEntity? image,
     DateTime? startAt,
     DateTime? endAt,
     String? context,
@@ -49,10 +49,10 @@ abstract class BeaconEntity with _$BeaconEntity {
   bool get allowsBeaconWithdraw =>
       state == 0 || state == 4 || state == 5;
 
-  bool get hasImage => image != null;
+  bool get hasImage => images.isNotEmpty;
 
   String get imageUrl => hasImage
-      ? '$kImageServer/$kImagesPath/${author.id}/${image!.id}.$kImageExt'
+      ? '$kImageServer/$kImagesPath/${author.id}/${images.first.id}.$kImageExt'
       : kBeaconPlaceholderUrl;
 
   Map<String, Object> get asJson => {'id': id};

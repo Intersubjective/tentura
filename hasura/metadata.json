@@ -20,12 +20,6 @@
                 }
               },
               {
-                "name": "image",
-                "using": {
-                  "foreign_key_constraint_on": "image_id"
-                }
-              },
-              {
                 "name": "polling",
                 "using": {
                   "foreign_key_constraint_on": "polling_id"
@@ -116,6 +110,18 @@
                     }
                   }
                 }
+              },
+              {
+                "name": "beacon_images",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "beacon_id",
+                    "table": {
+                      "name": "beacon_image",
+                      "schema": "public"
+                    }
+                  }
+                }
               }
             ],
             "computed_fields": [
@@ -173,7 +179,6 @@
                     "description",
                     "end_at",
                     "id",
-                    "image_id",
                     "lat",
                     "long",
                     "polling_id",
@@ -210,6 +215,40 @@
                   },
                   "check": null
                 }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_image",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "image",
+                "using": {
+                  "foreign_key_constraint_on": "image_id"
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "beacon_id",
+                    "image_id",
+                    "position"
+                  ],
+                  "filter": {}
+                },
+                "comment": ""
               }
             ]
           },

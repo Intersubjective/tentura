@@ -12,55 +12,114 @@ class ImageTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<BeaconCreateCubit>();
-    return BlocSelector<BeaconCreateCubit, BeaconCreateState, ImageEntity?>(
+    return BlocSelector<BeaconCreateCubit, BeaconCreateState,
+        List<ImageEntity>>(
       bloc: cubit,
-      selector: (state) => state.image,
-      builder: (context, image) {
-        const imagePadding = kSpacingLarge * 2;
+      selector: (state) => state.images,
+      builder: (context, images) {
         return ListView(
+          padding: const EdgeInsets.all(kSpacingMedium),
           children: [
-            // Image Control
-            if (image == null)
-              ListTile(
-                title: Text(L10n.of(context)!.attachImage),
-                trailing: const Icon(Icons.add_a_photo_rounded),
-                onTap: cubit.pickImage,
-              )
-            else
-              ListTile(
-                title: Text(image.fileName),
-                trailing: IconButton(
-                  icon: const Icon(Icons.cancel_rounded),
-                  onPressed: cubit.clearImage,
+            ListTile(
+              title: Text(L10n.of(context)!.attachImage),
+              trailing: const Icon(Icons.add_a_photo_rounded),
+              onTap: cubit.pickImages,
+            ),
+
+            if (images.isNotEmpty) ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: cubit.clearAllImages,
+                  icon: const Icon(Icons.delete_sweep, size: 20),
+                  label: Text(L10n.of(context)!.removeAll),
                 ),
               ),
-
-            // Image Container
-            Padding(
-              padding: const EdgeInsets.only(
-                top: kSpacingMedium,
-                bottom: imagePadding,
-                left: imagePadding,
-                right: imagePadding,
-              ),
-              child: image?.imageBytes == null
-                  ? DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: Colors.black12,
+              const SizedBox(height: kSpacingSmall),
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: images.length,
+                onReorder: cubit.reorderImages,
+                itemBuilder: (context, index) {
+                  final image = images[index];
+                  return Card(
+                    key: ObjectKey(image),
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      children: [
+                        if (image.imageBytes != null)
+                          Image.memory(
+                            image.imageBytes!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: 200,
+                          )
+                        else
+                          const SizedBox(
+                            height: 200,
+                            child: Center(
+                              child: Icon(Icons.photo_outlined, size: 64),
+                            ),
+                          ),
+                        Positioned(
+                          top: 4,
+                          left: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      child: const Icon(
-                        Icons.photo_outlined,
-                        size: 256,
-                      ),
-                    )
-                  : Image.memory(
-                      image!.imageBytes!,
-                      key: ObjectKey(image),
-                      fit: BoxFit.fitWidth,
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: IconButton.filled(
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black54,
+                            ),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            onPressed: () => cubit.removeImage(index),
+                          ),
+                        ),
+                      ],
                     ),
-            ),
+                  );
+                },
+              ),
+            ] else
+              Padding(
+                padding: const EdgeInsets.only(top: kSpacingLarge),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.black12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const SizedBox(
+                    height: 256,
+                    child: Center(
+                      child: Icon(Icons.photo_outlined, size: 64),
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },

@@ -10,7 +10,7 @@ import 'user_mapper.dart';
 BeaconEntity beaconModelToEntity(
   Beacon model, {
   required User author,
-  Image? image,
+  List<Image>? images,
   Polling? polling,
   List<PollingVariant>? variants,
 }) => BeaconEntity(
@@ -27,7 +27,7 @@ BeaconEntity beaconModelToEntity(
   coordinates: model.lat != null && model.long != null
       ? Coordinates(lat: model.lat!, long: model.long!)
       : null,
-  image: image == null ? null : imageModelToEntity(image),
+  images: images?.map(imageModelToEntity).toList() ?? const [],
   polling: polling == null
       ? null
       : pollingModelToEntity(polling, author: author, variants: variants),

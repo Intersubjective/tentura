@@ -244,8 +244,12 @@
   "@addLocation": {
     "context": "BeaconCreateScreen"
   },
-  "attachImage": "Attach Image",
+  "attachImage": "Add Images",
   "@attachImage": {
+    "context": "BeaconCreateScreen"
+  },
+  "removeAll": "Remove all",
+  "@removeAll": {
     "context": "BeaconCreateScreen"
   },
   "beaconInfo": "Info",

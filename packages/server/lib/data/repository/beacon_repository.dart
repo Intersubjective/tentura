@@ -26,7 +26,7 @@ class BeaconRepository {
     required String title,
     String? description,
     String? context,
-    String? imageId,
+    List<String>? imageIds,
     double? latitude,
     double? longitude,
     DateTime? startAt,
@@ -63,13 +63,25 @@ class BeaconRepository {
         ticker: Value(ticker),
         lat: Value(latitude),
         long: Value(longitude),
-        imageId: Value(imageId == null ? null : UuidValue.fromString(imageId)),
         startAt: Value(startAt == null ? null : PgDateTime(startAt)),
         endAt: Value(endAt == null ? null : PgDateTime(endAt)),
         pollingId: Value(pollingModel?.id),
         tags: Value.absentIfNull(tags?.join(',')),
       ),
     );
+
+    if (imageIds != null && imageIds.isNotEmpty) {
+      await _database.managers.beaconImages.bulkCreate(
+        (o) => [
+          for (var i = 0; i < imageIds.length; i++)
+            o(
+              beaconId: beacon.id,
+              imageId: UuidValue.fromString(imageIds[i]),
+              position: Value(i),
+            ),
+        ],
+      );
+    }
 
     final author = await _database.managers.users
         .filter((e) => e.id.equals(authorId))
@@ -81,9 +93,12 @@ class BeaconRepository {
               .filter((e) => e.pollingId.id(pollingModel.id))
               .get();
 
+    final images = await _getBeaconImages(beacon.id);
+
     return beaconModelToEntity(
       beacon,
       author: author,
+      images: images,
       polling: pollingModel,
       variants: pollingVariants,
     );
@@ -106,9 +121,12 @@ class BeaconRepository {
         .withReferences((p) => p(userId: true))
         .getSingle();
 
+    final images = await _getBeaconImages(beaconId);
+
     return beaconModelToEntity(
       beacon,
       author: await author.userId.getSingle(),
+      images: images,
     );
   }
 
@@ -125,4 +143,67 @@ class BeaconRepository {
   }) => _database.managers.beacons
       .filter((e) => e.id.equals(beaconId))
       .update((o) => o(state: Value(state)));
+
+  Future<void> addImage({
+    required String beaconId,
+    required String imageId,
+    required int position,
+  }) => _database.managers.beaconImages.create(
+    (o) => o(
+      beaconId: beaconId,
+      imageId: UuidValue.fromString(imageId),
+      position: Value(position),
+    ),
+  );
+
+  Future<void> removeImage({
+    required String beaconId,
+    required String imageId,
+  }) => _database.managers.beaconImages
+      .filter(
+        (e) =>
+            e.beaconId.id.equals(beaconId) &
+            e.imageId.id(UuidValue.fromString(imageId)),
+      )
+      .delete();
+
+  Future<int> getImageCount(String beaconId) =>
+      _database.managers.beaconImages
+          .filter((e) => e.beaconId.id.equals(beaconId))
+          .count();
+
+  Future<void> reorderImages({
+    required String beaconId,
+    required List<String> imageIds,
+  }) async {
+    for (var i = 0; i < imageIds.length; i++) {
+      await _database.managers.beaconImages
+          .filter(
+            (e) =>
+                e.beaconId.id.equals(beaconId) &
+                e.imageId.id(UuidValue.fromString(imageIds[i])),
+          )
+          .update((o) => o(position: Value(i)));
+    }
+  }
+
+  Future<List<Image>> _getBeaconImages(String beaconId) async {
+    final beaconImageRows = await _database.managers.beaconImages
+        .filter((e) => e.beaconId.id.equals(beaconId))
+        .orderBy((e) => e.position.asc())
+        .get();
+
+    if (beaconImageRows.isEmpty) return const [];
+
+    final imageIds = beaconImageRows.map((e) => e.imageId).toList();
+    final imageRows = await _database.managers.images
+        .filter((e) => e.id.isIn(imageIds))
+        .get();
+
+    final imageMap = {for (final img in imageRows) img.id: img};
+    return [
+      for (final bi in beaconImageRows)
+        if (imageMap[bi.imageId] case final img?) img,
+    ];
+  }
 }

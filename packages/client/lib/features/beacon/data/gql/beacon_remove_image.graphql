@@ -1,0 +1,9 @@
+mutation BeaconRemoveImage(
+  $beaconId: String!,
+  $imageId: String!
+) {
+  beaconRemoveImage(
+    beaconId: $beaconId,
+    imageId: $imageId
+  )
+}

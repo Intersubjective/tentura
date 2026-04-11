@@ -19,8 +19,10 @@ fragment BeaconModel on beacon {
   long
   lat
   tags
-  image {
-    ...ImageModel
+  beacon_images(order_by: {position: asc}) {
+    image {
+      ...ImageModel
+    }
   }
   polling {
     ...PollingModel

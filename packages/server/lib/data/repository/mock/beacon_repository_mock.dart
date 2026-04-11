@@ -25,7 +25,7 @@ class BeaconRepositoryMock implements BeaconRepository {
     required String title,
     String? description,
     String? context,
-    String? imageId,
+    List<String>? imageIds,
     double? latitude,
     double? longitude,
     DateTime? startAt,
@@ -48,13 +48,15 @@ class BeaconRepositoryMock implements BeaconRepository {
       coordinates: latitude != null && longitude != null
           ? Coordinates(lat: latitude, long: longitude)
           : null,
-      image: imageId == null
-          ? null
-          : ImageEntity(
+      images: [
+        if (imageIds != null)
+          for (final imageId in imageIds)
+            ImageEntity(
               id: imageId,
               authorId: authorId,
               createdAt: DateTime.utc(2020),
             ),
+      ],
       tags: tags,
     );
     return storageById[beacon.id] = beacon;
@@ -87,4 +89,50 @@ class BeaconRepositoryMock implements BeaconRepository {
       storageById[beaconId] = b.copyWith(state: state);
     }
   }
+
+  @override
+  Future<void> addImage({
+    required String beaconId,
+    required String imageId,
+    required int position,
+  }) async {
+    final b = storageById[beaconId];
+    if (b != null) {
+      storageById[beaconId] = b.copyWith(
+        images: [
+          ...b.images,
+          ImageEntity(
+            id: imageId,
+            authorId: b.author.id,
+            createdAt: DateTime.timestamp(),
+          ),
+        ],
+      );
+    }
+  }
+
+  @override
+  Future<void> removeImage({
+    required String beaconId,
+    required String imageId,
+  }) async {
+    final b = storageById[beaconId];
+    if (b != null) {
+      storageById[beaconId] = b.copyWith(
+        images: b.images.where((i) => i.id != imageId).toList(),
+      );
+    }
+  }
+
+  @override
+  Future<int> getImageCount(String beaconId) async {
+    final b = storageById[beaconId];
+    return b?.images.length ?? 0;
+  }
+
+  @override
+  Future<void> reorderImages({
+    required String beaconId,
+    required List<String> imageIds,
+  }) async {}
 }
