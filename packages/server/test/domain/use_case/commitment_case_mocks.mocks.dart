@@ -58,6 +58,8 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
     ({String question, List<String> variants})? polling,
     Set<String>? tags,
     int? ticker = 0,
+    String? iconCode,
+    int? iconBackground,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBeacon, [], {
@@ -73,6 +75,8 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
               #polling: polling,
               #tags: tags,
               #ticker: ticker,
+              #iconCode: iconCode,
+              #iconBackground: iconBackground,
             }),
             returnValue: _i4.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -90,6 +94,8 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
                   #polling: polling,
                   #tags: tags,
                   #ticker: ticker,
+                  #iconCode: iconCode,
+                  #iconBackground: iconBackground,
                 }),
               ),
             ),

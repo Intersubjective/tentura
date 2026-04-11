@@ -37,6 +37,8 @@ final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
 final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
+    field('iconCode', graphQLString),
+    field('iconBackground', graphQLInt),
   ]);
 
 /// Per-recipient forward record from the current user's perspective.

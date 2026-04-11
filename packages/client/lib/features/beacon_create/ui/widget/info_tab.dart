@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
@@ -12,6 +14,8 @@ import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import '../dialog/add_tag_dialog.dart';
+import 'beacon_color_selector.dart';
+import 'beacon_icon_selector.dart';
 
 class InfoTab extends StatefulWidget {
   const InfoTab({super.key});
@@ -78,50 +82,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       const Padding(
         padding: kPaddingSmallV,
         child: ContextDropDown(),
-      ),
-
-      // Location
-      Padding(
-        padding: kPaddingSmallV,
-        child: TextFormField(
-          readOnly: true,
-          controller: _locationController,
-          decoration: InputDecoration(
-            hintText: _l10n.addLocation,
-            suffixIcon:
-                BlocSelector<
-                  BeaconCreateCubit,
-                  BeaconCreateState,
-                  Coordinates?
-                >(
-                  bloc: _cubit,
-                  selector: (state) => state.coordinates,
-                  builder: (_, coordinates) => coordinates == null
-                      ? const Icon(TenturaIcons.location)
-                      : IconButton(
-                          icon: const Icon(Icons.cancel_rounded),
-                          onPressed: () {
-                            _locationController.clear();
-                            _cubit.setLocation(null, '');
-                          },
-                        ),
-                ),
-          ),
-          onTapOutside: (_) => FocusScope.of(context).unfocus(),
-          onTap: () async {
-            final location = await ChooseLocationDialog.show(
-              context,
-              center: _cubit.state.coordinates,
-            );
-            if (location != null) {
-              final locationName =
-                  location.place?.toString() ?? location.coords.toString();
-
-              _locationController.text = locationName;
-              _cubit.setLocation(location.coords, locationName);
-            }
-          },
-        ),
       ),
 
       // Date Range
@@ -194,6 +154,109 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 onDeleted: () => _cubit.removeTag(tag),
               ),
           ],
+        ),
+      ),
+
+      // Beacon symbol (optional identity tile)
+      Padding(
+        padding: kPaddingSmallV,
+        child: Text(
+          _l10n.beaconSymbolTitle,
+          style: _theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+        bloc: _cubit,
+        builder: (_, state) {
+          final now = DateTime.timestamp();
+          final preview = Beacon(
+            createdAt: now,
+            updatedAt: now,
+            title: state.title,
+            iconCode: state.iconCode,
+            iconBackground: state.iconBackground,
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  BeaconIdentityTile(beacon: preview, size: 56),
+                  const SizedBox(width: kSpacingSmall),
+                  Expanded(
+                    child: Text(
+                      _l10n.beaconSymbolHint,
+                      style: _theme.textTheme.bodySmall?.copyWith(
+                        color: _theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: kSpacingSmall),
+              BeaconIconSelector(
+                selectedKey: state.iconCode,
+                onSelected: _cubit.setIconCode,
+                onClear: _cubit.clearBeaconIdentity,
+              ),
+              const SizedBox(height: kSpacingSmall),
+              Text(
+                _l10n.beaconSymbolBackground,
+                style: _theme.textTheme.labelLarge,
+              ),
+              const SizedBox(height: 6),
+              BeaconColorSelector(
+                selectedArgb: state.iconBackground,
+                onSelected: _cubit.setIconBackground,
+              ),
+            ],
+          );
+        },
+      ),
+
+      // Location
+      Padding(
+        padding: kPaddingSmallV,
+        child: TextFormField(
+          readOnly: true,
+          controller: _locationController,
+          decoration: InputDecoration(
+            hintText: _l10n.addLocation,
+            suffixIcon:
+                BlocSelector<
+                  BeaconCreateCubit,
+                  BeaconCreateState,
+                  Coordinates?
+                >(
+                  bloc: _cubit,
+                  selector: (state) => state.coordinates,
+                  builder: (_, coordinates) => coordinates == null
+                      ? const Icon(TenturaIcons.location)
+                      : IconButton(
+                          icon: const Icon(Icons.cancel_rounded),
+                          onPressed: () {
+                            _locationController.clear();
+                            _cubit.setLocation(null, '');
+                          },
+                        ),
+                ),
+          ),
+          onTapOutside: (_) => FocusScope.of(context).unfocus(),
+          onTap: () async {
+            final location = await ChooseLocationDialog.show(
+              context,
+              center: _cubit.state.coordinates,
+            );
+            if (location != null) {
+              final locationName =
+                  location.place?.toString() ?? location.coords.toString();
+
+              _locationController.text = locationName;
+              _cubit.setLocation(location.coords, locationName);
+            }
+          },
         ),
       ),
     ],

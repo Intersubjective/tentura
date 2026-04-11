@@ -16,7 +16,7 @@ void main() {
   late MockInboxRepository inboxRepo;
   late CommitmentCase case_;
 
-  final now = DateTime.utc(2025, 1, 1);
+  final now = DateTime.utc(2025);
   BeaconEntity beacon({
     required String id,
     required int state,
@@ -33,7 +33,7 @@ void main() {
 
   void stubBeacon(BeaconEntity b) {
     when(
-      beaconRepo.getBeaconById(beaconId: b.id, filterByUserId: null),
+      beaconRepo.getBeaconById(beaconId: b.id),
     ).thenAnswer((_) async => b);
   }
 
@@ -122,7 +122,6 @@ void main() {
           beaconId: 'B1',
           userId: 'U1',
           uncommitReason: 'other',
-          message: '',
         ),
       ).thenAnswer((_) async {});
       when(
@@ -146,7 +145,6 @@ void main() {
           beaconId: 'B1',
           userId: 'U1',
           uncommitReason: 'other',
-          message: '',
         ),
       ).called(1);
       verify(
@@ -172,15 +170,14 @@ void main() {
             beaconId: 'B1',
             userId: 'U1',
             uncommitReason: 'timing',
-            message: '',
           ),
         ).thenAnswer((_) async {});
         when(
           coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
         ).thenAnswer((_) async {});
         when(
-          inboxRepo.upsertWatchingForSender(
-            senderId: 'U1',
+          inboxRepo.applyTombstoneAfterWithdraw(
+            userId: 'U1',
             beaconId: 'B1',
           ),
         ).thenAnswer((_) async {});
@@ -195,12 +192,11 @@ void main() {
             beaconId: 'B1',
             userId: 'U1',
             uncommitReason: 'timing',
-            message: '',
           ),
         ).called(1);
         verify(
-          inboxRepo.upsertWatchingForSender(
-            senderId: 'U1',
+          inboxRepo.applyTombstoneAfterWithdraw(
+            userId: 'U1',
             beaconId: 'B1',
           ),
         ).called(1);
@@ -226,7 +222,7 @@ void main() {
     });
 
     test('rejects author on initial commit', () async {
-      stubBeacon(beacon(id: 'B1', state: 0, authorId: 'Uauth'));
+      stubBeacon(beacon(id: 'B1', state: 0));
       when(
         commitmentRepo.hasActiveCommitment(
           beaconId: 'B1',
@@ -249,8 +245,6 @@ void main() {
         commitmentRepo.upsert(
           beaconId: 'B1',
           userId: 'Uauth',
-          message: '',
-          helpType: null,
         ),
       );
     });
@@ -268,7 +262,6 @@ void main() {
           beaconId: 'B1',
           userId: 'U1',
           message: 'updated',
-          helpType: null,
         ),
       ).thenAnswer((_) async {});
       when(
@@ -282,7 +275,6 @@ void main() {
           beaconId: 'B1',
           userId: 'U1',
           message: 'updated',
-          helpType: null,
         ),
       ).called(1);
     });

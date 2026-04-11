@@ -7,7 +7,9 @@ mutation BeaconCreate(
   $startAt: String = "",
   $endAt: String = "",
   $image: Upload = {},
-  $tags: String = ""
+  $tags: String = "",
+  $iconCode: String,
+  $iconBackground: Int
 ) {
   beaconCreate(
     title: $title,
@@ -18,7 +20,9 @@ mutation BeaconCreate(
     startAt: $startAt,
     endAt: $endAt,
     image: $image,
-    tags: $tags
+    tags: $tags,
+    iconCode: $iconCode,
+    iconBackground: $iconBackground
   ) {
     id
   }

@@ -4,6 +4,8 @@
 
 fragment BeaconModel on beacon {
   id
+  icon_code
+  icon_background
   title
   description
   created_at

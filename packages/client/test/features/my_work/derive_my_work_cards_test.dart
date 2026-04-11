@@ -4,7 +4,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/my_work/data/repository/my_work_repository.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 

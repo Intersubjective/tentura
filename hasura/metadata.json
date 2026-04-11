@@ -178,6 +178,8 @@
                     "created_at",
                     "description",
                     "end_at",
+                    "icon_background",
+                    "icon_code",
                     "id",
                     "lat",
                     "long",

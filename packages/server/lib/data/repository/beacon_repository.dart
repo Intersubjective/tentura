@@ -34,6 +34,8 @@ class BeaconRepository {
     ({String question, List<String> variants})? polling,
     Set<String>? tags,
     int ticker = 0,
+    String? iconCode,
+    int? iconBackground,
   }) => _database.withMutatingUser(authorId, () async {
     final pollingModel = polling == null
         ? null
@@ -67,6 +69,8 @@ class BeaconRepository {
         endAt: Value(endAt == null ? null : PgDateTime(endAt)),
         pollingId: Value(pollingModel?.id),
         tags: Value.absentIfNull(tags?.join(',')),
+        iconCode: Value(iconCode),
+        iconBackground: Value(iconBackground),
       ),
     );
 
@@ -203,7 +207,7 @@ class BeaconRepository {
     final imageMap = {for (final img in imageRows) img.id: img};
     return [
       for (final bi in beaconImageRows)
-        if (imageMap[bi.imageId] case final img?) img,
+        ?imageMap[bi.imageId],
     ];
   }
 }

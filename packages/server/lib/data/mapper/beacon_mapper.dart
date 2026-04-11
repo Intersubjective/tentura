@@ -32,4 +32,6 @@ BeaconEntity beaconModelToEntity(
       ? null
       : pollingModelToEntity(polling, author: author, variants: variants),
   tags: model.tags.split(',').toSet(),
+  iconCode: model.iconCode,
+  iconBackground: model.iconBackground,
 );

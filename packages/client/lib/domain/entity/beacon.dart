@@ -47,6 +47,12 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// Rows in `beacon_commitment` for this beacon (from GraphQL aggregate when fetched).
     @Default(0) int commitmentCount,
+
+    /// Curated symbolic icon key (client catalog); null = default identity tile.
+    String? iconCode,
+
+    /// ARGB background from constrained palette; null if unset.
+    int? iconBackground,
   }) = _Beacon;
 
   const Beacon._();
@@ -74,6 +80,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
   bool get hasPolling => polling != null;
   bool get hasNoPolling => polling == null;
+
+  /// Author chose a curated icon key for the identity tile.
+  bool get hasIdentityTile => iconCode != null && iconCode!.isNotEmpty;
 
   /// URL for the first (thumbnail) image.
   String get imageUrl => hasPicture

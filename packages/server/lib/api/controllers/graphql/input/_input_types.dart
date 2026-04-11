@@ -81,3 +81,22 @@ class InputFieldDatetime {
   DateTime fromArgsNonNullable(Map<String, dynamic> args) =>
       DateTime.parse(args[field.name]! as String);
 }
+
+class InputFieldInt {
+  InputFieldInt({required String fieldName})
+    : fieldNullable = GraphQLFieldInput(
+        fieldName,
+        graphQLInt,
+        defaultsToNull: true,
+      );
+
+  final GraphQLFieldInput<int?, int?> fieldNullable;
+
+  int? fromArgs(Map<String, dynamic> args) {
+    final raw = args[fieldNullable.name];
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw.toString());
+  }
+}

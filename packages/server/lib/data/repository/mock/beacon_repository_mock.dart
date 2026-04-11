@@ -33,6 +33,8 @@ class BeaconRepositoryMock implements BeaconRepository {
     ({String question, List<String> variants})? polling,
     Set<String>? tags,
     int ticker = 0,
+    String? iconCode,
+    int? iconBackground,
   }) async {
     final now = DateTime.timestamp();
     final beacon = BeaconEntity(
@@ -58,6 +60,8 @@ class BeaconRepositoryMock implements BeaconRepository {
             ),
       ],
       tags: tags,
+      iconCode: iconCode,
+      iconBackground: iconBackground,
     );
     return storageById[beacon.id] = beacon;
   }

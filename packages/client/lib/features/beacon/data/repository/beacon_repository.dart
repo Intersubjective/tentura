@@ -110,7 +110,9 @@ class BeaconRepository {
                 firstImage!.imageBytes!,
                 contentType: MediaType.parse(firstImage.mimeType),
                 filename: firstImage.fileName,
-              );
+              )
+        ..iconCode = beacon.iconCode
+        ..iconBackground = beacon.iconBackground;
     });
     final beaconId = await _remoteApiService
         .request(request)

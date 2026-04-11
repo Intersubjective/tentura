@@ -8,6 +8,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/author_info.dart';
 
@@ -122,23 +123,44 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
             );
           }
           final beacon = state.beacon;
+          final theme = Theme.of(context);
           return ListView(
             padding: kPaddingAll,
             children: [
-              // Author
+              Padding(
+                padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    BeaconIdentityTile(beacon: beacon, size: 64),
+                    const SizedBox(width: kSpacingSmall),
+                    Expanded(
+                      child: Text(
+                        beacon.title,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineLarge,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Author (beacon owner; not the forwarder)
               if (state.isBeaconNotMine)
                 AuthorInfo(
                   author: beacon.author,
                   key: ValueKey(beacon.author),
                 ),
 
-              // Beacon Info (overview)
+              // Beacon Info (overview): gallery + description; title shown above
               BeaconInfo(
                 key: ValueKey(beacon),
                 beacon: beacon,
                 isTitleLarge: true,
                 isShowMoreEnabled: false,
                 isShowBeaconEnabled: false,
+                showTitle: false,
               ),
 
               Padding(

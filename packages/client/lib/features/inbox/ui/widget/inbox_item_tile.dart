@@ -7,6 +7,7 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/entity/inbox_provenance.dart';
@@ -199,10 +200,7 @@ class _InboxItemTileState extends State<InboxItemTile> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            AvatarRated(
-                              profile: beacon.author,
-                              size: 48,
-                            ),
+                            BeaconIdentityTile(beacon: beacon),
                             const SizedBox(width: kSpacingSmall),
                             Expanded(
                               child: Column(
@@ -218,13 +216,26 @@ class _InboxItemTileState extends State<InboxItemTile> {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  Text(
-                                    beacon.author.title,
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  Row(
+                                    children: [
+                                      AvatarRated(
+                                        profile: beacon.author,
+                                        size: 22,
+                                        withRating: false,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          beacon.author.title,
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                            color: scheme.onSurfaceVariant,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -310,6 +321,20 @@ class _InboxItemTileState extends State<InboxItemTile> {
                                     fontWeight: hoursRemaining.urgent
                                         ? FontWeight.w600
                                         : null,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            if (beacon.images.isNotEmpty)
+                              _MetaItem(
+                                icon: Icons.photo_library_outlined,
+                                child: Text(
+                                  beacon.images.length > 99
+                                      ? '99+'
+                                      : '${beacon.images.length}',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
