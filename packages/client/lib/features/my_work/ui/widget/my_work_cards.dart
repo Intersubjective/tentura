@@ -11,7 +11,8 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/beacon_photo_count.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -214,6 +215,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
             ],
           ),
           const SizedBox(height: kSpacingSmall),
@@ -364,11 +366,14 @@ class _CommittedActiveCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (vm.showReviewCta)
+              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
+              if (vm.showReviewCta) ...[
+                if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
                 FilledButton.tonal(
                   onPressed: () => _openBeacon(context, b.id),
                   child: Text(l10n.myWorkReviewCta),
                 ),
+              ],
             ],
           ),
         ],
@@ -429,6 +434,8 @@ class _DraftAuthoredCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
+              if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
               TextButton(
                 onPressed: () => _openBeacon(context, b.id),
                 child: Text(l10n.myWorkEditDraft),
@@ -471,11 +478,18 @@ class _ClosedAuthoredCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: kSpacingSmall),
-          Text(
-            _updatedWhenText(l10n, b),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _updatedWhenText(l10n, b),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ),
+              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
+            ],
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -523,11 +537,18 @@ class _ClosedCommittedCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: kSpacingSmall),
-          Text(
-            _updatedWhenText(l10n, b),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.outline,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _updatedWhenText(l10n, b),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ),
+              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
+            ],
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -563,10 +584,7 @@ class _CardHeaderRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AvatarRated(
-          profile: beacon.author,
-          size: 48,
-        ),
+        BeaconIdentityTile(beacon: beacon),
         const SizedBox(width: kSpacingSmall),
         Expanded(
           child: Column(

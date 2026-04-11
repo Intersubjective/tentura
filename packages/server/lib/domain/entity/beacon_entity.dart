@@ -30,6 +30,8 @@ abstract class BeaconEntity with _$BeaconEntity {
     DateTime? endAt,
     String? context,
     Set<String>? tags,
+    String? iconCode,
+    int? iconBackground,
   }) = _BeaconEntity;
 
   const BeaconEntity._();
@@ -55,5 +57,10 @@ abstract class BeaconEntity with _$BeaconEntity {
       ? '$kImageServer/$kImagesPath/${author.id}/${images.first.id}.$kImageExt'
       : kBeaconPlaceholderUrl;
 
-  Map<String, Object> get asJson => {'id': id};
+  /// V2 GraphQL `Beacon` shape (camelCase); keep in sync with `gqlTypeBeacon` in custom_types.dart.
+  Map<String, Object?> get asJson => {
+    'id': id,
+    'iconCode': iconCode,
+    'iconBackground': iconBackground,
+  };
 }

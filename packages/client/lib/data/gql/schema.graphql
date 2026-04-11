@@ -124,6 +124,12 @@ type beacon {
   ): [beacon_forward_edge!]!
   id: String!
 
+  """Curated symbolic icon key for beacon identity tile."""
+  icon_code: String
+
+  """ARGB int from constrained palette for identity tile background."""
+  icon_background: Int
+
   """An array relationship"""
   beacon_images(
     """limit the number of rows returned"""
@@ -273,6 +279,8 @@ input beacon_bool_exp {
   description: String_comparison_exp
   end_at: timestamptz_comparison_exp
   forward_edges: beacon_forward_edge_bool_exp
+  icon_background: Int_comparison_exp
+  icon_code: String_comparison_exp
   id: String_comparison_exp
   beacon_images: beacon_image_bool_exp
   is_pinned: Boolean_comparison_exp
@@ -1095,6 +1103,8 @@ input beacon_max_order_by {
   created_at: order_by
   description: order_by
   end_at: order_by
+  icon_background: order_by
+  icon_code: order_by
   id: order_by
   lat: order_by
   long: order_by
@@ -1121,6 +1131,8 @@ input beacon_min_order_by {
   created_at: order_by
   description: order_by
   end_at: order_by
+  icon_background: order_by
+  icon_code: order_by
   id: order_by
   lat: order_by
   long: order_by
@@ -1158,6 +1170,8 @@ input beacon_order_by {
   description: order_by
   end_at: order_by
   forward_edges_aggregate: beacon_forward_edge_aggregate_order_by
+  icon_background: order_by
+  icon_code: order_by
   id: order_by
   is_pinned: order_by
   lat: order_by
@@ -1422,6 +1436,12 @@ enum beacon_select_column {
   end_at
 
   """column name"""
+  icon_background
+
+  """column name"""
+  icon_code
+
+  """column name"""
   id
 
   """column name"""
@@ -1521,6 +1541,8 @@ input beacon_stream_cursor_value_input {
   created_at: timestamptz
   description: String
   end_at: timestamptz
+  icon_background: Int
+  icon_code: String
   id: String
   lat: float8
   long: float8

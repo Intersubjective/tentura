@@ -18,6 +18,8 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     Coordinates? coordinates,
     DateTime? startAt,
     DateTime? endAt,
+    String? iconCode,
+    int? iconBackground,
     @Default(false) bool canTryToPublish,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconCreateState;

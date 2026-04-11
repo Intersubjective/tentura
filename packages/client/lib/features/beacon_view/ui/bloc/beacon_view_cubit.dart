@@ -196,8 +196,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _inboxRepository.fetchStatusForBeacon(beaconId),
       ]);
 
-      final beacon = results[0] as Beacon;
-      final commitments = results[1] as List<
+      final beacon = results[0]! as Beacon;
+      final commitments = results[1]! as List<
           ({
             String beaconId,
             String userId,
@@ -210,7 +210,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             DateTime updatedAt,
             int? responseType,
           })>;
-      final updates = results[2]
+      final updates = results[2]!
           as List<({Profile author, String content, DateTime createdAt})>;
       final inboxStatus = results[3] as InboxItemStatus?;
 

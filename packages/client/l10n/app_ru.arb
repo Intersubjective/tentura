@@ -260,6 +260,62 @@
   "@beaconImage": {
     "context": "BeaconCreateScreen"
   },
+  "beaconSymbolTitle": "Символ маяка",
+  "@beaconSymbolTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolHint": "Необязательно. Показывается во входящих и списках вместо фото.",
+  "@beaconSymbolHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolBackground": "Фон",
+  "@beaconSymbolBackground": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolSearchHint": "Поиск символов",
+  "@beaconSymbolSearchHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolClear": "Сбросить символ",
+  "@beaconSymbolClear": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolCategoryAll": "Все",
+  "@beaconSymbolCategoryAll": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryGeneral": "Общее",
+  "@beaconIdentityCategoryGeneral": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryWork": "Работа",
+  "@beaconIdentityCategoryWork": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryPlaces": "Места",
+  "@beaconIdentityCategoryPlaces": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryTransport": "Транспорт",
+  "@beaconIdentityCategoryTransport": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryPeople": "Люди",
+  "@beaconIdentityCategoryPeople": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryHealth": "Здоровье",
+  "@beaconIdentityCategoryHealth": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryCommerce": "Торговля",
+  "@beaconIdentityCategoryCommerce": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryNature": "Природа",
+  "@beaconIdentityCategoryNature": {
+    "context": "BeaconCreateScreen"
+  },
   "createBeaconErrorTooShortQuestion": "слишком короткий вопрос",
   "@createBeaconErrorTooShortQuestion": {
     "context": "BeaconCreateScreen"

@@ -16,6 +16,10 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _tags = InputFieldString(fieldName: 'tags');
 
+  final _iconCode = InputFieldString(fieldName: 'iconCode');
+
+  final _iconBackground = InputFieldInt(fieldName: 'iconBackground');
+
   final _beaconId = InputFieldString(fieldName: 'beaconId');
 
   final _imageId = InputFieldString(fieldName: 'imageId');
@@ -51,6 +55,8 @@ final class MutationBeacon extends GqlNodeBase {
       _startAt.fieldNullable,
       _endAt.fieldNullable,
       _tags.fieldNullable,
+      _iconCode.fieldNullable,
+      _iconBackground.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .create(
@@ -64,6 +70,8 @@ final class MutationBeacon extends GqlNodeBase {
           startAt: _startAt.fromArgs(args),
           endAt: _endAt.fromArgs(args),
           tags: _tags.fromArgs(args),
+          iconCode: _iconCode.fromArgs(args),
+          iconBackground: _iconBackground.fromArgs(args),
         )
         .then((v) => v.asJson),
   );

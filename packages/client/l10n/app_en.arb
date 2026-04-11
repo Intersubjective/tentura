@@ -260,6 +260,62 @@
   "@beaconImage": {
     "context": "BeaconCreateScreen"
   },
+  "beaconSymbolTitle": "Beacon symbol",
+  "@beaconSymbolTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolHint": "Optional. Shown on inbox and lists instead of a photo.",
+  "@beaconSymbolHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolBackground": "Background",
+  "@beaconSymbolBackground": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolSearchHint": "Search symbols",
+  "@beaconSymbolSearchHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolClear": "Clear symbol",
+  "@beaconSymbolClear": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconSymbolCategoryAll": "All",
+  "@beaconSymbolCategoryAll": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryGeneral": "General",
+  "@beaconIdentityCategoryGeneral": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryWork": "Work",
+  "@beaconIdentityCategoryWork": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryPlaces": "Places",
+  "@beaconIdentityCategoryPlaces": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryTransport": "Transport",
+  "@beaconIdentityCategoryTransport": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryPeople": "People",
+  "@beaconIdentityCategoryPeople": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryHealth": "Health",
+  "@beaconIdentityCategoryHealth": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryCommerce": "Commerce",
+  "@beaconIdentityCategoryCommerce": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryNature": "Nature",
+  "@beaconIdentityCategoryNature": {
+    "context": "BeaconCreateScreen"
+  },
   "createBeaconErrorTooShortQuestion": "Too short question",
   "@createBeaconErrorTooShortQuestion": {
     "context": "BeaconCreateScreen"

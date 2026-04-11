@@ -47,6 +47,8 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       ),
       coordinationStatusUpdatedAt: i.coordination_status_updated_at,
       commitmentCount: i.commitments_aggregate.aggregate?.count ?? 0,
+      iconCode: i.icon_code,
+      iconBackground: i.icon_background,
     );
   }
 }

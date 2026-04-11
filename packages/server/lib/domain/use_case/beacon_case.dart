@@ -14,6 +14,22 @@ import '../exception.dart';
 
 const kMaxImagesPerBeacon = 10;
 
+const _kMaxIconCodeLength = 64;
+
+bool _isValidIconCodeKey(String s) =>
+    RegExp(r'^[a-z][a-z0-9_]*$').hasMatch(s) && s.length <= _kMaxIconCodeLength;
+
+/// Curated key from client catalog; rejects empty/oversized/non-[a-z0-9_] input.
+String? _normalizeIconCode(String? raw) {
+  if (raw == null) return null;
+  final t = raw.trim();
+  if (t.isEmpty) return null;
+  final truncated =
+      t.length > _kMaxIconCodeLength ? t.substring(0, _kMaxIconCodeLength) : t;
+  if (!_isValidIconCodeKey(truncated)) return null;
+  return truncated;
+}
+
 @Singleton(order: 2)
 class BeaconCase {
   @FactoryMethod(preResolve: true)
@@ -56,6 +72,8 @@ class BeaconCase {
     Coordinates? coordinates,
     Stream<Uint8List>? imageBytes,
     ({String? question, List<String>? variants})? polling,
+    String? iconCode,
+    int? iconBackground,
   }) async {
     if (polling != null) {
       if (polling.question == null) {
@@ -84,6 +102,7 @@ class BeaconCase {
       );
     }
 
+    final normalizedIcon = _normalizeIconCode(iconCode);
     final beacon = await _beaconRepository.createBeacon(
       authorId: userId,
       title: title,
@@ -98,6 +117,8 @@ class BeaconCase {
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
       startAt: startAt,
       endAt: endAt,
+      iconCode: normalizedIcon,
+      iconBackground: normalizedIcon == null ? null : iconBackground,
     );
 
     if (beacon.polling?.variants != null) {

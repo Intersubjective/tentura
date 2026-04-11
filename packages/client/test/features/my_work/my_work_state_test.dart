@@ -13,7 +13,7 @@ MyWorkCardViewModel _vm({
 }) {
   final beacon = Beacon.empty.copyWith(
     id: id,
-    updatedAt: DateTime(2025, 1, 1),
+    updatedAt: DateTime(2025),
     lifecycle: lifecycle,
   );
   return MyWorkCardViewModel(
@@ -28,7 +28,7 @@ void main() {
   test('visibleCards All uses nonArchivedCards', () {
     final a = _vm(id: 'a', role: MyWorkCardRole.authored, kind: MyWorkCardKind.authoredActive);
     final c = _vm(id: 'b', role: MyWorkCardRole.committed, kind: MyWorkCardKind.committedActive);
-    final s = MyWorkState(nonArchivedCards: [a, c], filter: MyWorkFilter.all);
+    final s = MyWorkState(nonArchivedCards: [a, c]);
     expect(s.visibleCards.length, 2);
   });
 
@@ -54,7 +54,6 @@ void main() {
       lifecycle: BeaconLifecycle.closed,
     );
     final s = MyWorkState(
-      nonArchivedCards: const [],
       archivedCards: [x],
       filter: MyWorkFilter.archived,
     );

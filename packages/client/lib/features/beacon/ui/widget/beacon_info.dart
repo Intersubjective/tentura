@@ -20,6 +20,7 @@ class BeaconInfo extends StatelessWidget {
     required this.isShowBeaconEnabled,
     this.isShowMoreEnabled = true,
     this.isTitleLarge = false,
+    this.showTitle = true,
     this.onClickTag,
     super.key,
   });
@@ -28,6 +29,7 @@ class BeaconInfo extends StatelessWidget {
   final bool isTitleLarge;
   final bool isShowMoreEnabled;
   final bool isShowBeaconEnabled;
+  final bool showTitle;
   final TagClickCallback? onClickTag;
 
   @override
@@ -74,28 +76,28 @@ class BeaconInfo extends StatelessWidget {
             ),
           ),
 
-        // Beacon Title
-        GestureDetector(
-          onTap: isShowBeaconEnabled
-              ? () => context.read<ScreenCubit>().showBeacon(beacon.id)
-              : null,
-          child: Padding(
-            padding: kPaddingT,
-            child: Text(
-              beacon.title,
-              maxLines: 1,
-              textAlign: TextAlign.left,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  (isTitleLarge
-                          ? theme.textTheme.headlineLarge
-                          : theme.textTheme.headlineMedium)
-                      ?.copyWith(
-                        decoration: TextDecoration.underline,
-                      ),
+        if (showTitle)
+          GestureDetector(
+            onTap: isShowBeaconEnabled
+                ? () => context.read<ScreenCubit>().showBeacon(beacon.id)
+                : null,
+            child: Padding(
+              padding: kPaddingT,
+              child: Text(
+                beacon.title,
+                maxLines: 1,
+                textAlign: TextAlign.left,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    (isTitleLarge
+                            ? theme.textTheme.headlineLarge
+                            : theme.textTheme.headlineMedium)
+                        ?.copyWith(
+                          decoration: TextDecoration.underline,
+                        ),
+              ),
             ),
           ),
-        ),
 
         //Beacon Timerange
         if (beacon.startAt != null || beacon.endAt != null)

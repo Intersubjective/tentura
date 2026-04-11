@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/polling.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 
+import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
 import '../message/beacon_create_message.dart';
@@ -58,6 +59,20 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       location: locationName,
     ),
   );
+
+  void setIconCode(String value) => emit(
+        state.copyWith(
+          iconCode: value,
+          iconBackground: state.iconBackground ??
+              kBeaconIdentityPalette.first.backgroundArgb,
+        ),
+      );
+
+  void setIconBackground(int? value) =>
+      emit(state.copyWith(iconBackground: value));
+
+  void clearBeaconIdentity() =>
+      emit(state.copyWith(iconCode: null, iconBackground: null));
 
   ///
   ///
@@ -202,6 +217,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final now = DateTime.timestamp();
+      final iconCode = state.iconCode?.trim();
+      final hasIcon =
+          iconCode != null && iconCode.isNotEmpty;
       final beacon = await _beaconRepository.create(
         Beacon(
           createdAt: now,
@@ -214,6 +232,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           startAt: state.startAt,
           endAt: state.endAt,
           images: state.images,
+          iconCode: hasIcon ? iconCode : null,
+          iconBackground: hasIcon ? state.iconBackground : null,
           polling: hasPolling
               ? Polling(
                   createdAt: now,
