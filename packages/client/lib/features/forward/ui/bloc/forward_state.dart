@@ -71,13 +71,14 @@ abstract class ForwardState extends StateBase with _$ForwardState {
       case ForwardFilter.all:
         return [];
       case ForwardFilter.bestNext:
-        picked = base.where((c) => c.canForwardTo && c.isUnseen);
+        picked = base.where((c) => c.canForwardTo);
       case ForwardFilter.unseen:
         picked = base.where((c) => c.isUnseen);
       case ForwardFilter.alreadyInvolved:
         picked = base.where(
           (c) =>
               c.involvement != CandidateInvolvement.unseen &&
+              c.involvement != CandidateInvolvement.forwarded &&
               c.involvement != CandidateInvolvement.author,
         );
     }
@@ -109,9 +110,9 @@ abstract class ForwardState extends StateBase with _$ForwardState {
       } else if (c.involvement == CandidateInvolvement.author ||
           c.involvement == CandidateInvolvement.declined) {
         unavailable.add(c);
-      } else if (c.canForwardTo && c.isUnseen) {
+      } else if (c.canForwardTo) {
         recommended.add(c);
-      } else if (!c.isUnseen) {
+      } else {
         other.add(c);
       }
     }

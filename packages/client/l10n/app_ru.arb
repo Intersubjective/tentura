@@ -1000,6 +1000,19 @@
   "@forwardAlreadyForwarded": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardedByMe": "Переслано вами",
+  "@forwardedByMe": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardedByMeWithNote": "Переслано вами: {note}",
+  "@forwardedByMeWithNote": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "forwardCommitted": "Взяли обязательство",
   "@forwardCommitted": {
     "context": "ForwardBeaconScreen"

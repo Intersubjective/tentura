@@ -30,6 +30,10 @@ class ForwardCandidateTile extends StatelessWidget {
       return l10n.notReachable;
     }
     return switch (candidate.involvement) {
+      CandidateInvolvement.forwardedByMe =>
+        candidate.myForwardNote != null && candidate.myForwardNote!.isNotEmpty
+            ? l10n.forwardedByMeWithNote(candidate.myForwardNote!)
+            : l10n.forwardedByMe,
       CandidateInvolvement.forwarded => l10n.forwardAlreadyForwarded,
       CandidateInvolvement.watching => l10n.forwardWatching,
       CandidateInvolvement.committed => l10n.forwardCommitted,
@@ -67,6 +71,7 @@ class ForwardCandidateTile extends StatelessWidget {
       switch (candidate.involvement) {
         CandidateInvolvement.committed => Icons.check_circle_outline,
         CandidateInvolvement.withdrawn => Icons.heart_broken,
+        CandidateInvolvement.forwardedByMe => Icons.forward_to_inbox,
         CandidateInvolvement.forwarded => Icons.forward_to_inbox,
         CandidateInvolvement.watching => Icons.visibility_outlined,
         _ => Icons.info_outline,

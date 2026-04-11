@@ -1000,6 +1000,19 @@
   "@forwardAlreadyForwarded": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardedByMe": "Forwarded by you",
+  "@forwardedByMe": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardedByMeWithNote": "Forwarded by you: {note}",
+  "@forwardedByMeWithNote": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "note": {
+        "type": "String"
+      }
+    }
+  },
   "forwardCommitted": "Committed",
   "@forwardCommitted": {
     "context": "ForwardBeaconScreen"

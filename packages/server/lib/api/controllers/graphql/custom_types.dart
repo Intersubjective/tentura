@@ -10,6 +10,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInvitation,
   gqlTypeProfile,
   gqlTypeBeacon,
+  gqlTypeMyForwardRecipient,
   gqlTypeBeaconInvolvement,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
@@ -38,6 +39,14 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
     field('id', graphQLString.nonNullable()),
   ]);
 
+/// Per-recipient forward record from the current user's perspective.
+final gqlTypeMyForwardRecipient =
+    GraphQLObjectType('MyForwardRecipient', null)
+      ..fields.addAll([
+        field('recipientId', graphQLString.nonNullable()),
+        field('note', graphQLString.nonNullable()),
+      ]);
+
 /// V2-only: forward-screen involvement id sets (see `beaconInvolvement` query).
 /// List fields are nullable in GraphQL to match Hasura remote-schema merge; resolver always returns lists.
 final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
@@ -65,6 +74,10 @@ final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
     field(
       'onwardForwarderIds',
       GraphQLListType(graphQLString.nonNullable()),
+    ),
+    field(
+      'myForwardedRecipients',
+      GraphQLListType(gqlTypeMyForwardRecipient.nonNullable()),
     ),
   ]);
 

@@ -23,9 +23,10 @@ final class QueryBeaconInvolvement extends GqlNodeBase {
         gqlTypeBeaconInvolvement.nonNullable(),
         arguments: [InputFieldId.field],
         resolve: (_, args) {
-          getCredentials(args);
+          final creds = getCredentials(args);
           return _beaconInvolvementCase.asMap(
             beaconId: InputFieldId.fromArgsNonNullable(args),
+            currentUserId: creds.sub,
           );
         },
       );

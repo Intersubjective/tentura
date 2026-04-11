@@ -9,5 +9,9 @@ query BeaconInvolvementData($id: String!) {
     rejectedIds
     watchingIds
     onwardForwarderIds
+    myForwardedRecipients {
+      recipientId
+      note
+    }
   }
 }
