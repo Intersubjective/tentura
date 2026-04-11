@@ -30,8 +30,8 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     @Default(0) int myVote,
     @Default(Profile()) Profile author,
     @Default({}) Set<String> tags,
+    @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
-    ImageEntity? image,
     Polling? polling,
     DateTime? startAt,
     DateTime? endAt,
@@ -69,15 +69,22 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   @override
   double get reverseScore => rScore;
 
-  bool get hasPicture => image != null;
-  bool get hasNoPicture => image == null;
+  bool get hasPicture => images.isNotEmpty;
+  bool get hasNoPicture => images.isEmpty;
 
   bool get hasPolling => polling != null;
   bool get hasNoPolling => polling == null;
 
+  /// URL for the first (thumbnail) image.
   String get imageUrl => hasPicture
-      ? '$kImageServer/$kImagesPath/${author.id}/${image!.id}.$kImageExt'
+      ? '$kImageServer/$kImagesPath/${author.id}/${images.first.id}.$kImageExt'
       : kBeaconPlaceholderUrl;
+
+  /// URLs for all images in gallery order.
+  List<String> get imageUrls => [
+    for (final img in images)
+      '$kImageServer/$kImagesPath/${author.id}/${img.id}.$kImageExt',
+  ];
 
   static final empty = Beacon(
     createdAt: DateTime.fromMillisecondsSinceEpoch(0),

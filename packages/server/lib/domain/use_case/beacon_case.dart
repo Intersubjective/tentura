@@ -12,6 +12,8 @@ import 'package:tentura_server/data/repository/tasks_repository.dart';
 import '../entity/task_entity.dart';
 import '../exception.dart';
 
+const kMaxImagesPerBeacon = 10;
+
 @Singleton(order: 2)
 class BeaconCase {
   @FactoryMethod(preResolve: true)
@@ -67,13 +69,14 @@ class BeaconCase {
       }
     }
 
-    String? imageId;
+    final imageIds = <String>[];
 
     if (imageBytes != null) {
-      imageId = await _imageRepository.put(
+      final imageId = await _imageRepository.put(
         authorId: userId,
         bytes: imageBytes,
       );
+      imageIds.add(imageId);
       await _tasksRepository.schedule(
         TaskEntity(
           details: TaskCalculateImageHashDetails(imageId: imageId),
@@ -84,7 +87,7 @@ class BeaconCase {
     final beacon = await _beaconRepository.createBeacon(
       authorId: userId,
       title: title,
-      imageId: imageId,
+      imageIds: imageIds.isEmpty ? null : imageIds,
       context: (context?.isEmpty ?? true) ? null : context,
       description: description ?? '',
       latitude: coordinates?.lat,
@@ -110,6 +113,81 @@ class BeaconCase {
   }
 
   //
+  Future<BeaconEntity> addImage({
+    required String beaconId,
+    required String userId,
+    required Stream<Uint8List> imageBytes,
+  }) async {
+    final currentCount = await _beaconRepository.getImageCount(beaconId);
+    if (currentCount >= kMaxImagesPerBeacon) {
+      throw const BeaconCreateException(
+        description: 'Maximum images per beacon reached',
+      );
+    }
+
+    final imageId = await _imageRepository.put(
+      authorId: userId,
+      bytes: imageBytes,
+    );
+    await _tasksRepository.schedule(
+      TaskEntity(
+        details: TaskCalculateImageHashDetails(imageId: imageId),
+      ),
+    );
+
+    await _beaconRepository.addImage(
+      beaconId: beaconId,
+      imageId: imageId,
+      position: currentCount,
+    );
+
+    return _beaconRepository.getBeaconById(
+      beaconId: beaconId,
+      filterByUserId: userId,
+    );
+  }
+
+  //
+  Future<bool> removeImage({
+    required String beaconId,
+    required String imageId,
+    required String userId,
+  }) async {
+    final beacon = await _beaconRepository.getBeaconById(
+      beaconId: beaconId,
+      filterByUserId: userId,
+    );
+
+    // Deleting the image row cascades to beacon_image via FK ON DELETE CASCADE
+    await _imageRepository.delete(
+      authorId: beacon.author.id,
+      imageId: imageId,
+    );
+
+    return true;
+  }
+
+  //
+  Future<bool> reorderImages({
+    required String beaconId,
+    required String userId,
+    required List<String> imageIds,
+  }) async {
+    // Verify ownership
+    await _beaconRepository.getBeaconById(
+      beaconId: beaconId,
+      filterByUserId: userId,
+    );
+
+    await _beaconRepository.reorderImages(
+      beaconId: beaconId,
+      imageIds: imageIds,
+    );
+
+    return true;
+  }
+
+  //
   Future<bool> deleteById({
     required String beaconId,
     required String userId,
@@ -119,10 +197,10 @@ class BeaconCase {
       filterByUserId: userId,
     );
 
-    if (beacon.image != null) {
+    for (final image in beacon.images) {
       await _imageRepository.delete(
         authorId: beacon.author.id,
-        imageId: beacon.image!.id,
+        imageId: image.id,
       );
     }
 

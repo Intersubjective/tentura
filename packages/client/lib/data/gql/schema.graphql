@@ -124,9 +124,20 @@ type beacon {
   ): [beacon_forward_edge!]!
   id: String!
 
-  """An object relationship"""
-  image: image
-  image_id: uuid
+  """An array relationship"""
+  beacon_images(
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_image_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_image_bool_exp
+  ): [beacon_image!]!
 
   """
   A computed field, executes function "beacon_get_is_pinned"
@@ -263,8 +274,7 @@ input beacon_bool_exp {
   end_at: timestamptz_comparison_exp
   forward_edges: beacon_forward_edge_bool_exp
   id: String_comparison_exp
-  image: image_bool_exp
-  image_id: uuid_comparison_exp
+  beacon_images: beacon_image_bool_exp
   is_pinned: Boolean_comparison_exp
   lat: float8_comparison_exp
   long: float8_comparison_exp
@@ -281,6 +291,41 @@ input beacon_bool_exp {
   updates: beacon_update_bool_exp
   user_id: String_comparison_exp
   vote_beacons: vote_beacon_bool_exp
+}
+
+"""
+columns and relationships of "beacon_image"
+"""
+type beacon_image {
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+
+  """An object relationship"""
+  image: image!
+  image_id: uuid!
+  position: smallint!
+}
+
+"""
+order by clause for "beacon_image"
+"""
+input beacon_image_order_by {
+  beacon_id: order_by
+  image_id: order_by
+  position: order_by
+}
+
+"""
+Boolean expression to filter rows from the table "beacon_image"
+"""
+input beacon_image_bool_exp {
+  _and: [beacon_image_bool_exp!]
+  _not: beacon_image_bool_exp
+  _or: [beacon_image_bool_exp!]
+  beacon_id: String_comparison_exp
+  image_id: uuid_comparison_exp
+  position: smallint_comparison_exp
 }
 
 """
@@ -1051,7 +1096,6 @@ input beacon_max_order_by {
   description: order_by
   end_at: order_by
   id: order_by
-  image_id: order_by
   lat: order_by
   long: order_by
   polling_id: order_by
@@ -1078,7 +1122,6 @@ input beacon_min_order_by {
   description: order_by
   end_at: order_by
   id: order_by
-  image_id: order_by
   lat: order_by
   long: order_by
   polling_id: order_by
@@ -1116,8 +1159,6 @@ input beacon_order_by {
   end_at: order_by
   forward_edges_aggregate: beacon_forward_edge_aggregate_order_by
   id: order_by
-  image: image_order_by
-  image_id: order_by
   is_pinned: order_by
   lat: order_by
   long: order_by
@@ -1384,9 +1425,6 @@ enum beacon_select_column {
   id
 
   """column name"""
-  image_id
-
-  """column name"""
   lat
 
   """column name"""
@@ -1484,7 +1522,6 @@ input beacon_stream_cursor_value_input {
   description: String
   end_at: timestamptz
   id: String
-  image_id: uuid
   lat: float8
   long: float8
   polling_id: String
@@ -2466,8 +2503,11 @@ enum invitation_update_column {
 type mutation_root {
   beaconCloseWithReview(id: String!): v2_BeaconCloseReviewResult!
   beaconCommit(helpType: String, id: String!, message: String): Boolean!
+  beaconAddImage(id: String!, image: v2_Upload = {}): v2_Beacon!
   beaconCreate(context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, image: v2_Upload = {}, polling: v2_PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
+  beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
+  beaconReorderImages(beaconId: String!, imageIds: [String!]!): Boolean!
   beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]): String!
   beaconWithdraw(id: String!, message: String, uncommitReason: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!

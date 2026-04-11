@@ -23,6 +23,7 @@ import 'table/beacon_evaluation_participants.dart';
 import 'table/beacon_evaluation_visibility.dart';
 import 'table/beacon_evaluations.dart';
 import 'table/beacon_forward_edges.dart';
+import 'table/beacon_images.dart';
 import 'table/beacon_review_statuses.dart';
 import 'table/beacon_review_windows.dart';
 import 'table/beacon_updates.dart';
@@ -56,6 +57,7 @@ part 'tentura_db.g.dart';
     BeaconEvaluationVisibility,
     BeaconEvaluations,
     BeaconForwardEdges,
+    BeaconImages,
     BeaconReviewStatuses,
     BeaconReviewWindows,
     BeaconUpdates,

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,39 +20,48 @@ class ImageRepository {
       maxWidth: maxDimension,
       source: ImageSource.gallery,
     );
-    return xFile == null
-        ? null
-        : switch (xFile.name.toLowerCase()) {
-          _ when xFile.name.endsWith('.jpg') || xFile.name.endsWith('.jpeg') =>
-            ImageEntity(
-              imageBytes: await xFile.readAsBytes(),
-              fileName: xFile.name,
-            ),
+    return xFile == null ? null : _xFileToEntity(xFile);
+  }
 
-          _ when xFile.name.endsWith('.png') => ImageEntity(
-            imageBytes: img.encodeJpg(
-              img.decodePng(await xFile.readAsBytes()) ??
-                  (throw const FormatException('Cant decode image')),
-            ),
-            fileName: xFile.name,
-          ),
+  Future<List<ImageEntity>> pickMultipleImages() async {
+    final maxDimension = kImageMaxDimension.toDouble();
+    final xFiles = await _imagePicker.pickMultiImage(
+      maxHeight: maxDimension,
+      maxWidth: maxDimension,
+    );
+    final results = <ImageEntity>[];
+    for (final xFile in xFiles) {
+      results.add(await _xFileToEntity(xFile));
+    }
+    return results;
+  }
 
-          _ when xFile.name.endsWith('.webp') => ImageEntity(
-            imageBytes: img.encodeJpg(
-              img.decodeWebP(await xFile.readAsBytes()) ??
-                  (throw const FormatException('Cant decode image')),
-            ),
-            fileName: xFile.name,
-          ),
+  Future<ImageEntity> _xFileToEntity(XFile xFile) async {
+    final name = xFile.name.toLowerCase();
+    final Uint8List bytes;
 
-          // Try to decode other formats (may be much slower)
-          _ => ImageEntity(
-            imageBytes: img.encodeJpg(
-              img.decodeImage(await xFile.readAsBytes()) ??
-                  (throw const FormatException('Cant decode image')),
-            ),
-            fileName: xFile.name,
-          ),
-        };
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+      bytes = await xFile.readAsBytes();
+    } else if (name.endsWith('.png')) {
+      bytes = img.encodeJpg(
+        img.decodePng(await xFile.readAsBytes()) ??
+            (throw const FormatException('Cant decode image')),
+      );
+    } else if (name.endsWith('.webp')) {
+      bytes = img.encodeJpg(
+        img.decodeWebP(await xFile.readAsBytes()) ??
+            (throw const FormatException('Cant decode image')),
+      );
+    } else {
+      bytes = img.encodeJpg(
+        img.decodeImage(await xFile.readAsBytes()) ??
+            (throw const FormatException('Cant decode image')),
+      );
+    }
+
+    return ImageEntity(
+      imageBytes: bytes,
+      fileName: xFile.name,
+    );
   }
 }

@@ -1,0 +1,11 @@
+mutation BeaconAddImage(
+  $id: String!,
+  $image: Upload = {}
+) {
+  beaconAddImage(
+    id: $id,
+    image: $image
+  ) {
+    id
+  }
+}

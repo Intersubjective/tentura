@@ -13,10 +13,14 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
+import 'package:tentura/domain/entity/image_entity.dart';
+
 import '../../domain/exception.dart';
+import '../gql/_g/beacon_add_image.req.gql.dart';
 import '../gql/_g/beacon_create.req.gql.dart';
 import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
 import '../gql/_g/beacon_delete_by_id.req.gql.dart';
+import '../gql/_g/beacon_remove_image.req.gql.dart';
 import '../gql/_g/beacon_update_by_id.req.gql.dart';
 import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
 
@@ -80,6 +84,7 @@ class BeaconRepository {
   //
   //
   Future<Beacon> create(Beacon beacon) async {
+    final firstImage = beacon.images.isEmpty ? null : beacon.images.first;
     final request = GBeaconCreateReq((b) {
       b.vars
         ..title = beacon.title
@@ -98,22 +103,73 @@ class BeaconRepository {
             : (Gv2_PollingInputBuilder()
                   ..question = beacon.polling!.question
                   ..variants = ListBuilder(beacon.polling!.variants.values))
-        ..image = beacon.image?.imageBytes == null
+        ..image = firstImage?.imageBytes == null
             ? null
             : MultipartFile.fromBytes(
                 'image',
-                beacon.image!.imageBytes!,
-                contentType: MediaType.parse(beacon.image!.mimeType),
-                filename: beacon.image!.fileName,
+                firstImage!.imageBytes!,
+                contentType: MediaType.parse(firstImage.mimeType),
+                filename: firstImage.fileName,
               );
     });
     final beaconId = await _remoteApiService
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconCreate.id);
+
+    // Upload additional images (index 1+) via beaconAddImage
+    for (var i = 1; i < beacon.images.length; i++) {
+      final img = beacon.images[i];
+      if (img.imageBytes != null) {
+        await addImage(beaconId: beaconId, image: img);
+      }
+    }
+
     final beaconNew = await fetchBeaconById(beaconId);
     _controller.add(RepositoryEventCreate(beaconNew));
     return beaconNew;
+  }
+
+  //
+  //
+  Future<void> addImage({
+    required String beaconId,
+    required ImageEntity image,
+  }) async {
+    if (image.imageBytes == null) return;
+    final request = GBeaconAddImageReq((b) {
+      b.vars
+        ..id = beaconId
+        ..image = MultipartFile.fromBytes(
+          'image',
+          image.imageBytes!,
+          contentType: MediaType.parse(image.mimeType),
+          filename: image.fileName,
+        );
+    });
+    await _remoteApiService
+        .request(request)
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconAddImage.id);
+  }
+
+  //
+  //
+  Future<void> removeImage({
+    required String beaconId,
+    required String imageId,
+  }) async {
+    final isOk = await _remoteApiService
+        .request(GBeaconRemoveImageReq((b) {
+          b.vars
+            ..beaconId = beaconId
+            ..imageId = imageId;
+        }))
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconRemoveImage);
+    if (!isOk) {
+      throw BeaconUpdateException(beaconId);
+    }
   }
 
   //

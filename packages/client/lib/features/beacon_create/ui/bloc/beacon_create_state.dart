@@ -14,10 +14,10 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     @Default([]) List<String> variants,
     @Default([]) List<Key> variantsKeys,
     @Default({}) Set<String> tags,
+    @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
     DateTime? startAt,
     DateTime? endAt,
-    ImageEntity? image,
     @Default(false) bool canTryToPublish,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconCreateState;

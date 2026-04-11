@@ -91,10 +91,13 @@ class _V2RoutingLink extends Link {
 
   /// Client operation names whose resolvers live on Tentura V2.
   static const _tenturaDirectOperationNames = {
+    'BeaconAddImage',
     'BeaconCommit',
     'BeaconCreate',
     'BeaconInvolvementData',
     'BeaconDeleteById',
+    'BeaconRemoveImage',
+    'BeaconReorderImages',
     'BeaconCloseWithReview',
     'BeaconWithdraw',
     'CommitmentsWithCoordination',

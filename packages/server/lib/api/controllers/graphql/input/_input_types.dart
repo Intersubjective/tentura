@@ -9,6 +9,7 @@ part 'input_field_coordinates.dart';
 part 'input_field_description.dart';
 part 'input_field_drop_image.dart';
 part 'input_field_context.dart';
+part 'input_field_image_ids.dart';
 part 'input_field_polling.dart';
 part 'input_field_upload.dart';
 part 'input_field_title.dart';

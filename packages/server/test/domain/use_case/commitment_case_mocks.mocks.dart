@@ -50,7 +50,7 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
     required String? title,
     String? description,
     String? context,
-    String? imageId,
+    List<String>? imageIds,
     double? latitude,
     double? longitude,
     DateTime? startAt,
@@ -65,7 +65,7 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
               #title: title,
               #description: description,
               #context: context,
-              #imageId: imageId,
+              #imageIds: imageIds,
               #latitude: latitude,
               #longitude: longitude,
               #startAt: startAt,
@@ -82,7 +82,7 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
                   #title: title,
                   #description: description,
                   #context: context,
-                  #imageId: imageId,
+                  #imageIds: imageIds,
                   #latitude: latitude,
                   #longitude: longitude,
                   #startAt: startAt,
@@ -119,9 +119,9 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
           as _i4.Future<_i2.BeaconEntity>);
 
   @override
-  _i4.Future<void> deleteBeaconById(String? id) =>
+  _i4.Future<void> deleteBeaconById(String? id, {required String? userId}) =>
       (super.noSuchMethod(
-            Invocation.method(#deleteBeaconById, [id]),
+            Invocation.method(#deleteBeaconById, [id], {#userId: userId}),
             returnValue: _i4.Future<void>.value(),
             returnValueForMissingStub: _i4.Future<void>.value(),
           )
@@ -136,6 +136,61 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
             Invocation.method(#updateBeaconState, [], {
               #beaconId: beaconId,
               #state: state,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> addImage({
+    required String? beaconId,
+    required String? imageId,
+    required int? position,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#addImage, [], {
+              #beaconId: beaconId,
+              #imageId: imageId,
+              #position: position,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> removeImage({
+    required String? beaconId,
+    required String? imageId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#removeImage, [], {
+              #beaconId: beaconId,
+              #imageId: imageId,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<int> getImageCount(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getImageCount, [beaconId]),
+            returnValue: _i4.Future<int>.value(0),
+          )
+          as _i4.Future<int>);
+
+  @override
+  _i4.Future<void> reorderImages({
+    required String? beaconId,
+    required List<String>? imageIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#reorderImages, [], {
+              #beaconId: beaconId,
+              #imageIds: imageIds,
             }),
             returnValue: _i4.Future<void>.value(),
             returnValueForMissingStub: _i4.Future<void>.value(),

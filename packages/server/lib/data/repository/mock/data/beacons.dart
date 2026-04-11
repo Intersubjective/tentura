@@ -29,16 +29,17 @@ If you are bold enough to stand among dwarves of valor, reply to this call or se
     startAt: DateTime(2024, 10, 03),
     endAt: DateTime(2025, 10, 03),
     coordinates: const Coordinates(lat: 10.20, long: -20.50),
-    image: ImageEntity(
-      id: 'e2e9107c-6b73-49f2-a62f-8c010d4434c6',
-      authorId: kUserThorin.id,
-      createdAt: DateTime.utc(2020),
-      blurHash:
-          'q9DTa-Dk={_L-o?tHtRQRQM{r?4p%foxyB%LV@RjNHj[s.M|s:WBIVs:x@x[WDxtafV[%LofWERjV[RkM|V@RRWBVtayW;j@tjWC',
-      height: 337,
-      width: 600,
-    ),
-    // TBD: add image parameters
+    images: [
+      ImageEntity(
+        id: 'e2e9107c-6b73-49f2-a62f-8c010d4434c6',
+        authorId: kUserThorin.id,
+        createdAt: DateTime.utc(2020),
+        blurHash:
+            'q9DTa-Dk={_L-o?tHtRQRQM{r?4p%foxyB%LV@RjNHj[s.M|s:WBIVs:x@x[WDxtafV[%LofWERjV[RkM|V@RRWBVtayW;j@tjWC',
+        height: 337,
+        width: 600,
+      ),
+    ],
     author: kUserThorin,
   ),
 

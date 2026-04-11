@@ -3,28 +3,44 @@ import 'package:blurhash_shader/blurhash_shader.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 
+import 'beacon_gallery_viewer.dart';
+
 class BeaconImage extends StatelessWidget {
   const BeaconImage({
     required this.beacon,
     this.boxFit = BoxFit.cover,
+    this.enableGalleryTap = false,
     super.key,
   });
 
   final Beacon beacon;
-
   final BoxFit boxFit;
+  final bool enableGalleryTap;
 
   @override
-  Widget build(BuildContext context) => beacon.hasNoPicture
-      ? _placeholder
-      : beacon.image?.blurHash.isEmpty ?? true
-      ? _imageNetwork
-      : AspectRatio(
-          aspectRatio: beacon.image!.height > 0
-              ? beacon.image!.width / beacon.image!.height
-              : 1,
-          child: BlurHash(beacon.image!.blurHash, child: _imageNetwork),
-        );
+  Widget build(BuildContext context) {
+    if (beacon.hasNoPicture) return _placeholder;
+
+    final image = beacon.images.first;
+    final imageWidget = image.blurHash.isEmpty
+        ? _imageNetwork
+        : AspectRatio(
+            aspectRatio: image.height > 0
+                ? image.width / image.height
+                : 1,
+            child: BlurHash(image.blurHash, child: _imageNetwork),
+          );
+
+    if (!enableGalleryTap) return imageWidget;
+
+    return GestureDetector(
+      onTap: () => BeaconGalleryViewer.show(
+        context,
+        beacon: beacon,
+      ),
+      child: imageWidget,
+    );
+  }
 
   Widget get _imageNetwork => Image.network(
     beacon.imageUrl,

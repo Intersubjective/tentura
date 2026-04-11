@@ -5,6 +5,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
+import 'package:tentura/ui/widget/beacon_image_gallery.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
@@ -33,46 +34,66 @@ class BeaconInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
+    final showGallery = !isShowBeaconEnabled && beacon.images.length > 1;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (showGallery && beacon.hasPicture)
+          Padding(
+            padding: kPaddingSmallT,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+              child: BeaconImageGallery(beacon: beacon),
+            ),
+          )
+        else
+          GestureDetector(
+            onTap: isShowBeaconEnabled
+                ? () => context.read<ScreenCubit>().showBeacon(beacon.id)
+                : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (beacon.hasPicture)
+                  Padding(
+                    padding: kPaddingSmallT,
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      child: BeaconImage(
+                        beacon: beacon,
+                        enableGalleryTap: !isShowBeaconEnabled,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+        // Beacon Title
         GestureDetector(
           onTap: isShowBeaconEnabled
               ? () => context.read<ScreenCubit>().showBeacon(beacon.id)
               : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Beacon Image
-              if (beacon.hasPicture)
-                Padding(
-                  padding: kPaddingSmallT,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
-                    child: BeaconImage(beacon: beacon),
-                  ),
-                ),
-
-              // Beacon Title
-              Padding(
-                padding: kPaddingT,
-                child: Text(
-                  beacon.title,
-                  maxLines: 1,
-                  textAlign: TextAlign.left,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      (isTitleLarge
-                              ? theme.textTheme.headlineLarge
-                              : theme.textTheme.headlineMedium)
-                          ?.copyWith(
-                            decoration: TextDecoration.underline,
-                          ),
-                ),
-              ),
-            ],
+          child: Padding(
+            padding: kPaddingT,
+            child: Text(
+              beacon.title,
+              maxLines: 1,
+              textAlign: TextAlign.left,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  (isTitleLarge
+                          ? theme.textTheme.headlineLarge
+                          : theme.textTheme.headlineMedium)
+                      ?.copyWith(
+                        decoration: TextDecoration.underline,
+                      ),
+            ),
           ),
         ),
 
