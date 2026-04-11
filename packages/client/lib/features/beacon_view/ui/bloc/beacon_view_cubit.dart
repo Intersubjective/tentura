@@ -11,7 +11,6 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
-import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
@@ -190,7 +189,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
       final results = await Future.wait([
         _beaconRepository.fetchBeaconById(beaconId),
-        _forwardRepository.fetchEdges(beaconId: beaconId),
         _coordinationRepository.fetchCommitmentsWithCoordination(
           beaconId: beaconId,
         ),
@@ -199,8 +197,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       ]);
 
       final beacon = results[0] as Beacon;
-      final forwardEdges = results[1] as List<ForwardEdge>;
-      final commitments = results[2] as List<
+      final commitments = results[1] as List<
           ({
             String beaconId,
             String userId,
@@ -213,9 +210,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             DateTime updatedAt,
             int? responseType,
           })>;
-      final updates = results[3]
+      final updates = results[2]
           as List<({Profile author, String content, DateTime createdAt})>;
-      final inboxStatus = results[4] as InboxItemStatus?;
+      final inboxStatus = results[3] as InboxItemStatus?;
 
       final isCommitted = commitments
           .where((c) => c.status == 0)
@@ -237,7 +234,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       ];
 
       final timeline = <TimelineEntry>[
-        for (final edge in forwardEdges) TimelineForward(edge),
         ...commitmentsList,
         for (final u in updates)
           TimelineUpdate(
@@ -250,7 +246,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       emit(
         state.copyWith(
           beacon: beacon,
-          forwardEdges: forwardEdges,
           timeline: timeline,
           commitments: commitmentsList,
           isCommitted: isCommitted,
