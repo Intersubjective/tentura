@@ -1107,10 +1107,6 @@
   "@myWorkChipAuthor": {
     "context": "MyWorkScreen"
   },
-  "myWorkChipActive": "Active",
-  "@myWorkChipActive": {
-    "context": "MyWorkScreen"
-  },
   "myWorkChipDraft": "Draft",
   "@myWorkChipDraft": {
     "context": "MyWorkScreen"

@@ -189,7 +189,6 @@ class _AuthoredActiveCard extends StatelessWidget {
             runSpacing: kSpacingSmall,
             children: [
               _WorkCardPill(label: l10n.myWorkChipAuthor),
-              _WorkCardPill(label: l10n.myWorkChipActive),
               if (vm.attentionChip != null)
                 _WorkCardPill(
                   label: attentionLabel(vm.attentionChip!)!,
@@ -311,7 +310,6 @@ class _CommittedActiveCard extends StatelessWidget {
             runSpacing: kSpacingSmall,
             children: [
               _WorkCardPill(label: l10n.myWorkChipCommitted),
-              _WorkCardPill(label: l10n.myWorkChipActive),
               if (vm.showReadyForReviewChip)
                 _WorkCardPill(
                   label: l10n.myWorkChipReadyForReview,
