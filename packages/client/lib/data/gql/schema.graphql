@@ -6076,10 +6076,16 @@ type v2_BeaconCloseReviewResult {
 type v2_BeaconInvolvement {
   committedIds: [String!]
   forwardedToIds: [String!]
+  myForwardedRecipients: [v2_MyForwardRecipient!]
   onwardForwarderIds: [String!]
   rejectedIds: [String!]
   watchingIds: [String!]
   withdrawnIds: [String!]
+}
+
+type v2_MyForwardRecipient {
+  recipientId: String!
+  note: String!
 }
 
 type v2_CommitmentWithCoordinationRow {

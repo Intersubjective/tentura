@@ -9,12 +9,12 @@ Condensed product + implementation reference. Full narrative rationale lives in 
 | **Inbox (Needs me)** | Pending triage — needs a decision now. |
 | **My Work** | Ownership: authored or committed. |
 | **Watching** (inbox tab) | Triaged passive follow: not rejected, not committed, not owning execution. |
-| **Not interested** (rejected tab) | Explicit “not for me”. |
+| **Not interested** (rejected tab) | Explicit "not for me". |
 
 ## UX rules
 
 - **Watching is secondary**, not a third primary action beside Forward and Not for me on the inbox card.
-- Entry points: **overflow** (“Move to Watching”), **beacon detail**, and **automatic** after the user forwards **without** an active commitment.
+- Entry points: **overflow** ("Move to Watching"), **beacon detail**, and **automatic** after the user forwards **without** an active commitment.
 - Use **neutral** visual treatment (muted / outline); not success green, not error red, not warning amber.
 
 ## Copy
@@ -35,17 +35,20 @@ Optional future: audit columns or timeline events (`entered_watching_at`, `sourc
 
 ## Recipient-visible state (forward list)
 
-Upstream users see each recipient’s **current** stance with deterministic precedence (strongest wins):
+Upstream users see each recipient's **current** stance with deterministic precedence (strongest wins):
 
-1. Committed (active commitment)
-2. **Forwarded** — user has sent at least one forward edge for this beacon (`onwardForwarderIds` / sender on `beacon_forward_edge`)
-3. Not for me (rejected)
-4. **Watching** (`inbox_item.status = 1`)
-5. Received forward (legacy “already forwarded” / in `forwardedToIds`) vs unseen — client continues to distinguish as today
+1. **Author** — beacon creator
+2. **Committed** (active commitment)
+3. **Withdrawn** — withdrew commitment
+4. **Forwarded by me** — current user already forwarded to this person (`myForwardedRecipients`); blocks re-selection, shows the note used
+5. **Declined** — rejected the beacon
+6. **Forwarded** (by others) — received a forward from someone else (`forwardedToIds`) or forwarded onward (`onwardForwarderIds`); **selectable** for forwarding by the current user
+7. **Watching** (`inbox_item.status = 1`) — **selectable** for forwarding
+8. **Unseen** — no involvement; **selectable**
 
 ## Return to Needs me
 
-The Watching-tab overflow may offer **Return to Needs me** (moves `status` back to `0`) for users who want the item back in the triage queue. This is weaker than “stronger stance” overrides above.
+The Watching-tab overflow may offer **Return to Needs me** (moves `status` back to `0`) for users who want the item back in the triage queue. This is weaker than "stronger stance" overrides above.
 
 ## Non-goals (Phase 1)
 
@@ -57,4 +60,4 @@ The Watching-tab overflow may offer **Return to Needs me** (moves `status` back 
 
 - Client inbox: `inbox_item` via Hasura; `InboxCubit` / `InboxItemTile`.
 - Server forward: V2 `beaconForward` — also updates sender `inbox_item` when appropriate.
-- Forward screen involvement: V2 `beaconInvolvement` — includes `watchingIds`, `onwardForwarderIds` (see server GraphQL types).
+- Forward screen involvement: V2 `beaconInvolvement` — includes `watchingIds`, `onwardForwarderIds`, `myForwardedRecipients` (see server GraphQL types).

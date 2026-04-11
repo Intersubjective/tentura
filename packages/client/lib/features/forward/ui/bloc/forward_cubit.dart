@@ -46,6 +46,8 @@ class ForwardCubit extends Cubit<ForwardState> {
             (p) => ForwardCandidate(
               profile: p,
               involvement: _computeInvolvement(p.id, involvement),
+              myForwardNote:
+                  involvement.myForwardedRecipientNotes[p.id],
             ),
           )
           .toList()
@@ -76,11 +78,14 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (inv.withdrawnIds.contains(userId)) {
       return CandidateInvolvement.withdrawn;
     }
-    if (inv.onwardForwarderIds.contains(userId)) {
-      return CandidateInvolvement.forwarded;
+    if (inv.myForwardedRecipientNotes.containsKey(userId)) {
+      return CandidateInvolvement.forwardedByMe;
     }
     if (inv.rejectedIds.contains(userId)) {
       return CandidateInvolvement.declined;
+    }
+    if (inv.onwardForwarderIds.contains(userId)) {
+      return CandidateInvolvement.forwarded;
     }
     if (inv.watchingIds.contains(userId)) {
       return CandidateInvolvement.watching;

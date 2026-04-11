@@ -24,7 +24,13 @@ class BeaconInvolvementCase {
   final InboxRepository _inboxRepository;
 
   /// Returns a map matching `BeaconInvolvement` GraphQL field names.
-  Future<Map<String, dynamic>> asMap({required String beaconId}) async {
+  ///
+  /// [currentUserId] identifies the requesting user so the response can
+  /// distinguish "forwarded by me" from "forwarded by others".
+  Future<Map<String, dynamic>> asMap({
+    required String beaconId,
+    required String currentUserId,
+  }) async {
     final results = await Future.wait([
       _forwardEdgeRepository.fetchByBeaconId(beaconId),
       _commitmentRepository.fetchAllByBeaconId(beaconId),
@@ -51,6 +57,16 @@ class BeaconInvolvementCase {
         .toSet()
         .toList();
 
+    final myForwardedRecipients = <Map<String, String>>[];
+    for (final edge in edges) {
+      if (edge.senderId == currentUserId) {
+        myForwardedRecipients.add({
+          'recipientId': edge.recipientId,
+          'note': edge.note,
+        });
+      }
+    }
+
     return {
       'forwardedToIds': forwardedToIds,
       'committedIds': committedIds,
@@ -58,6 +74,7 @@ class BeaconInvolvementCase {
       'rejectedIds': rejectedIds,
       'watchingIds': watchingIds,
       'onwardForwarderIds': onwardForwarderIds,
+      'myForwardedRecipients': myForwardedRecipients,
     };
   }
 }

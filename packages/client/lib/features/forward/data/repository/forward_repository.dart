@@ -29,6 +29,7 @@ typedef BeaconInvolvementData = ({
   Set<String> rejectedIds,
   Set<String> watchingIds,
   Set<String> onwardForwarderIds,
+  Map<String, String> myForwardedRecipientNotes,
 });
 
 @lazySingleton
@@ -132,6 +133,13 @@ class ForwardRepository {
     final beacon = results[0] as Beacon;
     final inv = results[1] as GBeaconInvolvementDataData_beaconInvolvement;
 
+    final myForwardedRecipientNotes = <String, String>{};
+    if (inv.myForwardedRecipients != null) {
+      for (final r in inv.myForwardedRecipients!) {
+        myForwardedRecipientNotes[r.recipientId] = r.note;
+      }
+    }
+
     return (
       beacon: beacon,
       forwardedToIds: inv.forwardedToIds?.toSet() ?? {},
@@ -140,6 +148,7 @@ class ForwardRepository {
       rejectedIds: inv.rejectedIds?.toSet() ?? {},
       watchingIds: inv.watchingIds?.toSet() ?? {},
       onwardForwarderIds: inv.onwardForwarderIds?.toSet() ?? {},
+      myForwardedRecipientNotes: myForwardedRecipientNotes,
     );
   }
 
