@@ -1107,10 +1107,6 @@
   "@myWorkChipAuthor": {
     "context": "MyWorkScreen"
   },
-  "myWorkChipActive": "Активно",
-  "@myWorkChipActive": {
-    "context": "MyWorkScreen"
-  },
   "myWorkChipDraft": "Черновик",
   "@myWorkChipDraft": {
     "context": "MyWorkScreen"
