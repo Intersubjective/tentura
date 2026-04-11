@@ -26,7 +26,7 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
         selector: (state) => state.currentAccountId,
         builder: (_, accountId) => BlocProvider(
           key: ValueKey(accountId),
-          create: (_) => InboxCubit(),
+          create: (_) => InboxCubit(userId: accountId),
           child: BlocListener<InboxCubit, InboxState>(
             listener: commonScreenBlocListener,
             child: this,

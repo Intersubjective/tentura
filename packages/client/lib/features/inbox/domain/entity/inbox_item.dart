@@ -19,6 +19,7 @@ abstract class InboxItem with _$InboxItem {
     @Default('') String rejectionMessage,
     @Default('') String context,
     @Default(InboxProvenance.empty) InboxProvenance provenance,
+    @Default(false) bool isForwardedByMe,
     Beacon? beacon,
     DateTime? beforeResponseTerminalAt,
     DateTime? tombstoneDismissedAt,
