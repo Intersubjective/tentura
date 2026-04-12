@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -152,10 +153,6 @@ class _InboxItemTileState extends State<InboxItemTile> {
       l10n,
     );
     final hoursRemaining = _hoursRemainingMeta(l10n, beacon.endAt);
-    final coordinationLabel = coordinationStatusLabel(
-      l10n,
-      beacon.coordinationStatus,
-    );
     final secondaryLabel = _secondaryLabel(l10n);
 
     final overflow =
@@ -169,6 +166,21 @@ class _InboxItemTileState extends State<InboxItemTile> {
     // onPrimaryFixed pairs with primaryFixed for readable contrast; the
     // variant role can read as black on some dark-theme seed schemes.
     final lifecycleFg = scheme.onPrimaryFixed;
+
+    final statusPills = <Widget>[
+      if (beacon.lifecycle != BeaconLifecycle.open)
+        _InboxStatusPill(
+          label: _lifecycleLabel(l10n, beacon.lifecycle),
+          backgroundColor: lifecycleBg,
+          foregroundColor: lifecycleFg,
+        ),
+      if (beacon.coordinationStatus != BeaconCoordinationStatus.noCommitmentsYet)
+        _InboxStatusPill(
+          label: coordinationStatusLabel(l10n, beacon.coordinationStatus),
+          backgroundColor: scheme.surfaceContainerHigh,
+          foregroundColor: scheme.onSurfaceVariant,
+        ),
+    ];
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -242,23 +254,14 @@ class _InboxItemTileState extends State<InboxItemTile> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: kSpacingSmall),
-                        Wrap(
-                          spacing: kSpacingSmall,
-                          runSpacing: kSpacingSmall,
-                          children: [
-                            _InboxStatusPill(
-                              label: _lifecycleLabel(l10n, beacon.lifecycle),
-                              backgroundColor: lifecycleBg,
-                              foregroundColor: lifecycleFg,
-                            ),
-                            _InboxStatusPill(
-                              label: coordinationLabel,
-                              backgroundColor: scheme.surfaceContainerHigh,
-                              foregroundColor: scheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
+                        if (statusPills.isNotEmpty) ...[
+                          const SizedBox(height: kSpacingSmall),
+                          Wrap(
+                            spacing: kSpacingSmall,
+                            runSpacing: kSpacingSmall,
+                            children: statusPills,
+                          ),
+                        ],
                         if (beacon.description.isNotEmpty) ...[
                           const SizedBox(height: kSpacingSmall),
                           Text(
