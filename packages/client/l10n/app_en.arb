@@ -192,6 +192,10 @@
   "@confirmBeaconRemoval": {
     "context": "BeaconDeleteDialog"
   },
+  "confirmBeaconClose": "Are you sure you want to close this beacon?",
+  "@confirmBeaconClose": {
+    "context": "BeaconCloseConfirmDialog"
+  },
   "beaconsTitle": "Beacons",
   "@beaconsTitle": {
     "context": "BeaconScreen"

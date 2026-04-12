@@ -13,6 +13,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/beacon_photo_count.dart';
+import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -634,6 +635,12 @@ class _AuthoredOverflowMenu extends StatelessWidget {
           onTap: () async {
             await Future<void>.delayed(Duration.zero);
             if (!context.mounted) return;
+            if (beacon.isListed) {
+              if (await BeaconCloseConfirmDialog.show(context) != true) {
+                return;
+              }
+              if (!context.mounted) return;
+            }
             try {
               final next =
                   beacon.isListed ? BeaconLifecycle.closed : BeaconLifecycle.open;
