@@ -2526,7 +2526,8 @@ type mutation_root {
   beaconCloseWithReview(id: String!): v2_BeaconCloseReviewResult!
   beaconCommit(helpType: String, id: String!, message: String): Boolean!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_Beacon!
-  beaconCreate(context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, image: v2_Upload = {}, polling: v2_PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, polling: PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdateDraft(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, polling: PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReorderImages(beaconId: String!, imageIds: [String!]!): Boolean!
@@ -6168,6 +6169,12 @@ input v2_Coordinates {
   long: Float
 }
 
+"""Tentura V2 native name for coordinate input (same shape as v2_Coordinates)."""
+input Coordinates {
+  lat: Float
+  long: Float
+}
+
 type v2_CoordinationStatusResult {
   beaconId: String!
   coordinationStatus: Int!
@@ -6232,6 +6239,12 @@ type v2_mutual_score {
 }
 
 input v2_PollingInput {
+  question: String
+  variants: [String]
+}
+
+"""Tentura V2 native name for polling input (same shape as v2_PollingInput)."""
+input PollingInput {
   question: String
   variants: [String]
 }

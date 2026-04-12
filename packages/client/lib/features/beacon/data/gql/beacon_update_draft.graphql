@@ -1,4 +1,5 @@
-mutation BeaconCreate(
+mutation BeaconUpdateDraft(
+  $id: String!,
   $title: String!,
   $context: String = "",
   $description: String = "",
@@ -6,13 +7,12 @@ mutation BeaconCreate(
   $polling: PollingInput = {},
   $startAt: String = "",
   $endAt: String = "",
-  $image: Upload = {},
   $tags: String = "",
   $iconCode: String,
-  $iconBackground: Int,
-  $draft: Boolean
+  $iconBackground: Int
 ) {
-  beaconCreate(
+  beaconUpdateDraft(
+    id: $id,
     title: $title,
     description: $description,
     coordinates: $coordinates,
@@ -20,11 +20,9 @@ mutation BeaconCreate(
     polling: $polling,
     startAt: $startAt,
     endAt: $endAt,
-    image: $image,
     tags: $tags,
     iconCode: $iconCode,
-    iconBackground: $iconBackground,
-    draft: $draft
+    iconBackground: $iconBackground
   ) {
     id
   }

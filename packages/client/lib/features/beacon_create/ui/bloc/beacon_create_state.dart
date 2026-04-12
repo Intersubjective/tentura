@@ -20,6 +20,9 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     DateTime? endAt,
     String? iconCode,
     int? iconBackground,
+    /// Server draft beacon id when editing; null when creating new.
+    String? draftId,
+    @Default({}) Set<String> initialServerImageIds,
     @Default(false) bool canTryToPublish,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconCreateState;

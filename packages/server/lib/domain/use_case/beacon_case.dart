@@ -74,15 +74,29 @@ class BeaconCase {
     ({String? question, List<String>? variants})? polling,
     String? iconCode,
     int? iconBackground,
+    bool draft = false,
   }) async {
-    if (polling != null) {
-      if (polling.question == null) {
+    var effectivePolling = polling;
+    if (draft) {
+      if (effectivePolling != null) {
+        final q = effectivePolling.question;
+        final v = effectivePolling.variants;
+        if (q == null ||
+            q.trim().isEmpty ||
+            v == null ||
+            v.length < 2 ||
+            v.where((e) => e.trim().isNotEmpty).length < 2) {
+          effectivePolling = null;
+        }
+      }
+    } else if (effectivePolling != null) {
+      if (effectivePolling.question == null) {
         throw const BeaconCreateException(description: 'Question is required');
       }
-      if (polling.variants == null) {
+      if (effectivePolling.variants == null) {
         throw const BeaconCreateException(description: 'Variants are required');
       }
-      if (polling.variants!.length < 2) {
+      if (effectivePolling.variants!.length < 2) {
         throw const BeaconCreateException(description: 'Too few variants');
       }
     }
@@ -111,14 +125,15 @@ class BeaconCase {
       description: description ?? '',
       latitude: coordinates?.lat,
       longitude: coordinates?.long,
-      polling: polling == null
+      polling: effectivePolling == null
           ? null
-          : (question: polling.question!, variants: polling.variants!),
+          : (question: effectivePolling.question!, variants: effectivePolling.variants!),
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
       startAt: startAt,
       endAt: endAt,
       iconCode: normalizedIcon,
       iconBackground: normalizedIcon == null ? null : iconBackground,
+      state: draft ? 3 : null,
     );
 
     if (beacon.polling?.variants != null) {
@@ -127,6 +142,68 @@ class BeaconCase {
         await _meritrankRepository.putEdge(
           nodeA: variant.id,
           nodeB: polling.id,
+        );
+      }
+    }
+    return beacon;
+  }
+
+  /// Persists edits to a draft beacon (state 3). Optional [polling] replaces poll when non-null.
+  Future<BeaconEntity> updateDraft({
+    required String userId,
+    required String beaconId,
+    required String title,
+    String? description,
+    String? context,
+    String? tags,
+    DateTime? endAt,
+    DateTime? startAt,
+    Coordinates? coordinates,
+    ({String? question, List<String>? variants})? polling,
+    String? iconCode,
+    int? iconBackground,
+  }) async {
+    var effectivePolling = polling;
+    if (effectivePolling != null) {
+      final q = effectivePolling.question;
+      final v = effectivePolling.variants;
+      if (q == null ||
+          q.trim().isEmpty ||
+          v == null ||
+          v.length < 2 ||
+          v.where((e) => e.trim().isNotEmpty).length < 2) {
+        effectivePolling = null;
+      }
+    }
+
+    final normalizedIcon = _normalizeIconCode(iconCode);
+    final beacon = await _beaconRepository.updateDraftBeacon(
+      beaconId: beaconId,
+      userId: userId,
+      title: title,
+      description: description ?? '',
+      context: context,
+      tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
+      latitude: coordinates?.lat,
+      longitude: coordinates?.long,
+      startAt: startAt,
+      endAt: endAt,
+      iconCode: normalizedIcon,
+      iconBackground: normalizedIcon == null ? null : iconBackground,
+      polling: effectivePolling == null
+          ? null
+          : (
+              question: effectivePolling.question!,
+              variants: effectivePolling.variants!,
+            ),
+    );
+
+    if (beacon.polling?.variants != null) {
+      final pollingEntity = beacon.polling!;
+      for (final variant in pollingEntity.variants) {
+        await _meritrankRepository.putEdge(
+          nodeA: variant.id,
+          nodeB: pollingEntity.id,
         );
       }
     }

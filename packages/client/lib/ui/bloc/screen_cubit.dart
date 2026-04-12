@@ -24,6 +24,9 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showBeaconCreate() => emit(state.navigateTo(kPathBeaconNew));
 
+  void showBeaconEditDraft(String id) =>
+      emit(state.navigateTo('$kPathBeaconNew?$kQueryBeaconDraftId=$id'));
+
   void showBeacon(String id) => emit(state.navigateTo('$kPathBeaconView/$id'));
 
   void showProfile(String id) =>

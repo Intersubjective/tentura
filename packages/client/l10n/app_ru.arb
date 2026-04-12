@@ -232,6 +232,18 @@
   "@createNewBeacon": {
     "context": "BeaconCreateScreen"
   },
+  "buttonSaveDraft": "Сохранить черновик",
+  "@buttonSaveDraft": {
+    "context": "BeaconCreateScreen"
+  },
+  "editDraftTitle": "Редактировать черновик",
+  "@editDraftTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "draftSavedMessage": "Черновик сохранён",
+  "@draftSavedMessage": {
+    "context": "BeaconCreateScreen"
+  },
   "setDisplayPeriod": "Укажите период",
   "@setDisplayPeriod": {
     "context": "BeaconCreateScreen"

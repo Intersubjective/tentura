@@ -20,12 +20,15 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _iconBackground = InputFieldInt(fieldName: 'iconBackground');
 
+  final _draft = InputFieldBool(fieldName: 'draft');
+
   final _beaconId = InputFieldString(fieldName: 'beaconId');
 
   final _imageId = InputFieldString(fieldName: 'imageId');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
+    updateDraft,
     deleteById,
     addImage,
     removeImage,
@@ -57,6 +60,7 @@ final class MutationBeacon extends GqlNodeBase {
       _tags.fieldNullable,
       _iconCode.fieldNullable,
       _iconBackground.fieldNullable,
+      _draft.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .create(
@@ -65,6 +69,41 @@ final class MutationBeacon extends GqlNodeBase {
           description: InputFieldDescription.fromArgs(args),
           coordinates: InputFieldCoordinates.fromArgs(args),
           imageBytes: InputFieldUpload.fromArgs(args),
+          context: InputFieldContext.fromArgs(args),
+          polling: InputFieldPolling.fromArgs(args),
+          startAt: _startAt.fromArgs(args),
+          endAt: _endAt.fromArgs(args),
+          tags: _tags.fromArgs(args),
+          iconCode: _iconCode.fromArgs(args),
+          iconBackground: _iconBackground.fromArgs(args),
+          draft: _draft.fromArgs(args) ?? false,
+        )
+        .then((v) => v.asJson),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get updateDraft => GraphQLObjectField(
+    'beaconUpdateDraft',
+    gqlTypeBeacon.nonNullable(),
+    arguments: [
+      InputFieldId.field,
+      InputFieldTitle.fieldNonNullable,
+      InputFieldDescription.field,
+      InputFieldCoordinates.field,
+      InputFieldContext.field,
+      InputFieldPolling.field,
+      _startAt.fieldNullable,
+      _endAt.fieldNullable,
+      _tags.fieldNullable,
+      _iconCode.fieldNullable,
+      _iconBackground.fieldNullable,
+    ],
+    resolve: (_, args) => _beaconCase
+        .updateDraft(
+          userId: getCredentials(args).sub,
+          beaconId: InputFieldId.fromArgsNonNullable(args),
+          title: InputFieldTitle.fromArgsNonNullable(args),
+          description: InputFieldDescription.fromArgs(args),
+          coordinates: InputFieldCoordinates.fromArgs(args),
           context: InputFieldContext.fromArgs(args),
           polling: InputFieldPolling.fromArgs(args),
           startAt: _startAt.fromArgs(args),

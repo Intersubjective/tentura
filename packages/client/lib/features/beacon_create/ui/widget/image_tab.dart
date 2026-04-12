@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -54,6 +55,19 @@ class ImageTab extends StatelessWidget {
                             fit: BoxFit.cover,
                             width: double.infinity,
                             height: 200,
+                          )
+                        else if (image.id.isNotEmpty && image.authorId.isNotEmpty)
+                          Image.network(
+                            '$kImageServer/$kImagesPath/${image.authorId}/${image.id}.$kImageExt',
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: 200,
+                            errorBuilder: (_, _, _) => const SizedBox(
+                              height: 200,
+                              child: Center(
+                                child: Icon(Icons.photo_outlined, size: 64),
+                              ),
+                            ),
                           )
                         else
                           const SizedBox(

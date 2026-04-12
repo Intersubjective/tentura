@@ -232,6 +232,18 @@
   "@createNewBeacon": {
     "context": "BeaconCreateScreen"
   },
+  "buttonSaveDraft": "Save draft",
+  "@buttonSaveDraft": {
+    "context": "BeaconCreateScreen"
+  },
+  "editDraftTitle": "Edit draft",
+  "@editDraftTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "draftSavedMessage": "Draft saved",
+  "@draftSavedMessage": {
+    "context": "BeaconCreateScreen"
+  },
   "setDisplayPeriod": "Set period",
   "@setDisplayPeriod": {
     "context": "BeaconCreateScreen"

@@ -1,4 +1,5 @@
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
@@ -48,7 +49,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       coordinationStatusUpdatedAt: i.coordination_status_updated_at,
       commitmentCount: i.commitments_aggregate.aggregate?.count ?? 0,
       iconCode: i.icon_code,
-      iconBackground: i.icon_background,
+      iconBackground: decodeBeaconIconBackgroundArgb(i.icon_background),
     );
   }
 }

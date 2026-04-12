@@ -38,6 +38,9 @@ const kPathInvitations = '/invitations';
 
 const kQueryIsDeepLink = 'is_deep_link';
 
+/// Query param for opening the beacon create screen in server-draft edit mode.
+const kQueryBeaconDraftId = 'draft_id';
+
 /// First part of FQDN: `https://app.server.name`
 const kServerName = String.fromEnvironment(
   'SERVER_NAME',

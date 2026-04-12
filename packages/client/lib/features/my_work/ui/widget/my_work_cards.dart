@@ -54,6 +54,12 @@ void _openBeacon(BuildContext context, String id) {
   unawaited(context.router.pushPath('$kPathBeaconView/$id'));
 }
 
+void _openEditDraft(BuildContext context, String id) {
+  unawaited(
+    context.router.pushPath('$kPathBeaconNew?$kQueryBeaconDraftId=$id'),
+  );
+}
+
 class _WorkCardShell extends StatelessWidget {
   const _WorkCardShell({
     required this.onCardTap,
@@ -398,7 +404,7 @@ class _DraftAuthoredCard extends StatelessWidget {
 
     return _WorkCardShell(
       muted: true,
-      onCardTap: () => _openBeacon(context, b.id),
+      onCardTap: () => _openEditDraft(context, b.id),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -440,7 +446,7 @@ class _DraftAuthoredCard extends StatelessWidget {
               if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
               if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
               TextButton(
-                onPressed: () => _openBeacon(context, b.id),
+                onPressed: () => _openEditDraft(context, b.id),
                 child: Text(l10n.myWorkEditDraft),
               ),
             ],
@@ -713,7 +719,7 @@ class _DraftOverflowMenu extends StatelessWidget {
           onTap: () async {
             await Future<void>.delayed(Duration.zero);
             if (!context.mounted) return;
-            _openBeacon(context, beacon.id);
+            _openEditDraft(context, beacon.id);
           },
         ),
         PopupMenuItem<void>(
