@@ -4,15 +4,20 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
-/// Surface, shape, and optional whole-card tap for beacon list cards.
+/// Surface, shape, and optional tap target for beacon list cards.
 ///
 /// Uses Material with ColorScheme.surfaceContainer (or [muted] / [color] overrides),
 /// 8px corners, and light elevation — same for inbox and My Work. When [onTap]
-/// is non-null, wraps content in [InkWell] for the ripple.
+/// is non-null, wraps [child] in [InkWell] for the ripple.
+///
+/// Put buttons and other controls in [footer] so they sit **outside** the
+/// [InkWell] and do not compete with the card tap (nested [InkWell] + Material
+/// buttons can otherwise both fire).
 class BeaconCardShell extends StatelessWidget {
   const BeaconCardShell({
     required this.child,
     this.onTap,
+    this.footer,
     this.muted = false,
     this.color,
     super.key,
@@ -20,14 +25,25 @@ class BeaconCardShell extends StatelessWidget {
 
   final Widget child;
   final VoidCallback? onTap;
+  /// Placed below [child], outside the card [InkWell] when [onTap] is set.
+  final Widget? footer;
   final bool muted;
   final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final padded = Padding(
-      padding: kPaddingAllS,
+    final hasFooter = footer != null;
+    final mainPadding = hasFooter
+        ? const EdgeInsets.fromLTRB(
+            kSpacingSmall,
+            kSpacingSmall,
+            kSpacingSmall,
+            0,
+          )
+        : kPaddingAllS;
+    final paddedMain = Padding(
+      padding: mainPadding,
       child: child,
     );
 
@@ -36,21 +52,45 @@ class BeaconCardShell extends StatelessWidget {
             ? scheme.surfaceContainerHighest.withValues(alpha: 0.45)
             : scheme.surfaceContainer);
 
-    final shell = Material(
+    final inkRadius = hasFooter
+        ? const BorderRadius.only(
+            topLeft: Radius.circular(8),
+            topRight: Radius.circular(8),
+          )
+        : BorderRadius.circular(8);
+
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (onTap != null)
+          InkWell(
+            onTap: onTap,
+            borderRadius: inkRadius,
+            child: paddedMain,
+          )
+        else
+          paddedMain,
+        if (footer != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              kSpacingSmall,
+              kSpacingSmall,
+              kSpacingSmall,
+              kSpacingSmall,
+            ),
+            child: footer,
+          ),
+      ],
+    );
+
+    return Material(
       color: bg,
       borderRadius: BorderRadius.circular(8),
       elevation: muted ? 0 : 0.5,
       shadowColor: scheme.shadow.withValues(alpha: 0.12),
-      child: onTap != null
-          ? InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(8),
-              child: padded,
-            )
-          : padded,
+      child: body,
     );
-
-    return shell;
   }
 }
 

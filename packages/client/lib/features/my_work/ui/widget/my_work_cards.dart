@@ -93,6 +93,18 @@ void _openEditDraft(BuildContext context, String id) {
   );
 }
 
+void _openBeaconCommitmentsTab(BuildContext context, String id) {
+  unawaited(
+    context.router.pushPath(
+      '$kPathBeaconView/$id?$kQueryBeaconViewTab=commitments',
+    ),
+  );
+}
+
+void _openReviewContributions(BuildContext context, String id) {
+  unawaited(context.router.pushPath('$kPathReviewContributions/$id'));
+}
+
 class _AuthoredActiveCard extends StatelessWidget {
   const _AuthoredActiveCard({required this.vm});
 
@@ -116,6 +128,64 @@ class _AuthoredActiveCard extends StatelessWidget {
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _updatedWhenText(l10n, b),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ),
+              if (vm.showReviewCommitmentsCta)
+                FilledButton.tonal(
+                  onPressed: () => _openBeaconCommitmentsTab(context, b.id),
+                  child: Text(l10n.myWorkReviewCommitmentsCta),
+                ),
+            ],
+          ),
+          if (!vm.authorHasForwardedOnce) ...[
+            const SizedBox(height: kSpacingSmall),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => unawaited(
+                  context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.arrow_forward,
+                      size: 18,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.inboxCardOpenBeacon,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -133,7 +203,8 @@ class _AuthoredActiveCard extends StatelessWidget {
               if (vm.attentionChip != null)
                 BeaconCardPill(
                   label: attentionLabel(vm.attentionChip!)!,
-                  emphasized: true,
+                  emphasized:
+                      vm.attentionChip != MyWorkAttentionChip.reviewPending,
                 ),
             ],
           ),
@@ -202,59 +273,6 @@ class _AuthoredActiveCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: kSpacingSmall),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _updatedWhenText(l10n, b),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ),
-              if (vm.showReviewCommitmentsCta)
-                FilledButton.tonal(
-                  onPressed: () => _openBeacon(context, b.id),
-                  child: Text(l10n.myWorkReviewCommitmentsCta),
-                ),
-            ],
-          ),
-          if (!vm.authorHasForwardedOnce) ...[
-            const SizedBox(height: kSpacingSmall),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => unawaited(
-                  context.router.pushPath('$kPathForwardBeacon/${b.id}'),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.arrow_forward,
-                      size: 18,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      l10n.inboxCardOpenBeacon,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -284,6 +302,30 @@ class _CommittedActiveCard extends StatelessWidget {
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
+      footer: Row(
+        children: [
+          if (vm.forwarderSenders.isNotEmpty)
+            CompactForwarderAvatars(profiles: vm.forwarderSenders),
+          if (vm.forwarderSenders.isNotEmpty)
+            const SizedBox(width: kSpacingSmall),
+          Expanded(
+            child: Text(
+              _updatedWhenText(l10n, b),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: scheme.outline,
+              ),
+            ),
+          ),
+          if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
+          if (vm.showReviewCta) ...[
+            if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
+            FilledButton.tonal(
+              onPressed: () => _openReviewContributions(context, b.id),
+              child: Text(l10n.myWorkReviewCta),
+            ),
+          ],
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -304,7 +346,6 @@ class _CommittedActiveCard extends StatelessWidget {
               if (vm.showReadyForReviewChip)
                 BeaconCardPill(
                   label: l10n.myWorkChipReadyForReview,
-                  emphasized: true,
                 ),
             ],
           ),
@@ -354,31 +395,6 @@ class _CommittedActiveCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: kSpacingSmall),
-          Row(
-            children: [
-              if (vm.forwarderSenders.isNotEmpty)
-                CompactForwarderAvatars(profiles: vm.forwarderSenders),
-              if (vm.forwarderSenders.isNotEmpty)
-                const SizedBox(width: kSpacingSmall),
-              Expanded(
-                child: Text(
-                  _updatedWhenText(l10n, b),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.outline,
-                  ),
-                ),
-              ),
-              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
-              if (vm.showReviewCta) ...[
-                if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
-                FilledButton.tonal(
-                  onPressed: () => _openBeacon(context, b.id),
-                  child: Text(l10n.myWorkReviewCta),
-                ),
-              ],
-            ],
-          ),
         ],
       ),
     );
@@ -399,6 +415,24 @@ class _DraftAuthoredCard extends StatelessWidget {
     return BeaconCardShell(
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
+      footer: Row(
+        children: [
+          Expanded(
+            child: Text(
+              _updatedWhenText(l10n, b),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+          if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
+          if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
+          TextButton(
+            onPressed: () => _openEditDraft(context, b.id),
+            child: Text(l10n.myWorkEditDraft),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -439,25 +473,6 @@ class _DraftAuthoredCard extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: kSpacingSmall),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _updatedWhenText(l10n, b),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
-                ),
-              ),
-              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
-              if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
-              TextButton(
-                onPressed: () => _openEditDraft(context, b.id),
-                child: Text(l10n.myWorkEditDraft),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -477,6 +492,16 @@ class _ClosedAuthoredCard extends StatelessWidget {
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
+      footer: Align(
+        alignment: Alignment.centerRight,
+        child: TextButton(
+          onPressed: () => showSnackBar(
+            context,
+            text: l10n.myWorkArchivePlaceholder,
+          ),
+          child: Text(l10n.myWorkArchive),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -507,16 +532,6 @@ class _ClosedAuthoredCard extends StatelessWidget {
               if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
             ],
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => showSnackBar(
-                context,
-                text: l10n.myWorkArchivePlaceholder,
-              ),
-              child: Text(l10n.myWorkArchive),
-            ),
-          ),
         ],
       ),
     );
@@ -536,6 +551,16 @@ class _ClosedCommittedCard extends StatelessWidget {
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
+      footer: Align(
+        alignment: Alignment.centerRight,
+        child: TextButton(
+          onPressed: () => showSnackBar(
+            context,
+            text: l10n.myWorkArchivePlaceholder,
+          ),
+          child: Text(l10n.myWorkArchive),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -568,16 +593,6 @@ class _ClosedCommittedCard extends StatelessWidget {
               ),
               if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
             ],
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () => showSnackBar(
-                context,
-                text: l10n.myWorkArchivePlaceholder,
-              ),
-              child: Text(l10n.myWorkArchive),
-            ),
           ),
         ],
       ),

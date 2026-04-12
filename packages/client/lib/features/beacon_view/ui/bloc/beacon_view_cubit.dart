@@ -91,6 +91,46 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
+  Future<void> stopWatching() async {
+    if (state.inboxStatus != InboxItemStatus.watching) return;
+    try {
+      await _inboxRepository.setStatus(
+        beaconId: state.beacon.id,
+        status: InboxItemStatus.needsMe,
+      );
+      emit(state.copyWith(inboxStatus: InboxItemStatus.needsMe));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> rejectInbox({String message = ''}) async {
+    if (state.inboxStatus == null) return;
+    try {
+      await _inboxRepository.setStatus(
+        beaconId: state.beacon.id,
+        status: InboxItemStatus.rejected,
+        rejectionMessage: message,
+      );
+      emit(state.copyWith(inboxStatus: InboxItemStatus.rejected));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> unrejectInbox() async {
+    if (state.inboxStatus != InboxItemStatus.rejected) return;
+    try {
+      await _inboxRepository.setStatus(
+        beaconId: state.beacon.id,
+        status: InboxItemStatus.needsMe,
+      );
+      emit(state.copyWith(inboxStatus: InboxItemStatus.needsMe));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> delete(String beaconId) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {

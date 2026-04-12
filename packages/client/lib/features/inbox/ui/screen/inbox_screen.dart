@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
+import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
@@ -294,6 +298,9 @@ Widget _needsMeTabBody(
                       await inboxCubit.reject(item.beaconId, message: msg);
                     }
                   },
+                  onCommit: _inboxCardAllowsCommit(item)
+                      ? () => _inboxCommit(context, item.beacon!)
+                      : null,
                 ),
               );
             },
@@ -372,10 +379,41 @@ Widget _tabBody(
           onMoveToInbox: tabIndex == 2
               ? () => inboxCubit.unreject(item.beaconId)
               : null,
+          onCommit: _inboxCardAllowsCommit(item)
+              ? () => _inboxCommit(context, item.beacon!)
+              : null,
           showCtaRow: false,
           showProvenance: false,
         );
       },
     ),
+  );
+}
+
+bool _inboxCardAllowsCommit(InboxItem item) {
+  final b = item.beacon;
+  return b != null &&
+      b.allowsNewCommitAsNonAuthor &&
+      item.status != InboxItemStatus.rejected;
+}
+
+Future<void> _inboxCommit(BuildContext context, Beacon beacon) async {
+  final l10n = L10n.of(context)!;
+  final useCommitAnyway =
+      beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpCommitted;
+  final outcome = await CommitmentMessageDialog.show(
+    context,
+    title: useCommitAnyway
+        ? l10n.dialogCommitAnywayTitle
+        : l10n.dialogCommitTitle,
+    hintText: l10n.hintCommitMessage,
+    allowEmptyMessage: true,
+    showHelpTypeChips: true,
+  );
+  if (outcome == null || !context.mounted) return;
+  await GetIt.I<ForwardRepository>().commit(
+    beaconId: beacon.id,
+    message: outcome.message,
+    helpType: outcome.helpTypeWire,
   );
 }
