@@ -69,6 +69,8 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     @Default(Profile()) Profile myProfile,
     /// Current user's inbox stance for this beacon (`null` = no inbox row).
     InboxItemStatus? inboxStatus,
+    /// True when the current user has forwarded this beacon at least once.
+    @Default(false) bool hasForwardedThisBeaconOnce,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconViewState;
 

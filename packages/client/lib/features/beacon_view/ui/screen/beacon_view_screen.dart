@@ -334,8 +334,8 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                   ),
                 ),
 
-              // Forward button for owners
-              if (state.isBeaconMine)
+              // Forward button for owners (hidden once they have forwarded; overflow still has Forward)
+              if (state.isBeaconMine && !state.hasForwardedThisBeaconOnce)
                 Padding(
                   padding: kPaddingSmallV,
                   child: SizedBox(
