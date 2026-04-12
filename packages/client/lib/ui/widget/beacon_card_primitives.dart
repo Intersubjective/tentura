@@ -6,8 +6,9 @@ import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
 /// Surface, shape, and optional whole-card tap for beacon list cards.
 ///
-/// When [onTap] is non-null, uses [Material] + [InkWell] (ripple). When null,
-/// uses a [DecoratedBox] with a light shadow (inbox-style).
+/// Uses Material with ColorScheme.surfaceContainer (or [muted] / [color] overrides),
+/// 8px corners, and light elevation — same for inbox and My Work. When [onTap]
+/// is non-null, wraps content in [InkWell] for the ripple.
 class BeaconCardShell extends StatelessWidget {
   const BeaconCardShell({
     required this.child,
@@ -30,39 +31,26 @@ class BeaconCardShell extends StatelessWidget {
       child: child,
     );
 
-    if (onTap != null) {
-      final bg =
-          color ??
-          (muted
-              ? scheme.surfaceContainerHighest.withValues(alpha: 0.45)
-              : scheme.surfaceContainer);
-      return Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-        elevation: muted ? 0 : 0.5,
-        shadowColor: scheme.shadow.withValues(alpha: 0.12),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: padded,
-        ),
-      );
-    }
+    final bg = color ??
+        (muted
+            ? scheme.surfaceContainerHighest.withValues(alpha: 0.45)
+            : scheme.surfaceContainer);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color ?? scheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.shadow.withValues(alpha: 0.08),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: padded,
+    final shell = Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(8),
+      elevation: muted ? 0 : 0.5,
+      shadowColor: scheme.shadow.withValues(alpha: 0.12),
+      child: onTap != null
+          ? InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: padded,
+            )
+          : padded,
     );
+
+    return shell;
   }
 }
 

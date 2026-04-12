@@ -184,7 +184,6 @@ class _InboxItemTileState extends State<InboxItemTile> {
     ];
 
     return BeaconCardShell(
-      color: scheme.surfaceContainerLowest,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -322,45 +321,9 @@ class _InboxItemTileState extends State<InboxItemTile> {
                           runSpacing: kSpacingSmall,
                           children: [
                             if (widget.item.status == InboxItemStatus.watching)
-                              Chip(
-                                label: Text(l10n.inboxTabWatching),
-                                avatar: Icon(
-                                  Icons.visibility_outlined,
-                                  size: 16,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                backgroundColor: scheme.surfaceContainerHighest,
-                                side: BorderSide(
-                                  color: scheme.outlineVariant.withValues(
-                                    alpha: 0.8,
-                                  ),
-                                ),
-                                labelStyle: theme.textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                visualDensity: VisualDensity.compact,
-                              ),
+                              BeaconCardPill(label: l10n.inboxTabWatching),
                             if (widget.item.isForwardedByMe)
-                              Chip(
-                                label: Text(l10n.inboxForwardedByMe),
-                                avatar: Icon(
-                                  Icons.shortcut,
-                                  size: 16,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                backgroundColor: scheme.surfaceContainerHighest,
-                                side: BorderSide(
-                                  color: scheme.outlineVariant.withValues(
-                                    alpha: 0.8,
-                                  ),
-                                ),
-                                labelStyle: theme.textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                visualDensity: VisualDensity.compact,
-                              ),
+                              BeaconCardPill(label: l10n.inboxForwardedByMe),
                           ],
                         ),
                       ],
