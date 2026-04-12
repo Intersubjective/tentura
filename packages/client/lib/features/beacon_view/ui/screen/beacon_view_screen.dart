@@ -29,7 +29,6 @@ import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
-import '../widget/beacon_mine_control.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 
@@ -98,21 +97,20 @@ List<PopupMenuEntry<String>> _beaconOverflowItems(
             b.isListed ? l10n.closeBeacon : l10n.openBeacon,
           ),
         ),
-      );
-    if (!state.hasForwardedThisBeaconOnce) {
-      items.add(
+      )
+      ..add(
         PopupMenuItem(
           value: 'forward',
           child: _beaconOverflowMenuRow(Icons.send, l10n.labelForward),
         ),
+      )
+      ..add(
+        PopupMenuItem(
+          value: 'delete',
+          child:
+              _beaconOverflowMenuRow(Icons.delete_outline, l10n.deleteBeacon),
+        ),
       );
-    }
-    items.add(
-      PopupMenuItem(
-        value: 'delete',
-        child: _beaconOverflowMenuRow(Icons.delete_outline, l10n.deleteBeacon),
-      ),
-    );
     return items;
   }
 
@@ -483,13 +481,6 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 beaconId: beacon.id,
                 lifecycle: beacon.lifecycle,
               ),
-
-              // Beacon owner controls
-              if (state.isBeaconMine)
-                Padding(
-                  padding: kPaddingSmallV,
-                  child: BeaconMineControl(key: ValueKey(beacon.id)),
-                ),
 
               const Divider(height: kSpacingLarge),
 

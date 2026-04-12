@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:blurhash_shader/blurhash_shader.dart';
@@ -37,6 +39,19 @@ class _BeaconGalleryViewerState extends State<BeaconGalleryViewer> {
   late int _currentIndex;
   final _focusNode = FocusNode();
 
+  /// One controller per page so zoom/pan state does not leak across images.
+  final _transformControllers = <int, TransformationController>{};
+
+  TransformationController _controllerFor(int index) {
+    return _transformControllers.putIfAbsent(index, () {
+      final c = TransformationController()
+        ..addListener(() {
+          if (mounted) setState(() {});
+        });
+      return c;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +61,10 @@ class _BeaconGalleryViewerState extends State<BeaconGalleryViewer> {
 
   @override
   void dispose() {
+    for (final c in _transformControllers.values) {
+      c.dispose();
+    }
+    _transformControllers.clear();
     _pageController.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -63,13 +82,17 @@ class _BeaconGalleryViewerState extends State<BeaconGalleryViewer> {
   void _goTo(int index) {
     final clamped = index.clamp(0, widget.beacon.imageUrls.length - 1);
     if (clamped != _currentIndex) {
-      _pageController.animateToPage(
-        clamped,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+      unawaited(
+        _pageController.animateToPage(
+          clamped,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
       );
     }
   }
+
+  static const _kZoomThreshold = 1.01;
 
   @override
   Widget build(BuildContext context) {
@@ -111,8 +134,7 @@ class _BeaconGalleryViewerState extends State<BeaconGalleryViewer> {
             PageView.builder(
               controller: _pageController,
               itemCount: imageUrls.length,
-              onPageChanged: (index) =>
-                  setState(() => _currentIndex = index),
+              onPageChanged: (index) => setState(() => _currentIndex = index),
               itemBuilder: (_, index) {
                 final image = images[index];
                 final networkImage = Image.network(
@@ -143,7 +165,13 @@ class _BeaconGalleryViewerState extends State<BeaconGalleryViewer> {
                   },
                 );
 
+                final tc = _controllerFor(index);
+                final zoomed =
+                    tc.value.getMaxScaleOnAxis() > _kZoomThreshold;
+
                 return InteractiveViewer(
+                  transformationController: tc,
+                  panEnabled: zoomed,
                   minScale: 1,
                   maxScale: 4,
                   child: Center(child: networkImage),
