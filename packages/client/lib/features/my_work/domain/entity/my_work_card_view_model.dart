@@ -42,6 +42,8 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     @Default(false) bool showReviewCta,
     @Default(false) bool showArchiveAffordance,
     MyWorkAttentionChip? attentionChip,
+    /// Author has forwarded this beacon at least once (authored active cards).
+    @Default(false) bool authorHasForwardedOnce,
   }) = _MyWorkCardViewModel;
 
   const MyWorkCardViewModel._();

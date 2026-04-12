@@ -7,6 +7,7 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
+import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../../data/repository/my_work_repository.dart';
@@ -24,19 +25,25 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     ForwardRepository? forwardRepository,
   }) : _repository = repository ?? GetIt.I<MyWorkRepository>(),
        _profileCubit = profileCubit ?? GetIt.I<ProfileCubit>(),
+       _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        super(const MyWorkState()) {
     _beaconChanges = (beaconRepository ?? GetIt.I<BeaconRepository>())
         .changes
         .listen(_onBeaconChanged, cancelOnError: false);
-    _commitmentChanges =
-        (forwardRepository ?? GetIt.I<ForwardRepository>())
-            .commitmentChanges
-            .listen((_) => unawaited(fetch()), cancelOnError: false);
+    _commitmentChanges = _forwardRepository.commitmentChanges.listen(
+      (_) => unawaited(fetch()),
+      cancelOnError: false,
+    );
+    _forwardCompleted = _forwardRepository.forwardCompleted.listen(
+      (_) => unawaited(fetch()),
+      cancelOnError: false,
+    );
     unawaited(fetch());
   }
 
   final MyWorkRepository _repository;
   final ProfileCubit _profileCubit;
+  final ForwardRepository _forwardRepository;
 
   /// Incremented on every [fetch]; stale async completions must not emit.
   int _fetchSeq = 0;
@@ -45,10 +52,39 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<CommitmentEvent> _commitmentChanges;
 
+  late final StreamSubscription<String> _forwardCompleted;
+
+  Future<List<MyWorkCardViewModel>> _withAuthorForwardFlags(
+    List<MyWorkCardViewModel> cards,
+  ) async {
+    final authoredActive = cards
+        .where((c) => c.kind == MyWorkCardKind.authoredActive)
+        .toList();
+    if (authoredActive.isEmpty) {
+      return cards;
+    }
+    final results = await Future.wait(
+      authoredActive.map(
+        (c) => _forwardRepository.currentUserHasForwardedBeacon(c.beaconId),
+      ),
+    );
+    final map = <String, bool>{
+      for (var i = 0; i < authoredActive.length; i++)
+        authoredActive[i].beaconId: results[i],
+    };
+    return [
+      for (final c in cards)
+        c.kind == MyWorkCardKind.authoredActive
+            ? c.copyWith(authorHasForwardedOnce: map[c.beaconId] ?? false)
+            : c,
+    ];
+  }
+
   @override
   Future<void> close() async {
     await _beaconChanges.cancel();
     await _commitmentChanges.cancel();
+    await _forwardCompleted.cancel();
     return super.close();
   }
 
@@ -85,10 +121,14 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         authoredNonClosed: init.authoredNonClosed,
         committedNonClosed: init.committedNonClosed,
       );
+      final withForwardFlags = await _withAuthorForwardFlags(nonArchived);
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
       emit(
         state.copyWith(
           status: const StateIsSuccess(),
-          nonArchivedCards: nonArchived,
+          nonArchivedCards: withForwardFlags,
           authoredClosedIdHints: init.authoredClosedIds,
           committedClosedIdHints: init.committedClosedIds,
           closedDataFetched: false,
