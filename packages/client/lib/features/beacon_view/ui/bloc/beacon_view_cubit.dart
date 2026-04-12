@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
 import '../../data/repository/beacon_view_repository.dart';
@@ -210,12 +211,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           beaconId: beaconId,
         ),
         _forwardRepository.fetchUpdates(beaconId: beaconId),
-        _inboxRepository.fetchStatusForBeacon(beaconId),
+        _inboxRepository.fetchInboxContextForBeacon(beaconId),
         _forwardRepository.currentUserHasForwardedBeacon(beaconId),
       ]);
 
-      final beacon = results[0]! as Beacon;
-      final commitments = results[1]! as List<
+      final beacon = results[0] as Beacon;
+      final commitments = results[1] as List<
           ({
             String beaconId,
             String userId,
@@ -228,10 +229,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             DateTime updatedAt,
             int? responseType,
           })>;
-      final updates = results[2]!
+      final updates = results[2]
           as List<({Profile author, String content, DateTime createdAt})>;
-      final inboxStatus = results[3] as InboxItemStatus?;
-      final hasForwardedThisBeaconOnce = results[4]! as bool;
+      final inboxCtx =
+          results[3] as ({
+            InboxItemStatus? status,
+            InboxProvenance provenance,
+            String latestNotePreview,
+          });
+      final hasForwardedThisBeaconOnce = results[4] as bool;
 
       final isCommitted = commitments
           .where((c) => c.status == 0)
@@ -268,7 +274,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           timeline: timeline,
           commitments: commitmentsList,
           isCommitted: isCommitted,
-          inboxStatus: inboxStatus,
+          inboxStatus: inboxCtx.status,
+          forwardProvenance: inboxCtx.provenance,
+          inboxLatestNotePreview: inboxCtx.latestNotePreview,
           hasForwardedThisBeaconOnce: hasForwardedThisBeaconOnce,
           status: StateStatus.isSuccess,
         ),
@@ -284,10 +292,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           .fetchBeaconByCommentId(state.focusCommentId);
       final hasForwardedThisBeaconOnce =
           await _forwardRepository.currentUserHasForwardedBeacon(beacon.id);
+      final inboxCtx =
+          await _inboxRepository.fetchInboxContextForBeacon(beacon.id);
       emit(
         state.copyWith(
           beacon: beacon,
           hasForwardedThisBeaconOnce: hasForwardedThisBeaconOnce,
+          inboxStatus: inboxCtx.status,
+          forwardProvenance: inboxCtx.provenance,
+          inboxLatestNotePreview: inboxCtx.latestNotePreview,
           status: StateStatus.isSuccess,
         ),
       );

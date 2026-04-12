@@ -5,6 +5,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
 import '../bloc/beacon_view_state.dart';
@@ -31,8 +32,7 @@ class CommitmentTile extends StatelessWidget {
     final theme = Theme.of(context);
     final isWithdrawn = commitment.isWithdrawn;
     final opacity = isWithdrawn ? 0.65 : 1.0;
-    final dateShown =
-        isWithdrawn ? commitment.updatedAt : commitment.createdAt;
+    final dateShown = isWithdrawn ? commitment.updatedAt : commitment.createdAt;
     return Opacity(
       opacity: opacity,
       child: Column(
@@ -48,8 +48,8 @@ class CommitmentTile extends StatelessWidget {
                   onTap: isMine
                       ? null
                       : () => context.read<ScreenCubit>().showProfile(
-                            commitment.user.id,
-                          ),
+                          commitment.user.id,
+                        ),
                   child: Padding(
                     padding: const EdgeInsets.only(right: kSpacingMedium),
                     child: AvatarRated.small(profile: commitment.user),
@@ -74,20 +74,12 @@ class CommitmentTile extends StatelessWidget {
                                 ),
                                 if (isWithdrawn) ...[
                                   const SizedBox(width: kSpacingSmall),
-                                  Chip(
-                                    label: Text(l10n.labelWithdrawn),
-                                    labelStyle:
-                                        theme.textTheme.labelSmall?.copyWith(
-                                      color: theme.colorScheme.error,
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    side: BorderSide(
-                                      color: theme.colorScheme.error
-                                          .withValues(alpha: 0.5),
-                                    ),
+                                  BeaconCardPill(
+                                    label: l10n.labelWithdrawn,
+                                    backgroundColor:
+                                        theme.colorScheme.errorContainer,
+                                    foregroundColor:
+                                        theme.colorScheme.onErrorContainer,
                                   ),
                                 ],
                               ],
@@ -124,17 +116,14 @@ class CommitmentTile extends StatelessWidget {
                       if (helpTypeLabel(l10n, commitment.helpType) != null)
                         Padding(
                           padding: kPaddingSmallT,
-                          child: Chip(
-                            label: Text(helpTypeLabel(
+                          child: BeaconCardPill(
+                            label: helpTypeLabel(
                               l10n,
                               commitment.helpType,
-                            )!),
-                            visualDensity: VisualDensity.compact,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
+                            )!,
                             backgroundColor:
-                                theme.colorScheme.surfaceContainerHighest,
-                            side: BorderSide.none,
+                                theme.colorScheme.surfaceContainerHigh,
+                            foregroundColor: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       if (coordinationResponseLabel(
@@ -155,7 +144,10 @@ class CommitmentTile extends StatelessWidget {
                           ),
                         ),
                       if (isWithdrawn &&
-                          uncommitReasonLabel(l10n, commitment.uncommitReason) !=
+                          uncommitReasonLabel(
+                                l10n,
+                                commitment.uncommitReason,
+                              ) !=
                               null)
                         Padding(
                           padding: kPaddingSmallT,

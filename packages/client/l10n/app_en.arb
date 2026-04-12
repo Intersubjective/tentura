@@ -1445,6 +1445,26 @@
     "context": "BeaconViewScreen",
     "description": "Tab title for commitments list"
   },
+  "labelForwards": "Forwards",
+  "@labelForwards": {
+    "context": "BeaconViewScreen",
+    "description": "Tab title for forward trail / notes to the viewer"
+  },
+  "beaconForwardsEmpty": "No forward trail for you on this beacon yet.",
+  "@beaconForwardsEmpty": {
+    "context": "BeaconViewScreen",
+    "description": "Empty state when the viewer has no inbox forward provenance"
+  },
+  "beaconForwardsCount": "{count} forwards",
+  "@beaconForwardsCount": {
+    "context": "BeaconViewScreen",
+    "description": "Tab header pill: number of distinct forwarders to the viewer",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "dialogCommitTitle": "Commit to beacon",
   "@dialogCommitTitle": {
     "context": "BeaconViewScreen",

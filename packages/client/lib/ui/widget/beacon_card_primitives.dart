@@ -140,7 +140,6 @@ class BeaconCardPill extends StatelessWidget {
         label.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.w700,
-          fontSize: 11,
           letterSpacing: 0.2,
           color: fg,
         ),

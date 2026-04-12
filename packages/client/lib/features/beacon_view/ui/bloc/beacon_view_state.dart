@@ -3,6 +3,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
 part 'beacon_view_state.freezed.dart';
@@ -69,6 +70,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     @Default(Profile()) Profile myProfile,
     /// Current user's inbox stance for this beacon (`null` = no inbox row).
     InboxItemStatus? inboxStatus,
+    /// Forward trail + notes (same payload as inbox cards) when the user has an inbox row.
+    @Default(InboxProvenance.empty) InboxProvenance forwardProvenance,
+    @Default('') String inboxLatestNotePreview,
     /// True when the current user has forwarded this beacon at least once.
     @Default(false) bool hasForwardedThisBeaconOnce,
     @Default(StateIsSuccess()) StateStatus status,
