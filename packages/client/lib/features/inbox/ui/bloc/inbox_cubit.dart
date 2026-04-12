@@ -20,7 +20,7 @@ class InboxCubit extends Cubit<InboxState> {
   }) : _userId = userId,
        _repository = repository ?? GetIt.I<InboxRepository>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
-       super(const InboxState()) {
+       super(InboxState(currentUserId: userId)) {
     _commitmentChanges = _forwardRepository.commitmentChanges.listen(
       _onCommitmentChanged,
       cancelOnError: false,

@@ -13,6 +13,9 @@ abstract class InboxState extends StateBase with _$InboxState {
     @Default([]) List<InboxItem> items,
     @Default(InboxSort.recent) InboxSort sort,
     @Default(StateIsSuccess()) StateStatus status,
+
+    /// Used to hide the current user’s own beacons from the Watching tab.
+    @Default('') String currentUserId,
   }) = _InboxState;
 
   const InboxState._();
@@ -42,7 +45,13 @@ abstract class InboxState extends StateBase with _$InboxState {
       );
 
   List<InboxItem> get watching => _sorted(
-        items.where((e) => e.status == InboxItemStatus.watching).toList(),
+        items.where((e) {
+          if (e.status != InboxItemStatus.watching) return false;
+          final authorId = e.beacon?.author.id;
+          if (authorId == null || authorId.isEmpty) return true;
+          if (currentUserId.isEmpty) return true;
+          return authorId != currentUserId;
+        }).toList(),
       );
 
   List<InboxItem> get rejected => _sorted(
