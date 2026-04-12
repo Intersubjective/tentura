@@ -14,8 +14,7 @@ import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import '../dialog/add_tag_dialog.dart';
-import 'beacon_color_selector.dart';
-import 'beacon_icon_selector.dart';
+import '../screen/beacon_icon_picker_screen.dart';
 
 class InfoTab extends StatefulWidget {
   const InfoTab({super.key});
@@ -178,40 +177,62 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             iconCode: state.iconCode,
             iconBackground: state.iconBackground,
           );
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  BeaconIdentityTile(beacon: preview, size: 56),
-                  const SizedBox(width: kSpacingSmall),
-                  Expanded(
-                    child: Text(
-                      _l10n.beaconSymbolHint,
-                      style: _theme.textTheme.bodySmall?.copyWith(
-                        color: _theme.colorScheme.onSurfaceVariant,
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () async {
+                final r = await BeaconIconPickerScreen.show(
+                  context,
+                  iconCode: state.iconCode,
+                  iconBackground: state.iconBackground,
+                );
+                if (!context.mounted || r == null) {
+                  return;
+                }
+                if (r.iconCode == null || r.iconCode!.isEmpty) {
+                  _cubit.clearBeaconIdentity();
+                } else {
+                  _cubit.setIconCode(r.iconCode!);
+                  if (r.iconBackground != null) {
+                    _cubit.setIconBackground(r.iconBackground);
+                  }
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    BeaconIdentityTile(beacon: preview, size: 56),
+                    const SizedBox(width: kSpacingSmall),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _l10n.beaconSymbolSelectHint,
+                            style: _theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _l10n.beaconSymbolHint,
+                            style: _theme.textTheme.bodySmall?.copyWith(
+                              color: _theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: _theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: kSpacingSmall),
-              BeaconIconSelector(
-                selectedKey: state.iconCode,
-                onSelected: _cubit.setIconCode,
-                onClear: _cubit.clearBeaconIdentity,
-              ),
-              const SizedBox(height: kSpacingSmall),
-              Text(
-                _l10n.beaconSymbolBackground,
-                style: _theme.textTheme.labelLarge,
-              ),
-              const SizedBox(height: 6),
-              BeaconColorSelector(
-                selectedArgb: state.iconBackground,
-                onSelected: _cubit.setIconBackground,
-              ),
-            ],
+            ),
           );
         },
       ),

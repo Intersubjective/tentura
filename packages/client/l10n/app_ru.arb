@@ -288,36 +288,84 @@
   "@beaconSymbolCategoryAll": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryGeneral": "Общее",
-  "@beaconIdentityCategoryGeneral": {
+  "beaconSymbolSelectHint": "Нажмите, чтобы выбрать символ",
+  "@beaconSymbolSelectHint": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryWork": "Работа",
-  "@beaconIdentityCategoryWork": {
+  "beaconSymbolDone": "Готово",
+  "@beaconSymbolDone": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryPlaces": "Места",
-  "@beaconIdentityCategoryPlaces": {
+  "beaconSymbolNoMatches": "Нет символов по запросу",
+  "@beaconSymbolNoMatches": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryTransport": "Транспорт",
-  "@beaconIdentityCategoryTransport": {
+  "beaconIdentityCategoryMeta": "Координация",
+  "@beaconIdentityCategoryMeta": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryPeople": "Люди",
-  "@beaconIdentityCategoryPeople": {
+  "beaconIdentityCategoryCommunity": "Сообщество",
+  "@beaconIdentityCategoryCommunity": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryEssentials": "Быт",
+  "@beaconIdentityCategoryEssentials": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryHome": "Дом",
+  "@beaconIdentityCategoryHome": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryMobility": "Передвижение",
+  "@beaconIdentityCategoryMobility": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryCommunication": "Связь",
+  "@beaconIdentityCategoryCommunication": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryMoney": "Деньги",
+  "@beaconIdentityCategoryMoney": {
     "context": "BeaconCreateScreen"
   },
   "beaconIdentityCategoryHealth": "Здоровье",
   "@beaconIdentityCategoryHealth": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryCommerce": "Торговля",
-  "@beaconIdentityCategoryCommerce": {
+  "beaconIdentityCategorySafety": "Безопасность",
+  "@beaconIdentityCategorySafety": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryWork": "Работа",
+  "@beaconIdentityCategoryWork": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryTech": "Техника",
+  "@beaconIdentityCategoryTech": {
     "context": "BeaconCreateScreen"
   },
   "beaconIdentityCategoryNature": "Природа",
   "@beaconIdentityCategoryNature": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryWeather": "Погода",
+  "@beaconIdentityCategoryWeather": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryCulture": "Культура",
+  "@beaconIdentityCategoryCulture": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryEducation": "Образование",
+  "@beaconIdentityCategoryEducation": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryAnimals": "Животные",
+  "@beaconIdentityCategoryAnimals": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryCivic": "Гражданское",
+  "@beaconIdentityCategoryCivic": {
     "context": "BeaconCreateScreen"
   },
   "createBeaconErrorTooShortQuestion": "слишком короткий вопрос",

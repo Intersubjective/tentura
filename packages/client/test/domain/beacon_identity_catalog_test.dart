@@ -43,7 +43,13 @@ void main() {
 
   group('kBeaconIdentityIcons', () {
     test('curated size in expected range', () {
-      expect(kBeaconIdentityIcons.length, inInclusiveRange(40, 80));
+      expect(kBeaconIdentityIcons.length, inInclusiveRange(100, 130));
+    });
+
+    test('every icon has a non-empty ontology label', () {
+      for (final e in kBeaconIdentityIcons.entries) {
+        expect(e.value.label, isNotEmpty, reason: 'key ${e.key}');
+      }
     });
   });
 }
