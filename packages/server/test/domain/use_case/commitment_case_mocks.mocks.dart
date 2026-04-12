@@ -60,6 +60,7 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
     int? ticker = 0,
     String? iconCode,
     int? iconBackground,
+    int? state,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBeacon, [], {
@@ -77,6 +78,7 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
               #ticker: ticker,
               #iconCode: iconCode,
               #iconBackground: iconBackground,
+              #state: state,
             }),
             returnValue: _i4.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -96,6 +98,7 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
                   #ticker: ticker,
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
+                  #state: state,
                 }),
               ),
             ),
@@ -118,6 +121,61 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
                 Invocation.method(#getBeaconById, [], {
                   #beaconId: beaconId,
                   #filterByUserId: filterByUserId,
+                }),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.BeaconEntity>);
+
+  @override
+  _i4.Future<_i2.BeaconEntity> updateDraftBeacon({
+    required String? beaconId,
+    required String? userId,
+    required String? title,
+    required String? description,
+    String? context,
+    Set<String>? tags,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+    ({String question, List<String> variants})? polling,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateDraftBeacon, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+              #title: title,
+              #description: description,
+              #context: context,
+              #tags: tags,
+              #startAt: startAt,
+              #endAt: endAt,
+              #latitude: latitude,
+              #longitude: longitude,
+              #iconCode: iconCode,
+              #iconBackground: iconBackground,
+              #polling: polling,
+            }),
+            returnValue: _i4.Future<_i2.BeaconEntity>.value(
+              _FakeBeaconEntity_0(
+                this,
+                Invocation.method(#updateDraftBeacon, [], {
+                  #beaconId: beaconId,
+                  #userId: userId,
+                  #title: title,
+                  #description: description,
+                  #context: context,
+                  #tags: tags,
+                  #startAt: startAt,
+                  #endAt: endAt,
+                  #latitude: latitude,
+                  #longitude: longitude,
+                  #iconCode: iconCode,
+                  #iconBackground: iconBackground,
+                  #polling: polling,
                 }),
               ),
             ),

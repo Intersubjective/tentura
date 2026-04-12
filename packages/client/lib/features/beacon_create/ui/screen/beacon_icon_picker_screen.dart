@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
 
 import '../widget/beacon_color_selector.dart';
 
@@ -45,22 +47,14 @@ class BeaconIconPickerScreen extends StatefulWidget {
   State<BeaconIconPickerScreen> createState() => _BeaconIconPickerScreenState();
 }
 
-class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen>
-    with TickerProviderStateMixin {
-  late final TabController _tabController = TabController(
-    length: 1 + BeaconIdentityCategory.values.length,
-    vsync: this,
-  );
+class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
+  /// 0 = All categories; `i` in `1..BeaconIdentityCategory.values.length` maps
+  /// to `BeaconIdentityCategory.values[i - 1]`.
+  int _categoryFilterIndex = 0;
 
   String _query = '';
   late String? _iconCode = widget.initialIconCode;
   late int? _iconBackground = widget.initialIconBackground;
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   String _categoryLabel(L10n l10n, BeaconIdentityCategory c) => switch (c) {
         BeaconIdentityCategory.meta => l10n.beaconIdentityCategoryMeta,
@@ -92,7 +86,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen>
 
   List<MapEntry<String, BeaconIconDefinition>> _filteredEntries(L10n l10n) {
     var e = kBeaconIdentityIcons.entries.toList();
-    final tab = _tabController.index;
+    final tab = _categoryFilterIndex;
     if (tab > 0) {
       final cat = BeaconIdentityCategory.values[tab - 1];
       e = e.where((x) => x.value.category == cat).toList();
@@ -123,6 +117,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen>
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final chipStyle = AppChoiceChipStyle(scheme);
     final entries = _filteredEntries(l10n);
     final now = DateTime.timestamp();
     final previewBeacon = Beacon(
@@ -180,16 +175,45 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen>
               onChanged: (v) => setState(() => _query = v),
             ),
           ),
-          TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            onTap: (_) => setState(() {}),
-            tabs: [
-              Tab(text: l10n.beaconSymbolCategoryAll),
-              for (final c in BeaconIdentityCategory.values)
-                Tab(text: _categoryLabel(l10n, c)),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: Wrap(
+              spacing: kSpacingSmall,
+              runSpacing: kSpacingSmall,
+              children: [
+                ChoiceChip(
+                  showCheckmark: false,
+                  color: chipStyle.background,
+                  labelStyle: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: chipStyle.labelForeground,
+                  ),
+                  checkmarkColor: chipStyle.checkmarkColor,
+                  side: chipStyle.outline,
+                  selected: _categoryFilterIndex == 0,
+                  label: Text(l10n.beaconSymbolCategoryAll),
+                  onSelected: (_) =>
+                      setState(() => _categoryFilterIndex = 0),
+                ),
+                for (var i = 0; i < BeaconIdentityCategory.values.length; i++)
+                  ChoiceChip(
+                    showCheckmark: false,
+                    color: chipStyle.background,
+                    labelStyle: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: chipStyle.labelForeground,
+                    ),
+                    checkmarkColor: chipStyle.checkmarkColor,
+                    side: chipStyle.outline,
+                    selected: _categoryFilterIndex == i + 1,
+                    label: Text(
+                      _categoryLabel(l10n, BeaconIdentityCategory.values[i]),
+                    ),
+                    onSelected: (_) =>
+                        setState(() => _categoryFilterIndex = i + 1),
+                  ),
+              ],
+            ),
           ),
           Expanded(
             child: CustomScrollView(

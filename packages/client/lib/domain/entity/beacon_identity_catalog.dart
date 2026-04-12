@@ -63,6 +63,13 @@ class BeaconPaletteSwatch {
   int get hashCode => Object.hash(backgroundArgb, foregroundArgb);
 }
 
+/// Flutter [Color] uses unsigned 32-bit ARGB; GraphQL `Int` and Postgres
+/// `INTEGER` are signed 32-bit. Reinterpret the same bit pattern so opaque
+/// colors (`0xFF……`) do not overflow on the wire.
+int encodeBeaconIconBackgroundArgb(int argb) => argb.toSigned(32);
+
+int? decodeBeaconIconBackgroundArgb(int? signed) => signed?.toUnsigned(32);
+
 /// Curated ontology leaves (keys persisted on `beacon.icon_code`).
 /// From [docs/beacon-ontology-icon-mapping.md]; `essentials_water` / `nature_water`
 /// disambiguate duplicate "Water" leaves.

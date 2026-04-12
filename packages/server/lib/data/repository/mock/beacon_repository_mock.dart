@@ -3,6 +3,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/image_entity.dart';
+import 'package:tentura_server/domain/entity/polling_entity.dart';
+import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 
@@ -35,6 +37,7 @@ class BeaconRepositoryMock implements BeaconRepository {
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
+    int? state,
   }) async {
     final now = DateTime.timestamp();
     final beacon = BeaconEntity(
@@ -42,6 +45,7 @@ class BeaconRepositoryMock implements BeaconRepository {
       title: title,
       context: context,
       description: description ?? '',
+      state: state ?? 0,
       startAt: startAt,
       endAt: endAt,
       createdAt: now,
@@ -64,6 +68,68 @@ class BeaconRepositoryMock implements BeaconRepository {
       iconBackground: iconBackground,
     );
     return storageById[beacon.id] = beacon;
+  }
+
+  @override
+  Future<BeaconEntity> updateDraftBeacon({
+    required String beaconId,
+    required String userId,
+    required String title,
+    required String description,
+    String? context,
+    Set<String>? tags,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+    ({String question, List<String> variants})? polling,
+  }) async {
+    final existing = storageById[beaconId];
+    if (existing == null ||
+        existing.state != 3 ||
+        existing.author.id != userId) {
+      throw const BeaconCreateException(
+        description: 'Beacon is not an editable draft',
+      );
+    }
+    final now = DateTime.timestamp();
+    var pollingEntity = existing.polling;
+    if (polling != null) {
+      final pid = PollingEntity.newId;
+      pollingEntity = PollingEntity(
+        id: pid,
+        question: polling.question,
+        author: existing.author,
+        createdAt: now,
+        updatedAt: now,
+        variants: [
+          for (var i = 0; i < polling.variants.length; i++)
+            PollingVariantEntity(
+              id: PollingVariantEntity.newId,
+              pollingId: pid,
+              description: polling.variants[i],
+            ),
+        ],
+      );
+    }
+    final updated = existing.copyWith(
+      title: title,
+      description: description,
+      context: context,
+      tags: tags,
+      startAt: startAt,
+      endAt: endAt,
+      coordinates: latitude != null && longitude != null
+          ? Coordinates(lat: latitude, long: longitude)
+          : null,
+      iconCode: iconCode,
+      iconBackground: iconBackground,
+      polling: pollingEntity,
+      updatedAt: now,
+    );
+    return storageById[beaconId] = updated;
   }
 
   @override

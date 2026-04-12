@@ -27,3 +27,13 @@ final class _BeaconCreatedMessageActionLabel extends LocalizableMessage {
   @override
   String get toRu => 'Посмотреть';
 }
+
+final class DraftSavedMessage extends LocalizableMessage {
+  const DraftSavedMessage();
+
+  @override
+  String get toEn => 'Draft saved';
+
+  @override
+  String get toRu => 'Черновик сохранён';
+}

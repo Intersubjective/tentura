@@ -1,13 +1,27 @@
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
 
+import 'package:tentura_server/consts.dart' show kTitleMaxLength, kTitleMinLength;
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/polling_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
 
 export 'package:tentura_server/domain/entity/beacon_entity.dart';
+
+/// Matches Postgres `beacon_context_name_length`: NULL or length in
+/// [kTitleMinLength, kTitleMaxLength] (see `m0001` beacon table).
+String? _beaconContextForDb(String? raw) {
+  if (raw == null) return null;
+  final t = raw.trim();
+  if (t.length < kTitleMinLength) return null;
+  if (t.length > kTitleMaxLength) {
+    return t.substring(0, kTitleMaxLength);
+  }
+  return t;
+}
 
 @Injectable(
   env: [
@@ -36,6 +50,8 @@ class BeaconRepository {
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
+    /// When set, overrides DB default (0=OPEN). Use 3 for DRAFT.
+    int? state,
   }) => _database.withMutatingUser(authorId, () async {
     final pollingModel = polling == null
         ? null
@@ -60,7 +76,7 @@ class BeaconRepository {
       (o) => o(
         userId: authorId,
         title: title,
-        context: Value(context),
+        context: Value(_beaconContextForDb(context)),
         description: Value(description ?? ''),
         ticker: Value(ticker),
         lat: Value(latitude),
@@ -71,6 +87,7 @@ class BeaconRepository {
         tags: Value.absentIfNull(tags?.join(',')),
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
+        state: Value(state ?? 0),
       ),
     );
 
@@ -126,13 +143,121 @@ class BeaconRepository {
         .getSingle();
 
     final images = await _getBeaconImages(beaconId);
+    final authorRow = await author.userId.getSingle();
+
+    Polling? pollingModel;
+    List<PollingVariant>? pollingVariants;
+    final pollingId = beacon.pollingId;
+    if (pollingId != null) {
+      pollingModel = await _database.managers.pollings
+          .filter((e) => e.id.equals(pollingId))
+          .getSingleOrNull();
+      if (pollingModel != null) {
+        pollingVariants = await _database.managers.pollingVariants
+            .filter((e) => e.pollingId.id(pollingModel!.id))
+            .get();
+      }
+    }
 
     return beaconModelToEntity(
       beacon,
-      author: await author.userId.getSingle(),
+      author: authorRow,
       images: images,
+      polling: pollingModel,
+      variants: pollingVariants,
     );
   }
+
+  /// Updates a beacon in DRAFT lifecycle (state 3) owned by [userId]. Throws if not found or not draft.
+  Future<BeaconEntity> updateDraftBeacon({
+    required String beaconId,
+    required String userId,
+    required String title,
+    required String description,
+    String? context,
+    Set<String>? tags,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+    ({String question, List<String> variants})? polling,
+  }) => _database.withMutatingUser(userId, () async {
+    final row = await _database.managers.beacons
+        .filter(
+          (e) => e.id.equals(beaconId) & e.userId.id.equals(userId),
+        )
+        .withReferences((p) => p(userId: true))
+        .getSingleOrNull();
+
+    if (row == null) {
+      throw const BeaconCreateException(
+        description: 'Beacon is not an editable draft',
+      );
+    }
+    final (existing, _) = row;
+
+    if (existing.state != 3) {
+      throw const BeaconCreateException(
+        description: 'Beacon is not an editable draft',
+      );
+    }
+
+    await _database.transaction(() async {
+      Polling? newPollingModel;
+      final poll = polling;
+      if (poll != null) {
+        final oldPollingId = existing.pollingId;
+        if (oldPollingId != null) {
+          await _database.managers.beacons
+              .filter((e) => e.id.equals(beaconId))
+              .update((o) => o(pollingId: const Value(null)));
+          await _database.managers.pollings
+              .filter((e) => e.id.equals(oldPollingId))
+              .delete();
+        }
+
+        newPollingModel = await _database.managers.pollings.createReturning(
+          (o) => o(
+            id: Value(PollingEntity.newId),
+            authorId: userId,
+            question: poll.question,
+          ),
+        );
+        await _database.managers.pollingVariants.bulkCreate(
+          (o) => poll.variants.map(
+            (desc) => o(
+              pollingId: newPollingModel!.id,
+              description: desc,
+            ),
+          ),
+        );
+      }
+
+      await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
+        (o) => o(
+          title: Value(title),
+          description: Value(description),
+          context: Value(_beaconContextForDb(context)),
+          tags: Value(
+            tags == null || tags.isEmpty ? '' : tags.join(','),
+          ),
+          lat: Value(latitude),
+          long: Value(longitude),
+          startAt: Value(startAt == null ? null : PgDateTime(startAt)),
+          endAt: Value(endAt == null ? null : PgDateTime(endAt)),
+          iconCode: Value(iconCode),
+          iconBackground: Value(iconBackground),
+          pollingId: poll != null
+              ? Value(newPollingModel!.id)
+              : Value(existing.pollingId),
+        ),
+      );
+    });
+
+    return getBeaconById(beaconId: beaconId, filterByUserId: userId);
+  });
 
   Future<void> deleteBeaconById(String id, {required String userId}) =>
       _database.withMutatingUser(userId, () async {

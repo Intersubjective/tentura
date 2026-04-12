@@ -10,6 +10,7 @@ import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
@@ -22,6 +23,7 @@ import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
 import '../gql/_g/beacon_delete_by_id.req.gql.dart';
 import '../gql/_g/beacon_remove_image.req.gql.dart';
 import '../gql/_g/beacon_update_by_id.req.gql.dart';
+import '../gql/_g/beacon_update_draft.req.gql.dart';
 import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
 
 @lazySingleton
@@ -83,7 +85,7 @@ class BeaconRepository {
 
   //
   //
-  Future<Beacon> create(Beacon beacon) async {
+  Future<Beacon> create(Beacon beacon, {bool draft = false}) async {
     final firstImage = beacon.images.isEmpty ? null : beacon.images.first;
     final request = GBeaconCreateReq((b) {
       b.vars
@@ -95,12 +97,12 @@ class BeaconRepository {
         ..endAt = beacon.endAt?.toIso8601String()
         ..coordinates = beacon.coordinates == null
             ? null
-            : (Gv2_CoordinatesBuilder()
+            : (GCoordinatesBuilder()
                   ..lat = beacon.coordinates!.lat
                   ..long = beacon.coordinates!.long)
         ..polling = beacon.polling == null
             ? null
-            : (Gv2_PollingInputBuilder()
+            : (GPollingInputBuilder()
                   ..question = beacon.polling!.question
                   ..variants = ListBuilder(beacon.polling!.variants.values))
         ..image = firstImage?.imageBytes == null
@@ -112,7 +114,10 @@ class BeaconRepository {
                 filename: firstImage.fileName,
               )
         ..iconCode = beacon.iconCode
-        ..iconBackground = beacon.iconBackground;
+        ..iconBackground = beacon.iconBackground == null
+            ? null
+            : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
+        ..draft = draft;
     });
     final beaconId = await _remoteApiService
         .request(request)
@@ -131,6 +136,49 @@ class BeaconRepository {
     _controller.add(RepositoryEventCreate(beaconNew));
     return beaconNew;
   }
+
+  ///
+  /// Persists edits to a server draft beacon (lifecycle DRAFT).
+  ///
+  Future<Beacon> updateDraft(Beacon beacon) async {
+    final request = GBeaconUpdateDraftReq((b) {
+      b.vars
+        ..id = beacon.id
+        ..title = beacon.title
+        ..description = beacon.description
+        ..context = beacon.context.isEmpty ? null : beacon.context
+        ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')
+        ..startAt = beacon.startAt?.toIso8601String()
+        ..endAt = beacon.endAt?.toIso8601String()
+        ..coordinates = beacon.coordinates == null
+            ? null
+            : (GCoordinatesBuilder()
+                  ..lat = beacon.coordinates!.lat
+                  ..long = beacon.coordinates!.long)
+        ..polling = beacon.polling == null
+            ? null
+            : (GPollingInputBuilder()
+                  ..question = beacon.polling!.question
+                  ..variants = ListBuilder(beacon.polling!.variants.values))
+        ..iconCode = beacon.iconCode
+        ..iconBackground = beacon.iconBackground == null
+            ? null
+            : encodeBeaconIconBackgroundArgb(beacon.iconBackground!);
+    });
+    await _remoteApiService
+        .request(request)
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconUpdateDraft.id);
+    final updated = await fetchBeaconById(beacon.id);
+    _controller.add(RepositoryEventUpdate(updated));
+    return updated;
+  }
+
+  ///
+  /// Publishes a draft beacon (DRAFT -> OPEN).
+  ///
+  Future<void> publishDraft(String id) =>
+      setBeaconLifecycle(BeaconLifecycle.open, id: id);
 
   //
   //
