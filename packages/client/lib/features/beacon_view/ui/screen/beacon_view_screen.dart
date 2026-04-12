@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:nil/nil.dart';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
@@ -13,16 +12,20 @@ import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/author_info.dart';
 
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
+import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/inbox_forward_provenance_panel.dart';
+import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/dialog/share_code_dialog.dart';
+import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
@@ -41,17 +44,279 @@ String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
     l10n.beaconLifecycleClosedReviewComplete,
 };
 
+/// Query [kQueryBeaconViewTab]: `timeline` | `commitments` | `forwards`.
+int _beaconViewTabIndex(String? viewTab) {
+  switch (viewTab) {
+    case 'commitments':
+      return 1;
+    case 'forwards':
+      return 2;
+    case 'timeline':
+    default:
+      return 0;
+  }
+}
+
+Widget _beaconOverflowMenuRow(IconData icon, String label) {
+  return Row(
+    children: [
+      Icon(icon, size: 22),
+      const SizedBox(width: 12),
+      Expanded(child: Text(label)),
+    ],
+  );
+}
+
+List<PopupMenuEntry<String>> _beaconOverflowItems(
+  BeaconViewState state,
+  L10n l10n,
+) {
+  final b = state.beacon;
+  final items = <PopupMenuEntry<String>>[];
+
+  if (state.isBeaconMine) {
+    if (b.myVote >= 0) {
+      items.add(
+        PopupMenuItem(
+          value: 'graph',
+          child: _beaconOverflowMenuRow(TenturaIcons.graph, l10n.graphView),
+        ),
+      );
+    }
+    items
+      ..add(
+        PopupMenuItem(
+          value: 'share',
+          child: _beaconOverflowMenuRow(Icons.qr_code, l10n.shareLink),
+        ),
+      )
+      ..add(
+        PopupMenuItem(
+          value: 'toggle_lifecycle',
+          child: _beaconOverflowMenuRow(
+            b.isListed ? Icons.lock_outline : Icons.lock_open,
+            b.isListed ? l10n.closeBeacon : l10n.openBeacon,
+          ),
+        ),
+      );
+    if (!state.hasForwardedThisBeaconOnce) {
+      items.add(
+        PopupMenuItem(
+          value: 'forward',
+          child: _beaconOverflowMenuRow(Icons.send, l10n.labelForward),
+        ),
+      );
+    }
+    items.add(
+      PopupMenuItem(
+        value: 'delete',
+        child: _beaconOverflowMenuRow(Icons.delete_outline, l10n.deleteBeacon),
+      ),
+    );
+    return items;
+  }
+
+  if (!state.isCommitted && b.allowsNewCommitAsNonAuthor) {
+    final useCommitAnyway =
+        b.coordinationStatus == BeaconCoordinationStatus.enoughHelpCommitted;
+    items.add(
+      PopupMenuItem(
+        value: 'commit',
+        child: _beaconOverflowMenuRow(
+          Icons.handshake,
+          useCommitAnyway ? l10n.labelCommitAnyway : l10n.labelCommit,
+        ),
+      ),
+    );
+  }
+  if (state.isCommitted && b.allowsWithdrawWhileCommitted) {
+    items.add(
+      PopupMenuItem(
+        value: 'withdraw',
+        child: _beaconOverflowMenuRow(
+          Icons.remove_circle_outline,
+          l10n.dialogWithdrawTitle,
+        ),
+      ),
+    );
+  }
+  items.add(
+    PopupMenuItem(
+      value: 'forward',
+      child: _beaconOverflowMenuRow(Icons.send, l10n.labelForward),
+    ),
+  );
+  if (state.inboxStatus == InboxItemStatus.needsMe) {
+    items.add(
+      PopupMenuItem(
+        value: 'watch',
+        child: _beaconOverflowMenuRow(
+          Icons.visibility_outlined,
+          l10n.actionWatch,
+        ),
+      ),
+    );
+  }
+  if (state.inboxStatus == InboxItemStatus.watching) {
+    items.add(
+      PopupMenuItem(
+        value: 'stop_watch',
+        child: _beaconOverflowMenuRow(
+          Icons.visibility_off_outlined,
+          l10n.actionStopWatching,
+        ),
+      ),
+    );
+  }
+  if (state.inboxStatus == InboxItemStatus.needsMe ||
+      state.inboxStatus == InboxItemStatus.watching) {
+    items.add(
+      PopupMenuItem(
+        value: 'cant_help',
+        child: _beaconOverflowMenuRow(Icons.close, l10n.actionCantHelp),
+      ),
+    );
+  }
+  if (state.inboxStatus == InboxItemStatus.rejected) {
+    items.add(
+      PopupMenuItem(
+        value: 'move_inbox',
+        child: _beaconOverflowMenuRow(
+          Icons.inbox_outlined,
+          l10n.actionMoveToInbox,
+        ),
+      ),
+    );
+  }
+  items.add(
+    PopupMenuItem(
+      value: 'complaint',
+      child: _beaconOverflowMenuRow(Icons.flag_outlined, l10n.buttonComplaint),
+    ),
+  );
+  return items;
+}
+
+Future<void> _onBeaconOverflowSelected(
+  BuildContext context,
+  String value,
+  BeaconViewCubit cubit,
+  ScreenCubit screenCubit,
+  BeaconViewState state,
+) async {
+  final l10n = L10n.of(context)!;
+  final beaconId = state.beacon.id;
+  switch (value) {
+    case 'graph':
+      if (!state.isBeaconMine || state.beacon.myVote < 0) return;
+      screenCubit.showGraphFor(beaconId);
+      return;
+    case 'share':
+      if (!state.isBeaconMine) return;
+      await ShareCodeDialog.show(
+        context,
+        link: Uri.parse(kServerName).replace(
+          queryParameters: {'id': beaconId},
+          path: kPathAppLinkView,
+        ),
+        header: beaconId,
+      );
+      return;
+    case 'toggle_lifecycle':
+      if (!state.isBeaconMine) return;
+      if (state.beacon.isListed) {
+        if (await BeaconCloseConfirmDialog.show(context) != true) {
+          return;
+        }
+        if (!context.mounted) return;
+      }
+      await cubit.toggleLifecycle();
+      return;
+    case 'delete':
+      if (!state.isBeaconMine) return;
+      if (await BeaconDeleteDialog.show(context) ?? false) {
+        if (!context.mounted) return;
+        await cubit.delete(beaconId);
+      }
+      return;
+    case 'commit':
+      final useCommitAnyway =
+          state.beacon.coordinationStatus ==
+          BeaconCoordinationStatus.enoughHelpCommitted;
+      final outcome = await CommitmentMessageDialog.show(
+        context,
+        title: useCommitAnyway
+            ? l10n.dialogCommitAnywayTitle
+            : l10n.dialogCommitTitle,
+        hintText: l10n.hintCommitMessage,
+        allowEmptyMessage: true,
+        showHelpTypeChips: true,
+      );
+      if (outcome != null && context.mounted) {
+        await cubit.commit(
+          message: outcome.message,
+          helpType: outcome.helpTypeWire,
+        );
+      }
+      return;
+    case 'withdraw':
+      final outcome = await CommitmentMessageDialog.show(
+        context,
+        title: l10n.dialogWithdrawTitle,
+        hintText: l10n.hintWithdrawReason,
+        allowEmptyMessage: true,
+        requireUncommitReason: true,
+      );
+      if (outcome?.uncommitReasonWire != null && context.mounted) {
+        await cubit.withdraw(
+          message: outcome!.message,
+          uncommitReason: outcome.uncommitReasonWire!,
+        );
+      }
+      return;
+    case 'forward':
+      if (context.mounted) {
+        await context.router.pushPath('$kPathForwardBeacon/$beaconId');
+      }
+      return;
+    case 'watch':
+      await cubit.moveToWatching();
+      return;
+    case 'stop_watch':
+      await cubit.stopWatching();
+      return;
+    case 'cant_help':
+      final msg = await showRejectionDialog(context);
+      if (context.mounted && msg != null) {
+        await cubit.rejectInbox(message: msg);
+      }
+      return;
+    case 'move_inbox':
+      await cubit.unrejectInbox();
+      return;
+    case 'complaint':
+      screenCubit.showComplaint(beaconId);
+      return;
+    default:
+      return;
+  }
+}
+
 @RoutePage()
 class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
   const BeaconViewScreen({
     @PathParam('id') this.id = '',
     @QueryParam(kQueryIsDeepLink) this.isDeepLink,
+    @QueryParam(kQueryBeaconViewTab) this.viewTab,
     super.key,
   });
 
   final String id;
 
   final String? isDeepLink;
+
+  /// `timeline` | `commitments` | `forwards` — initial tab in the detail tabs.
+  final String? viewTab;
 
   @override
   Widget wrappedRoute(_) => MultiBlocProvider(
@@ -93,18 +358,24 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
               )
             : const AutoLeadingButton(),
         actions: [
-          BlocSelector<BeaconViewCubit, BeaconViewState, bool>(
-            selector: (state) => state.isBeaconMine,
-            builder: (_, isBeaconMine) => isBeaconMine
-                ? nil
-                : PopupMenuButton(
-                    itemBuilder: (_) => <PopupMenuEntry<void>>[
-                      PopupMenuItem(
-                        onTap: () => screenCubit.showComplaint(id),
-                        child: Text(l10n.buttonComplaint),
-                      ),
-                    ],
+          BlocBuilder<BeaconViewCubit, BeaconViewState>(
+            builder: (context, state) {
+              final entries = _beaconOverflowItems(state, l10n);
+              if (entries.isEmpty) return const SizedBox.shrink();
+              return PopupMenuButton<String>(
+                onSelected: (v) => unawaited(
+                  _onBeaconOverflowSelected(
+                    context,
+                    v,
+                    beaconViewCubit,
+                    screenCubit,
+                    state,
                   ),
+                ),
+                itemBuilder: (_) => entries,
+                child: const Icon(Icons.more_vert),
+              );
+            },
           ),
         ],
         bottom: PreferredSize(
@@ -220,152 +491,10 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                   child: BeaconMineControl(key: ValueKey(beacon.id)),
                 ),
 
-              const SizedBox(height: kSpacingMedium),
-
-              // Primary actions for non-owners
-              if (state.isBeaconNotMine)
-                Padding(
-                  padding: kPaddingSmallV,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child:
-                            BlocSelector<
-                              BeaconViewCubit,
-                              BeaconViewState,
-                              ({bool isCommitted, Beacon beacon})
-                            >(
-                              selector: (s) => (
-                                isCommitted: s.isCommitted,
-                                beacon: s.beacon,
-                              ),
-                              builder: (_, row) {
-                                final useCommitAnyway =
-                                    row.beacon.coordinationStatus ==
-                                    BeaconCoordinationStatus
-                                        .enoughHelpCommitted;
-                                return row.isCommitted
-                                    ? OutlinedButton.icon(
-                                        onPressed:
-                                            row
-                                                .beacon
-                                                .allowsWithdrawWhileCommitted
-                                            ? () async {
-                                                final outcome =
-                                                    await CommitmentMessageDialog.show(
-                                                      context,
-                                                      title: l10n
-                                                          .dialogWithdrawTitle,
-                                                      hintText: l10n
-                                                          .hintWithdrawReason,
-                                                      allowEmptyMessage: true,
-                                                      requireUncommitReason:
-                                                          true,
-                                                    );
-                                                if (outcome
-                                                        ?.uncommitReasonWire !=
-                                                    null) {
-                                                  await beaconViewCubit.withdraw(
-                                                    message: outcome!.message,
-                                                    uncommitReason: outcome
-                                                        .uncommitReasonWire!,
-                                                  );
-                                                }
-                                              }
-                                            : null,
-                                        icon: const Icon(Icons.check_circle),
-                                        label: Text(l10n.labelCommitted),
-                                      )
-                                    : FilledButton.icon(
-                                        onPressed:
-                                            row
-                                                .beacon
-                                                .allowsNewCommitAsNonAuthor
-                                            ? () async {
-                                                final outcome =
-                                                    await CommitmentMessageDialog.show(
-                                                      context,
-                                                      title: useCommitAnyway
-                                                          ? l10n.dialogCommitAnywayTitle
-                                                          : l10n.dialogCommitTitle,
-                                                      hintText: l10n
-                                                          .hintCommitMessage,
-                                                      allowEmptyMessage: true,
-                                                      showHelpTypeChips: true,
-                                                    );
-                                                if (outcome != null) {
-                                                  await beaconViewCubit.commit(
-                                                    message: outcome.message,
-                                                    helpType:
-                                                        outcome.helpTypeWire,
-                                                  );
-                                                }
-                                              }
-                                            : null,
-                                        icon: const Icon(Icons.handshake),
-                                        label: Text(
-                                          useCommitAnyway
-                                              ? l10n.labelCommitAnyway
-                                              : l10n.labelCommit,
-                                        ),
-                                      );
-                              },
-                            ),
-                      ),
-                      const SizedBox(width: kSpacingSmall),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => context.router.pushPath(
-                            '$kPathForwardBeacon/${beacon.id}',
-                          ),
-                          icon: const Icon(Icons.send),
-                          label: Text(l10n.labelForward),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              if (state.isBeaconNotMine &&
-                  state.inboxStatus == InboxItemStatus.needsMe)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () =>
-                        unawaited(beaconViewCubit.moveToWatching()),
-                    icon: Icon(
-                      Icons.visibility_outlined,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    label: Text(l10n.actionWatch),
-                    style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(
-                        context,
-                      ).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-
-              // Forward button for owners (hidden once they have forwarded; overflow still has Forward)
-              if (state.isBeaconMine && !state.hasForwardedThisBeaconOnce)
-                Padding(
-                  padding: kPaddingSmallV,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.router.pushPath(
-                        '$kPathForwardBeacon/${beacon.id}',
-                      ),
-                      icon: const Icon(Icons.send),
-                      label: Text(l10n.labelForward),
-                    ),
-                  ),
-                ),
-
               const Divider(height: kSpacingLarge),
 
               _TabSection(
+                initialTabIndex: _beaconViewTabIndex(viewTab),
                 timeline: state.timeline,
                 commitments: state.commitments,
                 forwardProvenance: state.forwardProvenance,
@@ -414,8 +543,10 @@ class _TabSection extends StatefulWidget {
     required this.onEditCommitment,
     required this.isAuthorView,
     required this.onAuthorCoordination,
+    this.initialTabIndex = 0,
   });
 
+  final int initialTabIndex;
   final List<TimelineEntry> timeline;
   final List<TimelineCommitment> commitments;
   final InboxProvenance forwardProvenance;
@@ -431,14 +562,17 @@ class _TabSection extends StatefulWidget {
 
 class _TabSectionState extends State<_TabSection>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController = TabController(
-    length: 3,
-    vsync: this,
-  );
+  late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    final idx = widget.initialTabIndex.clamp(0, 2);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: idx,
+    );
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});

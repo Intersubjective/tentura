@@ -7,10 +7,21 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/side_outline_cta_button.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import 'inbox_forward_provenance_panel.dart';
+
+Widget _inboxOverflowMenuRow(IconData icon, String label) {
+  return Row(
+    children: [
+      Icon(icon, size: 22),
+      const SizedBox(width: 12),
+      Expanded(child: Text(label)),
+    ],
+  );
+}
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
   BeaconLifecycle.open => l10n.beaconLifecycleOpen,
@@ -56,6 +67,7 @@ class InboxItemTile extends StatelessWidget {
     this.onStopWatching,
     this.onCantHelp,
     this.onMoveToInbox,
+    this.onCommit,
     this.showCtaRow = true,
     this.showProvenance = true,
     super.key,
@@ -68,6 +80,8 @@ class InboxItemTile extends StatelessWidget {
   final VoidCallback? onStopWatching;
   final Future<void> Function()? onCantHelp;
   final VoidCallback? onMoveToInbox;
+  /// Commit to this beacon (same flow as beacon view); null hides the menu item.
+  final Future<void> Function()? onCommit;
 
   /// When false (Watching / Rejected tabs), hide the bottom Forward / secondary
   /// button row; actions remain in the overflow menu.
@@ -281,36 +295,66 @@ class InboxItemTile extends StatelessWidget {
                 itemBuilder: (_) => [
                   PopupMenuItem(
                     value: 'open',
-                    child: Text(l10n.openBeacon),
+                    child: _inboxOverflowMenuRow(
+                      Icons.open_in_new,
+                      l10n.openBeacon,
+                    ),
                   ),
+                  if (onCommit != null)
+                    PopupMenuItem(
+                      value: 'commit',
+                      child: _inboxOverflowMenuRow(
+                        Icons.handshake,
+                        l10n.labelCommit,
+                      ),
+                    ),
                   PopupMenuItem(
                     value: 'forward',
-                    child: Text(l10n.labelForward),
+                    child: _inboxOverflowMenuRow(
+                      Icons.send,
+                      l10n.labelForward,
+                    ),
                   ),
                   if (onWatch != null)
                     PopupMenuItem(
                       value: 'watch',
-                      child: Text(l10n.actionWatch),
+                      child: _inboxOverflowMenuRow(
+                        Icons.visibility_outlined,
+                        l10n.actionWatch,
+                      ),
                     ),
                   if (onStopWatching != null)
                     PopupMenuItem(
                       value: 'stop_watch',
-                      child: Text(l10n.actionStopWatching),
+                      child: _inboxOverflowMenuRow(
+                        Icons.visibility_off_outlined,
+                        l10n.actionStopWatching,
+                      ),
                     ),
                   if (onCantHelp != null)
                     PopupMenuItem(
                       value: 'cant_help',
-                      child: Text(l10n.actionCantHelp),
+                      child: _inboxOverflowMenuRow(
+                        Icons.close,
+                        l10n.actionCantHelp,
+                      ),
                     ),
                   if (onMoveToInbox != null)
                     PopupMenuItem(
                       value: 'move_inbox',
-                      child: Text(l10n.actionMoveToInbox),
+                      child: _inboxOverflowMenuRow(
+                        Icons.inbox_outlined,
+                        l10n.actionMoveToInbox,
+                      ),
                     ),
                 ],
                 onSelected: (v) async {
                   if (v == 'open') {
                     onOpenBeacon();
+                    return;
+                  }
+                  if (v == 'commit') {
+                    await onCommit?.call();
                     return;
                   }
                   if (v == 'forward') {
@@ -341,68 +385,39 @@ class InboxItemTile extends StatelessWidget {
             Row(
               children: [
                 if (secondaryLabel != null) ...[
+                  SideOutlineCtaButton(
+                    label: secondaryLabel,
+                    icon: onCantHelp != null
+                        ? Icons.close
+                        : onStopWatching != null
+                            ? Icons.visibility_off_outlined
+                            : Icons.inbox_outlined,
+                    onPressed: _onSecondaryPressed,
+                  ),
+                  const SizedBox(width: kSpacingSmall),
+                ],
+                if (onCommit != null) ...[
                   Expanded(
-                    child: FilledButton.tonal(
-                      onPressed: _onSecondaryPressed,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        await onCommit?.call();
+                      },
+                      icon: const Icon(Icons.handshake),
+                      label: Text(l10n.labelCommit),
                       style: FilledButton.styleFrom(
-                        backgroundColor: scheme.surfaceContainerHigh,
-                        foregroundColor: scheme.onSurfaceVariant,
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            onCantHelp != null
-                                ? Icons.close
-                                : onStopWatching != null
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.inbox_outlined,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              secondaryLabel,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),
                   const SizedBox(width: kSpacingSmall),
                 ],
                 Expanded(
-                  child: FilledButton(
+                  child: OutlinedButton.icon(
                     onPressed: onTap,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: scheme.primary,
-                      foregroundColor: scheme.onPrimary,
+                    icon: const Icon(Icons.send),
+                    label: Text(l10n.labelForward),
+                    style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.arrow_forward,
-                          size: 18,
-                          color: scheme.onPrimary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          l10n.inboxCardOpenBeacon,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: scheme.onPrimary,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ),
