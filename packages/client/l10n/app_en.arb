@@ -288,36 +288,84 @@
   "@beaconSymbolCategoryAll": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryGeneral": "General",
-  "@beaconIdentityCategoryGeneral": {
+  "beaconSymbolSelectHint": "Tap to select a beacon symbol",
+  "@beaconSymbolSelectHint": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryWork": "Work",
-  "@beaconIdentityCategoryWork": {
+  "beaconSymbolDone": "Done",
+  "@beaconSymbolDone": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryPlaces": "Places",
-  "@beaconIdentityCategoryPlaces": {
+  "beaconSymbolNoMatches": "No symbols match your search",
+  "@beaconSymbolNoMatches": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryTransport": "Transport",
-  "@beaconIdentityCategoryTransport": {
+  "beaconIdentityCategoryMeta": "Coordination",
+  "@beaconIdentityCategoryMeta": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryPeople": "People",
-  "@beaconIdentityCategoryPeople": {
+  "beaconIdentityCategoryCommunity": "Community",
+  "@beaconIdentityCategoryCommunity": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryEssentials": "Essentials",
+  "@beaconIdentityCategoryEssentials": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryHome": "Home",
+  "@beaconIdentityCategoryHome": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryMobility": "Mobility",
+  "@beaconIdentityCategoryMobility": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryCommunication": "Communication",
+  "@beaconIdentityCategoryCommunication": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryMoney": "Money",
+  "@beaconIdentityCategoryMoney": {
     "context": "BeaconCreateScreen"
   },
   "beaconIdentityCategoryHealth": "Health",
   "@beaconIdentityCategoryHealth": {
     "context": "BeaconCreateScreen"
   },
-  "beaconIdentityCategoryCommerce": "Commerce",
-  "@beaconIdentityCategoryCommerce": {
+  "beaconIdentityCategorySafety": "Safety",
+  "@beaconIdentityCategorySafety": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryWork": "Work",
+  "@beaconIdentityCategoryWork": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryTech": "Tech",
+  "@beaconIdentityCategoryTech": {
     "context": "BeaconCreateScreen"
   },
   "beaconIdentityCategoryNature": "Nature",
   "@beaconIdentityCategoryNature": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryWeather": "Weather",
+  "@beaconIdentityCategoryWeather": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryCulture": "Culture",
+  "@beaconIdentityCategoryCulture": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryEducation": "Education",
+  "@beaconIdentityCategoryEducation": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryAnimals": "Animals",
+  "@beaconIdentityCategoryAnimals": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconIdentityCategoryCivic": "Civic",
+  "@beaconIdentityCategoryCivic": {
     "context": "BeaconCreateScreen"
   },
   "createBeaconErrorTooShortQuestion": "Too short question",
