@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_photo_count.dart';
@@ -42,22 +43,6 @@ Widget _myWorkSublineText(BuildContext context, String text) {
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
   );
-}
-
-/// Same deadline-remaining logic as the inbox tile (hours-based meta).
-({String text, bool urgent})? _hoursRemainingMeta(L10n l10n, DateTime? endAt) {
-  if (endAt == null) return null;
-  final now = DateTime.now();
-  if (!endAt.isAfter(now)) {
-    return (text: l10n.inboxDeadlineEnded, urgent: true);
-  }
-  final d = endAt.difference(now);
-  final h = d.inHours;
-  if (h < 1) {
-    return (text: l10n.inboxDeadlineLessThanHour, urgent: true);
-  }
-  final urgent = h < 24;
-  return (text: l10n.inboxDeadlineHoursRemaining(h), urgent: urgent);
 }
 
 /// Beacon context for the stats row first column (matches inbox category column).
@@ -124,7 +109,7 @@ class _AuthoredActiveCard extends StatelessWidget {
     };
 
     final categoryLabel = _beaconCategoryLabel(b, l10n);
-    final hoursRemaining = _hoursRemainingMeta(l10n, b.endAt);
+    final hoursRemaining = beaconCardDeadlineRemainingMeta(l10n, b.endAt);
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),

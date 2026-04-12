@@ -4,6 +4,7 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
@@ -33,22 +34,6 @@ String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
   BeaconLifecycle.closedReviewComplete =>
     l10n.beaconLifecycleClosedReviewComplete,
 };
-
-/// Hours-based remaining time for the inbox metadata wrap (third chip).
-({String text, bool urgent})? _hoursRemainingMeta(L10n l10n, DateTime? endAt) {
-  if (endAt == null) return null;
-  final now = DateTime.now();
-  if (!endAt.isAfter(now)) {
-    return (text: l10n.inboxDeadlineEnded, urgent: true);
-  }
-  final d = endAt.difference(now);
-  final h = d.inHours;
-  if (h < 1) {
-    return (text: l10n.inboxDeadlineLessThanHour, urgent: true);
-  }
-  final urgent = h < 24;
-  return (text: l10n.inboxDeadlineHoursRemaining(h), urgent: urgent);
-}
 
 /// Beacon **context** for inbox metadata (first column); not tags.
 String _beaconContextCategoryLabel(InboxItem item, L10n l10n) {
@@ -119,7 +104,7 @@ class InboxItemTile extends StatelessWidget {
     if (beacon == null) return const SizedBox.shrink();
 
     final contextCategoryLabel = _beaconContextCategoryLabel(item, l10n);
-    final hoursRemaining = _hoursRemainingMeta(l10n, beacon.endAt);
+    final hoursRemaining = beaconCardDeadlineRemainingMeta(l10n, beacon.endAt);
     final secondaryLabel = _secondaryLabel(l10n);
 
     final hasProvenanceBody = item.provenance.senders.isNotEmpty;
