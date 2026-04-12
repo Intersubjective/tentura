@@ -1,6 +1,8 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:get_it/get_it.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -66,6 +68,12 @@ class BeaconMineControl extends StatelessWidget {
                   }
                 }
               },
+            ),
+            PopupMenuItem<void>(
+              child: Text(l10n.labelForward),
+              onTap: () => context.router.pushPath(
+                '$kPathForwardBeacon/${beacon.id}',
+              ),
             ),
             const PopupMenuDivider(),
 

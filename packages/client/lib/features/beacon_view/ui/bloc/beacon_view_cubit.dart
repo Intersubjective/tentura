@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -43,6 +44,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
            coordinationRepository ?? GetIt.I<CoordinationRepository>(),
        _inboxRepository = inboxRepository ?? GetIt.I<InboxRepository>(),
        super(_idToState(id, myProfile)) {
+    _forwardCompletedSub = _forwardRepository.forwardCompleted.listen(
+      (beaconId) {
+        if (!isClosed && beaconId == state.beacon.id) {
+          unawaited(_fetchBeaconByIdWithTimeline());
+        }
+      },
+      cancelOnError: false,
+    );
     unawaited(
       state.hasFocusedComment
           ? _fetchBeaconByCommentId()
@@ -59,6 +68,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   final CoordinationRepository _coordinationRepository;
 
   final InboxRepository _inboxRepository;
+
+  late final StreamSubscription<String> _forwardCompletedSub;
+
+  @override
+  Future<void> close() async {
+    await _forwardCompletedSub.cancel();
+    return super.close();
+  }
 
   Future<void> moveToWatching() async {
     if (state.inboxStatus != InboxItemStatus.needsMe) return;
@@ -194,6 +211,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         ),
         _forwardRepository.fetchUpdates(beaconId: beaconId),
         _inboxRepository.fetchStatusForBeacon(beaconId),
+        _forwardRepository.currentUserHasForwardedBeacon(beaconId),
       ]);
 
       final beacon = results[0]! as Beacon;
@@ -213,6 +231,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final updates = results[2]!
           as List<({Profile author, String content, DateTime createdAt})>;
       final inboxStatus = results[3] as InboxItemStatus?;
+      final hasForwardedThisBeaconOnce = results[4]! as bool;
 
       final isCommitted = commitments
           .where((c) => c.status == 0)
@@ -250,6 +269,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           commitments: commitmentsList,
           isCommitted: isCommitted,
           inboxStatus: inboxStatus,
+          hasForwardedThisBeaconOnce: hasForwardedThisBeaconOnce,
           status: StateStatus.isSuccess,
         ),
       );
@@ -262,9 +282,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     try {
       final (:beacon, comment: _) = await _beaconViewRepository
           .fetchBeaconByCommentId(state.focusCommentId);
+      final hasForwardedThisBeaconOnce =
+          await _forwardRepository.currentUserHasForwardedBeacon(beacon.id);
       emit(
         state.copyWith(
           beacon: beacon,
+          hasForwardedThisBeaconOnce: hasForwardedThisBeaconOnce,
           status: StateStatus.isSuccess,
         ),
       );

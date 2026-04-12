@@ -152,6 +152,19 @@ class ForwardRepository {
     );
   }
 
+  /// Whether the current user has at least one forward edge from this beacon.
+  Future<bool> currentUserHasForwardedBeacon(String beaconId) =>
+      _remoteApiService
+          .request(
+            GBeaconInvolvementDataReq((r) => r..vars.id = beaconId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) {
+            final inv = r.dataOrThrow(label: _label).beaconInvolvement;
+            final list = inv.myForwardedRecipients;
+            return list != null && list.isNotEmpty;
+          });
+
   Future<List<ForwardEdge>> fetchEdges({required String beaconId}) =>
       _remoteApiService
           .request(

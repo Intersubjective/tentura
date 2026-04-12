@@ -1,5 +1,7 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -80,7 +82,12 @@ class BeaconTile extends StatelessWidget {
                   // More
                   PopupMenuButton(
                     itemBuilder: (context) => <PopupMenuEntry<void>>[
-                      // Complaint
+                      PopupMenuItem(
+                        onTap: () => context.router.pushPath(
+                          '$kPathForwardBeacon/${beacon.id}',
+                        ),
+                        child: Text(l10n.labelForward),
+                      ),
                       PopupMenuItem(
                         onTap: () => context.read<ScreenCubit>().showComplaint(
                           beacon.id,
