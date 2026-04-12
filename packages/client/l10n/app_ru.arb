@@ -1046,6 +1046,18 @@
       }
     }
   },
+  "inboxDeadlineDaysHoursRemaining": "Осталось {days} дн. {hours} ч",
+  "@inboxDeadlineDaysHoursRemaining": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
   "inboxCategoryGeneral": "Общее",
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"
