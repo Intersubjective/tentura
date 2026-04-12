@@ -237,39 +237,41 @@ class _AuthoredActiveCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: kSpacingSmall),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () => unawaited(
-                context.router.pushPath('$kPathForwardBeacon/${b.id}'),
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.arrow_forward,
-                    size: 18,
-                    color: theme.colorScheme.onPrimary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    l10n.inboxCardOpenBeacon,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
+          if (!vm.authorHasForwardedOnce) ...[
+            const SizedBox(height: kSpacingSmall),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => unawaited(
+                  context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.arrow_forward,
+                      size: 18,
                       color: theme.colorScheme.onPrimary,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n.inboxCardOpenBeacon,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onPrimary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -658,6 +660,14 @@ class _AuthoredOverflowMenu extends StatelessWidget {
           },
         ),
         PopupMenuItem<void>(
+          child: Text(l10n.labelForward),
+          onTap: () async {
+            await Future<void>.delayed(Duration.zero);
+            if (!context.mounted) return;
+            await context.router.pushPath('$kPathForwardBeacon/${beacon.id}');
+          },
+        ),
+        PopupMenuItem<void>(
           child: Text(l10n.deleteBeacon),
           onTap: () async {
             await Future<void>.delayed(Duration.zero);
@@ -738,6 +748,14 @@ class _CommittedOverflowMenu extends StatelessWidget {
     return PopupMenuButton<void>(
       icon: const Icon(Icons.more_vert),
       itemBuilder: (context) => [
+        PopupMenuItem<void>(
+          child: Text(l10n.labelForward),
+          onTap: () async {
+            await Future<void>.delayed(Duration.zero);
+            if (!context.mounted) return;
+            await context.router.pushPath('$kPathForwardBeacon/$beaconId');
+          },
+        ),
         PopupMenuItem<void>(
           child: Text(l10n.buttonComplaint),
           onTap: () async {
