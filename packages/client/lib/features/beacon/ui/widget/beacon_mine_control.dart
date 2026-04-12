@@ -14,6 +14,7 @@ import 'package:tentura/features/evaluation/data/repository/evaluation_repositor
 import 'package:tentura/features/polling/ui/widget/poll_button.dart';
 
 import '../../data/repository/beacon_repository.dart';
+import '../dialog/beacon_close_confirm_dialog.dart';
 import '../dialog/beacon_delete_dialog.dart';
 
 class BeaconMineControl extends StatelessWidget {
@@ -52,6 +53,14 @@ class BeaconMineControl extends StatelessWidget {
                 beacon.isListed ? l10n.closeBeacon : l10n.openBeacon,
               ),
               onTap: () async {
+                await Future<void>.delayed(Duration.zero);
+                if (!context.mounted) return;
+                if (beacon.isListed) {
+                  if (await BeaconCloseConfirmDialog.show(context) != true) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                }
                 try {
                   final next = beacon.isListed
                       ? BeaconLifecycle.closed

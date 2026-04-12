@@ -192,6 +192,10 @@
   "@confirmBeaconRemoval": {
     "context": "BeaconDeleteDialog"
   },
+  "confirmBeaconClose": "Вы уверены, что хотите закрыть этот маяк?",
+  "@confirmBeaconClose": {
+    "context": "BeaconCloseConfirmDialog"
+  },
   "beaconsTitle": "Маяки",
   "@beaconsTitle": {
     "context": "BeaconScreen"

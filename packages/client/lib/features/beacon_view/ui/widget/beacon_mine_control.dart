@@ -7,6 +7,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
+import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
@@ -39,7 +40,17 @@ class BeaconMineControl extends StatelessWidget {
           itemBuilder: (context) => [
             // Open / Close lifecycle
             PopupMenuItem<void>(
-              onTap: beaconViewCubit.toggleLifecycle,
+              onTap: () async {
+                await Future<void>.delayed(Duration.zero);
+                if (!context.mounted) return;
+                if (beacon.isListed) {
+                  if (await BeaconCloseConfirmDialog.show(context) != true) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                }
+                await beaconViewCubit.toggleLifecycle();
+              },
               child: Text(
                 beaconViewCubit.state.beacon.isListed
                     ? l10n.closeBeacon
