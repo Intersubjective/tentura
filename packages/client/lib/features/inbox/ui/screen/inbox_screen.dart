@@ -372,6 +372,8 @@ Widget _tabBody(
           onMoveToInbox: tabIndex == 2
               ? () => inboxCubit.unreject(item.beaconId)
               : null,
+          showCtaRow: false,
+          showProvenance: false,
         );
       },
     ),

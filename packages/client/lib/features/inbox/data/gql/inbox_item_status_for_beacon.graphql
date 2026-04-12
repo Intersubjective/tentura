@@ -1,5 +1,7 @@
 query InboxItemStatusForBeacon($beaconId: String!) {
   inbox_item(where: {beacon_id: {_eq: $beaconId}}, limit: 1) {
     status
+    inbox_provenance_data
+    latest_note_preview
   }
 }

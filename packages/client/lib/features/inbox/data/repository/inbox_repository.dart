@@ -52,8 +52,10 @@ class InboxRepository {
             .toList(),
       );
 
-  /// Current user's inbox row for this beacon, if any (`null` = no row).
-  Future<InboxItemStatus?> fetchStatusForBeacon(String beaconId) =>
+  /// Current user's inbox row for this beacon (status + forward provenance).
+  /// When there is no row, status is null and provenance is empty.
+  Future<({InboxItemStatus? status, InboxProvenance provenance, String latestNotePreview})>
+      fetchInboxContextForBeacon(String beaconId) =>
       _remoteApiService
           .request(
             GInboxItemStatusForBeaconReq(
@@ -63,8 +65,19 @@ class InboxRepository {
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then((r) {
             final rows = r.dataOrThrow(label: _label).inbox_item;
-            if (rows.isEmpty) return null;
-            return inboxItemStatusFromSmallint(rows.first.status);
+            if (rows.isEmpty) {
+              return (
+                status: null,
+                provenance: InboxProvenance.empty,
+                latestNotePreview: '',
+              );
+            }
+            final row = rows.first;
+            return (
+              status: inboxItemStatusFromSmallint(row.status),
+              provenance: InboxProvenance.parse(row.inbox_provenance_data),
+              latestNotePreview: row.latest_note_preview,
+            );
           });
 
   Future<void> setStatus({
