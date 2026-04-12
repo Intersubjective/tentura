@@ -8,7 +8,7 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
-import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/entity/inbox_provenance.dart';
@@ -169,313 +169,308 @@ class _InboxItemTileState extends State<InboxItemTile> {
 
     final statusPills = <Widget>[
       if (beacon.lifecycle != BeaconLifecycle.open)
-        _InboxStatusPill(
+        BeaconCardPill(
           label: _lifecycleLabel(l10n, beacon.lifecycle),
           backgroundColor: lifecycleBg,
           foregroundColor: lifecycleFg,
         ),
-      if (beacon.coordinationStatus != BeaconCoordinationStatus.noCommitmentsYet)
-        _InboxStatusPill(
+      if (beacon.coordinationStatus !=
+          BeaconCoordinationStatus.noCommitmentsYet)
+        BeaconCardPill(
           label: coordinationStatusLabel(l10n, beacon.coordinationStatus),
           backgroundColor: scheme.surfaceContainerHigh,
           foregroundColor: scheme.onSurfaceVariant,
         ),
     ];
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: scheme.shadow.withValues(alpha: 0.08),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
+    return BeaconCardShell(
+      color: scheme.surfaceContainerLowest,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: widget.onOpenBeacon,
+                  behavior: HitTestBehavior.translucent,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      BeaconCardHeaderRow(
+                        beacon: beacon,
+                        titleMaxLines: 2,
+                        subline: Row(
+                          children: [
+                            AvatarRated(
+                              profile: beacon.author,
+                              size: 22,
+                              withRating: false,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                beacon.author.title,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        menu: const SizedBox.shrink(),
+                      ),
+                      if (statusPills.isNotEmpty) ...[
+                        const SizedBox(height: kSpacingSmall),
+                        Wrap(
+                          spacing: kSpacingSmall,
+                          runSpacing: kSpacingSmall,
+                          children: statusPills,
+                        ),
+                      ],
+                      if (beacon.description.isNotEmpty) ...[
+                        const SizedBox(height: kSpacingSmall),
+                        Text(
+                          beacon.description,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                            height: 1.35,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: kSpacingSmall),
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: scheme.outlineVariant.withValues(
+                          alpha: 0.35,
+                        ),
+                      ),
+                      const SizedBox(height: kSpacingSmall),
+                      Wrap(
+                        spacing: kSpacingMedium,
+                        runSpacing: kSpacingSmall,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          BeaconCardMetaItem(
+                            icon: Icons.topic_outlined,
+                            child: Text(
+                              contextCategoryLabel,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          BeaconCardMetaItem(
+                            icon: Icons.groups_outlined,
+                            child: Text(
+                              l10n.inboxCommitmentsCount(
+                                beacon.commitmentCount,
+                              ),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (hoursRemaining != null)
+                            BeaconCardMetaItem(
+                              icon: Icons.timer_outlined,
+                              child: Text(
+                                hoursRemaining.text,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: hoursRemaining.urgent
+                                      ? scheme.error
+                                      : scheme.onSurfaceVariant,
+                                  fontWeight: hoursRemaining.urgent
+                                      ? FontWeight.w600
+                                      : null,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          if (beacon.images.isNotEmpty)
+                            BeaconCardMetaItem(
+                              icon: Icons.photo_library_outlined,
+                              child: Text(
+                                beacon.images.length > 99
+                                    ? '99+'
+                                    : '${beacon.images.length}',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (widget.item.status == InboxItemStatus.watching ||
+                          widget.item.isForwardedByMe) ...[
+                        const SizedBox(height: kSpacingSmall),
+                        Wrap(
+                          spacing: kSpacingSmall,
+                          runSpacing: kSpacingSmall,
+                          children: [
+                            if (widget.item.status == InboxItemStatus.watching)
+                              Chip(
+                                label: Text(l10n.inboxTabWatching),
+                                avatar: Icon(
+                                  Icons.visibility_outlined,
+                                  size: 16,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                                backgroundColor: scheme.surfaceContainerHighest,
+                                side: BorderSide(
+                                  color: scheme.outlineVariant.withValues(
+                                    alpha: 0.8,
+                                  ),
+                                ),
+                                labelStyle: theme.textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            if (widget.item.isForwardedByMe)
+                              Chip(
+                                label: Text(l10n.inboxForwardedByMe),
+                                avatar: Icon(
+                                  Icons.shortcut,
+                                  size: 16,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                                backgroundColor: scheme.surfaceContainerHighest,
+                                side: BorderSide(
+                                  color: scheme.outlineVariant.withValues(
+                                    alpha: 0.8,
+                                  ),
+                                ),
+                                labelStyle: theme.textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (widget.item.status == InboxItemStatus.rejected &&
+                          widget.item.rejectionMessage.isNotEmpty) ...[
+                        const SizedBox(height: kSpacingSmall),
+                        Text(
+                          widget.item.rejectionMessage,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (widget.onWatch != null ||
+                  widget.onStopWatching != null ||
+                  widget.onCantHelp != null ||
+                  widget.onMoveToInbox != null)
+                PopupMenuButton<String>(
+                  itemBuilder: (_) => [
+                    if (widget.onWatch != null)
+                      PopupMenuItem(
+                        value: 'watch',
+                        child: Text(l10n.actionWatch),
+                      ),
+                    if (widget.onStopWatching != null)
+                      PopupMenuItem(
+                        value: 'stop_watch',
+                        child: Text(l10n.actionStopWatching),
+                      ),
+                    if (widget.onCantHelp != null)
+                      PopupMenuItem(
+                        value: 'cant_help',
+                        child: Text(l10n.actionCantHelp),
+                      ),
+                    if (widget.onMoveToInbox != null)
+                      PopupMenuItem(
+                        value: 'move_inbox',
+                        child: Text(l10n.actionMoveToInbox),
+                      ),
+                  ],
+                  onSelected: (v) async {
+                    if (v == 'watch') widget.onWatch?.call();
+                    if (v == 'stop_watch') widget.onStopWatching?.call();
+                    if (v == 'cant_help') await widget.onCantHelp?.call();
+                    if (v == 'move_inbox') widget.onMoveToInbox?.call();
+                  },
+                  child: Icon(
+                    Icons.more_horiz,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: kPaddingAllS,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: widget.onOpenBeacon,
-                    behavior: HitTestBehavior.translucent,
+          if (hasProvenanceBody) ...[
+            const SizedBox(height: kSpacingSmall),
+            GestureDetector(
+              onTap: canExpandProvenance
+                  ? () => setState(
+                      () => _provenanceExpanded = !_provenanceExpanded,
+                    )
+                  : null,
+              behavior: HitTestBehavior.translucent,
+              child: Semantics(
+                expanded: canExpandProvenance && _provenanceExpanded,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Padding(
+                    padding: kPaddingAllS,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            BeaconIdentityTile(beacon: beacon),
-                            const SizedBox(width: kSpacingSmall),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    beacon.title,
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                          color: scheme.onSurface,
-                                        ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Row(
-                                    children: [
-                                      AvatarRated(
-                                        profile: beacon.author,
-                                        size: 22,
-                                        withRating: false,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          beacon.author.title,
-                                          style: theme.textTheme.labelSmall
-                                              ?.copyWith(
-                                            color: scheme.onSurfaceVariant,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                        if (!canExpandProvenance) ...[
+                          _ProvenanceCollapsedHeader(
+                            primaryProfile: _senderProfile(
+                              widget.item.provenance.senders.first,
                             ),
-                          ],
-                        ),
-                        if (statusPills.isNotEmpty) ...[
-                          const SizedBox(height: kSpacingSmall),
-                          Wrap(
-                            spacing: kSpacingSmall,
-                            runSpacing: kSpacingSmall,
-                            children: statusPills,
-                          ),
-                        ],
-                        if (beacon.description.isNotEmpty) ...[
-                          const SizedBox(height: kSpacingSmall),
-                          Text(
-                            beacon.description,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              height: 1.35,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        const SizedBox(height: kSpacingSmall),
-                        Divider(
-                          height: 1,
-                          thickness: 1,
-                          color: scheme.outlineVariant.withValues(
-                            alpha: 0.35,
-                          ),
-                        ),
-                        const SizedBox(height: kSpacingSmall),
-                        Wrap(
-                          spacing: kSpacingMedium,
-                          runSpacing: kSpacingSmall,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            _MetaItem(
-                              icon: Icons.topic_outlined,
-                              child: Text(
-                                contextCategoryLabel,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            _MetaItem(
-                              icon: Icons.groups_outlined,
-                              child: Text(
-                                l10n.inboxCommitmentsCount(
-                                  beacon.commitmentCount,
-                                ),
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (hoursRemaining != null)
-                              _MetaItem(
-                                icon: Icons.timer_outlined,
-                                child: Text(
-                                  hoursRemaining.text,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: hoursRemaining.urgent
-                                        ? scheme.error
-                                        : scheme.onSurfaceVariant,
-                                    fontWeight: hoursRemaining.urgent
-                                        ? FontWeight.w600
-                                        : null,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            if (beacon.images.isNotEmpty)
-                              _MetaItem(
-                                icon: Icons.photo_library_outlined,
-                                child: Text(
-                                  beacon.images.length > 99
-                                      ? '99+'
-                                      : '${beacon.images.length}',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                          ],
-                        ),
-                        if (widget.item.status == InboxItemStatus.watching ||
-                            widget.item.isForwardedByMe) ...[
-                          const SizedBox(height: kSpacingSmall),
-                          Wrap(
-                            spacing: kSpacingSmall,
-                            runSpacing: kSpacingSmall,
-                            children: [
-                              if (widget.item.status ==
-                                  InboxItemStatus.watching)
-                                Chip(
-                                  label: Text(l10n.inboxTabWatching),
-                                  avatar: Icon(
-                                    Icons.visibility_outlined,
-                                    size: 16,
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                  backgroundColor:
-                                      scheme.surfaceContainerHighest,
-                                  side: BorderSide(
-                                    color: scheme.outlineVariant.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                  ),
-                                  labelStyle:
-                                      theme.textTheme.labelSmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              if (widget.item.isForwardedByMe)
-                                Chip(
-                                  label: Text(l10n.inboxForwardedByMe),
-                                  avatar: Icon(
-                                    Icons.shortcut,
-                                    size: 16,
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                  backgroundColor:
-                                      scheme.surfaceContainerHighest,
-                                  side: BorderSide(
-                                    color: scheme.outlineVariant.withValues(
-                                      alpha: 0.8,
-                                    ),
-                                  ),
-                                  labelStyle:
-                                      theme.textTheme.labelSmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                  visualDensity: VisualDensity.compact,
+                            primaryName:
+                                widget.item.provenance.senders.first.title,
+                            restProfiles: [
+                              for (
+                                var i = 1;
+                                i < widget.item.provenance.senders.length;
+                                i++
+                              )
+                                _senderProfile(
+                                  widget.item.provenance.senders[i],
                                 ),
                             ],
+                            overflowCount: showOverflow ? overflow : 0,
+                            showExpandAction: false,
+                            onExpand: () {},
                           ),
-                        ],
-                        if (widget.item.status == InboxItemStatus.rejected &&
-                            widget.item.rejectionMessage.isNotEmpty) ...[
                           const SizedBox(height: kSpacingSmall),
-                          Text(
-                            widget.item.rejectionMessage,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
+                          _ProvenanceCollapsedQuote(
+                            text: _collapsedProvenancePreviewText(
+                              widget.item,
                             ),
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
+                            borderColor: scheme.primaryFixedDim,
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (widget.onWatch != null ||
-                    widget.onStopWatching != null ||
-                    widget.onCantHelp != null ||
-                    widget.onMoveToInbox != null)
-                  PopupMenuButton<String>(
-                    itemBuilder: (_) => [
-                      if (widget.onWatch != null)
-                        PopupMenuItem(
-                          value: 'watch',
-                          child: Text(l10n.actionWatch),
-                        ),
-                      if (widget.onStopWatching != null)
-                        PopupMenuItem(
-                          value: 'stop_watch',
-                          child: Text(l10n.actionStopWatching),
-                        ),
-                      if (widget.onCantHelp != null)
-                        PopupMenuItem(
-                          value: 'cant_help',
-                          child: Text(l10n.actionCantHelp),
-                        ),
-                      if (widget.onMoveToInbox != null)
-                        PopupMenuItem(
-                          value: 'move_inbox',
-                          child: Text(l10n.actionMoveToInbox),
-                        ),
-                    ],
-                    onSelected: (v) async {
-                      if (v == 'watch') widget.onWatch?.call();
-                      if (v == 'stop_watch') widget.onStopWatching?.call();
-                      if (v == 'cant_help') await widget.onCantHelp?.call();
-                      if (v == 'move_inbox') widget.onMoveToInbox?.call();
-                    },
-                    child: Icon(
-                      Icons.more_horiz,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-              ],
-            ),
-            if (hasProvenanceBody) ...[
-              const SizedBox(height: kSpacingSmall),
-              GestureDetector(
-                onTap: canExpandProvenance
-                    ? () => setState(
-                        () => _provenanceExpanded = !_provenanceExpanded,
-                      )
-                    : null,
-                behavior: HitTestBehavior.translucent,
-                child: Semantics(
-                  expanded: canExpandProvenance && _provenanceExpanded,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Padding(
-                      padding: kPaddingAllS,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (!canExpandProvenance) ...[
+                        ] else ...[
+                          if (!_provenanceExpanded)
                             _ProvenanceCollapsedHeader(
                               primaryProfile: _senderProfile(
                                 widget.item.provenance.senders.first,
@@ -493,71 +488,40 @@ class _InboxItemTileState extends State<InboxItemTile> {
                                   ),
                               ],
                               overflowCount: showOverflow ? overflow : 0,
-                              showExpandAction: false,
-                              onExpand: () {},
-                            ),
-                            const SizedBox(height: kSpacingSmall),
-                            _ProvenanceCollapsedQuote(
-                              text: _collapsedProvenancePreviewText(
-                                widget.item,
+                              showExpandAction: true,
+                              onExpand: () => setState(
+                                () => _provenanceExpanded = true,
                               ),
-                              borderColor: scheme.primaryFixedDim,
                             ),
-                          ] else ...[
-                            if (!_provenanceExpanded)
-                              _ProvenanceCollapsedHeader(
-                                primaryProfile: _senderProfile(
-                                  widget.item.provenance.senders.first,
-                                ),
-                                primaryName:
-                                    widget.item.provenance.senders.first.title,
-                                restProfiles: [
+                          if (_provenanceExpanded)
+                            Semantics(
+                              label: l10n.inboxProvenanceTrail,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
                                   for (
-                                    var i = 1;
+                                    var i = 0;
                                     i < widget.item.provenance.senders.length;
                                     i++
-                                  )
-                                    _senderProfile(
-                                      widget.item.provenance.senders[i],
-                                    ),
-                                ],
-                                overflowCount: showOverflow ? overflow : 0,
-                                showExpandAction: true,
-                                onExpand: () => setState(
-                                  () => _provenanceExpanded = true,
-                                ),
-                              ),
-                            if (_provenanceExpanded)
-                              Semantics(
-                                label: l10n.inboxProvenanceTrail,
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    for (
-                                      var i = 0;
-                                      i <
-                                          widget.item.provenance.senders.length;
-                                      i++
-                                    ) ...[
-                                      if (i > 0)
-                                        const SizedBox(
-                                          height: kSpacingMedium,
-                                        ),
-                                      _ProvenanceSenderBlock(
-                                        profile: _senderProfile(
-                                          widget.item.provenance.senders[i],
-                                        ),
-                                        notePreview: widget
-                                            .item
-                                            .provenance
-                                            .senders[i]
-                                            .notePreview,
-                                        borderColor: i == 0
-                                            ? scheme.primary
-                                            : scheme.outlineVariant,
-                                        titleRowTrailing: i == 0
-                                            ? TextButton(
+                                  ) ...[
+                                    if (i > 0)
+                                      const SizedBox(
+                                        height: kSpacingMedium,
+                                      ),
+                                    _ProvenanceSenderBlock(
+                                      profile: _senderProfile(
+                                        widget.item.provenance.senders[i],
+                                      ),
+                                      notePreview: widget
+                                          .item
+                                          .provenance
+                                          .senders[i]
+                                          .notePreview,
+                                      borderColor: i == 0
+                                          ? scheme.primary
+                                          : scheme.outlineVariant,
+                                      titleRowTrailing: i == 0
+                                          ? TextButton(
                                               style: TextButton.styleFrom(
                                                 padding: EdgeInsets.zero,
                                                 minimumSize: Size.zero,
@@ -567,8 +531,8 @@ class _InboxItemTileState extends State<InboxItemTile> {
                                                 foregroundColor: scheme.primary,
                                               ),
                                               onPressed: () => setState(
-                                                () => _provenanceExpanded =
-                                                    false,
+                                                () =>
+                                                    _provenanceExpanded = false,
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
@@ -602,76 +566,40 @@ class _InboxItemTileState extends State<InboxItemTile> {
                                       l10n.inboxMoreForwarders(overflow),
                                       style: theme.textTheme.labelSmall
                                           ?.copyWith(
-                                        color: scheme.onSurfaceVariant,
-                                      ),
+                                            color: scheme.onSurfaceVariant,
+                                          ),
                                     ),
                                   ],
                                 ],
                               ),
                             ),
-                            if (!_provenanceExpanded) ...[
-                              const SizedBox(height: kSpacingSmall),
-                              _ProvenanceCollapsedQuote(
-                                text: _collapsedProvenancePreviewText(
-                                  widget.item,
-                                ),
-                                borderColor: scheme.primaryFixedDim,
+                          if (!_provenanceExpanded) ...[
+                            const SizedBox(height: kSpacingSmall),
+                            _ProvenanceCollapsedQuote(
+                              text: _collapsedProvenancePreviewText(
+                                widget.item,
                               ),
-                            ],
+                              borderColor: scheme.primaryFixedDim,
+                            ),
                           ],
                         ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ],
-            const SizedBox(height: kSpacingSmall),
-            Row(
-              children: [
-                if (secondaryLabel != null) ...[
-                  Expanded(
-                    child: FilledButton.tonal(
-                      onPressed: _onSecondaryPressed,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: scheme.surfaceContainerHigh,
-                        foregroundColor: scheme.onSurfaceVariant,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            widget.onCantHelp != null
-                                ? Icons.close
-                                : widget.onStopWatching != null
-                                ? Icons.visibility_off_outlined
-                                : Icons.inbox_outlined,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              secondaryLabel,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: kSpacingSmall),
-                ],
+            ),
+          ],
+          const SizedBox(height: kSpacingSmall),
+          Row(
+            children: [
+              if (secondaryLabel != null) ...[
                 Expanded(
-                  child: FilledButton(
-                    onPressed: widget.onTap,
+                  child: FilledButton.tonal(
+                    onPressed: _onSecondaryPressed,
                     style: FilledButton.styleFrom(
-                      backgroundColor: scheme.primary,
-                      foregroundColor: scheme.onPrimary,
+                      backgroundColor: scheme.surfaceContainerHigh,
+                      foregroundColor: scheme.onSurfaceVariant,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                     child: Row(
@@ -679,59 +607,64 @@ class _InboxItemTileState extends State<InboxItemTile> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          Icons.arrow_forward,
+                          widget.onCantHelp != null
+                              ? Icons.close
+                              : widget.onStopWatching != null
+                              ? Icons.visibility_off_outlined
+                              : Icons.inbox_outlined,
                           size: 18,
-                          color: scheme.onPrimary,
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          l10n.inboxCardOpenBeacon,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: scheme.onPrimary,
+                        Flexible(
+                          child: Text(
+                            secondaryLabel,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(width: kSpacingSmall),
               ],
-            ),
-          ],
-        ),
+              Expanded(
+                child: FilledButton(
+                  onPressed: widget.onTap,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: scheme.primary,
+                    foregroundColor: scheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.arrow_forward,
+                        size: 18,
+                        color: scheme.onPrimary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        l10n.inboxCardOpenBeacon,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
-}
-
-class _InboxStatusPill extends StatelessWidget {
-  const _InboxStatusPill({
-    required this.label,
-    required this.backgroundColor,
-    required this.foregroundColor,
-  });
-
-  final String label;
-  final Color backgroundColor;
-  final Color foregroundColor;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-    decoration: BoxDecoration(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Text(
-      label.toUpperCase(),
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-        fontSize: 11,
-        letterSpacing: 0.2,
-        color: foregroundColor,
-      ),
-    ),
-  );
 }
 
 /// Collapsed provenance header: primary avatar + "Name:" | stacked rest avatars + "More".
@@ -955,29 +888,6 @@ class _ProvenanceCollapsedQuote extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _MetaItem extends StatelessWidget {
-  const _MetaItem({
-    required this.icon,
-    required this.child,
-  });
-
-  final IconData icon;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: scheme.onSurfaceVariant),
-        const SizedBox(width: 4),
-        child,
-      ],
     );
   }
 }

@@ -7,11 +7,10 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_photo_count.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
@@ -31,6 +30,40 @@ String _truncate(String s, int max) {
 String _updatedWhenText(L10n l10n, Beacon b) {
   final when = dateFormatYMD(b.updatedAt);
   return l10n.myWorkUpdatedLine(when);
+}
+
+Widget _myWorkSublineText(BuildContext context, String text) {
+  final theme = Theme.of(context);
+  return Text(
+    text,
+    style: theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    ),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+  );
+}
+
+/// Same deadline-remaining logic as the inbox tile (hours-based meta).
+({String text, bool urgent})? _hoursRemainingMeta(L10n l10n, DateTime? endAt) {
+  if (endAt == null) return null;
+  final now = DateTime.now();
+  if (!endAt.isAfter(now)) {
+    return (text: l10n.inboxDeadlineEnded, urgent: true);
+  }
+  final d = endAt.difference(now);
+  final h = d.inHours;
+  if (h < 1) {
+    return (text: l10n.inboxDeadlineLessThanHour, urgent: true);
+  }
+  final urgent = h < 24;
+  return (text: l10n.inboxDeadlineHoursRemaining(h), urgent: urgent);
+}
+
+/// Beacon context for the stats row first column (matches inbox category column).
+String _beaconCategoryLabel(Beacon b, L10n l10n) {
+  final c = b.context.trim();
+  return c.isEmpty ? l10n.inboxCategoryGeneral : c;
 }
 
 class MyWorkCardRouter extends StatelessWidget {
@@ -60,101 +93,6 @@ void _openEditDraft(BuildContext context, String id) {
   );
 }
 
-class _WorkCardShell extends StatelessWidget {
-  const _WorkCardShell({
-    required this.onCardTap,
-    required this.child,
-    this.muted = false,
-  });
-
-  final bool muted;
-  final VoidCallback onCardTap;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bg = muted
-        ? scheme.surfaceContainerHighest.withValues(alpha: 0.45)
-        : scheme.surfaceContainer;
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(8),
-      elevation: muted ? 0 : 0.5,
-      shadowColor: scheme.shadow.withValues(alpha: 0.12),
-      child: InkWell(
-        onTap: onCardTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: kPaddingAllS,
-          child: child,
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkCardPill extends StatelessWidget {
-  const _WorkCardPill({
-    required this.label,
-    this.emphasized = false,
-  });
-
-  final String label;
-  final bool emphasized;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final bg = emphasized ? scheme.primaryContainer : scheme.surfaceContainerHigh;
-    final fg = emphasized ? scheme.onPrimaryContainer : scheme.onSurfaceVariant;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-              letterSpacing: 0.2,
-              color: fg,
-            ),
-      ),
-    );
-  }
-}
-
-class _ContextMeta extends StatelessWidget {
-  const _ContextMeta({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Row(
-      children: [
-        Icon(Icons.topic_outlined, size: 14, color: scheme.outline),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _AuthoredActiveCard extends StatelessWidget {
   const _AuthoredActiveCard({required this.vm});
 
@@ -164,31 +102,26 @@ class _AuthoredActiveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final b = vm.beacon;
 
     String? attentionLabel(MyWorkAttentionChip c) => switch (c) {
-          MyWorkAttentionChip.reviewPending => l10n.myWorkChipReviewPending,
-          MyWorkAttentionChip.reviewWindowOpen =>
-            l10n.myWorkChipReviewWindowOpen,
-          MyWorkAttentionChip.moreHelpNeeded => l10n.myWorkChipMoreHelp,
-        };
+      MyWorkAttentionChip.reviewPending => l10n.myWorkChipReviewPending,
+      MyWorkAttentionChip.reviewWindowOpen => l10n.myWorkChipReviewWindowOpen,
+      MyWorkAttentionChip.moreHelpNeeded => l10n.myWorkChipMoreHelp,
+    };
 
-    final stripParts = <String>[
-      l10n.myWorkCommitmentsShort(b.commitmentCount),
-    ];
-    if (b.coordinationStatus != BeaconCoordinationStatus.noCommitmentsYet) {
-      stripParts.add(coordinationStatusLabel(l10n, b.coordinationStatus));
-    }
-    final strip = stripParts.join(' · ');
+    final categoryLabel = _beaconCategoryLabel(b, l10n);
+    final hoursRemaining = _hoursRemainingMeta(l10n, b.endAt);
 
-    return _WorkCardShell(
-      onCardTap: () => _openBeacon(context, b.id),
+    return BeaconCardShell(
+      onTap: () => _openBeacon(context, b.id),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CardHeaderRow(
+          BeaconCardHeaderRow(
             beacon: b,
-            subline: l10n.myWorkYouAuthor,
+            subline: _myWorkSublineText(context, l10n.myWorkYouAuthor),
             menu: _AuthoredOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -196,33 +129,77 @@ class _AuthoredActiveCard extends StatelessWidget {
             spacing: kSpacingSmall,
             runSpacing: kSpacingSmall,
             children: [
-              _WorkCardPill(label: l10n.myWorkChipAuthor),
+              BeaconCardPill(label: l10n.myWorkChipAuthor),
               if (vm.attentionChip != null)
-                _WorkCardPill(
+                BeaconCardPill(
                   label: attentionLabel(vm.attentionChip!)!,
                   emphasized: true,
                 ),
             ],
           ),
-          if (b.context.trim().isNotEmpty) ...[
-            const SizedBox(height: kSpacingSmall),
-            _ContextMeta(label: b.context.trim()),
-          ],
           const SizedBox(height: kSpacingSmall),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: kSpacingSmall),
+          Wrap(
+            spacing: kSpacingMedium,
+            runSpacing: kSpacingSmall,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Icon(Icons.insights_outlined, size: 16, color: theme.colorScheme.outline),
-              const SizedBox(width: 6),
-              Expanded(
+              BeaconCardMetaItem(
+                icon: Icons.topic_outlined,
                 child: Text(
-                  strip,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  categoryLabel,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
+              BeaconCardMetaItem(
+                icon: Icons.groups_outlined,
+                child: Text(
+                  l10n.inboxCommitmentsCount(b.commitmentCount),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (hoursRemaining != null)
+                BeaconCardMetaItem(
+                  icon: Icons.timer_outlined,
+                  child: Text(
+                    hoursRemaining.text,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: hoursRemaining.urgent
+                          ? scheme.error
+                          : scheme.onSurfaceVariant,
+                      fontWeight: hoursRemaining.urgent
+                          ? FontWeight.w600
+                          : null,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              if (b.images.isNotEmpty)
+                BeaconCardMetaItem(
+                  icon: Icons.photo_library_outlined,
+                  child: Text(
+                    b.images.length > 99 ? '99+' : '${b.images.length}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: kSpacingSmall),
@@ -299,20 +276,23 @@ class _CommittedActiveCard extends StatelessWidget {
     final responseText = vm.authorResponseType == null
         ? l10n.myWorkNoAuthorResponse
         : (coordinationResponseLabel(l10n, vm.authorResponseType) ??
-            l10n.myWorkNoAuthorResponse);
+              l10n.myWorkNoAuthorResponse);
 
     final note = vm.commitMessage.isEmpty
         ? '—'
         : _truncate(vm.commitMessage, 120);
 
-    return _WorkCardShell(
-      onCardTap: () => _openBeacon(context, b.id),
+    return BeaconCardShell(
+      onTap: () => _openBeacon(context, b.id),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CardHeaderRow(
+          BeaconCardHeaderRow(
             beacon: b,
-            subline: b.author.title.isEmpty ? '—' : b.author.title,
+            subline: _myWorkSublineText(
+              context,
+              b.author.title.isEmpty ? '—' : b.author.title,
+            ),
             menu: _CommittedOverflowMenu(beaconId: b.id),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -320,9 +300,9 @@ class _CommittedActiveCard extends StatelessWidget {
             spacing: kSpacingSmall,
             runSpacing: kSpacingSmall,
             children: [
-              _WorkCardPill(label: l10n.myWorkChipCommitted),
+              BeaconCardPill(label: l10n.myWorkChipCommitted),
               if (vm.showReadyForReviewChip)
-                _WorkCardPill(
+                BeaconCardPill(
                   label: l10n.myWorkChipReadyForReview,
                   emphasized: true,
                 ),
@@ -330,7 +310,20 @@ class _CommittedActiveCard extends StatelessWidget {
           ),
           if (b.context.trim().isNotEmpty) ...[
             const SizedBox(height: kSpacingSmall),
-            _ContextMeta(label: b.context.trim()),
+            BeaconCardMetaItem(
+              icon: Icons.topic_outlined,
+              mainAxisSize: MainAxisSize.max,
+              child: Expanded(
+                child: Text(
+                  b.context.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
           ],
           const SizedBox(height: kSpacingSmall),
           Container(
@@ -366,7 +359,8 @@ class _CommittedActiveCard extends StatelessWidget {
             children: [
               if (vm.forwarderSenders.isNotEmpty)
                 CompactForwarderAvatars(profiles: vm.forwarderSenders),
-              if (vm.forwarderSenders.isNotEmpty) const SizedBox(width: kSpacingSmall),
+              if (vm.forwarderSenders.isNotEmpty)
+                const SizedBox(width: kSpacingSmall),
               Expanded(
                 child: Text(
                   _updatedWhenText(l10n, b),
@@ -402,28 +396,41 @@ class _DraftAuthoredCard extends StatelessWidget {
     final theme = Theme.of(context);
     final b = vm.beacon;
 
-    return _WorkCardShell(
+    return BeaconCardShell(
       muted: true,
-      onCardTap: () => _openEditDraft(context, b.id),
+      onTap: () => _openEditDraft(context, b.id),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CardHeaderRow(
+          BeaconCardHeaderRow(
             beacon: b,
-            subline: l10n.myWorkYouAuthor,
+            subline: _myWorkSublineText(context, l10n.myWorkYouAuthor),
             menu: _DraftOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
           Wrap(
             spacing: kSpacingSmall,
             children: [
-              _WorkCardPill(label: l10n.myWorkChipAuthor),
-              _WorkCardPill(label: l10n.myWorkChipDraft),
+              BeaconCardPill(label: l10n.myWorkChipAuthor),
+              BeaconCardPill(label: l10n.myWorkChipDraft),
             ],
           ),
           if (b.context.trim().isNotEmpty) ...[
             const SizedBox(height: kSpacingSmall),
-            _ContextMeta(label: b.context.trim()),
+            BeaconCardMetaItem(
+              icon: Icons.topic_outlined,
+              mainAxisSize: MainAxisSize.max,
+              child: Expanded(
+                child: Text(
+                  b.context.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
           ],
           const SizedBox(height: kSpacingSmall),
           Text(
@@ -467,23 +474,23 @@ class _ClosedAuthoredCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final b = vm.beacon;
-    return _WorkCardShell(
+    return BeaconCardShell(
       muted: true,
-      onCardTap: () => _openBeacon(context, b.id),
+      onTap: () => _openBeacon(context, b.id),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CardHeaderRow(
+          BeaconCardHeaderRow(
             beacon: b,
-            subline: l10n.myWorkYouAuthor,
+            subline: _myWorkSublineText(context, l10n.myWorkYouAuthor),
             menu: _AuthoredOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
           Wrap(
             spacing: kSpacingSmall,
             children: [
-              _WorkCardPill(label: l10n.myWorkChipAuthor),
-              _WorkCardPill(label: l10n.beaconLifecycleClosed),
+              BeaconCardPill(label: l10n.myWorkChipAuthor),
+              BeaconCardPill(label: l10n.beaconLifecycleClosed),
             ],
           ),
           const SizedBox(height: kSpacingSmall),
@@ -526,23 +533,26 @@ class _ClosedCommittedCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final b = vm.beacon;
-    return _WorkCardShell(
+    return BeaconCardShell(
       muted: true,
-      onCardTap: () => _openBeacon(context, b.id),
+      onTap: () => _openBeacon(context, b.id),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CardHeaderRow(
+          BeaconCardHeaderRow(
             beacon: b,
-            subline: b.author.title.isEmpty ? '—' : b.author.title,
+            subline: _myWorkSublineText(
+              context,
+              b.author.title.isEmpty ? '—' : b.author.title,
+            ),
             menu: _CommittedOverflowMenu(beaconId: b.id),
           ),
           const SizedBox(height: kSpacingSmall),
           Wrap(
             spacing: kSpacingSmall,
             children: [
-              _WorkCardPill(label: l10n.myWorkChipCommitted),
-              _WorkCardPill(label: l10n.beaconLifecycleClosed),
+              BeaconCardPill(label: l10n.myWorkChipCommitted),
+              BeaconCardPill(label: l10n.beaconLifecycleClosed),
             ],
           ),
           const SizedBox(height: kSpacingSmall),
@@ -575,56 +585,6 @@ class _ClosedCommittedCard extends StatelessWidget {
   }
 }
 
-class _CardHeaderRow extends StatelessWidget {
-  const _CardHeaderRow({
-    required this.beacon,
-    required this.subline,
-    required this.menu,
-  });
-
-  final Beacon beacon;
-  final String subline;
-  final Widget menu;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        BeaconIdentityTile(beacon: beacon),
-        const SizedBox(width: kSpacingSmall),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                beacon.title.isEmpty ? '—' : beacon.title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subline,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        menu,
-      ],
-    );
-  }
-}
-
 class _AuthoredOverflowMenu extends StatelessWidget {
   const _AuthoredOverflowMenu({required this.beacon});
 
@@ -650,8 +610,9 @@ class _AuthoredOverflowMenu extends StatelessWidget {
               if (!context.mounted) return;
             }
             try {
-              final next =
-                  beacon.isListed ? BeaconLifecycle.closed : BeaconLifecycle.open;
+              final next = beacon.isListed
+                  ? BeaconLifecycle.closed
+                  : BeaconLifecycle.open;
               if (next == BeaconLifecycle.closed &&
                   beacon.lifecycle == BeaconLifecycle.open) {
                 await evaluationRepo.beaconCloseWithReview(beacon.id);
