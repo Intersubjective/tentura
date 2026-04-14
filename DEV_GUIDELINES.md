@@ -190,3 +190,17 @@ invalidation event per entity ID.
   (`packages/client/lib/data/service/invalidation_service.dart`).
 - Do **not** put refetch logic in repositories; repositories emit signals,
   cubits own the fetch lifecycle.
+
+## Flutter web: conditional imports (JS and wasm)
+
+Do **not** gate web-only implementations with `if (dart.library.html)` in
+conditional imports. On **Flutter web compiled to wasm**, `dart.library.html`
+can be **false** while the app still runs in the browser; the compiler then
+links the **default/stub** file instead of your web implementation. If that
+stub throws (or no-ops), errors are easy to misread as “server ignored the
+upload” or “crop did nothing.”
+
+**Do this instead:** use `if (dart.library.js_interop)` for browser interop
+code paths, and implement them with `dart:js_interop` + `package:web` (not
+`dart:html`). Example: `packages/client/lib/data/repository/image_repository.dart`
+and `read_blob_url_web.dart` / `read_blob_url_stub.dart`.

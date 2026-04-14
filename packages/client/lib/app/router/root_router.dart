@@ -140,10 +140,11 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
-    // Profile Edit
+    // Profile Edit — do not set maintainState: false: gallery + image_cropper
+    // push routes while this screen is covered; that disposed BlocProvider and
+    // closed ProfileEditCubit before pickAndCropImage completed (emit after close).
     AutoRoute(
       keepHistory: false,
-      maintainState: false,
       fullscreenDialog: true,
       page: ProfileEditRoute.page,
       path: kPathProfileEdit,
