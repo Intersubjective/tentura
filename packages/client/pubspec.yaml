@@ -131,3 +131,9 @@ sentry:
   upload_sources: true
   ignore_missing: true
   project: tentura
+
+# Cropper.js getData ignores image scaleX used by the stock web slider; map
+# slider to zoomTo instead (patched package under packages/image_cropper_for_web).
+dependency_overrides:
+  image_cropper_for_web:
+    path: ../image_cropper_for_web

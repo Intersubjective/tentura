@@ -44,7 +44,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
   Future<void> pickImage(List<PlatformUiSettings> cropUiSettings) async {
     try {
       final image = await _imageRepository.pickAndCropImage(cropUiSettings);
-      if (image != null) {
+      if (image != null && !isClosed) {
         emit(
           state.copyWith(
             image: image,
@@ -54,7 +54,9 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         );
       }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      if (!isClosed) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
     }
   }
 
@@ -70,7 +72,9 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
 
   //
   Future<void> save() async {
-    emit(state.copyWith(status: StateStatus.isLoading));
+    if (!isClosed) {
+      emit(state.copyWith(status: StateStatus.isLoading));
+    }
     try {
       await _profileRepository.update(
         state.original,
@@ -79,9 +83,13 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         dropImage: state.willDropImage,
         image: state.image,
       );
-      emit(state.copyWith(status: StateIsNavigating.back));
+      if (!isClosed) {
+        emit(state.copyWith(status: StateIsNavigating.back));
+      }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      if (!isClosed) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
     }
   }
 }

@@ -78,8 +78,9 @@ class ProfileEditScreen extends StatelessWidget
               // [secondaryContainer] on filled tonal buttons — icons would be
               // invisible without an explicit on-container foreground.
               final overlayIconStyle = IconButton.styleFrom(
-                foregroundColor:
-                    Theme.of(context).colorScheme.onSecondaryContainer,
+                foregroundColor: Theme.of(
+                  context,
+                ).colorScheme.onSecondaryContainer,
                 iconSize: 24,
               );
               return Stack(
@@ -210,8 +211,7 @@ class ProfileEditScreen extends StatelessWidget
 int _avatarCropperWebSide(BuildContext context) {
   final mq = MediaQuery.sizeOf(context);
   const padding = 24.0;
-  final topChrome =
-      MediaQuery.paddingOf(context).top + kToolbarHeight;
+  final topChrome = MediaQuery.paddingOf(context).top + kToolbarHeight;
   const bottomChrome = 140.0;
   final bottom = MediaQuery.paddingOf(context).bottom + bottomChrome;
   final maxByHeight = (mq.height - topChrome - bottom).floor();

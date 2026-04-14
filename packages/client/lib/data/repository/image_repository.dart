@@ -8,7 +8,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 
+import 'read_blob_url_stub.dart'
+    if (dart.library.js_interop) 'read_blob_url_web.dart';
+
 export 'package:image_picker/image_picker.dart' show XFile;
+
+/// Output name for cropped avatar bytes (always JPEG from ImageCropper).
+const _kCroppedAvatarFileName = 'avatar_crop.jpg';
 
 @injectable
 class ImageRepository {
@@ -25,13 +31,14 @@ class ImageRepository {
   }
 
   /// Gallery pick, then native/web crop UI (1:1, circular guide on mobile).
+  ///
+  /// Picker does not downscale first: the cropper must see full pixels so the
+  /// exported region matches the user's crop. Output is capped via
+  /// [ImageCropper] `maxWidth` / `maxHeight`.
   Future<ImageEntity?> pickAndCropImage(
     List<PlatformUiSettings> cropUiSettings,
   ) async {
-    final maxDimension = kImageMaxDimension.toDouble();
     final xFile = await _imagePicker.pickImage(
-      maxHeight: maxDimension,
-      maxWidth: maxDimension,
       source: ImageSource.gallery,
     );
     if (xFile == null) return null;
@@ -66,8 +73,16 @@ class ImageRepository {
   }
 
   Future<ImageEntity> _croppedFileToEntity(CroppedFile croppedFile) async {
-    final fileName = croppedFile.path.split(RegExp(r'[/\\]')).last;
-    return _entityFromBytes(await croppedFile.readAsBytes(), fileName);
+    final path = croppedFile.path;
+    final Uint8List raw;
+    // Web: CroppedFile uses http.readBytes(blob:) which can return wrong data;
+    // read the canvas blob with fetch instead (read_blob_url_web.dart).
+    if (path.startsWith('blob:')) {
+      raw = await readBlobUrlBytes(path);
+    } else {
+      raw = await croppedFile.readAsBytes();
+    }
+    return _entityFromBytes(raw, _kCroppedAvatarFileName);
   }
 
   Future<ImageEntity> _entityFromBytes(
