@@ -4171,6 +4171,9 @@ type query_root {
   ): [invitation!]!
   invitationById(id: String!): v2_Invitation
 
+  """V2: mutual friends (MeritRank intersection) for viewer and [id]."""
+  mutualFriends(id: String!): [user!]!
+
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation
 

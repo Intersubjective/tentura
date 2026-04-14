@@ -610,6 +610,14 @@
   "@showBeacons": {
     "context": "Profile"
   },
+  "showMutualFriends": "Show mutual friends",
+  "@showMutualFriends": {
+    "context": "Profile"
+  },
+  "noMutualFriends": "No mutual friends",
+  "@noMutualFriends": {
+    "context": "Profile"
+  },
   "newBeacon": "New Beacon",
   "@newBeacon": {
     "context": "Profile"

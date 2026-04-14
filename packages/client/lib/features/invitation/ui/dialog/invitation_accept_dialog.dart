@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/features/profile_view/ui/widget/mutual_friends_button.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 
 class InvitationAcceptDialog extends StatelessWidget {
@@ -24,7 +25,6 @@ class InvitationAcceptDialog extends StatelessWidget {
       title: Text(l10n.confirmFriendAccept),
       content: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           AvatarRated(
             profile: profile,
@@ -37,6 +37,8 @@ class InvitationAcceptDialog extends StatelessWidget {
             style: theme.textTheme.titleMedium,
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: kSpacingSmall),
+          MutualFriendsButton(userId: profile.id),
         ],
       ),
       actions: [

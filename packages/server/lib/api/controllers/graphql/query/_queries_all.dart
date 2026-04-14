@@ -4,6 +4,7 @@ import 'query_beacon_involvement.dart';
 import 'query_coordination.dart';
 import 'query_evaluation.dart';
 import 'query_invitation.dart';
+import 'query_mutual_friends.dart';
 import 'query_version.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
@@ -11,5 +12,6 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryBeaconInvolvement().all,
   ...QueryCoordination().all,
   ...QueryEvaluation().all,
+  ...QueryMutualFriends().all,
   queryVersion,
 ];
