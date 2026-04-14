@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -41,6 +45,11 @@ class ProfileEditScreen extends StatelessWidget
     final l10n = L10n.of(context)!;
     final textTheme = Theme.of(context).textTheme;
     final cubit = context.read<ProfileEditCubit>();
+    final cropUiSettings = _avatarCropUiSettings(context, l10n);
+    void pickAvatar() {
+      unawaited(cubit.pickImage(cropUiSettings));
+    }
+
     return Scaffold(
       // Header
       appBar: AppBar(
@@ -65,6 +74,14 @@ class ProfileEditScreen extends StatelessWidget
             buildWhen: (p, c) =>
                 p.image != c.image || p.willDropImage != c.willDropImage,
             builder: (_, state) {
+              // Global [iconTheme] uses [ColorScheme.primary], same as
+              // [secondaryContainer] on filled tonal buttons — icons would be
+              // invisible without an explicit on-container foreground.
+              final overlayIconStyle = IconButton.styleFrom(
+                foregroundColor:
+                    Theme.of(context).colorScheme.onSecondaryContainer,
+                iconSize: 24,
+              );
               return Stack(
                 children: [
                   if (state.hasNoImage && state.canDropImage)
@@ -92,17 +109,38 @@ class ProfileEditScreen extends StatelessWidget
                     bottom: 0,
                     right: 0,
                     child: state.canDropImage
-                        // Remove Picture Button
-                        ? IconButton.filledTonal(
-                            iconSize: AvatarRated.sizeSmall,
-                            icon: const Icon(Icons.highlight_remove_outlined),
-                            onPressed: cubit.clearImage,
-                          )
-                        // Upload Picture Button
+                        ? state.hasNoImage
+                              // Current server avatar: change + remove
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton.filledTonal(
+                                      style: overlayIconStyle,
+                                      icon: const Icon(
+                                        Icons.highlight_remove_outlined,
+                                      ),
+                                      onPressed: cubit.clearImage,
+                                    ),
+                                    IconButton.filledTonal(
+                                      style: overlayIconStyle,
+                                      icon: const Icon(Icons.edit_outlined),
+                                      onPressed: pickAvatar,
+                                    ),
+                                  ],
+                                )
+                              // New pick in memory: remove draft only
+                              : IconButton.filledTonal(
+                                  style: overlayIconStyle,
+                                  icon: const Icon(
+                                    Icons.highlight_remove_outlined,
+                                  ),
+                                  onPressed: cubit.clearImage,
+                                )
+                        // No avatar yet: pick first picture
                         : IconButton.filledTonal(
-                            iconSize: AvatarRated.sizeSmall,
+                            style: overlayIconStyle,
                             icon: const Icon(Icons.add_a_photo_outlined),
-                            onPressed: cubit.pickImage,
+                            onPressed: pickAvatar,
                           ),
                   ),
                 ],
@@ -166,4 +204,54 @@ class ProfileEditScreen extends StatelessWidget
       ),
     );
   }
+}
+
+/// Web cropper area: fits viewport so the default dialog layout does not overflow.
+int _avatarCropperWebSide(BuildContext context) {
+  final mq = MediaQuery.sizeOf(context);
+  const padding = 24.0;
+  final topChrome =
+      MediaQuery.paddingOf(context).top + kToolbarHeight;
+  const bottomChrome = 140.0;
+  final bottom = MediaQuery.paddingOf(context).bottom + bottomChrome;
+  final maxByHeight = (mq.height - topChrome - bottom).floor();
+  final maxByWidth = (mq.width - 2 * padding).floor();
+  return min(maxByHeight, maxByWidth).clamp(200, 500);
+}
+
+List<PlatformUiSettings> _avatarCropUiSettings(
+  BuildContext context,
+  L10n l10n,
+) {
+  final webSide = _avatarCropperWebSide(context);
+  return [
+    AndroidUiSettings(
+      toolbarTitle: l10n.titleCropAvatar,
+      cropStyle: CropStyle.circle,
+      lockAspectRatio: true,
+      initAspectRatio: CropAspectRatioPreset.square,
+      aspectRatioPresets: const [CropAspectRatioPreset.square],
+    ),
+    IOSUiSettings(
+      title: l10n.titleCropAvatar,
+      cropStyle: CropStyle.circle,
+      aspectRatioLockEnabled: true,
+      aspectRatioPickerButtonHidden: true,
+      resetAspectRatioEnabled: false,
+      aspectRatioPresets: const [CropAspectRatioPreset.square],
+    ),
+    WebUiSettings(
+      context: context,
+      presentStyle: WebPresentStyle.page,
+      size: CropperSize(width: webSide, height: webSide),
+      viewwMode: WebViewMode.mode_1,
+      translations: WebTranslations(
+        title: l10n.titleCropAvatar,
+        rotateLeftTooltip: l10n.cropRotateLeftTooltip,
+        rotateRightTooltip: l10n.cropRotateRightTooltip,
+        cancelButton: l10n.buttonCancel,
+        cropButton: l10n.buttonCrop,
+      ),
+    ),
+  ];
 }

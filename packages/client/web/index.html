@@ -16,6 +16,17 @@
 
   <title>Tentura</title>
 
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+
+  <!-- Circular crop preview for avatar (1:1 aspect ratio set from Flutter). -->
+  <style>
+    .cropper-view-box,
+    .cropper-face {
+      border-radius: 50%;
+    }
+  </style>
+
   <style id="splash-screen-style">
     html {
       height: 100%

@@ -1,4 +1,5 @@
 import 'package:get_it/get_it.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -40,9 +41,9 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
   void setDescription(String value) => emit(state.copyWith(description: value));
 
   //
-  Future<void> pickImage() async {
+  Future<void> pickImage(List<PlatformUiSettings> cropUiSettings) async {
     try {
-      final image = await _imageRepository.pickImage();
+      final image = await _imageRepository.pickAndCropImage(cropUiSettings);
       if (image != null) {
         emit(
           state.copyWith(
