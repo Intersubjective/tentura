@@ -191,6 +191,42 @@ invalidation event per entity ID.
 - Do **not** put refetch logic in repositories; repositories emit signals,
   cubits own the fetch lifecycle.
 
+## Client version gate (`MIN_CLIENT_VERSION`)
+
+The server announces the minimum acceptable client semver in every WS pong frame:
+
+```json
+{"type": "pong", "min_client_version": "1.17.0"}
+```
+
+The client (`AppUpdateCubit`) compares this against its own version (`PackageInfo.version`) and shows a non-blocking `MaterialBanner` when it is older. Web shows a **Refresh** button; native shows a **Dismiss** button.
+
+### When to update `MIN_CLIENT_VERSION`
+
+| Client bump | Update `MIN_CLIENT_VERSION`? |
+|---|---|
+| **Major** (`X.y.z`) | **Always** — breaking API/behaviour change |
+| **Minor** (`x.Y.z`) | Only when the old client cannot work with the new server (removed endpoint, new required WS field, etc.) |
+| **Patch** (`x.y.Z`) | Rarely — only if the old client is broken against the new server |
+
+Default is `0.0.0`, which disables the check (any client is accepted).
+
+### Where to set it
+
+| Environment | Location |
+|---|---|
+| Local dev | `.env` (read by `scripts/run-server-local.sh`) |
+| Production | VPS `.env` + `compose.prod.yaml` passes it through `- MIN_CLIENT_VERSION` |
+| CI / GitHub | GitHub Environment variable `MIN_CLIENT_VERSION` in the `dev` environment |
+
+### Relevant files
+
+- **Server env:** `packages/server/lib/env.dart` — `minClientVersion` field
+- **WS pong:** `packages/server/lib/api/controllers/websocket/session/websocket_session_handler_base.dart` — `onPing`
+- **Client stream:** `packages/client/lib/data/service/remote_api_client/remote_api_client_ws.dart` — `minClientVersionStream`
+- **Cubit:** `packages/client/lib/ui/bloc/app_update_cubit.dart` — `AppUpdateCubit`
+- **Banner:** `packages/client/lib/app/app.dart` — `BlocListener<AppUpdateCubit, …>`
+
 ## Flutter web: conditional imports (JS and wasm)
 
 Do **not** gate web-only implementations with `if (dart.library.html)` in

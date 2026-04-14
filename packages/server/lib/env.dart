@@ -31,6 +31,7 @@ class Env {
     String? bindAddress,
     int? listenWebPort,
     bool? isPongEnabled,
+    String? minClientVersion,
 
     // Postgres
     String? pgHost,
@@ -104,6 +105,8 @@ class Env {
        listenWebPort =
            listenWebPort ?? int.tryParse(_env['PORT'] ?? '') ?? 2080,
        isPongEnabled = isPongEnabled ?? _env['PONG_ENABLED'] != 'false',
+       minClientVersion =
+           minClientVersion ?? _env['MIN_CLIENT_VERSION'] ?? '0.0.0',
 
        // Postgres
        pgHost = pgHost ?? _env['POSTGRES_HOST'] ?? 'postgres',
@@ -232,6 +235,9 @@ class Env {
   final int listenWebPort;
 
   final bool isPongEnabled;
+
+  /// Minimum Tentura client semver required; `0.0.0` disables the check.
+  final String minClientVersion;
 
   // Task Worker
   final Duration taskOnEmptyDelay;

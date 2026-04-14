@@ -131,6 +131,7 @@ services:
       - S3_BUCKET
       - S3_PATH_STYLE
       - S3_USE_SSL
+      - MIN_CLIENT_VERSION
 
 volumes:
   caddy_data:

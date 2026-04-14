@@ -7,8 +7,10 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/ui/bloc/app_update_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/app_reload.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/theme.dart';
 
@@ -50,82 +52,125 @@ class App extends StatelessWidget {
   const App({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      BlocSelector<SettingsCubit, SettingsState, ThemeMode>(
-        bloc: GetIt.I<SettingsCubit>(),
-        selector: (state) => state.themeMode,
-        builder: (_, themeMode) {
-          final router = GetIt.I<RootRouter>();
-          return MaterialApp.router(
-            title: kAppTitle,
-            themeMode: themeMode,
-            scaffoldMessengerKey: snackbarKey,
-            debugShowCheckedModeBanner: false,
-            theme: createAppTheme(colorSchemeLight),
-            darkTheme: createAppTheme(colorSchemeDark),
-            routerConfig: router.config(
-              deepLinkBuilder: router.deepLinkBuilder,
-              deepLinkTransformer: router.deepLinkTransformer,
-              reevaluateListenable: router.reevaluateListenable,
-              navigatorObservers: () => [
-                GetIt.I<SentryNavigatorObserver>(),
-              ],
+  Widget build(
+    BuildContext context,
+  ) => BlocSelector<SettingsCubit, SettingsState, ThemeMode>(
+    bloc: GetIt.I<SettingsCubit>(),
+    selector: (state) => state.themeMode,
+    builder: (_, themeMode) {
+      final router = GetIt.I<RootRouter>();
+      return MaterialApp.router(
+        title: kAppTitle,
+        themeMode: themeMode,
+        scaffoldMessengerKey: snackbarKey,
+        debugShowCheckedModeBanner: false,
+        theme: createAppTheme(colorSchemeLight),
+        darkTheme: createAppTheme(colorSchemeDark),
+        routerConfig: router.config(
+          deepLinkBuilder: router.deepLinkBuilder,
+          deepLinkTransformer: router.deepLinkTransformer,
+          reevaluateListenable: router.reevaluateListenable,
+          navigatorObservers: () => [
+            GetIt.I<SentryNavigatorObserver>(),
+          ],
+        ),
+        supportedLocales: L10n.supportedLocales,
+        localizationsDelegates: L10n.localizationsDelegates,
+        onGenerateTitle: (context) => L10n.of(context)?.appTitle ?? kAppTitle,
+        builder: (context, child) {
+          if (child == null) {
+            return const SizedBox();
+          }
+          final media = MediaQuery.of(context);
+          return MediaQuery(
+            data: media.copyWith(
+              textScaler: TextScaler.noScaling,
             ),
-            supportedLocales: L10n.supportedLocales,
-            localizationsDelegates: L10n.localizationsDelegates,
-            onGenerateTitle: (context) =>
-                L10n.of(context)?.appTitle ?? kAppTitle,
-            builder: (context, child) {
-              if (child == null) {
-                return const SizedBox();
-              }
-              final media = MediaQuery.of(context);
-              return MediaQuery(
-                data: media.copyWith(
-                  textScaler: TextScaler.noScaling,
+            child: MultiBlocProvider(
+              providers: [
+                BlocProvider.value(
+                  value: GetIt.I<ScreenCubit>(),
                 ),
-                child: MultiBlocProvider(
-                  providers: [
-                    BlocProvider.value(
-                      value: GetIt.I<ScreenCubit>(),
-                    ),
-                    BlocProvider.value(
-                      value: GetIt.I<SettingsCubit>(),
-                    ),
-                    BlocProvider.value(
-                      value: GetIt.I<AuthCubit>(),
-                    ),
-                  ],
-                  child: MultiBlocListener(
-                    listeners: [
-                      BlocListener<ScreenCubit, ScreenState>(
-                        listener: (context, state) => commonScreenBlocListener(
-                          context,
-                          state,
-                          listenNavigatingState: false,
-                        ),
-                      ),
-                      const BlocListener<SettingsCubit, SettingsState>(
-                        listener: commonScreenBlocListener,
-                      ),
-                      const BlocListener<AuthCubit, AuthState>(
-                        listener: commonScreenBlocListener,
-                      ),
-                    ],
-                    child: kIsWeb
-                        ? _webPhoneFrame(
-                            context,
-                            media,
-                            child,
-                          )
-                        : child,
+                BlocProvider.value(
+                  value: GetIt.I<SettingsCubit>(),
+                ),
+                BlocProvider.value(
+                  value: GetIt.I<AuthCubit>(),
+                ),
+                BlocProvider.value(
+                  value: GetIt.I<AppUpdateCubit>(),
+                ),
+              ],
+              child: MultiBlocListener(
+                listeners: [
+                  BlocListener<AppUpdateCubit, AppUpdateState>(
+                    listenWhen: (previous, current) =>
+                        previous.updateAvailable != current.updateAvailable ||
+                        previous.dismissed != current.dismissed,
+                    listener: (context, state) {
+                      final messenger = ScaffoldMessenger.maybeOf(context);
+                      if (messenger == null) {
+                        return;
+                      }
+                      if (!state.updateAvailable || state.dismissed) {
+                        messenger.clearMaterialBanners();
+                        return;
+                      }
+                      messenger
+                        ..clearMaterialBanners()
+                        ..showMaterialBanner(
+                          MaterialBanner(
+                            content: Text(
+                              kIsWeb
+                                  ? 'A new version is available. '
+                                        'Refresh the page to update.'
+                                  : 'A new version is available. '
+                                        'Please update the app.',
+                            ),
+                            actions: [
+                              if (kIsWeb)
+                                TextButton(
+                                  onPressed: reloadWebApp,
+                                  child: const Text('Refresh'),
+                                ),
+                              TextButton(
+                                onPressed: () =>
+                                    context.read<AppUpdateCubit>().dismiss(),
+                                child: const Text('Dismiss'),
+                              ),
+                            ],
+                          ),
+                        );
+                    },
                   ),
-                ),
-              );
-            },
+                  BlocListener<ScreenCubit, ScreenState>(
+                    listener: (context, state) => commonScreenBlocListener(
+                      context,
+                      state,
+                      listenNavigatingState: false,
+                    ),
+                  ),
+                  const BlocListener<SettingsCubit, SettingsState>(
+                    listener: commonScreenBlocListener,
+                  ),
+                  const BlocListener<AuthCubit, AuthState>(
+                    listener: commonScreenBlocListener,
+                  ),
+                ],
+                child: kIsWeb
+                    ? _webPhoneFrame(
+                        context,
+                        media,
+                        child,
+                      )
+                    : child,
+              ),
+            ),
           );
         },
       );
+    },
+  );
 }
 
 /// Web phone frame without [LayoutBuilder]: nested layout during route transitions

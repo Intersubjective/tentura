@@ -163,7 +163,12 @@ base class WebsocketSessionHandlerBase {
     final jwt = touchSession(session);
     if (jwt != null) {
       if (env.isPongEnabled) {
-        session.send('{"type":"pong"}');
+        session.send(
+          jsonEncode({
+            'type': 'pong',
+            'min_client_version': env.minClientVersion,
+          }),
+        );
       }
       await userPresenceCase.touch(userId: jwt.sub);
     }

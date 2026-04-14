@@ -14,6 +14,10 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
 
   final _stateController = StreamController<WebSocketState>.broadcast();
 
+  final _minClientVersionController = StreamController<String>.broadcast();
+
+  String? _lastEmittedMinClientVersion;
+
   // Vars
   Timer? _wsPingTimer;
 
@@ -32,6 +36,10 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
 
   Stream<Map<String, dynamic>> get webSocketMessages =>
       _messagesController.stream;
+
+  /// Distinct minimum client semver from server pong frames (see `MIN_CLIENT_VERSION`).
+  Stream<String> get minClientVersionStream =>
+      _minClientVersionController.stream;
 
   ///
   @override
@@ -78,6 +86,7 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
   @mustCallSuper
   Future<void> close() async {
     await _dropAuth();
+    await _minClientVersionController.close();
     return super.close();
   }
 
@@ -143,6 +152,15 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
     if (message is Map<String, dynamic>) {
       switch (message['type']) {
         case 'pong':
+          final raw = message['min_client_version'];
+          if (raw is String && raw.isNotEmpty) {
+            if (raw != _lastEmittedMinClientVersion) {
+              _lastEmittedMinClientVersion = raw;
+              if (!_minClientVersionController.isClosed) {
+                _minClientVersionController.add(raw);
+              }
+            }
+          }
           break;
 
         case 'auth':

@@ -9,6 +9,9 @@ One-line rules for quick lookup. See detailed files for explanations.
 ## Planning
 - When planning implementation (UI flows, navigation, async-loaded screens), read **`DEV_GUIDELINES.md`** at the repository root alongside these rules.
 
+## Client Version Gate
+- After a breaking server/client change bump `MIN_CLIENT_VERSION` in server env (`.env`, `compose.prod.yaml`, VPS); see `versioning.mdc` § Client version gate for when to bump
+
 ## V2 Routing
 - Every Tentura V2 GraphQL operation must be listed in `_tenturaDirectOperationNames` in `packages/client/lib/data/service/remote_api_client/build_client.dart` so the client hits `/api/v2/graphql` directly, not Hasura V1
 - When adding a V2 query/mutation: add the client `.graphql` operation name to that set; ensure the V2 server schema exposes matching types/fields for everything the operation selects (see `DEV_GUIDELINES.md` § V2 direct routing)

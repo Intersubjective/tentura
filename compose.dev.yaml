@@ -9,6 +9,9 @@
 #
 # Point server Env at localhost: POSTGRES_HOST=127.0.0.1, S3_ENDPOINT=localhost:9000,
 # S3_PATH_STYLE=true, S3_USE_SSL=false (HTTP MinIO), IMAGE_SERVER=http://localhost:9000/tentura
+#
+# Client version gate: set MIN_CLIENT_VERSION in .env to test the update banner locally.
+# The locally-run server reads it from the environment; 0.0.0 (default) disables the check.
 
 name: tentura
 
