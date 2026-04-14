@@ -64,6 +64,22 @@
   "@buttonSave": {
     "context": "Utils"
   },
+  "buttonCrop": "Crop",
+  "@buttonCrop": {
+    "context": "Utils"
+  },
+  "titleCropAvatar": "Crop profile photo",
+  "@titleCropAvatar": {
+    "context": "Utils"
+  },
+  "cropRotateLeftTooltip": "Rotate counter-clockwise",
+  "@cropRotateLeftTooltip": {
+    "context": "Utils"
+  },
+  "cropRotateRightTooltip": "Rotate clockwise",
+  "@cropRotateRightTooltip": {
+    "context": "Utils"
+  },
   "buttonClose": "Close",
   "@buttonClose": {
     "context": "Utils"

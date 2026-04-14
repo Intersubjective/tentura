@@ -64,6 +64,22 @@
   "@buttonSave": {
     "context": "Utils"
   },
+  "buttonCrop": "Обрезать",
+  "@buttonCrop": {
+    "context": "Utils"
+  },
+  "titleCropAvatar": "Обрезка фото профиля",
+  "@titleCropAvatar": {
+    "context": "Utils"
+  },
+  "cropRotateLeftTooltip": "Повернуть против часовой стрелки",
+  "@cropRotateLeftTooltip": {
+    "context": "Utils"
+  },
+  "cropRotateRightTooltip": "Повернуть по часовой стрелке",
+  "@cropRotateRightTooltip": {
+    "context": "Utils"
+  },
   "buttonClose": "Закрыть",
   "@buttonClose": {
     "context": "Utils"
