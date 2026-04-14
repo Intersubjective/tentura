@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -111,18 +112,11 @@ class App extends StatelessWidget {
                         listener: commonScreenBlocListener,
                       ),
                     ],
-                    child: kIsWeb && media.orientation == Orientation.landscape
-                        ? ColoredBox(
-                            color: Theme.of(context).colorScheme.surfaceBright,
-                            child: Center(
-                              child: ConstrainedBox(
-                                constraints: kWebConstraints,
-                                child: AspectRatio(
-                                  aspectRatio: kWebAspectRatio,
-                                  child: child,
-                                ),
-                              ),
-                            ),
+                    child: kIsWeb
+                        ? _webPhoneFrame(
+                            context,
+                            media,
+                            child,
                           )
                         : child,
                   ),
@@ -132,4 +126,30 @@ class App extends StatelessWidget {
           );
         },
       );
+}
+
+/// Web phone frame without [LayoutBuilder]: nested layout during route transitions
+/// (e.g. back from full-screen routes) can trigger "_RenderLayoutBuilder was mutated".
+Widget _webPhoneFrame(
+  BuildContext context,
+  MediaQueryData media,
+  Widget child,
+) {
+  final frameW = math.min(kWebPhoneFrameWidth, media.size.width);
+  final frameH = frameW / kWebAspectRatio;
+  return ColoredBox(
+    color: Theme.of(context).colorScheme.surfaceBright,
+    child: Center(
+      child: SizedBox(
+        width: frameW,
+        height: frameH,
+        child: MediaQuery(
+          data: media.copyWith(
+            size: Size(frameW, frameH),
+          ),
+          child: child,
+        ),
+      ),
+    ),
+  );
 }

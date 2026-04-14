@@ -35,8 +35,8 @@ const kPaddingBottomTextInput = EdgeInsets.only(
   right: kSpacingMedium,
 );
 
-/// 600px in MD guideline means large screen for vertical orientation
-const kWebConstraints = BoxConstraints(minWidth: 600);
+/// Fixed phone-frame width for web (mobile-only target; MediaQuery size matches this).
+const double kWebPhoneFrameWidth = 400;
 const kWebAspectRatio = 9 / 16;
 
 const kBorderRadius = 8.0;
