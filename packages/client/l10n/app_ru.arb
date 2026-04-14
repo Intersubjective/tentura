@@ -518,14 +518,9 @@
       }
     }
   },
-  "confirmFriendAccept": "Вы уверены, что хотите принять приглашение от {profileTitle}?",
+  "confirmFriendAccept": "Принять приглашение в друзья?",
   "@confirmFriendAccept": {
-    "context": "FriendAcceptInvitationDialog",
-    "placeholders": {
-      "profileTitle": {
-        "type": "String"
-      }
-    }
+    "context": "FriendAcceptInvitationDialog"
   },
   "tapToChooseLocation": "Нажмите, чтобы выбрать место",
   "@tapToChooseLocation": {
@@ -884,6 +879,10 @@
   },
   "inboxTabRejectedEmpty": "Нет отклонённых маяков",
   "@inboxTabRejectedEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxViewInTab": "Перейти",
+  "@inboxViewInTab": {
     "context": "InboxScreen"
   },
   "inboxTombstoneQueueStatus": "Статус очереди",
