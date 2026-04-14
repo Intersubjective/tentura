@@ -120,6 +120,7 @@ class _V2RoutingLink extends Link {
     'InvitationAccept',
     'InvitationById',
     'InvitationDeleteById',
+    'MutualFriendsFetch',
     'PollingAct',
     'ProfileDelete',
     'ProfileUpdate',

@@ -10,6 +10,7 @@ import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/profile_view_cubit.dart';
+import 'mutual_friends_button.dart';
 
 class ProfileViewBody extends StatelessWidget {
   const ProfileViewBody({super.key});
@@ -81,6 +82,11 @@ class ProfileViewBody extends StatelessWidget {
                 icon: const Icon(Icons.open_in_full),
                 label: Text(l10n.showBeacons),
               ),
+            ),
+
+            Padding(
+              padding: kPaddingSmallT,
+              child: MutualFriendsButton(userId: profile.id),
             ),
 
             if (profile.isNotFriend)

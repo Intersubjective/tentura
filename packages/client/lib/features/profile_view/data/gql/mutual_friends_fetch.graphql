@@ -1,0 +1,11 @@
+# import '/data/gql/image_model.graphql'
+
+query MutualFriendsFetch($id: String!) {
+  mutualFriends(id: $id) {
+    id
+    title
+    image {
+      ...ImageModel
+    }
+  }
+}

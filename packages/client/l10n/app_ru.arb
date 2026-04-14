@@ -610,6 +610,14 @@
   "@showBeacons": {
     "context": "Profile"
   },
+  "showMutualFriends": "Общие друзья",
+  "@showMutualFriends": {
+    "context": "Profile"
+  },
+  "noMutualFriends": "Нет общих друзей",
+  "@noMutualFriends": {
+    "context": "Profile"
+  },
   "newBeacon": "Новый маяк",
   "@newBeacon": {
     "context": "Profile"
