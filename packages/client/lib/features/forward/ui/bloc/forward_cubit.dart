@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
+import 'package:tentura/features/auth/data/repository/auth_local_repository.dart';
 
 import '../../data/repository/forward_repository.dart';
 import '../../domain/entity/candidate_involvement.dart';
@@ -19,29 +19,31 @@ class ForwardCubit extends Cubit<ForwardState> {
     required String beaconId,
     String context = '',
     ForwardRepository? forwardRepository,
-    FriendsRemoteRepository? friendsRepository,
+    AuthLocalRepository? authLocalRepository,
   }) : _forwardRepository =
            forwardRepository ?? GetIt.I<ForwardRepository>(),
-       _friendsRepository =
-           friendsRepository ?? GetIt.I<FriendsRemoteRepository>(),
+       _authLocalRepository =
+           authLocalRepository ?? GetIt.I<AuthLocalRepository>(),
        super(ForwardState(beaconId: beaconId, context: context)) {
     unawaited(_loadCandidates());
   }
 
   final ForwardRepository _forwardRepository;
-  final FriendsRemoteRepository _friendsRepository;
+  final AuthLocalRepository _authLocalRepository;
 
   Future<void> _loadCandidates() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final results = await Future.wait([
-        _friendsRepository.fetch(),
+        _forwardRepository.fetchForwardCandidates(context: state.context),
         _forwardRepository.fetchBeaconInvolvement(beaconId: state.beaconId),
       ]);
-      final friends = results[0] as Iterable<Profile>;
+      final profiles = results[0] as Iterable<Profile>;
       final involvement = results[1] as BeaconInvolvementData;
+      final myId = await _authLocalRepository.getCurrentAccountId();
 
-      final candidates = friends
+      final candidates = profiles
+          .where((p) => p.id != myId)
           .map(
             (p) => ForwardCandidate(
               profile: p,

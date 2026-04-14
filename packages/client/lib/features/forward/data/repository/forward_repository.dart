@@ -15,6 +15,7 @@ import '../../domain/entity/forward_edge.dart';
 import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
+import '../gql/_g/forward_candidates_fetch.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
 import '../gql/_g/beacon_commit.req.gql.dart';
 import '../gql/_g/beacon_withdraw.req.gql.dart';
@@ -108,6 +109,20 @@ class ForwardRepository {
         }
         return id;
       });
+
+  /// Users with two-way positive MeritRank scores (Hasura `rating` + filter).
+  Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) =>
+      _remoteApiService
+          .request(
+            GForwardCandidatesFetchReq((r) => r..vars.context = context),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r.dataOrThrow(label: _label).rating)
+          .then(
+            (rows) => rows
+                .where((e) => e.user != null)
+                .map((e) => (e.user! as UserModel).toEntity()),
+          );
 
   /// Loads beacon header + forward-screen involvement in parallel.
   ///
