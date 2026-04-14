@@ -518,14 +518,9 @@
       }
     }
   },
-  "confirmFriendAccept": "Are you sure you want to accept invitation from {profileTitle}?",
+  "confirmFriendAccept": "Accept friend invitation?",
   "@confirmFriendAccept": {
-    "context": "FriendAcceptInvitationDialog",
-    "placeholders": {
-      "profileTitle": {
-        "type": "String"
-      }
-    }
+    "context": "FriendAcceptInvitationDialog"
   },
   "tapToChooseLocation": "Tap to choose location",
   "@tapToChooseLocation": {
@@ -884,6 +879,10 @@
   },
   "inboxTabRejectedEmpty": "No declined beacons",
   "@inboxTabRejectedEmpty": {
+    "context": "InboxScreen"
+  },
+  "inboxViewInTab": "View",
+  "@inboxViewInTab": {
     "context": "InboxScreen"
   },
   "inboxTombstoneQueueStatus": "Queue status",

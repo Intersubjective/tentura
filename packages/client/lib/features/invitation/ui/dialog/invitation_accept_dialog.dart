@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/avatar_rated.dart';
 
 class InvitationAcceptDialog extends StatelessWidget {
   static Future<bool?> show(BuildContext context, {required Profile profile}) =>
@@ -17,8 +19,26 @@ class InvitationAcceptDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
     return AlertDialog.adaptive(
-      title: Text(l10n.confirmFriendAccept(profile.title)),
+      title: Text(l10n.confirmFriendAccept),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          AvatarRated(
+            profile: profile,
+            size: AvatarRated.sizeBig / 2,
+            withRating: false,
+          ),
+          const SizedBox(height: kSpacingSmall),
+          Text(
+            profile.title,
+            style: theme.textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
       actions: [
         // Accept
         TextButton(
