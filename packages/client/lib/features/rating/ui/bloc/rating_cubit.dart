@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
 import '../../data/repository/rating_repository.dart';
 import 'rating_state.dart';
@@ -35,11 +35,15 @@ class RatingCubit extends Cubit<RatingState> {
       ),
     );
     try {
+      final myId = GetIt.I<AuthCubit>().state.currentAccountId;
+      final items = (await _repository.fetch(context: contextName))
+          .where((p) => myId.isEmpty || p.id != myId)
+          .toList();
       emit(
         state.copyWith(
           context: contextName,
           status: StateStatus.isSuccess,
-          items: (await _repository.fetch(context: contextName)).toList(),
+          items: items,
         ),
       );
       _sort();
