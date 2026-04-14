@@ -152,13 +152,14 @@ class CoordinationRepository {
             .filter((e) => e.id.equals(imageId))
             .getSingleOrNull();
         if (image != null) {
+          // gqlTypeImagePublic: `created_at` is graphQLDate — resolver must pass DateTime, not ISO string.
           imageMap = {
             'id': image.id.toString(),
             'hash': image.hash,
             'height': image.height,
             'width': image.width,
             'author_id': image.authorId,
-            'created_at': image.createdAt.dateTime.toUtc().toIso8601String(),
+            'created_at': image.createdAt.dateTime.toUtc(),
           };
         }
       }

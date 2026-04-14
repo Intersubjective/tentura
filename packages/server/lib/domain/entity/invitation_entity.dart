@@ -17,7 +17,7 @@ abstract class InvitationEntity with _$InvitationEntity {
     required DateTime createdAt,
     required DateTime updatedAt,
     UserEntity? invited,
-  }) = _IntitationEntity;
+  }) = _InvitationEntity;
 
   const InvitationEntity._();
 
@@ -41,6 +41,7 @@ abstract class InvitationEntity with _$InvitationEntity {
       'title': issuer.title,
       'description': issuer.description,
       'my_vote': null,
+      // gqlTypeImagePublic: `created_at` is graphQLDate — use DateTime, not ISO string.
       'image': issuer.image == null
           ? null
           : {
@@ -49,7 +50,7 @@ abstract class InvitationEntity with _$InvitationEntity {
               'height': issuer.image!.height,
               'width': issuer.image!.width,
               'author_id': issuer.image!.authorId,
-              'created_at': issuer.image!.createdAt.toIso8601String(),
+              'created_at': issuer.image!.createdAt,
             },
       'scores': <Object>[],
     },
