@@ -6,6 +6,7 @@ import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 
 import '../../data/repository/inbox_repository.dart';
 import '../../domain/enum.dart';
+import '../message/inbox_messages.dart';
 import 'inbox_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,7 +27,7 @@ class InboxCubit extends Cubit<InboxState> {
       cancelOnError: false,
     );
     _forwardCompleted = _forwardRepository.forwardCompleted.listen(
-      (_) => unawaited(fetch(showLoading: false)),
+      _fetchAndNotifyIfMoved,
       cancelOnError: false,
     );
     _inboxLocalMutations = _repository.localMutations.listen(
@@ -59,6 +60,42 @@ class InboxCubit extends Cubit<InboxState> {
         status: const StateIsSuccess(),
       ),
     );
+  }
+
+  Future<void> _fetchAndNotifyIfMoved(String beaconId) async {
+    if (isClosed) return;
+    final previousIdx = state.items.indexWhere((e) => e.beaconId == beaconId);
+    final previousStatus =
+        previousIdx >= 0 ? state.items[previousIdx].status : null;
+
+    await fetch(showLoading: false);
+
+    if (isClosed) return;
+    if (state.hasError) return;
+
+    final newIdx = state.items.indexWhere((e) => e.beaconId == beaconId);
+    if (newIdx < 0) return;
+    final newStatus = state.items[newIdx].status;
+
+    if (previousStatus == newStatus) return;
+    if (newStatus != InboxItemStatus.watching &&
+        newStatus != InboxItemStatus.rejected) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        status: StateIsMessaging(
+          InboxBeaconMovedMessage(
+            beaconId: beaconId,
+            toStatus: newStatus,
+          ),
+        ),
+      ),
+    );
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
   }
 
   @override

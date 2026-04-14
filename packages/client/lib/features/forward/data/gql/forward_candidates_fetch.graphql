@@ -1,0 +1,16 @@
+# import '/data/gql/user_model.graphql'
+
+query ForwardCandidatesFetch($context: String = "") {
+  rating(
+    args: {context: $context}
+    where: {
+      src_score: {_gt: 0}
+      dst_score: {_gt: 0}
+      user: {}
+    }
+  ) {
+    user {
+      ...UserModel
+    }
+  }
+}

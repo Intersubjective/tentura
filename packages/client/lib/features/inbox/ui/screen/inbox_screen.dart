@@ -15,6 +15,7 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import '../bloc/inbox_cubit.dart';
+import '../message/inbox_messages.dart';
 import '../widget/inbox_item_tile.dart';
 import '../widget/inbox_tombstone_card.dart';
 import '../widget/rejection_dialog.dart';
@@ -32,7 +33,14 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
           key: ValueKey(accountId),
           create: (_) => InboxCubit(userId: accountId),
           child: BlocListener<InboxCubit, InboxState>(
-            listener: commonScreenBlocListener,
+            listener: (context, state) {
+              final s = state.status;
+              if (s is StateIsMessaging &&
+                  s.message is InboxBeaconMovedMessage) {
+                return;
+              }
+              commonScreenBlocListener(context, state);
+            },
             child: this,
           ),
         ),
@@ -46,11 +54,30 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
 
     return DefaultTabController(
       length: 3,
-      child: SafeArea(
-        minimum: kPaddingSmallH,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: BlocListener<InboxCubit, InboxState>(
+        listenWhen: (prev, curr) =>
+            curr.status is StateIsMessaging &&
+            (curr.status as StateIsMessaging).message is InboxBeaconMovedMessage,
+        listener: (context, state) {
+          final msg = (state.status as StateIsMessaging).message
+              as InboxBeaconMovedMessage;
+          final l10n = L10n.of(context)!;
+          showSnackBar(
+            context,
+            text: msg.toL10n(l10n.localeName),
+            action: SnackBarAction(
+              label: l10n.inboxViewInTab,
+              onPressed: () {
+                DefaultTabController.of(context).animateTo(msg.tabIndex);
+              },
+            ),
+          );
+        },
+        child: SafeArea(
+          minimum: kPaddingSmallH,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             BlocSelector<InboxCubit, InboxState, InboxSort>(
               selector: (state) => state.sort,
               builder: (_, sort) {
@@ -163,6 +190,7 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
             ),
           ],
         ),
+      ),
       ),
     );
   }
