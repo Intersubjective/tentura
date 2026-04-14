@@ -107,6 +107,8 @@ final gqlTypeImagePublic = GraphQLObjectType('image', null)
     // Use built-in `Date` scalar so graphql_server2 introspection lists it
     // (custom `timestamptz` name is not merged into __Schema.types; Hasura
     // then fails: "Could not find type timestamptz"). Ferry maps `Date` → DateTime.
+    // Resolver maps for nested `image` must use Dart DateTime here — not
+    // toIso8601String(); graphql_schema2 validates before JSON serialization.
     field('created_at', graphQLDate.nonNullable()),
   ]);
 
