@@ -51,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Determine server version
+      - name: Determine versions
         id: versions
         run: |
           set -euo pipefail
@@ -59,6 +59,8 @@ jobs:
           VERSION_CLEAN=${VERSION_LINE//+/-}
           VERSION_CLEAN=${VERSION_CLEAN//\//-}
           echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
+          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -139,7 +141,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine server version
+      - name: Determine versions
         id: versions
         run: |
           set -euo pipefail
@@ -147,6 +149,8 @@ jobs:
           VERSION_CLEAN=${VERSION_LINE//+/-}
           VERSION_CLEAN=${VERSION_CLEAN//\//-}
           echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
+          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Build and push server image
         uses: docker/build-push-action@v5
@@ -159,6 +163,17 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.server_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Print version summary
+        run: |
+          echo "### Versions built" >> $GITHUB_STEP_SUMMARY
+          echo "| Package | Version |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Server  | ${{ steps.versions.outputs.server_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Client  | ${{ steps.versions.outputs.client_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Set **\`MIN_CLIENT_VERSION\`** in the \`dev\` GitHub Environment variable" \
+               "(and on the VPS \`.env\`) when this release requires clients to update." >> $GITHUB_STEP_SUMMARY
 
   deploy-dev:
     runs-on: ubuntu-latest

@@ -11,4 +11,16 @@ When bumping package versions (`pubspec.yaml` per package in this monorepo):
 - **Minor** (`x.Y.z` → increment `Y`, reset `Z` to 0): new backward-compatible features or capabilities.
 - **Major** (`X.y.z` → increment `X`): breaking or incompatible API/behavior changes (standard semver when those occur).
 
-Apply the bump in each affected package’s `pubspec.yaml` when releasing that package.
+Apply the bump in each affected package's `pubspec.yaml` when releasing that package.
+
+## Client version gate (`MIN_CLIENT_VERSION`)
+
+The server exposes `MIN_CLIENT_VERSION` (env var, default `0.0.0`) via the WS pong frame. Clients older than this value show a "new version available" banner.
+
+**When to update `MIN_CLIENT_VERSION` on the server:**
+
+- After a **major** client bump (`X.y.z`): always — breaking API/behaviour changes require the old client to update.
+- After a **minor** client bump (`x.Y.z`): only when the new server requires a feature the old client cannot function without (e.g. a new required WS message field, a removed endpoint). Optional new features don't require bumping.
+- After a **patch** client bump: rarely — only if the patch fixes a crash that makes the old client unusable with the new server.
+
+**How to update:** set `MIN_CLIENT_VERSION=<new semver>` in the server's environment (`.env` for local/dev, `compose.prod.yaml` environment + VPS `.env` for production, GitHub Environment variable `MIN_CLIENT_VERSION` for CI-driven deploys).
