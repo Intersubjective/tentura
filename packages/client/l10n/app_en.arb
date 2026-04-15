@@ -1290,6 +1290,10 @@
   "@myWorkChipMoreHelp": {
     "context": "MyWorkScreen"
   },
+  "myWorkChipForwarded": "I Forwarded",
+  "@myWorkChipForwarded": {
+    "context": "MyWorkScreen"
+  },
   "myWorkReviewCommitmentsCta": "Review commitments",
   "@myWorkReviewCommitmentsCta": {
     "context": "MyWorkScreen"

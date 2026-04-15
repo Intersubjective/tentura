@@ -191,6 +191,8 @@ class _AuthoredActiveCard extends StatelessWidget {
                   emphasized:
                       vm.attentionChip != MyWorkAttentionChip.reviewPending,
                 ),
+              if (vm.authorHasForwardedOnce)
+                BeaconCardPill(label: l10n.myWorkChipForwarded),
             ],
           ),
           const SizedBox(height: kSpacingSmall),
@@ -332,6 +334,8 @@ class _CommittedActiveCard extends StatelessWidget {
                 BeaconCardPill(
                   label: l10n.myWorkChipReadyForReview,
                 ),
+              if (vm.authorHasForwardedOnce)
+                BeaconCardPill(label: l10n.myWorkChipForwarded),
             ],
           ),
           if (b.context.trim().isNotEmpty) ...[
@@ -501,6 +505,8 @@ class _ClosedAuthoredCard extends StatelessWidget {
             children: [
               BeaconCardPill(label: l10n.myWorkChipAuthor),
               BeaconCardPill(label: l10n.beaconLifecycleClosed),
+              if (vm.authorHasForwardedOnce)
+                BeaconCardPill(label: l10n.myWorkChipForwarded),
             ],
           ),
           const SizedBox(height: kSpacingSmall),
@@ -563,6 +569,8 @@ class _ClosedCommittedCard extends StatelessWidget {
             children: [
               BeaconCardPill(label: l10n.myWorkChipCommitted),
               BeaconCardPill(label: l10n.beaconLifecycleClosed),
+              if (vm.authorHasForwardedOnce)
+                BeaconCardPill(label: l10n.myWorkChipForwarded),
             ],
           ),
           const SizedBox(height: kSpacingSmall),
