@@ -1479,6 +1479,13 @@
       "content": { "type": "String" }
     }
   },
+  "timelineCreated": "{author} created the beacon",
+  "@timelineCreated": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "author": { "type": "String" }
+    }
+  },
   "labelCommitments": "Commitments",
   "@labelCommitments": {
     "context": "BeaconViewScreen",
@@ -1501,6 +1508,26 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "myForwardsSectionLabel": "My forwards",
+  "@myForwardsSectionLabel": {
+    "context": "BeaconViewScreen",
+    "description": "Subsection header in the Forwards tab showing who the current user forwarded to"
+  },
+  "myForwardDeclined": "Declined",
+  "@myForwardDeclined": {
+    "context": "BeaconViewScreen",
+    "description": "Reaction label when a forward recipient declined the beacon"
+  },
+  "myForwardDeclinedWithReason": "Declined: {reason}",
+  "@myForwardDeclinedWithReason": {
+    "context": "BeaconViewScreen",
+    "description": "Reaction label with reason when a forward recipient declined the beacon",
+    "placeholders": {
+      "reason": {
+        "type": "String"
       }
     }
   },
