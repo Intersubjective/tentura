@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
@@ -56,9 +57,14 @@ class ChatScreen extends StatelessWidget implements AutoRouteWrapper {
           );
           return Row(
             children: [
-              AvatarRated(
-                profile: profile,
-                size: 32,
+              InkWell(
+                onTap: () =>
+                    context.read<ScreenCubit>().showProfile(profile.id),
+                customBorder: const CircleBorder(),
+                child: AvatarRated(
+                  profile: profile,
+                  size: 32,
+                ),
               ),
               Expanded(
                 child: Padding(
