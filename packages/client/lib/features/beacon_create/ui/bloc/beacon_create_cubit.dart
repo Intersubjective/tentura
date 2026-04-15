@@ -91,6 +91,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       final coords = beacon.coordinates;
       final coordinates =
           coords != null && coords.isNotEmpty ? coords : null;
+      final locationLabel =
+          coordinates != null ? coordinates.toString() : '';
 
       emit(
         state.copyWith(
@@ -99,7 +101,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           description: beacon.description,
           tags: beacon.tags,
           coordinates: coordinates,
-          location: '',
+          location: locationLabel,
           startAt: beacon.startAt,
           endAt: beacon.endAt,
           iconCode: beacon.iconCode,
@@ -250,10 +252,22 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     ),
   );
 
+  /// Same bounds as [StringInputValidator] title/description checks on the form.
+  bool _stateMeetsBaseFormRequirements() {
+    final t = state.title;
+    if (t.length < kTitleMinLength || t.length > kTitleMaxLength) {
+      return false;
+    }
+    if (state.description.length > kDescriptionMaxLength) {
+      return false;
+    }
+    return true;
+  }
+
   ///
   ///
   void validate([bool formValid = false]) {
-    var canPublish = formValid;
+    var canPublish = formValid || _stateMeetsBaseFormRequirements();
 
     if (canPublish && state.hasPolling) {
       try {
