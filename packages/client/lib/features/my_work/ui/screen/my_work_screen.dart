@@ -2,7 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
@@ -41,26 +41,10 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
         ),
         title: Text(l10n.myWork),
         actions: [
-          BlocBuilder<ProfileCubit, ProfileState>(
-            bloc: GetIt.I<ProfileCubit>(),
-            builder: (context, ps) {
-              final p = ps.profile;
-              return IconButton(
-                tooltip: l10n.profile,
-                onPressed: () => AutoTabsRouter.of(context).setActiveIndex(3),
-                icon: p.hasAvatar
-                    ? CircleAvatar(
-                        backgroundImage: NetworkImage(p.avatarUrl),
-                      )
-                    : CircleAvatar(
-                        child: Text(
-                          p.title.isNotEmpty
-                              ? p.title.substring(0, 1).toUpperCase()
-                              : '?',
-                        ),
-                      ),
-              );
-            },
+          IconButton(
+            tooltip: l10n.newBeacon,
+            onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
+            icon: const Icon(Icons.add),
           ),
         ],
       ),
