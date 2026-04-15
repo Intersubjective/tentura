@@ -9,6 +9,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
@@ -54,143 +55,166 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
 
     return DefaultTabController(
       length: 3,
-      child: BlocListener<InboxCubit, InboxState>(
+      child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
         listenWhen: (prev, curr) =>
-            curr.status is StateIsMessaging &&
-            (curr.status as StateIsMessaging).message is InboxBeaconMovedMessage,
-        listener: (context, state) {
-          final msg = (state.status as StateIsMessaging).message
-              as InboxBeaconMovedMessage;
-          final l10n = L10n.of(context)!;
-          showSnackBar(
-            context,
-            text: msg.toL10n(l10n.localeName),
-            action: SnackBarAction(
-              label: l10n.inboxViewInTab,
-              onPressed: () {
-                DefaultTabController.of(context).animateTo(msg.tabIndex);
-              },
-            ),
-          );
+            prev.inboxReselectCount != curr.inboxReselectCount,
+        listener: (context, _) {
+          inboxCubit.setSort(InboxSort.recent);
+          DefaultTabController.of(context).animateTo(0);
         },
-        child: SafeArea(
-          minimum: kPaddingSmallH,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            BlocSelector<InboxCubit, InboxState, InboxSort>(
-              selector: (state) => state.sort,
-              builder: (_, sort) {
-                final chipStyle = AppChoiceChipStyle(theme.colorScheme);
-                return Padding(
-                  padding: kPaddingSmallV,
-                  child: Wrap(
-                    spacing: kSpacingSmall,
-                    children: [
-                      for (final s in InboxSort.values)
-                        ChoiceChip(
-                          color: chipStyle.background,
-                          labelStyle: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            color: chipStyle.labelForeground,
-                          ),
-                          checkmarkColor: chipStyle.checkmarkColor,
-                          side: chipStyle.outline,
-                          selected: sort == s,
-                          label: Text(
-                            switch (s) {
-                              InboxSort.recent => l10n.inboxSortRecent,
-                              InboxSort.meritRank => l10n.inboxSortMeritRank,
-                              InboxSort.deadline => l10n.inboxSortDeadline,
-                            },
-                          ),
-                          onSelected: (_) => inboxCubit.setSort(s),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            TabBar(
-              automaticIndicatorColorAdjustment: false,
-              labelColor: theme.colorScheme.primary,
-              unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-              indicatorColor: theme.colorScheme.primary,
-              dividerColor: theme.colorScheme.outlineVariant,
-              tabs: [
-                Tab(text: l10n.inboxTabNeedsMe),
-                Tab(text: l10n.inboxTabWatching),
-                Tab(text: l10n.inboxTabRejected),
-              ],
-            ),
-            Expanded(
-              child: BlocBuilder<InboxCubit, InboxState>(
-                buildWhen: (_, c) =>
-                    c.isSuccess || c.isLoading || c.hasError,
-                builder: (_, state) {
-                  if (state.isLoading) {
-                    return const Center(
-                      child: CircularProgressIndicator.adaptive(),
-                    );
-                  }
-                  if (state.items.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
+        child: BlocListener<InboxCubit, InboxState>(
+          listenWhen: (prev, curr) =>
+              curr.status is StateIsMessaging &&
+              (curr.status as StateIsMessaging).message
+                  is InboxBeaconMovedMessage,
+          listener: (context, state) {
+            final msg =
+                (state.status as StateIsMessaging).message
+                    as InboxBeaconMovedMessage;
+            final l10n = L10n.of(context)!;
+            showSnackBar(
+              context,
+              text: msg.toL10n(l10n.localeName),
+              action: SnackBarAction(
+                label: l10n.inboxViewInTab,
+                onPressed: () {
+                  DefaultTabController.of(context).animateTo(msg.tabIndex);
+                },
+              ),
+            );
+          },
+          child: SafeArea(
+            minimum: kPaddingSmallH,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BlocSelector<InboxCubit, InboxState, InboxSort>(
+                  selector: (state) => state.sort,
+                  builder: (_, sort) {
+                    final chipStyle = AppChoiceChipStyle(theme.colorScheme);
+                    return Padding(
+                      padding: kPaddingSmallV,
+                      child: Wrap(
+                        spacing: kSpacingSmall,
                         children: [
-                          Icon(
-                            Icons.inbox_outlined,
-                            size: 64,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: kSpacingMedium),
-                          Text(
-                            l10n.inboxEmpty,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
+                          for (final s in InboxSort.values)
+                            ChoiceChip(
+                              color: chipStyle.background,
+                              labelStyle: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: chipStyle.labelForeground,
+                              ),
+                              checkmarkColor: chipStyle.checkmarkColor,
+                              side: chipStyle.outline,
+                              selected: sort == s,
+                              label: Text(
+                                switch (s) {
+                                  InboxSort.recent => l10n.inboxSortRecent,
+                                  InboxSort.meritRank =>
+                                    l10n.inboxSortMeritRank,
+                                  InboxSort.deadline => l10n.inboxSortDeadline,
+                                },
+                              ),
+                              onSelected: (_) => inboxCubit.setSort(s),
                             ),
-                          ),
-                          const SizedBox(height: kSpacingSmall),
-                          Text(
-                            l10n.inboxEmptyHint,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
                         ],
                       ),
                     );
-                  }
-                  return TabBarView(
-                    children: [
-                      _needsMeTabBody(
-                        context,
-                        inboxCubit,
-                        state,
-                        l10n,
+                  },
+                ),
+                BlocSelector<InboxCubit, InboxState, (int, int)>(
+                  selector: (state) =>
+                      (state.needsMe.length, state.watching.length),
+                  builder: (_, counts) => TabBar(
+                    automaticIndicatorColorAdjustment: false,
+                    labelColor: theme.colorScheme.primary,
+                    unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
+                    indicatorColor: theme.colorScheme.primary,
+                    dividerColor: theme.colorScheme.outlineVariant,
+                    tabs: [
+                      Tab(
+                        text: counts.$1 > 0
+                            ? '${l10n.inboxTabNeedsMe} (${counts.$1})'
+                            : l10n.inboxTabNeedsMe,
                       ),
-                      _tabBody(
-                        context,
-                        inboxCubit,
-                        state.watching,
-                        l10n.inboxTabWatchingEmpty,
-                        1,
+                      Tab(
+                        text: counts.$2 > 0
+                            ? '${l10n.inboxTabWatching} (${counts.$2})'
+                            : l10n.inboxTabWatching,
                       ),
-                      _tabBody(
-                        context,
-                        inboxCubit,
-                        state.rejected,
-                        l10n.inboxTabRejectedEmpty,
-                        2,
-                      ),
+                      Tab(text: l10n.inboxTabRejected),
                     ],
-                  );
-                },
-              ),
+                  ),
+                ),
+                Expanded(
+                  child: BlocBuilder<InboxCubit, InboxState>(
+                    buildWhen: (_, c) =>
+                        c.isSuccess || c.isLoading || c.hasError,
+                    builder: (_, state) {
+                      if (state.isLoading) {
+                        return const Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        );
+                      }
+                      if (state.items.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.inbox_outlined,
+                                size: 64,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: kSpacingMedium),
+                              Text(
+                                l10n.inboxEmpty,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: kSpacingSmall),
+                              Text(
+                                l10n.inboxEmptyHint,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return TabBarView(
+                        children: [
+                          _needsMeTabBody(
+                            context,
+                            inboxCubit,
+                            state,
+                            l10n,
+                          ),
+                          _tabBody(
+                            context,
+                            inboxCubit,
+                            state.watching,
+                            l10n.inboxTabWatchingEmpty,
+                            1,
+                          ),
+                          _tabBody(
+                            context,
+                            inboxCubit,
+                            state.rejected,
+                            l10n.inboxTabRejectedEmpty,
+                            2,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
