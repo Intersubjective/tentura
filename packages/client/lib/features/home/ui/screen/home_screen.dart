@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -14,6 +16,8 @@ import 'package:tentura/features/favorites/ui/bloc/favorites_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
+import '../bloc/home_tab_reselect_cubit.dart';
+import '../widget/friends_navbar_item.dart';
 import '../widget/profile_navbar_item.dart';
 
 @RoutePage()
@@ -21,8 +25,11 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
   const HomeScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider.value(
-    value: GetIt.I<ScreenCubit>(),
+  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
+    providers: [
+      BlocProvider.value(value: GetIt.I<ScreenCubit>()),
+      BlocProvider.value(value: GetIt.I<HomeTabReselectCubit>()),
+    ],
     child: MultiBlocListener(
       listeners: [
         const BlocListener<ScreenCubit, ScreenState>(
@@ -71,12 +78,24 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
       bloc: GetIt.I<ProfileCubit>(),
       selector: (state) => state.profile.title,
       builder: (context, profileTitle) {
-        final profileTabLabel =
-            profileTitle.isEmpty ? l10n.noName : profileTitle;
+        final profileTabLabel = profileTitle.isEmpty
+            ? l10n.noName
+            : profileTitle;
         return AutoTabsScaffold(
           bottomNavigationBuilder: (context, tabsRouter) {
             return NavigationBar(
-              onDestinationSelected: tabsRouter.setActiveIndex,
+              onDestinationSelected: (index) {
+                final prev = tabsRouter.activeIndex;
+                tabsRouter.setActiveIndex(index);
+                if (index == prev) {
+                  final reselect = context.read<HomeTabReselectCubit>();
+                  if (index == 0) {
+                    reselect.bumpInboxReselect();
+                  } else if (index == 1) {
+                    reselect.bumpMyWorkReselect();
+                  }
+                }
+              },
               indicatorColor: Theme.of(context).colorScheme.primaryFixed,
               selectedIndex: tabsRouter.activeIndex,
               destinations: [
@@ -91,8 +110,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   label: l10n.myWork,
                 ),
                 NavigationDestination(
-                  icon: const Icon(Icons.people_outline),
-                  selectedIcon: const Icon(Icons.people),
+                  icon: const FriendsNavbarItem(),
+                  selectedIcon: const FriendsNavbarItem(selected: true),
                   label: l10n.network,
                 ),
                 NavigationDestination(

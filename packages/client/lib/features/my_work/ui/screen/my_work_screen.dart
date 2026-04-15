@@ -1,7 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -32,25 +34,32 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
-          onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
-        ),
-        title: Text(l10n.myWork),
-        actions: [
-          IconButton(
-            tooltip: l10n.newBeacon,
-            onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
-            icon: const Icon(Icons.add),
+    return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+      listenWhen: (prev, curr) =>
+          prev.myWorkReselectCount != curr.myWorkReselectCount,
+      listener: (context, _) {
+        context.read<MyWorkCubit>().setFilter(MyWorkFilter.all);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+            onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
           ),
-        ],
-      ),
-      body: const SafeArea(
-        minimum: kPaddingSmallH,
-        child: _MyWorkBody(),
+          title: Text(l10n.myWork),
+          actions: [
+            IconButton(
+              tooltip: l10n.newBeacon,
+              onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
+              icon: const Icon(Icons.add),
+            ),
+          ],
+        ),
+        body: const SafeArea(
+          minimum: kPaddingSmallH,
+          child: _MyWorkBody(),
+        ),
       ),
     );
   }
@@ -60,11 +69,11 @@ class _MyWorkBody extends StatelessWidget {
   const _MyWorkBody();
 
   String _emptyMessage(L10n l10n, MyWorkFilter f) => switch (f) {
-        MyWorkFilter.all => l10n.myWorkEmptyAll,
-        MyWorkFilter.authored => l10n.myWorkEmptyAuthored,
-        MyWorkFilter.committed => l10n.myWorkEmptyCommitted,
-        MyWorkFilter.archived => l10n.myWorkEmptyArchived,
-      };
+    MyWorkFilter.all => l10n.myWorkEmptyAll,
+    MyWorkFilter.authored => l10n.myWorkEmptyAuthored,
+    MyWorkFilter.committed => l10n.myWorkEmptyCommitted,
+    MyWorkFilter.archived => l10n.myWorkEmptyArchived,
+  };
 
   @override
   Widget build(BuildContext context) {
