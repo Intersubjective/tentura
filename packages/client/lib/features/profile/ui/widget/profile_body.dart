@@ -66,27 +66,10 @@ class ProfileBody extends StatelessWidget {
 
           Padding(
             padding: kPaddingSmallT,
-            child: Row(
-              spacing: kSpacingSmall,
-              children: [
-                // Settings
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.settings),
-                    label: Text(l10n.labelSettings),
-                    onPressed: screenCubit.showSettings,
-                  ),
-                ),
-
-                // New Beacon
-                Expanded(
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.post_add),
-                    label: Text(l10n.newBeacon),
-                    onPressed: screenCubit.showBeaconCreate,
-                  ),
-                ),
-              ],
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.settings),
+              label: Text(l10n.labelSettings),
+              onPressed: screenCubit.showSettings,
             ),
           ),
 
