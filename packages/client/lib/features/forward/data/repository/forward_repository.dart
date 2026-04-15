@@ -180,6 +180,12 @@ class ForwardRepository {
             return list != null && list.isNotEmpty;
           });
 
+  Future<List<ForwardEdge>> fetchMyForwardEdges({
+    required String beaconId,
+    required String myUserId,
+  }) => fetchEdges(beaconId: beaconId)
+      .then((edges) => edges.where((e) => e.sender.id == myUserId).toList());
+
   Future<List<ForwardEdge>> fetchEdges({required String beaconId}) =>
       _remoteApiService
           .request(

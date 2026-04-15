@@ -1479,6 +1479,13 @@
       "content": { "type": "String" }
     }
   },
+  "timelineCreated": "{author} создал(а) запрос",
+  "@timelineCreated": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "author": { "type": "String" }
+    }
+  },
   "labelCommitments": "Участие",
   "@labelCommitments": {
     "context": "BeaconViewScreen",
@@ -1501,6 +1508,26 @@
     "placeholders": {
       "count": {
         "type": "int"
+      }
+    }
+  },
+  "myForwardsSectionLabel": "Мои пересылки",
+  "@myForwardsSectionLabel": {
+    "context": "BeaconViewScreen",
+    "description": "Subsection header in the Forwards tab showing who the current user forwarded to"
+  },
+  "myForwardDeclined": "Отклонено",
+  "@myForwardDeclined": {
+    "context": "BeaconViewScreen",
+    "description": "Reaction label when a forward recipient declined the beacon"
+  },
+  "myForwardDeclinedWithReason": "Отклонено: {reason}",
+  "@myForwardDeclinedWithReason": {
+    "context": "BeaconViewScreen",
+    "description": "Reaction label with reason when a forward recipient declined the beacon",
+    "placeholders": {
+      "reason": {
+        "type": "String"
       }
     }
   },

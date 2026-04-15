@@ -3,6 +3,7 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
@@ -59,6 +60,15 @@ class TimelineUpdate extends TimelineEntry {
   DateTime get timestamp => createdAt;
 }
 
+class TimelineCreation extends TimelineEntry {
+  TimelineCreation({required this.author, required this.createdAt});
+  final Profile author;
+  final DateTime createdAt;
+
+  @override
+  DateTime get timestamp => createdAt;
+}
+
 @Freezed(makeCollectionsUnmodifiable: false)
 abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   const factory BeaconViewState({
@@ -73,6 +83,8 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// Forward trail + notes (same payload as inbox cards) when the user has an inbox row.
     @Default(InboxProvenance.empty) InboxProvenance forwardProvenance,
     @Default('') String inboxLatestNotePreview,
+    /// Forward edges where the current user is the sender for this beacon.
+    @Default([]) List<ForwardEdge> myForwards,
     /// True when the current user has forwarded this beacon at least once.
     @Default(false) bool hasForwardedThisBeaconOnce,
     @Default(StateIsSuccess()) StateStatus status,

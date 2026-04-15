@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -252,7 +253,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         ),
         _forwardRepository.fetchUpdates(beaconId: beaconId),
         _inboxRepository.fetchInboxContextForBeacon(beaconId),
-        _forwardRepository.currentUserHasForwardedBeacon(beaconId),
+        _forwardRepository.fetchMyForwardEdges(
+          beaconId: beaconId,
+          myUserId: myUserId,
+        ),
       ]);
 
       final beacon = results[0] as Beacon;
@@ -277,7 +281,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             InboxProvenance provenance,
             String latestNotePreview,
           });
-      final hasForwardedThisBeaconOnce = results[4] as bool;
+      final myForwards = results[4] as List<ForwardEdge>;
 
       final isCommitted = commitments
           .where((c) => c.status == 0)
@@ -306,6 +310,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             content: u.content,
             createdAt: u.createdAt,
           ),
+        TimelineCreation(author: beacon.author, createdAt: beacon.createdAt),
       ]..sort();
 
       emit(
@@ -317,7 +322,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           inboxStatus: inboxCtx.status,
           forwardProvenance: inboxCtx.provenance,
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
-          hasForwardedThisBeaconOnce: hasForwardedThisBeaconOnce,
+          myForwards: myForwards,
+          hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
           status: StateStatus.isSuccess,
         ),
       );
