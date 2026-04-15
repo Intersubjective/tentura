@@ -618,6 +618,10 @@
   "@noMutualFriends": {
     "context": "Profile"
   },
+  "mutualFriendsTitle": "Общие друзья",
+  "@mutualFriendsTitle": {
+    "context": "Profile"
+  },
   "newBeacon": "Новый маяк",
   "@newBeacon": {
     "context": "Profile"

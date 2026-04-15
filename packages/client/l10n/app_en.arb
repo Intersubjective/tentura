@@ -618,6 +618,10 @@
   "@noMutualFriends": {
     "context": "Profile"
   },
+  "mutualFriendsTitle": "Mutual friends",
+  "@mutualFriendsTitle": {
+    "context": "Profile"
+  },
   "newBeacon": "New Beacon",
   "@newBeacon": {
     "context": "Profile"
