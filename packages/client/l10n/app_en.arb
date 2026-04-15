@@ -1159,7 +1159,7 @@
   "@forwardSectionUnavailable": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardAlreadyForwarded": "Already forwarded",
+  "forwardAlreadyForwarded": "Already forwarded by others",
   "@forwardAlreadyForwarded": {
     "context": "ForwardBeaconScreen"
   },
