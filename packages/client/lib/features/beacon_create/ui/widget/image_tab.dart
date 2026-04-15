@@ -121,15 +121,23 @@ class ImageTab extends StatelessWidget {
             ] else
               Padding(
                 padding: const EdgeInsets.only(top: kSpacingLarge),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const SizedBox(
-                    height: 256,
-                    child: Center(
-                      child: Icon(Icons.photo_outlined, size: 64),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: cubit.pickImages,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const SizedBox(
+                        height: 256,
+                        child: Center(
+                          child: Icon(Icons.photo_outlined, size: 64),
+                        ),
+                      ),
                     ),
                   ),
                 ),
