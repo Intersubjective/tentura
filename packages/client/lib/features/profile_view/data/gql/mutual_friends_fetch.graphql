@@ -7,5 +7,13 @@ query MutualFriendsFetch($id: String!) {
     image {
       ...ImageModel
     }
+    scores {
+      src_score
+      dst_score
+    }
+    user_presence {
+      status
+      last_seen_at
+    }
   }
 }

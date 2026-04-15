@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
 import 'package:tentura/features/profile_view/data/repository/mutual_friends_repository.dart';
+import 'package:tentura/features/profile_view/ui/widget/mutual_friends_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// On-demand mutual friends: button, then overlapping mini-avatars + optional +N.
@@ -65,19 +66,27 @@ class _MutualFriendsButtonState extends State<MutualFriendsButton> {
           child: Text(
             l10n.noMutualFriends,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
         );
       }
       final shown = profiles.take(_maxAvatars).toList();
-      final overflow =
-          profiles.length > _maxAvatars ? profiles.length - _maxAvatars : 0;
+      final overflow = profiles.length > _maxAvatars
+          ? profiles.length - _maxAvatars
+          : 0;
       return Align(
         alignment: Alignment.centerLeft,
-        child: CompactForwarderAvatars(
-          profiles: shown,
-          overflowCount: overflow,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: () => showMutualFriendsSheet(context, profiles),
+            borderRadius: BorderRadius.circular(24),
+            child: CompactForwarderAvatars(
+              profiles: shown,
+              overflowCount: overflow,
+            ),
+          ),
         ),
       );
     }
