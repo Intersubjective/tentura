@@ -1290,6 +1290,10 @@
   "@myWorkChipMoreHelp": {
     "context": "MyWorkScreen"
   },
+  "myWorkChipForwarded": "Я переслал(а)",
+  "@myWorkChipForwarded": {
+    "context": "MyWorkScreen"
+  },
   "myWorkReviewCommitmentsCta": "Проверить обязательства",
   "@myWorkReviewCommitmentsCta": {
     "context": "MyWorkScreen"

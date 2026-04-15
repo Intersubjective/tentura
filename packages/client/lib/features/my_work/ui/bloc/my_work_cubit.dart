@@ -57,26 +57,26 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   Future<List<MyWorkCardViewModel>> _withAuthorForwardFlags(
     List<MyWorkCardViewModel> cards,
   ) async {
-    final authoredActive = cards
-        .where((c) => c.kind == MyWorkCardKind.authoredActive)
+    final needsFlag = cards
+        .where((c) => c.kind != MyWorkCardKind.authoredDraft)
         .toList();
-    if (authoredActive.isEmpty) {
+    if (needsFlag.isEmpty) {
       return cards;
     }
     final results = await Future.wait(
-      authoredActive.map(
+      needsFlag.map(
         (c) => _forwardRepository.currentUserHasForwardedBeacon(c.beaconId),
       ),
     );
     final map = <String, bool>{
-      for (var i = 0; i < authoredActive.length; i++)
-        authoredActive[i].beaconId: results[i],
+      for (var i = 0; i < needsFlag.length; i++)
+        needsFlag[i].beaconId: results[i],
     };
     return [
       for (final c in cards)
-        c.kind == MyWorkCardKind.authoredActive
-            ? c.copyWith(authorHasForwardedOnce: map[c.beaconId] ?? false)
-            : c,
+        c.kind == MyWorkCardKind.authoredDraft
+            ? c
+            : c.copyWith(authorHasForwardedOnce: map[c.beaconId] ?? false),
     ];
   }
 
@@ -175,11 +175,15 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         authoredClosed: closed.authoredClosed,
         committedClosed: closed.committedClosed,
       );
+      final archivedWithForwardFlags = await _withAuthorForwardFlags(archived);
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
       emit(
         state.copyWith(
           closedFetchInProgress: false,
           closedDataFetched: true,
-          archivedCards: archived,
+          archivedCards: archivedWithForwardFlags,
           status: const StateIsSuccess(),
         ),
       );
