@@ -12,19 +12,19 @@ void main() {
         r'-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIN3rCo3wCksyxX4qBYAC1vFr51kx/Od78QVrRLOV1orF\n-----END PRIVATE KEY-----';
 
     test('Read PEM', () {
-      expect(EdDSAPublicKey.fromPEM(Env.kJwtPublicKey).key.bytes, isNotEmpty);
+      expect(EdDSAPublicKey.fromPEM(Env.kJwtPublicKey).bytes, isNotEmpty);
 
-      expect(EdDSAPrivateKey.fromPEM(Env.kJwtPrivateKey).key.bytes, isNotEmpty);
+      expect(EdDSAPrivateKey.fromPEM(Env.kJwtPrivateKey).seed, isNotEmpty);
 
       expect(
-        EdDSAPublicKey.fromPEM(envPublicKey.replaceAll(r'\n', '\n')).key.bytes,
+        EdDSAPublicKey.fromPEM(envPublicKey.replaceAll(r'\n', '\n')).bytes,
         isNotEmpty,
       );
 
       expect(
         EdDSAPrivateKey.fromPEM(
           envPrivateKey.replaceAll(r'\n', '\n'),
-        ).key.bytes,
+        ).seed,
         isNotEmpty,
       );
     });
@@ -38,7 +38,7 @@ void main() {
 
       expect(
         (jwt.payload as Map)['pk'],
-        equals(base64UrlEncode(kPublicKey.key.bytes)),
+        equals(base64UrlEncode(kPublicKey.bytes)),
       );
     });
   });
@@ -53,7 +53,7 @@ final kPrivateKey = EdDSAPrivateKey.fromPEM(
 );
 
 String issueAuthRequestToken(EdDSAPublicKey publicKey) =>
-    JWT({'pk': base64UrlEncode(publicKey.key.bytes)}).sign(
+    JWT({'pk': base64UrlEncode(publicKey.bytes)}).sign(
       kPrivateKey,
       algorithm: JWTAlgorithm.EdDSA,
       expiresIn: const Duration(seconds: kAuthJwtExpiresIn),
