@@ -1,24 +1,28 @@
 import 'package:injectable/injectable.dart';
-
-import 'package:tentura_server/data/repository/beacon_repository.dart';
-import 'package:tentura_server/data/repository/commitment_repository.dart';
-import 'package:tentura_server/data/repository/coordination_repository.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/coordination/beacon_coordination_status.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
+import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
+import '_use_case_base.dart';
+
 @Singleton(order: 2)
-class CoordinationCase {
-  const CoordinationCase(
+final class CoordinationCase extends UseCaseBase {
+  CoordinationCase(
     this._beaconRepository,
     this._commitmentRepository,
-    this._coordinationRepository,
-  );
+    this._coordinationRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final BeaconRepository _beaconRepository;
-  final CommitmentRepository _commitmentRepository;
-  final CoordinationRepository _coordinationRepository;
+  final BeaconRepositoryPort _beaconRepository;
+  final CommitmentRepositoryPort _commitmentRepository;
+  final CoordinationRepositoryPort _coordinationRepository;
 
   Future<void> _ensureAuthor({
     required String beaconId,
@@ -32,7 +36,7 @@ class CoordinationCase {
     }
   }
 
-  Future<List<Map<String, dynamic>>> commitmentsWithCoordination({
+  Future<List<CommitmentWithCoordinationRow>> commitmentsWithCoordination({
     required String beaconId,
   }) => _coordinationRepository.commitmentsWithCoordination(beaconId);
 

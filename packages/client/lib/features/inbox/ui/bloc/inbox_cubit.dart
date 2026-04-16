@@ -5,7 +5,7 @@ import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 
-import '../../data/repository/inbox_repository.dart';
+import '../../domain/use_case/inbox_case.dart';
 import '../../domain/enum.dart';
 import '../message/inbox_messages.dart';
 import 'inbox_state.dart';
@@ -17,11 +17,11 @@ export 'inbox_state.dart';
 class InboxCubit extends Cubit<InboxState> {
   InboxCubit({
     required String userId,
-    InboxRepository? repository,
+    InboxCase? inboxCase,
     ForwardRepository? forwardRepository,
     NewStuffCubit? newStuffCubit,
   }) : _userId = userId,
-       _repository = repository ?? GetIt.I<InboxRepository>(),
+       _inboxCase = inboxCase ?? GetIt.I<InboxCase>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
        super(InboxState(currentUserId: userId)) {
@@ -33,7 +33,7 @@ class InboxCubit extends Cubit<InboxState> {
       _fetchAndNotifyIfMoved,
       cancelOnError: false,
     );
-    _inboxLocalMutations = _repository.localMutations.listen(
+    _inboxLocalMutations = _inboxCase.localMutations.listen(
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
@@ -41,7 +41,7 @@ class InboxCubit extends Cubit<InboxState> {
   }
 
   final String _userId;
-  final InboxRepository _repository;
+  final InboxCase _inboxCase;
   final ForwardRepository _forwardRepository;
   final NewStuffCubit _newStuffCubit;
 
@@ -131,7 +131,7 @@ class InboxCubit extends Cubit<InboxState> {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
     try {
-      final items = await _repository.fetch(userId: _userId);
+      final items = await _inboxCase.fetch(userId: _userId);
       emit(
         state.copyWith(
           items: items,
@@ -178,7 +178,7 @@ class InboxCubit extends Cubit<InboxState> {
     if (!item.isTombstoneVisible) return;
     final dismissedAt = DateTime.now().toUtc();
     try {
-      await _repository.dismissTombstone(
+      await _inboxCase.dismissTombstone(
         beaconId: beaconId,
         dismissedAt: dismissedAt,
       );
@@ -207,7 +207,7 @@ class InboxCubit extends Cubit<InboxState> {
     if (idx < 0) return;
     final item = state.items[idx];
     try {
-      await _repository.setStatus(
+      await _inboxCase.setStatus(
         beaconId: beaconId,
         status: status,
         rejectionMessage: rejectionMessage,

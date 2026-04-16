@@ -2,14 +2,16 @@ import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/domain/entity/commitment_entity.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 
 import '../database/tentura_db.dart';
 
 @Injectable(
+  as: CommitmentRepositoryPort,
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-class CommitmentRepository {
+class CommitmentRepository implements CommitmentRepositoryPort {
   const CommitmentRepository(this._database);
 
   final TenturaDb _database;

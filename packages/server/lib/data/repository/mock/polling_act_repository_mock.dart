@@ -1,13 +1,13 @@
 import 'package:injectable/injectable.dart';
 
-import '../polling_act_repository.dart';
+import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
 
 @Injectable(
-  as: PollingActRepository,
+  as: PollingActRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class PollingActRepositoryMock implements PollingActRepository {
+class PollingActRepositoryMock implements PollingActRepositoryPort {
   @override
   Future<void> create({
     required String authorId,

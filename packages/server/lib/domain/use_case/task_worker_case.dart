@@ -3,39 +3,42 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart';
 import 'package:blurhash_dart/blurhash_dart.dart';
+import 'package:logging/logging.dart';
 
-import 'package:tentura_server/data/repository/image_repository.dart';
-import 'package:tentura_server/data/repository/tasks_repository.dart';
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 
 import '../entity/task_entity.dart';
+import '_use_case_base.dart';
 
 @LazySingleton()
-class TaskWorkerCase {
+final class TaskWorkerCase extends UseCaseBase {
   @FactoryMethod()
   static Future<TaskWorkerCase> create(
     Env env,
-    ImageRepository imageRepository,
-    TaskRepository tasksRepository,
+    Logger logger,
+    ImageRepositoryPort imageRepository,
+    TaskRepositoryPort tasksRepository,
   ) => Future.value(
     TaskWorkerCase(
-      env,
       imageRepository,
       tasksRepository,
+      env: env,
+      logger: logger,
     ),
   );
 
   TaskWorkerCase(
-    this._env,
     this._imageRepository,
-    this._tasksRepository,
-  );
+    this._tasksRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final Env _env;
+  final ImageRepositoryPort _imageRepository;
 
-  final ImageRepository _imageRepository;
-
-  final TaskRepository _tasksRepository;
+  final TaskRepositoryPort _tasksRepository;
 
   final _runnerCompleter = Completer<void>();
 
@@ -74,12 +77,12 @@ class TaskWorkerCase {
 
   Future<void> run() async {
     while (_canRun) {
-      await Future<void>.delayed(_env.taskOnEmptyDelay);
+      await Future<void>.delayed(env.taskOnEmptyDelay);
       for (final task in _tasks) {
         try {
           if (_canRun) await task();
         } catch (e) {
-          if (_env.isDebugModeOn) print(e);
+          if (env.isDebugModeOn) print(e);
         }
       }
     }

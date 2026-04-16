@@ -1,13 +1,13 @@
 import 'package:injectable/injectable.dart';
 
-import '../meritrank_repository.dart';
+import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 
 @Injectable(
-  as: MeritrankRepository,
+  as: MeritrankRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class MeritrankRepositoryMock implements MeritrankRepository {
+class MeritrankRepositoryMock implements MeritrankRepositoryPort {
   @override
   Future<void> calculate({
     bool isBlocking = true,

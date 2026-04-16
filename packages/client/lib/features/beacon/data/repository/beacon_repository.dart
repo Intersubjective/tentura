@@ -26,7 +26,7 @@ import '../gql/_g/beacon_update_by_id.req.gql.dart';
 import '../gql/_g/beacon_update_draft.req.gql.dart';
 import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class BeaconRepository {
   BeaconRepository(
     this._remoteApiService,

@@ -5,43 +5,16 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/profile.dart';
 
+import '../../domain/entity/my_work_fetch_types.dart';
 import '../gql/_g/my_work_fetch.data.gql.dart';
 import '../gql/_g/my_work_fetch.req.gql.dart';
 
-/// A committed row returned from the My Work fetch queries.
-typedef MyWorkCommittedRow = ({
-  Beacon beacon,
-  String commitMessage,
-  String? helpType,
-  CoordinationResponseType? authorResponseType,
-  List<Profile> forwarderSenders,
+export '../../domain/entity/my_work_fetch_types.dart'
+    show MyWorkClosedResult, MyWorkCommittedRow, MyWorkInitResult;
 
-  /// `beacon_commitment.updated_at` (commit message / row changes).
-  DateTime commitmentRowUpdatedAt,
-
-  /// `beacon_commitment_coordination.updated_at` when author response exists.
-  DateTime? authorCoordinationUpdatedAt,
-});
-
-/// Result of [MyWorkRepository.fetchInit] (non-closed full rows + closed id hints).
-typedef MyWorkInitResult = ({
-  List<Beacon> authoredNonClosed,
-  List<MyWorkCommittedRow> committedNonClosed,
-  List<String> authoredClosedIds,
-  List<String> committedClosedIds,
-});
-
-/// Result of [MyWorkRepository.fetchClosed] (full closed rows).
-typedef MyWorkClosedResult = ({
-  List<Beacon> authoredClosed,
-  List<MyWorkCommittedRow> committedClosed,
-});
-
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class MyWorkRepository {
   MyWorkRepository(this._remoteApiService);
 

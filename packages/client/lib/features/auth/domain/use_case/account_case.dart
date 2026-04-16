@@ -6,12 +6,11 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
-import 'package:tentura/data/repository/platform_repository.dart';
+import 'package:tentura/domain/port/platform_repository_port.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
-import 'package:tentura/features/profile/data/repository/profile_repository.dart';
-
-import '../../data/repository/auth_remote_repository.dart';
-import '../../data/repository/auth_local_repository.dart';
+import '../port/auth_local_repository_port.dart';
+import '../port/auth_remote_repository_port.dart';
 import '../entity/account_entity.dart';
 import '../exception.dart';
 
@@ -26,13 +25,13 @@ final class AccountCase extends UseCaseBase {
     required super.logger,
   });
 
-  final AuthLocalRepository _authLocalRepository;
+  final AuthLocalRepositoryPort _authLocalRepository;
 
-  final AuthRemoteRepository _authRemoteRepository;
+  final AuthRemoteRepositoryPort _authRemoteRepository;
 
-  final PlatformRepository _platformRepository;
+  final PlatformRepositoryPort _platformRepository;
 
-  final ProfileRepository _profileRemoteRepository;
+  final ProfileRepositoryPort _profileRemoteRepository;
 
   Stream<RepositoryEvent<Profile>> get profileChanges =>
       _profileRemoteRepository.changes;

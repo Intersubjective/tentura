@@ -11,7 +11,7 @@ import '../gql/_g/opinion_fetch_by_id.req.gql.dart';
 import '../gql/_g/opinion_remove_by_id.req.gql.dart';
 import '../gql/_g/opinions_fetch_by_user_id.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class OpinionRepository {
   OpinionRepository(this._remoteApiService);
 

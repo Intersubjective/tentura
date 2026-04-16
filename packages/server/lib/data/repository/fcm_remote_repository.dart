@@ -4,10 +4,12 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
+import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 
 import '../service/fcm_service.dart';
 
 @Singleton(
+  as: FcmRemoteRepositoryPort,
   env: [
     Environment.prod,
   ],
@@ -19,7 +21,7 @@ import '../service/fcm_service.dart';
 /// This repository manages the FCM access token, automatically refreshing it
 /// when it expires before sending a message.
 ///
-class FcmRemoteRepository {
+class FcmRemoteRepository implements FcmRemoteRepositoryPort {
   FcmRemoteRepository(
     this._env,
     this._fcmService,

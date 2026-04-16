@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:meta/meta.dart';
 import 'package:web_socket_client/web_socket_client.dart';
 
-import 'enum.dart';
+import 'package:tentura_root/domain/enums.dart' show WebSocketState;
 import 'auth_box.dart';
 import 'remote_api_client_base.dart';
 

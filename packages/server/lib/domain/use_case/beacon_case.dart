@@ -1,16 +1,20 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
-import 'package:tentura_server/data/repository/beacon_repository.dart';
-import 'package:tentura_server/data/repository/image_repository.dart';
-import 'package:tentura_server/data/repository/meritrank_repository.dart';
-import 'package:tentura_server/data/repository/tasks_repository.dart';
+import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 
+import '../entity/beacon_entity.dart';
 import '../entity/task_entity.dart';
 import '../exception.dart';
+import '_use_case_base.dart';
 
 const kMaxImagesPerBeacon = 10;
 
@@ -31,34 +35,40 @@ String? _normalizeIconCode(String? raw) {
 }
 
 @Singleton(order: 2)
-class BeaconCase {
+final class BeaconCase extends UseCaseBase {
   @FactoryMethod(preResolve: true)
   static Future<BeaconCase> createInstance(
-    BeaconRepository beaconRepository,
-    ImageRepository imageRepository,
-    TaskRepository tasksRepository,
-    MeritrankRepository meritrankRepository,
+    Env env,
+    Logger logger,
+    BeaconRepositoryPort beaconRepository,
+    ImageRepositoryPort imageRepository,
+    TaskRepositoryPort tasksRepository,
+    MeritrankRepositoryPort meritrankRepository,
   ) async => BeaconCase(
     beaconRepository,
     imageRepository,
     tasksRepository,
     meritrankRepository,
+    env: env,
+    logger: logger,
   );
 
-  const BeaconCase(
+  BeaconCase(
     this._beaconRepository,
     this._imageRepository,
     this._tasksRepository,
-    this._meritrankRepository,
-  );
+    this._meritrankRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final MeritrankRepository _meritrankRepository;
+  final MeritrankRepositoryPort _meritrankRepository;
 
-  final BeaconRepository _beaconRepository;
+  final BeaconRepositoryPort _beaconRepository;
 
-  final ImageRepository _imageRepository;
+  final ImageRepositoryPort _imageRepository;
 
-  final TaskRepository _tasksRepository;
+  final TaskRepositoryPort _tasksRepository;
 
   //
   Future<BeaconEntity> create({

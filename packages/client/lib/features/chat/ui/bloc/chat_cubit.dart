@@ -95,8 +95,12 @@ class ChatCubit extends Cubit<ChatState> {
       status: ChatMessageStatus.sending,
       createdAt: DateTime.timestamp(),
     );
-    state.messages.insert(0, optimistic);
-    emit(state.copyWith(lastUpdate: DateTime.timestamp()));
+    emit(
+      state.copyWith(
+        messages: [optimistic, ...List<ChatMessageEntity>.from(state.messages)],
+        lastUpdate: DateTime.timestamp(),
+      ),
+    );
 
     try {
       await _chatCase.sendMessage(
@@ -105,25 +109,32 @@ class ChatCubit extends Cubit<ChatState> {
         content: content,
       );
     } catch (e) {
-      final idx = state.messages.indexWhere((m) => m.clientId == clientId);
+      final msgs = List<ChatMessageEntity>.from(state.messages);
+      final idx = msgs.indexWhere((m) => m.clientId == clientId);
       if (idx >= 0) {
-        state.messages[idx] = state.messages[idx].copyWith(
+        msgs[idx] = msgs[idx].copyWith(
           status: ChatMessageStatus.error,
         );
-        emit(state.copyWith(status: StateHasError(e)));
+        emit(state.copyWith(messages: msgs, status: StateHasError(e)));
       }
     }
   }
 
   /// Resend a failed outgoing message (same [clientId] and content).
   Future<void> onRetrySend(String clientId) async {
-    final idx = state.messages.indexWhere((m) => m.clientId == clientId);
+    final msgs = List<ChatMessageEntity>.from(state.messages);
+    final idx = msgs.indexWhere((m) => m.clientId == clientId);
     if (idx < 0) return;
-    final m = state.messages[idx];
+    final m = msgs[idx];
     if (m.status != ChatMessageStatus.error) return;
 
-    state.messages[idx] = m.copyWith(status: ChatMessageStatus.sending);
-    emit(state.copyWith(lastUpdate: DateTime.timestamp()));
+    msgs[idx] = m.copyWith(status: ChatMessageStatus.sending);
+    emit(
+      state.copyWith(
+        messages: msgs,
+        lastUpdate: DateTime.timestamp(),
+      ),
+    );
 
     try {
       await _chatCase.sendMessage(
@@ -132,12 +143,13 @@ class ChatCubit extends Cubit<ChatState> {
         content: m.content,
       );
     } catch (e) {
-      final i = state.messages.indexWhere((x) => x.clientId == clientId);
+      final msgs = List<ChatMessageEntity>.from(state.messages);
+      final i = msgs.indexWhere((x) => x.clientId == clientId);
       if (i >= 0) {
-        state.messages[i] = state.messages[i].copyWith(
+        msgs[i] = msgs[i].copyWith(
           status: ChatMessageStatus.error,
         );
-        emit(state.copyWith(status: StateHasError(e)));
+        emit(state.copyWith(messages: msgs, status: StateHasError(e)));
       }
     }
   }
@@ -171,11 +183,20 @@ class ChatCubit extends Cubit<ChatState> {
         clientId: message.clientId,
         serverId: message.serverId,
       );
-      state.messages.removeWhere(
-        (m) =>
-            m.clientId == message.clientId && m.serverId == message.serverId,
+      final msgs =
+          state.messages
+              .where(
+                (m) =>
+                    m.clientId != message.clientId ||
+                    m.serverId != message.serverId,
+              )
+              .toList();
+      emit(
+        state.copyWith(
+          messages: msgs,
+          lastUpdate: DateTime.timestamp(),
+        ),
       );
-      emit(state.copyWith(lastUpdate: DateTime.timestamp()));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -290,16 +311,15 @@ class ChatCubit extends Cubit<ChatState> {
         receiverId: myId,
         senderId: state.friend.id,
       );
+      final List<ChatMessageEntity> next;
+      if (state.messages.isEmpty) {
+        next = result.toList()..sort(_sortByDate);
+      } else {
+        next = [...result, ...state.messages]..sort(_sortByDate);
+      }
       emit(
         state.copyWith(
-          messages:
-              state.messages.isEmpty
-                    ? result.toList()
-                    : [
-                        ...result,
-                        ...state.messages,
-                      ]
-                ..sort(_sortByDate),
+          messages: next,
           status: StateStatus.isSuccess,
           lastUpdate: DateTime.timestamp(),
         ),
@@ -310,18 +330,20 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   void _onMessage(ChatMessageEntity message) {
-    final index = state.messages.indexWhere(
+    final msgs = List<ChatMessageEntity>.from(state.messages);
+    final index = msgs.indexWhere(
       (e) =>
           e.serverId == message.serverId ||
           (e.serverId.isEmpty && e.clientId == message.clientId),
     );
     if (index < 0) {
-      state.messages.insert(0, message);
+      msgs.insert(0, message);
     } else {
-      state.messages[index] = message;
+      msgs[index] = message;
     }
     emit(
       state.copyWith(
+        messages: msgs,
         status: StateStatus.isSuccess,
         lastUpdate: DateTime.timestamp(),
       ),
@@ -329,16 +351,22 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   void _onMessageAck(MessageAck ack) {
-    final index = state.messages.indexWhere(
+    final msgs = List<ChatMessageEntity>.from(state.messages);
+    final index = msgs.indexWhere(
       (e) => e.clientId == ack.clientId,
     );
     if (index >= 0) {
-      state.messages[index] = state.messages[index].copyWith(
+      msgs[index] = msgs[index].copyWith(
         serverId: ack.serverId,
         createdAt: ack.createdAt,
         status: ChatMessageStatus.sent,
       );
-      emit(state.copyWith(lastUpdate: DateTime.timestamp()));
+      emit(
+        state.copyWith(
+          messages: msgs,
+          lastUpdate: DateTime.timestamp(),
+        ),
+      );
     }
   }
 
@@ -351,11 +379,11 @@ class ChatCubit extends Cubit<ChatState> {
 
     final existingIds = state.messages.map((m) => m.serverId).toSet();
     final newMessages = older.where((m) => !existingIds.contains(m.serverId));
-    state.messages.addAll(newMessages);
-    state.messages.sort(_sortByDate);
+    final merged = [...state.messages, ...newMessages]..sort(_sortByDate);
 
     emit(
       state.copyWith(
+        messages: merged,
         status: StateStatus.isSuccess,
         lastUpdate: DateTime.timestamp(),
       ),

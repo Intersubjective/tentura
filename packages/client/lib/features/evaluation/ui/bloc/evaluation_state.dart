@@ -15,7 +15,7 @@ abstract class EvaluationState extends StateBase with _$EvaluationState {
     @Default([]) List<EvaluationParticipant> participants,
     @Default(null) ReviewWindowInfo? windowInfo,
     @Default(null) EvaluationSummary? summary,
-    @Default(StateIsLoading()) StateStatus status,
+    @Default(StateIsSuccess()) StateStatus status,
   }) = _EvaluationState;
 
   const EvaluationState._();

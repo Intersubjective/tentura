@@ -1,32 +1,30 @@
-import 'package:drift_postgres/drift_postgres.dart';
+import 'package:injectable/injectable.dart' show Environment;
+import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/repository/beacon_repository.dart';
-import 'package:tentura_server/data/repository/commitment_repository.dart';
-import 'package:tentura_server/data/repository/evaluation_repository.dart';
-import 'package:tentura_server/data/repository/fcm_remote_repository.dart';
-import 'package:tentura_server/data/repository/fcm_token_repository.dart';
-import 'package:tentura_server/data/repository/forward_edge_repository.dart';
-import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
+import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 
-class MockBeaconRepository extends Mock implements BeaconRepository {}
+import 'evaluation_graph_test_repos.dart';
 
-class MockCommitmentRepository extends Mock implements CommitmentRepository {}
+class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
 
-class MockForwardEdgeRepository extends Mock implements ForwardEdgeRepository {}
+class MockFcmRemoteRepository extends Mock implements FcmRemoteRepositoryPort {}
 
-class MockUserRepository extends Mock implements UserRepository {}
-
-class MockFcmRemoteRepository extends Mock implements FcmRemoteRepository {}
-
-class MockFcmTokenRepository extends Mock implements FcmTokenRepository {}
+class MockFcmTokenRepository extends Mock implements FcmTokenRepositoryPort {}
 
 class _SetStatusCall {
   const _SetStatusCall(this.beaconId, this.userId, this.status);
@@ -47,14 +45,14 @@ class _SetStatusCall {
 }
 
 /// Configurable fake for [EvaluationCase] unit tests.
-class _FakeEvaluationRepository implements EvaluationRepository {
+class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   _FakeEvaluationRepository();
 
-  BeaconReviewWindow? reviewWindowResult;
+  BeaconReviewWindowRecord? reviewWindowResult;
   int? reviewUserStatusResult;
-  List<BeaconEvaluationParticipant> participantsResult = [];
-  List<BeaconEvaluationVisibilityData> visibilityResult = [];
-  List<BeaconEvaluation> listEvaluationsForEvaluatorResult = [];
+  List<BeaconEvaluationParticipantRecord> participantsResult = [];
+  List<BeaconEvaluationVisibilityRecord> visibilityResult = [];
+  List<BeaconEvaluationRecord> listEvaluationsForEvaluatorResult = [];
   final List<_SetStatusCall> setReviewUserStatusCalls = [];
 
   @override
@@ -68,7 +66,7 @@ class _FakeEvaluationRepository implements EvaluationRepository {
       0;
 
   @override
-  Future<BeaconEvaluation?> getEvaluation({
+  Future<BeaconEvaluationRecord?> getEvaluation({
     required String beaconId,
     required String evaluatorId,
     required String evaluatedUserId,
@@ -76,7 +74,7 @@ class _FakeEvaluationRepository implements EvaluationRepository {
       null;
 
   @override
-  Future<List<BeaconEvaluation>> listEvaluationsForEvaluator({
+  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluator({
     required String beaconId,
     required String evaluatorId,
   }) async =>
@@ -88,7 +86,7 @@ class _FakeEvaluationRepository implements EvaluationRepository {
           .toList();
 
   @override
-  Future<BeaconReviewWindow?> getReviewWindow(String beaconId) async =>
+  Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId) async =>
       reviewWindowResult;
 
   @override
@@ -126,33 +124,35 @@ class _FakeEvaluationRepository implements EvaluationRepository {
   }) async {}
 
   @override
-  Future<List<BeaconEvaluation>> listEvaluationsForEvaluatedUser({
+  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
     required String evaluatedUserId,
   }) async =>
       [];
 
   @override
-  Future<List<BeaconEvaluationParticipant>> listParticipants(
+  Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
     String beaconId,
   ) async =>
       participantsResult;
 
   @override
-  Future<List<BeaconEvaluationVisibilityData>> listVisibilityForEvaluator(
+  Future<List<BeaconEvaluationVisibilityRecord>> listVisibilityForEvaluator(
     String beaconId,
     String evaluatorId,
   ) async =>
       visibilityResult;
 
   @override
-  Future<List<BeaconEvaluationVisibilityData>> listAllVisibility(
+  Future<List<BeaconEvaluationVisibilityRecord>> listAllVisibility(
     String beaconId,
   ) async =>
       visibilityResult;
 
   @override
-  Future<List<BeaconEvaluation>> listDraftRowsForBeacon(String beaconId) async =>
+  Future<List<BeaconEvaluationRecord>> listDraftRowsForBeacon(
+    String beaconId,
+  ) async =>
       [];
 
   @override
@@ -196,31 +196,47 @@ void main() {
   late _FakeEvaluationRepository evalRepo;
   late EvaluationCase evaluationCase;
 
-  BeaconReviewWindow openWindow({
+  BeaconReviewWindowRecord openWindow({
     String id = beaconId,
     DateTime? closesAt,
   }) {
     final now = DateTime.timestamp();
-    return BeaconReviewWindow(
+    final opened = now.subtract(const Duration(hours: 1));
+    final closes = closesAt ?? now.add(const Duration(days: 7));
+    return BeaconReviewWindowRecord(
       beaconId: id,
-      openedAt: PgDateTime(now.subtract(const Duration(hours: 1))),
-      closesAt: PgDateTime(closesAt ?? now.add(const Duration(days: 7))),
+      openedAt: opened,
+      closesAt: closes,
       status: 0,
-      createdAt: PgDateTime(now),
-      updatedAt: PgDateTime(now),
+      createdAt: now,
+      updatedAt: now,
     );
   }
 
   setUp(() {
     evalRepo = _FakeEvaluationRepository();
+    final commitmentRepo = EmptyGraphCommitmentRepository();
+    final forwardRepo = EmptyGraphForwardEdgeRepository();
+    final userRepo = StubUserRepository('User');
+
+    final graphBuilder = EvaluationParticipantGraphBuilder(
+      commitmentRepo,
+      forwardRepo,
+      userRepo,
+    );
+    final draftPurger = EvaluationDraftPurger(evalRepo);
+
     evaluationCase = EvaluationCase(
       MockBeaconRepository(),
-      MockCommitmentRepository(),
-      MockForwardEdgeRepository(),
+      forwardRepo,
       evalRepo,
-      MockUserRepository(),
+      userRepo,
       MockFcmRemoteRepository(),
       MockFcmTokenRepository(),
+      graphBuilder,
+      draftPurger,
+      env: Env(environment: Environment.test),
+      logger: Logger('EvaluationCaseTest'),
     );
   });
 
@@ -296,13 +312,13 @@ void main() {
 
     test('throws reviewWindowExpired when window already closed (status 1)', () async {
       final now = DateTime.timestamp();
-      evalRepo.reviewWindowResult = BeaconReviewWindow(
+      evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
         beaconId: beaconId,
-        openedAt: PgDateTime(now.subtract(const Duration(days: 8))),
-        closesAt: PgDateTime(now.subtract(const Duration(days: 1))),
+        openedAt: now.subtract(const Duration(days: 8)),
+        closesAt: now.subtract(const Duration(days: 1)),
         status: 1,
-        createdAt: PgDateTime(now.subtract(const Duration(days: 8))),
-        updatedAt: PgDateTime(now),
+        createdAt: now.subtract(const Duration(days: 8)),
+        updatedAt: now,
       );
 
       expect(
@@ -328,7 +344,7 @@ void main() {
         closesAt: now.subtract(const Duration(days: 1)),
       );
       evalRepo.visibilityResult = [
-        const BeaconEvaluationVisibilityData(
+        const BeaconEvaluationVisibilityRecord(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
           participantId: evaluatedId,
@@ -361,14 +377,14 @@ void main() {
       evalRepo.reviewWindowResult = openWindow();
       evalRepo.reviewUserStatusResult = 0;
       evalRepo.visibilityResult = [
-        const BeaconEvaluationVisibilityData(
+        const BeaconEvaluationVisibilityRecord(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
           participantId: evaluatedId,
         ),
       ];
       evalRepo.participantsResult = [
-        const BeaconEvaluationParticipant(
+        const BeaconEvaluationParticipantRecord(
           beaconId: beaconId,
           userId: evaluatedId,
           role: 0,
@@ -402,14 +418,14 @@ void main() {
       evalRepo.reviewWindowResult = openWindow();
       evalRepo.reviewUserStatusResult = 1;
       evalRepo.visibilityResult = [
-        const BeaconEvaluationVisibilityData(
+        const BeaconEvaluationVisibilityRecord(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
           participantId: evaluatedId,
         ),
       ];
       evalRepo.participantsResult = [
-        const BeaconEvaluationParticipant(
+        const BeaconEvaluationParticipantRecord(
           beaconId: beaconId,
           userId: evaluatedId,
           role: 0,

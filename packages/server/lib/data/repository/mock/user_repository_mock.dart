@@ -1,16 +1,17 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 
-import '../user_repository.dart';
 import 'data/users.dart';
 
 @Injectable(
-  as: UserRepository,
+  as: UserRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class UserRepositoryMock implements UserRepository {
+class UserRepositoryMock implements UserRepositoryPort {
   static final storageByPublicKey = <String, UserEntity>{...kUserByPublicKey};
 
   const UserRepositoryMock();

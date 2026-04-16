@@ -3,7 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/entity/polling.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
-import '../../data/repository/polling_repository.dart';
+import '../../domain/use_case/polling_case.dart';
 import 'polling_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,8 +13,8 @@ export 'polling_state.dart';
 class PollingCubit extends Cubit<PollingState> {
   PollingCubit({
     required Polling polling,
-    PollingRepository? pollingRepository,
-  }) : _pollingRepository = pollingRepository ?? GetIt.I<PollingRepository>(),
+    PollingCase? pollingCase,
+  }) : _pollingCase = pollingCase ?? GetIt.I<PollingCase>(),
        super(
          PollingState(
            polling: polling,
@@ -22,12 +22,12 @@ class PollingCubit extends Cubit<PollingState> {
          ),
        );
 
-  final PollingRepository _pollingRepository;
+  final PollingCase _pollingCase;
 
   Future<void> fetch() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final (:polling, :results) = await _pollingRepository.fetchResults(
+      final (:polling, :results) = await _pollingCase.fetchResults(
         pollingId: state.polling.id,
       );
       emit(
@@ -50,7 +50,7 @@ class PollingCubit extends Cubit<PollingState> {
   Future<void> vote() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _pollingRepository.vote(
+      await _pollingCase.vote(
         pollingId: state.polling.id,
         variantId: state.chosenVariant,
       );

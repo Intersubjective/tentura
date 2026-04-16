@@ -2,16 +2,19 @@
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
+
 import '../database/tentura_db.dart';
 
 @Injectable(
+  as: MeritrankRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class MeritrankRepository {
+class MeritrankRepository implements MeritrankRepositoryPort {
   const MeritrankRepository(this._database);
 
   final TenturaDb _database;

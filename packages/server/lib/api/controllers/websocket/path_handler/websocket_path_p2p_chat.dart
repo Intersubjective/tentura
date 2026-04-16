@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:uuid/uuid_value.dart';
 
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/use_case/p2p_chat_case.dart';
@@ -23,9 +22,7 @@ base mixin WebsocketPathP2pChat on WebsocketSessionHandlerBase {
         final entity = await p2pChatCase.create(
           senderId: jwt.sub,
           receiverId: message['receiver_id']! as String,
-          clientMessageId: UuidValue.fromString(
-            message['client_id']! as String,
-          ),
+          clientMessageId: message['client_id']! as String,
           content: message['content']! as String,
         );
         session.send(

@@ -10,24 +10,31 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
 import '../../domain/exception.dart';
+import '../../domain/port/profile_repository_port.dart';
 import '../gql/_g/profile_delete.req.gql.dart';
 import '../gql/_g/profile_update.req.gql.dart';
 import '../gql/_g/user_fetch_by_id.req.gql.dart';
 
-@singleton
-class ProfileRepository {
+@Singleton(
+  as: ProfileRepositoryPort,
+  env: [Environment.dev, Environment.prod],
+)
+class ProfileRepository implements ProfileRepositoryPort {
   ProfileRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
 
   final _controller = StreamController<RepositoryEvent<Profile>>.broadcast();
 
+  @override
   Stream<RepositoryEvent<Profile>> get changes => _controller.stream;
 
+  @override
   @disposeMethod
   Future<void> dispose() => _controller.close();
 
   //
+  @override
   Future<Profile> fetchById(String id) async {
     final request = GUserFetchByIdReq((b) => b.vars.id = id);
     final response = await _remoteApiService
@@ -41,6 +48,7 @@ class ProfileRepository {
   }
 
   //
+  @override
   Future<void> update(
     Profile profile, {
     String? title,
@@ -73,6 +81,7 @@ class ProfileRepository {
   }
 
   //
+  @override
   Future<void> delete(String id) async {
     final isOk = await _remoteApiService
         .request(GProfileDeleteReq())

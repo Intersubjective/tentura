@@ -6,7 +6,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/opinion/data/repository/opinion_repository.dart';
-import 'package:tentura/features/profile/data/repository/profile_repository.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import 'profile_view_state.dart';
 
@@ -17,9 +17,9 @@ export 'profile_view_state.dart';
 class ProfileViewCubit extends Cubit<ProfileViewState> {
   ProfileViewCubit({
     required String id,
-    ProfileRepository? profileRepository,
+    ProfileRepositoryPort? profileRepository,
     LikeRemoteRepository? likeRemoteRepository,
-  }) : _profileRepository = profileRepository ?? GetIt.I<ProfileRepository>(),
+  }) : _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        _likeRemoteRepository =
            likeRemoteRepository ?? GetIt.I<LikeRemoteRepository>(),
        super(switch (id) {
@@ -32,7 +32,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
     unawaited(fetch());
   }
 
-  final ProfileRepository _profileRepository;
+  final ProfileRepositoryPort _profileRepository;
 
   final LikeRemoteRepository _likeRemoteRepository;
 

@@ -1,7 +1,7 @@
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
+import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -13,7 +13,7 @@ export 'evaluation_state.dart';
 
 class EvaluationCubit extends Cubit<EvaluationState> {
   EvaluationCubit(
-    this._repository, {
+    this._evaluationCase, {
     required String beaconId,
     String beaconTitle = '',
     bool isDraftMode = false,
@@ -31,24 +31,24 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     bool isDraftMode = false,
   }) =>
       EvaluationCubit(
-        GetIt.I<EvaluationRepository>(),
+        GetIt.I<EvaluationCase>(),
         beaconId: beaconId,
         beaconTitle: beaconTitle,
         isDraftMode: isDraftMode,
       );
 
-  final EvaluationRepository _repository;
+  final EvaluationCase _evaluationCase;
 
   Future<void> loadAll() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final window = await _repository.fetchReviewWindowStatus(state.beaconId);
+      final window = await _evaluationCase.fetchReviewWindowStatus(state.beaconId);
       final participants = window.hasWindow
-          ? await _repository.fetchParticipants(state.beaconId)
+          ? await _evaluationCase.fetchParticipants(state.beaconId)
           : <EvaluationParticipant>[];
       EvaluationSummary? summary;
       if (window.windowComplete) {
-        summary = await _repository.fetchSummary(state.beaconId);
+        summary = await _evaluationCase.fetchSummary(state.beaconId);
       }
       emit(
         state.copyWith(
@@ -68,7 +68,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       if (state.isDraftMode) {
-        final data = await _repository.fetchDraftModeBootstrap(state.beaconId);
+        final data = await _evaluationCase.fetchDraftModeBootstrap(state.beaconId);
         emit(
           state.copyWith(
             participants: data.participants,
@@ -78,8 +78,8 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         );
         return;
       }
-      final participants = await _repository.fetchParticipants(state.beaconId);
-      final window = await _repository.fetchReviewWindowStatus(state.beaconId);
+      final participants = await _evaluationCase.fetchParticipants(state.beaconId);
+      final window = await _evaluationCase.fetchReviewWindowStatus(state.beaconId);
       emit(
         state.copyWith(
           participants: participants,
@@ -102,7 +102,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       if (state.isDraftMode) {
-        await _repository.draftSave(
+        await _evaluationCase.draftSave(
           beaconId: state.beaconId,
           evaluatedUserId: evaluatedUserId,
           value: value.wire,
@@ -110,7 +110,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           note: note,
         );
         final participants =
-            await _repository.fetchDraftParticipants(state.beaconId);
+            await _evaluationCase.fetchDraftParticipants(state.beaconId);
         emit(
           state.copyWith(
             participants: participants,
@@ -119,15 +119,15 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         );
         return;
       }
-      await _repository.submit(
+      await _evaluationCase.submit(
         beaconId: state.beaconId,
         evaluatedUserId: evaluatedUserId,
         value: value.wire,
         reasonTags: reasonTags,
         note: note,
       );
-      final participants = await _repository.fetchParticipants(state.beaconId);
-      final window = await _repository.fetchReviewWindowStatus(state.beaconId);
+      final participants = await _evaluationCase.fetchParticipants(state.beaconId);
+      final window = await _evaluationCase.fetchReviewWindowStatus(state.beaconId);
       emit(
         state.copyWith(
           participants: participants,
@@ -148,7 +148,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _repository.finalize(state.beaconId);
+      await _evaluationCase.finalize(state.beaconId);
       emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
@@ -162,7 +162,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _repository.skip(state.beaconId);
+      await _evaluationCase.skip(state.beaconId);
       emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));

@@ -9,7 +9,7 @@ import '../gql/_g/comment_create.req.gql.dart';
 import '../gql/_g/comment_fetch_by_beacon_id.req.gql.dart';
 import '../gql/_g/comment_fetch_by_id.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class CommentRepository {
   CommentRepository(this._remoteApiService);
 

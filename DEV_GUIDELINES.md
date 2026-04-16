@@ -21,6 +21,29 @@ When a screen's cubit loads data asynchronously after navigation, the first fram
 
 **Rationale:** A centered adaptive progress indicator is the project default for \u201cdata not ready yet.\u201d It avoids rendering ownership-specific controls (e.g. Commit vs owner actions) against `Profile()` / empty ids.
 
+## Layer boundaries & keeping them (client + server)
+
+These are **project invariants**. Stricter checks live in `.cursor/rules/architecture.mdc` and `quick-reference.mdc`; **automation** is in `packages/tentura_lints` and CI.
+
+### Server (`packages/server`)
+
+- **Domain use cases** depend on **`domain/port/*`** types only — **not** on concrete `data/repository` classes. Repositories **`implement`** ports and register with Injectable **`as: …Port`** (dev/prod envs); tests bind fakes the same way.
+- **Use cases** extend **`UseCaseBase`** and take **`env` + `logger`** where that base exists in the package.
+- **Quick check:** `rg "package:tentura_server/data/repository" packages/server/lib/domain` should return **no hits**.
+
+### Client (`packages/client`)
+
+- **`lib/domain/`** (shared root domain) must **not** import `package:tentura/.../data/` or `.../ui/`. Enforced by **`custom_lint`** in **`packages/tentura_lints`** (`no_domain_to_data_or_ui_import`). *Note:* feature folders named `domain/` under `features/*/domain/` are not the same path — still follow the same **spirit** (no upward imports to data/ui types from domain code).
+- **`lib/**/ui/bloc/*_cubit.dart`** must **not** import `package:tentura/.../data/service/`. Use **repositories** or **`features/*/domain/use_case/*_case`**. Lint: **`no_cubit_to_data_service_import`**.
+- **Orchestration:** When a cubit coordinates **multiple repositories** or **streams**, add or extend a **`@singleton`** `*Case` in `features/<feature>/domain/use_case/` and inject it (optional ctor param + `GetIt.I` fallback) so the cubit stays thin.
+- **Immutable cubit state:** Never mutate lists/maps **on** `state` (no `state.items.add`, `state.likes[id]=`, in-place `sort`, etc.). Always **`emit(state.copyWith(...))`** with **new** collection instances.
+- **Images:** Picker/cropper types stop in **data**; **`ImageRepository`** exposes domain **`ImagePicked`** (or equivalent) at pick boundaries.
+- **Fixtures:** Prefer **`lib/data/repository/mock/data/`** for shared JSON/Dart stubs used by tests and mocks.
+
+### CI
+
+- The GitHub workflow runs **`dart analyze --fatal-infos`** (server) and **`flutter analyze --fatal-infos`** (client) **before** tests. New work should stay clean under those flags (or fix pre-existing debt in the same area you touch).
+
 ## Ferry custom scalars (Hasura)
 
 Every Hasura `scalar` type that appears in query **responses** must have a

@@ -2,11 +2,11 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/features/auth/data/repository/auth_local_repository.dart';
-import 'package:tentura/features/settings/data/repository/settings_repository.dart';
+import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
+import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 
-import '../../data/repository/fcm_local_repository.dart';
-import '../../data/repository/fcm_remote_repository.dart';
+import '../port/fcm_local_repository_port.dart';
+import '../port/fcm_remote_repository_port.dart';
 import '../entity/notification_permissions.dart';
 
 @singleton
@@ -18,13 +18,13 @@ class FcmCase {
     this._settingsRepository,
   );
 
-  final FcmLocalRepository _fcmLocalRepository;
+  final FcmLocalRepositoryPort _fcmLocalRepository;
 
-  final FcmRemoteRepository _fcmRemoteRepository;
+  final FcmRemoteRepositoryPort _fcmRemoteRepository;
 
-  final AuthLocalRepository _authLocalRepository;
+  final AuthLocalRepositoryPort _authLocalRepository;
 
-  final SettingsRepository _settingsRepository;
+  final SettingsRepositoryPort _settingsRepository;
 
   Stream<String> get onTokenRefresh => _fcmLocalRepository.onTokenRefresh;
 

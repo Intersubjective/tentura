@@ -171,7 +171,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     try {
       final images = await _imageRepository.pickMultipleImages();
       if (images.isNotEmpty) {
-        final combined = [...state.images, ...images];
+        final combined = [
+          ...state.images,
+          ...images.map((p) => p.toImageEntity()),
+        ];
         if (combined.length > kMaxImagesPerBeacon) {
           combined.length = kMaxImagesPerBeacon;
         }

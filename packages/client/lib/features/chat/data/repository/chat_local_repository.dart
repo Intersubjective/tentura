@@ -6,16 +6,21 @@ import 'package:tentura/domain/enum.dart';
 import 'package:tentura/data/database/database.dart';
 
 import '../../domain/entity/chat_message_entity.dart';
+import '../../domain/port/chat_local_repository_port.dart';
 import '../model/chat_message_local_model.dart';
 
-@singleton
-class ChatLocalRepository {
+@Singleton(
+  as: ChatLocalRepositoryPort,
+  env: [Environment.dev, Environment.prod],
+)
+class ChatLocalRepository implements ChatLocalRepositoryPort {
   ChatLocalRepository(this._database);
 
   final Database _database;
 
   //
   //
+  @override
   Future<void> saveMessages({
     required Iterable<ChatMessageEntity> messages,
   }) => _database.managers.p2pMessages.bulkCreate(
@@ -38,6 +43,7 @@ class ChatLocalRepository {
   ///
   /// Get all messages for pair from local DB
   ///
+  @override
   Future<Iterable<ChatMessageEntity>> getChatMessagesForPair({
     required String senderId,
     required String receiverId,
@@ -54,6 +60,7 @@ class ChatLocalRepository {
   ///
   /// Incoming messages not yet marked delivered (seen) by [userId] as receiver.
   ///
+  @override
   Future<Iterable<ChatMessageEntity>> getAllNewMessagesFor({
     required String userId,
   }) => _database.managers.p2pMessages
@@ -67,6 +74,7 @@ class ChatLocalRepository {
   ///
   /// Get the most recent message timestamp for a user.
   ///
+  @override
   Future<DateTime> getMostRecentMessageTimestamp({
     required String userId,
   }) => _database
@@ -95,6 +103,7 @@ LIMIT 1;
       .then((r) => r == null ? kZeroAge : r.read('ts'));
 
   /// Remove a row from local storage only (does not affect server history).
+  @override
   Future<void> deleteMessageForMe({
     required String clientId,
     required String serverId,

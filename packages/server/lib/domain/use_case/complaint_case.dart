@@ -1,16 +1,20 @@
 import 'package:injectable/injectable.dart';
-
 import 'package:tentura_root/domain/enums.dart';
 
-import 'package:tentura_server/data/repository/complaint_repository.dart';
+import 'package:tentura_server/domain/port/complaint_repository_port.dart';
 
 import '../entity/complaint_entity.dart';
+import '_use_case_base.dart';
 
 @Injectable(order: 2)
-class ComplaintCase {
-  ComplaintCase(this._complaintRepository);
+final class ComplaintCase extends UseCaseBase {
+  ComplaintCase(
+    this._complaintRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final ComplaintRepository _complaintRepository;
+  final ComplaintRepositoryPort _complaintRepository;
 
   Future<bool> create({
     required String id,

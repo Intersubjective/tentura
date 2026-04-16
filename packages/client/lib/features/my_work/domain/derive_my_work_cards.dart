@@ -2,9 +2,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 
-import 'package:tentura/features/my_work/data/repository/my_work_repository.dart';
-
 import 'entity/my_work_card_view_model.dart';
+import 'entity/my_work_fetch_types.dart';
 
 /// Sort key: higher = earlier in list. Tie-break with [Beacon.updatedAt], then id.
 int myWorkCardSortTier(MyWorkCardViewModel vm) {

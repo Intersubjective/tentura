@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/repository/platform_repository.dart';
-import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/data/repository/app_update_repository.dart';
+import 'package:tentura/domain/port/platform_repository_port.dart';
 
 import 'app_update_state.dart';
 
@@ -44,17 +44,17 @@ int compareSemver(String a, String b) {
 @singleton
 class AppUpdateCubit extends Cubit<AppUpdateState> {
   AppUpdateCubit({
-    required RemoteApiService remoteApiService,
-    required PlatformRepository platformRepository,
+    required AppUpdateRepository appUpdateRepository,
+    required PlatformRepositoryPort platformRepository,
   }) : _platformRepository = platformRepository,
        super(const AppUpdateState()) {
-    _minVersionSubscription = remoteApiService.minClientVersionStream.listen(
+    _minVersionSubscription = appUpdateRepository.minClientVersionStream.listen(
       _onMinClientVersion,
       cancelOnError: false,
     );
   }
 
-  final PlatformRepository _platformRepository;
+  final PlatformRepositoryPort _platformRepository;
 
   late final StreamSubscription<String> _minVersionSubscription;
 

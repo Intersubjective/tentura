@@ -1,6 +1,7 @@
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
 
 import '../custom_types.dart';
+import '../mappers/gql_public_user_maps.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
@@ -19,11 +20,12 @@ final class QueryCoordination extends GqlNodeBase {
         'commitmentsWithCoordination',
         GraphQLListType(gqlTypeCommitmentWithCoordinationRow.nonNullable()),
         arguments: [InputFieldId.field],
-        resolve: (_, args) {
+        resolve: (_, args) async {
           getCredentials(args);
-          return _coordinationCase.commitmentsWithCoordination(
+          final rows = await _coordinationCase.commitmentsWithCoordination(
             beaconId: InputFieldId.fromArgsNonNullable(args),
           );
+          return rows.map(commitmentWithCoordinationToGqlMap).toList();
         },
       );
 }

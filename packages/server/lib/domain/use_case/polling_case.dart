@@ -1,15 +1,21 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
+import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
 
-import 'package:tentura_server/data/repository/meritrank_repository.dart';
-import 'package:tentura_server/data/repository/polling_act_repository.dart';
+import '_use_case_base.dart';
 
 @Singleton(order: 2)
-class PollingCase {
-  const PollingCase(this._meritrankRepository, this._pollingActRepository);
+final class PollingCase extends UseCaseBase {
+  PollingCase(
+    this._meritrankRepository,
+    this._pollingActRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final MeritrankRepository _meritrankRepository;
+  final MeritrankRepositoryPort _meritrankRepository;
 
-  final PollingActRepository _pollingActRepository;
+  final PollingActRepositoryPort _pollingActRepository;
 
   Future<bool> create({
     required String authorId,

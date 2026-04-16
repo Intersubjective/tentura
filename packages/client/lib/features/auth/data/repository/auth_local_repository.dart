@@ -7,10 +7,14 @@ import 'package:tentura/data/service/local_secure_storage.dart';
 
 import '../../domain/entity/account_entity.dart';
 import '../../domain/exception.dart';
+import '../../domain/port/auth_local_repository_port.dart';
 import '../mapper/account_mapper.dart';
 
-@singleton
-class AuthLocalRepository {
+@Singleton(
+  as: AuthLocalRepositoryPort,
+  env: [Environment.dev, Environment.prod],
+)
+class AuthLocalRepository implements AuthLocalRepositoryPort {
   AuthLocalRepository(
     this._logger,
     this._database,
@@ -29,6 +33,7 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   @disposeMethod
   Future<void> dispose() async {
     await _controllerIdChanges.close();
@@ -36,6 +41,7 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   Stream<String> currentAccountChanges() async* {
     yield _currentAccountId.isNotEmpty
         ? _currentAccountId
@@ -46,12 +52,14 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   Future<String> getSeedByAccountId(String id) async =>
       await _localSecureStorage.read(_getAccountKey(id)) ??
       (throw const AuthIdNotFoundException());
 
   //
   //
+  @override
   Future<String> getCurrentAccountId() async => _currentAccountId.isEmpty
       ? _localSecureStorage
             .read(_currentAccountKey)
@@ -60,6 +68,7 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   Future<List<AccountEntity>> getAccountsAll() async => [
     for (final account in await _database.managers.accounts.get())
       accountModelToEntity(account),
@@ -67,6 +76,7 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   Future<AccountEntity?> getAccountById(String id) => _database
       .managers
       .accounts
@@ -78,6 +88,7 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   Future<AccountEntity?> getCurrentAccount() => _currentAccountId.isEmpty
       ? Future.value()
       : _database.managers.accounts
@@ -90,6 +101,7 @@ class AuthLocalRepository {
   ///
   /// Remove account only from local storage
   ///
+  @override
   Future<void> removeAccount(String id) async {
     await _database.managers.accounts.filter((e) => e.id.equals(id)).delete();
     await _localSecureStorage.delete(_getAccountKey(id));
@@ -97,6 +109,7 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   Future<void> updateAccount(AccountEntity account) => _database
       .managers
       .accounts
@@ -114,6 +127,7 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   Future<void> setCurrentAccountId(String? id) async {
     await _localSecureStorage.write(
       _currentAccountKey,
@@ -125,6 +139,7 @@ class AuthLocalRepository {
 
   //
   //
+  @override
   Future<void> addAccount(String id, String seed, [String? title]) async {
     await _localSecureStorage.write(_getAccountKey(id), seed);
     await _database.managers.accounts.create(

@@ -7,12 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/env.dart';
-import 'package:tentura/data/repository/platform_repository.dart';
+import 'package:tentura/domain/port/platform_repository_port.dart';
 
 import 'package:tentura/features/auth/domain/use_case/account_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
-import '../../data/repository/settings_repository.dart';
+import '../../domain/port/settings_repository_port.dart';
 import 'settings_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,8 +27,8 @@ class SettingsCubit extends Cubit<SettingsState> {
     Env env,
     AuthCase authCase,
     AccountCase accountCase,
-    PlatformRepository platformRepository,
-    SettingsRepository settingsRepository,
+    PlatformRepositoryPort platformRepository,
+    SettingsRepositoryPort settingsRepository,
   ) async {
     final isIntroEnabled = await settingsRepository.getIsIntroEnabled() ?? true;
     final themeModeName =
@@ -51,7 +51,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   SettingsCubit({
     required AuthCase authCase,
     required AccountCase accountCase,
-    required SettingsRepository settingsRepository,
+    required SettingsRepositoryPort settingsRepository,
     SettingsState state = const SettingsState(),
   }) : _authCase = authCase,
        _accountCase = accountCase,
@@ -62,7 +62,7 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   final AccountCase _accountCase;
 
-  final SettingsRepository _settingsRepository;
+  final SettingsRepositoryPort _settingsRepository;
 
   //
   //

@@ -45,7 +45,7 @@ class OpinionCubit extends Cubit<OpinionState> {
       unawaited(fetch());
     } else if (objectId.startsWith('O')) {
       unawaited(
-        GetIt.I<OpinionRepository>()
+        _opinionRepository
             .fetchById(objectId)
             .then(
               (opinion) => emit(
@@ -93,11 +93,11 @@ class OpinionCubit extends Cubit<OpinionState> {
         offset: state.opinions.length,
         userId: state.objectId,
       );
-      state.opinions
-        ..addAll(opinions)
+      final merged = [...state.opinions, ...opinions]
         ..sort((a, b) => a.score.compareTo(b.score));
       emit(
         state.copyWith(
+          opinions: merged,
           status: StateStatus.isSuccess,
           hasReachedMax: opinions.length < kFetchListOffset,
         ),
@@ -122,8 +122,15 @@ class OpinionCubit extends Cubit<OpinionState> {
         amount: amount,
         content: text,
       );
-      state.opinions.add(opinion.copyWith(author: state.myProfile));
-      emit(state.copyWith(status: StateStatus.isSuccess));
+      emit(
+        state.copyWith(
+          opinions: [
+            ...state.opinions,
+            opinion.copyWith(author: state.myProfile),
+          ],
+          status: StateStatus.isSuccess,
+        ),
+      );
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -135,8 +142,12 @@ class OpinionCubit extends Cubit<OpinionState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _opinionRepository.removeOpinionById(id);
-      state.opinions.removeWhere((e) => e.id == id);
-      emit(state.copyWith(status: StateStatus.isSuccess));
+      emit(
+        state.copyWith(
+          opinions: state.opinions.where((e) => e.id != id).toList(),
+          status: StateStatus.isSuccess,
+        ),
+      );
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

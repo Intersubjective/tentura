@@ -3,14 +3,18 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
+import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import '../mapper/evaluation_mapper.dart';
 
 @Injectable(
+  as: EvaluationRepositoryPort,
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-class EvaluationRepository {
+class EvaluationRepository implements EvaluationRepositoryPort {
   const EvaluationRepository(this._db);
 
   final TenturaDb _db;
@@ -28,10 +32,12 @@ class EvaluationRepository {
         ),
       );
 
-  Future<BeaconReviewWindow?> getReviewWindow(String beaconId) =>
-      _db.managers.beaconReviewWindows
-          .filter((e) => e.beaconId.id(beaconId))
-          .getSingleOrNull();
+  Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId) async {
+    final row = await _db.managers.beaconReviewWindows
+        .filter((e) => e.beaconId.id(beaconId))
+        .getSingleOrNull();
+    return row == null ? null : beaconReviewWindowToRecord(row);
+  }
 
   Future<void> insertParticipant({
     required String beaconId,
@@ -97,51 +103,65 @@ class EvaluationRepository {
         ),
       );
 
-  Future<List<BeaconEvaluationParticipant>> listParticipants(
+  Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
     String beaconId,
-  ) => _db.managers.beaconEvaluationParticipants
-      .filter((e) => e.beaconId.id(beaconId))
-      .get();
+  ) async {
+    final rows = await _db.managers.beaconEvaluationParticipants
+        .filter((e) => e.beaconId.id(beaconId))
+        .get();
+    return rows.map(beaconEvaluationParticipantToRecord).toList();
+  }
 
-  Future<List<BeaconEvaluationVisibilityData>> listVisibilityForEvaluator(
+  Future<List<BeaconEvaluationVisibilityRecord>> listVisibilityForEvaluator(
     String beaconId,
     String evaluatorId,
-  ) => _db.managers.beaconEvaluationVisibility
-      .filter(
-        (e) => e.beaconId.id(beaconId) & e.evaluatorId.id(evaluatorId),
-      )
-      .get();
+  ) async {
+    final rows = await _db.managers.beaconEvaluationVisibility
+        .filter(
+          (e) => e.beaconId.id(beaconId) & e.evaluatorId.id(evaluatorId),
+        )
+        .get();
+    return rows.map(beaconEvaluationVisibilityToRecord).toList();
+  }
 
-  Future<List<BeaconEvaluationVisibilityData>> listAllVisibility(
+  Future<List<BeaconEvaluationVisibilityRecord>> listAllVisibility(
     String beaconId,
-  ) => _db.managers.beaconEvaluationVisibility
-      .filter((e) => e.beaconId.id(beaconId))
-      .get();
+  ) async {
+    final rows = await _db.managers.beaconEvaluationVisibility
+        .filter((e) => e.beaconId.id(beaconId))
+        .get();
+    return rows.map(beaconEvaluationVisibilityToRecord).toList();
+  }
 
-  Future<BeaconEvaluation?> getEvaluation({
+  Future<BeaconEvaluationRecord?> getEvaluation({
     required String beaconId,
     required String evaluatorId,
     required String evaluatedUserId,
-  }) => _db.managers.beaconEvaluations
-      .filter(
-        (e) =>
-            e.beaconId.id(beaconId) &
-            e.evaluatorId.id(evaluatorId) &
-            e.evaluatedUserId.id(evaluatedUserId),
-      )
-      .getSingleOrNull();
+  }) async {
+    final row = await _db.managers.beaconEvaluations
+        .filter(
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.evaluatorId.id(evaluatorId) &
+              e.evaluatedUserId.id(evaluatedUserId),
+        )
+        .getSingleOrNull();
+    return row == null ? null : beaconEvaluationToRecord(row);
+  }
 
   /// All evaluation rows for one evaluator on a beacon (single query).
-  Future<List<BeaconEvaluation>> listEvaluationsForEvaluator({
+  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluator({
     required String beaconId,
     required String evaluatorId,
-  }) =>
-      _db.managers.beaconEvaluations
-          .filter(
-            (e) =>
-                e.beaconId.id(beaconId) & e.evaluatorId.id(evaluatorId),
-          )
-          .get();
+  }) async {
+    final rows = await _db.managers.beaconEvaluations
+        .filter(
+          (e) =>
+              e.beaconId.id(beaconId) & e.evaluatorId.id(evaluatorId),
+        )
+        .get();
+    return rows.map(beaconEvaluationToRecord).toList();
+  }
 
   Future<void> upsertEvaluation({
     required String beaconId,
@@ -173,7 +193,7 @@ class EvaluationRepository {
       );
 
   /// Non–NO_BASIS evaluations for aggregate summary.
-  Future<List<BeaconEvaluation>> listEvaluationsForEvaluatedUser({
+  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
     required String evaluatedUserId,
   }) async {
@@ -189,6 +209,7 @@ class EvaluationRepository {
               r.value != BeaconEvaluationValue.noBasis &&
               BeaconEvaluationRowStatus.countsTowardSummary(r.status),
         )
+        .map(beaconEvaluationToRecord)
         .toList();
   }
 
@@ -204,12 +225,18 @@ class EvaluationRepository {
   }
 
   /// All draft rows for a beacon (any evaluator).
-  Future<List<BeaconEvaluation>> listDraftRowsForBeacon(String beaconId) =>
-      _db.managers.beaconEvaluations
-          .filter(
-            (e) => e.beaconId.id(beaconId) & e.status.equals(BeaconEvaluationRowStatus.draft),
-          )
-          .get();
+  Future<List<BeaconEvaluationRecord>> listDraftRowsForBeacon(
+    String beaconId,
+  ) async {
+    final rows = await _db.managers.beaconEvaluations
+        .filter(
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.status.equals(BeaconEvaluationRowStatus.draft),
+        )
+        .get();
+    return rows.map(beaconEvaluationToRecord).toList();
+  }
 
   Future<void> deleteEvaluationRow({
     required String beaconId,

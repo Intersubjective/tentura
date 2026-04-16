@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
-import 'package:tentura/features/auth/data/repository/auth_local_repository.dart';
+import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 
 import '../../data/repository/beacon_repository.dart';
 import '../../domain/enum.dart';
@@ -22,10 +22,10 @@ class BeaconCubit extends Cubit<BeaconState> {
   BeaconCubit({
     required String profileId,
     BeaconRepository? beaconRepository,
-    AuthLocalRepository? authLocalRepository,
+    AuthLocalRepositoryPort? authLocalRepository,
   }) : _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _authLocalRepository =
-           authLocalRepository ?? GetIt.I<AuthLocalRepository>(),
+           authLocalRepository ?? GetIt.I<AuthLocalRepositoryPort>(),
        super(
          BeaconState(
            beacons: [],
@@ -40,7 +40,7 @@ class BeaconCubit extends Cubit<BeaconState> {
 
   final BeaconRepository _beaconRepository;
 
-  final AuthLocalRepository _authLocalRepository;
+  final AuthLocalRepositoryPort _authLocalRepository;
 
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 

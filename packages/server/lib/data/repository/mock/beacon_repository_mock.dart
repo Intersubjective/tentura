@@ -2,21 +2,22 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
 import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
-import '../beacon_repository.dart';
 import 'data/beacons.dart';
 
 @Injectable(
-  as: BeaconRepository,
+  as: BeaconRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class BeaconRepositoryMock implements BeaconRepository {
+class BeaconRepositoryMock implements BeaconRepositoryPort {
   static final storageById = <String, BeaconEntity>{...kBeaconById};
 
   const BeaconRepositoryMock();

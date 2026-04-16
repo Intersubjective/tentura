@@ -1,14 +1,21 @@
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
+import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
+
 import '../database/tentura_db.dart';
-import 'user_presence_repository.dart';
 
 @Injectable(
+  as: CoordinationRepositoryPort,
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-class CoordinationRepository {
+class CoordinationRepository implements CoordinationRepositoryPort {
   const CoordinationRepository(
     this._database,
     this._userPresenceRepository,
@@ -16,7 +23,7 @@ class CoordinationRepository {
 
   final TenturaDb _database;
 
-  final UserPresenceRepository _userPresenceRepository;
+  final UserPresenceRepositoryPort _userPresenceRepository;
 
   Future<void> deleteForCommit({
     required String beaconId,
@@ -146,7 +153,7 @@ class CoordinationRepository {
     );
   }
 
-  Future<List<Map<String, dynamic>>> commitmentsWithCoordination(
+  Future<List<CommitmentWithCoordinationRow>> commitmentsWithCoordination(
     String beaconId,
   ) async {
     final rows = await _database.managers.beaconCommitments
@@ -156,61 +163,61 @@ class CoordinationRepository {
 
     final coords = await _coordinationByCommitUserId(beaconId);
 
-    final out = <Map<String, dynamic>>[];
+    final out = <CommitmentWithCoordinationRow>[];
     for (final row in rows) {
       final user = await _database.managers.users
           .filter((e) => e.id.equals(row.userId))
           .getSingle();
-      Map<String, dynamic>? imageMap;
+      ImagePublicRecord? imageRecord;
       final imageId = user.imageId;
       if (imageId != null) {
         final image = await _database.managers.images
             .filter((e) => e.id.equals(imageId))
             .getSingleOrNull();
         if (image != null) {
-          // gqlTypeImagePublic: `created_at` is graphQLDate — resolver must pass DateTime, not ISO string.
-          imageMap = {
-            'id': image.id.toString(),
-            'hash': image.hash,
-            'height': image.height,
-            'width': image.width,
-            'author_id': image.authorId,
-            'created_at': image.createdAt.dateTime.toUtc(),
-          };
+          imageRecord = ImagePublicRecord(
+            id: image.id.toString(),
+            hash: image.hash,
+            height: image.height,
+            width: image.width,
+            authorId: image.authorId,
+            createdAt: image.createdAt.dateTime.toUtc(),
+          );
         }
       }
 
       final presence = await _userPresenceRepository.get(user.id);
       final coord = coords[row.userId];
-      out.add({
-        'beaconId': row.beaconId,
-        'userId': row.userId,
-        'message': row.message,
-        'helpType': row.helpType,
-        'status': row.status,
-        'uncommitReason': row.uncommitReason,
-        'createdAt': row.createdAt.dateTime.toUtc().toIso8601String(),
-        'updatedAt': row.updatedAt.dateTime.toUtc().toIso8601String(),
-        'responseType': coord?.responseType,
-        'responseUpdatedAt':
-            coord?.responseUpdatedAt.toUtc().toIso8601String(),
-        'responseAuthorUserId': coord?.authorUserId,
-        'user': <String, dynamic>{
-          'id': user.id,
-          'title': user.title,
-          'description': user.description,
-          'my_vote': null,
-          'image': imageMap, // nullable; matches Hasura `user.image`
-          'scores': <Map<String, dynamic>>[],
-          'user_presence': presence == null
-              ? null
-              : {
-                  'last_seen_at':
-                      presence.lastSeenAt.toUtc().toIso8601String(),
-                  'status': presence.status.index,
-                },
-        },
-      });
+      final userPresence = presence == null
+          ? null
+          : UserPresenceRecord(
+              lastSeenAt: presence.lastSeenAt,
+              status: presence.status.index,
+            );
+      final userPublic = UserPublicRecord(
+        id: user.id,
+        title: user.title,
+        description: user.description,
+        image: imageRecord,
+        userPresence: userPresence,
+      );
+      out.add(
+        CommitmentWithCoordinationRow(
+          beaconId: row.beaconId,
+          userId: row.userId,
+          message: row.message,
+          status: row.status,
+          createdAt: row.createdAt.dateTime.toUtc(),
+          updatedAt: row.updatedAt.dateTime.toUtc(),
+          user: userPublic,
+          helpType: row.helpType,
+          uncommitReason: row.uncommitReason,
+          responseType: coord?.responseType,
+          responseUpdatedAt:
+              coord == null ? null : coord.responseUpdatedAt.toUtc(),
+          responseAuthorUserId: coord?.authorUserId,
+        ),
+      );
     }
     return out;
   }

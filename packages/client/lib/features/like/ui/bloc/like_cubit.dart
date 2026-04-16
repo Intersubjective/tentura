@@ -96,9 +96,11 @@ class LikeCubit extends Cubit<LikeState> {
   //
   //
   void _onLikeChanged(RepositoryEvent<Likable> event) {
-    state.likes[event.id] = event.value.votes;
+    final nextLikes = Map<String, int>.from(state.likes)
+      ..[event.id] = event.value.votes;
     emit(
       state.copyWith(
+        likes: nextLikes,
         updatedAt: DateTime.timestamp(),
       ),
     );

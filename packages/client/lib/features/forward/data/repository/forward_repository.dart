@@ -33,7 +33,7 @@ typedef BeaconInvolvementData = ({
   Map<String, String> myForwardedRecipientNotes,
 });
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class ForwardRepository {
   ForwardRepository(
     this._remoteApiService,

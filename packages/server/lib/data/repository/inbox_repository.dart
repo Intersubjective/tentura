@@ -2,14 +2,16 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/inbox_item_entity.dart';
+import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 
 import '../database/tentura_db.dart';
 
 @Injectable(
+  as: InboxRepositoryPort,
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-class InboxRepository {
+class InboxRepository implements InboxRepositoryPort {
   const InboxRepository(this._database);
 
   final TenturaDb _database;

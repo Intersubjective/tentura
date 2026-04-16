@@ -1,30 +1,37 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/data/repository/remote_repository.dart';
 
 import 'package:tentura/features/notification/data/gql/_g/fcm_register_token.req.gql.dart';
+import 'package:tentura/features/notification/domain/port/fcm_remote_repository_port.dart';
 
-@singleton
-class FcmRemoteRepository {
-  FcmRemoteRepository(this._remoteApiService);
+@Singleton(
+  as: FcmRemoteRepositoryPort,
+  env: [Environment.dev, Environment.prod],
+)
+class FcmRemoteRepository extends RemoteRepository
+    implements FcmRemoteRepositoryPort {
+  FcmRemoteRepository({
+    required super.remoteApiService,
+    required super.log,
+  });
 
-  final RemoteApiService _remoteApiService;
-
+  @override
   Future<void> registerToken({
     required String appId,
     required String token,
     required String platform,
-  }) => _remoteApiService
-      .request(
-        GFcmRegisterTokenReq(
-          (r) => r.vars
-            ..appId = appId
-            ..token = token
-            ..platform = platform,
-        ),
-      )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).fcmTokenRegister);
+  }) async {
+    await requestDataOnlineOrThrow(
+      GFcmRegisterTokenReq(
+        (r) => r.vars
+          ..appId = appId
+          ..token = token
+          ..platform = platform,
+      ),
+      label: _label,
+    );
+  }
 
   static const _label = 'Fcm';
 }

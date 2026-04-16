@@ -1,6 +1,7 @@
 import 'package:tentura_server/domain/use_case/mutual_friends_case.dart';
 
 import '../custom_types.dart';
+import '../mappers/gql_public_user_maps.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
@@ -21,11 +22,12 @@ final class QueryMutualFriends extends GqlNodeBase {
           final jwt = getCredentials(args);
           final bobId = InputFieldId.fromArgsNonNullable(args);
           final ctx = args[kGlobalInputQueryContext] as String? ?? '';
-          return _mutualFriendsCase.fetchMutualFriends(
+          final rows = await _mutualFriendsCase.fetchMutualFriends(
             aliceId: jwt.sub,
             bobId: bobId,
             context: ctx,
           );
+          return rows.map(userPublicToGqlMap).toList();
         },
       );
 }

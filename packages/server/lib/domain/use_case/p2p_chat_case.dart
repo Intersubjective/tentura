@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'package:uuid/uuid_value.dart';
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts.dart';
-import 'package:tentura_server/data/repository/fcm_token_repository.dart';
-import 'package:tentura_server/data/repository/p2p_message_repository.dart';
-import 'package:tentura_server/data/repository/user_presence_repository.dart';
-import 'package:tentura_server/data/repository/user_repository.dart';
-import 'package:tentura_server/data/service/fcm_batch_queue.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/p2p_message_repository_port.dart';
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 
 import '../entity/p2p_message_entity.dart';
@@ -17,7 +17,7 @@ import '_use_case_base.dart';
 final class P2pChatCase extends UseCaseBase {
   P2pChatCase(
     this._fcmTokenRepository,
-    this._fcmBatchQueue,
+    this._fcmBatchQueuePort,
     this._p2pMessageRepository,
     this._userPresenceRepository,
     this._userRepository, {
@@ -25,28 +25,28 @@ final class P2pChatCase extends UseCaseBase {
     required super.logger,
   });
 
-  final FcmTokenRepository _fcmTokenRepository;
+  final FcmTokenRepositoryPort _fcmTokenRepository;
 
-  final FcmBatchQueue _fcmBatchQueue;
+  final FcmBatchQueuePort _fcmBatchQueuePort;
 
-  final P2pMessageRepository _p2pMessageRepository;
+  final P2pMessageRepositoryPort _p2pMessageRepository;
 
-  final UserPresenceRepository _userPresenceRepository;
+  final UserPresenceRepositoryPort _userPresenceRepository;
 
-  final UserRepository _userRepository;
+  final UserRepositoryPort _userRepository;
 
   /// Creates a message, emits Postgres NOTIFY, and enqueues FCM if needed.
   /// Returns the created entity (with server-assigned serverId and createdAt).
   Future<P2pMessageEntity> create({
     required String receiverId,
     required String senderId,
-    required UuidValue clientMessageId,
+    required String clientMessageId,
     required String content,
   }) async {
     final entity = await _p2pMessageRepository.create(
       receiverId: receiverId,
       senderId: senderId,
-      clientId: clientMessageId,
+      clientId: UuidValue.fromString(clientMessageId),
       content: content,
     );
     unawaited(
@@ -115,7 +115,7 @@ final class P2pChatCase extends UseCaseBase {
 
     final senderProfile = await _userRepository.getById(senderId);
 
-    _fcmBatchQueue.enqueue(
+    _fcmBatchQueuePort.enqueue(
       receiverId: receiverId,
       fcmTokens: fcmTokens.map((e) => e.token).toSet(),
       message: FcmNotificationEntity(

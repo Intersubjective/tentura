@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
@@ -11,13 +12,14 @@ import '../mapper/user_mapper.dart';
 export 'package:tentura_server/domain/entity/user_entity.dart';
 
 @Singleton(
+  as: UserRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class UserRepository {
+class UserRepository implements UserRepositoryPort {
   const UserRepository(
     this._env,
     this._database,

@@ -1,17 +1,24 @@
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
+import 'package:tentura_server/domain/port/mutual_friends_repository_port.dart';
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
+
 import '../database/tentura_db.dart';
-import 'user_presence_repository.dart';
 
 @Injectable(
+  as: MutualFriendsRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class MutualFriendsRepository {
+class MutualFriendsRepository implements MutualFriendsRepositoryPort {
   const MutualFriendsRepository(
     this._database,
     this._userPresenceRepository,
@@ -19,11 +26,11 @@ class MutualFriendsRepository {
 
   final TenturaDb _database;
 
-  final UserPresenceRepository _userPresenceRepository;
+  final UserPresenceRepositoryPort _userPresenceRepository;
 
-  /// Returns GraphQL `user` maps (`gqlTypeUserPublic`) for mutual friends of
-  /// [aliceId] and [bobId] in [context].
-  Future<List<Map<String, dynamic>>> fetchMutualFriends({
+  /// Mutual friends of [aliceId] and [bobId] in [context], as domain records
+  /// (same fields as `gqlTypeUserPublic`).
+  Future<List<UserPublicRecord>> fetchMutualFriends({
     required String aliceId,
     required String bobId,
     required String context,
@@ -44,14 +51,14 @@ class MutualFriendsRepository {
       context: context,
     );
 
-    final out = <Map<String, dynamic>>[];
+    final out = <UserPublicRecord>[];
     for (final row in rows) {
       final id = row.data['id']! as String;
       final title = row.data['title']! as String;
       final description = row.data['description']! as String;
       final imageIdRaw = row.data['image_id'];
 
-      Map<String, dynamic>? imageMap;
+      ImagePublicRecord? imageRecord;
       if (imageIdRaw != null) {
         final imageUuid = imageIdRaw is UuidValue
             ? imageIdRaw
@@ -60,42 +67,45 @@ class MutualFriendsRepository {
             .filter((e) => e.id.equals(imageUuid))
             .getSingleOrNull();
         if (image != null) {
-          imageMap = {
-            'id': image.id.toString(),
-            'hash': image.hash,
-            'height': image.height,
-            'width': image.width,
-            'author_id': image.authorId,
-            'created_at': image.createdAt.dateTime.toUtc(),
-          };
+          imageRecord = ImagePublicRecord(
+            id: image.id.toString(),
+            hash: image.hash,
+            height: image.height,
+            width: image.width,
+            authorId: image.authorId,
+            createdAt: image.createdAt.dateTime.toUtc(),
+          );
         }
       }
 
       final presence = await _userPresenceRepository.get(id);
       final peerScore = peerScores[id];
-      out.add({
-        'id': id,
-        'title': title,
-        'description': description,
-        'my_vote': null,
-        'image': imageMap,
-        // Align with Hasura `UserModel` / `gqlTypeMutualScore`: `dst_score` →
-        // Profile.score (viewer→peer), `src_score` → Profile.rScore (peer→viewer).
-        'scores': peerScore == null
-            ? <Map<String, dynamic>>[]
-            : [
-                <String, dynamic>{
-                  'src_score': peerScore.rev,
-                  'dst_score': peerScore.fwd,
-                },
-              ],
-        'user_presence': presence == null
-            ? null
-            : {
-                'last_seen_at': presence.lastSeenAt.toUtc().toIso8601String(),
-                'status': presence.status.index,
-              },
-      });
+      // Align with Hasura `UserModel` / `gqlTypeMutualScore`: `dst_score` →
+      // Profile.score (viewer→peer), `src_score` → Profile.rScore (peer→viewer).
+      final scores = peerScore == null
+          ? const <MutualScoreRecord>[]
+          : [
+              MutualScoreRecord(
+                srcScore: peerScore.rev,
+                dstScore: peerScore.fwd,
+              ),
+            ];
+      final userPresence = presence == null
+          ? null
+          : UserPresenceRecord(
+              lastSeenAt: presence.lastSeenAt,
+              status: presence.status.index,
+            );
+      out.add(
+        UserPublicRecord(
+          id: id,
+          title: title,
+          description: description,
+          image: imageRecord,
+          scores: scores,
+          userPresence: userPresence,
+        ),
+      );
     }
     return out;
   }

@@ -7,19 +7,16 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/forward/data/repository/forward_repository.dart'
+    show BeaconInvolvementData;
 import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
-import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
-import 'package:tentura/features/forward/data/repository/forward_repository.dart';
-import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
-import '../../data/repository/beacon_view_repository.dart';
-import '../../data/repository/coordination_repository.dart';
+import '../../domain/use_case/beacon_view_case.dart';
 import '../message/commitment_messages.dart';
 import 'beacon_view_state.dart';
 
@@ -31,23 +28,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   BeaconViewCubit({
     required String id,
     required Profile myProfile,
-    BeaconRepository? beaconRepository,
-    BeaconViewRepository? beaconViewRepository,
-    ForwardRepository? forwardRepository,
-    EvaluationRepository? evaluationRepository,
-    CoordinationRepository? coordinationRepository,
-    InboxRepository? inboxRepository,
-  }) : _beaconViewRepository =
-           beaconViewRepository ?? GetIt.I<BeaconViewRepository>(),
-       _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
-       _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
-       _evaluationRepository =
-           evaluationRepository ?? GetIt.I<EvaluationRepository>(),
-       _coordinationRepository =
-           coordinationRepository ?? GetIt.I<CoordinationRepository>(),
-       _inboxRepository = inboxRepository ?? GetIt.I<InboxRepository>(),
+    BeaconViewCase? beaconViewCase,
+  }) : _case = beaconViewCase ?? GetIt.I<BeaconViewCase>(),
        super(_idToState(id, myProfile)) {
-    _forwardCompletedSub = _forwardRepository.forwardCompleted.listen(
+    _forwardCompletedSub = _case.forwardCompleted.listen(
       (beaconId) {
         if (!isClosed && beaconId == state.beacon.id) {
           unawaited(_fetchBeaconByIdWithTimeline());
@@ -55,7 +39,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       },
       cancelOnError: false,
     );
-    _commitmentChangesSub = _forwardRepository.commitmentChanges.listen(
+    _commitmentChangesSub = _case.commitmentChanges.listen(
       (CommitmentEvent event) {
         if (!isClosed && event.beaconId == state.beacon.id) {
           unawaited(_fetchBeaconByIdWithTimeline());
@@ -70,15 +54,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     );
   }
 
-  final BeaconRepository _beaconRepository;
-  final BeaconViewRepository _beaconViewRepository;
-  final ForwardRepository _forwardRepository;
-
-  final EvaluationRepository _evaluationRepository;
-
-  final CoordinationRepository _coordinationRepository;
-
-  final InboxRepository _inboxRepository;
+  final BeaconViewCase _case;
 
   late final StreamSubscription<String> _forwardCompletedSub;
 
@@ -94,7 +70,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> moveToWatching() async {
     if (state.inboxStatus != InboxItemStatus.needsMe) return;
     try {
-      await _inboxRepository.setStatus(
+      await _case.setInboxStatus(
         beaconId: state.beacon.id,
         status: InboxItemStatus.watching,
       );
@@ -107,7 +83,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> stopWatching() async {
     if (state.inboxStatus != InboxItemStatus.watching) return;
     try {
-      await _inboxRepository.setStatus(
+      await _case.setInboxStatus(
         beaconId: state.beacon.id,
         status: InboxItemStatus.needsMe,
       );
@@ -120,7 +96,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> rejectInbox({String message = ''}) async {
     if (state.inboxStatus == null) return;
     try {
-      await _inboxRepository.setStatus(
+      await _case.setInboxStatus(
         beaconId: state.beacon.id,
         status: InboxItemStatus.rejected,
         rejectionMessage: message,
@@ -134,7 +110,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> unrejectInbox() async {
     if (state.inboxStatus != InboxItemStatus.rejected) return;
     try {
-      await _inboxRepository.setStatus(
+      await _case.setInboxStatus(
         beaconId: state.beacon.id,
         status: InboxItemStatus.needsMe,
       );
@@ -147,7 +123,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> delete(String beaconId) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _beaconRepository.delete(beaconId);
+      await _case.deleteBeacon(beaconId);
       emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
@@ -163,9 +139,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       if (state.isBeaconMine &&
           next == BeaconLifecycle.closed &&
           state.beacon.lifecycle == BeaconLifecycle.open) {
-        await _evaluationRepository.beaconCloseWithReview(state.beacon.id);
+        await _case.beaconCloseWithReview(state.beacon.id);
       } else {
-        await _beaconRepository.setBeaconLifecycle(next, id: state.beacon.id);
+        await _case.setBeaconLifecycle(next, id: state.beacon.id);
       }
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
@@ -180,7 +156,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     final wasAlreadyCommitted = state.isCommitted;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _forwardRepository.commit(
+      await _case.forwardCommit(
         beaconId: state.beacon.id,
         message: message,
         helpType: helpType,
@@ -205,7 +181,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _forwardRepository.withdraw(
+      await _case.forwardWithdraw(
         beaconId: state.beacon.id,
         message: message,
         uncommitReason: uncommitReason,
@@ -229,7 +205,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _coordinationRepository.setCoordinationResponse(
+      await _case.setCoordinationResponse(
         beaconId: state.beacon.id,
         commitUserId: commitUserId,
         responseType: responseType,
@@ -245,7 +221,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   ) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _coordinationRepository.setBeaconCoordinationStatus(
+      await _case.setBeaconCoordinationStatus(
         beaconId: state.beacon.id,
         coordinationStatus: status.smallintValue,
       );
@@ -261,17 +237,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final myUserId = state.myProfile.id;
 
       final results = await Future.wait([
-        _beaconRepository.fetchBeaconById(beaconId),
-        _coordinationRepository.fetchCommitmentsWithCoordination(
+        _case.fetchBeaconById(beaconId),
+        _case.fetchCommitmentsWithCoordination(
           beaconId: beaconId,
         ),
-        _forwardRepository.fetchUpdates(beaconId: beaconId),
-        _inboxRepository.fetchInboxContextForBeacon(beaconId),
-        _forwardRepository.fetchMyForwardEdges(
+        _case.fetchBeaconUpdates(beaconId: beaconId),
+        _case.fetchInboxContextForBeacon(beaconId),
+        _case.fetchMyForwardEdges(
           beaconId: beaconId,
           myUserId: myUserId,
         ),
-        _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId),
+        _case.fetchBeaconInvolvement(beaconId: beaconId),
       ]);
 
       final beacon = results[0] as Beacon;
@@ -380,11 +356,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   Future<void> _fetchBeaconByCommentId() async {
     try {
-      final (:beacon, comment: _) = await _beaconViewRepository
-          .fetchBeaconByCommentId(state.focusCommentId);
-      final hasForwardedThisBeaconOnce = await _forwardRepository
+      final (:beacon, comment: _) = await _case.fetchBeaconByCommentId(
+        state.focusCommentId,
+      );
+      final hasForwardedThisBeaconOnce = await _case
           .currentUserHasForwardedBeacon(beacon.id);
-      final inboxCtx = await _inboxRepository.fetchInboxContextForBeacon(
+      final inboxCtx = await _case.fetchInboxContextForBeacon(
         beacon.id,
       );
       emit(
@@ -471,15 +448,16 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
         ),
       );
     }
-    events.add(
-      TimelineCommitmentWithdrawn(
-        committer: row.user,
-        message: row.message,
-        withdrawnAt: row.updatedAt,
-        uncommitReason: row.uncommitReason,
-      ),
-    );
-    events.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    events
+      ..add(
+        TimelineCommitmentWithdrawn(
+          committer: row.user,
+          message: row.message,
+          withdrawnAt: row.updatedAt,
+          uncommitReason: row.uncommitReason,
+        ),
+      )
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     return events;
   }
 

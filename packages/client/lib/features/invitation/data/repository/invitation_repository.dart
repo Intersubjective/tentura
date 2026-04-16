@@ -18,7 +18,7 @@ typedef InvitationFetchByIdResult = ({
   Profile issuer,
 });
 
-@singleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class InvitationRepository {
   const InvitationRepository(this._remoteApiService);
 

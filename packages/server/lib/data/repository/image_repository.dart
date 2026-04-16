@@ -1,19 +1,23 @@
+import 'dart:typed_data';
+
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../storage/remote_storage.dart';
 
 @Injectable(
+  as: ImageRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class ImageRepository {
+class ImageRepository implements ImageRepositoryPort {
   const ImageRepository(
     this._database,
     this._remoteStorageService,

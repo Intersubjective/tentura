@@ -7,7 +7,7 @@ import 'package:tentura_root/domain/enums.dart';
 
 import '../gql/_g/mutual_friends_fetch.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class MutualFriendsRepository {
   MutualFriendsRepository(this._remoteApiService);
 

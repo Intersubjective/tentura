@@ -6,15 +6,17 @@
 import 'dart:async' as _i4;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:tentura_server/data/repository/beacon_repository.dart' as _i3;
-import 'package:tentura_server/data/repository/commitment_repository.dart'
-    as _i5;
-import 'package:tentura_server/data/repository/coordination_repository.dart'
-    as _i7;
-import 'package:tentura_server/data/repository/inbox_repository.dart' as _i8;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/commitment_entity.dart' as _i6;
-import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i9;
+import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart'
+    as _i8;
+import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i10;
+import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i3;
+import 'package:tentura_server/domain/port/commitment_repository_port.dart'
+    as _i5;
+import 'package:tentura_server/domain/port/coordination_repository_port.dart'
+    as _i7;
+import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i9;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -36,11 +38,12 @@ class _FakeBeaconEntity_0 extends _i1.SmartFake implements _i2.BeaconEntity {
     : super(parent, parentInvocation);
 }
 
-/// A class which mocks [BeaconRepository].
+/// A class which mocks [BeaconRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
-  MockBeaconRepository() {
+class MockBeaconRepositoryPort extends _i1.Mock
+    implements _i3.BeaconRepositoryPort {
+  MockBeaconRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
@@ -262,12 +265,12 @@ class MockBeaconRepository extends _i1.Mock implements _i3.BeaconRepository {
           as _i4.Future<void>);
 }
 
-/// A class which mocks [CommitmentRepository].
+/// A class which mocks [CommitmentRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockCommitmentRepository extends _i1.Mock
-    implements _i5.CommitmentRepository {
-  MockCommitmentRepository() {
+class MockCommitmentRepositoryPort extends _i1.Mock
+    implements _i5.CommitmentRepositoryPort {
+  MockCommitmentRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
@@ -356,12 +359,12 @@ class MockCommitmentRepository extends _i1.Mock
           as _i4.Future<bool>);
 }
 
-/// A class which mocks [CoordinationRepository].
+/// A class which mocks [CoordinationRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockCoordinationRepository extends _i1.Mock
-    implements _i7.CoordinationRepository {
-  MockCoordinationRepository() {
+class MockCoordinationRepositoryPort extends _i1.Mock
+    implements _i7.CoordinationRepositoryPort {
+  MockCoordinationRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
@@ -448,28 +451,29 @@ class MockCoordinationRepository extends _i1.Mock
           as _i4.Future<void>);
 
   @override
-  _i4.Future<List<Map<String, dynamic>>> commitmentsWithCoordination(
-    String? beaconId,
-  ) =>
+  _i4.Future<List<_i8.CommitmentWithCoordinationRow>>
+  commitmentsWithCoordination(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#commitmentsWithCoordination, [beaconId]),
-            returnValue: _i4.Future<List<Map<String, dynamic>>>.value(
-              <Map<String, dynamic>>[],
-            ),
+            returnValue:
+                _i4.Future<List<_i8.CommitmentWithCoordinationRow>>.value(
+                  <_i8.CommitmentWithCoordinationRow>[],
+                ),
           )
-          as _i4.Future<List<Map<String, dynamic>>>);
+          as _i4.Future<List<_i8.CommitmentWithCoordinationRow>>);
 }
 
-/// A class which mocks [InboxRepository].
+/// A class which mocks [InboxRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockInboxRepository extends _i1.Mock implements _i8.InboxRepository {
-  MockInboxRepository() {
+class MockInboxRepositoryPort extends _i1.Mock
+    implements _i9.InboxRepositoryPort {
+  MockInboxRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i4.Future<List<_i9.InboxItemEntity>> fetchByUserId(
+  _i4.Future<List<_i10.InboxItemEntity>> fetchByUserId(
     String? userId, {
     String? context,
     int? limit = 50,
@@ -481,11 +485,11 @@ class MockInboxRepository extends _i1.Mock implements _i8.InboxRepository {
               [userId],
               {#context: context, #limit: limit, #offset: offset},
             ),
-            returnValue: _i4.Future<List<_i9.InboxItemEntity>>.value(
-              <_i9.InboxItemEntity>[],
+            returnValue: _i4.Future<List<_i10.InboxItemEntity>>.value(
+              <_i10.InboxItemEntity>[],
             ),
           )
-          as _i4.Future<List<_i9.InboxItemEntity>>);
+          as _i4.Future<List<_i10.InboxItemEntity>>);
 
   @override
   _i4.Future<List<String>> fetchRejectedUserIdsByBeacon(String? beaconId) =>

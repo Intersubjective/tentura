@@ -1,21 +1,23 @@
 import 'package:injectable/injectable.dart';
-
-import 'package:tentura_server/data/repository/user_repository.dart';
-import 'package:tentura_server/data/repository/invitation_repository.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 
 import '../exception.dart';
+import '_use_case_base.dart';
 
 @Injectable(order: 2)
-class InvitationCase {
+final class InvitationCase extends UseCaseBase {
   InvitationCase(
     this._invitationRepository,
-    this._userRepository,
-  );
+    this._userRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final InvitationRepository _invitationRepository;
+  final InvitationRepositoryPort _invitationRepository;
 
-  final UserRepository _userRepository;
+  final UserRepositoryPort _userRepository;
 
   Future<InvitationEntity> fetchById({
     required String invitationId,

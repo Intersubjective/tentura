@@ -1,15 +1,13 @@
 import 'package:get_it/get_it.dart';
 import 'package:image_cropper/image_cropper.dart';
-
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
-import 'package:tentura/features/profile/data/repository/profile_repository.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import 'profile_edit_state.dart';
 
-export 'package:tentura/data/repository/image_repository.dart' show XFile;
 export 'package:tentura/ui/bloc/state_base.dart';
 
 export 'profile_edit_state.dart';
@@ -18,9 +16,9 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
   ProfileEditCubit({
     required Profile profile,
     ImageRepository? imageRepository,
-    ProfileRepository? profileRepository,
+    ProfileRepositoryPort? profileRepository,
   }) : _imageRepository = imageRepository ?? GetIt.I<ImageRepository>(),
-       _profileRepository = profileRepository ?? GetIt.I<ProfileRepository>(),
+       _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        super(
          ProfileEditState(
            original: profile,
@@ -32,7 +30,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
 
   final ImageRepository _imageRepository;
 
-  final ProfileRepository _profileRepository;
+  final ProfileRepositoryPort _profileRepository;
 
   //
   void setTitle(String value) => emit(state.copyWith(title: value));
@@ -43,11 +41,11 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
   //
   Future<void> pickImage(List<PlatformUiSettings> cropUiSettings) async {
     try {
-      final image = await _imageRepository.pickAndCropImage(cropUiSettings);
-      if (image != null && !isClosed) {
+      final picked = await _imageRepository.pickAndCropImage(cropUiSettings);
+      if (picked != null && !isClosed) {
         emit(
           state.copyWith(
-            image: image,
+            image: picked.toImageEntity(),
             canDropImage: true,
             willDropImage: false,
           ),

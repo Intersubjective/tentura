@@ -13,7 +13,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/profile/data/repository/profile_repository.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../data/repository/graph_repository.dart';
 import '../../domain/entity/edge_details.dart';
@@ -31,7 +31,7 @@ class GraphCubit extends Cubit<GraphState> {
     String? focus,
     GraphRepository? graphRepository,
     BeaconRepository? beaconRepository,
-    ProfileRepository? profileRepository,
+    ProfileRepositoryPort? profileRepository,
   }) : _egoNode = UserNode(
          user: me.copyWith(title: 'Me', score: 2),
          pinned: true,
@@ -40,7 +40,7 @@ class GraphCubit extends Cubit<GraphState> {
        ),
        _graphRepository = graphRepository ?? GetIt.I<GraphRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
-       _profileRepository = profileRepository ?? GetIt.I<ProfileRepository>(),
+       _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        super(
          GraphState(
            focus: focus ?? '',
@@ -54,7 +54,7 @@ class GraphCubit extends Cubit<GraphState> {
 
   final BeaconRepository _beaconRepository;
 
-  final ProfileRepository _profileRepository;
+  final ProfileRepositoryPort _profileRepository;
 
   final graphController =
       GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
