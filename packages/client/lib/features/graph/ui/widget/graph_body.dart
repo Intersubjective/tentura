@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:nil/nil.dart';
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -122,7 +121,7 @@ class GraphBodyState extends State<GraphBody>
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
               ),
-              _ => nil,
+              _ => const SizedBox.shrink(),
             },
           )
         : null,

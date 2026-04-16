@@ -26,7 +26,6 @@ dependencies:
   dart_jsonwebtoken:
   freezed_annotation:
 
-  faker: ^2.2.0
   minio: ^3.5.8
   jaspr: ^0.22.3
   crypto: ^3.0.7

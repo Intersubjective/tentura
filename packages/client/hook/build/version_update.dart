@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:html/parser.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
-import 'package:pretty_print_json/pretty_print_json.dart';
 
 void versionUpdate() {
   final pubspec = Pubspec.parse(
@@ -20,7 +19,7 @@ void versionUpdate() {
   if (manifestJson['version'] != version) {
     manifestJson['version'] = version;
     manifestJsonFile.writeAsStringSync(
-      prettyJson(manifestJson),
+      const JsonEncoder.withIndent('  ').convert(manifestJson),
       flush: true,
     );
     print('Updated manifest.json');
