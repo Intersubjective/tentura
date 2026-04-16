@@ -19,6 +19,7 @@ class ComplaintRepository implements ComplaintRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<void> create(ComplaintEntity complaint) async {
     try {
       await _database.managers.complaints.create(

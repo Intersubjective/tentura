@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_state.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 void main() {
   test('reviewedCount counts answered cards', () {
@@ -26,7 +25,6 @@ void main() {
           causalHint: '',
         ),
       ],
-      status: StateIsSuccess(),
     );
     expect(s.reviewedCount, 1);
     expect(s.totalCount, 2);

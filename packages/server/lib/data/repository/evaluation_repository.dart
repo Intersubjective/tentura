@@ -19,6 +19,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
 
   final TenturaDb _db;
 
+  @override
   Future<void> insertReviewWindow({
     required String beaconId,
     required DateTime openedAt,
@@ -32,6 +33,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         ),
       );
 
+  @override
   Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId) async {
     final row = await _db.managers.beaconReviewWindows
         .filter((e) => e.beaconId.id(beaconId))
@@ -39,6 +41,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     return row == null ? null : beaconReviewWindowToRecord(row);
   }
 
+  @override
   Future<void> insertParticipant({
     required String beaconId,
     required String userId,
@@ -55,6 +58,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         ),
       );
 
+  @override
   Future<void> insertVisibility({
     required String beaconId,
     required String evaluatorId,
@@ -67,6 +71,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         ),
       );
 
+  @override
   Future<void> insertReviewStatus({
     required String beaconId,
     required String userId,
@@ -79,6 +84,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         ),
       );
 
+  @override
   Future<int?> getReviewUserStatus(String beaconId, String userId) async {
     final row = await _db.managers.beaconReviewStatuses
         .filter(
@@ -88,6 +94,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     return row?.status;
   }
 
+  @override
   Future<void> setReviewUserStatus({
     required String beaconId,
     required String userId,
@@ -103,6 +110,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         ),
       );
 
+  @override
   Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
     String beaconId,
   ) async {
@@ -112,6 +120,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     return rows.map(beaconEvaluationParticipantToRecord).toList();
   }
 
+  @override
   Future<List<BeaconEvaluationVisibilityRecord>> listVisibilityForEvaluator(
     String beaconId,
     String evaluatorId,
@@ -124,6 +133,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     return rows.map(beaconEvaluationVisibilityToRecord).toList();
   }
 
+  @override
   Future<List<BeaconEvaluationVisibilityRecord>> listAllVisibility(
     String beaconId,
   ) async {
@@ -133,6 +143,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     return rows.map(beaconEvaluationVisibilityToRecord).toList();
   }
 
+  @override
   Future<BeaconEvaluationRecord?> getEvaluation({
     required String beaconId,
     required String evaluatorId,
@@ -150,6 +161,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   }
 
   /// All evaluation rows for one evaluator on a beacon (single query).
+  @override
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluator({
     required String beaconId,
     required String evaluatorId,
@@ -163,6 +175,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     return rows.map(beaconEvaluationToRecord).toList();
   }
 
+  @override
   Future<void> upsertEvaluation({
     required String beaconId,
     required String evaluatorId,
@@ -193,6 +206,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
       );
 
   /// Non–NO_BASIS evaluations for aggregate summary.
+  @override
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
     required String evaluatedUserId,
@@ -213,6 +227,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         .toList();
   }
 
+  @override
   Future<int> countDistinctEvaluatorsForEvaluated({
     required String beaconId,
     required String evaluatedUserId,
@@ -225,6 +240,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   }
 
   /// All draft rows for a beacon (any evaluator).
+  @override
   Future<List<BeaconEvaluationRecord>> listDraftRowsForBeacon(
     String beaconId,
   ) async {
@@ -238,6 +254,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     return rows.map(beaconEvaluationToRecord).toList();
   }
 
+  @override
   Future<void> deleteEvaluationRow({
     required String beaconId,
     required String evaluatorId,
@@ -251,6 +268,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
       )
       .delete();
 
+  @override
   Future<void> finalizeSubmittedEvaluationsForBeacon(String beaconId) =>
       _db.managers.beaconEvaluations
           .filter(
@@ -265,6 +283,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
             ),
           );
 
+  @override
   Future<void> deleteDraftEvaluationsForBeacon(String beaconId) =>
       _db.managers.beaconEvaluations
           .filter(
@@ -274,6 +293,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
           )
           .delete();
 
+  @override
   Future<void> closeExpiredWindows() => _db.transaction(() async {
         final now = DateTime.timestamp();
         final open = await _db.managers.beaconReviewWindows

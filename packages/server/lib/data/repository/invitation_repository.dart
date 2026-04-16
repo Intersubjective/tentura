@@ -19,6 +19,7 @@ class InvitationRepository implements InvitationRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<InvitationEntity?> getById({
     required String invitationId,
   }) async {
@@ -52,6 +53,7 @@ class InvitationRepository implements InvitationRepositoryPort {
     );
   }
 
+  @override
   Future<bool> deleteById({
     required String invitationId,
     required String userId,

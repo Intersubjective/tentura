@@ -40,7 +40,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       cancelOnError: false,
     );
     _commitmentChangesSub = _case.commitmentChanges.listen(
-      (CommitmentEvent event) {
+      (event) {
         if (!isClosed && event.beaconId == state.beacon.id) {
           unawaited(_fetchBeaconByIdWithTimeline());
         }

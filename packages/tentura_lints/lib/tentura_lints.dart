@@ -31,7 +31,7 @@ final class _NoDomainToDataImports extends DartLintRule {
     final path = resolver.path;
     if (!path.contains('/lib/domain/')) return;
 
-    context.registry.addCompilationUnit((CompilationUnit unit) {
+    context.registry.addCompilationUnit((unit) {
       for (final d in unit.directives) {
         if (d is! ImportDirective) continue;
         final uri = d.uri.stringValue;
@@ -64,7 +64,7 @@ final class _NoCubitToDataServiceImports extends DartLintRule {
     final path = resolver.path;
     if (!path.contains('/ui/bloc/') || !path.endsWith('_cubit.dart')) return;
 
-    context.registry.addCompilationUnit((CompilationUnit unit) {
+    context.registry.addCompilationUnit((unit) {
       for (final d in unit.directives) {
         if (d is! ImportDirective) continue;
         final uri = d.uri.stringValue;

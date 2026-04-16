@@ -1,5 +1,4 @@
 // Repository test doubles for injectable [Environment.test].
-// ignore_for_file: dangling_library_doc_comments, unnecessary_import
 
 import 'package:injectable/injectable.dart';
 import 'package:mockito/mockito.dart';

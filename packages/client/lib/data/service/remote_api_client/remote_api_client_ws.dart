@@ -161,7 +161,6 @@ base mixin RemoteApiClientWs on RemoteApiClientBase {
               }
             }
           }
-          break;
 
         case 'auth':
           switch (message['intent']) {

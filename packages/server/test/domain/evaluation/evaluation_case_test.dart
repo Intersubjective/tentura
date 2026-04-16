@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
@@ -8,7 +9,6 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
-import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
@@ -26,6 +26,7 @@ class MockFcmRemoteRepository extends Mock implements FcmRemoteRepositoryPort {}
 
 class MockFcmTokenRepository extends Mock implements FcmTokenRepositoryPort {}
 
+@immutable
 class _SetStatusCall {
   const _SetStatusCall(this.beaconId, this.userId, this.status);
 
@@ -242,24 +243,27 @@ void main() {
 
   group('evaluationFinalize', () {
     test('returns true without updating status when already finalized (2)', () async {
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = 2;
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 2;
 
       expect(await evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId), isTrue);
       expect(evalRepo.setReviewUserStatusCalls, isEmpty);
     });
 
     test('returns true without updating status when user skipped (3)', () async {
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = 3;
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 3;
 
       expect(await evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId), isTrue);
       expect(evalRepo.setReviewUserStatusCalls, isEmpty);
     });
 
     test('sets status to 2 when user was in progress (1)', () async {
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = 1;
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 1;
 
       expect(await evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId), isTrue);
       expect(
@@ -269,8 +273,9 @@ void main() {
     });
 
     test('sets status to 2 when user never saved a rating (0)', () async {
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = 0;
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 0;
 
       expect(await evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId), isTrue);
       expect(
@@ -280,8 +285,9 @@ void main() {
     });
 
     test('throws notEligible when user has no review row', () async {
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = null;
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = null;
 
       expect(
         () => evaluationCase.evaluationFinalize(beaconId: beaconId, userId: userId),
@@ -340,16 +346,17 @@ void main() {
       const evaluatorId = 'eval1';
       const evaluatedId = 'author1';
       final now = DateTime.timestamp();
-      evalRepo.reviewWindowResult = openWindow(
-        closesAt: now.subtract(const Duration(days: 1)),
-      );
-      evalRepo.visibilityResult = [
-        const BeaconEvaluationVisibilityRecord(
-          beaconId: beaconId,
-          evaluatorId: evaluatorId,
-          participantId: evaluatedId,
-        ),
-      ];
+      evalRepo
+        ..reviewWindowResult = openWindow(
+          closesAt: now.subtract(const Duration(days: 1)),
+        )
+        ..visibilityResult = [
+          const BeaconEvaluationVisibilityRecord(
+            beaconId: beaconId,
+            evaluatorId: evaluatorId,
+            participantId: evaluatedId,
+          ),
+        ];
 
       expect(
         () => evaluationCase.evaluationSubmit(
@@ -374,24 +381,25 @@ void main() {
       const evaluatorId = 'eval1';
       const evaluatedId = 'author1';
 
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = 0;
-      evalRepo.visibilityResult = [
-        const BeaconEvaluationVisibilityRecord(
-          beaconId: beaconId,
-          evaluatorId: evaluatorId,
-          participantId: evaluatedId,
-        ),
-      ];
-      evalRepo.participantsResult = [
-        const BeaconEvaluationParticipantRecord(
-          beaconId: beaconId,
-          userId: evaluatedId,
-          role: 0,
-          contributionSummary: 's',
-          causalHint: 'h',
-        ),
-      ];
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 0
+        ..visibilityResult = [
+          const BeaconEvaluationVisibilityRecord(
+            beaconId: beaconId,
+            evaluatorId: evaluatorId,
+            participantId: evaluatedId,
+          ),
+        ]
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: evaluatedId,
+            role: 0,
+            contributionSummary: 's',
+            causalHint: 'h',
+          ),
+        ];
 
       expect(
         await evaluationCase.evaluationSubmit(
@@ -415,24 +423,25 @@ void main() {
       const evaluatorId = 'eval1';
       const evaluatedId = 'author1';
 
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = 1;
-      evalRepo.visibilityResult = [
-        const BeaconEvaluationVisibilityRecord(
-          beaconId: beaconId,
-          evaluatorId: evaluatorId,
-          participantId: evaluatedId,
-        ),
-      ];
-      evalRepo.participantsResult = [
-        const BeaconEvaluationParticipantRecord(
-          beaconId: beaconId,
-          userId: evaluatedId,
-          role: 0,
-          contributionSummary: 's',
-          causalHint: 'h',
-        ),
-      ];
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 1
+        ..visibilityResult = [
+          const BeaconEvaluationVisibilityRecord(
+            beaconId: beaconId,
+            evaluatorId: evaluatorId,
+            participantId: evaluatedId,
+          ),
+        ]
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: evaluatedId,
+            role: 0,
+            contributionSummary: 's',
+            causalHint: 'h',
+          ),
+        ];
 
       expect(
         await evaluationCase.evaluationSubmit(
@@ -452,8 +461,9 @@ void main() {
 
   group('evaluationSkip', () {
     test('throws notEligible when user has no review row', () async {
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = null;
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = null;
 
       expect(
         () => evaluationCase.evaluationSkip(beaconId: beaconId, userId: userId),
@@ -468,8 +478,9 @@ void main() {
     });
 
     test('sets skipped status when user is eligible', () async {
-      evalRepo.reviewWindowResult = openWindow();
-      evalRepo.reviewUserStatusResult = 0;
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 0;
 
       expect(
         await evaluationCase.evaluationSkip(beaconId: beaconId, userId: userId),

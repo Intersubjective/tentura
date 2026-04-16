@@ -18,7 +18,7 @@ class InboxProvenance {
     strongestNotePreview: '',
   );
 
-  static InboxProvenance parse(String? raw) {
+  factory InboxProvenance.parse(String? raw) {
     if (raw == null || raw.isEmpty) return empty;
     try {
       final map = jsonDecode(raw) as Map<String, dynamic>?;

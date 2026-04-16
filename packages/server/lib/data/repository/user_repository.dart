@@ -31,6 +31,7 @@ class UserRepository implements UserRepositoryPort {
 
   //
   //
+  @override
   Future<UserEntity> create({
     required String publicKey,
     required String title,
@@ -40,6 +41,7 @@ class UserRepository implements UserRepositoryPort {
 
   // TBD: move to SQL
   //
+  @override
   Future<UserEntity> createInvited({
     required String invitationId,
     required String publicKey,
@@ -83,6 +85,7 @@ class UserRepository implements UserRepositoryPort {
 
   //
   //
+  @override
   Future<UserEntity> getById(String id) => _database.managers.users
       .filter((e) => e.id(id))
       .getSingle()
@@ -90,6 +93,7 @@ class UserRepository implements UserRepositoryPort {
 
   //
   //
+  @override
   Future<UserEntity> getByPublicKey(String publicKey) => _database
       .managers
       .users
@@ -99,6 +103,7 @@ class UserRepository implements UserRepositoryPort {
 
   //
   //
+  @override
   Future<void> update({
     required String id,
     String? title,
@@ -121,11 +126,13 @@ class UserRepository implements UserRepositoryPort {
 
   //
   //
+  @override
   Future<void> deleteById({required String id}) =>
       _database.managers.users.filter((e) => e.id(id)).delete();
 
   //
   // TBD: move to SQL
+  @override
   Future<bool> bindMutual({
     required String invitationId,
     required String userId,

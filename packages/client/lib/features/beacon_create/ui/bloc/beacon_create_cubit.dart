@@ -13,6 +13,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/ui/utils/string_input_validator.dart' show StringInputValidator;
 
 import '../message/beacon_create_message.dart';
 import 'beacon_create_state.dart';

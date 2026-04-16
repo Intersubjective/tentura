@@ -25,6 +25,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
 
   final UserPresenceRepositoryPort _userPresenceRepository;
 
+  @override
   Future<void> deleteForCommit({
     required String beaconId,
     required String userId,
@@ -34,6 +35,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
       )
       .delete();
 
+  @override
   Future<void> upsertResponse({
     required String beaconId,
     required String commitUserId,
@@ -78,6 +80,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
     };
   }
 
+  @override
   Future<({int coordinationStatus, DateTime? coordinationStatusUpdatedAt})>
   beaconCoordinationSnapshot(String beaconId) async {
     final b = await _database.managers.beacons
@@ -92,6 +95,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
     );
   }
 
+  @override
   Future<void> setBeaconCoordinationFields({
     required String beaconId,
     required int coordinationStatus,
@@ -105,6 +109,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
       );
 
   /// Deterministic coordination status from active commits + author responses.
+  @override
   Future<void> recomputeAndPersistBeaconCoordinationStatus(
     String beaconId,
   ) async {
@@ -153,6 +158,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
     );
   }
 
+  @override
   Future<List<CommitmentWithCoordinationRow>> commitmentsWithCoordination(
     String beaconId,
   ) async {
@@ -214,7 +220,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
           uncommitReason: row.uncommitReason,
           responseType: coord?.responseType,
           responseUpdatedAt:
-              coord == null ? null : coord.responseUpdatedAt.toUtc(),
+              coord?.responseUpdatedAt.toUtc(),
           responseAuthorUserId: coord?.authorUserId,
         ),
       );

@@ -129,8 +129,6 @@ Profile _profileFromCommitmentUser(
     description: user.description,
     myVote: user.my_vote ?? 0,
     image: user.image == null ? null : ImageModel(user.image!).asEntity,
-    score: 0,
-    rScore: 0,
     presenceStatus: presenceStatus,
     presenceLastSeenAt: presenceLastSeenAt,
   );

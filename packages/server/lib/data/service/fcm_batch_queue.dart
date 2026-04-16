@@ -35,6 +35,7 @@ class FcmBatchQueue implements FcmBatchQueuePort {
   /// Enqueue a notification for a receiver. If the same receiver already has a
   /// pending entry, the latest message replaces the previous one and the count
   /// is incremented (for summary text).
+  @override
   void enqueue({
     required String receiverId,
     required Set<String> fcmTokens,
@@ -87,6 +88,7 @@ class FcmBatchQueue implements FcmBatchQueuePort {
     }
   }
 
+  @override
   @disposeMethod
   void dispose() {
     _timer.cancel();

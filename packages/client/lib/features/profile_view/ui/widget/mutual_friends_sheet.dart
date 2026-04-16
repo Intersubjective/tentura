@@ -42,7 +42,7 @@ Future<void> showMutualFriendsSheet(
                   controller: scrollController,
                   padding: const EdgeInsets.only(bottom: 16),
                   itemCount: profiles.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final profile = profiles[index];
                     final presenceText = profilePresenceDisplayLine(

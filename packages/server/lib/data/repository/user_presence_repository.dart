@@ -24,6 +24,7 @@ class UserPresenceRepository implements UserPresenceRepositoryPort {
 
   //
   //
+  @override
   Future<UserPresenceEntity?> get(String userId) => _database
       .managers
       .userPresence
@@ -33,6 +34,7 @@ class UserPresenceRepository implements UserPresenceRepositoryPort {
 
   //
   //
+  @override
   Future<void> update(
     String userId, {
     DateTime? lastSeenAt,

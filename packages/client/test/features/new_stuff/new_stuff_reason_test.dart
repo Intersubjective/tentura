@@ -6,14 +6,14 @@ import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 
 void main() {
-  final t0 = DateTime.utc(2020, 1, 1);
+  final t0 = DateTime.utc(2020);
   final t1 = DateTime.utc(2020, 1, 2);
   final t2 = DateTime.utc(2020, 1, 3);
   final t3 = DateTime.utc(2020, 1, 4);
-  final createdEarly2019 = DateTime.utc(2019, 6, 1);
+  final createdEarly2019 = DateTime.utc(2019, 6);
   final seenLate2019 = DateTime.utc(2019, 12, 20).millisecondsSinceEpoch;
   final forwardBeforeSeen = DateTime.utc(2019, 12, 10);
-  final beaconStale = DateTime.utc(2019, 12, 1);
+  final beaconStale = DateTime.utc(2019, 12);
   /// Before [seenLate2019] so beacon row does not count as "new" in isolation.
   final beaconUpdatedBeforeSeen = DateTime.utc(2019, 12, 15);
 
@@ -60,7 +60,6 @@ void main() {
         createdAt: t0,
         updatedAt: t2,
         id: 'b1',
-        coordinationStatusUpdatedAt: null,
       );
       final item = InboxItem(
         beaconId: 'b1',
@@ -105,7 +104,6 @@ void main() {
       final item = InboxItem(
         beaconId: 'b1',
         latestForwardAt: t3,
-        forwardCount: 0,
         beacon: beacon,
       );
       expect(

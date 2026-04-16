@@ -23,6 +23,7 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
   ///
   ///
   ///
+  @override
   Future<Iterable<FcmTokenEntity>> getTokensByUserId(String userId) async {
     final tokens = await _database.managers.fcmTokens
         .filter((f) => f.userId.id(userId))
@@ -33,6 +34,7 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
   ///
   /// Insert token into DB, ignore if exists
   ///
+  @override
   Future<void> putToken({
     required String userId,
     required String appId,
@@ -48,6 +50,7 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
     mode: InsertMode.insertOrIgnore,
   );
 
+  @override
   Future<void> deleteToken(String token) =>
       _database.managers.fcmTokens.filter((f) => f.token(token)).delete();
 }

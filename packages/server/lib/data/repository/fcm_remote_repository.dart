@@ -43,6 +43,7 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
   ///
   /// Sends a chat push notification via FCM to a list of devices.
   ///
+  @override
   Future<List<Exception>> sendChatNotification({
     required Iterable<String> fcmTokens,
     required FcmNotificationEntity message,

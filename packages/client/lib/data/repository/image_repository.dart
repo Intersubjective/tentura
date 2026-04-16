@@ -6,7 +6,6 @@ import 'package:injectable/injectable.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/image_picked.dart';
 
 import 'read_blob_url_stub.dart'

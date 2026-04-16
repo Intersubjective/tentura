@@ -96,7 +96,6 @@ class _OverlayBadge extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(
           color: scheme.outlineVariant,
-          width: 1,
         ),
       ),
       alignment: Alignment.center,

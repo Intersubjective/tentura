@@ -37,6 +37,7 @@ class BeaconRepository implements BeaconRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<BeaconEntity> createBeacon({
     required String authorId,
     required String title,
@@ -130,6 +131,7 @@ class BeaconRepository implements BeaconRepositoryPort {
   ///
   /// Query Beacon by beaconId, filter by userId if set
   ///
+  @override
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
@@ -171,6 +173,7 @@ class BeaconRepository implements BeaconRepositoryPort {
   }
 
   /// Updates a beacon in DRAFT lifecycle (state 3) owned by [userId]. Throws if not found or not draft.
+  @override
   Future<BeaconEntity> updateDraftBeacon({
     required String beaconId,
     required String userId,
@@ -261,6 +264,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     return getBeaconById(beaconId: beaconId, filterByUserId: userId);
   });
 
+  @override
   Future<void> deleteBeaconById(String id, {required String userId}) =>
       _database.withMutatingUser(userId, () async {
         await _database.managers.beacons
@@ -268,6 +272,7 @@ class BeaconRepository implements BeaconRepositoryPort {
             .delete();
       });
 
+  @override
   Future<void> updateBeaconState({
     required String beaconId,
     required int state,
@@ -275,6 +280,7 @@ class BeaconRepository implements BeaconRepositoryPort {
       .filter((e) => e.id.equals(beaconId))
       .update((o) => o(state: Value(state)));
 
+  @override
   Future<void> addImage({
     required String beaconId,
     required String imageId,
@@ -287,6 +293,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     ),
   );
 
+  @override
   Future<void> removeImage({
     required String beaconId,
     required String imageId,
@@ -298,11 +305,13 @@ class BeaconRepository implements BeaconRepositoryPort {
       )
       .delete();
 
+  @override
   Future<int> getImageCount(String beaconId) =>
       _database.managers.beaconImages
           .filter((e) => e.beaconId.id.equals(beaconId))
           .count();
 
+  @override
   Future<void> reorderImages({
     required String beaconId,
     required List<String> imageIds,

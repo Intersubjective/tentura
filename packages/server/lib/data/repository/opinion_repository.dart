@@ -19,6 +19,7 @@ class OpinionRepository implements OpinionRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<OpinionEntity> getOpinionById(String id) async {
     final (opinion, opinionRefs) = await _database.managers.opinions
         .filter((e) => e.id.equals(id))

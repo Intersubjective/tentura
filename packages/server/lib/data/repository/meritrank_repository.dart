@@ -19,6 +19,7 @@ class MeritrankRepository implements MeritrankRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<int> init() async {
     final result = await _database
         .customSelect('SELECT meritrank_init()')
@@ -27,9 +28,11 @@ class MeritrankRepository implements MeritrankRepositoryPort {
     return result.data.entries.first.value as int;
   }
 
+  @override
   Future<void> reset() =>
       _database.customSelect('SELECT mr_reset()').getSingle();
 
+  @override
   Future<void> calculate({
     bool isBlocking = true,
     Duration timeout = const Duration(minutes: 10),
@@ -43,6 +46,7 @@ class MeritrankRepository implements MeritrankRepositoryPort {
       )
       .getSingle();
 
+  @override
   Future<void> putEdge({
     required String nodeA,
     required String nodeB,
@@ -62,6 +66,7 @@ class MeritrankRepository implements MeritrankRepositoryPort {
       )
       .getSingle();
 
+  @override
   Future<void> deleteEdge({
     required String nodeA,
     required String nodeB,

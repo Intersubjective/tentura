@@ -1,6 +1,5 @@
 import 'package:collection/collection.dart' show IterableExtension;
-import 'package:graphql_parser2/graphql_parser2.dart'
-    show ArgumentContext, SelectionContext;
+import 'package:graphql_parser2/graphql_parser2.dart' show SelectionContext;
 import 'package:graphql_schema2/graphql_schema2.dart';
 import 'package:graphql_server2/graphql_server2.dart';
 
@@ -52,7 +51,7 @@ class _NullSafeGraphQL extends GraphQL {
       final defaultValue = argumentDefinition.defaultValue;
 
       final argumentValue = argumentValues?.firstWhereOrNull(
-        (ArgumentContext a) => a.name == argumentName,
+        (a) => a.name == argumentName,
       );
 
       if (argumentValue == null) {

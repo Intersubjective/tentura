@@ -120,7 +120,7 @@ class App extends StatelessWidget {
                         ..clearMaterialBanners()
                         ..showMaterialBanner(
                           MaterialBanner(
-                            content: Text(
+                            content: const Text(
                               kIsWeb
                                   ? 'A new version is available. '
                                         'Refresh the page to update.'
@@ -129,9 +129,9 @@ class App extends StatelessWidget {
                             ),
                             actions: [
                               if (kIsWeb)
-                                TextButton(
+                                const TextButton(
                                   onPressed: reloadWebApp,
-                                  child: const Text('Refresh'),
+                                  child: Text('Refresh'),
                                 ),
                               TextButton(
                                 onPressed: () =>
