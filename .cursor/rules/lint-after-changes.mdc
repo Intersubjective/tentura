@@ -1,0 +1,9 @@
+---
+description: Run lints after edits and before commit (analyzer + custom_lint)
+alwaysApply: true
+---
+
+# Lints after work
+
+- **After** a coherent task or meaningful source edit: run workspace diagnostics on changed paths and fix issues you introduced (includes `custom_lint` where enabled).
+- **Before** `git commit` (or staging a commit): re-check the same scope so analyzer/CI (`--fatal-infos`) stays green.
