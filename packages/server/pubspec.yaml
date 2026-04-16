@@ -27,9 +27,9 @@ dependencies:
   freezed_annotation:
 
   faker: ^2.2.0
-  minio: ^3.5.7
-  jaspr: ^0.22.1
-  crypto: ^3.0.6
+  minio: ^3.5.8
+  jaspr: ^0.22.3
+  crypto: ^3.0.7
   migrant: ^0.3.0
   postgres: ^3.5.9
   shelf_plus: ^1.11.0
@@ -55,7 +55,7 @@ dev_dependencies:
   injectable_generator:
 
   jaspr_lints: ^0.6.0
-  jaspr_builder: ^0.22.1
+  jaspr_builder: ^0.22.3
   mockito: ^5.6.4
 
 jaspr:
