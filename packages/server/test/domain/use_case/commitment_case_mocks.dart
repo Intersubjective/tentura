@@ -1,14 +1,14 @@
 import 'package:mockito/annotations.dart';
 
-import 'package:tentura_server/data/repository/beacon_repository.dart';
-import 'package:tentura_server/data/repository/commitment_repository.dart';
-import 'package:tentura_server/data/repository/coordination_repository.dart';
-import 'package:tentura_server/data/repository/inbox_repository.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 
 @GenerateMocks([
-  BeaconRepository,
-  CommitmentRepository,
-  CoordinationRepository,
-  InboxRepository,
+  BeaconRepositoryPort,
+  CommitmentRepositoryPort,
+  CoordinationRepositoryPort,
+  InboxRepositoryPort,
 ])
 void main() {}

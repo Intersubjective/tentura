@@ -9,6 +9,7 @@ environment:
 workspace:
   - packages/client
   - packages/server
+  - packages/tentura_lints
 
 dependencies:
   http: ^1.6.0

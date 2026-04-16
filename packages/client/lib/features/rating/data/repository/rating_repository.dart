@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/profile.dart';
 
 import '../gql/_g/rating_fetch.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class RatingRepository {
   static const _label = 'Rating';
 

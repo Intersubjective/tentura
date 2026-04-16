@@ -51,7 +51,7 @@ enum UserExceptionCode {
 class UserExceptionCodes extends ExceptionCodes {
   static const codeSpace = 1200;
 
-  UserExceptionCodes(this.exceptionCode);
+  const UserExceptionCodes(this.exceptionCode);
 
   final UserExceptionCode exceptionCode;
 

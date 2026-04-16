@@ -1,16 +1,16 @@
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
-import 'package:uuid/uuid_value.dart';
 
 import 'package:tentura_server/domain/entity/p2p_message_entity.dart';
 
-import '../p2p_message_repository.dart';
+import 'package:tentura_server/domain/port/p2p_message_repository_port.dart';
 
 @Injectable(
-  as: P2pMessageRepository,
+  as: P2pMessageRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class P2pMessageRepositoryMock implements P2pMessageRepository {
+class P2pMessageRepositoryMock implements P2pMessageRepositoryPort {
   @override
   Future<P2pMessageEntity> create({
     required String content,

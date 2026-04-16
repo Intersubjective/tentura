@@ -3,15 +3,14 @@ import 'dart:async';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
-import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
+import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
-import '../../data/repository/my_work_repository.dart';
 import 'my_work_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -20,18 +19,17 @@ export 'my_work_state.dart';
 
 class MyWorkCubit extends Cubit<MyWorkState> {
   MyWorkCubit({
-    MyWorkRepository? repository,
+    MyWorkCase? myWorkCase,
     ProfileCubit? profileCubit,
-    BeaconRepository? beaconRepository,
     ForwardRepository? forwardRepository,
     NewStuffCubit? newStuffCubit,
-  }) : _repository = repository ?? GetIt.I<MyWorkRepository>(),
+  }) : _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
        _profileCubit = profileCubit ?? GetIt.I<ProfileCubit>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
        super(const MyWorkState()) {
-    _beaconChanges = (beaconRepository ?? GetIt.I<BeaconRepository>())
-        .changes
+    _beaconChanges = (myWorkCase ?? GetIt.I<MyWorkCase>())
+        .beaconChanges
         .listen(_onBeaconChanged, cancelOnError: false);
     _commitmentChanges = _forwardRepository.commitmentChanges.listen(
       (_) => unawaited(fetch()),
@@ -44,7 +42,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     unawaited(fetch());
   }
 
-  final MyWorkRepository _repository;
+  final MyWorkCase _myWorkCase;
   final ProfileCubit _profileCubit;
   final ForwardRepository _forwardRepository;
   final NewStuffCubit _newStuffCubit;
@@ -83,7 +81,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     }
     final results = await Future.wait(
       needsFlag.map(
-        (c) => _forwardRepository.currentUserHasForwardedBeacon(c.beaconId),
+        (c) => _myWorkCase.currentUserHasForwardedBeacon(c.beaconId),
       ),
     );
     final map = <String, bool>{
@@ -132,7 +130,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       ),
     );
     try {
-      final init = await _repository.fetchInit(userId: userId);
+      final init = await _myWorkCase.fetchInit(userId: userId);
       if (isClosed || seq != _fetchSeq) {
         return;
       }
@@ -187,7 +185,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       return;
     }
     try {
-      final closed = await _repository.fetchClosed(userId: userId);
+      final closed = await _myWorkCase.fetchClosed(userId: userId);
       if (isClosed || seq != _fetchSeq) {
         return;
       }

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/settings/data/repository/settings_repository.dart';
+import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'new_stuff_highlight.dart';
@@ -25,7 +25,7 @@ class NewStuffCubit extends Cubit<NewStuffState> {
     unawaited(_hydrate(_authCubit.state.currentAccountId));
   }
 
-  final SettingsRepository _settingsRepository;
+  final SettingsRepositoryPort _settingsRepository;
   final AuthCubit _authCubit;
 
   late final StreamSubscription<AuthState> _authSub;

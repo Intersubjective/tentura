@@ -1,25 +1,24 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/data/repository/meritrank_repository.dart';
-import 'package:tentura_server/data/repository/user_repository.dart';
-import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 
 import '../enum.dart';
 import '../exception.dart';
+import '_use_case_base.dart';
 
 @Singleton(order: 2)
-class MeritrankCase {
-  const MeritrankCase(
-    this._env,
+final class MeritrankCase extends UseCaseBase {
+  MeritrankCase(
     this._userRepository,
-    this._meritrankRepository,
-  );
+    this._meritrankRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final Env _env;
+  final UserRepositoryPort _userRepository;
 
-  final UserRepository _userRepository;
-
-  final MeritrankRepository _meritrankRepository;
+  final MeritrankRepositoryPort _meritrankRepository;
 
   Future<int> init({
     required String userId,
@@ -36,7 +35,7 @@ class MeritrankCase {
 
       if (forceCalculate ?? false) {
         await _meritrankRepository.calculate(
-          timeout: _env.meritrankCalculateTimeout,
+          timeout: env.meritrankCalculateTimeout,
         );
       }
 

@@ -2,22 +2,27 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/data/repository/remote_repository.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import '../../domain/entity/chat_message_entity.dart';
 import '../../domain/entity/peer_presence_entity.dart';
+import '../../domain/port/chat_remote_repository_port.dart';
 import '../model/chat_message_remote_model.dart';
 
-@singleton
-class ChatRemoteRepository {
-  ChatRemoteRepository(
-    this._remoteApiService,
-  );
+@Singleton(
+  as: ChatRemoteRepositoryPort,
+  env: [Environment.dev, Environment.prod],
+)
+class ChatRemoteRepository extends RemoteRepository
+    implements ChatRemoteRepositoryPort {
+  ChatRemoteRepository({
+    required super.remoteApiService,
+    required super.log,
+  });
 
-  final RemoteApiService _remoteApiService;
-
-  late final updates = _remoteApiService.webSocketMessages
+  @override
+  late final updates = remoteApiService.webSocketMessages
       .where(
         (e) =>
             e['type'] == 'subscription' &&
@@ -40,7 +45,8 @@ class ChatRemoteRepository {
       .asBroadcastStream();
 
   /// Peer presence batches from `user_presence` subscription.
-  late final presenceUpdates = _remoteApiService.webSocketMessages
+  @override
+  late final presenceUpdates = remoteApiService.webSocketMessages
       .where(
         (e) =>
             e['type'] == 'subscription' &&
@@ -70,7 +76,8 @@ class ChatRemoteRepository {
       .asBroadcastStream();
 
   /// Stream of typing notifications (`p2p_chat` intent `typing`).
-  late final typingUpdates = _remoteApiService.webSocketMessages
+  @override
+  late final typingUpdates = remoteApiService.webSocketMessages
       .where(
         (e) =>
             e['type'] == 'subscription' &&
@@ -95,7 +102,8 @@ class ChatRemoteRepository {
 
   /// Stream of send-message acknowledgements from the server, containing
   /// server-assigned serverId and createdAt for optimistic messages.
-  late final messageAcks = _remoteApiService.webSocketMessages
+  @override
+  late final messageAcks = remoteApiService.webSocketMessages
       .where(
         (e) =>
             e['type'] == 'message_ack' &&
@@ -115,7 +123,8 @@ class ChatRemoteRepository {
       .asBroadcastStream();
 
   /// Stream of fetch_history responses.
-  late final historyResponses = _remoteApiService.webSocketMessages
+  @override
+  late final historyResponses = remoteApiService.webSocketMessages
       .where(
         (e) =>
             e['type'] == 'message_ack' &&
@@ -137,10 +146,12 @@ class ChatRemoteRepository {
       )
       .asBroadcastStream();
 
-  Stream<WebSocketState> get webSocketState => _remoteApiService.webSocketState;
+  @override
+  Stream<WebSocketState> get webSocketState => remoteApiService.webSocketState;
 
+  @override
   void subscribePresencePeers(List<String> peerIds) =>
-      _remoteApiService.webSocketSend(
+      remoteApiService.webSocketSend(
         jsonEncode({
           'type': 'subscription',
           'path': 'user_presence',
@@ -153,10 +164,11 @@ class ChatRemoteRepository {
         }),
       );
 
+  @override
   void subscribeToUpdates({
     required DateTime fromMoment,
     required int batchSize,
-  }) => _remoteApiService.webSocketSend(
+  }) => remoteApiService.webSocketSend(
     jsonEncode({
       'type': 'subscription',
       'path': 'p2p_chat',
@@ -170,9 +182,10 @@ class ChatRemoteRepository {
     }),
   );
 
+  @override
   void sendTyping({
     required String receiverId,
-  }) => _remoteApiService.webSocketSend(
+  }) => remoteApiService.webSocketSend(
     jsonEncode({
       'type': 'message',
       'path': 'p2p_chat',
@@ -185,11 +198,12 @@ class ChatRemoteRepository {
     }),
   );
 
+  @override
   Future<void> sendMessage({
     required String receiverId,
     required String clientId,
     required String content,
-  }) async => _remoteApiService.webSocketSend(
+  }) async => remoteApiService.webSocketSend(
     jsonEncode({
       'type': 'message',
       'path': 'p2p_chat',
@@ -204,9 +218,10 @@ class ChatRemoteRepository {
     }),
   );
 
+  @override
   Future<void> setMessageSeen({
     required ChatMessageEntity message,
-  }) async => _remoteApiService.webSocketSend(
+  }) async => remoteApiService.webSocketSend(
     jsonEncode({
       'type': 'message',
       'path': 'p2p_chat',
@@ -220,11 +235,12 @@ class ChatRemoteRepository {
     }),
   );
 
+  @override
   void fetchHistory({
     required String peerId,
     required DateTime before,
     int limit = 20,
-  }) => _remoteApiService.webSocketSend(
+  }) => remoteApiService.webSocketSend(
     jsonEncode({
       'type': 'message',
       'path': 'p2p_chat',

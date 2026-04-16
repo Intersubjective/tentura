@@ -1,15 +1,15 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart';
-import 'package:tentura_server/data/repository/evaluation_repository.dart';
+import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 
 /// Test env: no-op evaluation persistence.
 @Injectable(
-  as: EvaluationRepository,
+  as: EvaluationRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class EvaluationRepositoryMock implements EvaluationRepository {
+class EvaluationRepositoryMock implements EvaluationRepositoryPort {
   const EvaluationRepositoryMock();
 
   @override
@@ -23,7 +23,7 @@ class EvaluationRepositoryMock implements EvaluationRepository {
       0;
 
   @override
-  Future<BeaconEvaluation?> getEvaluation({
+  Future<BeaconEvaluationRecord?> getEvaluation({
     required String beaconId,
     required String evaluatorId,
     required String evaluatedUserId,
@@ -31,46 +31,50 @@ class EvaluationRepositoryMock implements EvaluationRepository {
       null;
 
   @override
-  Future<List<BeaconEvaluation>> listEvaluationsForEvaluator({
+  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluator({
     required String beaconId,
     required String evaluatorId,
   }) async =>
       [];
 
   @override
-  Future<BeaconReviewWindow?> getReviewWindow(String beaconId) async => null;
+  Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId) async =>
+      null;
 
   @override
-  Future<int?> getReviewUserStatus(String beaconId, String userId) async => null;
+  Future<int?> getReviewUserStatus(String beaconId, String userId) async =>
+      null;
 
   @override
-  Future<List<BeaconEvaluation>> listEvaluationsForEvaluatedUser({
+  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
     required String evaluatedUserId,
   }) async =>
       [];
 
   @override
-  Future<List<BeaconEvaluationParticipant>> listParticipants(
+  Future<List<BeaconEvaluationParticipantRecord>> listParticipants(
     String beaconId,
   ) async =>
       [];
 
   @override
-  Future<List<BeaconEvaluationVisibilityData>> listVisibilityForEvaluator(
+  Future<List<BeaconEvaluationVisibilityRecord>> listVisibilityForEvaluator(
     String beaconId,
     String evaluatorId,
   ) async =>
       [];
 
   @override
-  Future<List<BeaconEvaluationVisibilityData>> listAllVisibility(
+  Future<List<BeaconEvaluationVisibilityRecord>> listAllVisibility(
     String beaconId,
   ) async =>
       [];
 
   @override
-  Future<List<BeaconEvaluation>> listDraftRowsForBeacon(String beaconId) async =>
+  Future<List<BeaconEvaluationRecord>> listDraftRowsForBeacon(
+    String beaconId,
+  ) async =>
       [];
 
   @override

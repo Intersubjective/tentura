@@ -33,10 +33,13 @@ One-line rules for quick lookup. See detailed files for explanations.
 - Router must be `@singleton` for Injectable
 
 ## Architecture
-- Dependencies flow inward: UI → Data → Domain (never reverse)
-- Domain layer has NO dependencies on outer layers
+- **Inward dependencies:** outer layers depend on inner contracts (domain stays pure; data implements domain **ports** on the server)
+- **Server domain:** use cases use **`domain/port/*`** only — verify with `rg "package:tentura_server/data/repository" packages/server/lib/domain` (should be empty)
+- **Client `lib/domain/`:** must not import `package:tentura/.../data/` or `.../ui/` — enforced by **`packages/tentura_lints`** (`custom_lint` on the client)
 - Repositories return domain entities, never Ferry types or Drift models
-- Use cases orchestrate business logic, repositories handle data access
+- **Image / picker boundary:** repository pick APIs use domain **`ImagePicked`** (or equivalent); keep **`XFile`** and similar types inside **data** only
+- Use cases orchestrate business logic; repositories handle remote/local I/O
+- **Heavy cubits** (multi-repo / streams): inject a **`features/*/domain/use_case/*_case`** (`@singleton`), not six repositories
 - Features are independent modules with data/domain/ui layers
 
 ## Injectable
@@ -74,8 +77,10 @@ One-line rules for quick lookup. See detailed files for explanations.
 
 ## BLoC/Cubit
 - States extend `StateBase` with `StateStatus` sealed class
-- Use Freezed for state immutability
-- Prefer use cases over direct repository access
+- Use Freezed for state immutability (**including `ScreenState`** in `ui/bloc/screen_state.dart`)
+- **Never mutate** `state` collections in place — `emit(state.copyWith(items: [...state.items, x]))`, new `Map` copies, etc.
+- Prefer **use cases** for orchestration; thin single-repo cubits may use one repository
+- **Do not** import `package:tentura/.../data/service/` from `ui/bloc/*_cubit.dart` (lint: `no_cubit_to_data_service_import`)
 - Use `copyWith()` to update state
 - Pattern match on `StateStatus` for status checks
 
@@ -105,8 +110,9 @@ One-line rules for quick lookup. See detailed files for explanations.
 ## Testing
 - Mocks use `@Injectable(as: RealType, env: [Environment.test])`
 - Mocks in `data/repository/mock/` directory
-- Mock data in `mock/data/` subdirectory
+- **Shared fixtures** in `data/repository/mock/data/` — reuse in tests / stub defaults instead of ad-hoc empty maps
 - Mocks implement full repository interface
+- **CI:** `flutter analyze --fatal-infos` / `dart analyze --fatal-infos` run in the pipeline — fix new analyzer issues before merge
 
 ## File Naming
 - Screens: `*_screen.dart` (triggers Auto Route)

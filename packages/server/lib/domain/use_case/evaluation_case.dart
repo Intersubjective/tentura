@@ -1,13 +1,11 @@
 import 'package:injectable/injectable.dart';
-
-import 'package:tentura_server/data/repository/beacon_repository.dart';
-import 'package:tentura_server/data/repository/commitment_repository.dart';
-import 'package:tentura_server/data/repository/evaluation_repository.dart';
-import 'package:tentura_server/data/repository/fcm_remote_repository.dart';
-import 'package:tentura_server/data/repository/fcm_token_repository.dart';
-import 'package:tentura_server/data/repository/forward_edge_repository.dart';
-import 'package:tentura_server/data/repository/user_repository.dart';
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
@@ -19,181 +17,39 @@ import 'package:tentura_server/domain/evaluation/evaluation_visibility_rules.dar
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
+import 'evaluation/evaluation_draft_purger.dart';
+import 'evaluation/evaluation_participant_graph_builder.dart';
+import 'evaluation/evaluation_prompt_variant.dart';
+import '_use_case_base.dart';
+
 /// Post-beacon evaluation (Phase 1): open window, visibility, private rows, summaries.
 @Singleton(order: 2)
-class EvaluationCase {
+final class EvaluationCase extends UseCaseBase {
   EvaluationCase(
     this._beaconRepository,
-    this._commitmentRepository,
     this._forwardEdgeRepository,
     this._evaluationRepository,
     this._userRepository,
     this._fcmRemoteRepository,
     this._fcmTokenRepository,
-  );
+    this._participantGraphBuilder,
+    this._draftPurger, {
+    required super.env,
+    required super.logger,
+  });
 
-  final BeaconRepository _beaconRepository;
-  final CommitmentRepository _commitmentRepository;
-  final ForwardEdgeRepository _forwardEdgeRepository;
-  final EvaluationRepository _evaluationRepository;
-  final UserRepository _userRepository;
-  final FcmRemoteRepository _fcmRemoteRepository;
-  final FcmTokenRepository _fcmTokenRepository;
+  final BeaconRepositoryPort _beaconRepository;
+  final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+  final EvaluationRepositoryPort _evaluationRepository;
+  final UserRepositoryPort _userRepository;
+  final FcmRemoteRepositoryPort _fcmRemoteRepository;
+  final FcmTokenRepositoryPort _fcmTokenRepository;
+  final EvaluationParticipantGraphBuilder _participantGraphBuilder;
+  final EvaluationDraftPurger _draftPurger;
 
   static const Duration _reviewWindowDuration = Duration(days: 7);
 
   Future<void> _ensureExpiredClosed() => _evaluationRepository.closeExpiredWindows();
-
-  Future<({
-    String authorId,
-    List<_ParticipantDraft> participants,
-    List<EvaluationVisibilityPair> visibility,
-    Map<String, ForwardEdgeEntity> latestEdgeToCommitter,
-  })> _buildParticipantGraph({
-    required String beaconId,
-    required String authorId,
-    required bool preClosure,
-  }) async {
-    final commitments = await _commitmentRepository.fetchByBeaconId(beaconId);
-    final edges = await _forwardEdgeRepository.fetchByBeaconId(beaconId);
-
-    final committerIds = commitments.map((c) => c.userId).toList();
-
-    final latestEdgeToCommitter = <String, ForwardEdgeEntity>{};
-    for (final c in committerIds) {
-      final toC = edges.where((e) => e.recipientId == c).toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      if (toC.isNotEmpty) {
-        latestEdgeToCommitter[c] = toC.first;
-      }
-    }
-
-    final forwarderIds = <String>{};
-    for (final entry in latestEdgeToCommitter.entries) {
-      final sender = entry.value.senderId;
-      if (sender != authorId) {
-        forwarderIds.add(sender);
-      }
-    }
-
-    final participants = <_ParticipantDraft>[];
-
-    participants.add(
-      _ParticipantDraft(
-        userId: authorId,
-        role: EvaluationParticipantRole.author,
-        contributionSummary: preClosure
-            ? 'Created this beacon'
-            : 'Created and closed the beacon',
-        causalHint: preClosure
-            ? 'Author — created this beacon'
-            : 'Author — created and closed the beacon',
-      ),
-    );
-
-    for (final c in commitments) {
-      final localDate = c.createdAt.toLocal();
-      final d =
-          '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';
-      participants.add(
-        _ParticipantDraft(
-          userId: c.userId,
-          role: EvaluationParticipantRole.committer,
-          contributionSummary:
-              'Committed on $d${c.message.isNotEmpty ? ': ${c.message}' : ''}',
-          causalHint: 'Committer — committed in this beacon',
-        ),
-      );
-      final edge = latestEdgeToCommitter[c.userId];
-      if (edge != null && edge.senderId != authorId) {
-        final fs = await _userRepository.getById(edge.senderId);
-        participants[participants.length - 1] = _ParticipantDraft(
-          userId: c.userId,
-          role: EvaluationParticipantRole.committer,
-          contributionSummary:
-              'Committed on $d${c.message.isNotEmpty ? ': ${c.message}' : ''}',
-          causalHint:
-              'Committer — received via forward from ${fs.title}; committed in this beacon',
-        );
-      }
-    }
-
-    for (final fid in forwarderIds) {
-      final linkedCommitters = latestEdgeToCommitter.entries
-          .where((e) => e.value.senderId == fid && e.key != authorId)
-          .map((e) => e.key)
-          .toList();
-      final names = <String>[];
-      for (final cid in linkedCommitters) {
-        names.add((await _userRepository.getById(cid)).title);
-      }
-      final namesStr = names.join(', ');
-      participants.add(
-        _ParticipantDraft(
-          userId: fid,
-          role: EvaluationParticipantRole.forwarder,
-          contributionSummary: 'Forwarded the beacon toward committer(s)',
-          causalHint:
-              'Forwarder — adjacent on the path to $namesStr, who committed',
-        ),
-      );
-    }
-
-    final visibility = buildEvaluationVisibility(
-      authorId: authorId,
-      participants: participants
-          .map(
-            (p) => EvaluationVisibilityParticipant(
-              userId: p.userId,
-              role: p.role,
-            ),
-          )
-          .toList(),
-      latestEdgeToCommitter: latestEdgeToCommitter,
-    );
-
-    return (
-      authorId: authorId,
-      participants: participants,
-      visibility: visibility,
-      latestEdgeToCommitter: latestEdgeToCommitter,
-    );
-  }
-
-  Future<void> _purgeDraftsOutsideVisibility(String beaconId) async {
-    final allowed = await _evaluationRepository.listAllVisibility(beaconId);
-    final allowedSet = {
-      for (final v in allowed) '${v.evaluatorId}\x00${v.participantId}',
-    };
-    final drafts = await _evaluationRepository.listDraftRowsForBeacon(beaconId);
-    for (final d in drafts) {
-      final key = '${d.evaluatorId}\x00${d.evaluatedUserId}';
-      if (!allowedSet.contains(key)) {
-        await _evaluationRepository.deleteEvaluationRow(
-          beaconId: beaconId,
-          evaluatorId: d.evaluatorId,
-          evaluatedUserId: d.evaluatedUserId,
-        );
-      }
-    }
-  }
-
-  static String _promptVariantForPair({
-    required String evaluatorId,
-    required int evaluatedRoleDb,
-    required String evaluatedUserId,
-    required Map<String, ForwardEdgeEntity> latestEdgeToCommitter,
-  }) {
-    final role = EvaluationParticipantRole.fromDb(evaluatedRoleDb);
-    if (role != EvaluationParticipantRole.committer) {
-      return 'full';
-    }
-    final edge = latestEdgeToCommitter[evaluatedUserId];
-    if (edge != null && edge.senderId == evaluatorId) {
-      return 'handoff';
-    }
-    return 'full';
-  }
 
   /// Author closes beacon and opens the Phase 1 review window (state 5).
   Future<Map<String, dynamic>> beaconCloseWithReview({
@@ -223,7 +79,7 @@ class EvaluationCase {
       );
     }
 
-    final graph = await _buildParticipantGraph(
+    final graph = await _participantGraphBuilder.build(
       beaconId: beaconId,
       authorId: beacon.author.id,
       preClosure: false,
@@ -268,7 +124,7 @@ class EvaluationCase {
       );
     }
 
-    await _purgeDraftsOutsideVisibility(beaconId);
+    await _draftPurger.purgeDraftsOutsideVisibility(beaconId);
 
     await _notifyReviewOpened(
       beaconId: beaconId,
@@ -363,9 +219,12 @@ class EvaluationCase {
         'value': ev?.value,
         'reasonTags': ev == null || ev.reasonTags.isEmpty
             ? <String>[]
-            : ev.reasonTags.split(',').where((s) => s.isNotEmpty).toList(),
+            : ev.reasonTags
+                  .split(',')
+                  .where((String s) => s.isNotEmpty)
+                  .toList(),
         'note': ev?.note ?? '',
-        'promptVariant': _promptVariantForPair(
+        'promptVariant': evaluationPromptVariantForPair(
           evaluatorId: evaluatorId,
           evaluatedRoleDb: row.role,
           evaluatedUserId: pid,
@@ -392,7 +251,7 @@ class EvaluationCase {
     return latestEdgeToCommitter;
   }
 
-  Future<Map<String, BeaconEvaluation>> _evaluationsByTargetForEvaluator({
+  Future<Map<String, BeaconEvaluationRecord>> _evaluationsByTargetForEvaluator({
     required String beaconId,
     required String evaluatorId,
   }) async {
@@ -413,7 +272,7 @@ class EvaluationCase {
     if (beacon.state != 0) {
       return [];
     }
-    final graph = await _buildParticipantGraph(
+    final graph = await _participantGraphBuilder.build(
       beaconId: beaconId,
       authorId: beacon.author.id,
       preClosure: true,
@@ -450,9 +309,12 @@ class EvaluationCase {
         'value': useEv?.value,
         'reasonTags': useEv == null || useEv.reasonTags.isEmpty
             ? <String>[]
-            : useEv.reasonTags.split(',').where((s) => s.isNotEmpty).toList(),
+            : useEv.reasonTags
+                  .split(',')
+                  .where((String s) => s.isNotEmpty)
+                  .toList(),
         'note': useEv?.note ?? '',
-        'promptVariant': _promptVariantForPair(
+        'promptVariant': evaluationPromptVariantForPair(
           evaluatorId: evaluatorId,
           evaluatedRoleDb: row.role.dbValue,
           evaluatedUserId: pid,
@@ -481,7 +343,10 @@ class EvaluationCase {
         'value': r.value,
         'reasonTags': r.reasonTags.isEmpty
             ? <String>[]
-            : r.reasonTags.split(',').where((s) => s.isNotEmpty).toList(),
+            : r.reasonTags
+                  .split(',')
+                  .where((String s) => s.isNotEmpty)
+                  .toList(),
         'note': r.note,
       });
     }
@@ -509,7 +374,7 @@ class EvaluationCase {
         evaluationCode: EvaluationExceptionCode.notEligible,
       );
     }
-    final graph = await _buildParticipantGraph(
+    final graph = await _participantGraphBuilder.build(
       beaconId: beaconId,
       authorId: beacon.author.id,
       preClosure: true,
@@ -605,8 +470,8 @@ class EvaluationCase {
       'beaconId': beaconId,
       'hasWindow': true,
       'beaconTitle': beaconTitle,
-      'openedAt': w.openedAt.dateTime.toUtc().toIso8601String(),
-      'closesAt': w.closesAt.dateTime.toUtc().toIso8601String(),
+      'openedAt': w.openedAt.toUtc().toIso8601String(),
+      'closesAt': w.closesAt.toUtc().toIso8601String(),
       'windowComplete': w.status == 1,
       'userReviewStatus': st ?? -1,
       'reviewedCount': reviewed,
@@ -621,7 +486,7 @@ class EvaluationCase {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     final parts = await _evaluationRepository.listParticipants(beaconId);
-    BeaconEvaluationParticipant? me;
+    BeaconEvaluationParticipantRecord? me;
     for (final p in parts) {
       if (p.userId == userId) {
         me = p;
@@ -669,7 +534,7 @@ class EvaluationCase {
         evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
       );
     }
-    if (w.closesAt.dateTime.isBefore(DateTime.timestamp())) {
+    if (w.closesAt.isBefore(DateTime.timestamp())) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
       );
@@ -828,18 +693,4 @@ class EvaluationCase {
     );
     return true;
   }
-}
-
-class _ParticipantDraft {
-  _ParticipantDraft({
-    required this.userId,
-    required this.role,
-    required this.contributionSummary,
-    required this.causalHint,
-  });
-
-  final String userId;
-  final EvaluationParticipantRole role;
-  final String contributionSummary;
-  final String causalHint;
 }

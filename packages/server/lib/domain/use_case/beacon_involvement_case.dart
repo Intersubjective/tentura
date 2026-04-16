@@ -1,10 +1,11 @@
 import 'package:injectable/injectable.dart';
-
-import 'package:tentura_server/data/repository/commitment_repository.dart';
-import 'package:tentura_server/data/repository/forward_edge_repository.dart';
-import 'package:tentura_server/data/repository/inbox_repository.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/entity/commitment_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+
+import '_use_case_base.dart';
 
 /// Aggregates forward / commitment / inbox-rejection data for a beacon.
 ///
@@ -12,16 +13,18 @@ import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 /// Hasura `beacon_by_pk { rejected_user_ids, forward_edges, ... }`, which is
 /// broken for empty `rejected_user_ids` (see `WORKAROUNDS.md`).
 @Singleton(order: 2)
-class BeaconInvolvementCase {
-  const BeaconInvolvementCase(
+final class BeaconInvolvementCase extends UseCaseBase {
+  BeaconInvolvementCase(
     this._forwardEdgeRepository,
     this._commitmentRepository,
-    this._inboxRepository,
-  );
+    this._inboxRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final ForwardEdgeRepository _forwardEdgeRepository;
-  final CommitmentRepository _commitmentRepository;
-  final InboxRepository _inboxRepository;
+  final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+  final CommitmentRepositoryPort _commitmentRepository;
+  final InboxRepositoryPort _inboxRepository;
 
   /// Returns a map matching `BeaconInvolvement` GraphQL field names.
   ///

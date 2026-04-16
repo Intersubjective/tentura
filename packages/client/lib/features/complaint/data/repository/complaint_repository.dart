@@ -6,7 +6,7 @@ import 'package:tentura/data/repository/remote_repository.dart';
 
 import '../gql/_g/complaint_create.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class ComplaintRepository extends RemoteRepository {
   ComplaintRepository({
     required super.remoteApiService,

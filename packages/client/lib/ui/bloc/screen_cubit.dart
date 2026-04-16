@@ -3,8 +3,10 @@ import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
 
+import 'screen_state.dart';
 import 'state_base.dart';
 
+export 'screen_state.dart';
 export 'state_base.dart';
 
 @singleton
@@ -42,15 +44,5 @@ class ScreenCubit extends Cubit<ScreenState> {
       emit(state.navigateTo('$kPathComplaint/$id'));
 
   void showMessaging(LocalizableMessage message) =>
-      emit(ScreenState(status: StateIsMessaging(message)));
-}
-
-class ScreenState extends StateBase {
-  const ScreenState({super.status});
-
-  ScreenState navigateTo(String path) =>
-      ScreenState(status: StateIsNavigating(path));
-
-  ScreenState navigateBack() =>
-      const ScreenState(status: StateIsNavigating.back);
+      emit(state.messaging(message));
 }

@@ -5,27 +5,26 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
-import 'package:tentura_server/env.dart';
-import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 
 import '../entity/jwt_entity.dart';
 import '../enum.dart';
+import '_use_case_base.dart';
 
 @Injectable(order: 2)
-class AuthCase {
+final class AuthCase extends UseCaseBase {
   AuthCase(
-    this._env,
-    this._userRepository,
-  );
+    this._userRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final Env _env;
-
-  final UserRepository _userRepository;
+  final UserRepositoryPort _userRepository;
 
   late final _roles = {UserRoles.user};
 
-  late final _issuer = _env.serverUri.toString();
+  late final _issuer = env.serverUri.toString();
 
   ///
   /// Parse and verify JWT issued before and signed with server private key
@@ -33,7 +32,7 @@ class AuthCase {
   JwtEntity parseAndVerifyJwt({
     required String token,
   }) {
-    final jwt = JWT.verify(token, _env.publicKey);
+    final jwt = JWT.verify(token, env.publicKey);
     final payload = jwt.payload as Map<String, Object?>;
     final roleList = (payload[AuthRequestIntent.keyRoles] as String? ?? '')
         .split(',');
@@ -67,7 +66,7 @@ class AuthCase {
     final jwt = _verifyAuthRequest(authRequestToken);
     final payload = jwt.payload as Map<String, dynamic>;
     final publicKey = payload[AuthRequestIntent.keyPublicKey]! as String;
-    final newUser = _env.isNeedInvite
+    final newUser = env.isNeedInvite
         ? switch (payload[AuthRequestIntentSignUp.keyCode]) {
             final String invitationId => await _userRepository.createInvited(
               invitationId: invitationId,
@@ -122,7 +121,7 @@ class AuthCase {
       sub: subject,
       roles: _roles,
       iss: _issuer,
-      exp: _env.jwtExpiresIn.inSeconds,
+      exp: env.jwtExpiresIn.inSeconds,
       rawToken:
           JWT(
             {AuthRequestIntent.keyRoles: _roles.join(',')},
@@ -130,9 +129,9 @@ class AuthCase {
             subject: subject,
             issuer: _issuer,
           ).sign(
-            _env.privateKey,
+            env.privateKey,
             algorithm: JWTAlgorithm.EdDSA,
-            expiresIn: _env.jwtExpiresIn,
+            expiresIn: env.jwtExpiresIn,
           ),
     );
   }

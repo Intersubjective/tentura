@@ -2,9 +2,10 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/auth/data/repository/auth_local_repository.dart';
 
-import '../../data/repository/forward_repository.dart';
+import '../../data/repository/forward_repository.dart'
+    show BeaconInvolvementData;
+import '../../domain/use_case/forward_case.dart';
 import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/exception.dart';
@@ -18,29 +19,24 @@ class ForwardCubit extends Cubit<ForwardState> {
   ForwardCubit({
     required String beaconId,
     String context = '',
-    ForwardRepository? forwardRepository,
-    AuthLocalRepository? authLocalRepository,
-  }) : _forwardRepository =
-           forwardRepository ?? GetIt.I<ForwardRepository>(),
-       _authLocalRepository =
-           authLocalRepository ?? GetIt.I<AuthLocalRepository>(),
+    ForwardCase? forwardCase,
+  }) : _forwardCase = forwardCase ?? GetIt.I<ForwardCase>(),
        super(ForwardState(beaconId: beaconId, context: context)) {
     unawaited(_loadCandidates());
   }
 
-  final ForwardRepository _forwardRepository;
-  final AuthLocalRepository _authLocalRepository;
+  final ForwardCase _forwardCase;
 
   Future<void> _loadCandidates() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final results = await Future.wait([
-        _forwardRepository.fetchForwardCandidates(context: state.context),
-        _forwardRepository.fetchBeaconInvolvement(beaconId: state.beaconId),
+        _forwardCase.fetchForwardCandidates(context: state.context),
+        _forwardCase.fetchBeaconInvolvement(beaconId: state.beaconId),
       ]);
       final profiles = results[0] as Iterable<Profile>;
       final involvement = results[1] as BeaconInvolvementData;
-      final myId = await _authLocalRepository.getCurrentAccountId();
+      final myId = await _forwardCase.getCurrentAccountId();
 
       final candidates = profiles
           .where((p) => p.id != myId)
@@ -161,7 +157,7 @@ class ForwardCubit extends Cubit<ForwardState> {
           perNotes[id] = personal.trim();
         }
       }
-      await _forwardRepository.forwardBeacon(
+      await _forwardCase.forwardBeacon(
         beaconId: state.beaconId,
         recipientIds: state.selectedIds.toList(),
         note: state.note.isEmpty ? null : state.note,

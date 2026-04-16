@@ -2,14 +2,14 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
 
-import '../fcm_token_repository.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
 @Injectable(
-  as: FcmTokenRepository,
+  as: FcmTokenRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class FcmTokenRepositoryMock implements FcmTokenRepository {
+class FcmTokenRepositoryMock implements FcmTokenRepositoryPort {
   @override
   Future<Iterable<FcmTokenEntity>> getTokensByUserId(String userId) async => [];
   @override

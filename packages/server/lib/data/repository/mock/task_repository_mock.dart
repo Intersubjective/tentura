@@ -1,20 +1,19 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/task_entity.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 
-import '../tasks_repository.dart';
-
-@Singleton(
-  as: TaskRepository,
+@LazySingleton(
+  as: TaskRepositoryPort,
   env: [Environment.test],
 )
-class TaskRepositoryMock implements TaskRepository {
+class TaskRepositoryMock implements TaskRepositoryPort {
   @FactoryMethod()
   static Future<TaskRepositoryMock> create() =>
       Future.value(TaskRepositoryMock());
 
   @override
-  Future<T?> acquire<T extends TaskEntity<TaskDetails>>() {
+  Future<T?> acquire<T extends TaskEntity>() {
     throw UnimplementedError();
   }
 
@@ -29,7 +28,7 @@ class TaskRepositoryMock implements TaskRepository {
   }
 
   @override
-  Future<String> schedule(TaskEntity<TaskDetails> task) {
+  Future<String> schedule(TaskEntity task) {
     throw UnimplementedError();
   }
 }

@@ -1,12 +1,17 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
-import 'package:tentura_server/data/repository/fcm_token_repository.dart';
+import '_use_case_base.dart';
 
 @Injectable(order: 2)
-class FcmCase {
-  FcmCase(this._fcmTokenRepository);
+final class FcmCase extends UseCaseBase {
+  FcmCase(
+    this._fcmTokenRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final FcmTokenRepository _fcmTokenRepository;
+  final FcmTokenRepositoryPort _fcmTokenRepository;
 
   Future<bool> registerToken({
     required String userId,

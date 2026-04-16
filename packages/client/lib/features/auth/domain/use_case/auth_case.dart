@@ -7,8 +7,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
-import '../../data/repository/auth_remote_repository.dart';
-import '../../data/repository/auth_local_repository.dart';
+import '../port/auth_local_repository_port.dart';
+import '../port/auth_remote_repository_port.dart';
 import '../exception.dart';
 
 @singleton
@@ -20,9 +20,9 @@ final class AuthCase extends UseCaseBase {
     required super.logger,
   });
 
-  final AuthLocalRepository _authLocalRepository;
+  final AuthLocalRepositoryPort _authLocalRepository;
 
-  final AuthRemoteRepository _authRemoteRepository;
+  final AuthRemoteRepositoryPort _authRemoteRepository;
 
   ///
   /// A stream that emits the current account ID whenever it changes.

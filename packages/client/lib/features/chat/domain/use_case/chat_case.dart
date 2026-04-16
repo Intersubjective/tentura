@@ -3,21 +3,17 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
-import 'package:tentura/data/service/remote_api_client/enum.dart';
 
-import 'package:tentura/features/auth/data/repository/auth_local_repository.dart';
-import 'package:tentura/features/profile/data/repository/profile_repository.dart';
+import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
-import '../../data/repository/chat_local_repository.dart';
-import '../../data/repository/chat_remote_repository.dart';
 import '../entity/chat_message_entity.dart';
 import '../entity/peer_presence_entity.dart';
+import '../port/chat_local_repository_port.dart';
+import '../port/chat_remote_repository_port.dart';
+import '../port/chat_stream_types.dart';
 
-export 'package:tentura/data/service/remote_api_client/enum.dart';
-
-typedef MessageAck = ({String clientId, String serverId, DateTime createdAt});
-typedef HistoryResponse = ({Iterable<ChatMessageEntity> messages, bool hasMore});
-typedef TypingEvent = ({String senderId, String receiverId});
+export '../port/chat_stream_types.dart';
 
 @singleton
 final class ChatCase extends UseCaseBase {
@@ -30,13 +26,13 @@ final class ChatCase extends UseCaseBase {
     required super.logger,
   });
 
-  final AuthLocalRepository _authLocalRepository;
+  final AuthLocalRepositoryPort _authLocalRepository;
 
-  final ChatLocalRepository _chatLocalRepository;
+  final ChatLocalRepositoryPort _chatLocalRepository;
 
-  final ChatRemoteRepository _chatRemoteRepository;
+  final ChatRemoteRepositoryPort _chatRemoteRepository;
 
-  final ProfileRepository _profileRepository;
+  final ProfileRepositoryPort _profileRepository;
 
   Stream<WebSocketState> get webSocketState =>
       _chatRemoteRepository.webSocketState;

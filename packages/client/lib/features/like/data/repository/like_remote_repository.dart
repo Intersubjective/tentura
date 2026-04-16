@@ -6,18 +6,19 @@ import 'package:tentura/domain/entity/comment.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/data/repository/remote_repository.dart';
 
 import '../../domain/exception.dart';
 import '../gql/_g/like_beacon_by_id.req.gql.dart';
 import '../gql/_g/like_comment_by_id.req.gql.dart';
 import '../gql/_g/like_user_by_id.req.gql.dart';
 
-@lazySingleton
-class LikeRemoteRepository {
-  LikeRemoteRepository(this._remoteApiService);
-
-  final RemoteApiService _remoteApiService;
+@Singleton(env: [Environment.dev, Environment.prod])
+class LikeRemoteRepository extends RemoteRepository {
+  LikeRemoteRepository({
+    required super.remoteApiService,
+    required super.log,
+  });
 
   final _controller = StreamController<RepositoryEvent<Likable>>.broadcast();
 
@@ -58,18 +59,16 @@ class LikeRemoteRepository {
     required String beaconId,
     required int amount,
   }) async {
-    final response = await _remoteApiService
-        .request(
-          GLikeBeaconByIdReq(
-            (b) =>
-                b
-                  ..vars.amount = amount
-                  ..vars.beacon_id = beaconId,
-          ),
-        )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
-    final result =
-        response.dataOrThrow(label: _label).insert_vote_beacon_one?.amount;
+    final data = await requestDataOnlineOrThrow(
+      GLikeBeaconByIdReq(
+        (b) =>
+            b
+              ..vars.amount = amount
+              ..vars.beacon_id = beaconId,
+      ),
+      label: _label,
+    );
+    final result = data.insert_vote_beacon_one?.amount;
     if (result == null) throw LikeSetException(beaconId);
     return result;
   }
@@ -78,35 +77,31 @@ class LikeRemoteRepository {
     required String commentId,
     required int amount,
   }) async {
-    final response = await _remoteApiService
-        .request(
-          GLikeCommentByIdReq(
-            (b) =>
-                b
-                  ..vars.amount = amount
-                  ..vars.comment_id = commentId,
-          ),
-        )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
-    final result =
-        response.dataOrThrow(label: _label).insert_vote_comment_one?.amount;
+    final data = await requestDataOnlineOrThrow(
+      GLikeCommentByIdReq(
+        (b) =>
+            b
+              ..vars.amount = amount
+              ..vars.comment_id = commentId,
+      ),
+      label: _label,
+    );
+    final result = data.insert_vote_comment_one?.amount;
     if (result == null) throw LikeSetException(commentId);
     return result;
   }
 
   Future<int> _likeUser({required String userId, required int amount}) async {
-    final response = await _remoteApiService
-        .request(
-          GLikeUserByIdReq(
-            (b) =>
-                b.vars
-                  ..object = userId
-                  ..amount = amount,
-          ),
-        )
-        .firstWhere((e) => e.dataSource == DataSource.Link);
-    final result =
-        response.dataOrThrow(label: _label).insert_vote_user_one?.amount;
+    final data = await requestDataOnlineOrThrow(
+      GLikeUserByIdReq(
+        (b) =>
+            b.vars
+              ..object = userId
+              ..amount = amount,
+      ),
+      label: _label,
+    );
+    final result = data.insert_vote_user_one?.amount;
     if (result == null) throw LikeSetException(userId);
     return result;
   }

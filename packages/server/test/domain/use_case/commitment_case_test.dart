@@ -1,6 +1,9 @@
+import 'package:injectable/injectable.dart' show Environment;
+import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -10,10 +13,10 @@ import 'package:tentura_server/domain/use_case/commitment_case.dart';
 import 'commitment_case_mocks.mocks.dart';
 
 void main() {
-  late MockBeaconRepository beaconRepo;
-  late MockCommitmentRepository commitmentRepo;
-  late MockCoordinationRepository coordinationRepo;
-  late MockInboxRepository inboxRepo;
+  late MockBeaconRepositoryPort beaconRepo;
+  late MockCommitmentRepositoryPort commitmentRepo;
+  late MockCoordinationRepositoryPort coordinationRepo;
+  late MockInboxRepositoryPort inboxRepo;
   late CommitmentCase case_;
 
   final now = DateTime.utc(2025);
@@ -38,15 +41,17 @@ void main() {
   }
 
   setUp(() {
-    beaconRepo = MockBeaconRepository();
-    commitmentRepo = MockCommitmentRepository();
-    coordinationRepo = MockCoordinationRepository();
-    inboxRepo = MockInboxRepository();
+    beaconRepo = MockBeaconRepositoryPort();
+    commitmentRepo = MockCommitmentRepositoryPort();
+    coordinationRepo = MockCoordinationRepositoryPort();
+    inboxRepo = MockInboxRepositoryPort();
     case_ = CommitmentCase(
       commitmentRepo,
       beaconRepo,
       coordinationRepo,
       inboxRepo,
+      env: Env(environment: Environment.test),
+      logger: Logger('CommitmentCaseTest'),
     );
   });
 
@@ -116,24 +121,24 @@ void main() {
       stubBeacon(beacon(id: 'B1', state: 0));
       when(
         coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) => Future.value());
       when(
         commitmentRepo.withdraw(
           beaconId: 'B1',
           userId: 'U1',
           uncommitReason: 'other',
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) => Future.value());
       when(
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) => Future.value());
       when(
         inboxRepo.upsertWatchingForSender(
           senderId: 'U1',
           beaconId: 'B1',
           touchForwardOrdering: false,
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) => Future.value());
 
       await case_.withdraw(
         beaconId: 'B1',
@@ -166,23 +171,23 @@ void main() {
         stubBeacon(beacon(id: 'B1', state: state));
         when(
           coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((_) => Future.value());
         when(
           commitmentRepo.withdraw(
             beaconId: 'B1',
             userId: 'U1',
             uncommitReason: 'timing',
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((_) => Future.value());
         when(
           coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((_) => Future.value());
         when(
           inboxRepo.applyTombstoneAfterWithdraw(
             userId: 'U1',
             beaconId: 'B1',
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((_) => Future.value());
 
         await case_.withdraw(
           beaconId: 'B1',
@@ -265,10 +270,10 @@ void main() {
           userId: 'U1',
           message: 'updated',
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) => Future.value());
       when(
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) => Future.value());
 
       await case_.commit(beaconId: 'B1', userId: 'U1', message: 'updated');
 

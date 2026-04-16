@@ -1,18 +1,20 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/invitation_mapper.dart';
 
 @Injectable(
+  as: InvitationRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class InvitationRepository {
+class InvitationRepository implements InvitationRepositoryPort {
   const InvitationRepository(this._database);
 
   final TenturaDb _database;

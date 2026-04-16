@@ -11,7 +11,7 @@ import '../gql/_g/commitments_with_coordination.req.gql.dart';
 import '../gql/_g/set_beacon_coordination_status.req.gql.dart';
 import '../gql/_g/set_coordination_response.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class CoordinationRepository {
   CoordinationRepository(this._remoteApiService);
 

@@ -9,7 +9,7 @@ import '../../domain/typedef.dart';
 import '../gql/_g/beacon_fetch_by_comment_id.req.gql.dart';
 import '../gql/_g/beacon_fetch_by_id_with_comments.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class BeaconViewRepository {
   BeaconViewRepository(this._remoteApiService);
 

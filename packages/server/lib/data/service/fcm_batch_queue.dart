@@ -4,13 +4,14 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
-import 'package:tentura_server/data/repository/fcm_remote_repository.dart';
-import 'package:tentura_server/data/repository/fcm_token_repository.dart';
+import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
+import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
 /// Batches FCM notifications and flushes at most once per second to avoid
 /// per-message HTTP calls that trigger FCM rate limiting.
-@lazySingleton
-class FcmBatchQueue {
+@LazySingleton(as: FcmBatchQueuePort)
+class FcmBatchQueue implements FcmBatchQueuePort {
   FcmBatchQueue(
     this._fcmRemoteRepository,
     this._fcmTokenRepository,
@@ -22,8 +23,8 @@ class FcmBatchQueue {
     );
   }
 
-  final FcmRemoteRepository _fcmRemoteRepository;
-  final FcmTokenRepository _fcmTokenRepository;
+  final FcmRemoteRepositoryPort _fcmRemoteRepository;
+  final FcmTokenRepositoryPort _fcmTokenRepository;
   final Logger _logger;
 
   late final Timer _timer;

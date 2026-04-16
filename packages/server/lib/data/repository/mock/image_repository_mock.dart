@@ -2,14 +2,14 @@ import 'dart:typed_data';
 
 import 'package:injectable/injectable.dart';
 
-import '../image_repository.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
 
 @Injectable(
-  as: ImageRepository,
+  as: ImageRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class ImageRepositoryMock implements ImageRepository {
+class ImageRepositoryMock implements ImageRepositoryPort {
   @override
   Future<void> delete({
     required String authorId,

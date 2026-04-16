@@ -1,3 +1,8 @@
+enum WebSocketState {
+  connected,
+  disconnected,
+}
+
 enum UserPresenceStatus {
   unknown,
   online,

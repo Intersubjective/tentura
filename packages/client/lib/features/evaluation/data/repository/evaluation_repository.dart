@@ -20,7 +20,7 @@ import '../gql/_g/evaluation_submit.req.gql.dart';
 import '../gql/_g/evaluation_summary.req.gql.dart';
 import '../gql/_g/review_window_status.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class EvaluationRepository {
   EvaluationRepository(this._remoteApiService);
 

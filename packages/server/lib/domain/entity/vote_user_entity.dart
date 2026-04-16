@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/domain/entity/user_entity.dart';
 
 part 'vote_user_entity.freezed.dart';
 

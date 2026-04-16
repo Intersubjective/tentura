@@ -1,4 +1,0 @@
-enum WebSocketState {
-  connected,
-  disconnected,
-}

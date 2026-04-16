@@ -5,6 +5,7 @@ import 'package:tentura_server/consts.dart' show kTitleMaxLength, kTitleMinLengt
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/beacon_mapper.dart';
@@ -24,13 +25,14 @@ String? _beaconContextForDb(String? raw) {
 }
 
 @Injectable(
+  as: BeaconRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class BeaconRepository {
+class BeaconRepository implements BeaconRepositoryPort {
   const BeaconRepository(this._database);
 
   final TenturaDb _database;

@@ -9,7 +9,7 @@ import '../../domain/entity/polling_result.dart';
 import '../gql/_g/polling_act.req.gql.dart';
 import '../gql/_g/polling_results_by_id.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class PollingRepository {
   static const _label = 'Polling';
 

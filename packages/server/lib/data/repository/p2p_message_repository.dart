@@ -4,18 +4,20 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/p2p_message_entity.dart';
+import 'package:tentura_server/domain/port/p2p_message_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../service/pg_notification_service.dart';
 
 @Injectable(
+  as: P2pMessageRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class P2pMessageRepository {
+class P2pMessageRepository implements P2pMessageRepositoryPort {
   P2pMessageRepository(this._database, this._pgNotificationService);
 
   final TenturaDb _database;

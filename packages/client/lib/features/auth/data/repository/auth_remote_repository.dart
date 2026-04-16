@@ -2,30 +2,36 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
+import 'package:tentura/data/repository/remote_repository.dart';
 import 'package:tentura/data/service/remote_api_client/credentials.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 
 import '../gql/_g/sign_in.req.gql.dart';
 import '../gql/_g/sign_out.req.gql.dart';
 import '../gql/_g/sign_up.req.gql.dart';
 
-@singleton
-class AuthRemoteRepository {
-  AuthRemoteRepository(
-    this._remoteApiService,
-  );
-
-  final RemoteApiService _remoteApiService;
+@Singleton(
+  as: AuthRemoteRepositoryPort,
+  env: [Environment.dev, Environment.prod],
+)
+class AuthRemoteRepository extends RemoteRepository
+    implements AuthRemoteRepositoryPort {
+  AuthRemoteRepository({
+    required super.remoteApiService,
+    required super.log,
+  });
 
   ///
   /// Returns id of created account
   ///
+  @override
   Future<String> signUp({
     required String seed,
     required String title,
     required String invitationCode,
   }) async {
-    final authRequestToken = await _remoteApiService.setAuth(
+    final authRequestToken = await remoteApiService.setAuth(
       seed: seed,
       authTokenFetcher: authTokenFetcher,
       returnAuthRequestToken: AuthRequestIntentSignUp(
@@ -38,7 +44,7 @@ class AuthRemoteRepository {
         ..title = title
         ..authRequestToken = authRequestToken;
     });
-    final response = await _remoteApiService
+    final response = await remoteApiService
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _repositoryKey).signUp);
@@ -48,25 +54,27 @@ class AuthRemoteRepository {
   ///
   /// Returns userId
   ///
+  @override
   Future<String> signIn(String seed) async {
-    await _remoteApiService.dropAuth();
-    await _remoteApiService.setAuth(
+    await remoteApiService.dropAuth();
+    await remoteApiService.setAuth(
       seed: seed,
       authTokenFetcher: authTokenFetcher,
     );
-    final authToken = await _remoteApiService.getAuthToken();
+    final authToken = await remoteApiService.getAuthToken();
     return authToken.userId;
   }
 
   //
   //
+  @override
   Future<void> signOut() async {
-    if (_remoteApiService.hasValidToken) {
-      await _remoteApiService
+    if (remoteApiService.hasValidToken) {
+      await remoteApiService
           .request(GSignOutReq())
           .firstWhere((e) => e.dataSource == DataSource.Link);
     }
-    await _remoteApiService.dropAuth();
+    await remoteApiService.dropAuth();
   }
 
   //

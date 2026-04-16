@@ -2,18 +2,20 @@ import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/fcm_token_mapper.dart';
 
 @Injectable(
+  as: FcmTokenRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class FcmTokenRepository {
+class FcmTokenRepository implements FcmTokenRepositoryPort {
   const FcmTokenRepository(this._database);
 
   final TenturaDb _database;

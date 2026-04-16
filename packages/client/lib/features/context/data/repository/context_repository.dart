@@ -10,7 +10,7 @@ import '../gql/_g/context_add.req.gql.dart';
 import '../gql/_g/context_delete.req.gql.dart';
 import '../gql/_g/context_fetch.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class ContextRepository {
   ContextRepository(
     this._remoteApiService,

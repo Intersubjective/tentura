@@ -4,18 +4,20 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura_server/domain/entity/user_presence_entity.dart';
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/user_presence_mapper.dart';
 
 @Injectable(
+  as: UserPresenceRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class UserPresenceRepository {
+class UserPresenceRepository implements UserPresenceRepositoryPort {
   const UserPresenceRepository(this._database);
 
   final TenturaDb _database;

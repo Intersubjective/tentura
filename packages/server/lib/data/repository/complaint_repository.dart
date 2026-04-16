@@ -2,17 +2,19 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/complaint_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/complaint_repository_port.dart';
 
 import '../database/tentura_db.dart';
 
 @Injectable(
+  as: ComplaintRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class ComplaintRepository {
+class ComplaintRepository implements ComplaintRepositoryPort {
   const ComplaintRepository(this._database);
 
   final TenturaDb _database;

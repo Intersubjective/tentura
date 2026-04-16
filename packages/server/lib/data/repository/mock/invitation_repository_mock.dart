@@ -2,15 +2,16 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 
-import '../invitation_repository.dart';
+import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+
 import 'data/invitations.dart';
 
 @Injectable(
-  as: InvitationRepository,
+  as: InvitationRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class InvitationRepositoryMock implements InvitationRepository {
+class InvitationRepositoryMock implements InvitationRepositoryPort {
   final storageById = <String, InvitationEntity>{
     ...kInvitationsById,
   };

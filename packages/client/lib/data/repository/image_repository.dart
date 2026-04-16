@@ -7,27 +7,26 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/image_picked.dart';
 
 import 'read_blob_url_stub.dart'
     if (dart.library.js_interop) 'read_blob_url_web.dart';
 
-export 'package:image_picker/image_picker.dart' show XFile;
-
 /// Output name for cropped avatar bytes (always JPEG from ImageCropper).
 const _kCroppedAvatarFileName = 'avatar_crop.jpg';
 
-@injectable
+@Singleton(env: [Environment.dev, Environment.prod])
 class ImageRepository {
   final _imagePicker = ImagePicker();
 
-  Future<ImageEntity?> pickImage() async {
+  Future<ImagePicked?> pickImage() async {
     final maxDimension = kImageMaxDimension.toDouble();
     final xFile = await _imagePicker.pickImage(
       maxHeight: maxDimension,
       maxWidth: maxDimension,
       source: ImageSource.gallery,
     );
-    return xFile == null ? null : _xFileToEntity(xFile);
+    return xFile == null ? null : await _xFileToPicked(xFile);
   }
 
   /// Gallery pick, then native/web crop UI (1:1, circular guide on mobile).
@@ -35,7 +34,7 @@ class ImageRepository {
   /// Picker does not downscale first: the cropper must see full pixels so the
   /// exported region matches the user's crop. Output is capped via
   /// [ImageCropper] `maxWidth` / `maxHeight`.
-  Future<ImageEntity?> pickAndCropImage(
+  Future<ImagePicked?> pickAndCropImage(
     List<PlatformUiSettings> cropUiSettings,
   ) async {
     final xFile = await _imagePicker.pickImage(
@@ -52,27 +51,27 @@ class ImageRepository {
     );
     if (croppedFile == null) return null;
 
-    return _croppedFileToEntity(croppedFile);
+    return _croppedFileToPicked(croppedFile);
   }
 
-  Future<List<ImageEntity>> pickMultipleImages() async {
+  Future<List<ImagePicked>> pickMultipleImages() async {
     final maxDimension = kImageMaxDimension.toDouble();
     final xFiles = await _imagePicker.pickMultiImage(
       maxHeight: maxDimension,
       maxWidth: maxDimension,
     );
-    final results = <ImageEntity>[];
+    final results = <ImagePicked>[];
     for (final xFile in xFiles) {
-      results.add(await _xFileToEntity(xFile));
+      results.add(await _xFileToPicked(xFile));
     }
     return results;
   }
 
-  Future<ImageEntity> _xFileToEntity(XFile xFile) async {
-    return _entityFromBytes(await xFile.readAsBytes(), xFile.name);
+  Future<ImagePicked> _xFileToPicked(XFile xFile) async {
+    return _pickedFromBytes(await xFile.readAsBytes(), xFile.name);
   }
 
-  Future<ImageEntity> _croppedFileToEntity(CroppedFile croppedFile) async {
+  Future<ImagePicked> _croppedFileToPicked(CroppedFile croppedFile) async {
     final path = croppedFile.path;
     final Uint8List raw;
     // Web: CroppedFile uses http.readBytes(blob:) which can return wrong data;
@@ -82,10 +81,10 @@ class ImageRepository {
     } else {
       raw = await croppedFile.readAsBytes();
     }
-    return _entityFromBytes(raw, _kCroppedAvatarFileName);
+    return _pickedFromBytes(raw, _kCroppedAvatarFileName);
   }
 
-  Future<ImageEntity> _entityFromBytes(
+  Future<ImagePicked> _pickedFromBytes(
     Uint8List rawBytes,
     String fileName,
   ) async {
@@ -111,8 +110,8 @@ class ImageRepository {
       );
     }
 
-    return ImageEntity(
-      imageBytes: bytes,
+    return ImagePicked(
+      bytes: bytes,
       fileName: fileName,
     );
   }

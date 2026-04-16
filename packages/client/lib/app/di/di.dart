@@ -10,7 +10,13 @@ import 'di.config.dart';
 @InjectableInit()
 Future<GetIt> configureDependencies() async {
   await BlurHash.loadShader();
-  final getIt = await GetIt.I.init();
+  const envName = String.fromEnvironment('ENV', defaultValue: 'dev');
+  final injectableEnv = switch (envName) {
+    'test' => Environment.test,
+    'prod' => Environment.prod,
+    _ => Environment.dev,
+  };
+  final getIt = await GetIt.I.init(environment: injectableEnv);
   final env = getIt<Env>();
 
   Logger.root.level = Level.LEVELS.firstWhere(

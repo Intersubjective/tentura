@@ -12,15 +12,16 @@ applyWhen:
   - pathMatches: "**/entity/**/*.dart"
   - pathMatches: "**/di.dart"
   - pathMatches: "**/modules.dart"
+  - pathMatches: "**/tentura_lints/**/*.dart"
 ---
 
 # Architecture Guidelines (SOLID & Clean Architecture)
 
 ## Overview
-This project follows **Clean Architecture** with **feature-based modularization** and strict adherence to **SOLID principles**. Dependencies flow inward: UI → Data → Domain.
+This project follows **Clean Architecture** with **feature-based modularization** and strict adherence to **SOLID principles**. **Dependency direction is inward:** outer layers depend on inner abstractions (UI → application/domain contracts; data **implements** those contracts). It is *not* “domain depends on data.”
 
 **Related Documents:**
-- `DEV_GUIDELINES.md` (repository root) - Project conventions (e.g. initial-load UI); read when planning features or screens
+- `DEV_GUIDELINES.md` (repository root) — Project conventions (initial-load UI, **layer boundaries & CI checks**); read when planning features or screens
 - `codegen.mdc` - Code generation tools and usage
 - `advanced-patterns.mdc` - Advanced architectural patterns
 - `quick-reference.mdc` - One-line rules (always applied)
@@ -43,13 +44,15 @@ features/
 
 #### Domain Layer (`domain/` or `features/*/domain/`)
 - **Entities**: Freezed immutable classes representing business objects (see codegen.mdc for Freezed usage)
-- **Use Cases**: Business logic orchestration (extend `UseCaseBase`)
+- **Use Cases**: Business logic orchestration (extend `UseCaseBase` where the package uses that base)
+- **Ports** (`*_repository_port.dart`, etc.): Narrow interfaces for what domain needs from infrastructure — **server** use cases depend on **ports only**, not concrete `data/repository` types.
 - **Exceptions**: Domain-specific error types (see advanced-patterns.mdc for exception hierarchy)
 - **Rules**: 
-  - NO dependencies on outer layers (data, ui)
+  - NO dependencies on outer layers (data, ui) — **client:** `packages/tentura_lints` forbids `package:tentura/.../data/` and `.../ui/` imports under `lib/domain/` (see “Static enforcement” below).
+  - **Server:** `rg "package:tentura_server/data/repository" packages/server/lib/domain` must stay **empty** (use cases import ports; repos register `@Injectable(as: …Port)` / `@Singleton(as: …Port)`).
   - Pure business logic only
   - Entities are Freezed classes
-  - Use cases orchestrate repositories, don't contain data access
+  - Use cases orchestrate **via ports (server) or injected repos/cases (client)**; keep I/O and framework types out of domain entities
 
 #### Data Layer (`data/` or `features/*/data/`)
 - **Repositories**: Abstract data sources, return domain entities (see advanced-patterns.mdc for base classes)
@@ -57,9 +60,10 @@ features/
 - **Services**: External API clients, storage, etc.
 - **Rules**:
   - Depends ONLY on domain layer
-  - Repositories are `@lazySingleton` or `@singleton` (see codegen.mdc for Injectable)
+  - Repositories are `@lazySingleton` or `@singleton` (see codegen.mdc for Injectable; **env-scoped** `@Singleton(env: [dev, prod])` is allowed where test doubles replace prod impls)
   - Convert Ferry types → Domain entities via `toEntity()`
   - Never expose Ferry types outside data layer
+  - **Third-party / IO types** (e.g. file picker, cropper) stay here: expose **domain DTOs** at repository boundaries (e.g. `ImagePicked` for image pick results), not raw plugin types in domain or cubit APIs
 
 #### Presentation Layer (`ui/` or `features/*/ui/`)
 - **BLoC/Cubit**: State management (use Freezed states - see codegen.mdc)
@@ -67,8 +71,9 @@ features/
 - **Widgets**: Reusable UI components
 - **Rules**:
   - Depends on domain and data layers
-  - BLoC uses use cases OR repositories directly
-  - States extend `StateBase` and use Freezed (see advanced-patterns.mdc for StateBase details)
+  - **BLoC/Cubit:** Prefer **`features/*/domain/use_case/*_case.dart`** for orchestration when a screen coordinates **multiple repos**, streams, or non-trivial workflows (pattern used for beacon detail, inbox, my work, forward, evaluation, polling, chat). Simple single-repo cubits may still inject one repository. **Never** import `package:tentura/.../data/service/` from `ui/bloc/*_cubit.dart` — use repositories or use cases (`tentura_lints` enforces this).
+  - **Immutable state:** Only `emit(state.copyWith(...))` with **new** `List`/`Map` instances — do not call `.add`, `.remove`, `[]=`, `.sort`, etc. on collections **held in** `state`.
+  - States extend `StateBase` and use Freezed (see advanced-patterns.mdc for StateBase details); shared **`ScreenState`** lives in `ui/bloc/screen_state.dart` (Freezed)
   - Screens use `@RoutePage()` for Auto Route
 
 ## SOLID Principles
@@ -117,7 +122,8 @@ Nothing (pure)
 - ❌ Domain → Data/UI (domain is pure)
 - ❌ Data → UI (data doesn't know about UI)
 - ❌ Direct imports of Ferry types in UI (use domain entities)
-- ❌ BLoC directly accessing services (use repositories or use cases)
+- ❌ BLoC/Cubit importing **`data/service/`** (use repositories or use cases — **lint:** `no_cubit_to_data_service_import`)
+- ❌ **Server** domain use cases importing concrete **`data/repository`** (use **`domain/port/`** and `as:` bindings instead)
 
 ## Common Patterns
 
@@ -161,16 +167,16 @@ class FeatureRepository {
 ```dart
 class FeatureCubit extends Cubit<FeatureState> {
   FeatureCubit({
-    FeatureRepository? repository,
-    FeatureCase? useCase,
-  }) : _repository = repository ?? GetIt.I<FeatureRepository>(),
-       _useCase = useCase ?? GetIt.I<FeatureCase>(),
-       super(const FeatureState());  // Freezed state (see codegen.mdc)
-  
+    FeatureCase? featureCase,
+  }) : _case = featureCase ?? GetIt.I<FeatureCase>(),
+       super(const FeatureState()); // Freezed state (see codegen.mdc)
+
+  final FeatureCase _case;
+
   Future<void> fetch() async {
-    emit(state.copyWith(status: StateStatus.isLoading));  // See advanced-patterns.mdc for StateStatus
+    emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final data = await _useCase.doSomething();
+      final data = await _case.doSomething();
       emit(state.copyWith(data: data, status: StateStatus.isSuccess));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
@@ -228,10 +234,24 @@ class FeatureCubit extends Cubit<FeatureState> {
 2. **Entities are Freezed**: All domain entities use `@freezed`
 3. **Repositories return entities**: Never return Ferry types or Drift models
 4. **Use cases orchestrate**: Business logic goes in use cases, not repositories
-5. **BLoC uses use cases**: Prefer use cases over direct repository access in BLoC
+5. **BLoC uses use cases**: Prefer use cases for orchestration (especially multi-repo flows); direct repository access is acceptable only for **thin** single-source cubits
 6. **Feature isolation**: Features should be independent modules
 7. **Shared domain**: Common entities live in `lib/domain/entity/`
 8. **Dependency direction**: Always inward (UI → Data → Domain)
+
+## Repository environment scoping & test doubles
+
+- **Injectable environments**: Production repository implementations are registered with `env: [Environment.dev, Environment.prod]` so they do not collide with `Environment.test` bindings.
+- **Mocks**: All `GetIt`-registered repositories have Mockito-based stubs in `packages/client/lib/data/repository/mock/client_repository_mocks.dart`, registered with `@Injectable(..., env: [Environment.test], order: 1)`.
+- **DI bootstrap**: `configureDependencies()` passes `Environment.test` when built with `--dart-define=ENV=test` (see CI pipeline).
+- **Remote HTTP repositories** extend `RemoteRepository` and use `requestDataOnlineOrThrow` for GraphQL/Ferry calls; UI must not import `RemoteApiService` except through data-layer types (e.g. `AppUpdateRepository` for version streams).
+
+## Static enforcement (`tentura_lints` + CI)
+
+- **Package:** `packages/tentura_lints` — wired as a **client** `custom_lint` plugin (`packages/client/analysis_options.yaml`).
+- **Rules today:** (1) no `package:tentura/.../data/` or `.../ui/` imports under **`packages/client/lib/domain/`** (`no_domain_to_data_or_ui_import`); (2) no `package:tentura/.../data/service/` imports from **`packages/client/lib/**/ui/bloc/*_cubit.dart`** (`no_cubit_to_data_service_import`).
+- **CI:** `.github/workflows/pipeline.yml` runs **`dart analyze --fatal-infos`** (server) and **`flutter analyze --fatal-infos`** (client) before tests — treat **infos** as failures when touching analyzed paths; fix or explicitly justify before merging.
+- **Adding a lint:** extend `packages/tentura_lints/lib/tentura_lints.dart` and keep rules **narrow** (path-scoped) to avoid noise.
 
 ## Testing Implications
 
@@ -239,3 +259,5 @@ class FeatureCubit extends Cubit<FeatureState> {
 - **Data layer**: Mock repositories for testing
 - **UI layer**: Test BLoC with mocked use cases/repositories
 - **Integration**: Test use case + repository together
+- **Client CI**: Run `flutter test --dart-define=ENV=test` so injectable resolves test-environment repository mocks
+- **Shared fixtures:** Prefer `packages/client/lib/data/repository/mock/data/` for reusable empty GraphQL-shaped / typed stubs consumed by tests or mocks (avoid copy-pasted `{}` maps)

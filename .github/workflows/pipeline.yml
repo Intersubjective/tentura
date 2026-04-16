@@ -40,8 +40,8 @@ jobs:
               set -euo pipefail
               dart pub get
               flutter pub get
-              cd packages/server && dart run build_runner build -d && dart test && cd ../..
-              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter test
+              cd packages/server && dart run build_runner build -d && dart analyze --fatal-infos && dart test && cd ../..
+              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --fatal-infos && flutter test --dart-define=ENV=test
             '
 
   build-web:

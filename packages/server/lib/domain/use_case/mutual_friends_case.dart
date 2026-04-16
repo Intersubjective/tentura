@@ -1,14 +1,20 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
+import 'package:tentura_server/domain/port/mutual_friends_repository_port.dart';
 
-import 'package:tentura_server/data/repository/mutual_friends_repository.dart';
+import '_use_case_base.dart';
 
 @Singleton(order: 2)
-class MutualFriendsCase {
-  const MutualFriendsCase(this._repository);
+final class MutualFriendsCase extends UseCaseBase {
+  MutualFriendsCase(
+    this._repository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final MutualFriendsRepository _repository;
+  final MutualFriendsRepositoryPort _repository;
 
-  Future<List<Map<String, dynamic>>> fetchMutualFriends({
+  Future<List<UserPublicRecord>> fetchMutualFriends({
     required String aliceId,
     required String bobId,
     required String context,

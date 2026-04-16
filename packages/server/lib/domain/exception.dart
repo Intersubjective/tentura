@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'exception_codes.dart';
 
-part 'exception/fcm_exceprions.dart';
+part 'exception/fcm_exceptions.dart';
 
 base class ExceptionBase implements Exception {
   const ExceptionBase({
@@ -55,7 +55,7 @@ final class IdWrongException extends ExceptionBase {
     String? description,
   }) : super(
          code: const GeneralExceptionCodes(
-           GeneralExceptionCode.idNotFoundException,
+           GeneralExceptionCode.idWrongException,
          ),
          description: description ?? 'Wrong Id: [$id]',
        );
@@ -78,8 +78,8 @@ final class PemKeyWrongException extends ExceptionBase {
     String key = '',
     String? description,
   }) : super(
-         code: const GeneralExceptionCodes(
-           GeneralExceptionCode.idNotFoundException,
+         code: const AuthExceptionCodes(
+           AuthExceptionCode.authPemKeyWrongException,
          ),
          description: description ?? 'Wrong PEM keys: [$key]',
        );
@@ -102,7 +102,7 @@ final class UnauthorizedException extends ExceptionBase {
   const UnauthorizedException({String? description})
     : super(
         code: const AuthExceptionCodes(
-          AuthExceptionCode.authAuthorizationHeaderWrongException,
+          AuthExceptionCode.authUnauthorizedException,
         ),
         description: description ?? 'User is not authorized',
       );

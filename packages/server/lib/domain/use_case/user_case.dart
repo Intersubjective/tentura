@@ -1,33 +1,47 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
-import 'package:tentura_server/data/repository/image_repository.dart';
-import 'package:tentura_server/data/repository/tasks_repository.dart';
-import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 
 import '../entity/task_entity.dart';
+import '../entity/user_entity.dart';
+import '_use_case_base.dart';
 
 @Singleton(order: 2)
-class UserCase {
+final class UserCase extends UseCaseBase {
   @FactoryMethod(preResolve: true)
   static Future<UserCase> createInstance(
-    ImageRepository imageRepository,
-    UserRepository userRepository,
-    TaskRepository tasksRepository,
-  ) async => UserCase(imageRepository, userRepository, tasksRepository);
-
-  const UserCase(
-    this._imageRepository,
-    this._userRepository,
-    this._tasksRepository,
+    Env env,
+    Logger logger,
+    ImageRepositoryPort imageRepository,
+    UserRepositoryPort userRepository,
+    TaskRepositoryPort tasksRepository,
+  ) async => UserCase(
+    imageRepository,
+    userRepository,
+    tasksRepository,
+    env: env,
+    logger: logger,
   );
 
-  final ImageRepository _imageRepository;
+  UserCase(
+    this._imageRepository,
+    this._userRepository,
+    this._tasksRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final UserRepository _userRepository;
+  final ImageRepositoryPort _imageRepository;
 
-  final TaskRepository _tasksRepository;
+  final UserRepositoryPort _userRepository;
+
+  final TaskRepositoryPort _tasksRepository;
 
   //
   Future<UserEntity> updateProfile({
@@ -64,7 +78,7 @@ class UserCase {
       imageId: imageId,
     );
 
-    return UserEntity(id: id);
+    return _userRepository.getById(id);
   }
 
   //

@@ -1,14 +1,16 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 import '../database/tentura_db.dart';
 
 @Injectable(
+  as: ForwardEdgeRepositoryPort,
   env: [Environment.dev, Environment.prod],
   order: 1,
 )
-class ForwardEdgeRepository {
+class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   const ForwardEdgeRepository(this._database);
 
   final TenturaDb _database;

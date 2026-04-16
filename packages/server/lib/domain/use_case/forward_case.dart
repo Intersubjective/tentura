@@ -1,21 +1,24 @@
 import 'package:injectable/injectable.dart';
-
-import 'package:tentura_server/data/repository/commitment_repository.dart';
-import 'package:tentura_server/data/repository/forward_edge_repository.dart';
-import 'package:tentura_server/data/repository/inbox_repository.dart';
+import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
+import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
+import '_use_case_base.dart';
+
 @Singleton(order: 2)
-class ForwardCase {
-  const ForwardCase(
+final class ForwardCase extends UseCaseBase {
+  ForwardCase(
     this._forwardEdgeRepository,
     this._commitmentRepository,
-    this._inboxRepository,
-  );
+    this._inboxRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final ForwardEdgeRepository _forwardEdgeRepository;
-  final CommitmentRepository _commitmentRepository;
-  final InboxRepository _inboxRepository;
+  final ForwardEdgeRepositoryPort _forwardEdgeRepository;
+  final CommitmentRepositoryPort _commitmentRepository;
+  final InboxRepositoryPort _inboxRepository;
 
   /// Forward a beacon to one or more recipients atomically.
   /// Returns the batch_id used for this forward action.

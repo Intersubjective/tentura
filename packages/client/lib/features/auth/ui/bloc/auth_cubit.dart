@@ -10,7 +10,7 @@ import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/message/common_messages.dart';
 
-import 'package:tentura/features/profile/data/repository/profile_repository.dart';
+import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../domain/exception.dart';
 import '../../domain/entity/account_entity.dart';
@@ -31,7 +31,7 @@ class AuthCubit extends Cubit<AuthState> {
     Env env,
     AuthCase authCase,
     AccountCase accountCase,
-    ProfileRepository profileRepository,
+    ProfileRepositoryPort profileRepository,
   ) async {
     final accounts = await accountCase.getAccountsAll();
     var state = AuthState(
@@ -63,7 +63,7 @@ class AuthCubit extends Cubit<AuthState> {
     this._env,
     this._authCase,
     this._accountCase,
-    ProfileRepository profileRepository,
+    ProfileRepositoryPort profileRepository,
     AuthState state,
   ) : super(state) {
     _authChanges = _authCase.currentAccountChanges().listen(

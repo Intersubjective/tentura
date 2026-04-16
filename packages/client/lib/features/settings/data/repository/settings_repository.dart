@@ -2,8 +2,13 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/database/database.dart';
 
-@singleton
-class SettingsRepository {
+import '../../domain/port/settings_repository_port.dart';
+
+@Singleton(
+  as: SettingsRepositoryPort,
+  env: [Environment.dev, Environment.prod],
+)
+class SettingsRepository implements SettingsRepositoryPort {
   SettingsRepository(this._database);
 
   final Database _database;
@@ -11,6 +16,7 @@ class SettingsRepository {
   ///
   /// Application Id for instance
   ///
+  @override
   Future<String?> getAppId() => _database.managers.settings
       .filter((f) => f.key.equals(_kAppIdKey))
       .getSingleOrNull()
@@ -18,6 +24,7 @@ class SettingsRepository {
 
   //
   //
+  @override
   Future<void> setAppId(String value) => _database.managers.settings.create(
     (o) => o(
       key: _kAppIdKey,
@@ -34,6 +41,7 @@ class SettingsRepository {
   ///
   /// Intro
   ///
+  @override
   Future<bool?> getIsIntroEnabled() => _database.managers.settings
       .filter((f) => f.key.equals(_kIsIntroEnabledKey))
       .getSingleOrNull()
@@ -41,6 +49,7 @@ class SettingsRepository {
 
   //
   //
+  @override
   Future<void> setIsIntroEnabled(bool value) =>
       _database.managers.settings.create(
         (o) => o(
@@ -58,6 +67,7 @@ class SettingsRepository {
   ///
   /// Theme
   ///
+  @override
   Future<String?> getThemeModeName() => _database.managers.settings
       .filter((f) => f.key.equals(_kThemeModeKey))
       .getSingleOrNull()
@@ -65,6 +75,7 @@ class SettingsRepository {
 
   //
   //
+  @override
   Future<void> setThemeMode(String value) => _database.managers.settings.create(
     (o) => o(
       key: _kThemeModeKey,
@@ -80,12 +91,14 @@ class SettingsRepository {
 
   // Keys
   /// Last-seen cursor for Inbox "new stuff" (epoch ms, server-aligned via max forward timestamps).
+  @override
   Future<int?> getNewStuffInboxLastSeenMs(String accountId) =>
       _database.managers.settings
           .filter((f) => f.key.equals(_newStuffInboxKey(accountId)))
           .getSingleOrNull()
           .then((v) => v?.valueInt);
 
+  @override
   Future<void> setNewStuffInboxLastSeenMs(String accountId, int epochMs) =>
       _database.managers.settings.create(
         (o) => o(
@@ -101,12 +114,14 @@ class SettingsRepository {
       );
 
   /// Last-seen cursor for My Work "new stuff" (epoch ms).
+  @override
   Future<int?> getNewStuffMyWorkLastSeenMs(String accountId) =>
       _database.managers.settings
           .filter((f) => f.key.equals(_newStuffMyWorkKey(accountId)))
           .getSingleOrNull()
           .then((v) => v?.valueInt);
 
+  @override
   Future<void> setNewStuffMyWorkLastSeenMs(String accountId, int epochMs) =>
       _database.managers.settings.create(
         (o) => o(

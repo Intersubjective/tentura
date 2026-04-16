@@ -2,9 +2,9 @@ import 'package:injectable/injectable.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/comment_repository.dart';
-import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/api/view/shared_view/shared_view_document.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/opinion_case.dart';
@@ -22,11 +22,11 @@ final class SharedViewController extends BaseController {
     super.env,
   );
 
-  final BeaconRepository _beaconRepository;
+  final BeaconRepositoryPort _beaconRepository;
 
   final CommentRepository _commentRepository;
 
-  final UserRepository _userRepository;
+  final UserRepositoryPort _userRepository;
 
   final InvitationCase _invitationCase;
 

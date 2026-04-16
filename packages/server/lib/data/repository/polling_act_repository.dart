@@ -1,15 +1,18 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
+
 import '../database/tentura_db.dart';
 
 @Injectable(
+  as: PollingActRepositoryPort,
   env: [
     Environment.dev,
     Environment.prod,
   ],
   order: 1,
 )
-class PollingActRepository {
+class PollingActRepository implements PollingActRepositoryPort {
   const PollingActRepository(this._database);
 
   final TenturaDb _database;

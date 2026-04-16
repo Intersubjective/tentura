@@ -8,7 +8,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
-import '../../data/repository/profile_repository.dart';
+import '../../domain/port/profile_repository_port.dart';
 import 'profile_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,7 +21,7 @@ export 'profile_state.dart';
 class ProfileCubit extends Cubit<ProfileState> {
   ProfileCubit({
     required AuthCase authCase,
-    required ProfileRepository profileRepository,
+    required ProfileRepositoryPort profileRepository,
   }) : _profileRepository = profileRepository,
        super(const ProfileState()) {
     _authChanges = authCase.currentAccountChanges().listen(
@@ -34,7 +34,7 @@ class ProfileCubit extends Cubit<ProfileState> {
     );
   }
 
-  final ProfileRepository _profileRepository;
+  final ProfileRepositoryPort _profileRepository;
 
   late final StreamSubscription<String> _authChanges;
 

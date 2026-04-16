@@ -12,7 +12,7 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import '../../domain/entity/location.dart';
 import '../../domain/entity/place.dart';
 
-@singleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class GeoRepository {
   GeoRepository(this._logger);
 

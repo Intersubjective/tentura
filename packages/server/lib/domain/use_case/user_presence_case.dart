@@ -1,19 +1,22 @@
 import 'package:injectable/injectable.dart';
-
 import 'package:tentura_root/domain/enums.dart';
 
-import 'package:tentura_server/data/repository/user_presence_repository.dart';
 import 'package:tentura_server/domain/entity/user_presence_entity.dart';
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
+
+import '_use_case_base.dart';
 
 export 'package:tentura_root/domain/enums.dart';
 
 @Injectable(order: 2)
-class UserPresenceCase {
+final class UserPresenceCase extends UseCaseBase {
   UserPresenceCase(
-    this._userPresenceRepository,
-  );
+    this._userPresenceRepository, {
+    required super.env,
+    required super.logger,
+  });
 
-  final UserPresenceRepository _userPresenceRepository;
+  final UserPresenceRepositoryPort _userPresenceRepository;
 
   //
   //

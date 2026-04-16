@@ -2,16 +2,16 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura_server/domain/entity/user_presence_entity.dart';
 
-import '../user_presence_repository.dart';
+import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
 @Injectable(
-  as: UserPresenceRepository,
+  as: UserPresenceRepositoryPort,
   env: [Environment.test],
   order: 1,
 )
-class UserPresenceRepositoryMock implements UserPresenceRepository {
+class UserPresenceRepositoryMock implements UserPresenceRepositoryPort {
   @override
-  Future<UserPresenceEntity> get(String userId) {
+  Future<UserPresenceEntity?> get(String userId) {
     throw UnimplementedError();
   }
 

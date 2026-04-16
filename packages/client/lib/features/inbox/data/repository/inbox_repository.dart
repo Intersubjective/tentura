@@ -13,7 +13,7 @@ import '../gql/_g/inbox_item_status_for_beacon.req.gql.dart';
 import '../gql/_g/inbox_set_status.req.gql.dart';
 import '../gql/_g/inbox_tombstone_dismiss.req.gql.dart';
 
-@lazySingleton
+@Singleton(env: [Environment.dev, Environment.prod])
 class InboxRepository {
   InboxRepository(this._remoteApiService);
 
