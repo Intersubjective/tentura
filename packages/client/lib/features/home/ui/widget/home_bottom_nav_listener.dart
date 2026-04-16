@@ -6,7 +6,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 
-/// Keeps [NewStuffCubit.activeHomeTabIndex] in sync with [TabsRouter.activeIndex]
+/// Keeps `NewStuffCubit.activeHomeTabIndex` in sync with `TabsRouter.activeIndex`
 /// (including non-tap navigations).
 class HomeBottomNavListener extends StatefulWidget {
   const HomeBottomNavListener({

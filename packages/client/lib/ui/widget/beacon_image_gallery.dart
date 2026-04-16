@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:blurhash_shader/blurhash_shader.dart';
 
@@ -29,10 +31,12 @@ class _BeaconImageGalleryState extends State<BeaconImageGallery> {
   }
 
   void _goTo(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+    unawaited(
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      ),
     );
   }
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/ui/screen/home_screen.dart' show HomeScreen;
 import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 

@@ -30,6 +30,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
 
   /// Mutual friends of [aliceId] and [bobId] in [context], as domain records
   /// (same fields as `gqlTypeUserPublic`).
+  @override
   Future<List<UserPublicRecord>> fetchMutualFriends({
     required String aliceId,
     required String bobId,
@@ -110,7 +111,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
     return out;
   }
 
-  /// Alice→peer (fwd) and peer→Alice (rev) from [mr_mutual_scores], same
+  /// Alice→peer (fwd) and peer→Alice (rev) from `mr_mutual_scores`, same
   /// semantics as `mutual_friends` SQL (`alice_peers` CTE).
   Future<Map<String, _PeerMrScores>> _fetchPeerScoresForViewer({
     required String viewerId,
@@ -160,7 +161,7 @@ WHERE (ms.src = $1 OR ms.dst = $1)
 }
 
 /// Forward (viewer→peer) and reverse (peer→viewer) MeritRank scores for one
-/// peer of [viewerId].
+/// peer of `viewerId`.
 class _PeerMrScores {
   const _PeerMrScores({
     required this.fwd,

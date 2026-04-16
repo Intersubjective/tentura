@@ -1,3 +1,4 @@
+import 'package:tentura_server/data/service/fcm_batch_queue.dart' show FcmBatchQueue;
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 
 /// Outbound FCM batching (implemented by `data/service/fcm_batch_queue.dart`).

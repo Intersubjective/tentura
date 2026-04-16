@@ -16,6 +16,7 @@ class InboxRepository implements InboxRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<List<InboxItemEntity>> fetchByUserId(
     String userId, {
     String? context,
@@ -32,6 +33,7 @@ class InboxRepository implements InboxRepositoryPort {
       .then((rows) => rows.map(_toEntity).toList());
 
   /// User ids who rejected this beacon (inbox_item.status == 2), any context.
+  @override
   Future<List<String>> fetchRejectedUserIdsByBeacon(String beaconId) =>
       _database.managers.inboxItems
           .filter(
@@ -41,6 +43,7 @@ class InboxRepository implements InboxRepositoryPort {
           .then((rows) => rows.map((r) => r.userId).toList());
 
   /// User ids watching this beacon (`status == 1`), any context.
+  @override
   Future<List<String>> fetchWatchingUserIdsByBeacon(String beaconId) =>
       _database.managers.inboxItems
           .filter(
@@ -52,6 +55,7 @@ class InboxRepository implements InboxRepositoryPort {
   /// After forward: sender moves to watching when they have no active commitment.
   /// Preserves existing `forward_count` and note preview on conflict.
   /// After withdraw when the beacon is not OPEN: passive tombstone, not Watching.
+  @override
   Future<void> applyTombstoneAfterWithdraw({
     required String userId,
     required String beaconId,
@@ -67,6 +71,7 @@ class InboxRepository implements InboxRepositoryPort {
         .getSingle();
   }
 
+  @override
   Future<void> upsertWatchingForSender({
     required String senderId,
     required String beaconId,
@@ -81,7 +86,7 @@ class InboxRepository implements InboxRepositoryPort {
     final now = PgDateTime(DateTime.timestamp());
     final insertLatest = touchForwardOrdering
         ? now
-        : PgDateTime(DateTime.utc(1970, 1, 1));
+        : PgDateTime(DateTime.utc(1970));
     await _database.into(_database.inboxItems).insert(
       InboxItemsCompanion.insert(
         userId: senderId,
@@ -110,6 +115,7 @@ class InboxRepository implements InboxRepositoryPort {
     );
   }
 
+  @override
   Future<void> setStatus({
     required String userId,
     required String beaconId,

@@ -46,7 +46,7 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
         requestTimeout: requestTimeout,
         userAgent: userAgent,
       ),
-      messageHandler: (Object? message) async {
+      messageHandler: (message) async {
         switch (message) {
           case final GetTokenRequest _:
             try {

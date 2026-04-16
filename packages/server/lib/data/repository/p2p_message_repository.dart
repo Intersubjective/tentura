@@ -24,6 +24,7 @@ class P2pMessageRepository implements P2pMessageRepositoryPort {
 
   final PgNotificationService _pgNotificationService;
 
+  @override
   Future<P2pMessageEntity> create({
     required String content,
     required String senderId,
@@ -61,6 +62,7 @@ class P2pMessageRepository implements P2pMessageRepositoryPort {
     return entity;
   }
 
+  @override
   Future<void> markAsDelivered({
     required String clientId,
     required String serverId,
@@ -108,6 +110,7 @@ class P2pMessageRepository implements P2pMessageRepositoryPort {
     );
   }
 
+  @override
   Future<Iterable<P2pMessageEntity>> fetchByUserId({
     required DateTime from,
     required String id,
@@ -160,6 +163,7 @@ class P2pMessageRepository implements P2pMessageRepositoryPort {
     );
   }
 
+  @override
   Future<Iterable<P2pMessageEntity>> fetchHistoryForPair({
     required String userId,
     required String peerId,

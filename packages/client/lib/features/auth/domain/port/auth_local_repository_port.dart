@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:tentura/features/auth/data/repository/auth_local_repository.dart' show AuthLocalRepository;
 import 'package:tentura/features/auth/domain/entity/account_entity.dart';
 
 /// Local auth / accounts (implemented by [AuthLocalRepository] in data layer).

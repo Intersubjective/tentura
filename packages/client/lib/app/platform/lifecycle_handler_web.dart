@@ -21,7 +21,7 @@ class _LifecycleHandlerState extends State<LifecycleHandler> {
   void initState() {
     super.initState();
     _webEvents = document.onVisibilityChange.listen(
-      (Event event) {
+      (event) {
         if (event.type == 'webkitvisibilitychange') {
           //
         }

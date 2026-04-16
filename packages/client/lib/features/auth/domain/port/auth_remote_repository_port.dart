@@ -1,3 +1,5 @@
+import 'package:tentura/features/auth/data/repository/auth_remote_repository.dart' show AuthRemoteRepository;
+
 /// Remote auth API (implemented by [AuthRemoteRepository] in data layer).
 abstract class AuthRemoteRepositoryPort {
   Future<String> signUp({

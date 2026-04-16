@@ -55,9 +55,7 @@ final class EvaluationParticipantGraphBuilder {
       }
     }
 
-    final participants = <EvaluationParticipantDraft>[];
-
-    participants.add(
+    final participants = <EvaluationParticipantDraft>[
       EvaluationParticipantDraft(
         userId: authorId,
         role: EvaluationParticipantRole.author,
@@ -68,7 +66,7 @@ final class EvaluationParticipantGraphBuilder {
             ? 'Author — created this beacon'
             : 'Author — created and closed the beacon',
       ),
-    );
+    ];
 
     for (final c in commitments) {
       final localDate = c.createdAt.toLocal();

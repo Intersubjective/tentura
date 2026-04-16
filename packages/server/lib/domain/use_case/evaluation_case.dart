@@ -13,7 +13,6 @@ import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_reason_tags.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_summary_rules.dart';
-import 'package:tentura_server/domain/evaluation/evaluation_visibility_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
@@ -221,7 +220,7 @@ final class EvaluationCase extends UseCaseBase {
             ? <String>[]
             : ev.reasonTags
                   .split(',')
-                  .where((String s) => s.isNotEmpty)
+                  .where((s) => s.isNotEmpty)
                   .toList(),
         'note': ev?.note ?? '',
         'promptVariant': evaluationPromptVariantForPair(
@@ -311,7 +310,7 @@ final class EvaluationCase extends UseCaseBase {
             ? <String>[]
             : useEv.reasonTags
                   .split(',')
-                  .where((String s) => s.isNotEmpty)
+                  .where((s) => s.isNotEmpty)
                   .toList(),
         'note': useEv?.note ?? '',
         'promptVariant': evaluationPromptVariantForPair(
@@ -345,7 +344,7 @@ final class EvaluationCase extends UseCaseBase {
             ? <String>[]
             : r.reasonTags
                   .split(',')
-                  .where((String s) => s.isNotEmpty)
+                  .where((s) => s.isNotEmpty)
                   .toList(),
         'note': r.note,
       });

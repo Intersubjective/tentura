@@ -16,6 +16,7 @@ class CommitmentRepository implements CommitmentRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<void> upsert({
     required String beaconId,
     required String userId,
@@ -45,6 +46,7 @@ class CommitmentRepository implements CommitmentRepositoryPort {
     );
   });
 
+  @override
   Future<void> withdraw({
     required String beaconId,
     required String userId,
@@ -65,6 +67,7 @@ class CommitmentRepository implements CommitmentRepositoryPort {
         );
   });
 
+  @override
   Future<List<CommitmentEntity>> fetchByBeaconId(String beaconId) =>
       _database.managers.beaconCommitments
           .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))
@@ -72,12 +75,14 @@ class CommitmentRepository implements CommitmentRepositoryPort {
           .then((rows) => rows.map(_toEntity).toList());
 
   /// Active and withdrawn rows (status 0 and 1). Used for forward involvement.
+  @override
   Future<List<CommitmentEntity>> fetchAllByBeaconId(String beaconId) =>
       _database.managers.beaconCommitments
           .filter((e) => e.beaconId.id(beaconId))
           .get()
           .then((rows) => rows.map(_toEntity).toList());
 
+  @override
   Future<List<CommitmentEntity>> fetchByUserId(String userId) =>
       _database.managers.beaconCommitments
           .filter((e) => e.userId.id(userId) & e.status.equals(0))
@@ -85,6 +90,7 @@ class CommitmentRepository implements CommitmentRepositoryPort {
           .get()
           .then((rows) => rows.map(_toEntity).toList());
 
+  @override
   Future<bool> hasActiveCommitment({
     required String beaconId,
     required String userId,

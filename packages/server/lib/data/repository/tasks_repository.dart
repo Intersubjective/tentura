@@ -24,6 +24,7 @@ class TaskRepository implements TaskRepositoryPort {
 
   final TaskWorker _taskWorker;
 
+  @override
   Future<T?> acquire<T extends TaskEntity>() async {
     switch (typeOf<T>()) {
       case const (TaskEntity<TaskCalculateImageHashDetails>):
@@ -44,6 +45,7 @@ class TaskRepository implements TaskRepositoryPort {
     }
   }
 
+  @override
   Future<String> schedule(TaskEntity task) => switch (task.details) {
     final TaskCalculateImageHashDetails details => _taskWorker.schedule(
       details.toJson(),
@@ -52,8 +54,10 @@ class TaskRepository implements TaskRepositoryPort {
     _ => throw UnimplementedError(),
   };
 
+  @override
   Future<void> complete(String id) => _taskWorker.complete(id);
 
+  @override
   Future<void> fail(String id) => _taskWorker.fail(id);
 
   static const _queueCalculateImageHash = 'calculate_image_hash';

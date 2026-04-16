@@ -15,6 +15,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<void> create({
     required String beaconId,
     required String senderId,
@@ -41,6 +42,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   ///
   /// [onAfterEdgesInserted] runs inside the same transaction (e.g. sender
   /// inbox → watching when not committed).
+  @override
   Future<void> createBatch({
     required String beaconId,
     required String senderId,
@@ -67,6 +69,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     await onAfterEdgesInserted?.call();
   });
 
+  @override
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) =>
       _database.managers.beaconForwardEdges
           .filter((e) => e.beaconId.id(beaconId))
@@ -75,6 +78,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
           .then((rows) => rows.map(_toEntity).toList());
 
   /// Distinct users who sent at least one forward edge for this beacon.
+  @override
   Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId) =>
       _database.managers.beaconForwardEdges
           .filter((e) => e.beaconId.id(beaconId))
@@ -83,6 +87,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
             (rows) => rows.map((r) => r.senderId).toSet().toList(),
           );
 
+  @override
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,

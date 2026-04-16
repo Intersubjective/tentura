@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/forward/ui/widget/forward_candidate_tile.dart' show ForwardCandidateTile;
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';

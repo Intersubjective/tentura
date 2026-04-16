@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/features/profile/data/repository/profile_repository.dart' show ProfileRepository;
 
 /// Remote profile + change stream (implemented by [ProfileRepository]).
 abstract class ProfileRepositoryPort {

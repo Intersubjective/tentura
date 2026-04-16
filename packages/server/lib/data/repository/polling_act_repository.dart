@@ -17,6 +17,7 @@ class PollingActRepository implements PollingActRepositoryPort {
 
   final TenturaDb _database;
 
+  @override
   Future<void> create({
     required String authorId,
     required String pollingId,

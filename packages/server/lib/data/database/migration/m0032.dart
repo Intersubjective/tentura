@@ -2,10 +2,10 @@ part of '_migrations.dart';
 
 /// Realtime invalidation when author coordination response changes.
 ///
-/// [beacon_commitment_coordination] had no trigger; only [beacon_commitment]
-/// and [beacon] fired NOTIFY. Committers did not receive updates when the
+/// `beacon_commitment_coordination` had no trigger; only `beacon_commitment`
+/// and `beacon` fired NOTIFY. Committers did not receive updates when the
 /// author changed response type. This emits the same `commitment` payload
-/// shape as [notify_entity_change] for the commitment branch.
+/// shape as `notify_entity_change` for the commitment branch.
 final m0032 = Migration('0032', [
   r'''
 CREATE OR REPLACE FUNCTION public.notify_coordination_change()
@@ -58,7 +58,7 @@ BEGIN
 END;
 $$;
 ''',
-  r'''
+  '''
 CREATE TRIGGER coordination_entity_notify
   AFTER INSERT OR UPDATE OR DELETE ON public.beacon_commitment_coordination
   FOR EACH ROW EXECUTE FUNCTION public.notify_coordination_change();

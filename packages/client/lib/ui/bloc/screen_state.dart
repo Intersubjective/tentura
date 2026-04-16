@@ -1,4 +1,3 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'state_base.dart';

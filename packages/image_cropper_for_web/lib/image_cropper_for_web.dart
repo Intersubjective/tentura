@@ -1,4 +1,4 @@
-library image_cropper_for_web;
+library;
 
 import 'dart:async';
 import 'dart:js_interop';
