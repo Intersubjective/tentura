@@ -6161,7 +6161,9 @@ type v2_CommitmentWithCoordinationRow {
   createdAt: String!
   helpType: String
   message: String!
+  responseAuthorUserId: String
   responseType: Int
+  responseUpdatedAt: String
   status: Int!
   uncommitReason: String
   updatedAt: String!

@@ -523,12 +523,14 @@ class MockInboxRepository extends _i1.Mock implements _i8.InboxRepository {
     required String? senderId,
     required String? beaconId,
     String? context,
+    bool? touchForwardOrdering = true,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#upsertWatchingForSender, [], {
               #senderId: senderId,
               #beaconId: beaconId,
               #context: context,
+              #touchForwardOrdering: touchForwardOrdering,
             }),
             returnValue: _i4.Future<void>.value(),
             returnValueForMissingStub: _i4.Future<void>.value(),

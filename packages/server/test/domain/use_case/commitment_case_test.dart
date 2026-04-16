@@ -131,6 +131,7 @@ void main() {
         inboxRepo.upsertWatchingForSender(
           senderId: 'U1',
           beaconId: 'B1',
+          touchForwardOrdering: false,
         ),
       ).thenAnswer((_) async {});
 
@@ -151,6 +152,7 @@ void main() {
         inboxRepo.upsertWatchingForSender(
           senderId: 'U1',
           beaconId: 'B1',
+          touchForwardOrdering: false,
         ),
       ).called(1);
     });

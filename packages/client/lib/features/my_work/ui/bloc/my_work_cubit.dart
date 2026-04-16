@@ -4,6 +4,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
+import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
@@ -23,9 +24,11 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     ProfileCubit? profileCubit,
     BeaconRepository? beaconRepository,
     ForwardRepository? forwardRepository,
+    NewStuffCubit? newStuffCubit,
   }) : _repository = repository ?? GetIt.I<MyWorkRepository>(),
        _profileCubit = profileCubit ?? GetIt.I<ProfileCubit>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
+       _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
        super(const MyWorkState()) {
     _beaconChanges = (beaconRepository ?? GetIt.I<BeaconRepository>())
         .changes
@@ -44,6 +47,21 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   final MyWorkRepository _repository;
   final ProfileCubit _profileCubit;
   final ForwardRepository _forwardRepository;
+  final NewStuffCubit _newStuffCubit;
+
+  void _reportMyWorkActivity() {
+    if (!state.isSuccess) return;
+    int? maxMs;
+    for (final c in state.nonArchivedCards) {
+      final m = c.newStuffActivityEpochMs;
+      if (maxMs == null || m > maxMs) maxMs = m;
+    }
+    for (final c in state.archivedCards) {
+      final m = c.newStuffActivityEpochMs;
+      if (maxMs == null || m > maxMs) maxMs = m;
+    }
+    _newStuffCubit.reportMyWorkActivity(maxMs);
+  }
 
   /// Incremented on every [fetch]; stale async completions must not emit.
   int _fetchSeq = 0;
@@ -103,6 +121,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           closedFetchInProgress: false,
         ),
       );
+      _reportMyWorkActivity();
       return;
     }
     final filterBefore = state.filter;
@@ -135,6 +154,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           archivedCards: const [],
         ),
       );
+      _reportMyWorkActivity();
       if (filterBefore == MyWorkFilter.archived) {
         emit(state.copyWith(closedFetchInProgress: true));
         unawaited(_fetchClosed(seq));
@@ -187,6 +207,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           status: const StateIsSuccess(),
         ),
       );
+      _reportMyWorkActivity();
     } catch (e) {
       if (isClosed || seq != _fetchSeq) {
         return;
@@ -201,22 +222,28 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
+        RepositoryEventCreate<Beacon>() ||
         RepositoryEventUpdate<Beacon>() ||
         RepositoryEventInvalidate<Beacon>() =>
           unawaited(fetch()),
-        RepositoryEventDelete<Beacon>(value: final b) => emit(
-          state.copyWith(
-            nonArchivedCards: state.nonArchivedCards
-                .where((c) => c.beaconId != b.id)
-                .toList(),
-            archivedCards:
-                state.archivedCards.where((c) => c.beaconId != b.id).toList(),
-            authoredClosedIdHints:
-                state.authoredClosedIdHints.where((id) => id != b.id).toList(),
-            committedClosedIdHints:
-                state.committedClosedIdHints.where((id) => id != b.id).toList(),
-          ),
-        ),
+        RepositoryEventDelete<Beacon>(value: final b) =>
+          _removeBeaconFromState(b.id),
         _ => null,
       };
+
+  void _removeBeaconFromState(String beaconId) {
+    emit(
+      state.copyWith(
+        nonArchivedCards:
+            state.nonArchivedCards.where((c) => c.beaconId != beaconId).toList(),
+        archivedCards:
+            state.archivedCards.where((c) => c.beaconId != beaconId).toList(),
+        authoredClosedIdHints:
+            state.authoredClosedIdHints.where((id) => id != beaconId).toList(),
+        committedClosedIdHints:
+            state.committedClosedIdHints.where((id) => id != beaconId).toList(),
+      ),
+    );
+    _reportMyWorkActivity();
+  }
 }

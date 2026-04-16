@@ -9,6 +9,11 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/side_outline_cta_button.dart';
+import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
+import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
+import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart'
+    show l10nInboxNewStuffReasons;
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
@@ -55,6 +60,7 @@ class InboxItemTile extends StatelessWidget {
     this.onCommit,
     this.showCtaRow = true,
     this.showProvenance = true,
+    this.inboxHighlight = InboxRowHighlightKind.none,
     super.key,
   });
 
@@ -75,6 +81,9 @@ class InboxItemTile extends StatelessWidget {
   /// When false (Watching / Rejected tabs), hide the whole forwarder block
   /// (avatars, expand, quotes).
   final bool showProvenance;
+
+  /// New vs updated since last Inbox visit (see [NewStuffCubit.inboxRowHighlight]).
+  final InboxRowHighlightKind inboxHighlight;
 
   String? _secondaryLabel(L10n l10n) {
     if (onCantHelp != null) return l10n.inboxActionNotForMe;
@@ -128,7 +137,12 @@ class InboxItemTile extends StatelessWidget {
         BeaconCardPill(label: l10n.inboxForwardedByMe),
     ];
 
-    final allPills = <Widget>[...beaconStatePills, ...inboxRolePills];
+    final allPills = <Widget>[
+      ...beaconStatePills,
+      ...inboxRolePills,
+    ];
+
+    final showNewStuffDot = inboxHighlight != InboxRowHighlightKind.none;
 
     return BeaconCardShell(
       child: Column(
@@ -358,11 +372,65 @@ class InboxItemTile extends StatelessWidget {
               ),
             ],
           ),
+          if (showNewStuffDot)
+            BlocBuilder<NewStuffCubit, NewStuffState>(
+              buildWhen: (p, c) => p.inboxLastSeenMs != c.inboxLastSeenMs,
+              builder: (context, _) {
+                final seen = context.read<NewStuffCubit>().state.inboxLastSeenMs;
+                final labels =
+                    l10nInboxNewStuffReasons(L10n.of(context)!, item.newStuffReasons(seen));
+                final at = DateTime.fromMillisecondsSinceEpoch(
+                  item.newStuffActivityEpochMs,
+                );
+                final whenLine = l10n.myWorkUpdatedLine(
+                  '${dateFormatYMD(at)} ${timeFormatHm(at)}',
+                );
+                final style = theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.outline,
+                );
+                return Padding(
+                  padding: const EdgeInsets.only(top: kSpacingSmall),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const NewStuffDot(
+                            padding: EdgeInsets.only(right: 8, top: 2),
+                          ),
+                          Expanded(
+                            child: Text(
+                              whenLine,
+                              style: style,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (labels.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 22, top: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final line in labels)
+                                Text(line, style: style),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
           if (hasProvenanceBody && showProvenance) ...[
             const SizedBox(height: kSpacingSmall),
             InboxForwardProvenancePanel(
               provenance: item.provenance,
               latestNotePreview: item.latestNotePreview,
+              recipient: GetIt.I<ProfileCubit>().state.profile,
             ),
           ],
           if (showCtaRow) ...[

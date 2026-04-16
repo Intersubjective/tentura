@@ -17,7 +17,11 @@ import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/home_tab_reselect_cubit.dart';
+import '../bloc/new_stuff_cubit.dart';
 import '../widget/friends_navbar_item.dart';
+import '../widget/home_bottom_nav_listener.dart';
+import '../widget/inbox_navbar_item.dart';
+import '../widget/my_work_navbar_item.dart';
 import '../widget/profile_navbar_item.dart';
 
 @RoutePage()
@@ -29,6 +33,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     providers: [
       BlocProvider.value(value: GetIt.I<ScreenCubit>()),
       BlocProvider.value(value: GetIt.I<HomeTabReselectCubit>()),
+      BlocProvider.value(value: GetIt.I<NewStuffCubit>()),
     ],
     child: MultiBlocListener(
       listeners: [
@@ -83,32 +88,34 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
             : profileTitle;
         return AutoTabsScaffold(
           bottomNavigationBuilder: (context, tabsRouter) {
-            return NavigationBar(
-              onDestinationSelected: (index) {
-                final prev = tabsRouter.activeIndex;
-                tabsRouter.setActiveIndex(index);
-                if (index == prev) {
-                  final reselect = context.read<HomeTabReselectCubit>();
-                  if (index == 0) {
-                    reselect.bumpInboxReselect();
-                  } else if (index == 1) {
-                    reselect.bumpMyWorkReselect();
+            return HomeBottomNavListener(
+              tabsRouter: tabsRouter,
+              child: NavigationBar(
+                onDestinationSelected: (index) {
+                  final prev = tabsRouter.activeIndex;
+                  tabsRouter.setActiveIndex(index);
+                  if (index == prev) {
+                    final reselect = context.read<HomeTabReselectCubit>();
+                    if (index == 0) {
+                      reselect.bumpInboxReselect();
+                    } else if (index == 1) {
+                      reselect.bumpMyWorkReselect();
+                    }
                   }
-                }
-              },
-              indicatorColor: Theme.of(context).colorScheme.primaryFixed,
-              selectedIndex: tabsRouter.activeIndex,
-              destinations: [
-                NavigationDestination(
-                  icon: const Icon(Icons.inbox_outlined),
-                  selectedIcon: const Icon(Icons.inbox),
-                  label: l10n.inbox,
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.work_outline),
-                  selectedIcon: const Icon(Icons.work),
-                  label: l10n.myWork,
-                ),
+                },
+                indicatorColor: Theme.of(context).colorScheme.primaryFixed,
+                selectedIndex: tabsRouter.activeIndex,
+                destinations: [
+                  NavigationDestination(
+                    icon: const InboxNavbarItem(),
+                    selectedIcon: const InboxNavbarItem(selected: true),
+                    label: l10n.inbox,
+                  ),
+                  NavigationDestination(
+                    icon: const MyWorkNavbarItem(),
+                    selectedIcon: const MyWorkNavbarItem(selected: true),
+                    label: l10n.myWork,
+                  ),
                 NavigationDestination(
                   icon: const FriendsNavbarItem(),
                   selectedIcon: const FriendsNavbarItem(selected: true),
@@ -119,6 +126,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   label: profileTabLabel,
                 ),
               ],
+            ),
             );
           },
           resizeToAvoidBottomInset: false,

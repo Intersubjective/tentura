@@ -7,10 +7,12 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_photo_count.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
@@ -18,9 +20,10 @@ import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
+import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
+import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
+import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
-
-import 'compact_forwarder_avatars.dart';
 
 String _truncate(String s, int max) {
   final t = s.trim();
@@ -28,20 +31,81 @@ String _truncate(String s, int max) {
   return '${t.substring(0, max - 1)}…';
 }
 
-String _updatedWhenText(L10n l10n, Beacon b) {
-  final when = dateFormatYMD(b.updatedAt);
-  return l10n.myWorkUpdatedLine(when);
+String _formatDateTimeActivityLine(DateTime d) =>
+    '${dateFormatYMD(d)} ${timeFormatHm(d)}';
+
+String _myWorkActivityWhenLine(
+  L10n l10n,
+  MyWorkCardViewModel vm,
+  MyWorkCardHighlightKind highlight,
+) {
+  final b = vm.beacon;
+  final at = highlight == MyWorkCardHighlightKind.none
+      ? b.updatedAt
+      : DateTime.fromMillisecondsSinceEpoch(vm.newStuffActivityEpochMs);
+  return l10n.myWorkUpdatedLine(_formatDateTimeActivityLine(at));
 }
 
-Widget _myWorkSublineText(BuildContext context, String text) {
+Widget _myWorkFooterActivityBlock({
+  required BuildContext context,
+  required MyWorkCardHighlightKind highlight,
+  required List<String> reasonLabels,
+  required String activityWhenLine,
+}) {
   final theme = Theme.of(context);
-  return Text(
-    text,
-    style: theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    ),
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
+  final scheme = theme.colorScheme;
+  final style = theme.textTheme.labelSmall?.copyWith(color: scheme.outline);
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _myWorkNewStuffDot(context, highlight),
+          Expanded(
+            child: Text(
+              activityWhenLine,
+              style: style,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+      if (reasonLabels.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(left: 22, top: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final line in reasonLabels)
+                Text(line, style: style),
+            ],
+          ),
+        ),
+    ],
+  );
+}
+
+Widget _inboxStyleAuthorSubline(BuildContext context, Beacon beacon) {
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  return Row(
+    children: [
+      AvatarRated(profile: beacon.author, size: 22, withRating: false),
+      const SizedBox(width: 6),
+      Expanded(
+        child: Text(
+          beacon.author.title,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ],
   );
 }
 
@@ -51,6 +115,13 @@ String _beaconCategoryLabel(Beacon b, L10n l10n) {
   return c.isEmpty ? l10n.inboxCategoryGeneral : c;
 }
 
+Widget _myWorkNewStuffDot(BuildContext context, MyWorkCardHighlightKind kind) {
+  if (kind == MyWorkCardHighlightKind.none) {
+    return const SizedBox.shrink();
+  }
+  return const NewStuffDot(padding: EdgeInsets.only(right: 8, top: 2));
+}
+
 class MyWorkCardRouter extends StatelessWidget {
   const MyWorkCardRouter({required this.vm, super.key});
 
@@ -58,13 +129,52 @@ class MyWorkCardRouter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return switch (vm.kind) {
-      MyWorkCardKind.authoredDraft => _DraftAuthoredCard(vm: vm),
-      MyWorkCardKind.authoredActive => _AuthoredActiveCard(vm: vm),
-      MyWorkCardKind.committedActive => _CommittedActiveCard(vm: vm),
-      MyWorkCardKind.authoredClosed => _ClosedAuthoredCard(vm: vm),
-      MyWorkCardKind.committedClosed => _ClosedCommittedCard(vm: vm),
-    };
+    final l10n = L10n.of(context)!;
+    return BlocBuilder<NewStuffCubit, NewStuffState>(
+      builder: (context, _) {
+        final b = vm.beacon;
+        final seen = context.read<NewStuffCubit>().state.myWorkLastSeenMs;
+        final highlight = context.read<NewStuffCubit>().myWorkCardHighlight(
+              createdAt: b.createdAt,
+              activityEpochMs: vm.newStuffActivityEpochMs,
+            );
+        final reasonLabels =
+            l10nMyWorkNewStuffReasons(l10n, vm.newStuffReasons(seen));
+        final activityWhenLine = _myWorkActivityWhenLine(l10n, vm, highlight);
+        return switch (vm.kind) {
+          MyWorkCardKind.authoredDraft => _DraftAuthoredCard(
+              vm: vm,
+              highlight: highlight,
+              newStuffReasonLabels: reasonLabels,
+              activityWhenLine: activityWhenLine,
+            ),
+          MyWorkCardKind.authoredActive => _AuthoredActiveCard(
+              vm: vm,
+              highlight: highlight,
+              newStuffReasonLabels: reasonLabels,
+              activityWhenLine: activityWhenLine,
+            ),
+          MyWorkCardKind.committedActive => _CommittedActiveCard(
+              vm: vm,
+              highlight: highlight,
+              newStuffReasonLabels: reasonLabels,
+              activityWhenLine: activityWhenLine,
+            ),
+          MyWorkCardKind.authoredClosed => _ClosedAuthoredCard(
+              vm: vm,
+              highlight: highlight,
+              newStuffReasonLabels: reasonLabels,
+              activityWhenLine: activityWhenLine,
+            ),
+          MyWorkCardKind.committedClosed => _ClosedCommittedCard(
+              vm: vm,
+              highlight: highlight,
+              newStuffReasonLabels: reasonLabels,
+              activityWhenLine: activityWhenLine,
+            ),
+        };
+      },
+    );
   }
 }
 
@@ -91,9 +201,17 @@ void _openReviewContributions(BuildContext context, String id) {
 }
 
 class _AuthoredActiveCard extends StatelessWidget {
-  const _AuthoredActiveCard({required this.vm});
+  const _AuthoredActiveCard({
+    required this.vm,
+    required this.highlight,
+    required this.newStuffReasonLabels,
+    required this.activityWhenLine,
+  });
 
   final MyWorkCardViewModel vm;
+  final MyWorkCardHighlightKind highlight;
+  final List<String> newStuffReasonLabels;
+  final String activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
@@ -118,13 +236,14 @@ class _AuthoredActiveCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  _updatedWhenText(l10n, b),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+                child: _myWorkFooterActivityBlock(
+                  context: context,
+                  highlight: highlight,
+                  reasonLabels: newStuffReasonLabels,
+                  activityWhenLine: activityWhenLine,
                 ),
               ),
               if (vm.showReviewCommitmentsCta)
@@ -176,7 +295,7 @@ class _AuthoredActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _myWorkSublineText(context, l10n.myWorkYouAuthor),
+            subline: _inboxStyleAuthorSubline(context, b),
             menu: _AuthoredOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -267,9 +386,17 @@ class _AuthoredActiveCard extends StatelessWidget {
 }
 
 class _CommittedActiveCard extends StatelessWidget {
-  const _CommittedActiveCard({required this.vm});
+  const _CommittedActiveCard({
+    required this.vm,
+    required this.highlight,
+    required this.newStuffReasonLabels,
+    required this.activityWhenLine,
+  });
 
   final MyWorkCardViewModel vm;
+  final MyWorkCardHighlightKind highlight;
+  final List<String> newStuffReasonLabels;
+  final String activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
@@ -290,17 +417,14 @@ class _CommittedActiveCard extends StatelessWidget {
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
       footer: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (vm.forwarderSenders.isNotEmpty)
-            CompactForwarderAvatars(profiles: vm.forwarderSenders),
-          if (vm.forwarderSenders.isNotEmpty)
-            const SizedBox(width: kSpacingSmall),
           Expanded(
-            child: Text(
-              _updatedWhenText(l10n, b),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: scheme.outline,
-              ),
+            child: _myWorkFooterActivityBlock(
+              context: context,
+              highlight: highlight,
+              reasonLabels: newStuffReasonLabels,
+              activityWhenLine: activityWhenLine,
             ),
           ),
           if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
@@ -318,10 +442,7 @@ class _CommittedActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _myWorkSublineText(
-              context,
-              b.author.title.isEmpty ? '—' : b.author.title,
-            ),
+            subline: _inboxStyleAuthorSubline(context, b),
             menu: _CommittedOverflowMenu(beaconId: b.id),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -330,6 +451,12 @@ class _CommittedActiveCard extends StatelessWidget {
             runSpacing: kSpacingSmall,
             children: [
               BeaconCardPill(label: l10n.myWorkChipCommitted),
+              if (b.coordinationStatus ==
+                  BeaconCoordinationStatus.moreOrDifferentHelpNeeded)
+                BeaconCardPill(
+                  label: l10n.myWorkChipMoreHelp,
+                  emphasized: true,
+                ),
               if (vm.showReadyForReviewChip)
                 BeaconCardPill(
                   label: l10n.myWorkChipReadyForReview,
@@ -391,9 +518,17 @@ class _CommittedActiveCard extends StatelessWidget {
 }
 
 class _DraftAuthoredCard extends StatelessWidget {
-  const _DraftAuthoredCard({required this.vm});
+  const _DraftAuthoredCard({
+    required this.vm,
+    required this.highlight,
+    required this.newStuffReasonLabels,
+    required this.activityWhenLine,
+  });
 
   final MyWorkCardViewModel vm;
+  final MyWorkCardHighlightKind highlight;
+  final List<String> newStuffReasonLabels;
+  final String activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
@@ -405,13 +540,14 @@ class _DraftAuthoredCard extends StatelessWidget {
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
       footer: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Text(
-              _updatedWhenText(l10n, b),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
+            child: _myWorkFooterActivityBlock(
+              context: context,
+              highlight: highlight,
+              reasonLabels: newStuffReasonLabels,
+              activityWhenLine: activityWhenLine,
             ),
           ),
           if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
@@ -427,7 +563,7 @@ class _DraftAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _myWorkSublineText(context, l10n.myWorkYouAuthor),
+            subline: _inboxStyleAuthorSubline(context, b),
             menu: _DraftOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -469,14 +605,21 @@ class _DraftAuthoredCard extends StatelessWidget {
 }
 
 class _ClosedAuthoredCard extends StatelessWidget {
-  const _ClosedAuthoredCard({required this.vm});
+  const _ClosedAuthoredCard({
+    required this.vm,
+    required this.highlight,
+    required this.newStuffReasonLabels,
+    required this.activityWhenLine,
+  });
 
   final MyWorkCardViewModel vm;
+  final MyWorkCardHighlightKind highlight;
+  final List<String> newStuffReasonLabels;
+  final String activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
     final b = vm.beacon;
     return BeaconCardShell(
       muted: true,
@@ -496,7 +639,7 @@ class _ClosedAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _myWorkSublineText(context, l10n.myWorkYouAuthor),
+            subline: _inboxStyleAuthorSubline(context, b),
             menu: _AuthoredOverflowMenu(beacon: b),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -511,13 +654,14 @@ class _ClosedAuthoredCard extends StatelessWidget {
           ),
           const SizedBox(height: kSpacingSmall),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  _updatedWhenText(l10n, b),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+                child: _myWorkFooterActivityBlock(
+                  context: context,
+                  highlight: highlight,
+                  reasonLabels: newStuffReasonLabels,
+                  activityWhenLine: activityWhenLine,
                 ),
               ),
               if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
@@ -530,14 +674,21 @@ class _ClosedAuthoredCard extends StatelessWidget {
 }
 
 class _ClosedCommittedCard extends StatelessWidget {
-  const _ClosedCommittedCard({required this.vm});
+  const _ClosedCommittedCard({
+    required this.vm,
+    required this.highlight,
+    required this.newStuffReasonLabels,
+    required this.activityWhenLine,
+  });
 
   final MyWorkCardViewModel vm;
+  final MyWorkCardHighlightKind highlight;
+  final List<String> newStuffReasonLabels;
+  final String activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
     final b = vm.beacon;
     return BeaconCardShell(
       muted: true,
@@ -557,10 +708,7 @@ class _ClosedCommittedCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _myWorkSublineText(
-              context,
-              b.author.title.isEmpty ? '—' : b.author.title,
-            ),
+            subline: _inboxStyleAuthorSubline(context, b),
             menu: _CommittedOverflowMenu(beaconId: b.id),
           ),
           const SizedBox(height: kSpacingSmall),
@@ -568,6 +716,12 @@ class _ClosedCommittedCard extends StatelessWidget {
             spacing: kSpacingSmall,
             children: [
               BeaconCardPill(label: l10n.myWorkChipCommitted),
+              if (b.coordinationStatus ==
+                  BeaconCoordinationStatus.moreOrDifferentHelpNeeded)
+                BeaconCardPill(
+                  label: l10n.myWorkChipMoreHelp,
+                  emphasized: true,
+                ),
               BeaconCardPill(label: l10n.beaconLifecycleClosed),
               if (vm.authorHasForwardedOnce)
                 BeaconCardPill(label: l10n.myWorkChipForwarded),
@@ -575,13 +729,14 @@ class _ClosedCommittedCard extends StatelessWidget {
           ),
           const SizedBox(height: kSpacingSmall),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  _updatedWhenText(l10n, b),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline,
-                  ),
+                child: _myWorkFooterActivityBlock(
+                  context: context,
+                  highlight: highlight,
+                  reasonLabels: newStuffReasonLabels,
+                  activityWhenLine: activityWhenLine,
                 ),
               ),
               if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),

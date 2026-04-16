@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -54,6 +55,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       },
       cancelOnError: false,
     );
+    _commitmentChangesSub = _forwardRepository.commitmentChanges.listen(
+      (CommitmentEvent event) {
+        if (!isClosed && event.beaconId == state.beacon.id) {
+          unawaited(_fetchBeaconByIdWithTimeline());
+        }
+      },
+      cancelOnError: false,
+    );
     unawaited(
       state.hasFocusedComment
           ? _fetchBeaconByCommentId()
@@ -73,9 +82,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<String> _forwardCompletedSub;
 
+  late final StreamSubscription<CommitmentEvent> _commitmentChangesSub;
+
   @override
   Future<void> close() async {
     await _forwardCompletedSub.cancel();
+    await _commitmentChangesSub.cancel();
     return super.close();
   }
 
@@ -228,7 +240,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> setBeaconCoordinationStatus(BeaconCoordinationStatus status) async {
+  Future<void> setBeaconCoordinationStatus(
+    BeaconCoordinationStatus status,
+  ) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _coordinationRepository.setBeaconCoordinationStatus(
@@ -257,31 +271,40 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           beaconId: beaconId,
           myUserId: myUserId,
         ),
+        _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId),
       ]);
 
       final beacon = results[0] as Beacon;
-      final commitments = results[1] as List<
-          ({
-            String beaconId,
-            String userId,
-            Profile user,
-            String message,
-            String? helpType,
-            int status,
-            String? uncommitReason,
-            DateTime createdAt,
-            DateTime updatedAt,
-            int? responseType,
-          })>;
-      final updates = results[2]
-          as List<({Profile author, String content, DateTime createdAt})>;
+      final commitments =
+          results[1]
+              as List<
+                ({
+                  String beaconId,
+                  String userId,
+                  Profile user,
+                  String message,
+                  String? helpType,
+                  int status,
+                  String? uncommitReason,
+                  DateTime createdAt,
+                  DateTime updatedAt,
+                  int? responseType,
+                  DateTime? responseUpdatedAt,
+                  String? responseAuthorUserId,
+                })
+              >;
+      final updates =
+          results[2]
+              as List<({Profile author, String content, DateTime createdAt})>;
       final inboxCtx =
-          results[3] as ({
-            InboxItemStatus? status,
-            InboxProvenance provenance,
-            String latestNotePreview,
-          });
+          results[3]
+              as ({
+                InboxItemStatus? status,
+                InboxProvenance provenance,
+                String latestNotePreview,
+              });
       final myForwards = results[4] as List<ForwardEdge>;
+      final involvement = results[5] as BeaconInvolvementData;
 
       final isCommitted = commitments
           .where((c) => c.status == 0)
@@ -296,14 +319,33 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             updatedAt: c.updatedAt,
             isWithdrawn: c.status == 1,
             helpType: c.helpType,
-            coordinationResponse:
-                CoordinationResponseType.tryFromInt(c.responseType),
+            coordinationResponse: CoordinationResponseType.tryFromInt(
+              c.responseType,
+            ),
             uncommitReason: c.uncommitReason,
           ),
       ];
 
+      final commitmentTimeline = <TimelineEntry>[
+        for (final c in commitments)
+          ...commitmentRowsToTimelineEntries(beacon: beacon, row: c),
+      ];
+
       final timeline = <TimelineEntry>[
-        ...commitmentsList,
+        ...commitmentTimeline,
+        if (beacon.coordinationStatusUpdatedAt != null)
+          TimelineBeaconCoordinationStatusChanged(
+            author: beacon.author,
+            status: beacon.coordinationStatus,
+            at: beacon.coordinationStatusUpdatedAt!,
+          ),
+        if (beacon.lifecycle != BeaconLifecycle.open &&
+            beacon.updatedAt != beacon.createdAt)
+          TimelineBeaconLifecycleChanged(
+            author: beacon.author,
+            lifecycle: beacon.lifecycle,
+            at: beacon.updatedAt,
+          ),
         for (final u in updates)
           TimelineUpdate(
             author: u.author,
@@ -323,6 +365,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           forwardProvenance: inboxCtx.provenance,
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
           myForwards: myForwards,
+          involvementCommittedIds: involvement.committedIds,
+          involvementWatchingIds: involvement.watchingIds,
+          involvementOnwardForwarderIds: involvement.onwardForwarderIds,
+          involvementRejectedIds: involvement.rejectedIds,
           hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
           status: StateStatus.isSuccess,
         ),
@@ -336,10 +382,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     try {
       final (:beacon, comment: _) = await _beaconViewRepository
           .fetchBeaconByCommentId(state.focusCommentId);
-      final hasForwardedThisBeaconOnce =
-          await _forwardRepository.currentUserHasForwardedBeacon(beacon.id);
-      final inboxCtx =
-          await _inboxRepository.fetchInboxContextForBeacon(beacon.id);
+      final hasForwardedThisBeaconOnce = await _forwardRepository
+          .currentUserHasForwardedBeacon(beacon.id);
+      final inboxCtx = await _inboxRepository.fetchInboxContextForBeacon(
+        beacon.id,
+      );
       emit(
         state.copyWith(
           beacon: beacon,
@@ -379,4 +426,93 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           status: StateHasError('Wrong id: $id'),
         ),
       };
+}
+
+/// One commitment row → ordered timeline events (commit / author response / edit / withdraw).
+List<TimelineEntry> commitmentRowsToTimelineEntries({
+  required Beacon beacon,
+  required ({
+    String beaconId,
+    String userId,
+    Profile user,
+    String message,
+    String? helpType,
+    int status,
+    String? uncommitReason,
+    DateTime createdAt,
+    DateTime updatedAt,
+    int? responseType,
+    DateTime? responseUpdatedAt,
+    String? responseAuthorUserId,
+  }) row,
+}) {
+  final author = beacon.author;
+  final response = CoordinationResponseType.tryFromInt(row.responseType);
+  final events = <TimelineEntry>[];
+
+  if (row.status == 1) {
+    events.add(
+      TimelineCommitmentCreated(
+        committer: row.user,
+        message: row.message,
+        createdAt: row.createdAt,
+        helpType: row.helpType,
+      ),
+    );
+    if (response != null &&
+        row.responseUpdatedAt != null &&
+        !row.responseUpdatedAt!.isAfter(row.updatedAt)) {
+      events.add(
+        TimelineAuthorCoordinationResponse(
+          author: author,
+          committer: row.user,
+          response: response,
+          at: row.responseUpdatedAt!,
+        ),
+      );
+    }
+    events.add(
+      TimelineCommitmentWithdrawn(
+        committer: row.user,
+        message: row.message,
+        withdrawnAt: row.updatedAt,
+        uncommitReason: row.uncommitReason,
+      ),
+    );
+    events.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return events;
+  }
+
+  events.add(
+    TimelineCommitmentCreated(
+      committer: row.user,
+      message: row.message,
+      createdAt: row.createdAt,
+      helpType: row.helpType,
+    ),
+  );
+  if (response != null && row.responseUpdatedAt != null) {
+    events.add(
+      TimelineAuthorCoordinationResponse(
+        author: author,
+        committer: row.user,
+        response: response,
+        at: row.responseUpdatedAt!,
+      ),
+    );
+  }
+  final edited =
+      row.updatedAt.difference(row.createdAt).inSeconds.abs() > 1;
+  if (edited) {
+    events.add(
+      TimelineCommitmentUpdated(
+        committer: row.user,
+        message: row.message,
+        updatedAt: row.updatedAt,
+        helpType: row.helpType,
+      ),
+    );
+  }
+  events.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  return events;
 }

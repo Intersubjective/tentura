@@ -139,7 +139,7 @@ class _CropperDialogState extends State<CropperDialog> {
         ),
       );
     } else {
-      return ButtonBar(
+      return OverflowBar(
         buttonPadding: const EdgeInsets.symmetric(horizontal: 16.0),
         children: [
           TextButton(

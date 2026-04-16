@@ -48,11 +48,27 @@ class CoordinationRepository {
     ),
   );
 
-  Future<Map<String, int>> _responseTypesByUserId(String beaconId) async {
+  /// Per active commitment user: author response type + when it last changed + author id.
+  Future<
+      Map<
+          String,
+          ({
+            int responseType,
+            DateTime responseUpdatedAt,
+            String authorUserId,
+          })>>
+  _coordinationByCommitUserId(String beaconId) async {
     final rows = await _database.managers.beaconCommitmentCoordinations
         .filter((e) => e.commitBeaconId.id(beaconId))
         .get();
-    return {for (final r in rows) r.commitUserId: r.responseType};
+    return {
+      for (final r in rows)
+        r.commitUserId: (
+          responseType: r.responseType,
+          responseUpdatedAt: r.updatedAt.dateTime,
+          authorUserId: r.authorUserId,
+        ),
+    };
   }
 
   Future<({int coordinationStatus, DateTime? coordinationStatusUpdatedAt})>
@@ -102,7 +118,7 @@ class CoordinationRepository {
       return;
     }
 
-    final coords = await _responseTypesByUserId(beaconId);
+    final coords = await _coordinationByCommitUserId(beaconId);
     for (final c in active) {
       if (!coords.containsKey(c.userId)) {
         await setBeaconCoordinationFields(
@@ -114,7 +130,7 @@ class CoordinationRepository {
     }
 
     for (final c in active) {
-      final rt = coords[c.userId]!;
+      final rt = coords[c.userId]!.responseType;
       if (rt != 0) {
         await setBeaconCoordinationFields(
           beaconId: beaconId,
@@ -138,7 +154,7 @@ class CoordinationRepository {
         .orderBy((e) => e.updatedAt.desc())
         .get();
 
-    final coords = await _responseTypesByUserId(beaconId);
+    final coords = await _coordinationByCommitUserId(beaconId);
 
     final out = <Map<String, dynamic>>[];
     for (final row in rows) {
@@ -165,6 +181,7 @@ class CoordinationRepository {
       }
 
       final presence = await _userPresenceRepository.get(user.id);
+      final coord = coords[row.userId];
       out.add({
         'beaconId': row.beaconId,
         'userId': row.userId,
@@ -174,7 +191,10 @@ class CoordinationRepository {
         'uncommitReason': row.uncommitReason,
         'createdAt': row.createdAt.dateTime.toUtc().toIso8601String(),
         'updatedAt': row.updatedAt.dateTime.toUtc().toIso8601String(),
-        'responseType': coords[row.userId],
+        'responseType': coord?.responseType,
+        'responseUpdatedAt':
+            coord?.responseUpdatedAt.toUtc().toIso8601String(),
+        'responseAuthorUserId': coord?.authorUserId,
         'user': <String, dynamic>{
           'id': user.id,
           'title': user.title,

@@ -88,6 +88,8 @@ MyWorkCardViewModel _deriveCommitted({
       authorResponseType: row.authorResponseType,
       forwarderSenders: row.forwarderSenders,
       showArchiveAffordance: true,
+      commitmentRowUpdatedAt: row.commitmentRowUpdatedAt,
+      authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
     );
   }
 
@@ -103,6 +105,8 @@ MyWorkCardViewModel _deriveCommitted({
     forwarderSenders: row.forwarderSenders,
     showReadyForReviewChip: reviewOpen,
     showReviewCta: reviewOpen,
+    commitmentRowUpdatedAt: row.commitmentRowUpdatedAt,
+    authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
   );
 }
 
