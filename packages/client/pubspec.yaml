@@ -46,22 +46,22 @@ dependencies:
   web: ^1.1.1
   geocoding: ^4.0.0
   geolocator: ^14.0.2
-  share_plus: ^12.0.1
+  share_plus: ^12.0.2
   image_picker: ^1.2.1
-  image_cropper: ^11.0.0
+  image_cropper: ^12.2.1
   url_launcher: ^6.3.2
   drift_flutter: ^0.2.8
-  firebase_core: ^4.4.0
+  firebase_core: ^4.7.0
   share_handler: ^0.0.25
   mobile_scanner: ^7.1.4
-  package_info_plus: ^9.0.0
-  firebase_messaging: ^16.1.1
+  package_info_plus: ^9.0.1
+  firebase_messaging: ^16.2.0
   flutter_native_splash: ^2.4.7
   flutter_secure_storage: ^10.0.0
 
   # Logs & Stats
-  sentry_drift: ^9.10.0
-  sentry_flutter: ^9.10.0
+  sentry_drift: ^9.18.0
+  sentry_flutter: ^9.18.0
 
   # Remote API related
   ferry: ^0.16.2-dev.4
@@ -77,12 +77,12 @@ dependencies:
   intl: ^0.20.2
   readmore: ^3.0.0
   qr_flutter: ^4.1.0
-  flutter_map: ^8.2.2
+  flutter_map: ^8.3.0
   flutter_svg: ^2.2.3
-  google_fonts: ^7.0.2
+  google_fonts: ^8.0.2
   validatorless: ^1.2.5
   blurhash_shader: ^1.1.2
-  vector_graphics: ^1.1.19
+  vector_graphics: ^1.1.21
   visibility_detector: ^0.4.0
   force_directed_graphview: ^0.6.2
   scrollable_positioned_list: ^0.3.8
@@ -99,7 +99,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  custom_lint: ^0.8.0
+  custom_lint: ^0.8.1
   tentura_lints:
     path: ../tentura_lints
 

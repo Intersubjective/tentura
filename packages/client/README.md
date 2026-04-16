@@ -4,8 +4,8 @@ Social network based on MeritRank
 
 ## Architecture (short)
 
-- **`custom_lint`:** repo package **`packages/tentura_lints`** (see root **`DEV_GUIDELINES.md`** § *Layer boundaries*).
-- **Orchestration:** prefer **`lib/features/*/domain/use_case/*_case.dart`** for multi-repo flows; cubits avoid **`data/service/`** imports.
+- `**custom_lint`:** repo package `**packages/tentura_lints`** (see root `**DEV_GUIDELINES.md**` § *Layer boundaries*).
+- **Orchestration:** prefer `**lib/features/*/domain/use_case/*_case.dart*`* for multi-repo flows; cubits avoid `**data/service/**` imports.
 - **Analyze:** match CI — `flutter analyze --fatal-infos` before opening a PR.
 
 ## How to build
@@ -21,9 +21,11 @@ flutter build web --wasm --pwa-strategy=none --source-maps --dart-define-from-fi
 ```
 
 To make database migration:
- - increment `schemaVersion` at Database
- - then run:
+
+- increment `schemaVersion` at Database
+- then run:
 
 ```bash
 dart run drift_dev make-migrations
 ```
+

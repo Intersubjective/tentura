@@ -45,7 +45,7 @@ abstract class AuthBox with _$AuthBox {
 
   String getAuthRequestToken(AuthRequestIntent intent) => JWT({
     intent.keyCname: intent.cname,
-    AuthRequestIntent.keyPublicKey: base64UrlEncode(publicKey.key.bytes),
+    AuthRequestIntent.keyPublicKey: base64UrlEncode(publicKey.bytes),
     if (intent is AuthRequestIntentSignUp && intent.invitationCode.isNotEmpty)
       AuthRequestIntentSignUp.keyCode: intent.invitationCode,
   }).sign(
