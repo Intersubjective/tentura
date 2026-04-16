@@ -1,4 +1,3 @@
-import 'package:validatorless/validatorless.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
@@ -10,6 +9,18 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/complaint_cubit.dart';
+
+String? _validateRequired(String? value, String message) {
+  if (value == null || value.trim().isEmpty) return message;
+  return null;
+}
+
+String? _validateEmail(String? value, String message) {
+  final v = value?.trim();
+  if (v == null || v.isEmpty) return message;
+  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v)) return message;
+  return null;
+}
 
 @RoutePage()
 class ComplaintScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -98,7 +109,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                 border: const OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
-              validator: Validatorless.required(_l10n.provideDetails),
+              validator: (v) => _validateRequired(v, _l10n.provideDetails),
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               onChanged: _cubit.setDetails,
             ),
@@ -113,7 +124,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                 labelText: _l10n.feedbackEmail,
                 border: const OutlineInputBorder(),
               ),
-              validator: Validatorless.email(_l10n.emailValidationError),
+              validator: (v) => _validateEmail(v, _l10n.emailValidationError),
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               onChanged: _cubit.setEmail,
             ),
