@@ -4,11 +4,11 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
 import '../bloc/beacon_view_state.dart';
+import 'plain_mini_avatar.dart';
 
 class CommitmentTile extends StatelessWidget {
   const CommitmentTile({
@@ -52,7 +52,7 @@ class CommitmentTile extends StatelessWidget {
                         ),
                   child: Padding(
                     padding: const EdgeInsets.only(right: kSpacingMedium),
-                    child: AvatarRated.small(profile: commitment.user),
+                    child: PlainMiniAvatar(profile: commitment.user),
                   ),
                 ),
                 Expanded(

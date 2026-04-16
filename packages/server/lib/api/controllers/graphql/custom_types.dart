@@ -252,5 +252,7 @@ final gqlTypeCommitmentWithCoordinationRow = GraphQLObjectType(
     field('createdAt', graphQLString.nonNullable()),
     field('updatedAt', graphQLString.nonNullable()),
     field('responseType', graphQLInt),
+    field('responseUpdatedAt', graphQLString),
+    field('responseAuthorUserId', graphQLString),
     field('user', gqlTypeUserPublic.nonNullable()),
   ]);

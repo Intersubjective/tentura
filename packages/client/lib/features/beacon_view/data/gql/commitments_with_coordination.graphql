@@ -1,4 +1,4 @@
-# import '/data/gql/user_model.graphql'
+# import '/data/gql/image_model.graphql'
 
 query CommitmentsWithCoordination($beaconId: String!) {
   commitmentsWithCoordination(id: $beaconId) {
@@ -11,8 +11,20 @@ query CommitmentsWithCoordination($beaconId: String!) {
     createdAt
     updatedAt
     responseType
+    responseUpdatedAt
+    responseAuthorUserId
     user {
-      ...UserModel
+      id
+      title
+      description
+      my_vote
+      image {
+        ...ImageModel
+      }
+      user_presence {
+        last_seen_at
+        status
+      }
     }
   }
 }

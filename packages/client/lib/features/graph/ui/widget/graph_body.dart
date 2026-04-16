@@ -43,6 +43,12 @@ class GraphBody extends StatefulWidget {
 
 class GraphBodyState extends State<GraphBody>
     with SingleTickerProviderStateMixin {
+  /// Web: `onDoubleTap` on graph nodes breaks because the first tap calls
+  /// [GraphCubit.setFocus], which pins/replaces the node and resets gesture
+  /// recognition. Detect a second tap on the same [NodeDetails.id] within this
+  /// window instead.
+  static const _doubleTapWindow = Duration(milliseconds: 300);
+
   late final _animationController = AnimationController(
     duration: widget.animationDuration,
     vsync: this,
@@ -51,6 +57,30 @@ class GraphBodyState extends State<GraphBody>
   late final _graphCubit = context.read<GraphCubit>();
 
   late final _screenCubit = context.read<ScreenCubit>();
+
+  String? _lastTapNodeId;
+  DateTime? _lastTapTime;
+
+  void _onNodeTap(NodeDetails node) {
+    final now = DateTime.now();
+    final id = node.id;
+    if (_lastTapNodeId == id &&
+        _lastTapTime != null &&
+        now.difference(_lastTapTime!) <= _doubleTapWindow) {
+      _lastTapNodeId = null;
+      _lastTapTime = null;
+      switch (node) {
+        case final UserNode n:
+          _screenCubit.showProfile(n.id);
+        case final BeaconNode n:
+          _screenCubit.showBeacon(n.id);
+      }
+      return;
+    }
+    _lastTapNodeId = id;
+    _lastTapTime = now;
+    _graphCubit.setFocus(node);
+  }
 
   @override
   void initState() {
@@ -100,11 +130,7 @@ class GraphBodyState extends State<GraphBody>
       key: ValueKey(node),
       nodeDetails: node,
       withRating: node.id != _graphCubit.state.me.id,
-      onTap: () => _graphCubit.setFocus(node),
-      onDoubleTap: () => switch (node) {
-        final UserNode n => _screenCubit.showProfile(n.id),
-        final BeaconNode n => _screenCubit.showBeacon(n.id),
-      },
+      onTap: () => _onNodeTap(node),
     ),
   );
 }

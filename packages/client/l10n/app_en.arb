@@ -837,6 +837,38 @@
   "@enterTagNameHint": {
     "context": "AddTagDialog"
   },
+  "newStuffBadge": "New",
+  "@newStuffBadge": {
+    "context": "NewStuff indicators (Inbox / My Work)"
+  },
+  "newStuffUpdatedBadge": "Updated",
+  "@newStuffUpdatedBadge": {
+    "context": "NewStuff indicators — beacon edited since last visit (Inbox / My Work)"
+  },
+  "newStuffReasonNewBeacon": "New beacon you created",
+  "@newStuffReasonNewBeacon": {
+    "context": "NewStuff dot — My Work card reason"
+  },
+  "newStuffReasonNewForward": "Someone forwarded this beacon to you",
+  "@newStuffReasonNewForward": {
+    "context": "NewStuff dot — Inbox row reason"
+  },
+  "newStuffReasonBeaconUpdated": "The beacon was updated",
+  "@newStuffReasonBeaconUpdated": {
+    "context": "NewStuff dot — beacon content/lifecycle change"
+  },
+  "newStuffReasonCoordinationStatusChanged": "Beacon coordination status changed",
+  "@newStuffReasonCoordinationStatusChanged": {
+    "context": "NewStuff dot — beacon-level coordination status"
+  },
+  "newStuffReasonCommitmentUpdated": "Your commitment or note was updated",
+  "@newStuffReasonCommitmentUpdated": {
+    "context": "NewStuff dot — commitment row changed"
+  },
+  "newStuffReasonAuthorResponseChanged": "Author changed response to your commitment",
+  "@newStuffReasonAuthorResponseChanged": {
+    "context": "NewStuff dot — author coordination response to commitment"
+  },
   "inboxEmpty": "Inbox is empty",
   "@inboxEmpty": {
     "context": "InboxScreen"
@@ -1270,7 +1302,7 @@
   "@myWorkChipDraft": {
     "context": "MyWorkScreen"
   },
-  "myWorkChipCommitted": "Committed",
+  "myWorkChipCommitted": "I Committed",
   "@myWorkChipCommitted": {
     "context": "MyWorkScreen"
   },
@@ -1488,6 +1520,42 @@
     "context": "BeaconViewScreen",
     "placeholders": {
       "author": { "type": "String" }
+    }
+  },
+  "timelineCommitmentDetailsUpdated": "{user} updated commitment",
+  "@timelineCommitmentDetailsUpdated": {
+    "context": "BeaconViewScreen",
+    "description": "Timeline: committer changed message or help type",
+    "placeholders": {
+      "user": { "type": "String" }
+    }
+  },
+  "timelineAuthorCoordinationResponseLine": "{author} set response for {committer}: {label}",
+  "@timelineAuthorCoordinationResponseLine": {
+    "context": "BeaconViewScreen",
+    "description": "Timeline: beacon author coordination response for a commitment",
+    "placeholders": {
+      "author": { "type": "String" },
+      "committer": { "type": "String" },
+      "label": { "type": "String" }
+    }
+  },
+  "timelineBeaconLifecycleChanged": "{author} changed beacon status to {status}",
+  "@timelineBeaconLifecycleChanged": {
+    "context": "BeaconViewScreen",
+    "description": "Timeline: beacon lifecycle/state changed",
+    "placeholders": {
+      "author": { "type": "String" },
+      "status": { "type": "String" }
+    }
+  },
+  "timelineBeaconCoordinationStatusChanged": "{author} changed coordination status to {status}",
+  "@timelineBeaconCoordinationStatusChanged": {
+    "context": "BeaconViewScreen",
+    "description": "Timeline: beacon-level coordination status changed",
+    "placeholders": {
+      "author": { "type": "String" },
+      "status": { "type": "String" }
     }
   },
   "labelCommitments": "Commitments",

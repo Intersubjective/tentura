@@ -43,11 +43,15 @@ class InboxForwardProvenancePanel extends StatefulWidget {
   const InboxForwardProvenancePanel({
     required this.provenance,
     this.latestNotePreview = '',
+    this.recipient,
     super.key,
   });
 
   final InboxProvenance provenance;
   final String latestNotePreview;
+
+  /// Viewing user (recipient of forward); shown after sender for clarity.
+  final Profile? recipient;
 
   @override
   State<InboxForwardProvenancePanel> createState() =>
@@ -107,6 +111,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                     overflowCount: showOverflow ? overflow : 0,
                     showExpandAction: false,
                     onExpand: () {},
+                    recipient: widget.recipient,
                   ),
                   const SizedBox(height: kSpacingSmall),
                   _ProvenanceCollapsedQuote(
@@ -128,6 +133,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                       overflowCount: showOverflow ? overflow : 0,
                       showExpandAction: true,
                       onExpand: () => setState(() => _expanded = true),
+                      recipient: widget.recipient,
                     ),
                   if (_expanded)
                     Semantics(
@@ -143,6 +149,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                               borderColor: i == 0
                                   ? scheme.primary
                                   : scheme.outlineVariant,
+                              recipient: widget.recipient,
                               titleRowTrailing: i == 0
                                   ? TextButton(
                                       style: TextButton.styleFrom(
@@ -207,7 +214,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
   }
 }
 
-/// Collapsed provenance header: primary avatar + "Name:" | stacked rest avatars + "More".
+/// Collapsed provenance header: primary avatar + name [→ recipient] | stacked rest avatars + "More".
 class _ProvenanceCollapsedHeader extends StatelessWidget {
   const _ProvenanceCollapsedHeader({
     required this.primaryProfile,
@@ -216,6 +223,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
     required this.overflowCount,
     required this.showExpandAction,
     required this.onExpand,
+    this.recipient,
   });
 
   final Profile primaryProfile;
@@ -224,6 +232,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
   final int overflowCount;
   final bool showExpandAction;
   final VoidCallback onExpand;
+  final Profile? recipient;
 
   @override
   Widget build(BuildContext context) {
@@ -232,6 +241,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
     final l10n = L10n.of(context)!;
 
     final hasRest = restProfiles.isNotEmpty || overflowCount > 0;
+    final showRecipient = recipient != null && recipient!.id.isNotEmpty;
 
     return Row(
       children: [
@@ -250,17 +260,61 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  '${primaryName.trim()}:',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
+              if (showRecipient) ...[
+                Flexible(
+                  child: Text(
+                    primaryName.trim(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    Icons.arrow_forward,
+                    size: 14,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: scheme.surfaceContainerLowest),
+                  ),
+                  child: AvatarRated(
+                    profile: recipient!,
+                    withRating: false,
+                    size: _kAvatarSize,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    recipient!.title.trim(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ] else
+                Expanded(
+                  child: Text(
+                    '${primaryName.trim()}:',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               if (hasRest) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -439,6 +493,7 @@ class _ProvenanceSenderBlock extends StatelessWidget {
     required this.borderColor,
     this.titleRowTrailing,
     this.noteTopSpacing = 6,
+    this.recipient,
   });
 
   final Profile profile;
@@ -446,11 +501,13 @@ class _ProvenanceSenderBlock extends StatelessWidget {
   final Color borderColor;
   final Widget? titleRowTrailing;
   final double noteTopSpacing;
+  final Profile? recipient;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final showRecipient = recipient != null && recipient!.id.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -462,17 +519,55 @@ class _ProvenanceSenderBlock extends StatelessWidget {
               size: _kAvatarSize,
             ),
             const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                profile.title,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurface,
+            if (showRecipient) ...[
+              Flexible(
+                child: Text(
+                  profile.title,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  Icons.arrow_forward,
+                  size: 14,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              AvatarRated(
+                profile: recipient!,
+                withRating: false,
+                size: _kAvatarSize,
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  recipient!.title,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ] else
+              Expanded(
+                child: Text(
+                  profile.title,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ?titleRowTrailing,
           ],
         ),

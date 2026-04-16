@@ -110,6 +110,7 @@ class CommitmentCase {
       await _inboxRepository.upsertWatchingForSender(
         senderId: userId,
         beaconId: beaconId,
+        touchForwardOrdering: false,
       );
     } else {
       await _inboxRepository.applyTombstoneAfterWithdraw(

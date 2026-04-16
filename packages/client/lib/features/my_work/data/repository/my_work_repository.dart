@@ -19,6 +19,12 @@ typedef MyWorkCommittedRow = ({
   String? helpType,
   CoordinationResponseType? authorResponseType,
   List<Profile> forwarderSenders,
+
+  /// `beacon_commitment.updated_at` (commit message / row changes).
+  DateTime commitmentRowUpdatedAt,
+
+  /// `beacon_commitment_coordination.updated_at` when author response exists.
+  DateTime? authorCoordinationUpdatedAt,
 });
 
 /// Result of [MyWorkRepository.fetchInit] (non-closed full rows + closed id hints).
@@ -95,6 +101,8 @@ class MyWorkRepository {
         e.coordination?.response_type,
       ),
       forwarderSenders: forwarders,
+      commitmentRowUpdatedAt: e.updated_at,
+      authorCoordinationUpdatedAt: e.coordination?.updated_at,
     );
   }
 
@@ -114,6 +122,8 @@ class MyWorkRepository {
         e.coordination?.response_type,
       ),
       forwarderSenders: forwarders,
+      commitmentRowUpdatedAt: e.updated_at,
+      authorCoordinationUpdatedAt: e.coordination?.updated_at,
     );
   }
 

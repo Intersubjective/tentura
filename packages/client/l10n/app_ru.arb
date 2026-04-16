@@ -837,6 +837,38 @@
   "@enterTagNameHint": {
     "context": "AddTagDialog"
   },
+  "newStuffBadge": "Новое",
+  "@newStuffBadge": {
+    "context": "NewStuff indicators (Inbox / My Work)"
+  },
+  "newStuffUpdatedBadge": "Обновлено",
+  "@newStuffUpdatedBadge": {
+    "context": "NewStuff indicators — beacon edited since last visit (Inbox / My Work)"
+  },
+  "newStuffReasonNewBeacon": "Новый маяк (вы создали)",
+  "@newStuffReasonNewBeacon": {
+    "context": "NewStuff dot — My Work card reason"
+  },
+  "newStuffReasonNewForward": "Маяк переслан вам",
+  "@newStuffReasonNewForward": {
+    "context": "NewStuff dot — Inbox row reason"
+  },
+  "newStuffReasonBeaconUpdated": "Маяк обновлён",
+  "@newStuffReasonBeaconUpdated": {
+    "context": "NewStuff dot — beacon content/lifecycle change"
+  },
+  "newStuffReasonCoordinationStatusChanged": "Изменён статус координации маяка",
+  "@newStuffReasonCoordinationStatusChanged": {
+    "context": "NewStuff dot — beacon-level coordination status"
+  },
+  "newStuffReasonCommitmentUpdated": "Обновлено ваше участие или заметка",
+  "@newStuffReasonCommitmentUpdated": {
+    "context": "NewStuff dot — commitment row changed"
+  },
+  "newStuffReasonAuthorResponseChanged": "Автор изменил ответ на ваше участие",
+  "@newStuffReasonAuthorResponseChanged": {
+    "context": "NewStuff dot — author coordination response to commitment"
+  },
   "inboxEmpty": "Входящие пусты",
   "@inboxEmpty": {
     "context": "InboxScreen"
@@ -1270,7 +1302,7 @@
   "@myWorkChipDraft": {
     "context": "MyWorkScreen"
   },
-  "myWorkChipCommitted": "Принято",
+  "myWorkChipCommitted": "Я принял(а)",
   "@myWorkChipCommitted": {
     "context": "MyWorkScreen"
   },
@@ -1488,6 +1520,42 @@
     "context": "BeaconViewScreen",
     "placeholders": {
       "author": { "type": "String" }
+    }
+  },
+  "timelineCommitmentDetailsUpdated": "{user} обновил(а) участие",
+  "@timelineCommitmentDetailsUpdated": {
+    "context": "BeaconViewScreen",
+    "description": "Timeline: committer changed message or help type",
+    "placeholders": {
+      "user": { "type": "String" }
+    }
+  },
+  "timelineAuthorCoordinationResponseLine": "{author} задал(а) ответ для {committer}: {label}",
+  "@timelineAuthorCoordinationResponseLine": {
+    "context": "BeaconViewScreen",
+    "description": "Timeline: beacon author coordination response for a commitment",
+    "placeholders": {
+      "author": { "type": "String" },
+      "committer": { "type": "String" },
+      "label": { "type": "String" }
+    }
+  },
+  "timelineBeaconLifecycleChanged": "{author} изменил(а) статус маяка на: {status}",
+  "@timelineBeaconLifecycleChanged": {
+    "context": "BeaconViewScreen",
+    "description": "Timeline: beacon lifecycle/state changed",
+    "placeholders": {
+      "author": { "type": "String" },
+      "status": { "type": "String" }
+    }
+  },
+  "timelineBeaconCoordinationStatusChanged": "{author} изменил(а) координационный статус на: {status}",
+  "@timelineBeaconCoordinationStatusChanged": {
+    "context": "BeaconViewScreen",
+    "description": "Timeline: beacon-level coordination status changed",
+    "placeholders": {
+      "author": { "type": "String" },
+      "status": { "type": "String" }
     }
   },
   "labelCommitments": "Участие",

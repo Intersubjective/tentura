@@ -9,7 +9,6 @@ class GraphNodeWidget extends StatelessWidget {
   const GraphNodeWidget({
     required this.nodeDetails,
     this.withRating = false,
-    this.onDoubleTap,
     this.onTap,
     super.key,
   });
@@ -17,7 +16,6 @@ class GraphNodeWidget extends StatelessWidget {
   final bool withRating;
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
-  final VoidCallback? onDoubleTap;
 
   @override
   Widget build(BuildContext context) {
@@ -36,11 +34,10 @@ class GraphNodeWidget extends StatelessWidget {
         ),
       },
     );
-    return onTap == null && onDoubleTap == null
+    return onTap == null
         ? widget
         : GestureDetector(
             onTap: onTap,
-            onDoubleTap: onDoubleTap,
             child: widget,
           );
   }

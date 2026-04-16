@@ -21,10 +21,12 @@ query MyWorkInit($userId: String!) {
     },
     order_by: {updated_at: desc}
   ) {
+    updated_at
     message
     help_type
     coordination {
       response_type
+      updated_at
     }
     beacon {
       ...BeaconModel
@@ -80,10 +82,12 @@ query MyWorkClosed($userId: String!) {
     },
     order_by: {updated_at: desc}
   ) {
+    updated_at
     message
     help_type
     coordination {
       response_type
+      updated_at
     }
     beacon {
       ...BeaconModel

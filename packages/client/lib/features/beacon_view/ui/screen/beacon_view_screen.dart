@@ -7,12 +7,12 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
-import 'package:tentura/ui/widget/author_info.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
@@ -26,12 +26,12 @@ import 'package:tentura/features/inbox/ui/widget/inbox_forward_provenance_panel.
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/commitment_tile.dart';
+import '../widget/plain_mini_avatar.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
@@ -109,8 +109,10 @@ List<PopupMenuEntry<String>> _beaconOverflowItems(
       ..add(
         PopupMenuItem(
           value: 'delete',
-          child:
-              _beaconOverflowMenuRow(Icons.delete_outline, l10n.deleteBeacon),
+          child: _beaconOverflowMenuRow(
+            Icons.delete_outline,
+            l10n.deleteBeacon,
+          ),
         ),
       );
     return items;
@@ -351,7 +353,54 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
     final beaconViewCubit = context.read<BeaconViewCubit>();
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.beaconViewTitle),
+        title: BlocBuilder<BeaconViewCubit, BeaconViewState>(
+          bloc: beaconViewCubit,
+          buildWhen: (p, c) =>
+              p.isLoading != c.isLoading ||
+              p.beacon.author.id != c.beacon.author.id ||
+              p.beacon.author.title != c.beacon.author.title,
+          builder: (context, state) {
+            if (state.isLoading) {
+              return Text(l10n.beaconViewTitle);
+            }
+            final theme = Theme.of(context);
+            final author = state.beacon.author;
+            final name =
+                author.title.isEmpty ? l10n.noName : author.title;
+            return Row(
+              children: [
+                InkWell(
+                  onTap: () =>
+                      context.read<ScreenCubit>().showProfile(author.id),
+                  customBorder: const CircleBorder(),
+                  child: AvatarRated(
+                    profile: author,
+                    size: 32,
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: kPaddingH,
+                    child: InkWell(
+                      onTap: () => context
+                          .read<ScreenCubit>()
+                          .showProfile(author.id),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
         leading: isDeepLink == 'true'
             ? BackButton(
                 onPressed: () => AutoRouter.of(context).navigatePath(kPathHome),
@@ -403,29 +452,13 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
             children: [
               Padding(
                 padding: const EdgeInsets.only(bottom: kSpacingSmall),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    BeaconIdentityTile(beacon: beacon, size: 64),
-                    const SizedBox(width: kSpacingSmall),
-                    Expanded(
-                      child: Text(
-                        beacon.title,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.headlineLarge,
-                      ),
-                    ),
-                  ],
+                child: BeaconCardHeaderRow(
+                  beacon: beacon,
+                  titleMaxLines: 3,
+                  subline: const SizedBox.shrink(),
+                  menu: const SizedBox.shrink(),
                 ),
               ),
-
-              // Author (beacon owner; not the forwarder)
-              if (state.isBeaconNotMine)
-                AuthorInfo(
-                  author: beacon.author,
-                  key: ValueKey(beacon.author),
-                ),
 
               // Beacon Info (overview): gallery + description; title shown above
               BeaconInfo(
@@ -493,6 +526,11 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 forwardProvenance: state.forwardProvenance,
                 inboxLatestNotePreview: state.inboxLatestNotePreview,
                 myForwards: state.myForwards,
+                involvementCommittedIds: state.involvementCommittedIds,
+                involvementWatchingIds: state.involvementWatchingIds,
+                involvementOnwardForwarderIds:
+                    state.involvementOnwardForwarderIds,
+                myProfile: state.myProfile,
                 myUserId: state.myProfile.id,
                 isAuthorView: state.isBeaconMine,
                 onEditCommitment: (commitment) async {
@@ -534,6 +572,10 @@ class _TabSection extends StatefulWidget {
     required this.forwardProvenance,
     required this.inboxLatestNotePreview,
     required this.myForwards,
+    required this.involvementCommittedIds,
+    required this.involvementWatchingIds,
+    required this.involvementOnwardForwarderIds,
+    required this.myProfile,
     required this.myUserId,
     required this.onEditCommitment,
     required this.isAuthorView,
@@ -547,6 +589,10 @@ class _TabSection extends StatefulWidget {
   final InboxProvenance forwardProvenance;
   final String inboxLatestNotePreview;
   final List<ForwardEdge> myForwards;
+  final Set<String> involvementCommittedIds;
+  final Set<String> involvementWatchingIds;
+  final Set<String> involvementOnwardForwarderIds;
+  final Profile myProfile;
   final String myUserId;
   final Future<void> Function(TimelineCommitment) onEditCommitment;
   final bool isAuthorView;
@@ -667,10 +713,17 @@ class _TabSectionState extends State<_TabSection>
             InboxForwardProvenancePanel(
               provenance: widget.forwardProvenance,
               latestNotePreview: widget.inboxLatestNotePreview,
+              recipient: widget.myProfile,
             ),
           if (widget.myForwards.isNotEmpty) ...[
             const SizedBox(height: kSpacingMedium),
-            _MyForwardsSection(edges: widget.myForwards),
+            _MyForwardsSection(
+              edges: widget.myForwards,
+              involvementCommittedIds: widget.involvementCommittedIds,
+              involvementWatchingIds: widget.involvementWatchingIds,
+              involvementOnwardForwarderIds:
+                  widget.involvementOnwardForwarderIds,
+            ),
           ],
         ],
       ],
@@ -679,9 +732,17 @@ class _TabSectionState extends State<_TabSection>
 }
 
 class _MyForwardsSection extends StatelessWidget {
-  const _MyForwardsSection({required this.edges});
+  const _MyForwardsSection({
+    required this.edges,
+    required this.involvementCommittedIds,
+    required this.involvementWatchingIds,
+    required this.involvementOnwardForwarderIds,
+  });
 
   final List<ForwardEdge> edges;
+  final Set<String> involvementCommittedIds;
+  final Set<String> involvementWatchingIds;
+  final Set<String> involvementOnwardForwarderIds;
 
   @override
   Widget build(BuildContext context) {
@@ -702,7 +763,12 @@ class _MyForwardsSection extends StatelessWidget {
         for (final edge in edges)
           Padding(
             padding: const EdgeInsets.only(bottom: kSpacingSmall),
-            child: _MyForwardTile(edge: edge),
+            child: _MyForwardTile(
+              edge: edge,
+              involvementCommittedIds: involvementCommittedIds,
+              involvementWatchingIds: involvementWatchingIds,
+              involvementOnwardForwarderIds: involvementOnwardForwarderIds,
+            ),
           ),
       ],
     );
@@ -710,17 +776,33 @@ class _MyForwardsSection extends StatelessWidget {
 }
 
 class _MyForwardTile extends StatelessWidget {
-  const _MyForwardTile({required this.edge});
+  const _MyForwardTile({
+    required this.edge,
+    required this.involvementCommittedIds,
+    required this.involvementWatchingIds,
+    required this.involvementOnwardForwarderIds,
+  });
 
   final ForwardEdge edge;
+  final Set<String> involvementCommittedIds;
+  final Set<String> involvementWatchingIds;
+  final Set<String> involvementOnwardForwarderIds;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final sender = edge.sender;
     final recipient = edge.recipient;
     final isDeclined = edge.recipientRejected;
+    final recipientOverlay = _myForwardRecipientOverlayIcon(
+      edge: edge,
+      involvementCommittedIds: involvementCommittedIds,
+      involvementWatchingIds: involvementWatchingIds,
+      involvementOnwardForwarderIds: involvementOnwardForwarderIds,
+      scheme: scheme,
+    );
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -729,68 +811,85 @@ class _MyForwardTile extends StatelessWidget {
       ),
       child: Padding(
         padding: kPaddingAllS,
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AvatarRated(
-              profile: recipient,
-              withRating: false,
-              size: 32,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    recipient.title,
+            Row(
+              children: [
+                PlainMiniAvatar(
+                  profile: sender,
+                  size: 32,
+                ),
+                const SizedBox(width: kSpacingSmall),
+                Flexible(
+                  child: Text(
+                    sender.title,
                     style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (edge.note.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      '"${edge.note}"',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    Icons.arrow_forward,
+                    size: 14,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      PlainMiniAvatar(
+                        profile: recipient,
+                        size: 32,
+                        overlay: recipientOverlay,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  if (isDeclined) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.cancel_outlined,
-                          size: 14,
-                          color: scheme.error,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            edge.recipientRejectionMessage.isNotEmpty
-                                ? l10n.myForwardDeclinedWithReason(
-                                    edge.recipientRejectionMessage,
-                                  )
-                                : l10n.myForwardDeclined,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: scheme.error,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: kSpacingSmall),
+                      Expanded(
+                        child: Text(
+                          recipient.title,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            if (edge.note.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                '"${edge.note}"',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (isDeclined) ...[
+              const SizedBox(height: 4),
+              Text(
+                edge.recipientRejectionMessage.isNotEmpty
+                    ? l10n.myForwardDeclinedWithReason(
+                        edge.recipientRejectionMessage,
+                      )
+                    : l10n.myForwardDeclined,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scheme.error,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
         ),
       ),
@@ -798,9 +897,52 @@ class _MyForwardTile extends StatelessWidget {
   }
 }
 
+/// Same icon vocabulary as [ForwardCandidateTile] trailing icons.
+/// Single overlay: rejected > committed > onwardForwarder > watching.
+Widget? _myForwardRecipientOverlayIcon({
+  required ForwardEdge edge,
+  required Set<String> involvementCommittedIds,
+  required Set<String> involvementWatchingIds,
+  required Set<String> involvementOnwardForwarderIds,
+  required ColorScheme scheme,
+}) {
+  final id = edge.recipient.id;
+
+  if (edge.recipientRejected) {
+    return Icon(Icons.block, size: 16, color: scheme.error);
+  }
+  if (involvementCommittedIds.contains(id)) {
+    return Icon(Icons.check_circle_outline, size: 16, color: scheme.tertiary);
+  }
+  if (involvementOnwardForwarderIds.contains(id)) {
+    return Icon(
+      Icons.forward_to_inbox,
+      size: 16,
+      color: scheme.onSurfaceVariant,
+    );
+  }
+  if (involvementWatchingIds.contains(id)) {
+    return Icon(
+      Icons.visibility_outlined,
+      size: 16,
+      color: scheme.onSurfaceVariant,
+    );
+  }
+  return null;
+}
+
 String _timelineEventTimestamp(DateTime utc) {
   final local = utc.toLocal();
   return '${dateFormatYMD(local)} ${timeFormatHm(local)}';
+}
+
+String _timelineCommitmentUpdatedLine(L10n l10n, TimelineCommitmentUpdated e) {
+  final base = l10n.timelineCommitmentDetailsUpdated(e.committer.title);
+  final help = helpTypeLabel(l10n, e.helpType);
+  if (help != null && help.isNotEmpty) {
+    return '$base · $help';
+  }
+  return base;
 }
 
 class _TimelineEntryTile extends StatelessWidget {
@@ -815,31 +957,95 @@ class _TimelineEntryTile extends StatelessWidget {
     return Padding(
       padding: kPaddingSmallV,
       child: switch (entry) {
-        final TimelineCommitment e => Row(
+        final TimelineCommitmentCreated e => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
-              e.isWithdrawn ? Icons.heart_broken : Icons.handshake,
+              Icons.handshake,
               size: 18,
-              color: e.isWithdrawn
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.tertiary,
+              color: theme.colorScheme.tertiary,
             ),
             const SizedBox(width: kSpacingSmall),
             Expanded(
               child: Text(
-                e.isWithdrawn
-                    ? (e.message.isNotEmpty
-                          ? l10n.timelineWithdrewWithMessage(
-                              e.user.title,
-                              e.message,
-                            )
-                          : l10n.timelineWithdrew(e.user.title))
-                    : (e.message.isNotEmpty
-                          ? l10n.timelineCommittedWithMessage(
-                              e.user.title,
-                              e.message,
-                            )
-                          : l10n.timelineCommitted(e.user.title)),
+                e.message.isNotEmpty
+                    ? l10n.timelineCommittedWithMessage(
+                        e.committer.title,
+                        e.message,
+                      )
+                    : l10n.timelineCommitted(e.committer.title),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            Text(
+              _timelineEventTimestamp(e.timestamp),
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+        final TimelineCommitmentUpdated e => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.edit_note,
+              size: 18,
+              color: theme.colorScheme.secondary,
+            ),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(
+              child: Text(
+                _timelineCommitmentUpdatedLine(l10n, e),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            Text(
+              _timelineEventTimestamp(e.timestamp),
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+        final TimelineAuthorCoordinationResponse e => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.flag_outlined,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(
+              child: Text(
+                l10n.timelineAuthorCoordinationResponseLine(
+                  e.author.title,
+                  e.committer.title,
+                  coordinationResponseLabel(l10n, e.response) ?? '',
+                ),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            Text(
+              _timelineEventTimestamp(e.timestamp),
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+        final TimelineCommitmentWithdrawn e => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.heart_broken,
+              size: 18,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(
+              child: Text(
+                e.message.isNotEmpty
+                    ? l10n.timelineWithdrewWithMessage(
+                        e.committer.title,
+                        e.message,
+                      )
+                    : l10n.timelineWithdrew(e.committer.title),
                 style: theme.textTheme.bodySmall,
               ),
             ),
@@ -860,6 +1066,52 @@ class _TimelineEntryTile extends StatelessWidget {
             Expanded(
               child: Text(
                 l10n.timelineUpdate(e.author.title, e.content),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            Text(
+              _timelineEventTimestamp(e.timestamp),
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+        final TimelineBeaconCoordinationStatusChanged e => Row(
+          children: [
+            Icon(
+              Icons.sync_alt,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(
+              child: Text(
+                l10n.timelineBeaconCoordinationStatusChanged(
+                  e.author.title,
+                  coordinationStatusLabel(l10n, e.status),
+                ),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            Text(
+              _timelineEventTimestamp(e.timestamp),
+              style: theme.textTheme.labelSmall,
+            ),
+          ],
+        ),
+        final TimelineBeaconLifecycleChanged e => Row(
+          children: [
+            Icon(
+              Icons.flag_outlined,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(
+              child: Text(
+                l10n.timelineBeaconLifecycleChanged(
+                  e.author.title,
+                  _lifecycleLabel(l10n, e.lifecycle),
+                ),
                 style: theme.textTheme.bodySmall,
               ),
             ),

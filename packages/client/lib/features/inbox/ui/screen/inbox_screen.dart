@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -10,6 +11,7 @@ import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
@@ -147,66 +149,78 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                   ),
                 ),
                 Expanded(
-                  child: BlocBuilder<InboxCubit, InboxState>(
-                    buildWhen: (_, c) =>
-                        c.isSuccess || c.isLoading || c.hasError,
-                    builder: (_, state) {
-                      if (state.isLoading) {
-                        return const Center(
-                          child: CircularProgressIndicator.adaptive(),
-                        );
-                      }
-                      if (state.items.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                  child: BlocBuilder<NewStuffCubit, NewStuffState>(
+                    buildWhen: (p, c) =>
+                        p.inboxLastSeenMs != c.inboxLastSeenMs ||
+                        p.maxInboxActivityMs != c.maxInboxActivityMs,
+                    builder: (context, _) {
+                      final newStuff = context.read<NewStuffCubit>();
+                      return BlocBuilder<InboxCubit, InboxState>(
+                        buildWhen: (_, c) =>
+                            c.isSuccess || c.isLoading || c.hasError,
+                        builder: (_, state) {
+                          if (state.isLoading) {
+                            return const Center(
+                              child: CircularProgressIndicator.adaptive(),
+                            );
+                          }
+                          if (state.items.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.inbox_outlined,
+                                    size: 64,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(height: kSpacingMedium),
+                                  Text(
+                                    l10n.inboxEmpty,
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  const SizedBox(height: kSpacingSmall),
+                                  Text(
+                                    l10n.inboxEmptyHint,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return TabBarView(
                             children: [
-                              Icon(
-                                Icons.inbox_outlined,
-                                size: 64,
-                                color: theme.colorScheme.onSurfaceVariant,
+                              _needsMeTabBody(
+                                context,
+                                inboxCubit,
+                                state,
+                                l10n,
+                                newStuff,
                               ),
-                              const SizedBox(height: kSpacingMedium),
-                              Text(
-                                l10n.inboxEmpty,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
+                              _tabBody(
+                                context,
+                                inboxCubit,
+                                state.watching,
+                                l10n.inboxTabWatchingEmpty,
+                                1,
+                                newStuff,
                               ),
-                              const SizedBox(height: kSpacingSmall),
-                              Text(
-                                l10n.inboxEmptyHint,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
+                              _tabBody(
+                                context,
+                                inboxCubit,
+                                state.rejected,
+                                l10n.inboxTabRejectedEmpty,
+                                2,
+                                newStuff,
                               ),
                             ],
-                          ),
-                        );
-                      }
-                      return TabBarView(
-                        children: [
-                          _needsMeTabBody(
-                            context,
-                            inboxCubit,
-                            state,
-                            l10n,
-                          ),
-                          _tabBody(
-                            context,
-                            inboxCubit,
-                            state.watching,
-                            l10n.inboxTabWatchingEmpty,
-                            1,
-                          ),
-                          _tabBody(
-                            context,
-                            inboxCubit,
-                            state.rejected,
-                            l10n.inboxTabRejectedEmpty,
-                            2,
-                          ),
-                        ],
+                          );
+                        },
                       );
                     },
                   ),
@@ -225,6 +239,7 @@ Widget _needsMeTabBody(
   InboxCubit inboxCubit,
   InboxState state,
   L10n l10n,
+  NewStuffCubit newStuff,
 ) {
   final theme = Theme.of(context);
   final tombstones = state.tombstonesLast24h;
@@ -336,6 +351,11 @@ Widget _needsMeTabBody(
                 child: InboxItemTile(
                   key: ValueKey(item.beaconId),
                   item: item,
+                  inboxHighlight: newStuff.inboxRowHighlight(
+                    latestForwardAt: item.latestForwardAt,
+                    forwardCount: item.forwardCount,
+                    beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
+                  ),
                   onOpenBeacon: () => context.router.pushPath(
                     '$kPathBeaconView/${item.beaconId}',
                   ),
@@ -381,6 +401,7 @@ Widget _tabBody(
   List<InboxItem> items,
   String emptyHint,
   int tabIndex,
+  NewStuffCubit newStuff,
 ) {
   final theme = Theme.of(context);
 
@@ -407,6 +428,11 @@ Widget _tabBody(
         return InboxItemTile(
           key: ValueKey(item.beaconId),
           item: item,
+          inboxHighlight: newStuff.inboxRowHighlight(
+            latestForwardAt: item.latestForwardAt,
+            forwardCount: item.forwardCount,
+            beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
+          ),
           onOpenBeacon: () => context.router.pushPath(
             '$kPathBeaconView/${item.beaconId}',
           ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
 
@@ -18,9 +19,11 @@ class InboxCubit extends Cubit<InboxState> {
     required String userId,
     InboxRepository? repository,
     ForwardRepository? forwardRepository,
+    NewStuffCubit? newStuffCubit,
   }) : _userId = userId,
        _repository = repository ?? GetIt.I<InboxRepository>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
+       _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
        super(InboxState(currentUserId: userId)) {
     _commitmentChanges = _forwardRepository.commitmentChanges.listen(
       _onCommitmentChanged,
@@ -40,6 +43,7 @@ class InboxCubit extends Cubit<InboxState> {
   final String _userId;
   final InboxRepository _repository;
   final ForwardRepository _forwardRepository;
+  final NewStuffCubit _newStuffCubit;
 
   late final StreamSubscription<CommitmentEvent> _commitmentChanges;
   late final StreamSubscription<String> _forwardCompleted;
@@ -60,6 +64,17 @@ class InboxCubit extends Cubit<InboxState> {
         status: const StateIsSuccess(),
       ),
     );
+    _reportInboxActivity();
+  }
+
+  void _reportInboxActivity() {
+    if (!state.isSuccess) return;
+    int? maxMs;
+    for (final e in state.items) {
+      final m = e.newStuffActivityEpochMs;
+      if (maxMs == null || m > maxMs) maxMs = m;
+    }
+    _newStuffCubit.reportInboxActivity(maxMs);
   }
 
   Future<void> _fetchAndNotifyIfMoved(String beaconId) async {
@@ -123,6 +138,7 @@ class InboxCubit extends Cubit<InboxState> {
           status: const StateIsSuccess(),
         ),
       );
+      _reportInboxActivity();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -176,6 +192,7 @@ class InboxCubit extends Cubit<InboxState> {
           status: const StateIsSuccess(),
         ),
       );
+      _reportInboxActivity();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -208,6 +225,7 @@ class InboxCubit extends Cubit<InboxState> {
           status: const StateIsSuccess(),
         ),
       );
+      _reportInboxActivity();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

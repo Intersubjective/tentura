@@ -55,6 +55,8 @@ void main() {
       helpType: null,
       authorResponseType: null,
       forwarderSenders: const <Profile>[],
+      commitmentRowUpdatedAt: DateTime(2025, 1, 2),
+      authorCoordinationUpdatedAt: null,
     );
     final vms = buildNonArchivedViewModels(
       authoredNonClosed: const [],
@@ -72,6 +74,8 @@ void main() {
       helpType: null,
       authorResponseType: null,
       forwarderSenders: const <Profile>[],
+      commitmentRowUpdatedAt: DateTime(2025, 1, 2),
+      authorCoordinationUpdatedAt: null,
     );
     final vms = buildArchivedViewModels(
       authoredClosed: closed,

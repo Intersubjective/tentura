@@ -69,8 +69,17 @@ class InboxRepository {
     required String senderId,
     required String beaconId,
     String? context,
+    /// When true (forward path), bumps `latest_forward_at` to now so the row
+    /// sorts like fresh activity. When false (withdraw→watching on OPEN),
+    /// does **not** touch `latest_forward_at` on conflict (avoids false
+    /// "new forward" signals); on insert uses epoch so ordering stays stable
+    /// without implying a recipient forward.
+    bool touchForwardOrdering = true,
   }) async {
     final now = PgDateTime(DateTime.timestamp());
+    final insertLatest = touchForwardOrdering
+        ? now
+        : PgDateTime(DateTime.utc(1970, 1, 1));
     await _database.into(_database.inboxItems).insert(
       InboxItemsCompanion.insert(
         userId: senderId,
@@ -78,17 +87,23 @@ class InboxRepository {
         context: Value(context),
         status: const Value(1),
         forwardCount: const Value(0),
-        latestForwardAt: Value(now),
+        latestForwardAt: Value(insertLatest),
         latestNotePreview: const Value(''),
         rejectionMessage: const Value(''),
       ),
       onConflict: DoUpdate(
-        (_) => InboxItemsCompanion(
-          status: const Value(1),
-          rejectionMessage: const Value(''),
-          latestForwardAt: Value(now),
-          context: context != null ? Value(context) : const Value.absent(),
-        ),
+        (_) => touchForwardOrdering
+            ? InboxItemsCompanion(
+                status: const Value(1),
+                rejectionMessage: const Value(''),
+                latestForwardAt: Value(now),
+                context: context != null ? Value(context) : const Value.absent(),
+              )
+            : InboxItemsCompanion(
+                status: const Value(1),
+                rejectionMessage: const Value(''),
+                context: context != null ? Value(context) : const Value.absent(),
+              ),
       ),
     );
   }
