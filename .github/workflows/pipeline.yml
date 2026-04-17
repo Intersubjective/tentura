@@ -38,6 +38,7 @@ jobs:
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c '
               set -euo pipefail
+              git config --global --add safe.directory "*"
               dart pub get
               flutter pub get
               cd packages/server && dart run build_runner build -d && dart analyze --fatal-infos && dart test && cd ../..
@@ -84,6 +85,7 @@ jobs:
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c "
               set -euo pipefail
+              git config --global --add safe.directory \"*\"
               flutter pub get
               cd packages/client && flutter gen-l10n && dart run build_runner build -d
               if [ -f /app/.env ]; then
