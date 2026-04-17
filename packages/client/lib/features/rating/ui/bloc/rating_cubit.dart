@@ -28,7 +28,10 @@ class RatingCubit extends Cubit<RatingState> {
     ),
   );
 
-  Future<void> fetch([String contextName = '']) async {
+  void setContext(String name) => emit(state.copyWith(context: name));
+
+  Future<void> fetch([String? contextName]) async {
+    final ctx = contextName ?? state.context;
     emit(
       state.copyWith(
         status: StateStatus.isLoading,
@@ -36,12 +39,12 @@ class RatingCubit extends Cubit<RatingState> {
     );
     try {
       final myId = GetIt.I<AuthCubit>().state.currentAccountId;
-      final items = (await _repository.fetch(context: contextName))
+      final items = (await _repository.fetch(context: ctx))
           .where((p) => myId.isEmpty || p.id != myId)
           .toList();
       emit(
         state.copyWith(
-          context: contextName,
+          context: ctx,
           status: StateStatus.isSuccess,
           items: items,
         ),

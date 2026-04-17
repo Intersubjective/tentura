@@ -441,7 +441,9 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
         bloc: beaconViewCubit,
         buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
         builder: (_, state) {
-          if (state.isLoading) {
+          if (state.isLoading &&
+              state.timeline.isEmpty &&
+              state.commitments.isEmpty) {
             return const Center(
               child: CircularProgressIndicator.adaptive(),
             );

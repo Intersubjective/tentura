@@ -34,7 +34,7 @@ class RatingScreen extends StatefulWidget implements AutoRouteWrapper {
         BlocListener<ContextCubit, ContextState>(
           listenWhen: (p, c) => p.selected != c.selected,
           listener: (context, state) =>
-              context.read<RatingCubit>().fetch(state.selected),
+              context.read<RatingCubit>().setContext(state.selected),
         ),
         const BlocListener<RatingCubit, RatingState>(
           listener: commonScreenBlocListener,
@@ -61,7 +61,7 @@ class _RatingScreenState extends State<RatingScreen> {
           p.isSortedByAlter != c.isSortedByAlter ||
           p.isSortedByClass != c.isSortedByClass,
       builder: (context, state) {
-        if (state.isLoading) {
+        if (state.isLoading && state.items.isEmpty) {
           return const Center(child: CircularProgressIndicator.adaptive());
         }
         final filter = state.searchFilter;
@@ -117,11 +117,28 @@ class _RatingScreenState extends State<RatingScreen> {
                       ),
                     ],
                   ),
-            bottom: const PreferredSize(
-              preferredSize: Size.fromHeight(48),
-              child: Padding(
-                padding: kPaddingH,
-                child: ContextDropDown(key: Key('RatingContextSelector')),
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(
+                state.isLoading && state.items.isNotEmpty ? 52 : 48,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (state.isLoading && state.items.isNotEmpty)
+                    const SizedBox(
+                      height: 4,
+                      child: LinearProgressIndicator(),
+                    ),
+                  const Padding(
+                    padding: kPaddingH,
+                    child: SizedBox(
+                      height: 48,
+                      child: ContextDropDown(
+                        key: Key('RatingContextSelector'),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -139,17 +156,21 @@ class _RatingScreenState extends State<RatingScreen> {
                       isSortedByClass: state.isSortedByClass,
                     ),
                     Expanded(
-                      child: ListView.separated(
-                        itemCount: items.length,
-                        itemBuilder: (_, i) {
-                          final profile = items[i];
-                          return RatingListTile(
-                            key: ValueKey(profile.id),
-                            profile: profile,
-                          );
-                        },
-                        padding: kPaddingH + kPaddingT,
-                        separatorBuilder: separatorBuilder,
+                      child: RefreshIndicator.adaptive(
+                        onRefresh: cubit.fetch,
+                        child: ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: items.length,
+                          itemBuilder: (_, i) {
+                            final profile = items[i];
+                            return RatingListTile(
+                              key: ValueKey(profile.id),
+                              profile: profile,
+                            );
+                          },
+                          padding: kPaddingH + kPaddingT,
+                          separatorBuilder: separatorBuilder,
+                        ),
                       ),
                     ),
                   ],

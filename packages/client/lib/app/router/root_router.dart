@@ -128,7 +128,6 @@ class RootRouter extends RootStackRouter {
     // Profile View
     AutoRoute(
       usesPathAsKey: true,
-      maintainState: false,
       page: ProfileViewRoute.page,
       path: '$kPathProfileView/:id',
       guards: [
@@ -171,14 +170,12 @@ class RootRouter extends RootStackRouter {
     // Beacon View
     AutoRoute(
       usesPathAsKey: true,
-      maintainState: false,
       page: BeaconViewRoute.page,
       path: '$kPathBeaconView/:id',
     ),
 
     AutoRoute(
       usesPathAsKey: true,
-      maintainState: false,
       page: ReviewContributionsRoute.page,
       path: '$kPathReviewContributions/:id',
     ),
@@ -195,7 +192,6 @@ class RootRouter extends RootStackRouter {
     // Beacon View All
     AutoRoute(
       usesPathAsKey: true,
-      maintainState: false,
       page: BeaconRoute.page,
       path: '$kPathBeaconViewAll/:id',
     ),
@@ -203,7 +199,6 @@ class RootRouter extends RootStackRouter {
     // Rating
     AutoRoute(
       usesPathAsKey: true,
-      maintainState: false,
       page: RatingRoute.page,
       path: kPathRating,
       //
@@ -212,7 +207,6 @@ class RootRouter extends RootStackRouter {
     // Graph
     AutoRoute(
       usesPathAsKey: true,
-      maintainState: false,
       page: GraphRoute.page,
       path: '$kPathGraph/:id',
       //

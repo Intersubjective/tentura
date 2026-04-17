@@ -80,7 +80,7 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
       body: BlocConsumer<EvaluationCubit, EvaluationState>(
         listener: commonScreenBlocListener,
         builder: (context, state) {
-          if (state.isLoading) {
+          if (state.isLoading && state.participants.isEmpty) {
             return const Center(child: CircularProgressIndicator.adaptive());
           }
           if (state.participants.isEmpty) {
