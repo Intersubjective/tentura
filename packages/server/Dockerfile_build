@@ -9,6 +9,7 @@ COPY pubspec_overrides.yaml* ./
 COPY packages/server/pubspec.yaml packages/server/
 COPY packages/client/pubspec.yaml packages/client/
 COPY packages/tentura_lints/pubspec.yaml packages/tentura_lints/
+COPY packages/image_cropper_for_web/pubspec.yaml packages/image_cropper_for_web/
 RUN dart pub get
 
 COPY . .
