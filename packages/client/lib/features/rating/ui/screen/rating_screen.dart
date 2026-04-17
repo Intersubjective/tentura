@@ -36,8 +36,13 @@ class RatingScreen extends StatefulWidget implements AutoRouteWrapper {
           listener: (context, state) =>
               context.read<RatingCubit>().setContext(state.selected),
         ),
-        const BlocListener<RatingCubit, RatingState>(
-          listener: commonScreenBlocListener,
+        BlocListener<RatingCubit, RatingState>(
+          listener: (context, state) {
+            commonScreenBlocListener(context, state);
+            if (state.isNavigating) {
+              context.read<RatingCubit>().clearNavigationIntent();
+            }
+          },
         ),
       ],
       child: this,

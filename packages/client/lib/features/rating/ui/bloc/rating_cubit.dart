@@ -28,6 +28,14 @@ class RatingCubit extends Cubit<RatingState> {
     ),
   );
 
+  /// Call from the screen listener after navigation is handled, so later
+  /// `copyWith` updates (sort, search, etc.) do not keep re-firing navigation.
+  void clearNavigationIntent() {
+    if (state.isNavigating) {
+      emit(state.copyWith(status: StateStatus.isSuccess));
+    }
+  }
+
   void setContext(String name) => emit(state.copyWith(context: name));
 
   Future<void> fetch([String? contextName]) async {
