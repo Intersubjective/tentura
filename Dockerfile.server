@@ -8,6 +8,7 @@ COPY pubspec.yaml pubspec.lock ./
 COPY pubspec_overrides.yaml* ./
 COPY packages/server/pubspec.yaml packages/server/
 COPY packages/client/pubspec.yaml packages/client/
+COPY packages/tentura_lints/pubspec.yaml packages/tentura_lints/
 RUN dart pub get
 
 COPY . .

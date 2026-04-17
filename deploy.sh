@@ -2,12 +2,19 @@
 # Deployment script for VPS server
 # Usage: ./deploy.sh [archive-path]
 #   archive-path: Path to web archive (default: /tmp/web-*.tar.gz)
+#
+# Environment variables:
+#   DEPLOY_DIR      - deployment directory (default: /srv/tentura_server)
+#   COMPOSE_FILE    - primary compose file (default: compose.prod.yaml)
+#   OVERRIDE_FILE   - override compose file; auto-detected if not set
+#   WEB_DIR         - web assets directory (default: ./web)
 
 set -euo pipefail
 
 # Configuration
 DEPLOY_DIR="${DEPLOY_DIR:-/srv/tentura_server}"
 COMPOSE_FILE="${COMPOSE_FILE:-compose.prod.yaml}"
+OVERRIDE_FILE="${OVERRIDE_FILE:-compose.override.yaml}"
 WEB_DIR="${WEB_DIR:-./web}"
 
 # Change to deployment directory
@@ -48,20 +55,27 @@ if [[ "$ARCHIVE_PATH" == /tmp/* ]]; then
   echo "Cleaned up archive from /tmp"
 fi
 
+# Build compose arguments (append override file if it exists)
+COMPOSE_ARGS=(-f "$COMPOSE_FILE")
+if [ -f "$OVERRIDE_FILE" ]; then
+  echo "Using override file: $OVERRIDE_FILE"
+  COMPOSE_ARGS+=(-f "$OVERRIDE_FILE")
+fi
+
 # Pull latest Docker images
 echo "Pulling latest images..."
-docker compose -f "$COMPOSE_FILE" pull
+docker compose "${COMPOSE_ARGS[@]}" pull
 
 # Stop existing containers
 echo "Stopping existing containers..."
-docker compose -f "$COMPOSE_FILE" down
+docker compose "${COMPOSE_ARGS[@]}" down
 
 # Start containers
 echo "Starting containers..."
-docker compose -f "$COMPOSE_FILE" up -d
+docker compose "${COMPOSE_ARGS[@]}" up -d
 
 # Show status
 echo ""
 echo "Deployment complete. Container status:"
-docker compose -f "$COMPOSE_FILE" ps
+docker compose "${COMPOSE_ARGS[@]}" ps
 
