@@ -9,7 +9,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/collapsible_section.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -17,6 +16,7 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
+import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
@@ -24,7 +24,6 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
@@ -58,274 +57,140 @@ int _beaconViewTabIndex(String? viewTab) {
   }
 }
 
-Widget _beaconOverflowMenuRow(IconData icon, String label) {
-  return Row(
-    children: [
-      Icon(icon, size: 22),
-      const SizedBox(width: 12),
-      Expanded(child: Text(label)),
-    ],
-  );
-}
+const _beaconAuthorUpdateEditWindow = Duration(hours: 1);
 
-List<PopupMenuEntry<String>> _beaconOverflowItems(
-  BeaconViewState state,
-  L10n l10n,
-) {
+bool _authorUpdateEditableNow(DateTime createdAt) =>
+    DateTime.now().toUtc().difference(createdAt.toUtc()) <=
+    _beaconAuthorUpdateEditWindow;
+
+Widget _beaconViewAppBarOverflow({
+  required BuildContext context,
+  required BeaconViewState state,
+  required BeaconViewCubit cubit,
+  required ScreenCubit screenCubit,
+  required L10n l10n,
+}) {
   final b = state.beacon;
-  final items = <PopupMenuEntry<String>>[];
+  final beaconId = b.id;
 
   if (state.isBeaconMine) {
-    if (b.myVote >= 0) {
-      items.add(
-        PopupMenuItem(
-          value: 'graph',
-          child: _beaconOverflowMenuRow(TenturaIcons.graph, l10n.graphView),
-        ),
-      );
-    }
-    items
-      ..add(
-        PopupMenuItem(
-          value: 'share',
-          child: _beaconOverflowMenuRow(Icons.qr_code, l10n.shareLink),
-        ),
-      )
-      ..add(
-        PopupMenuItem(
-          value: 'toggle_lifecycle',
-          child: _beaconOverflowMenuRow(
-            b.isListed ? Icons.lock_outline : Icons.lock_open,
-            b.isListed ? l10n.closeBeacon : l10n.openBeacon,
+    return BeaconOverflowMenu(
+      beacon: b,
+      onGraph: b.myVote >= 0 ? () => screenCubit.showGraphFor(beaconId) : null,
+      onShare: () => unawaited(
+        ShareCodeDialog.show(
+          context,
+          link: Uri.parse(kServerName).replace(
+            queryParameters: {'id': beaconId},
+            path: kPathAppLinkView,
           ),
-        ),
-      )
-      ..add(
-        PopupMenuItem(
-          value: 'forward',
-          child: _beaconOverflowMenuRow(Icons.send, l10n.labelForward),
-        ),
-      )
-      ..add(
-        PopupMenuItem(
-          value: 'view_forwards',
-          child: _beaconOverflowMenuRow(
-            Icons.forward_to_inbox,
-            l10n.labelForwards,
-          ),
-        ),
-      )
-      ..add(
-        PopupMenuItem(
-          value: 'delete',
-          child: _beaconOverflowMenuRow(
-            Icons.delete_outline,
-            l10n.deleteBeacon,
-          ),
-        ),
-      );
-    return items;
-  }
-
-  if (!state.isCommitted && b.allowsNewCommitAsNonAuthor) {
-    final useCommitAnyway =
-        b.coordinationStatus == BeaconCoordinationStatus.enoughHelpCommitted;
-    items.add(
-      PopupMenuItem(
-        value: 'commit',
-        child: _beaconOverflowMenuRow(
-          Icons.handshake,
-          useCommitAnyway ? l10n.labelCommitAnyway : l10n.labelCommit,
+          header: beaconId,
         ),
       ),
-    );
-  }
-  if (state.isCommitted && b.allowsWithdrawWhileCommitted) {
-    items.add(
-      PopupMenuItem(
-        value: 'withdraw',
-        child: _beaconOverflowMenuRow(
-          Icons.remove_circle_outline,
-          l10n.dialogWithdrawTitle,
-        ),
-      ),
-    );
-  }
-  items
-    ..add(
-      PopupMenuItem(
-        value: 'forward',
-        child: _beaconOverflowMenuRow(Icons.send, l10n.labelForward),
-      ),
-    )
-    ..add(
-      PopupMenuItem(
-        value: 'view_forwards',
-        child: _beaconOverflowMenuRow(
-          Icons.forward_to_inbox,
-          l10n.labelForwards,
-        ),
-      ),
-    );
-  if (state.inboxStatus == InboxItemStatus.needsMe) {
-    items.add(
-      PopupMenuItem(
-        value: 'watch',
-        child: _beaconOverflowMenuRow(
-          Icons.visibility_outlined,
-          l10n.actionWatch,
-        ),
-      ),
-    );
-  }
-  if (state.inboxStatus == InboxItemStatus.watching) {
-    items.add(
-      PopupMenuItem(
-        value: 'stop_watch',
-        child: _beaconOverflowMenuRow(
-          Icons.visibility_off_outlined,
-          l10n.actionStopWatching,
-        ),
-      ),
-    );
-  }
-  if (state.inboxStatus == InboxItemStatus.needsMe ||
-      state.inboxStatus == InboxItemStatus.watching) {
-    items.add(
-      PopupMenuItem(
-        value: 'cant_help',
-        child: _beaconOverflowMenuRow(Icons.close, l10n.actionCantHelp),
-      ),
-    );
-  }
-  if (state.inboxStatus == InboxItemStatus.rejected) {
-    items.add(
-      PopupMenuItem(
-        value: 'move_inbox',
-        child: _beaconOverflowMenuRow(
-          Icons.inbox_outlined,
-          l10n.actionMoveToInbox,
-        ),
-      ),
-    );
-  }
-  items.add(
-    PopupMenuItem(
-      value: 'complaint',
-      child: _beaconOverflowMenuRow(Icons.flag_outlined, l10n.buttonComplaint),
-    ),
-  );
-  return items;
-}
-
-Future<void> _onBeaconOverflowSelected(
-  BuildContext context,
-  String value,
-  BeaconViewCubit cubit,
-  ScreenCubit screenCubit,
-  BeaconViewState state,
-) async {
-  final l10n = L10n.of(context)!;
-  final beaconId = state.beacon.id;
-  switch (value) {
-    case 'graph':
-      if (!state.isBeaconMine || state.beacon.myVote < 0) return;
-      screenCubit.showGraphFor(beaconId);
-      return;
-    case 'share':
-      if (!state.isBeaconMine) return;
-      await ShareCodeDialog.show(
-        context,
-        link: Uri.parse(kServerName).replace(
-          queryParameters: {'id': beaconId},
-          path: kPathAppLinkView,
-        ),
-        header: beaconId,
-      );
-      return;
-    case 'toggle_lifecycle':
-      if (!state.isBeaconMine) return;
-      if (state.beacon.isListed) {
-        if (await BeaconCloseConfirmDialog.show(context) != true) {
-          return;
+      onToggleLifecycle: () async {
+        if (!context.mounted) return;
+        if (state.beacon.isListed) {
+          if (await BeaconCloseConfirmDialog.show(context) != true) {
+            return;
+          }
+          if (!context.mounted) return;
         }
+        await cubit.toggleLifecycle();
+      },
+      onEdit: b.lifecycle == BeaconLifecycle.open
+          ? () => unawaited(
+                context.router.pushPath(
+                  '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
+                ),
+              )
+          : null,
+      onForward: () => unawaited(
+        context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+      ),
+      onViewForwards: () => unawaited(
+        context.router.pushPath('$kPathBeaconForwards/$beaconId'),
+      ),
+      onDelete: () async {
         if (!context.mounted) return;
-      }
-      await cubit.toggleLifecycle();
-      return;
-    case 'delete':
-      if (!state.isBeaconMine) return;
-      if (await BeaconDeleteDialog.show(context) ?? false) {
-        if (!context.mounted) return;
-        await cubit.delete(beaconId);
-      }
-      return;
-    case 'commit':
-      final useCommitAnyway =
-          state.beacon.coordinationStatus ==
-          BeaconCoordinationStatus.enoughHelpCommitted;
-      final outcome = await CommitmentMessageDialog.show(
-        context,
-        title: useCommitAnyway
-            ? l10n.dialogCommitAnywayTitle
-            : l10n.dialogCommitTitle,
-        hintText: l10n.hintCommitMessage,
-        allowEmptyMessage: true,
-        showHelpTypeChips: true,
-      );
-      if (outcome != null && context.mounted) {
-        await cubit.commit(
-          message: outcome.message,
-          helpType: outcome.helpTypeWire,
-        );
-      }
-      return;
-    case 'withdraw':
-      final outcome = await CommitmentMessageDialog.show(
-        context,
-        title: l10n.dialogWithdrawTitle,
-        hintText: l10n.hintWithdrawReason,
-        allowEmptyMessage: true,
-        requireUncommitReason: true,
-      );
-      if (outcome?.uncommitReasonWire != null && context.mounted) {
-        await cubit.withdraw(
-          message: outcome!.message,
-          uncommitReason: outcome.uncommitReasonWire!,
-        );
-      }
-      return;
-    case 'forward':
-      if (context.mounted) {
-        await context.router.pushPath('$kPathForwardBeacon/$beaconId');
-      }
-      return;
-    case 'view_forwards':
-      if (context.mounted) {
-        await context.router.pushPath('$kPathBeaconForwards/$beaconId');
-      }
-      return;
-    case 'watch':
-      await cubit.moveToWatching();
-      return;
-    case 'stop_watch':
-      await cubit.stopWatching();
-      return;
-    case 'cant_help':
-      final msg = await showRejectionDialog(context);
-      if (context.mounted && msg != null) {
-        await cubit.rejectInbox(message: msg);
-      }
-      return;
-    case 'move_inbox':
-      await cubit.unrejectInbox();
-      return;
-    case 'complaint':
-      screenCubit.showComplaint(beaconId);
-      return;
-    default:
-      return;
+        if (await BeaconDeleteDialog.show(context) ?? false) {
+          if (!context.mounted) return;
+          await cubit.delete(beaconId);
+        }
+      },
+    );
   }
+
+  return BeaconOverflowMenu(
+    beacon: b,
+    onCommit: !state.isCommitted && b.allowsNewCommitAsNonAuthor
+        ? () async {
+            if (!context.mounted) return;
+            final useCommitAnyway =
+                state.beacon.coordinationStatus ==
+                BeaconCoordinationStatus.enoughHelpCommitted;
+            final outcome = await CommitmentMessageDialog.show(
+              context,
+              title: useCommitAnyway
+                  ? l10n.dialogCommitAnywayTitle
+                  : l10n.dialogCommitTitle,
+              hintText: l10n.hintCommitMessage,
+              allowEmptyMessage: true,
+              showHelpTypeChips: true,
+            );
+            if (outcome != null && context.mounted) {
+              await cubit.commit(
+                message: outcome.message,
+                helpType: outcome.helpTypeWire,
+              );
+            }
+          }
+        : null,
+    onWithdraw: state.isCommitted && b.allowsWithdrawWhileCommitted
+        ? () async {
+            if (!context.mounted) return;
+            final outcome = await CommitmentMessageDialog.show(
+              context,
+              title: l10n.dialogWithdrawTitle,
+              hintText: l10n.hintWithdrawReason,
+              allowEmptyMessage: true,
+              requireUncommitReason: true,
+            );
+            if (outcome?.uncommitReasonWire != null && context.mounted) {
+              await cubit.withdraw(
+                message: outcome!.message,
+                uncommitReason: outcome.uncommitReasonWire!,
+              );
+            }
+          }
+        : null,
+    onForward: () => unawaited(
+      context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+    ),
+    onViewForwards: () => unawaited(
+      context.router.pushPath('$kPathBeaconForwards/$beaconId'),
+    ),
+    onWatch: state.inboxStatus == InboxItemStatus.needsMe
+        ? () => unawaited(cubit.moveToWatching())
+        : null,
+    onStopWatching: state.inboxStatus == InboxItemStatus.watching
+        ? () => unawaited(cubit.stopWatching())
+        : null,
+    onCantHelp:
+        state.inboxStatus == InboxItemStatus.needsMe ||
+            state.inboxStatus == InboxItemStatus.watching
+        ? () async {
+            if (!context.mounted) return;
+            final msg = await showRejectionDialog(context);
+            if (context.mounted && msg != null) {
+              await cubit.rejectInbox(message: msg);
+            }
+          }
+        : null,
+    onMoveToInbox: state.inboxStatus == InboxItemStatus.rejected
+        ? () => unawaited(cubit.unrejectInbox())
+        : null,
+    onComplaint: () => screenCubit.showComplaint(beaconId),
+  );
 }
 
 @RoutePage()
@@ -433,20 +298,12 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
         actions: [
           BlocBuilder<BeaconViewCubit, BeaconViewState>(
             builder: (context, state) {
-              final entries = _beaconOverflowItems(state, l10n);
-              if (entries.isEmpty) return const SizedBox.shrink();
-              return PopupMenuButton<String>(
-                onSelected: (v) => unawaited(
-                  _onBeaconOverflowSelected(
-                    context,
-                    v,
-                    beaconViewCubit,
-                    screenCubit,
-                    state,
-                  ),
-                ),
-                itemBuilder: (_) => entries,
-                child: const Icon(Icons.more_vert),
+              return _beaconViewAppBarOverflow(
+                context: context,
+                state: state,
+                cubit: beaconViewCubit,
+                screenCubit: screenCubit,
+                l10n: l10n,
               );
             },
           ),
@@ -473,8 +330,6 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
           }
           final beacon = state.beacon;
           final theme = Theme.of(context);
-          final updates = state.timeline.whereType<TimelineUpdate>().toList()
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return ListView(
             padding: kPaddingAll,
             children: [
@@ -499,7 +354,26 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                       BeaconCardPill(
                         label: _lifecycleLabel(l10n, beacon.lifecycle),
                       ),
-                    if (beacon.coordinationStatus !=
+                    if (state.isBeaconMine)
+                      BeaconCardPill(
+                        label: coordinationStatusLabel(
+                          l10n,
+                          beacon.coordinationStatus,
+                        ),
+                        backgroundColor: theme.colorScheme.surfaceContainerHigh,
+                        foregroundColor: theme.colorScheme.onSurfaceVariant,
+                        onTap: () async {
+                          await showBeaconCoordinationStatusBottomSheet(
+                            context: context,
+                            onPick: (s) => unawaited(
+                              beaconViewCubit.setBeaconCoordinationStatus(
+                                BeaconCoordinationStatus.fromSmallint(s),
+                              ),
+                            ),
+                          );
+                        },
+                      )
+                    else if (beacon.coordinationStatus !=
                             BeaconCoordinationStatus.noCommitmentsYet &&
                         beacon.coordinationStatus !=
                             BeaconCoordinationStatus
@@ -512,99 +386,8 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                         backgroundColor: theme.colorScheme.surfaceContainerHigh,
                         foregroundColor: theme.colorScheme.onSurfaceVariant,
                       ),
-                    if (state.isBeaconMine)
-                      TextButton(
-                        onPressed: () async {
-                          await showBeaconCoordinationStatusBottomSheet(
-                            context: context,
-                            onPick: (s) => unawaited(
-                              beaconViewCubit.setBeaconCoordinationStatus(
-                                BeaconCoordinationStatus.fromSmallint(s),
-                              ),
-                            ),
-                          );
-                        },
-                        child: Text(l10n.coordinationSetOverallStatus),
-                      ),
                   ],
                 ),
-              ),
-
-              CollapsibleSection(
-                title: l10n.beaconUpdatesSection,
-                initiallyExpanded: updates.isNotEmpty,
-                badge: updates.isEmpty ? null : '${updates.length}',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (updates.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: kSpacingSmall,
-                        ),
-                        child: Text(
-                          l10n.beaconUpdatesEmpty,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      )
-                    else
-                      ...updates.map(
-                        (u) => ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            l10n.updateNumberLabel(u.number),
-                            style: theme.textTheme.labelLarge,
-                          ),
-                          subtitle: Text(
-                            u.content,
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall,
-                          ),
-                          trailing:
-                              state.isBeaconMine &&
-                                  beacon.lifecycle == BeaconLifecycle.open
-                              ? IconButton(
-                                  tooltip: l10n.editUpdateCTA,
-                                  icon: const Icon(Icons.edit_outlined),
-                                  onPressed: () => unawaited(
-                                    _showEditAuthorUpdateSheet(
-                                      context,
-                                      beaconViewCubit,
-                                      l10n,
-                                      initial: u.content,
-                                      updateId: u.id,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                    if (state.isBeaconMine &&
-                        beacon.lifecycle == BeaconLifecycle.open)
-                      Padding(
-                        padding: const EdgeInsets.only(top: kSpacingSmall),
-                        child: FilledButton.icon(
-                          icon: const Icon(Icons.campaign_outlined),
-                          label: Text(l10n.postUpdateCTA),
-                          onPressed: () => unawaited(
-                            _showPostAuthorUpdateSheet(
-                              context,
-                              beaconViewCubit,
-                              l10n,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              BeaconEvaluationHooks(
-                beaconId: beacon.id,
-                lifecycle: beacon.lifecycle,
               ),
 
               const SizedBox(height: kSpacingMedium),
@@ -616,6 +399,23 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 commitments: state.commitments,
                 myUserId: state.myProfile.id,
                 isAuthorView: state.isBeaconMine,
+                onPostUpdate: () async {
+                  await _showPostAuthorUpdateSheet(
+                    context,
+                    beaconViewCubit,
+                    l10n,
+                  );
+                },
+                onEditTimelineUpdate: (u) async {
+                  await _showEditAuthorUpdateSheet(
+                    context,
+                    beaconViewCubit,
+                    l10n,
+                    initial: u.content,
+                    updateId: u.id,
+                    createdAt: u.createdAt,
+                  );
+                },
                 onEditCommitment: (commitment) async {
                   final outcome = await CommitmentMessageDialog.show(
                     context,
@@ -657,6 +457,8 @@ class _TabSection extends StatefulWidget {
     required this.onEditCommitment,
     required this.isAuthorView,
     required this.onAuthorCoordination,
+    required this.onPostUpdate,
+    required this.onEditTimelineUpdate,
     this.initialTabIndex = 0,
   });
 
@@ -668,6 +470,8 @@ class _TabSection extends StatefulWidget {
   final Future<void> Function(TimelineCommitment) onEditCommitment;
   final bool isAuthorView;
   final Future<void> Function(TimelineCommitment) onAuthorCoordination;
+  final Future<void> Function() onPostUpdate;
+  final Future<void> Function(TimelineUpdate) onEditTimelineUpdate;
 
   @override
   State<_TabSection> createState() => _TabSectionState();
@@ -718,6 +522,16 @@ class _TabSectionState extends State<_TabSection>
         ),
         const SizedBox(height: kSpacingSmall),
         if (_tabController.index == 0) ...[
+          if (widget.isAuthorView &&
+              beacon.lifecycle == BeaconLifecycle.open)
+            Padding(
+              padding: const EdgeInsets.only(bottom: kSpacingSmall),
+              child: FilledButton.icon(
+                icon: const Icon(Icons.campaign_outlined),
+                label: Text(l10n.postUpdateCTA),
+                onPressed: () => unawaited(widget.onPostUpdate()),
+              ),
+            ),
           if (widget.timeline.isEmpty)
             Padding(
               padding: kPaddingSmallV,
@@ -728,8 +542,18 @@ class _TabSectionState extends State<_TabSection>
                 ),
               ),
             ),
-          for (final entry in widget.timeline) _TimelineEntryTile(entry: entry),
+          for (final entry in widget.timeline)
+            _TimelineEntryTile(
+              entry: entry,
+              beacon: beacon,
+              isAuthorView: widget.isAuthorView,
+              onEditTimelineUpdate: widget.onEditTimelineUpdate,
+            ),
         ] else if (_tabController.index == 1) ...[
+          BeaconEvaluationHooks(
+            beaconId: beacon.id,
+            lifecycle: beacon.lifecycle,
+          ),
           Padding(
             padding: kPaddingSmallV,
             child: Wrap(
@@ -747,6 +571,7 @@ class _TabSectionState extends State<_TabSection>
           for (final c in widget.commitments)
             CommitmentTile(
               commitment: c,
+              beaconAuthor: beacon.author,
               isMine: c.user.id == widget.myUserId,
               isAuthorView: widget.isAuthorView,
               onAuthorTapCoordination: widget.isAuthorView && !c.isWithdrawn
@@ -823,6 +648,13 @@ Future<void> _showPostAuthorUpdateSheet(
                 ),
               ),
               const SizedBox(height: kSpacingSmall),
+              Text(
+                l10n.beaconUpdateEditWindowHint,
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: kSpacingSmall),
               FilledButton(
                 onPressed: () {
                   if (controller.text.trim().isEmpty) return;
@@ -850,7 +682,18 @@ Future<void> _showEditAuthorUpdateSheet(
   L10n l10n, {
   required String initial,
   required String updateId,
+  required DateTime createdAt,
 }) async {
+  if (!_authorUpdateEditableNow(createdAt)) {
+    if (context.mounted) {
+      showSnackBar(
+        context,
+        isError: true,
+        text: l10n.beaconUpdateEditExpired,
+      );
+    }
+    return;
+  }
   final controller = TextEditingController(text: initial);
   try {
     final ok = await showModalBottomSheet<bool>(
@@ -880,6 +723,13 @@ Future<void> _showEditAuthorUpdateSheet(
                 maxLength: kDescriptionMaxLength,
                 decoration: InputDecoration(
                   hintText: l10n.beaconUpdateComposerHint,
+                ),
+              ),
+              const SizedBox(height: kSpacingSmall),
+              Text(
+                l10n.beaconUpdateEditWindowHint,
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: kSpacingSmall),
@@ -921,9 +771,17 @@ String _timelineCommitmentUpdatedLine(L10n l10n, TimelineCommitmentUpdated e) {
 }
 
 class _TimelineEntryTile extends StatelessWidget {
-  const _TimelineEntryTile({required this.entry});
+  const _TimelineEntryTile({
+    required this.entry,
+    required this.beacon,
+    required this.isAuthorView,
+    required this.onEditTimelineUpdate,
+  });
 
   final TimelineEntry entry;
+  final Beacon beacon;
+  final bool isAuthorView;
+  final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
 
   @override
   Widget build(BuildContext context) {
@@ -1031,6 +889,7 @@ class _TimelineEntryTile extends StatelessWidget {
           ],
         ),
         final TimelineUpdate e => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(
               Icons.edit_note,
@@ -1044,6 +903,18 @@ class _TimelineEntryTile extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               ),
             ),
+            if (isAuthorView &&
+                beacon.lifecycle == BeaconLifecycle.open &&
+                _authorUpdateEditableNow(e.createdAt))
+              IconButton(
+                tooltip: l10n.editUpdateCTA,
+                icon: const Icon(Icons.edit_outlined),
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: () => unawaited(onEditTimelineUpdate(e)),
+              ),
             Text(
               _timelineEventTimestamp(e.timestamp),
               style: theme.textTheme.labelSmall,

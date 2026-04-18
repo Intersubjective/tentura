@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/comment.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/rating_indicator.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
@@ -44,17 +46,33 @@ class CommentTile extends StatelessWidget {
                       ),
                 child: Padding(
                   padding: const EdgeInsets.only(right: kSpacingMedium),
-                  child: AvatarRated.small(profile: comment.author),
+                  child: SelfAwareAvatar.small(profile: comment.author),
                 ),
               ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
-                    Text(
-                      isMine ? l10n.labelMe : comment.author.title,
-                      style: theme.textTheme.headlineMedium,
+                    BlocBuilder<ProfileCubit, ProfileState>(
+                      buildWhen: (p, c) => p.profile.id != c.profile.id,
+                      builder: (context, state) {
+                        final isSelf = SelfUserHighlight.profileIsSelf(
+                          comment.author,
+                          state.profile.id,
+                        );
+                        return Text(
+                          SelfUserHighlight.displayName(
+                            l10n,
+                            comment.author,
+                            state.profile.id,
+                          ),
+                          style: SelfUserHighlight.nameStyle(
+                            theme,
+                            theme.textTheme.headlineMedium,
+                            isSelf,
+                          ),
+                        );
+                      },
                     ),
 
                     // Body

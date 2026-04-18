@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
@@ -13,6 +15,7 @@ import 'package:tentura/features/evaluation/ui/widget/beacon_review_countdown_ro
 
 import 'beacon_info.dart';
 import 'beacon_mine_control.dart';
+import 'beacon_overflow_menu.dart';
 import 'beacon_tile_control.dart';
 import 'coordination_ui.dart';
 
@@ -79,22 +82,15 @@ class BeaconTile extends StatelessWidget {
                   // Avatar and Title
                   AuthorInfo(author: beacon.author),
 
-                  // More
-                  PopupMenuButton(
-                    itemBuilder: (context) => <PopupMenuEntry<void>>[
-                      PopupMenuItem(
-                        onTap: () => context.router.pushPath(
-                          '$kPathForwardBeacon/${beacon.id}',
-                        ),
-                        child: Text(l10n.labelForward),
+                  BeaconOverflowMenu(
+                    beacon: beacon,
+                    onForward: () => unawaited(
+                      context.router.pushPath(
+                        '$kPathForwardBeacon/${beacon.id}',
                       ),
-                      PopupMenuItem(
-                        onTap: () => context.read<ScreenCubit>().showComplaint(
-                          beacon.id,
-                        ),
-                        child: Text(l10n.buttonComplaint),
-                      ),
-                    ],
+                    ),
+                    onComplaint: () =>
+                        context.read<ScreenCubit>().showComplaint(beacon.id),
                   ),
                 ],
               ),

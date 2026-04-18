@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../bloc/chat_news_cubit.dart';
 import '../message/chat_messages.dart';
@@ -29,10 +31,10 @@ class ChatPeerListTile extends StatelessWidget {
         // Avatar — taps open the peer's profile
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 0, 8),
-          child: InkWell(
+            child: InkWell(
             onTap: () => screenCubit.showProfile(profile.id),
             customBorder: const CircleBorder(),
-            child: AvatarRated.small(profile: profile),
+            child: SelfAwareAvatar.small(profile: profile),
           ),
         ),
 
@@ -55,13 +57,33 @@ class ChatPeerListTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          profile.title,
-                          style: profile.isSeeingMe
-                              ? const TextStyle(
-                                  decoration: TextDecoration.underline,
-                                )
-                              : null,
+                        BlocBuilder<ProfileCubit, ProfileState>(
+                          buildWhen: (p, c) => p.profile.id != c.profile.id,
+                          builder: (context, state) {
+                            final theme = Theme.of(context);
+                            final l10n = L10n.of(context)!;
+                            final isSelf = SelfUserHighlight.profileIsSelf(
+                              profile,
+                              state.profile.id,
+                            );
+                            final base = theme.textTheme.bodyLarge;
+                            return Text(
+                              SelfUserHighlight.displayName(
+                                l10n,
+                                profile,
+                                state.profile.id,
+                              ),
+                              style: SelfUserHighlight.nameStyle(
+                                theme,
+                                profile.isSeeingMe && !isSelf
+                                    ? base?.copyWith(
+                                        decoration: TextDecoration.underline,
+                                      )
+                                    : base,
+                                isSelf,
+                              ),
+                            );
+                          },
                         ),
                         BlocBuilder<ChatNewsCubit, ChatNewsState>(
                           bloc: GetIt.I<ChatNewsCubit>(),

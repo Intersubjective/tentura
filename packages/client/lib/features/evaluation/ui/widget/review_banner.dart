@@ -12,22 +12,25 @@ class ReviewBanner extends StatelessWidget {
 
   final VoidCallback onPrimary;
 
-  /// True while beacon is open (draft notes); false after closure (submit reviews).
+  /// True while beacon is open (draft review CTA only); false after closure (banner + submit).
   final bool isDraftPhase;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final title = isDraftPhase
-        ? l10n.evaluationBannerTitleDraft
-        : l10n.evaluationBannerTitle;
-    final subtitle = isDraftPhase
-        ? l10n.evaluationBannerSubtitleDraft
-        : l10n.evaluationBannerSubtitle;
-    final cta = isDraftPhase
-        ? l10n.evaluationBannerDraftReview
-        : l10n.evaluationBannerReview;
+    if (isDraftPhase) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: onPrimary,
+            child: Text(l10n.evaluationBannerDraftReview),
+          ),
+        ),
+      );
+    }
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -36,12 +39,12 @@ class ReviewBanner extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              title,
+              l10n.evaluationBannerTitle,
               style: theme.textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
             Text(
-              subtitle,
+              l10n.evaluationBannerSubtitle,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -49,7 +52,7 @@ class ReviewBanner extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton(
               onPressed: onPrimary,
-              child: Text(cta),
+              child: Text(l10n.evaluationBannerReview),
             ),
           ],
         ),

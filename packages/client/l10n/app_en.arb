@@ -16,6 +16,11 @@
   "@labelMe": {
     "context": "Utils"
   },
+  "labelYou": "You",
+  "@labelYou": {
+    "context": "Utils",
+    "description": "Shown instead of the viewer's display name when labeling the current user"
+  },
   "labelOr": "or",
   "@labelOr": {
     "context": "Utils"
@@ -1488,6 +1493,14 @@
   "@beaconUpdateSavedMessage": {
     "context": "BeaconViewScreen"
   },
+  "beaconUpdateEditWindowHint": "Updates can be edited within 1 hour of posting.",
+  "@beaconUpdateEditWindowHint": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdateEditExpired": "Edit window has expired (1 hour after posting).",
+  "@beaconUpdateEditExpired": {
+    "context": "BeaconViewScreen"
+  },
   "labelCommitted": "Committed",
   "@labelCommitted": {
     "context": "BeaconViewScreen"
@@ -1620,6 +1633,11 @@
   "@labelForwards": {
     "context": "BeaconViewScreen",
     "description": "Tab title for forward trail / notes to the viewer"
+  },
+  "overflowMenuSeeForwards": "See forwards",
+  "@overflowMenuSeeForwards": {
+    "context": "BeaconOverflowMenu",
+    "description": "Overflow menu row: navigate to forwards trail screen"
   },
   "beaconForwardsEmpty": "No forward trail for you on this beacon yet.",
   "@beaconForwardsEmpty": {

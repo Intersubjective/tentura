@@ -5,8 +5,10 @@ import 'dart:math' show pow, sqrt;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../bloc/rating_cubit.dart';
 
@@ -150,6 +152,8 @@ class _RatingScatterViewState extends State<RatingScatterView> {
   }
 
   Widget _buildAvatarStack(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final myId = context.watch<ProfileCubit>().state.profile.id;
     return Stack(
       clipBehavior: Clip.none,
       children: widget.profiles.map((profile) {
@@ -162,6 +166,8 @@ class _RatingScatterViewState extends State<RatingScatterView> {
         final jitter = _jitterFor(profile.id);
         final colLeft = x - _labelWidth / 2 + jitter.dx;
         final colTop = y - _avatarSize / 2 + jitter.dy;
+        final isSelf = SelfUserHighlight.profileIsSelf(profile, myId);
+        final avatarCore = AvatarRated(profile: profile, size: _avatarSize);
         return Positioned(
           left: colLeft,
           top: colTop,
@@ -172,16 +178,26 @@ class _RatingScatterViewState extends State<RatingScatterView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AvatarRated(profile: profile, size: _avatarSize),
+                SelfUserHighlight.wrapSmallAvatar(
+                  context,
+                  avatarSize: _avatarSize,
+                  isSelf: isSelf,
+                  child: avatarCore,
+                ),
                 const SizedBox(height: _avatarLabelGap),
                 SizedBox(
                   width: _labelWidth,
                   height: _labelHeight,
                   child: Text(
-                    profile.title,
+                    SelfUserHighlight.displayName(l10n, profile, myId),
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
+                    style: SelfUserHighlight.nameStyle(
+                      Theme.of(context),
+                      Theme.of(context).textTheme.bodySmall,
+                      isSelf,
+                    ),
                   ),
                 ),
               ],
@@ -197,6 +213,8 @@ class _RatingScatterViewState extends State<RatingScatterView> {
     required double viewportW,
     required double viewportH,
   }) {
+    final l10n = L10n.of(context)!;
+    final myId = context.watch<ProfileCubit>().state.profile.id;
     final matrix = _transformController.value;
     return SizedBox(
       width: viewportW,
@@ -217,6 +235,8 @@ class _RatingScatterViewState extends State<RatingScatterView> {
               canvasX, canvasY, viewportW, viewportH, matrix);
           final colTop = v.dy - _avatarSize / 2;
           final colLeft = v.dx - _labelWidth / 2;
+          final isSelf = SelfUserHighlight.profileIsSelf(profile, myId);
+          final avatarCore = AvatarRated(profile: profile, size: _avatarSize);
           return Positioned(
             left: colLeft,
             top: colTop,
@@ -227,16 +247,26 @@ class _RatingScatterViewState extends State<RatingScatterView> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AvatarRated(profile: profile, size: _avatarSize),
+                  SelfUserHighlight.wrapSmallAvatar(
+                    context,
+                    avatarSize: _avatarSize,
+                    isSelf: isSelf,
+                    child: avatarCore,
+                  ),
                   const SizedBox(height: _avatarLabelGap),
                   SizedBox(
                     width: _labelWidth,
                     height: _labelHeight,
                     child: Text(
-                      profile.title,
+                      SelfUserHighlight.displayName(l10n, profile, myId),
                       textAlign: TextAlign.center,
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
+                      style: SelfUserHighlight.nameStyle(
+                        Theme.of(context),
+                        Theme.of(context).textTheme.bodySmall,
+                        isSelf,
+                      ),
                     ),
                   ),
                 ],

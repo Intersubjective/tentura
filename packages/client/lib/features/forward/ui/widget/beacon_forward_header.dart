@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 class BeaconForwardHeader extends StatelessWidget {
@@ -50,17 +52,35 @@ class BeaconForwardHeader extends StatelessWidget {
             const SizedBox(height: kSpacingSmall),
             Row(
               children: [
-                AvatarRated(
+                SelfAwareAvatar(
                   profile: beacon.author,
                   size: 24,
                 ),
                 const SizedBox(width: kSpacingSmall),
                 Expanded(
-                  child: Text(
-                    beacon.author.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium,
+                  child: BlocBuilder<ProfileCubit, ProfileState>(
+                    buildWhen: (p, c) => p.profile.id != c.profile.id,
+                    builder: (context, state) {
+                      final l10n = L10n.of(context)!;
+                      final isSelf = SelfUserHighlight.profileIsSelf(
+                        beacon.author,
+                        state.profile.id,
+                      );
+                      return Text(
+                        SelfUserHighlight.displayName(
+                          l10n,
+                          beacon.author,
+                          state.profile.id,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SelfUserHighlight.nameStyle(
+                          theme,
+                          theme.textTheme.bodyMedium,
+                          isSelf,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 Chip(

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 class PerRecipientNotesPanel extends StatefulWidget {
   const PerRecipientNotesPanel({
@@ -98,29 +100,38 @@ class _PerRecipientNotesPanelState extends State<PerRecipientNotesPanel> {
                 }
                 return Padding(
                   padding: kPaddingSmallV,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AvatarRated(
-                        profile: profile,
-                        size: 24,
-                      ),
-                      const SizedBox(width: kSpacingSmall),
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          onChanged: (t) => widget.onNoteChanged(id, t),
-                          decoration: InputDecoration(
-                            hintText: l10n.forwardRecipientNoteHint(
-                              profile.title,
-                            ),
-                            border: const OutlineInputBorder(),
-                            isDense: true,
+                  child: BlocBuilder<ProfileCubit, ProfileState>(
+                    buildWhen: (p, c) => p.profile.id != c.profile.id,
+                    builder: (context, state) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SelfAwareAvatar(
+                            profile: profile,
+                            size: 24,
                           ),
-                          maxLines: 2,
-                        ),
-                      ),
-                    ],
+                          const SizedBox(width: kSpacingSmall),
+                          Expanded(
+                            child: TextField(
+                              controller: controller,
+                              onChanged: (t) => widget.onNoteChanged(id, t),
+                              decoration: InputDecoration(
+                                hintText: l10n.forwardRecipientNoteHint(
+                                  SelfUserHighlight.displayName(
+                                    l10n,
+                                    profile,
+                                    state.profile.id,
+                                  ),
+                                ),
+                                border: const OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              maxLines: 2,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 );
               },
