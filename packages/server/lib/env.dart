@@ -261,12 +261,13 @@ class Env {
   final bool kS3UseSSL;
 
   /// When non-null, object uploads send `x-amz-acl` with this value.
-  /// When null, the header is omitted so public access comes from bucket policy / CDN only.
+  /// When null, the header is omitted (use a bucket policy for anonymous GET).
   ///
   /// [S3_OBJECT_ACL]: `omit`, `none`, or `false` (case-insensitive) forces omit; any other
   /// non-empty string is sent as the ACL value (e.g. `public-read`).
-  /// If unset: omit for `*.digitaloceanspaces.com` (Spaces often denies per-object ACLs);
-  /// otherwise default `public-read` for local MinIO.
+  /// If unset: `public-read` for `*.digitaloceanspaces.com` and other endpoints (anonymous
+  /// image URLs in the app). Use `omit` if your provider rejects ACL headers; then set a
+  /// Spaces/S3 bucket policy allowing `s3:GetObject` for `images/*`.
   late final String? kS3PutObjectAclValue = _putObjectAclFromEnv(
     _env['S3_OBJECT_ACL'],
     kS3Endpoint,
@@ -374,9 +375,6 @@ class Env {
         return null;
       }
       return trimmed;
-    }
-    if (endpoint.toLowerCase().contains('digitaloceanspaces.com')) {
-      return null;
     }
     return 'public-read';
   }
