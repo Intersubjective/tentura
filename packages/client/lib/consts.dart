@@ -29,6 +29,7 @@ const kPathMyWork = '/home/work';
 const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';
 const kPathBeaconView = '/beacon/view';
+const kPathBeaconForwards = '/beacon/forwards';
 const kPathBeaconViewAll = '/beacon/all';
 const kPathReviewContributions = '/beacon/review';
 const kPathForwardBeacon = '/forward';
@@ -44,11 +45,8 @@ const kQueryBeaconDraftId = 'draft_id';
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 
-/// Optional initial tab on beacon detail: `timeline`, `commitments`, or `forwards`.
+/// Optional initial tab on beacon detail: `timeline`, `commitments`, or `details`.
 const kQueryBeaconViewTab = 'tab';
-
-/// Initial expansion of the beacon "Details" section: `open` or `closed`.
-const kQueryBeaconViewDetails = 'details';
 
 /// First part of FQDN: `https://app.server.name`
 const kServerName = String.fromEnvironment(
