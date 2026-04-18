@@ -15,6 +15,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/theme.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 import 'di/di.dart';
@@ -32,12 +33,14 @@ class App extends StatelessWidget {
     ]);
     await configureDependencies();
     FlutterNativeSplash.remove();
-    // Web: do not call ensureSemantics() before the first frame — it can schedule
-    // semantics work while the root is not yet laid out, leading to
-    // "Cannot hit test a render box that has never been laid out" on pointer events.
+    // Web: defer ensureSemantics() until after layout is stable. A single post-frame
+    // tick can still race deep-link / first-frame pointer delivery; two ticks avoids
+    // hit-testing the root Semantics node before constraints exist.
     if (kIsWeb) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        SemanticsBinding.instance.ensureSemantics();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          SemanticsBinding.instance.ensureSemantics();
+        });
       });
     }
     runApp(
@@ -96,6 +99,9 @@ class App extends StatelessWidget {
                 ),
                 BlocProvider.value(
                   value: GetIt.I<AuthCubit>(),
+                ),
+                BlocProvider.value(
+                  value: GetIt.I<ProfileCubit>(),
                 ),
                 BlocProvider.value(
                   value: GetIt.I<AppUpdateCubit>(),
