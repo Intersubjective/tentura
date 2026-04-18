@@ -28,3 +28,24 @@ import 'package:tentura/ui/l10n/l10n.dart';
   final urgent = totalHours < 24;
   return (text: l10n.inboxDeadlineHoursRemaining(totalHours), urgent: urgent);
 }
+
+/// Ultra-compact remaining time for inbox deadline pill (e.g. `31d`, `4h`).
+///
+/// The `urgent` flag is true when under 24h or already ended.
+({String text, bool urgent})? compactDeadlineLabel(L10n l10n, DateTime? endAt) {
+  if (endAt == null) return null;
+  final now = DateTime.now();
+  if (!endAt.isAfter(now)) {
+    return (text: l10n.inboxDeadlineEnded, urgent: true);
+  }
+  final d = endAt.difference(now);
+  final totalHours = d.inHours;
+  if (totalHours < 1) {
+    return (text: l10n.inboxDeadlinePillUnderHour, urgent: true);
+  }
+  if (totalHours < 24) {
+    return (text: l10n.inboxDeadlinePillHours(totalHours), urgent: true);
+  }
+  final days = d.inDays;
+  return (text: l10n.inboxDeadlinePillDays(days), urgent: false);
+}

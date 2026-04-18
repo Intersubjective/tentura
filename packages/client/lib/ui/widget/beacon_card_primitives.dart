@@ -20,34 +20,42 @@ class BeaconCardShell extends StatelessWidget {
     this.footer,
     this.muted = false,
     this.color,
+
+    /// When null, uses [kPaddingAllS] (no footer) or tight top/sides padding (with footer).
+    this.padding,
     super.key,
   });
 
   final Widget child;
   final VoidCallback? onTap;
+
   /// Placed below [child], outside the card [InkWell] when [onTap] is set.
   final Widget? footer;
   final bool muted;
   final Color? color;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final hasFooter = footer != null;
-    final mainPadding = hasFooter
-        ? const EdgeInsets.fromLTRB(
-            kSpacingSmall,
-            kSpacingSmall,
-            kSpacingSmall,
-            0,
-          )
-        : kPaddingAllS;
+    final mainPadding =
+        padding ??
+        (hasFooter
+            ? const EdgeInsets.fromLTRB(
+                kSpacingSmall,
+                kSpacingSmall,
+                kSpacingSmall,
+                0,
+              )
+            : kPaddingAllS);
     final paddedMain = Padding(
       padding: mainPadding,
       child: child,
     );
 
-    final bg = color ??
+    final bg =
+        color ??
         (muted
             ? scheme.surfaceContainerHighest.withValues(alpha: 0.45)
             : scheme.surfaceContainer);
