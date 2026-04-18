@@ -94,6 +94,7 @@ class _V2RoutingLink extends Link {
     'BeaconAddImage',
     'BeaconCommit',
     'BeaconCreate',
+    'BeaconUpdate',
     'BeaconUpdateDraft',
     'BeaconInvolvementData',
     'BeaconDeleteById',

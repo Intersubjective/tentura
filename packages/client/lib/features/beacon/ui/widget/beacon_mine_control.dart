@@ -47,6 +47,15 @@ class BeaconMineControl extends StatelessWidget {
         // Menu
         PopupMenuButton<void>(
           itemBuilder: (context) => [
+            // Edit (only for open beacons)
+            if (beacon.lifecycle == BeaconLifecycle.open)
+              PopupMenuItem<void>(
+                child: Text(l10n.editBeacon),
+                onTap: () => context.router.pushPath(
+                  '$kPathBeaconNew?$kQueryBeaconEditId=${beacon.id}',
+                ),
+              ),
+
             // Open / Close lifecycle
             PopupMenuItem<void>(
               child: Text(

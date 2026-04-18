@@ -22,6 +22,7 @@ import '../gql/_g/beacon_create.req.gql.dart';
 import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
 import '../gql/_g/beacon_delete_by_id.req.gql.dart';
 import '../gql/_g/beacon_remove_image.req.gql.dart';
+import '../gql/_g/beacon_update.req.gql.dart';
 import '../gql/_g/beacon_update_by_id.req.gql.dart';
 import '../gql/_g/beacon_update_draft.req.gql.dart';
 import '../gql/_g/beacons_fetch_by_user_id.req.gql.dart';
@@ -169,6 +170,38 @@ class BeaconRepository {
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconUpdateDraft.id);
+    final updated = await fetchBeaconById(beacon.id);
+    _controller.add(RepositoryEventUpdate(updated));
+    return updated;
+  }
+
+  ///
+  /// Updates an open (published) beacon. Polling fields are not changed.
+  ///
+  Future<Beacon> update(Beacon beacon) async {
+    final request = GBeaconUpdateReq((b) {
+      b.vars
+        ..id = beacon.id
+        ..title = beacon.title
+        ..description = beacon.description
+        ..context = beacon.context.isEmpty ? null : beacon.context
+        ..tags = beacon.tags.isEmpty ? null : beacon.tags.join(',')
+        ..startAt = beacon.startAt?.toIso8601String()
+        ..endAt = beacon.endAt?.toIso8601String()
+        ..coordinates = beacon.coordinates == null
+            ? null
+            : (GCoordinatesBuilder()
+                  ..lat = beacon.coordinates!.lat
+                  ..long = beacon.coordinates!.long)
+        ..iconCode = beacon.iconCode
+        ..iconBackground = beacon.iconBackground == null
+            ? null
+            : encodeBeaconIconBackgroundArgb(beacon.iconBackground!);
+    });
+    await _remoteApiService
+        .request(request)
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconUpdate.id);
     final updated = await fetchBeaconById(beacon.id);
     _controller.add(RepositoryEventUpdate(updated));
     return updated;

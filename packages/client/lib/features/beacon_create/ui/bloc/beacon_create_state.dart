@@ -20,8 +20,10 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     DateTime? endAt,
     String? iconCode,
     int? iconBackground,
-    /// Server draft beacon id when editing; null when creating new.
+    /// Server draft beacon id when editing a draft; null otherwise.
     String? draftId,
+    /// Server beacon id when editing a published (open) beacon; null otherwise.
+    String? editId,
     @Default({}) Set<String> initialServerImageIds,
     @Default(false) bool canTryToPublish,
     @Default(StateIsSuccess()) StateStatus status,
@@ -31,4 +33,6 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
 
   bool get hasPolling =>
       question.isNotEmpty || variants.where((e) => e.isNotEmpty).isNotEmpty;
+
+  bool get isEditMode => editId != null;
 }

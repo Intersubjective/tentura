@@ -134,6 +134,46 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
+  Future<BeaconEntity> updateBeacon({
+    required String beaconId,
+    required String userId,
+    required String title,
+    required String description,
+    String? context,
+    Set<String>? tags,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+  }) async {
+    final existing = storageById[beaconId];
+    if (existing == null ||
+        existing.state != 0 ||
+        existing.author.id != userId) {
+      throw const BeaconCreateException(
+        description: 'Only open beacons can be edited',
+      );
+    }
+    final updated = existing.copyWith(
+      title: title,
+      description: description,
+      context: context,
+      tags: tags,
+      startAt: startAt,
+      endAt: endAt,
+      coordinates: latitude != null && longitude != null
+          ? Coordinates(lat: latitude, long: longitude)
+          : null,
+      iconCode: iconCode,
+      iconBackground: iconBackground,
+      updatedAt: DateTime.timestamp(),
+    );
+    return storageById[beaconId] = updated;
+  }
+
+  @override
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,

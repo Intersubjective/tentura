@@ -1,0 +1,27 @@
+mutation BeaconUpdate(
+  $id: String!,
+  $title: String!,
+  $context: String = "",
+  $description: String = "",
+  $coordinates: Coordinates = {},
+  $startAt: String = "",
+  $endAt: String = "",
+  $tags: String = "",
+  $iconCode: String,
+  $iconBackground: Int
+) {
+  beaconUpdate(
+    id: $id,
+    title: $title,
+    description: $description,
+    coordinates: $coordinates,
+    context: $context,
+    startAt: $startAt,
+    endAt: $endAt,
+    tags: $tags,
+    iconCode: $iconCode,
+    iconBackground: $iconBackground
+  ) {
+    id
+  }
+}

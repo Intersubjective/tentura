@@ -18,11 +18,15 @@ import '../widget/polling_tab.dart';
 class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconCreateScreen({
     @QueryParam(kQueryBeaconDraftId) this.draftId = '',
+    @QueryParam(kQueryBeaconEditId) this.editId = '',
     super.key,
   });
 
   /// Server draft beacon id when opening from My Work / deep link.
   final String draftId;
+
+  /// Server open beacon id when editing a published beacon.
+  final String editId;
 
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
@@ -36,6 +40,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
       BlocProvider(
         create: (_) => BeaconCreateCubit(
           draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
+          editBeaconIdToLoad: editId.isEmpty ? null : editId,
         ),
       ),
     ],
@@ -74,56 +79,99 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
       appBar: AppBar(
         centerTitle: true,
         leading: const AutoLeadingButton(),
-        title: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
+        title: BlocSelector<BeaconCreateCubit, BeaconCreateState,
+            ({bool isDraft, bool isEdit})>(
           bloc: _beaconCreateCubit,
-          selector: (s) => s.draftId != null,
-          builder: (context, isEditingDraft) => Text(
-            isEditingDraft ? l10n.editDraftTitle : l10n.createNewBeacon,
+          selector: (s) =>
+              (isDraft: s.draftId != null, isEdit: s.isEditMode),
+          builder: (context, mode) => Text(
+            mode.isEdit
+                ? l10n.editBeaconTitle
+                : mode.isDraft
+                    ? l10n.editDraftTitle
+                    : l10n.createNewBeacon,
           ),
         ),
         actions: [
-          Padding(
-            padding: kPaddingH,
-            child: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
-              key: const Key('BeaconCreate.SaveDraftButton'),
-              bloc: _beaconCreateCubit,
-              selector: (state) => state.isLoading,
-              builder: (context, isLoading) => TextButton(
-                onPressed: isLoading
-                    ? null
-                    : () async {
-                        await _beaconCreateCubit.saveDraft(
-                          context: context.read<ContextCubit>().state.selected,
-                        );
-                      },
-                child: Text(l10n.buttonSaveDraft),
-              ),
-            ),
-          ),
-          Padding(
-            padding: kPaddingH,
-            child: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
-              key: const Key('BeaconCreate.PublishButton'),
-              bloc: _beaconCreateCubit,
-              selector: (state) => state.canTryToPublish,
-              builder: (context, canTryToPublish) => TextButton(
-                onPressed: canTryToPublish
-                    ? () async {
-                        if (await BeaconPublishDialog.show(context) ?? false) {
-                          if (context.mounted) {
-                            await _beaconCreateCubit.publish(
+          BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+            bloc: _beaconCreateCubit,
+            buildWhen: (p, c) =>
+                p.isEditMode != c.isEditMode || p.isLoading != c.isLoading,
+            builder: (context, state) {
+              if (state.isEditMode) {
+                return Padding(
+                  padding: kPaddingH,
+                  child: TextButton(
+                    key: const Key('BeaconEdit.SaveChangesButton'),
+                    onPressed: state.isLoading
+                        ? null
+                        : () async {
+                            await _beaconCreateCubit.saveEdit(
                               context: context
                                   .read<ContextCubit>()
                                   .state
                                   .selected,
                             );
-                          }
-                        }
-                      }
-                    : null,
-                child: Text(l10n.buttonPublish),
-              ),
-            ),
+                          },
+                    child: Text(l10n.buttonSaveChanges),
+                  ),
+                );
+              }
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: kPaddingH,
+                    child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
+                        bool>(
+                      key: const Key('BeaconCreate.SaveDraftButton'),
+                      bloc: _beaconCreateCubit,
+                      selector: (s) => s.isLoading,
+                      builder: (context, isLoading) => TextButton(
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                await _beaconCreateCubit.saveDraft(
+                                  context: context
+                                      .read<ContextCubit>()
+                                      .state
+                                      .selected,
+                                );
+                              },
+                        child: Text(l10n.buttonSaveDraft),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: kPaddingH,
+                    child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
+                        bool>(
+                      key: const Key('BeaconCreate.PublishButton'),
+                      bloc: _beaconCreateCubit,
+                      selector: (s) => s.canTryToPublish,
+                      builder: (context, canTryToPublish) => TextButton(
+                        onPressed: canTryToPublish
+                            ? () async {
+                                if (await BeaconPublishDialog.show(context) ??
+                                    false) {
+                                  if (context.mounted) {
+                                    await _beaconCreateCubit.publish(
+                                      context: context
+                                          .read<ContextCubit>()
+                                          .state
+                                          .selected,
+                                    );
+                                  }
+                                }
+                              }
+                            : null,
+                        child: Text(l10n.buttonPublish),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
         bottom: PreferredSize(
@@ -157,8 +205,8 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
             p.draftId != c.draftId ||
             p.title != c.title,
         builder: (context, state) {
-          if (widget.draftId.isNotEmpty &&
-              state.draftId == null &&
+          if ((widget.draftId.isNotEmpty && state.draftId == null ||
+                  widget.editId.isNotEmpty && state.editId == null) &&
               state.isLoading) {
             return const Center(
               child: CircularProgressIndicator.adaptive(),

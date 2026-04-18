@@ -28,19 +28,25 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     ImageRepository? imageRepository,
     BeaconRepository? beaconRepository,
     String? draftBeaconIdToLoad,
+    String? editBeaconIdToLoad,
   }) : _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _imageRepository = imageRepository ?? GetIt.I<ImageRepository>(),
        super(
          BeaconCreateState(
            variants: ['', ''],
            variantsKeys: [UniqueKey(), UniqueKey()],
-           status: draftBeaconIdToLoad != null && draftBeaconIdToLoad.isNotEmpty
-               ? StateStatus.isLoading
-               : const StateIsSuccess(),
+           status:
+               (draftBeaconIdToLoad != null && draftBeaconIdToLoad.isNotEmpty) ||
+                       (editBeaconIdToLoad != null &&
+                           editBeaconIdToLoad.isNotEmpty)
+                   ? StateStatus.isLoading
+                   : const StateIsSuccess(),
          ),
        ) {
     if (draftBeaconIdToLoad != null && draftBeaconIdToLoad.isNotEmpty) {
       unawaited(Future<void>.microtask(() => loadDraft(draftBeaconIdToLoad)));
+    } else if (editBeaconIdToLoad != null && editBeaconIdToLoad.isNotEmpty) {
+      unawaited(Future<void>.microtask(() => loadEdit(editBeaconIdToLoad)));
     }
   }
 
@@ -111,6 +117,53 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           question: question,
           variants: variants,
           variantsKeys: variantKeys,
+          images: [...beacon.images],
+          initialServerImageIds: {
+            for (final img in beacon.images)
+              if (img.id.isNotEmpty) img.id,
+          },
+          status: StateStatus.isSuccess,
+        ),
+      );
+      validate();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> loadEdit(String id) async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final beacon = await _beaconRepository.fetchBeaconById(id);
+      if (beacon.lifecycle != BeaconLifecycle.open) {
+        emit(
+          state.copyWith(
+            status: StateHasError(
+              Exception('Only open beacons can be edited'),
+            ),
+          ),
+        );
+        return;
+      }
+
+      final coords = beacon.coordinates;
+      final coordinates =
+          coords != null && coords.isNotEmpty ? coords : null;
+      final locationLabel =
+          coordinates != null ? coordinates.toString() : '';
+
+      emit(
+        state.copyWith(
+          editId: beacon.id,
+          title: beacon.title,
+          description: beacon.description,
+          tags: beacon.tags,
+          coordinates: coordinates,
+          location: locationLabel,
+          startAt: beacon.startAt,
+          endAt: beacon.endAt,
+          iconCode: beacon.iconCode,
+          iconBackground: beacon.iconBackground,
           images: [...beacon.images],
           initialServerImageIds: {
             for (final img in beacon.images)
@@ -410,6 +463,65 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       }
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  ///
+  /// Persists edits to an open (published) beacon.
+  Future<void> saveEdit({required String context}) async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final id = state.editId!;
+      final now = DateTime.timestamp();
+      final iconCode = state.iconCode?.trim();
+      final hasIcon = iconCode != null && iconCode.isNotEmpty;
+      final beaconPayload = Beacon(
+        id: id,
+        createdAt: now,
+        updatedAt: now,
+        context: context,
+        tags: state.tags,
+        title: state.title,
+        coordinates: state.coordinates,
+        description: state.description,
+        startAt: state.startAt,
+        endAt: state.endAt,
+        images: state.images,
+        iconCode: hasIcon ? iconCode : null,
+        iconBackground: hasIcon ? state.iconBackground : null,
+      );
+
+      await _syncEditServerImages(id);
+      final updated = await _beaconRepository.update(beaconPayload);
+      emit(
+        state.copyWith(
+          images: [...updated.images],
+          initialServerImageIds: {
+            for (final img in updated.images)
+              if (img.id.isNotEmpty) img.id,
+          },
+          status: StateIsNavigating.back,
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> _syncEditServerImages(String beaconId) async {
+    final currentIds = state.images
+        .map((e) => e.id)
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    for (final id in state.initialServerImageIds) {
+      if (!currentIds.contains(id)) {
+        await _beaconRepository.removeImage(beaconId: beaconId, imageId: id);
+      }
+    }
+    for (final img in state.images) {
+      if (img.imageBytes != null) {
+        await _beaconRepository.addImage(beaconId: beaconId, image: img);
+      }
     }
   }
 
