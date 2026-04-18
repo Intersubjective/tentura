@@ -1664,7 +1664,8 @@
                     "beacon_id",
                     "author_id",
                     "content",
-                    "created_at"
+                    "created_at",
+                    "number"
                   ],
                   "filter": {}
                 }
