@@ -1,5 +1,9 @@
+import 'dart:async';
+
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -314,6 +318,13 @@ class InboxItemTile extends StatelessWidget {
                       l10n.labelForward,
                     ),
                   ),
+                  PopupMenuItem(
+                    value: 'view_forwards',
+                    child: _inboxOverflowMenuRow(
+                      Icons.forward_to_inbox,
+                      l10n.labelForwards,
+                    ),
+                  ),
                   if (onWatch != null)
                     PopupMenuItem(
                       value: 'watch',
@@ -358,6 +369,16 @@ class InboxItemTile extends StatelessWidget {
                   }
                   if (v == 'forward') {
                     onTap();
+                    return;
+                  }
+                  if (v == 'view_forwards') {
+                    if (context.mounted) {
+                      unawaited(
+                        context.router.pushPath(
+                          '$kPathBeaconForwards/${beacon.id}',
+                        ),
+                      );
+                    }
                     return;
                   }
                   if (v == 'watch') onWatch?.call();

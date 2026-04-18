@@ -179,11 +179,7 @@ class MyWorkCardRouter extends StatelessWidget {
 }
 
 void _openBeacon(BuildContext context, String id) {
-  unawaited(
-    context.router.pushPath(
-      '$kPathBeaconView/$id?$kQueryBeaconViewDetails=closed',
-    ),
-  );
+  unawaited(context.router.pushPath('$kPathBeaconView/$id'));
 }
 
 void _openEditDraft(BuildContext context, String id) {
@@ -195,7 +191,7 @@ void _openEditDraft(BuildContext context, String id) {
 void _openBeaconCommitmentsTab(BuildContext context, String id) {
   unawaited(
     context.router.pushPath(
-      '$kPathBeaconView/$id?$kQueryBeaconViewTab=commitments&$kQueryBeaconViewDetails=closed',
+      '$kPathBeaconView/$id?$kQueryBeaconViewTab=commitments',
     ),
   );
 }
@@ -802,6 +798,14 @@ class _AuthoredOverflowMenu extends StatelessWidget {
           },
         ),
         PopupMenuItem<void>(
+          child: Text(l10n.labelForwards),
+          onTap: () async {
+            await Future<void>.delayed(Duration.zero);
+            if (!context.mounted) return;
+            await context.router.pushPath('$kPathBeaconForwards/${beacon.id}');
+          },
+        ),
+        PopupMenuItem<void>(
           child: Text(l10n.deleteBeacon),
           onTap: () async {
             await Future<void>.delayed(Duration.zero);
@@ -888,6 +892,14 @@ class _CommittedOverflowMenu extends StatelessWidget {
             await Future<void>.delayed(Duration.zero);
             if (!context.mounted) return;
             await context.router.pushPath('$kPathForwardBeacon/$beaconId');
+          },
+        ),
+        PopupMenuItem<void>(
+          child: Text(l10n.labelForwards),
+          onTap: () async {
+            await Future<void>.delayed(Duration.zero);
+            if (!context.mounted) return;
+            await context.router.pushPath('$kPathBeaconForwards/$beaconId');
           },
         ),
         PopupMenuItem<void>(

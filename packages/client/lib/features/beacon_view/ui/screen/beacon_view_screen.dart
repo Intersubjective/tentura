@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/features/forward/ui/widget/forward_candidate_tile.dart' show ForwardCandidateTile;
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -13,18 +12,15 @@ import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/collapsible_section.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
-import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
-import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
-import 'package:tentura/features/inbox/ui/widget/inbox_forward_provenance_panel.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
@@ -33,7 +29,6 @@ import 'package:tentura/ui/widget/tentura_icons.dart';
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/commitment_tile.dart';
-import '../widget/plain_mini_avatar.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
@@ -47,13 +42,16 @@ String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
     l10n.beaconLifecycleClosedReviewComplete,
 };
 
-/// Query [kQueryBeaconViewTab]: `timeline` | `commitments` | `forwards`.
+/// Query [kQueryBeaconViewTab]: `timeline` | `commitments` | `details`.
 int _beaconViewTabIndex(String? viewTab) {
   switch (viewTab) {
     case 'commitments':
       return 1;
-    case 'forwards':
+    case 'details':
       return 2;
+    case 'forwards':
+      // Legacy tab id: forwards moved to [BeaconForwardsScreen].
+      return 0;
     case 'timeline':
     default:
       return 0;
@@ -110,6 +108,15 @@ List<PopupMenuEntry<String>> _beaconOverflowItems(
       )
       ..add(
         PopupMenuItem(
+          value: 'view_forwards',
+          child: _beaconOverflowMenuRow(
+            Icons.forward_to_inbox,
+            l10n.labelForwards,
+          ),
+        ),
+      )
+      ..add(
+        PopupMenuItem(
           value: 'delete',
           child: _beaconOverflowMenuRow(
             Icons.delete_outline,
@@ -144,12 +151,22 @@ List<PopupMenuEntry<String>> _beaconOverflowItems(
       ),
     );
   }
-  items.add(
-    PopupMenuItem(
-      value: 'forward',
-      child: _beaconOverflowMenuRow(Icons.send, l10n.labelForward),
-    ),
-  );
+  items
+    ..add(
+      PopupMenuItem(
+        value: 'forward',
+        child: _beaconOverflowMenuRow(Icons.send, l10n.labelForward),
+      ),
+    )
+    ..add(
+      PopupMenuItem(
+        value: 'view_forwards',
+        child: _beaconOverflowMenuRow(
+          Icons.forward_to_inbox,
+          l10n.labelForwards,
+        ),
+      ),
+    );
   if (state.inboxStatus == InboxItemStatus.needsMe) {
     items.add(
       PopupMenuItem(
@@ -283,6 +300,11 @@ Future<void> _onBeaconOverflowSelected(
         await context.router.pushPath('$kPathForwardBeacon/$beaconId');
       }
       return;
+    case 'view_forwards':
+      if (context.mounted) {
+        await context.router.pushPath('$kPathBeaconForwards/$beaconId');
+      }
+      return;
     case 'watch':
       await cubit.moveToWatching();
       return;
@@ -312,7 +334,6 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
     @PathParam('id') this.id = '',
     @QueryParam(kQueryIsDeepLink) this.isDeepLink,
     @QueryParam(kQueryBeaconViewTab) this.viewTab,
-    @QueryParam(kQueryBeaconViewDetails) this.detailsDefault,
     super.key,
   });
 
@@ -320,11 +341,8 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
   final String? isDeepLink;
 
-  /// `timeline` | `commitments` | `forwards` — initial tab in the detail tabs.
+  /// `timeline` | `commitments` | `details` — initial tab in the detail tabs.
   final String? viewTab;
-
-  /// `open` | `closed` — initial expansion of the Details section.
-  final String? detailsDefault;
 
   @override
   Widget wrappedRoute(_) => MultiBlocProvider(
@@ -455,8 +473,6 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
           }
           final beacon = state.beacon;
           final theme = Theme.of(context);
-          final detailsOpen =
-              (detailsDefault ?? 'open').toLowerCase() != 'closed';
           final updates = state.timeline.whereType<TimelineUpdate>().toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return ListView(
@@ -509,34 +525,6 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                           );
                         },
                         child: Text(l10n.coordinationSetOverallStatus),
-                      ),
-                  ],
-                ),
-              ),
-
-              CollapsibleSection(
-                title: l10n.beaconDetailsSection,
-                initiallyExpanded: detailsOpen,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    BeaconInfo(
-                      key: ValueKey(beacon),
-                      beacon: beacon,
-                      isTitleLarge: true,
-                      isShowMoreEnabled: false,
-                      isShowBeaconEnabled: false,
-                      showTitle: false,
-                    ),
-                    if (beacon.context.trim().isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: kSpacingSmall),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Chip(
-                            label: Text(beacon.context.trim()),
-                          ),
-                        ),
                       ),
                   ],
                 ),
@@ -623,16 +611,9 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
               _TabSection(
                 initialTabIndex: _beaconViewTabIndex(viewTab),
+                beacon: beacon,
                 timeline: state.timeline,
                 commitments: state.commitments,
-                forwardProvenance: state.forwardProvenance,
-                inboxLatestNotePreview: state.inboxLatestNotePreview,
-                myForwards: state.myForwards,
-                involvementCommittedIds: state.involvementCommittedIds,
-                involvementWatchingIds: state.involvementWatchingIds,
-                involvementOnwardForwarderIds:
-                    state.involvementOnwardForwarderIds,
-                myProfile: state.myProfile,
                 myUserId: state.myProfile.id,
                 isAuthorView: state.isBeaconMine,
                 onEditCommitment: (commitment) async {
@@ -669,15 +650,9 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
 class _TabSection extends StatefulWidget {
   const _TabSection({
+    required this.beacon,
     required this.timeline,
     required this.commitments,
-    required this.forwardProvenance,
-    required this.inboxLatestNotePreview,
-    required this.myForwards,
-    required this.involvementCommittedIds,
-    required this.involvementWatchingIds,
-    required this.involvementOnwardForwarderIds,
-    required this.myProfile,
     required this.myUserId,
     required this.onEditCommitment,
     required this.isAuthorView,
@@ -685,16 +660,10 @@ class _TabSection extends StatefulWidget {
     this.initialTabIndex = 0,
   });
 
+  final Beacon beacon;
   final int initialTabIndex;
   final List<TimelineEntry> timeline;
   final List<TimelineCommitment> commitments;
-  final InboxProvenance forwardProvenance;
-  final String inboxLatestNotePreview;
-  final List<ForwardEdge> myForwards;
-  final Set<String> involvementCommittedIds;
-  final Set<String> involvementWatchingIds;
-  final Set<String> involvementOnwardForwarderIds;
-  final Profile myProfile;
   final String myUserId;
   final Future<void> Function(TimelineCommitment) onEditCommitment;
   final bool isAuthorView;
@@ -734,6 +703,7 @@ class _TabSectionState extends State<_TabSection>
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final beacon = widget.beacon;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -743,7 +713,7 @@ class _TabSectionState extends State<_TabSection>
           tabs: [
             Tab(text: l10n.labelTimeline),
             Tab(text: l10n.labelCommitments),
-            Tab(text: l10n.labelForwards),
+            Tab(text: l10n.beaconDetailsSection),
           ],
         ),
         const SizedBox(height: kSpacingSmall),
@@ -787,250 +757,33 @@ class _TabSectionState extends State<_TabSection>
                   : null,
             ),
         ] else ...[
-          Padding(
-            padding: kPaddingSmallV,
-            child: Wrap(
-              spacing: kSpacingSmall,
-              runSpacing: kSpacingSmall,
-              children: [
-                BeaconCardPill(
-                  label: l10n.beaconForwardsCount(
-                    widget.forwardProvenance.totalDistinctSenders,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BeaconInfo(
+                key: ValueKey(beacon),
+                beacon: beacon,
+                isTitleLarge: true,
+                isShowMoreEnabled: false,
+                isShowBeaconEnabled: false,
+                showTitle: false,
+              ),
+              if (beacon.context.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: kSpacingSmall),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Chip(
+                      label: Text(beacon.context.trim()),
+                    ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
-          if (widget.forwardProvenance.senders.isEmpty)
-            Padding(
-              padding: kPaddingSmallV,
-              child: Text(
-                l10n.beaconForwardsEmpty,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            )
-          else
-            InboxForwardProvenancePanel(
-              provenance: widget.forwardProvenance,
-              latestNotePreview: widget.inboxLatestNotePreview,
-              recipient: widget.myProfile,
-            ),
-          if (widget.myForwards.isNotEmpty) ...[
-            const SizedBox(height: kSpacingMedium),
-            _MyForwardsSection(
-              edges: widget.myForwards,
-              involvementCommittedIds: widget.involvementCommittedIds,
-              involvementWatchingIds: widget.involvementWatchingIds,
-              involvementOnwardForwarderIds:
-                  widget.involvementOnwardForwarderIds,
-            ),
-          ],
         ],
       ],
     );
   }
-}
-
-class _MyForwardsSection extends StatelessWidget {
-  const _MyForwardsSection({
-    required this.edges,
-    required this.involvementCommittedIds,
-    required this.involvementWatchingIds,
-    required this.involvementOnwardForwarderIds,
-  });
-
-  final List<ForwardEdge> edges;
-  final Set<String> involvementCommittedIds;
-  final Set<String> involvementWatchingIds;
-  final Set<String> involvementOnwardForwarderIds;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          l10n.myForwardsSectionLabel,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: kSpacingSmall),
-        for (final edge in edges)
-          Padding(
-            padding: const EdgeInsets.only(bottom: kSpacingSmall),
-            child: _MyForwardTile(
-              edge: edge,
-              involvementCommittedIds: involvementCommittedIds,
-              involvementWatchingIds: involvementWatchingIds,
-              involvementOnwardForwarderIds: involvementOnwardForwarderIds,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _MyForwardTile extends StatelessWidget {
-  const _MyForwardTile({
-    required this.edge,
-    required this.involvementCommittedIds,
-    required this.involvementWatchingIds,
-    required this.involvementOnwardForwarderIds,
-  });
-
-  final ForwardEdge edge;
-  final Set<String> involvementCommittedIds;
-  final Set<String> involvementWatchingIds;
-  final Set<String> involvementOnwardForwarderIds;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final sender = edge.sender;
-    final recipient = edge.recipient;
-    final isDeclined = edge.recipientRejected;
-    final recipientOverlay = _myForwardRecipientOverlayIcon(
-      edge: edge,
-      involvementCommittedIds: involvementCommittedIds,
-      involvementWatchingIds: involvementWatchingIds,
-      involvementOnwardForwarderIds: involvementOnwardForwarderIds,
-      scheme: scheme,
-    );
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: kPaddingAllS,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                PlainMiniAvatar(
-                  profile: sender,
-                  size: 32,
-                ),
-                const SizedBox(width: kSpacingSmall),
-                Flexible(
-                  child: Text(
-                    sender.title,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Icon(
-                    Icons.arrow_forward,
-                    size: 14,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      PlainMiniAvatar(
-                        profile: recipient,
-                        size: 32,
-                        overlay: recipientOverlay,
-                      ),
-                      const SizedBox(width: kSpacingSmall),
-                      Expanded(
-                        child: Text(
-                          recipient.title,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (edge.note.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(
-                '"${edge.note}"',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontStyle: FontStyle.italic,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            if (isDeclined) ...[
-              const SizedBox(height: 4),
-              Text(
-                edge.recipientRejectionMessage.isNotEmpty
-                    ? l10n.myForwardDeclinedWithReason(
-                        edge.recipientRejectionMessage,
-                      )
-                    : l10n.myForwardDeclined,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.error,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Same icon vocabulary as [ForwardCandidateTile] trailing icons.
-/// Single overlay: rejected > committed > onwardForwarder > watching.
-Widget? _myForwardRecipientOverlayIcon({
-  required ForwardEdge edge,
-  required Set<String> involvementCommittedIds,
-  required Set<String> involvementWatchingIds,
-  required Set<String> involvementOnwardForwarderIds,
-  required ColorScheme scheme,
-}) {
-  final id = edge.recipient.id;
-
-  if (edge.recipientRejected) {
-    return Icon(Icons.block, size: 16, color: scheme.error);
-  }
-  if (involvementCommittedIds.contains(id)) {
-    return Icon(Icons.check_circle_outline, size: 16, color: scheme.tertiary);
-  }
-  if (involvementOnwardForwarderIds.contains(id)) {
-    return Icon(
-      Icons.forward_to_inbox,
-      size: 16,
-      color: scheme.onSurfaceVariant,
-    );
-  }
-  if (involvementWatchingIds.contains(id)) {
-    return Icon(
-      Icons.visibility_outlined,
-      size: 16,
-      color: scheme.onSurfaceVariant,
-    );
-  }
-  return null;
 }
 
 Future<void> _showPostAuthorUpdateSheet(
