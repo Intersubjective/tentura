@@ -121,11 +121,13 @@ jobs:
           mkdir -p web-build-output
           cp web-dev-*.tar.gz web-build-output/web-dev.tar.gz
 
+      # Unique key per commit: GitHub refuses to overwrite an existing cache key, so a
+      # static key (e.g. web-build-main) would never pick up newer web builds after the first save.
       - name: Cache web build for deploy
         uses: actions/cache/save@v5
         with:
           path: web-build-output
-          key: web-build-main
+          key: web-build-${{ github.sha }}
 
   build-server:
     runs-on: ubuntu-latest
@@ -184,11 +186,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Prefer tarball built for this exact commit; fall back to latest web-build-* entry.
       - name: Restore web build from cache
         uses: actions/cache/restore@v5
         with:
           path: web-build-output
-          key: web-build-main
+          key: web-build-${{ github.sha }}
+          restore-keys: |
+            web-build-
 
       - name: Prepare web archive for deploy
         id: archive-name
