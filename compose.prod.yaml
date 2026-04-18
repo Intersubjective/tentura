@@ -3,17 +3,14 @@
 # For local development use compose.dev.yaml (Tentura on the host, host-networked edge).
 name: tentura
 
-services:
-  common:
-    init: true
-    image: alpine:3.20
-    restart: unless-stopped
-    networks:
-      - backend
+# Extension field: shared fragment — no dummy container, no restart loop.
+x-common: &common
+  init: true
+  restart: unless-stopped
 
+services:
   proxy:
-    extends:
-      service: common
+    <<: *common
     hostname: proxy
     container_name: proxy
     image: caddy:alpine
@@ -32,6 +29,7 @@ services:
       - 443:443/tcp
     networks:
       - frontend
+      - backend
     environment:
       - SERVER_NAME
       - ACME_EMAIL
@@ -40,8 +38,7 @@ services:
       - 'CADDY_AGREE=true'
 
   hasura:
-    extends:
-      service: common
+    <<: *common
     hostname: hasura
     container_name: hasura
     image: hasura/graphql-engine
@@ -51,6 +48,8 @@ services:
     depends_on:
       - tentura
       - postgres
+    networks:
+      - backend
     environment:
       - HASURA_GRAPHQL_ADMIN_SECRET
       - 'HASURA_GRAPHQL_ENABLE_TELEMETRY=false'
@@ -64,14 +63,15 @@ services:
       - 'TENTURA_GRAPHQL_URL=http://tentura:2080/api/v2/graphql'
 
   postgres:
-    extends:
-      service: common
+    <<: *common
     hostname: postgres
     container_name: postgres
     image: vbulavintsev/postgres-tentura:v0.8.0
-    # No host ports: reachable only from frontend services on `backend`.
+    # No host ports: reachable only from services on `backend`.
     depends_on:
       - meritrank
+    networks:
+      - backend
     volumes:
       - ./pg_data:/var/lib/postgresql/data
     environment:
@@ -82,13 +82,14 @@ services:
       driver: journald
 
   meritrank:
-    extends:
-      service: common
+    <<: *common
     hostname: meritrank
     container_name: meritrank
     image: vbulavintsev/meritrank-service:v0.8.0
     security_opt:
       - no-new-privileges:true
+    networks:
+      - backend
     environment:
       - 'MERITRANK_SERVER_ADDRESS=0.0.0.0'
       - 'MERITRANK_SERVER_PORT=8080'
@@ -99,8 +100,7 @@ services:
       driver: journald
 
   tentura:
-    extends:
-      service: common
+    <<: *common
     hostname: tentura
     container_name: tentura
     image: ghcr.io/intersubjective/tentura-server:latest
@@ -110,6 +110,7 @@ services:
       - postgres
     networks:
       - frontend
+      - backend
     environment:
       - 'DEBUG_MODE=false'
       - SERVER_NAME
