@@ -19,7 +19,8 @@ abstract final class SelfUserHighlight {
   static TextStyle selfNameStyle(ThemeData theme) {
     final scheme = theme.colorScheme;
     return TextStyle(
-      color: scheme.tertiary,
+      // Same accent as [wrapSmallAvatar] ring (tertiary defaults are off-theme).
+      color: scheme.primary,
       fontWeight: FontWeight.w600,
     );
   }
