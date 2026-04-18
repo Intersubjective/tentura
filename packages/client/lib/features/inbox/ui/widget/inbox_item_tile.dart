@@ -4,37 +4,35 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/beacon_card_stats_row.dart';
-import 'package:tentura/ui/widget/side_outline_cta_button.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart'
     show l10nInboxNewStuffReasons;
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import '../../domain/entity/inbox_item.dart';
+import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
-import 'inbox_forward_provenance_panel.dart';
+import 'inbox_card_action_row.dart';
+import 'inbox_card_deadline_pill.dart';
+import 'inbox_card_meta_chips.dart';
+import 'inbox_card_note_quote.dart';
+import 'inbox_card_provenance_row.dart';
 
-String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
-  BeaconLifecycle.open => l10n.beaconLifecycleOpen,
-  BeaconLifecycle.closed => l10n.beaconLifecycleClosed,
-  BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
-  BeaconLifecycle.draft => l10n.beaconLifecycleDraft,
-  BeaconLifecycle.pendingReview => l10n.beaconLifecyclePendingReview,
-  BeaconLifecycle.closedReviewOpen => l10n.beaconLifecycleClosedReviewOpen,
-  BeaconLifecycle.closedReviewComplete =>
-    l10n.beaconLifecycleClosedReviewComplete,
-};
+String _relayNotePreview(InboxProvenance p, String latestNotePreview) {
+  if (p.senders.isNotEmpty) {
+    final n = p.senders.first.notePreview;
+    if (n.isNotEmpty) return n;
+  }
+  if (p.strongestNotePreview.isNotEmpty) return p.strongestNotePreview;
+  return latestNotePreview;
+}
 
 class InboxItemTile extends StatelessWidget {
   const InboxItemTile({
@@ -59,6 +57,7 @@ class InboxItemTile extends StatelessWidget {
   final VoidCallback? onStopWatching;
   final Future<void> Function()? onCantHelp;
   final VoidCallback? onMoveToInbox;
+
   /// Commit to this beacon (same flow as beacon view); null hides the menu item.
   final Future<void> Function()? onCommit;
 
@@ -77,6 +76,13 @@ class InboxItemTile extends StatelessWidget {
     if (onCantHelp != null) return l10n.inboxActionNotForMe;
     if (onStopWatching != null) return l10n.actionStopWatching;
     if (onMoveToInbox != null) return l10n.actionMoveToInbox;
+    return null;
+  }
+
+  IconData? _secondaryIcon() {
+    if (onCantHelp != null) return Icons.close;
+    if (onStopWatching != null) return Icons.visibility_off_outlined;
+    if (onMoveToInbox != null) return Icons.inbox_outlined;
     return null;
   }
 
@@ -101,92 +107,56 @@ class InboxItemTile extends StatelessWidget {
     if (beacon == null) return const SizedBox.shrink();
 
     final secondaryLabel = _secondaryLabel(l10n);
-
-    final hasProvenanceBody = item.provenance.senders.isNotEmpty;
-
-    final beaconStatePills = <Widget>[
-      if (beacon.lifecycle != BeaconLifecycle.open)
-        BeaconCardPill(label: _lifecycleLabel(l10n, beacon.lifecycle)),
-      if (beacon.coordinationStatus !=
-              BeaconCoordinationStatus.noCommitmentsYet &&
-          beacon.coordinationStatus !=
-              BeaconCoordinationStatus.commitmentsWaitingForReview)
-        BeaconCardPill(
-          label: coordinationStatusLabel(l10n, beacon.coordinationStatus),
-          backgroundColor: scheme.surfaceContainerHigh,
-          foregroundColor: scheme.onSurfaceVariant,
-        ),
-    ];
-
-    final inboxRolePills = <Widget>[
-      if (item.isForwardedByMe)
-        BeaconCardPill(label: l10n.inboxForwardedByMe),
-    ];
-
-    final allPills = <Widget>[
-      ...beaconStatePills,
-      ...inboxRolePills,
-    ];
+    final secondaryIcon = _secondaryIcon();
 
     final showNewStuffDot = inboxHighlight != InboxRowHighlightKind.none;
+    final hasProvenance = showProvenance && item.provenance.senders.isNotEmpty;
+    final notePreview = hasProvenance
+        ? _relayNotePreview(item.provenance, item.latestNotePreview)
+        : '';
+
+    const cardPadding = EdgeInsets.fromLTRB(12, 10, 12, 10);
 
     return BeaconCardShell(
+      padding: cardPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              BeaconIdentityTile(beacon: beacon, size: 40),
+              const SizedBox(width: kSpacingSmall),
               Expanded(
                 child: GestureDetector(
                   onTap: onOpenBeacon,
                   behavior: HitTestBehavior.translucent,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      BeaconCardHeaderRow(
-                        beacon: beacon,
-                        titleMaxLines: 2,
-                        subline: BeaconCardAuthorSubline(author: beacon.author),
-                        menu: const SizedBox.shrink(),
+                      Text(
+                        beacon.title.isEmpty ? '—' : beacon.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (beacon.description.isNotEmpty) ...[
-                        const SizedBox(height: kSpacingSmall),
-                        Text(
-                          beacon.description,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.35,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      if (allPills.isNotEmpty) ...[
-                        const SizedBox(height: kSpacingSmall),
-                        Wrap(
-                          spacing: kSpacingSmall,
-                          runSpacing: kSpacingSmall,
-                          children: allPills,
-                        ),
-                      ],
-                      BeaconCardStatsRow(beacon: beacon),
-                      if (item.status == InboxItemStatus.rejected &&
-                          item.rejectionMessage.isNotEmpty) ...[
-                        const SizedBox(height: kSpacingSmall),
-                        Text(
-                          item.rejectionMessage,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                      const SizedBox(height: 2),
+                      BeaconCardAuthorSubline(
+                        author: beacon.author,
+                        avatarSize: 20,
+                      ),
                     ],
                   ),
                 ),
               ),
+              if (beacon.endAt != null) ...[
+                const SizedBox(width: 6),
+                InboxCardDeadlinePill(endAt: beacon.endAt),
+              ],
+              const SizedBox(width: 4),
               BeaconOverflowMenu(
                 beacon: beacon,
                 onOpenBeacon: onOpenBeacon,
@@ -210,109 +180,84 @@ class InboxItemTile extends StatelessWidget {
               ),
             ],
           ),
+          if (hasProvenance) ...[
+            const SizedBox(height: 6),
+            InboxCardProvenanceRow(
+              provenance: item.provenance,
+              coordinationStatus: beacon.coordinationStatus,
+            ),
+          ],
+          if (hasProvenance && notePreview.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            InboxCardNoteQuote(text: notePreview),
+          ],
+          const SizedBox(height: 8),
+          InboxCardMetaChips(beacon: beacon, item: item),
+          if (item.status == InboxItemStatus.rejected &&
+              item.rejectionMessage.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              item.rejectionMessage,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
           if (showNewStuffDot)
             BlocBuilder<NewStuffCubit, NewStuffState>(
               buildWhen: (p, c) => p.inboxLastSeenMs != c.inboxLastSeenMs,
               builder: (context, _) {
-                final seen = context.read<NewStuffCubit>().state.inboxLastSeenMs;
-                final labels =
-                    l10nInboxNewStuffReasons(L10n.of(context)!, item.newStuffReasons(seen));
+                final seen = context
+                    .read<NewStuffCubit>()
+                    .state
+                    .inboxLastSeenMs;
+                final labels = l10nInboxNewStuffReasons(
+                  L10n.of(context)!,
+                  item.newStuffReasons(seen),
+                );
                 final at = DateTime.fromMillisecondsSinceEpoch(
                   item.newStuffActivityEpochMs,
                 );
                 final whenLine = l10n.myWorkUpdatedLine(
                   '${dateFormatYMD(at)} ${timeFormatHm(at)}',
                 );
+                final summary = labels.isEmpty
+                    ? whenLine
+                    : '$whenLine · ${labels.join(' · ')}';
                 final style = theme.textTheme.labelSmall?.copyWith(
                   color: scheme.outline,
                 );
                 return Padding(
-                  padding: const EdgeInsets.only(top: kSpacingSmall),
-                  child: Column(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const NewStuffDot(
-                            padding: EdgeInsets.only(right: 8, top: 2),
-                          ),
-                          Expanded(
-                            child: Text(
-                              whenLine,
-                              style: style,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                      const NewStuffDot(
+                        padding: EdgeInsets.only(right: 6, top: 2),
                       ),
-                      if (labels.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 22, top: 4),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              for (final line in labels)
-                                Text(line, style: style),
-                            ],
-                          ),
+                      Expanded(
+                        child: Text(
+                          summary,
+                          style: style,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                      ),
                     ],
                   ),
                 );
               },
             ),
-          if (hasProvenanceBody && showProvenance) ...[
-            const SizedBox(height: kSpacingSmall),
-            InboxForwardProvenancePanel(
-              provenance: item.provenance,
-              latestNotePreview: item.latestNotePreview,
-              recipient: GetIt.I<ProfileCubit>().state.profile,
-            ),
-          ],
           if (showCtaRow) ...[
-            const SizedBox(height: kSpacingSmall),
-            Row(
-              children: [
-                if (secondaryLabel != null) ...[
-                  SideOutlineCtaButton(
-                    label: secondaryLabel,
-                    icon: onCantHelp != null
-                        ? Icons.close
-                        : onStopWatching != null
-                            ? Icons.visibility_off_outlined
-                            : Icons.inbox_outlined,
-                    onPressed: _onSecondaryPressed,
-                  ),
-                  const SizedBox(width: kSpacingSmall),
-                ],
-                if (onCommit != null) ...[
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () async {
-                        await onCommit?.call();
-                      },
-                      icon: const Icon(Icons.handshake),
-                      label: Text(l10n.labelCommit),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: kSpacingSmall),
-                ],
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onTap,
-                    icon: const Icon(Icons.send),
-                    label: Text(l10n.labelForward),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 8),
+            InboxCardActionRow(
+              onCommit: onCommit,
+              onForward: onTap,
+              secondaryLabel: secondaryLabel,
+              secondaryIcon: secondaryIcon,
+              onSecondary: secondaryLabel != null ? _onSecondaryPressed : null,
             ),
           ],
         ],

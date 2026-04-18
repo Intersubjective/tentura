@@ -1134,6 +1134,58 @@
       }
     }
   },
+  "inboxDeadlinePillUnderHour": "<1h",
+  "@inboxDeadlinePillUnderHour": {
+    "context": "InboxItemTile"
+  },
+  "inboxDeadlinePillHours": "{hours}h",
+  "@inboxDeadlinePillHours": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxDeadlinePillDays": "{days}d",
+  "@inboxDeadlinePillDays": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxFromForwarder": "From {name}",
+  "@inboxFromForwarder": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inboxFromForwarderPlus": "From {name} +{rest}",
+  "@inboxFromForwarderPlus": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "rest": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxForwardCount": "{count, plural, one{1 forward} other{{count} forwards}}",
+  "@inboxForwardCount": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "inboxCategoryGeneral": "General",
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"

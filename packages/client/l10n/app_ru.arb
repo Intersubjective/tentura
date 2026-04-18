@@ -1134,6 +1134,58 @@
       }
     }
   },
+  "inboxDeadlinePillUnderHour": "<1ч",
+  "@inboxDeadlinePillUnderHour": {
+    "context": "InboxItemTile"
+  },
+  "inboxDeadlinePillHours": "{hours}ч",
+  "@inboxDeadlinePillHours": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxDeadlinePillDays": "{days}д",
+  "@inboxDeadlinePillDays": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxFromForwarder": "От {name}",
+  "@inboxFromForwarder": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inboxFromForwarderPlus": "От {name} +{rest}",
+  "@inboxFromForwarderPlus": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "rest": {
+        "type": "int"
+      }
+    }
+  },
+  "inboxForwardCount": "{count, plural, one{1 пересылка} few{{count} пересылки} many{{count} пересылок} other{{count} пересылок}}",
+  "@inboxForwardCount": {
+    "context": "InboxItemTile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "inboxCategoryGeneral": "Общее",
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"
