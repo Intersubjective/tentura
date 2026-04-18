@@ -5,15 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_card_stats_row.dart';
 import 'package:tentura/ui/widget/beacon_photo_count.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
@@ -90,12 +89,6 @@ Widget _myWorkFooterActivityBlock({
   );
 }
 
-/// Beacon context for the stats row first column (matches inbox category column).
-String _beaconCategoryLabel(Beacon b, L10n l10n) {
-  final c = b.context.trim();
-  return c.isEmpty ? l10n.inboxCategoryGeneral : c;
-}
-
 Widget _myWorkNewStuffDot(BuildContext context, MyWorkCardHighlightKind kind) {
   if (kind == MyWorkCardHighlightKind.none) {
     return const SizedBox.shrink();
@@ -169,14 +162,6 @@ void _openEditDraft(BuildContext context, String id) {
   );
 }
 
-void _openBeaconCommitmentsTab(BuildContext context, String id) {
-  unawaited(
-    context.router.pushPath(
-      '$kPathBeaconView/$id?$kQueryBeaconViewTab=commitments',
-    ),
-  );
-}
-
 void _openReviewContributions(BuildContext context, String id) {
   unawaited(context.router.pushPath('$kPathReviewContributions/$id'));
 }
@@ -198,7 +183,6 @@ class _AuthoredActiveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final b = vm.beacon;
 
     String? attentionLabel(MyWorkAttentionChip c) => switch (c) {
@@ -207,8 +191,6 @@ class _AuthoredActiveCard extends StatelessWidget {
       MyWorkAttentionChip.moreHelpNeeded => l10n.myWorkChipMoreHelp,
     };
 
-    final categoryLabel = _beaconCategoryLabel(b, l10n);
-    final hoursRemaining = beaconCardDeadlineRemainingMeta(l10n, b.endAt);
     final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
 
@@ -231,7 +213,7 @@ class _AuthoredActiveCard extends StatelessWidget {
               ),
               if (vm.showReviewCommitmentsCta)
                 FilledButton.tonal(
-                  onPressed: () => _openBeaconCommitmentsTab(context, b.id),
+                  onPressed: () => _openBeacon(context, b.id),
                   child: Text(l10n.myWorkReviewCommitmentsCta),
                 ),
             ],
@@ -363,71 +345,7 @@ class _AuthoredActiveCard extends StatelessWidget {
                 BeaconCardPill(label: l10n.myWorkChipForwarded),
             ],
           ),
-          const SizedBox(height: kSpacingSmall),
-          Divider(
-            height: 1,
-            thickness: 1,
-            color: scheme.outlineVariant.withValues(alpha: 0.35),
-          ),
-          const SizedBox(height: kSpacingSmall),
-          Wrap(
-            spacing: kSpacingMedium,
-            runSpacing: kSpacingSmall,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              BeaconCardMetaItem(
-                icon: Icons.topic_outlined,
-                child: Text(
-                  categoryLabel,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              BeaconCardMetaItem(
-                icon: Icons.groups_outlined,
-                child: Text(
-                  l10n.beaconCardCommitmentCount(b.commitmentCount),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (hoursRemaining != null)
-                BeaconCardMetaItem(
-                  icon: Icons.timer_outlined,
-                  child: Text(
-                    hoursRemaining.text,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: hoursRemaining.urgent
-                          ? scheme.error
-                          : scheme.onSurfaceVariant,
-                      fontWeight: hoursRemaining.urgent
-                          ? FontWeight.w600
-                          : null,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              if (b.images.isNotEmpty)
-                BeaconCardMetaItem(
-                  icon: Icons.photo_library_outlined,
-                  child: Text(
-                    b.images.length > 99 ? '99+' : '${b.images.length}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-            ],
-          ),
+          BeaconCardStatsRow(beacon: b),
         ],
       ),
     );
@@ -476,14 +394,11 @@ class _CommittedActiveCard extends StatelessWidget {
               activityWhenLine: activityWhenLine,
             ),
           ),
-          if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
-          if (vm.showReviewCta) ...[
-            if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
+          if (vm.showReviewCta)
             FilledButton.tonal(
               onPressed: () => _openReviewContributions(context, b.id),
               child: Text(l10n.myWorkReviewCta),
             ),
-          ],
         ],
       ),
       child: Column(
@@ -524,6 +439,7 @@ class _CommittedActiveCard extends StatelessWidget {
                 BeaconCardPill(label: l10n.myWorkChipForwarded),
             ],
           ),
+          BeaconCardStatsRow(beacon: b),
           if (b.context.trim().isNotEmpty) ...[
             const SizedBox(height: kSpacingSmall),
             BeaconCardMetaItem(
@@ -797,6 +713,7 @@ class _ClosedAuthoredCard extends StatelessWidget {
                 BeaconCardPill(label: l10n.myWorkChipForwarded),
             ],
           ),
+          BeaconCardStatsRow(beacon: b),
           const SizedBox(height: kSpacingSmall),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -809,7 +726,6 @@ class _ClosedAuthoredCard extends StatelessWidget {
                   activityWhenLine: activityWhenLine,
                 ),
               ),
-              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
             ],
           ),
         ],
@@ -882,6 +798,7 @@ class _ClosedCommittedCard extends StatelessWidget {
                 BeaconCardPill(label: l10n.myWorkChipForwarded),
             ],
           ),
+          BeaconCardStatsRow(beacon: b),
           const SizedBox(height: kSpacingSmall),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -894,7 +811,6 @@ class _ClosedCommittedCard extends StatelessWidget {
                   activityWhenLine: activityWhenLine,
                 ),
               ),
-              if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
             ],
           ),
         ],

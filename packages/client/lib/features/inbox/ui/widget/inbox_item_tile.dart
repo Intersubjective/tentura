@@ -9,10 +9,10 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_card_stats_row.dart';
 import 'package:tentura/ui/widget/side_outline_cta_button.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
@@ -35,14 +35,6 @@ String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
   BeaconLifecycle.closedReviewComplete =>
     l10n.beaconLifecycleClosedReviewComplete,
 };
-
-/// Beacon **context** for inbox metadata (first column); not tags.
-String _beaconContextCategoryLabel(InboxItem item, L10n l10n) {
-  final beacon = item.beacon;
-  if (beacon == null) return l10n.inboxCategoryGeneral;
-  final c = beacon.context.trim();
-  return c.isEmpty ? l10n.inboxCategoryGeneral : c;
-}
 
 class InboxItemTile extends StatelessWidget {
   const InboxItemTile({
@@ -108,8 +100,6 @@ class InboxItemTile extends StatelessWidget {
     final beacon = item.beacon;
     if (beacon == null) return const SizedBox.shrink();
 
-    final contextCategoryLabel = _beaconContextCategoryLabel(item, l10n);
-    final hoursRemaining = beaconCardDeadlineRemainingMeta(l10n, beacon.endAt);
     final secondaryLabel = _secondaryLabel(l10n);
 
     final hasProvenanceBody = item.provenance.senders.isNotEmpty;
@@ -180,77 +170,7 @@ class InboxItemTile extends StatelessWidget {
                           children: allPills,
                         ),
                       ],
-                      const SizedBox(height: kSpacingSmall),
-                      Divider(
-                        height: 1,
-                        thickness: 1,
-                        color: scheme.outlineVariant.withValues(
-                          alpha: 0.35,
-                        ),
-                      ),
-                      const SizedBox(height: kSpacingSmall),
-                      Wrap(
-                        spacing: kSpacingMedium,
-                        runSpacing: kSpacingSmall,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          BeaconCardMetaItem(
-                            icon: Icons.topic_outlined,
-                            child: Text(
-                              contextCategoryLabel,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          BeaconCardMetaItem(
-                            icon: Icons.groups_outlined,
-                            child: Text(
-                              l10n.beaconCardCommitmentCount(
-                                beacon.commitmentCount,
-                              ),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (hoursRemaining != null)
-                            BeaconCardMetaItem(
-                              icon: Icons.timer_outlined,
-                              child: Text(
-                                hoursRemaining.text,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: hoursRemaining.urgent
-                                      ? scheme.error
-                                      : scheme.onSurfaceVariant,
-                                  fontWeight: hoursRemaining.urgent
-                                      ? FontWeight.w600
-                                      : null,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          if (beacon.images.isNotEmpty)
-                            BeaconCardMetaItem(
-                              icon: Icons.photo_library_outlined,
-                              child: Text(
-                                beacon.images.length > 99
-                                    ? '99+'
-                                    : '${beacon.images.length}',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                        ],
-                      ),
+                      BeaconCardStatsRow(beacon: beacon),
                       if (item.status == InboxItemStatus.rejected &&
                           item.rejectionMessage.isNotEmpty) ...[
                         const SizedBox(height: kSpacingSmall),
