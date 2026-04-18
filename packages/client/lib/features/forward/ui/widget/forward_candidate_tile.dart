@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
@@ -123,16 +125,39 @@ class ForwardCandidateTile extends StatelessWidget {
     final canSelect = candidate.canForwardTo;
     return ListTile(
       enabled: canSelect,
-      leading: AvatarRated(
+      leading: SelfAwareAvatar(
         profile: candidate.profile,
       ),
-      title: Text(
-        candidate.title,
-        style: canSelect
-            ? null
-            : theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+      title: BlocBuilder<ProfileCubit, ProfileState>(
+        buildWhen: (p, c) => p.profile.id != c.profile.id,
+        builder: (context, state) {
+          return Text(
+            SelfUserHighlight.displayName(
+              l10n,
+              candidate.profile,
+              state.profile.id,
+            ),
+            style: canSelect
+                ? SelfUserHighlight.nameStyle(
+                    theme,
+                    theme.textTheme.bodyLarge,
+                    SelfUserHighlight.profileIsSelf(
+                      candidate.profile,
+                      state.profile.id,
+                    ),
+                  )
+                : SelfUserHighlight.nameStyle(
+                    theme,
+                    theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    SelfUserHighlight.profileIsSelf(
+                      candidate.profile,
+                      state.profile.id,
+                    ),
+                  ),
+          );
+        },
       ),
       subtitle: subtitleWidget,
       isThreeLine:

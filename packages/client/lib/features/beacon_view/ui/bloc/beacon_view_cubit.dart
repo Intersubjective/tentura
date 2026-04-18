@@ -17,6 +17,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
 import '../../domain/use_case/beacon_view_case.dart';
+import '../message/beacon_update_messages.dart';
 import '../message/commitment_messages.dart';
 import 'beacon_view_state.dart';
 
@@ -409,7 +410,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _case.editBeaconAuthorUpdate(id: id, content: content);
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      if (e.toString().contains('Update edit window has expired')) {
+        emit(
+          state.copyWith(
+            status: StateIsMessaging(const BeaconUpdateEditExpiredMessage()),
+          ),
+        );
+      } else {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
     }
   }
 

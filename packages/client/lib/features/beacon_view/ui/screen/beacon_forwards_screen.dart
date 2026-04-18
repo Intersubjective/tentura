@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/ui/widget/inbox_forward_provenance_panel.dart';
@@ -11,9 +12,10 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../bloc/beacon_view_cubit.dart';
-import '../widget/plain_mini_avatar.dart';
+import '../widget/self_aware_plain_mini_avatar.dart';
 
 @RoutePage()
 class BeaconForwardsScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -221,54 +223,80 @@ class _MyForwardTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                PlainMiniAvatar(
-                  profile: sender,
-                  size: 32,
-                ),
-                const SizedBox(width: kSpacingSmall),
-                Flexible(
-                  child: Text(
-                    sender.title,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+            BlocBuilder<ProfileCubit, ProfileState>(
+              buildWhen: (p, c) => p.profile.id != c.profile.id,
+              builder: (context, state) {
+                final baseName = theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                );
+                return Row(
+                  children: [
+                    SelfAwarePlainMiniAvatar(
+                      profile: sender,
+                      size: 32,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Icon(
-                    Icons.arrow_forward,
-                    size: 14,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      PlainMiniAvatar(
-                        profile: recipient,
-                        size: 32,
-                        overlay: recipientOverlay,
-                      ),
-                      const SizedBox(width: kSpacingSmall),
-                      Expanded(
-                        child: Text(
-                          recipient.title,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: kSpacingSmall),
+                    Flexible(
+                      child: Text(
+                        SelfUserHighlight.displayName(
+                          l10n,
+                          sender,
+                          state.profile.id,
                         ),
+                        style: SelfUserHighlight.nameStyle(
+                          theme,
+                          baseName,
+                          SelfUserHighlight.profileIsSelf(
+                            sender,
+                            state.profile.id,
+                          ),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.arrow_forward,
+                        size: 14,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          SelfAwarePlainMiniAvatar(
+                            profile: recipient,
+                            size: 32,
+                            overlay: recipientOverlay,
+                          ),
+                          const SizedBox(width: kSpacingSmall),
+                          Expanded(
+                            child: Text(
+                              SelfUserHighlight.displayName(
+                                l10n,
+                                recipient,
+                                state.profile.id,
+                              ),
+                              style: SelfUserHighlight.nameStyle(
+                                theme,
+                                baseName,
+                                SelfUserHighlight.profileIsSelf(
+                                  recipient,
+                                  state.profile.id,
+                                ),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             if (edge.note.isNotEmpty) ...[
               const SizedBox(height: 2),

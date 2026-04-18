@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/chat_cubit.dart';
@@ -55,44 +57,61 @@ class ChatScreen extends StatelessWidget implements AutoRouteWrapper {
             presence: state.friendPresence,
             isTyping: state.peerIsTyping,
           );
-          return Row(
-            children: [
-              InkWell(
-                onTap: () =>
-                    context.read<ScreenCubit>().showProfile(profile.id),
-                customBorder: const CircleBorder(),
-                child: AvatarRated(
-                  profile: profile,
-                  size: 32,
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: kPaddingH,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        profile.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      if (subtitle.isNotEmpty)
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
+          return BlocBuilder<ProfileCubit, ProfileState>(
+            buildWhen: (p, c) => p.profile.id != c.profile.id,
+            builder: (context, profState) {
+              final isSelf = SelfUserHighlight.profileIsSelf(
+                profile,
+                profState.profile.id,
+              );
+              return Row(
+                children: [
+                  InkWell(
+                    onTap: () =>
+                        context.read<ScreenCubit>().showProfile(profile.id),
+                    customBorder: const CircleBorder(),
+                    child: SelfAwareAvatar(
+                      profile: profile,
+                      size: 32,
+                    ),
                   ),
-                ),
-              ),
-            ],
+                  Expanded(
+                    child: Padding(
+                      padding: kPaddingH,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            SelfUserHighlight.displayName(
+                              l10n,
+                              profile,
+                              profState.profile.id,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: SelfUserHighlight.nameStyle(
+                              theme,
+                              theme.textTheme.titleMedium,
+                              isSelf,
+                            ),
+                          ),
+                          if (subtitle.isNotEmpty)
+                            Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

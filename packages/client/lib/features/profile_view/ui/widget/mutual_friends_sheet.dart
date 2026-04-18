@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 /// Full-height-ish sheet listing mutual friends (same order as mini-avatars).
 Future<void> showMutualFriendsSheet(
@@ -52,8 +54,27 @@ Future<void> showMutualFriendsSheet(
                       lastSeenAt: profile.presenceLastSeenAt,
                     );
                     return ListTile(
-                      leading: AvatarRated(profile: profile),
-                      title: Text(profile.title),
+                      leading: SelfAwareAvatar(profile: profile),
+                      title: BlocBuilder<ProfileCubit, ProfileState>(
+                        buildWhen: (p, c) => p.profile.id != c.profile.id,
+                        builder: (context, state) {
+                          return Text(
+                            SelfUserHighlight.displayName(
+                              l10n,
+                              profile,
+                              state.profile.id,
+                            ),
+                            style: SelfUserHighlight.nameStyle(
+                              Theme.of(context),
+                              Theme.of(context).textTheme.bodyLarge,
+                              SelfUserHighlight.profileIsSelf(
+                                profile,
+                                state.profile.id,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       subtitle: presenceText.isEmpty
                           ? null
                           : Text(

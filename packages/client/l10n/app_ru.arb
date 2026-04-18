@@ -16,6 +16,11 @@
   "@labelMe": {
     "context": "Utils"
   },
+  "labelYou": "Вы",
+  "@labelYou": {
+    "context": "Utils",
+    "description": "Shown instead of the viewer's display name when labeling the current user"
+  },
   "labelOr": "или",
   "@labelOr": {
     "context": "Utils"
@@ -1488,6 +1493,14 @@
   "@beaconUpdateSavedMessage": {
     "context": "BeaconViewScreen"
   },
+  "beaconUpdateEditWindowHint": "Обновления можно редактировать в течение 1 часа после публикации.",
+  "@beaconUpdateEditWindowHint": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdateEditExpired": "Срок редактирования истёк (1 час после публикации).",
+  "@beaconUpdateEditExpired": {
+    "context": "BeaconViewScreen"
+  },
   "labelCommitted": "Принято",
   "@labelCommitted": {
     "context": "BeaconViewScreen"
@@ -1620,6 +1633,11 @@
   "@labelForwards": {
     "context": "BeaconViewScreen",
     "description": "Tab title for forward trail / notes to the viewer"
+  },
+  "overflowMenuSeeForwards": "Смотреть пересылки",
+  "@overflowMenuSeeForwards": {
+    "context": "BeaconOverflowMenu",
+    "description": "Overflow menu row: navigate to forwards trail screen"
   },
   "beaconForwardsEmpty": "Пока нет цепочки пересылок к вам по этому маяку.",
   "@beaconForwardsEmpty": {

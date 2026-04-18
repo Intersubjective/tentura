@@ -12,11 +12,13 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_photo_count.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
+import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
+import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
@@ -84,27 +86,6 @@ Widget _myWorkFooterActivityBlock({
             ],
           ),
         ),
-    ],
-  );
-}
-
-Widget _inboxStyleAuthorSubline(BuildContext context, Beacon beacon) {
-  final theme = Theme.of(context);
-  final scheme = theme.colorScheme;
-  return Row(
-    children: [
-      AvatarRated(profile: beacon.author, size: 22, withRating: false),
-      const SizedBox(width: 6),
-      Expanded(
-        child: Text(
-          beacon.author.title,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
     ],
   );
 }
@@ -228,6 +209,8 @@ class _AuthoredActiveCard extends StatelessWidget {
 
     final categoryLabel = _beaconCategoryLabel(b, l10n);
     final hoursRemaining = beaconCardDeadlineRemainingMeta(l10n, b.endAt);
+    final repo = GetIt.I<BeaconRepository>();
+    final evaluationRepo = GetIt.I<EvaluationRepository>();
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
@@ -295,8 +278,74 @@ class _AuthoredActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _inboxStyleAuthorSubline(context, b),
-            menu: _AuthoredOverflowMenu(beacon: b),
+            subline: BeaconCardAuthorSubline(author: b.author),
+            menu: BeaconOverflowMenu(
+              beacon: b,
+              onGraph: b.myVote >= 0
+                  ? () => context.read<ScreenCubit>().showGraphFor(b.id)
+                  : null,
+              onShare: () => unawaited(
+                ShareCodeDialog.show(
+                  context,
+                  link: Uri.parse(kServerName).replace(
+                    queryParameters: {'id': b.id},
+                    path: kPathAppLinkView,
+                  ),
+                  header: b.id,
+                ),
+              ),
+              onToggleLifecycle: () async {
+                await Future<void>.delayed(Duration.zero);
+                if (!context.mounted) return;
+                if (b.isListed) {
+                  if (await BeaconCloseConfirmDialog.show(context) != true) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                }
+                try {
+                  final next = b.isListed
+                      ? BeaconLifecycle.closed
+                      : BeaconLifecycle.open;
+                  if (next == BeaconLifecycle.closed &&
+                      b.lifecycle == BeaconLifecycle.open) {
+                    await evaluationRepo.beaconCloseWithReview(b.id);
+                  } else {
+                    await repo.setBeaconLifecycle(next, id: b.id);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    showSnackBar(context, isError: true, text: e.toString());
+                  }
+                }
+              },
+              onEdit: b.lifecycle == BeaconLifecycle.open
+                  ? () => unawaited(
+                        context.router.pushPath(
+                          '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
+                        ),
+                      )
+                  : null,
+              onForward: () => unawaited(
+                context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+              ),
+              onViewForwards: () => unawaited(
+                context.router.pushPath('$kPathBeaconForwards/${b.id}'),
+              ),
+              onDelete: () async {
+                await Future<void>.delayed(Duration.zero);
+                if (!context.mounted) return;
+                if (await BeaconDeleteDialog.show(context) ?? false) {
+                  try {
+                    await repo.delete(b.id);
+                  } catch (e) {
+                    if (context.mounted) {
+                      showSnackBar(context, isError: true, text: e.toString());
+                    }
+                  }
+                }
+              },
+            ),
           ),
           const SizedBox(height: kSpacingSmall),
           Wrap(
@@ -442,8 +491,18 @@ class _CommittedActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _inboxStyleAuthorSubline(context, b),
-            menu: _CommittedOverflowMenu(beaconId: b.id),
+            subline: BeaconCardAuthorSubline(author: b.author),
+            menu: BeaconOverflowMenu(
+              beacon: b,
+              onForward: () => unawaited(
+                context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+              ),
+              onViewForwards: () => unawaited(
+                context.router.pushPath('$kPathBeaconForwards/${b.id}'),
+              ),
+              onComplaint: () =>
+                  context.read<ScreenCubit>().showComplaint(b.id),
+            ),
           ),
           const SizedBox(height: kSpacingSmall),
           Wrap(
@@ -563,8 +622,26 @@ class _DraftAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _inboxStyleAuthorSubline(context, b),
-            menu: _DraftOverflowMenu(beacon: b),
+            subline: BeaconCardAuthorSubline(author: b.author),
+            menu: BeaconOverflowMenu(
+              beacon: b,
+              editActionLabel: l10n.myWorkEditDraft,
+              onEdit: () => _openEditDraft(context, b.id),
+              onDelete: () async {
+                await Future<void>.delayed(Duration.zero);
+                if (!context.mounted) return;
+                final repo = GetIt.I<BeaconRepository>();
+                if (await BeaconDeleteDialog.show(context) ?? false) {
+                  try {
+                    await repo.delete(b.id);
+                  } catch (e) {
+                    if (context.mounted) {
+                      showSnackBar(context, isError: true, text: e.toString());
+                    }
+                  }
+                }
+              },
+            ),
           ),
           const SizedBox(height: kSpacingSmall),
           Wrap(
@@ -621,6 +698,8 @@ class _ClosedAuthoredCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
+    final repo = GetIt.I<BeaconRepository>();
+    final evaluationRepo = GetIt.I<EvaluationRepository>();
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
@@ -639,8 +718,74 @@ class _ClosedAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _inboxStyleAuthorSubline(context, b),
-            menu: _AuthoredOverflowMenu(beacon: b),
+            subline: BeaconCardAuthorSubline(author: b.author),
+            menu: BeaconOverflowMenu(
+              beacon: b,
+              onGraph: b.myVote >= 0
+                  ? () => context.read<ScreenCubit>().showGraphFor(b.id)
+                  : null,
+              onShare: () => unawaited(
+                ShareCodeDialog.show(
+                  context,
+                  link: Uri.parse(kServerName).replace(
+                    queryParameters: {'id': b.id},
+                    path: kPathAppLinkView,
+                  ),
+                  header: b.id,
+                ),
+              ),
+              onToggleLifecycle: () async {
+                await Future<void>.delayed(Duration.zero);
+                if (!context.mounted) return;
+                if (b.isListed) {
+                  if (await BeaconCloseConfirmDialog.show(context) != true) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                }
+                try {
+                  final next = b.isListed
+                      ? BeaconLifecycle.closed
+                      : BeaconLifecycle.open;
+                  if (next == BeaconLifecycle.closed &&
+                      b.lifecycle == BeaconLifecycle.open) {
+                    await evaluationRepo.beaconCloseWithReview(b.id);
+                  } else {
+                    await repo.setBeaconLifecycle(next, id: b.id);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    showSnackBar(context, isError: true, text: e.toString());
+                  }
+                }
+              },
+              onEdit: b.lifecycle == BeaconLifecycle.open
+                  ? () => unawaited(
+                        context.router.pushPath(
+                          '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
+                        ),
+                      )
+                  : null,
+              onForward: () => unawaited(
+                context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+              ),
+              onViewForwards: () => unawaited(
+                context.router.pushPath('$kPathBeaconForwards/${b.id}'),
+              ),
+              onDelete: () async {
+                await Future<void>.delayed(Duration.zero);
+                if (!context.mounted) return;
+                if (await BeaconDeleteDialog.show(context) ?? false) {
+                  try {
+                    await repo.delete(b.id);
+                  } catch (e) {
+                    if (context.mounted) {
+                      showSnackBar(context, isError: true, text: e.toString());
+                    }
+                  }
+                }
+              },
+            ),
           ),
           const SizedBox(height: kSpacingSmall),
           Wrap(
@@ -708,8 +853,18 @@ class _ClosedCommittedCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: _inboxStyleAuthorSubline(context, b),
-            menu: _CommittedOverflowMenu(beaconId: b.id),
+            subline: BeaconCardAuthorSubline(author: b.author),
+            menu: BeaconOverflowMenu(
+              beacon: b,
+              onForward: () => unawaited(
+                context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+              ),
+              onViewForwards: () => unawaited(
+                context.router.pushPath('$kPathBeaconForwards/${b.id}'),
+              ),
+              onComplaint: () =>
+                  context.read<ScreenCubit>().showComplaint(b.id),
+            ),
           ),
           const SizedBox(height: kSpacingSmall),
           Wrap(
@@ -744,173 +899,6 @@ class _ClosedCommittedCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _AuthoredOverflowMenu extends StatelessWidget {
-  const _AuthoredOverflowMenu({required this.beacon});
-
-  final Beacon beacon;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final repo = GetIt.I<BeaconRepository>();
-    final evaluationRepo = GetIt.I<EvaluationRepository>();
-    return PopupMenuButton<void>(
-      icon: const Icon(Icons.more_vert),
-      itemBuilder: (context) => [
-        PopupMenuItem<void>(
-          child: Text(beacon.isListed ? l10n.closeBeacon : l10n.openBeacon),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            if (beacon.isListed) {
-              if (await BeaconCloseConfirmDialog.show(context) != true) {
-                return;
-              }
-              if (!context.mounted) return;
-            }
-            try {
-              final next = beacon.isListed
-                  ? BeaconLifecycle.closed
-                  : BeaconLifecycle.open;
-              if (next == BeaconLifecycle.closed &&
-                  beacon.lifecycle == BeaconLifecycle.open) {
-                await evaluationRepo.beaconCloseWithReview(beacon.id);
-              } else {
-                await repo.setBeaconLifecycle(next, id: beacon.id);
-              }
-            } catch (e) {
-              if (context.mounted) {
-                showSnackBar(context, isError: true, text: e.toString());
-              }
-            }
-          },
-        ),
-        PopupMenuItem<void>(
-          child: Text(l10n.labelForward),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            await context.router.pushPath('$kPathForwardBeacon/${beacon.id}');
-          },
-        ),
-        PopupMenuItem<void>(
-          child: Text(l10n.labelForwards),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            await context.router.pushPath('$kPathBeaconForwards/${beacon.id}');
-          },
-        ),
-        PopupMenuItem<void>(
-          child: Text(l10n.deleteBeacon),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            if (await BeaconDeleteDialog.show(context) ?? false) {
-              try {
-                await repo.delete(beacon.id);
-              } catch (e) {
-                if (context.mounted) {
-                  showSnackBar(context, isError: true, text: e.toString());
-                }
-              }
-            }
-          },
-        ),
-        PopupMenuItem<void>(
-          child: Text(l10n.buttonComplaint),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            context.read<ScreenCubit>().showComplaint(beacon.id);
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _DraftOverflowMenu extends StatelessWidget {
-  const _DraftOverflowMenu({required this.beacon});
-
-  final Beacon beacon;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final repo = GetIt.I<BeaconRepository>();
-    return PopupMenuButton<void>(
-      icon: const Icon(Icons.more_vert),
-      itemBuilder: (context) => [
-        PopupMenuItem<void>(
-          child: Text(l10n.myWorkEditDraft),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            _openEditDraft(context, beacon.id);
-          },
-        ),
-        PopupMenuItem<void>(
-          child: Text(l10n.deleteBeacon),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            if (await BeaconDeleteDialog.show(context) ?? false) {
-              try {
-                await repo.delete(beacon.id);
-              } catch (e) {
-                if (context.mounted) {
-                  showSnackBar(context, isError: true, text: e.toString());
-                }
-              }
-            }
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _CommittedOverflowMenu extends StatelessWidget {
-  const _CommittedOverflowMenu({required this.beaconId});
-
-  final String beaconId;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    return PopupMenuButton<void>(
-      icon: const Icon(Icons.more_vert),
-      itemBuilder: (context) => [
-        PopupMenuItem<void>(
-          child: Text(l10n.labelForward),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            await context.router.pushPath('$kPathForwardBeacon/$beaconId');
-          },
-        ),
-        PopupMenuItem<void>(
-          child: Text(l10n.labelForwards),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            await context.router.pushPath('$kPathBeaconForwards/$beaconId');
-          },
-        ),
-        PopupMenuItem<void>(
-          child: Text(l10n.buttonComplaint),
-          onTap: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            context.read<ScreenCubit>().showComplaint(beaconId);
-          },
-        ),
-      ],
     );
   }
 }

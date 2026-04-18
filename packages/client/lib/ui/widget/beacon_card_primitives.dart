@@ -152,6 +152,7 @@ class BeaconCardPill extends StatelessWidget {
     this.emphasized = false,
     this.backgroundColor,
     this.foregroundColor,
+    this.onTap,
     super.key,
   });
 
@@ -159,6 +160,7 @@ class BeaconCardPill extends StatelessWidget {
   final bool emphasized;
   final Color? backgroundColor;
   final Color? foregroundColor;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -169,20 +171,37 @@ class BeaconCardPill extends StatelessWidget {
     final fg =
         foregroundColor ??
         (emphasized ? scheme.onPrimaryContainer : scheme.onSurfaceVariant);
-
-    return Container(
+    final radius = BorderRadius.circular(999);
+    final textStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.2,
+      color: fg,
+    );
+    final content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
       child: Text(
         label.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
-          color: fg,
+        style: textStyle,
+      ),
+    );
+
+    if (onTap == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: radius,
         ),
+        child: content,
+      );
+    }
+
+    return Material(
+      color: bg,
+      borderRadius: radius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: content,
       ),
     );
   }

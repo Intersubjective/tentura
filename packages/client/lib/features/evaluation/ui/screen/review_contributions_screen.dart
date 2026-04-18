@@ -10,9 +10,11 @@ import 'package:tentura/features/evaluation/domain/entity/evaluation_participant
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 @RoutePage()
 class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -305,11 +307,27 @@ class _ParticipantTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: AvatarRated.small(
+        leading: SelfAwareAvatar.small(
           profile: profile,
           withRating: false,
         ),
-        title: Text(participant.title),
+        title: BlocBuilder<ProfileCubit, ProfileState>(
+          buildWhen: (p, c) => p.profile.id != c.profile.id,
+          builder: (context, state) {
+            return Text(
+              SelfUserHighlight.displayName(
+                l10n,
+                profile,
+                state.profile.id,
+              ),
+              style: SelfUserHighlight.nameStyle(
+                Theme.of(context),
+                Theme.of(context).textTheme.bodyLarge,
+                SelfUserHighlight.profileIsSelf(profile, state.profile.id),
+              ),
+            );
+          },
+        ),
         subtitle: Text(
           '${participant.contributionSummary}\n${participant.causalHint}',
           maxLines: 3,

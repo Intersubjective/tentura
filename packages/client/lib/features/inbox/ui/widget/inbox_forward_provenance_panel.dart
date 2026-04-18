@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/inbox_provenance.dart';
 
@@ -79,6 +81,8 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
       return const SizedBox.shrink();
     }
 
+    final viewerUserId = context.watch<ProfileCubit>().state.profile.id;
+
     final overflow = p.totalDistinctSenders - p.senders.length;
     final showOverflow = overflow > 0;
     final canExpand = _canExpand(p);
@@ -103,7 +107,6 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                 if (!canExpand) ...[
                   _ProvenanceCollapsedHeader(
                     primaryProfile: _senderProfile(p.senders.first),
-                    primaryName: p.senders.first.title,
                     restProfiles: [
                       for (var i = 1; i < p.senders.length; i++)
                         _senderProfile(p.senders[i]),
@@ -112,6 +115,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                     showExpandAction: false,
                     onExpand: () {},
                     recipient: widget.recipient,
+                    viewerUserId: viewerUserId,
                   ),
                   const SizedBox(height: kSpacingSmall),
                   _ProvenanceCollapsedQuote(
@@ -125,7 +129,6 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                   if (!_expanded)
                     _ProvenanceCollapsedHeader(
                       primaryProfile: _senderProfile(p.senders.first),
-                      primaryName: p.senders.first.title,
                       restProfiles: [
                         for (var i = 1; i < p.senders.length; i++)
                           _senderProfile(p.senders[i]),
@@ -134,6 +137,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                       showExpandAction: true,
                       onExpand: () => setState(() => _expanded = true),
                       recipient: widget.recipient,
+                      viewerUserId: viewerUserId,
                     ),
                   if (_expanded)
                     Semantics(
@@ -150,6 +154,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                                   ? scheme.primary
                                   : scheme.outlineVariant,
                               recipient: widget.recipient,
+                              viewerUserId: viewerUserId,
                               titleRowTrailing: i == 0
                                   ? TextButton(
                                       style: TextButton.styleFrom(
@@ -218,21 +223,21 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
 class _ProvenanceCollapsedHeader extends StatelessWidget {
   const _ProvenanceCollapsedHeader({
     required this.primaryProfile,
-    required this.primaryName,
     required this.restProfiles,
     required this.overflowCount,
     required this.showExpandAction,
     required this.onExpand,
+    required this.viewerUserId,
     this.recipient,
   });
 
   final Profile primaryProfile;
-  final String primaryName;
   final List<Profile> restProfiles;
   final int overflowCount;
   final bool showExpandAction;
   final VoidCallback onExpand;
   final Profile? recipient;
+  final String viewerUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -251,7 +256,20 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: scheme.surfaceContainerLowest),
+                  border: Border.all(
+                    color: SelfUserHighlight.profileIsSelf(
+                          primaryProfile,
+                          viewerUserId,
+                        )
+                        ? scheme.primary
+                        : scheme.surfaceContainerLowest,
+                    width: SelfUserHighlight.profileIsSelf(
+                          primaryProfile,
+                          viewerUserId,
+                        )
+                        ? 2
+                        : 1,
+                  ),
                 ),
                 child: AvatarRated(
                   profile: primaryProfile,
@@ -263,10 +281,21 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
               if (showRecipient) ...[
                 Flexible(
                   child: Text(
-                    primaryName.trim(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
+                    SelfUserHighlight.displayName(
+                      l10n,
+                      primaryProfile,
+                      viewerUserId,
+                    ),
+                    style: SelfUserHighlight.nameStyle(
+                      theme,
+                      theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                      SelfUserHighlight.profileIsSelf(
+                        primaryProfile,
+                        viewerUserId,
+                      ),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -283,7 +312,20 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: scheme.surfaceContainerLowest),
+                    border: Border.all(
+                      color: SelfUserHighlight.profileIsSelf(
+                            recipient!,
+                            viewerUserId,
+                          )
+                          ? scheme.primary
+                          : scheme.surfaceContainerLowest,
+                      width: SelfUserHighlight.profileIsSelf(
+                            recipient!,
+                            viewerUserId,
+                          )
+                          ? 2
+                          : 1,
+                    ),
                   ),
                   child: AvatarRated(
                     profile: recipient!,
@@ -294,10 +336,21 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
-                    recipient!.title.trim(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
+                    SelfUserHighlight.displayName(
+                      l10n,
+                      recipient!,
+                      viewerUserId,
+                    ),
+                    style: SelfUserHighlight.nameStyle(
+                      theme,
+                      theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                      SelfUserHighlight.profileIsSelf(
+                        recipient!,
+                        viewerUserId,
+                      ),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -306,10 +359,17 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
               ] else
                 Expanded(
                   child: Text(
-                    '${primaryName.trim()}:',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
+                    '${SelfUserHighlight.displayName(l10n, primaryProfile, viewerUserId).trim()}:',
+                    style: SelfUserHighlight.nameStyle(
+                      theme,
+                      theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                      SelfUserHighlight.profileIsSelf(
+                        primaryProfile,
+                        viewerUserId,
+                      ),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -333,6 +393,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                   ringColor: scheme.surfaceContainerLowest,
                   badgeFillColor: scheme.outlineVariant,
                   badgeTextColor: scheme.surface,
+                  viewerUserId: viewerUserId,
                 ),
               ],
             ],
@@ -375,6 +436,7 @@ class _ProvenanceOverlappingRestAvatars extends StatelessWidget {
     required this.ringColor,
     required this.badgeFillColor,
     required this.badgeTextColor,
+    required this.viewerUserId,
   });
 
   final List<Profile> profiles;
@@ -384,6 +446,7 @@ class _ProvenanceOverlappingRestAvatars extends StatelessWidget {
   final Color ringColor;
   final Color badgeFillColor;
   final Color badgeTextColor;
+  final String viewerUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -405,16 +468,28 @@ class _ProvenanceOverlappingRestAvatars extends StatelessWidget {
           for (var i = 0; i < profiles.length; i++)
             Positioned(
               left: i * step,
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: ringColor),
-                ),
-                child: AvatarRated(
-                  profile: profiles[i],
-                  withRating: false,
-                  size: size,
-                ),
+              child: Builder(
+                builder: (context) {
+                  final scheme = Theme.of(context).colorScheme;
+                  final self = SelfUserHighlight.profileIsSelf(
+                    profiles[i],
+                    viewerUserId,
+                  );
+                  return Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: self ? scheme.primary : ringColor,
+                        width: self ? 2 : 1,
+                      ),
+                    ),
+                    child: AvatarRated(
+                      profile: profiles[i],
+                      withRating: false,
+                      size: size,
+                    ),
+                  );
+                },
               ),
             ),
           if (overflowCount > 0)
@@ -491,6 +566,7 @@ class _ProvenanceSenderBlock extends StatelessWidget {
     required this.profile,
     required this.notePreview,
     required this.borderColor,
+    required this.viewerUserId,
     this.titleRowTrailing,
     this.noteTopSpacing = 6,
     this.recipient,
@@ -502,30 +578,49 @@ class _ProvenanceSenderBlock extends StatelessWidget {
   final Widget? titleRowTrailing;
   final double noteTopSpacing;
   final Profile? recipient;
+  final String viewerUserId;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final l10n = L10n.of(context)!;
     final showRecipient = recipient != null && recipient!.id.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            AvatarRated(
-              profile: profile,
-              withRating: false,
-              size: _kAvatarSize,
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: SelfUserHighlight.profileIsSelf(profile, viewerUserId)
+                      ? scheme.primary
+                      : scheme.surfaceContainerLowest,
+                  width: SelfUserHighlight.profileIsSelf(profile, viewerUserId)
+                      ? 2
+                      : 1,
+                ),
+              ),
+              child: AvatarRated(
+                profile: profile,
+                withRating: false,
+                size: _kAvatarSize,
+              ),
             ),
             const SizedBox(width: 4),
             if (showRecipient) ...[
               Flexible(
                 child: Text(
-                  profile.title,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
+                  SelfUserHighlight.displayName(l10n, profile, viewerUserId),
+                  style: SelfUserHighlight.nameStyle(
+                    theme,
+                    theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                    ),
+                    SelfUserHighlight.profileIsSelf(profile, viewerUserId),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -539,18 +634,41 @@ class _ProvenanceSenderBlock extends StatelessWidget {
                   color: scheme.onSurfaceVariant,
                 ),
               ),
-              AvatarRated(
-                profile: recipient!,
-                withRating: false,
-                size: _kAvatarSize,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color:
+                        SelfUserHighlight.profileIsSelf(recipient!, viewerUserId)
+                            ? scheme.primary
+                            : scheme.surfaceContainerLowest,
+                    width:
+                        SelfUserHighlight.profileIsSelf(recipient!, viewerUserId)
+                            ? 2
+                            : 1,
+                  ),
+                ),
+                child: AvatarRated(
+                  profile: recipient!,
+                  withRating: false,
+                  size: _kAvatarSize,
+                ),
               ),
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  recipient!.title,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
+                  SelfUserHighlight.displayName(
+                    l10n,
+                    recipient!,
+                    viewerUserId,
+                  ),
+                  style: SelfUserHighlight.nameStyle(
+                    theme,
+                    theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                    ),
+                    SelfUserHighlight.profileIsSelf(recipient!, viewerUserId),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -559,16 +677,20 @@ class _ProvenanceSenderBlock extends StatelessWidget {
             ] else
               Expanded(
                 child: Text(
-                  profile.title,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: scheme.onSurface,
+                  SelfUserHighlight.displayName(l10n, profile, viewerUserId),
+                  style: SelfUserHighlight.nameStyle(
+                    theme,
+                    theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurface,
+                    ),
+                    SelfUserHighlight.profileIsSelf(profile, viewerUserId),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ?titleRowTrailing,
+            titleRowTrailing ?? const SizedBox.shrink(),
           ],
         ),
         if (notePreview.isNotEmpty) ...[

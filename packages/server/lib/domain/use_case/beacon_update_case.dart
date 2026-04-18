@@ -80,6 +80,14 @@ final class BeaconUpdateCase extends UseCaseBase {
         description: 'Beacon is not open for updates',
       );
     }
+    // Row-level time filter is not practical in Hasura metadata; enforce here.
+    const editWindow = Duration(hours: 1);
+    if (DateTime.now().toUtc().difference(existing.createdAt.toUtc()) >
+        editWindow) {
+      throw const BeaconCreateException(
+        description: 'Update edit window has expired',
+      );
+    }
     return _beaconUpdateRepository.editUpdate(
       id: id,
       authorId: userId,

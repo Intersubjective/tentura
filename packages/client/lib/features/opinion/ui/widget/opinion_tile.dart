@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/opinion.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
@@ -40,7 +42,7 @@ class OpinionTile extends StatelessWidget {
                   : () => screenCubit.showProfile(opinion.author.id),
               child: Padding(
                 padding: const EdgeInsets.only(right: kSpacingMedium),
-                child: AvatarRated.small(
+                child: SelfAwareAvatar.small(
                   profile: opinion.author,
                   withRating: !isMine,
                 ),
@@ -52,22 +54,41 @@ class OpinionTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
-                  if (isMine)
-                    Text(
-                      l10n.labelMe,
-                      style: theme.textTheme.headlineMedium,
-                    )
-                  else
-                    GestureDetector(
-                      onTap: () => screenCubit.showProfile(opinion.author.id),
-                      child: Text(
-                        opinion.author.title,
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          decoration: TextDecoration.underline,
+                  BlocBuilder<ProfileCubit, ProfileState>(
+                    buildWhen: (p, c) => p.profile.id != c.profile.id,
+                    builder: (context, state) {
+                      final isSelf = SelfUserHighlight.profileIsSelf(
+                        opinion.author,
+                        state.profile.id,
+                      );
+                      final label = SelfUserHighlight.displayName(
+                        l10n,
+                        opinion.author,
+                        state.profile.id,
+                      );
+                      final base = theme.textTheme.headlineMedium;
+                      if (isSelf) {
+                        return Text(
+                          label,
+                          style: SelfUserHighlight.nameStyle(
+                            theme,
+                            base,
+                            true,
+                          ),
+                        );
+                      }
+                      return GestureDetector(
+                        onTap: () =>
+                            screenCubit.showProfile(opinion.author.id),
+                        child: Text(
+                          label,
+                          style: base?.copyWith(
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
+                  ),
 
                   // Opinion
                   Padding(

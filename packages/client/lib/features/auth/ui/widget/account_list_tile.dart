@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/dialog/show_seed_dialog.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/account_entity.dart';
 import '../../domain/use_case/account_case.dart';
@@ -22,13 +24,26 @@ class AccountListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final profile = AccountCase.fromAccountEntity(account);
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: AvatarRated.small(
-        profile: AccountCase.fromAccountEntity(account),
+      leading: SelfAwareAvatar.small(
+        profile: profile,
         withRating: false,
       ),
-      title: Text(account.title),
+      title: BlocBuilder<ProfileCubit, ProfileState>(
+        buildWhen: (p, c) => p.profile.id != c.profile.id,
+        builder: (context, state) {
+          return Text(
+            SelfUserHighlight.displayName(l10n, profile, state.profile.id),
+            style: SelfUserHighlight.nameStyle(
+              Theme.of(context),
+              Theme.of(context).textTheme.bodyLarge,
+              SelfUserHighlight.profileIsSelf(profile, state.profile.id),
+            ),
+          );
+        },
+      ),
       trailing: PopupMenuButton(
         itemBuilder: (context) => <PopupMenuEntry<void>>[
           //

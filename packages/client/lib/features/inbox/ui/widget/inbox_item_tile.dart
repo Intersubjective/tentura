@@ -6,11 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/side_outline_cta_button.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
@@ -18,20 +19,11 @@ import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart'
     show l10nInboxNewStuffReasons;
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import 'inbox_forward_provenance_panel.dart';
-
-Widget _inboxOverflowMenuRow(IconData icon, String label) {
-  return Row(
-    children: [
-      Icon(icon, size: 22),
-      const SizedBox(width: 12),
-      Expanded(child: Text(label)),
-    ],
-  );
-}
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
   BeaconLifecycle.open => l10n.beaconLifecycleOpen,
@@ -165,26 +157,7 @@ class InboxItemTile extends StatelessWidget {
                       BeaconCardHeaderRow(
                         beacon: beacon,
                         titleMaxLines: 2,
-                        subline: Row(
-                          children: [
-                            AvatarRated(
-                              profile: beacon.author,
-                              size: 22,
-                              withRating: false,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                beacon.author.title,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
+                        subline: BeaconCardAuthorSubline(author: beacon.author),
                         menu: const SizedBox.shrink(),
                       ),
                       if (beacon.description.isNotEmpty) ...[
@@ -294,102 +267,26 @@ class InboxItemTile extends StatelessWidget {
                   ),
                 ),
               ),
-              PopupMenuButton<String>(
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'open',
-                    child: _inboxOverflowMenuRow(
-                      Icons.open_in_new,
-                      l10n.openBeacon,
-                    ),
+              BeaconOverflowMenu(
+                beacon: beacon,
+                onOpenBeacon: onOpenBeacon,
+                onCommit: onCommit != null
+                    ? () async {
+                        await onCommit?.call();
+                      }
+                    : null,
+                onForward: onTap,
+                onViewForwards: () => unawaited(
+                  context.router.pushPath(
+                    '$kPathBeaconForwards/${beacon.id}',
                   ),
-                  if (onCommit != null)
-                    PopupMenuItem(
-                      value: 'commit',
-                      child: _inboxOverflowMenuRow(
-                        Icons.handshake,
-                        l10n.labelCommit,
-                      ),
-                    ),
-                  PopupMenuItem(
-                    value: 'forward',
-                    child: _inboxOverflowMenuRow(
-                      Icons.send,
-                      l10n.labelForward,
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'view_forwards',
-                    child: _inboxOverflowMenuRow(
-                      Icons.forward_to_inbox,
-                      l10n.labelForwards,
-                    ),
-                  ),
-                  if (onWatch != null)
-                    PopupMenuItem(
-                      value: 'watch',
-                      child: _inboxOverflowMenuRow(
-                        Icons.visibility_outlined,
-                        l10n.actionWatch,
-                      ),
-                    ),
-                  if (onStopWatching != null)
-                    PopupMenuItem(
-                      value: 'stop_watch',
-                      child: _inboxOverflowMenuRow(
-                        Icons.visibility_off_outlined,
-                        l10n.actionStopWatching,
-                      ),
-                    ),
-                  if (onCantHelp != null)
-                    PopupMenuItem(
-                      value: 'cant_help',
-                      child: _inboxOverflowMenuRow(
-                        Icons.close,
-                        l10n.actionCantHelp,
-                      ),
-                    ),
-                  if (onMoveToInbox != null)
-                    PopupMenuItem(
-                      value: 'move_inbox',
-                      child: _inboxOverflowMenuRow(
-                        Icons.inbox_outlined,
-                        l10n.actionMoveToInbox,
-                      ),
-                    ),
-                ],
-                onSelected: (v) async {
-                  if (v == 'open') {
-                    onOpenBeacon();
-                    return;
-                  }
-                  if (v == 'commit') {
-                    await onCommit?.call();
-                    return;
-                  }
-                  if (v == 'forward') {
-                    onTap();
-                    return;
-                  }
-                  if (v == 'view_forwards') {
-                    if (context.mounted) {
-                      unawaited(
-                        context.router.pushPath(
-                          '$kPathBeaconForwards/${beacon.id}',
-                        ),
-                      );
-                    }
-                    return;
-                  }
-                  if (v == 'watch') onWatch?.call();
-                  if (v == 'stop_watch') onStopWatching?.call();
-                  if (v == 'cant_help') await onCantHelp?.call();
-                  if (v == 'move_inbox') onMoveToInbox?.call();
-                },
-                child: Icon(
-                  Icons.more_horiz,
-                  color: scheme.onSurfaceVariant,
                 ),
+                onWatch: onWatch,
+                onStopWatching: onStopWatching,
+                onCantHelp: onCantHelp,
+                onMoveToInbox: onMoveToInbox,
+                onComplaint: () =>
+                    context.read<ScreenCubit>().showComplaint(beacon.id),
               ),
             ],
           ),
