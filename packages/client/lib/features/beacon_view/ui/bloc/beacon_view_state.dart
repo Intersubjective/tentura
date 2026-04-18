@@ -113,10 +113,14 @@ class TimelineCommitmentWithdrawn extends TimelineEntry {
 
 class TimelineUpdate extends TimelineEntry {
   TimelineUpdate({
+    required this.id,
+    required this.number,
     required this.author,
     required this.content,
     required this.createdAt,
   });
+  final String id;
+  final int number;
   final Profile author;
   final String content;
   final DateTime createdAt;

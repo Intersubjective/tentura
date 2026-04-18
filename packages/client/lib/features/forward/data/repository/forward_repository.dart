@@ -248,7 +248,15 @@ class ForwardRepository {
                 .toList(),
           );
 
-  Future<List<({Profile author, String content, DateTime createdAt})>>
+  Future<
+      List<
+          ({
+            String id,
+            int number,
+            Profile author,
+            String content,
+            DateTime createdAt,
+          })>>
       fetchUpdates({required String beaconId}) => _remoteApiService
           .request(
             GBeaconUpdatesFetchReq((r) => r..vars.beaconId = beaconId),
@@ -260,6 +268,8 @@ class ForwardRepository {
                 .beacon_update
                 .map(
                   (e) => (
+                    id: e.id,
+                    number: e.number,
                     author: (e.author as UserModel).toEntity(),
                     content: e.content,
                     createdAt: e.created_at,

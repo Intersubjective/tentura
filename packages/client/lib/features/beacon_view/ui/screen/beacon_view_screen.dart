@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/collapsible_section.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
@@ -311,6 +312,7 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
     @PathParam('id') this.id = '',
     @QueryParam(kQueryIsDeepLink) this.isDeepLink,
     @QueryParam(kQueryBeaconViewTab) this.viewTab,
+    @QueryParam(kQueryBeaconViewDetails) this.detailsDefault,
     super.key,
   });
 
@@ -320,6 +322,9 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
   /// `timeline` | `commitments` | `forwards` — initial tab in the detail tabs.
   final String? viewTab;
+
+  /// `open` | `closed` — initial expansion of the Details section.
+  final String? detailsDefault;
 
   @override
   Widget wrappedRoute(_) => MultiBlocProvider(
@@ -450,6 +455,10 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
           }
           final beacon = state.beacon;
           final theme = Theme.of(context);
+          final detailsOpen =
+              (detailsDefault ?? 'open').toLowerCase() != 'closed';
+          final updates = state.timeline.whereType<TimelineUpdate>().toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           return ListView(
             padding: kPaddingAll,
             children: [
@@ -461,16 +470,6 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                   subline: const SizedBox.shrink(),
                   menu: const SizedBox.shrink(),
                 ),
-              ),
-
-              // Beacon Info (overview): gallery + description; title shown above
-              BeaconInfo(
-                key: ValueKey(beacon),
-                beacon: beacon,
-                isTitleLarge: true,
-                isShowMoreEnabled: false,
-                isShowBeaconEnabled: false,
-                showTitle: false,
               ),
 
               Padding(
@@ -515,12 +514,112 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 ),
               ),
 
+              CollapsibleSection(
+                title: l10n.beaconDetailsSection,
+                initiallyExpanded: detailsOpen,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    BeaconInfo(
+                      key: ValueKey(beacon),
+                      beacon: beacon,
+                      isTitleLarge: true,
+                      isShowMoreEnabled: false,
+                      isShowBeaconEnabled: false,
+                      showTitle: false,
+                    ),
+                    if (beacon.context.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: kSpacingSmall),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Chip(
+                            label: Text(beacon.context.trim()),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              CollapsibleSection(
+                title: l10n.beaconUpdatesSection,
+                initiallyExpanded: updates.isNotEmpty,
+                badge: updates.isEmpty ? null : '${updates.length}',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (updates.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: kSpacingSmall,
+                        ),
+                        child: Text(
+                          l10n.beaconUpdatesEmpty,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      )
+                    else
+                      ...updates.map(
+                        (u) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            l10n.updateNumberLabel(u.number),
+                            style: theme.textTheme.labelLarge,
+                          ),
+                          subtitle: Text(
+                            u.content,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                          trailing:
+                              state.isBeaconMine &&
+                                  beacon.lifecycle == BeaconLifecycle.open
+                              ? IconButton(
+                                  tooltip: l10n.editUpdateCTA,
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => unawaited(
+                                    _showEditAuthorUpdateSheet(
+                                      context,
+                                      beaconViewCubit,
+                                      l10n,
+                                      initial: u.content,
+                                      updateId: u.id,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                    if (state.isBeaconMine &&
+                        beacon.lifecycle == BeaconLifecycle.open)
+                      Padding(
+                        padding: const EdgeInsets.only(top: kSpacingSmall),
+                        child: FilledButton.icon(
+                          icon: const Icon(Icons.campaign_outlined),
+                          label: Text(l10n.postUpdateCTA),
+                          onPressed: () => unawaited(
+                            _showPostAuthorUpdateSheet(
+                              context,
+                              beaconViewCubit,
+                              l10n,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
               BeaconEvaluationHooks(
                 beaconId: beacon.id,
                 lifecycle: beacon.lifecycle,
               ),
 
-              const Divider(height: kSpacingLarge),
+              const SizedBox(height: kSpacingMedium),
 
               _TabSection(
                 initialTabIndex: _beaconViewTabIndex(viewTab),
@@ -934,6 +1033,126 @@ Widget? _myForwardRecipientOverlayIcon({
   return null;
 }
 
+Future<void> _showPostAuthorUpdateSheet(
+  BuildContext context,
+  BeaconViewCubit cubit,
+  L10n l10n,
+) async {
+  final controller = TextEditingController();
+  try {
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: kSpacingSmall,
+            right: kSpacingSmall,
+            top: kSpacingMedium,
+            bottom: bottom + kSpacingMedium,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.postUpdateCTA,
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+              const SizedBox(height: kSpacingSmall),
+              TextField(
+                controller: controller,
+                maxLines: 6,
+                maxLength: kDescriptionMaxLength,
+                decoration: InputDecoration(
+                  hintText: l10n.beaconUpdateComposerHint,
+                ),
+              ),
+              const SizedBox(height: kSpacingSmall),
+              FilledButton(
+                onPressed: () {
+                  if (controller.text.trim().isEmpty) return;
+                  Navigator.of(ctx).pop(true);
+                },
+                child: Text(l10n.postUpdateCTA),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (ok == true) {
+      final t = controller.text.trim();
+      if (t.isNotEmpty) await cubit.postAuthorUpdate(t);
+    }
+  } finally {
+    controller.dispose();
+  }
+}
+
+Future<void> _showEditAuthorUpdateSheet(
+  BuildContext context,
+  BeaconViewCubit cubit,
+  L10n l10n, {
+  required String initial,
+  required String updateId,
+}) async {
+  final controller = TextEditingController(text: initial);
+  try {
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: kSpacingSmall,
+            right: kSpacingSmall,
+            top: kSpacingMedium,
+            bottom: bottom + kSpacingMedium,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.editUpdateCTA,
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+              const SizedBox(height: kSpacingSmall),
+              TextField(
+                controller: controller,
+                maxLines: 6,
+                maxLength: kDescriptionMaxLength,
+                decoration: InputDecoration(
+                  hintText: l10n.beaconUpdateComposerHint,
+                ),
+              ),
+              const SizedBox(height: kSpacingSmall),
+              FilledButton(
+                onPressed: () {
+                  if (controller.text.trim().isEmpty) return;
+                  Navigator.of(ctx).pop(true);
+                },
+                child: Text(l10n.buttonSaveChanges),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (ok == true) {
+      final t = controller.text.trim();
+      if (t.isNotEmpty && t != initial) {
+        await cubit.editAuthorUpdate(id: updateId, content: t);
+      }
+    }
+  } finally {
+    controller.dispose();
+  }
+}
+
 String _timelineEventTimestamp(DateTime utc) {
   final local = utc.toLocal();
   return '${dateFormatYMD(local)} ${timeFormatHm(local)}';
@@ -1068,7 +1287,7 @@ class _TimelineEntryTile extends StatelessWidget {
             const SizedBox(width: kSpacingSmall),
             Expanded(
               child: Text(
-                l10n.timelineUpdate(e.author.title, e.content),
+                '${l10n.updateNumberLabel(e.number)} · ${l10n.timelineUpdate(e.author.title, e.content)}',
                 style: theme.textTheme.bodySmall,
               ),
             ),

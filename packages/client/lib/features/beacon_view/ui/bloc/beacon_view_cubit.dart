@@ -271,7 +271,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
               >;
       final updates =
           results[2]
-              as List<({Profile author, String content, DateTime createdAt})>;
+              as List<
+                ({
+                  String id,
+                  int number,
+                  Profile author,
+                  String content,
+                  DateTime createdAt,
+                })
+              >;
       final inboxCtx =
           results[3]
               as ({
@@ -324,6 +332,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           ),
         for (final u in updates)
           TimelineUpdate(
+            id: u.id,
+            number: u.number,
             author: u.author,
             content: u.content,
             createdAt: u.createdAt,
@@ -374,6 +384,30 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           status: StateStatus.isSuccess,
         ),
       );
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> postAuthorUpdate(String content) async {
+    try {
+      await _case.postBeaconAuthorUpdate(
+        beaconId: state.beacon.id,
+        content: content,
+      );
+      await _fetchBeaconByIdWithTimeline();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> editAuthorUpdate({
+    required String id,
+    required String content,
+  }) async {
+    try {
+      await _case.editBeaconAuthorUpdate(id: id, content: content);
+      await _fetchBeaconByIdWithTimeline();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

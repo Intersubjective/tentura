@@ -1447,6 +1447,47 @@
   "@beaconViewTitle": {
     "context": "BeaconViewScreen"
   },
+  "beaconDetailsSection": "Details",
+  "@beaconDetailsSection": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdatesSection": "Updates",
+  "@beaconUpdatesSection": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdatesEmpty": "No updates yet.",
+  "@beaconUpdatesEmpty": {
+    "context": "BeaconViewScreen"
+  },
+  "postUpdateCTA": "Post update",
+  "@postUpdateCTA": {
+    "context": "BeaconViewScreen"
+  },
+  "editUpdateCTA": "Edit update",
+  "@editUpdateCTA": {
+    "context": "BeaconViewScreen"
+  },
+  "updateNumberLabel": "#{number}",
+  "@updateNumberLabel": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconUpdateComposerHint": "What changed? Share progress with committers and watchers.",
+  "@beaconUpdateComposerHint": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdatePostedMessage": "Update posted",
+  "@beaconUpdatePostedMessage": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdateSavedMessage": "Update saved",
+  "@beaconUpdateSavedMessage": {
+    "context": "BeaconViewScreen"
+  },
   "labelCommitted": "Committed",
   "@labelCommitted": {
     "context": "BeaconViewScreen"

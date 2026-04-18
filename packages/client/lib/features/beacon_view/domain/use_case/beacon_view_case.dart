@@ -16,6 +16,7 @@ import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
+import '../../data/repository/beacon_author_update_repository.dart';
 import '../../data/repository/beacon_view_repository.dart';
 import '../../data/repository/coordination_repository.dart';
 import '../../domain/typedef.dart';
@@ -28,7 +29,8 @@ final class BeaconViewCase extends UseCaseBase {
     this._forwardRepository,
     this._evaluationRepository,
     this._coordinationRepository,
-    this._inboxRepository, {
+    this._inboxRepository,
+    this._beaconAuthorUpdateRepository, {
     required super.env,
     required super.logger,
   });
@@ -44,6 +46,8 @@ final class BeaconViewCase extends UseCaseBase {
   final CoordinationRepository _coordinationRepository;
 
   final InboxRepository _inboxRepository;
+
+  final BeaconAuthorUpdateRepository _beaconAuthorUpdateRepository;
 
   Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
 
@@ -140,11 +144,34 @@ final class BeaconViewCase extends UseCaseBase {
         beaconId: beaconId,
       );
 
-  Future<List<({Profile author, String content, DateTime createdAt})>>
+  Future<
+      List<
+          ({
+            String id,
+            int number,
+            Profile author,
+            String content,
+            DateTime createdAt,
+          })>>
       fetchBeaconUpdates({
     required String beaconId,
   }) =>
       _forwardRepository.fetchUpdates(beaconId: beaconId);
+
+  Future<void> postBeaconAuthorUpdate({
+    required String beaconId,
+    required String content,
+  }) =>
+      _beaconAuthorUpdateRepository.post(
+        beaconId: beaconId,
+        content: content,
+      ).then((_) {});
+
+  Future<void> editBeaconAuthorUpdate({
+    required String id,
+    required String content,
+  }) =>
+      _beaconAuthorUpdateRepository.edit(id: id, content: content).then((_) {});
 
   Future<({InboxItemStatus? status, InboxProvenance provenance, String latestNotePreview})>
       fetchInboxContextForBeacon(String beaconId) =>

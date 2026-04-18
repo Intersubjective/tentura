@@ -1582,6 +1582,7 @@ type beacon_update {
   content: String!
   created_at: timestamptz!
   id: String!
+  number: Int!
 }
 
 """
@@ -1607,6 +1608,7 @@ input beacon_update_bool_exp {
   content: String_comparison_exp
   created_at: timestamptz_comparison_exp
   id: String_comparison_exp
+  number: Int_comparison_exp
 }
 
 """
@@ -1625,6 +1627,7 @@ input type for inserting data into table "beacon_update"
 input beacon_update_insert_input {
   beacon_id: String
   content: String
+  number: Int
 }
 
 """
@@ -1636,6 +1639,7 @@ input beacon_update_max_order_by {
   content: order_by
   created_at: order_by
   id: order_by
+  number: order_by
 }
 
 """
@@ -1647,6 +1651,7 @@ input beacon_update_min_order_by {
   content: order_by
   created_at: order_by
   id: order_by
+  number: order_by
 }
 
 """
@@ -1678,6 +1683,7 @@ input beacon_update_order_by {
   content: order_by
   created_at: order_by
   id: order_by
+  number: order_by
 }
 
 """
@@ -1698,6 +1704,9 @@ enum beacon_update_select_column {
 
   """column name"""
   id
+
+  """column name"""
+  number
 }
 
 """
@@ -1717,6 +1726,7 @@ input beacon_update_stream_cursor_value_input {
   beacon_id: String
   content: String
   created_at: timestamptz
+  number: Int
   id: String
 }
 
@@ -2532,6 +2542,8 @@ type mutation_root {
   beaconDeleteById(id: String!): Boolean!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReorderImages(beaconId: String!, imageIds: [String!]!): Boolean!
+  beaconUpdatePost(beaconId: String!, content: String!): BeaconAuthorUpdate!
+  beaconUpdateEdit(id: String!, content: String!): BeaconAuthorUpdate!
   beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]): String!
   beaconWithdraw(id: String!, message: String, uncommitReason: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
@@ -6134,6 +6146,15 @@ type v2_AuthResponse {
 
 type v2_Beacon {
   id: String!
+}
+
+type BeaconAuthorUpdate {
+  id: String!
+  beaconId: String!
+  number: Int!
+  content: String!
+  createdAt: Date!
+  author: user!
 }
 
 type v2_BeaconCloseReviewResult {

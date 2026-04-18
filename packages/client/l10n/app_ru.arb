@@ -1447,6 +1447,47 @@
   "@beaconViewTitle": {
     "context": "BeaconViewScreen"
   },
+  "beaconDetailsSection": "Подробности",
+  "@beaconDetailsSection": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdatesSection": "Обновления",
+  "@beaconUpdatesSection": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdatesEmpty": "Пока нет обновлений.",
+  "@beaconUpdatesEmpty": {
+    "context": "BeaconViewScreen"
+  },
+  "postUpdateCTA": "Опубликовать обновление",
+  "@postUpdateCTA": {
+    "context": "BeaconViewScreen"
+  },
+  "editUpdateCTA": "Редактировать обновление",
+  "@editUpdateCTA": {
+    "context": "BeaconViewScreen"
+  },
+  "updateNumberLabel": "#{number}",
+  "@updateNumberLabel": {
+    "context": "BeaconViewScreen",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconUpdateComposerHint": "Что изменилось? Расскажите участникам и наблюдателям.",
+  "@beaconUpdateComposerHint": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdatePostedMessage": "Обновление опубликовано",
+  "@beaconUpdatePostedMessage": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconUpdateSavedMessage": "Обновление сохранено",
+  "@beaconUpdateSavedMessage": {
+    "context": "BeaconViewScreen"
+  },
   "labelCommitted": "Принято",
   "@labelCommitted": {
     "context": "BeaconViewScreen"

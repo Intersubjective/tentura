@@ -15,6 +15,7 @@ abstract class BeaconUpdateEntity with _$BeaconUpdateEntity {
     required String beaconId,
     required String authorId,
     required String content,
+    required int number,
     required DateTime createdAt,
     UserEntity? author,
   }) = _BeaconUpdateEntity;

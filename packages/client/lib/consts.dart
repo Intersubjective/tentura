@@ -47,6 +47,9 @@ const kQueryBeaconEditId = 'edit_id';
 /// Optional initial tab on beacon detail: `timeline`, `commitments`, or `forwards`.
 const kQueryBeaconViewTab = 'tab';
 
+/// Initial expansion of the beacon "Details" section: `open` or `closed`.
+const kQueryBeaconViewDetails = 'details';
+
 /// First part of FQDN: `https://app.server.name`
 const kServerName = String.fromEnvironment(
   'SERVER_NAME',

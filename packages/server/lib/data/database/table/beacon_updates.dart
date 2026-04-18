@@ -20,6 +20,8 @@ class BeaconUpdates extends Table {
     max: kDescriptionMaxLength,
   )();
 
+  late final number = integer().withDefault(const Constant(0))();
+
   late final createdAt = customType(
     PgTypes.timestampWithTimezone,
   ).clientDefault(() => PgDateTime(DateTime.timestamp()))();
