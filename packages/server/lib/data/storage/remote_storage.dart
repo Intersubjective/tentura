@@ -38,14 +38,15 @@ class RemoteStorage {
         env.kS3Bucket,
         path,
         bytes,
-        metadata: _s3metadata,
+        metadata: _putObjectMetadata,
       );
 
   Future<void> removeObject(String path) =>
       _remoteStorage.removeObject(env.kS3Bucket, path);
 
-  static const _s3metadata = {
-    'x-amz-acl': 'public-read',
+  Map<String, String> get _putObjectMetadata => {
     kHeaderContentType: kContentTypeJpeg,
+    if (env.kS3PutObjectAclValue != null)
+      'x-amz-acl': env.kS3PutObjectAclValue!,
   };
 }

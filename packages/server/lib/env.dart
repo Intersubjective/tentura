@@ -258,6 +258,18 @@ class Env {
   /// HTTPS for the S3 API connection (`S3_USE_SSL=true`). Default false (HTTP), e.g. local MinIO.
   final bool kS3UseSSL;
 
+  /// When non-null, object uploads send `x-amz-acl` with this value.
+  /// When null, the header is omitted so public access comes from bucket policy / CDN only.
+  ///
+  /// [S3_OBJECT_ACL]: `omit`, `none`, or `false` (case-insensitive) forces omit; any other
+  /// non-empty string is sent as the ACL value (e.g. `public-read`).
+  /// If unset: omit for `*.digitaloceanspaces.com` (Spaces often denies per-object ACLs);
+  /// otherwise default `public-read` for local MinIO.
+  late final String? kS3PutObjectAclValue = _putObjectAclFromEnv(
+    _env['S3_OBJECT_ACL'],
+    kS3Endpoint,
+  );
+
   late final kIsRemoteStorageEnabled =
       kS3Endpoint.isNotEmpty &&
       kS3Bucket.isNotEmpty &&
@@ -337,6 +349,21 @@ class Env {
   }
 
   static final _env = Platform.environment;
+
+  static String? _putObjectAclFromEnv(String? rawAcl, String endpoint) {
+    final trimmed = rawAcl?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) {
+      final lower = trimmed.toLowerCase();
+      if (lower == 'omit' || lower == 'none' || lower == 'false') {
+        return null;
+      }
+      return trimmed;
+    }
+    if (endpoint.toLowerCase().contains('digitaloceanspaces.com')) {
+      return null;
+    }
+    return 'public-read';
+  }
 
   // JWT
 

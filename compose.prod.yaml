@@ -132,6 +132,7 @@ services:
       - S3_BUCKET
       - S3_PATH_STYLE
       - S3_USE_SSL
+      - S3_OBJECT_ACL
       - MIN_CLIENT_VERSION
 
 volumes:
