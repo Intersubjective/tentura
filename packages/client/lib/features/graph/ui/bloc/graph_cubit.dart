@@ -26,6 +26,8 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 export 'graph_state.dart';
 
 class GraphCubit extends Cubit<GraphState> {
+  // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
+  // ignore: cubit_requires_use_case_for_multi_repos
   GraphCubit({
     required Profile me,
     String? focus,

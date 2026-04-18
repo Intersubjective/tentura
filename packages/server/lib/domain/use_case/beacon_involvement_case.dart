@@ -30,6 +30,8 @@ final class BeaconInvolvementCase extends UseCaseBase {
   ///
   /// [currentUserId] identifies the requesting user so the response can
   /// distinguish "forwarded by me" from "forwarded by others".
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> asMap({
     required String beaconId,
     required String currentUserId,

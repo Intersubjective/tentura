@@ -45,6 +45,9 @@ dependencies:
 
 dev_dependencies:
   # From Workspace
+  custom_lint: ^0.8.1
+  tentura_lints:
+    path: ../tentura_lints
   test:
   freezed:
   drift_dev:

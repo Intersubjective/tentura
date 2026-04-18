@@ -43,6 +43,8 @@ int compareSemver(String a, String b) {
 
 @singleton
 class AppUpdateCubit extends Cubit<AppUpdateState> {
+  // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
+  // ignore: cubit_requires_use_case_for_multi_repos
   AppUpdateCubit({
     required AppUpdateRepository appUpdateRepository,
     required PlatformRepositoryPort platformRepository,

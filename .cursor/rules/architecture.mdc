@@ -248,10 +248,15 @@ class FeatureCubit extends Cubit<FeatureState> {
 
 ## Static enforcement (`tentura_lints` + CI)
 
-- **Package:** `packages/tentura_lints` — wired as a **client** `custom_lint` plugin (`packages/client/analysis_options.yaml`).
-- **Rules today:** (1) no `package:tentura/.../data/` or `.../ui/` imports under **`packages/client/lib/domain/`** (`no_domain_to_data_or_ui_import`); (2) no `package:tentura/.../data/service/` imports from **`packages/client/lib/**/ui/bloc/*_cubit.dart`** (`no_cubit_to_data_service_import`).
-- **CI:** `.github/workflows/pipeline.yml` runs **`dart analyze --fatal-infos`** (server) and **`flutter analyze --fatal-infos`** (client) before tests — treat **infos** as failures when touching analyzed paths; fix or explicitly justify before merging.
-- **Adding a lint:** extend `packages/tentura_lints/lib/tentura_lints.dart` and keep rules **narrow** (path-scoped) to avoid noise.
+- **Package:** `packages/tentura_lints` — `custom_lint` plugin on **client** (`packages/client/analysis_options.yaml`) and **server** (`packages/server/analysis_options.yaml` + `dev_dependencies`).
+- **Rules today:**
+  - **`no_domain_to_data_or_ui_import`** — no `package:tentura/.../data/` or `.../ui/` imports under **`packages/client/lib/domain/`**.
+  - **`no_cubit_to_data_service_import`** — no `package:tentura/.../data/service/` imports from **`packages/client/lib/**/ui/bloc/*_cubit.dart`**.
+  - **`no_map_dynamic_in_use_case_api`** — domain **`lib/domain/use_case/`** public APIs must not return `Map<String, dynamic>` / `List<Map<...>>` / bare `dynamic` (typed DTOs at boundaries; see `docs/future-arch-improvements.md` Phase B).
+  - **`no_raw_graphql_in_dart`** — no raw GraphQL document strings or `gql('...')` in Dart (use `.graphql` + generated `*Req` classes).
+  - **`cubit_requires_use_case_for_multi_repos`** — **`packages/client/.../ui/bloc/*_cubit.dart`**: if a Cubit constructor takes **≥2** `*Repository` / `*RepositoryPort` parameters, it must also take a **`*Case`**.
+- **CI:** `.github/workflows/pipeline.yml` runs **`dart analyze --fatal-infos`** + **`dart run custom_lint`** (server) and **`flutter analyze --fatal-infos`** + **`dart run custom_lint`** (client) before tests — treat **infos** as failures when touching analyzed paths; fix or explicitly justify before merging.
+- **Adding a lint:** add a rule under `packages/tentura_lints/lib/src/rules/`, register it in `packages/tentura_lints/lib/tentura_lints.dart`, enable it in the target package’s `analysis_options.yaml`, and keep rules **narrow** (path-scoped) to avoid noise.
 
 ## Testing Implications
 

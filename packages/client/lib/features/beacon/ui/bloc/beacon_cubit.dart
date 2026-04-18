@@ -19,6 +19,8 @@ export 'package:get_it/get_it.dart';
 export 'beacon_state.dart';
 
 class BeaconCubit extends Cubit<BeaconState> {
+  // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
+  // ignore: cubit_requires_use_case_for_multi_repos
   BeaconCubit({
     required String profileId,
     BeaconRepository? beaconRepository,

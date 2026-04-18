@@ -6,6 +6,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/polling.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
@@ -170,11 +171,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   Future<void> pickImages() async {
     try {
-      final images = await _imageRepository.pickMultipleImages();
-      if (images.isNotEmpty) {
-        final combined = [
+      final picked = await _imageRepository.pickMultipleImages();
+      if (picked.isNotEmpty) {
+        final combined = <ImageEntity>[
           ...state.images,
-          ...images.map((p) => p.toImageEntity()),
+          ...picked.map((e) => e.toImageEntity()),
         ];
         if (combined.length > kMaxImagesPerBeacon) {
           combined.length = kMaxImagesPerBeacon;
