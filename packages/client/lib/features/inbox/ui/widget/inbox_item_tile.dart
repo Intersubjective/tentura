@@ -208,7 +208,7 @@ class InboxItemTile extends StatelessWidget {
                           BeaconCardMetaItem(
                             icon: Icons.groups_outlined,
                             child: Text(
-                              l10n.inboxCommitmentsCount(
+                              l10n.beaconCardCommitmentCount(
                                 beacon.commitmentCount,
                               ),
                               style: theme.textTheme.labelSmall?.copyWith(
