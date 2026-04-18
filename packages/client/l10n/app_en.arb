@@ -567,7 +567,7 @@
   "@inbox": {
     "context": "HomeScreen"
   },
-  "myWork": "My Work",
+  "myWork": "My desk",
   "@myWork": {
     "context": "HomeScreen"
   },
@@ -1140,7 +1140,16 @@
   },
   "inboxCommitmentsCount": "{count} commitments",
   "@inboxCommitmentsCount": {
-    "context": "InboxItemTile",
+    "context": "BeaconViewScreen commitments tab label",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconCardCommitmentCount": "{count}",
+  "@beaconCardCommitmentCount": {
+    "context": "Beacon list card meta strip (icon conveys commitments)",
     "placeholders": {
       "count": {
         "type": "int"
@@ -1390,7 +1399,7 @@
       }
     }
   },
-  "myWorkDraftStatusLine": "{count} commitments · Investigation in progress",
+  "myWorkDraftStatusLine": "{count} · Investigation in progress",
   "@myWorkDraftStatusLine": {
     "context": "MyWorkScreen",
     "placeholders": {
@@ -1399,7 +1408,7 @@
       }
     }
   },
-  "myWorkCommitmentsShort": "{count} commitments",
+  "myWorkCommitmentsShort": "{count}",
   "@myWorkCommitmentsShort": {
     "context": "MyWorkScreen",
     "placeholders": {

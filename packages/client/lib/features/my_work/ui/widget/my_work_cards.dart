@@ -389,7 +389,7 @@ class _AuthoredActiveCard extends StatelessWidget {
               BeaconCardMetaItem(
                 icon: Icons.groups_outlined,
                 child: Text(
-                  l10n.inboxCommitmentsCount(b.commitmentCount),
+                  l10n.beaconCardCommitmentCount(b.commitmentCount),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
