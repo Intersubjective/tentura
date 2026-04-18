@@ -40,6 +40,23 @@ abstract class BeaconRepositoryPort {
     ({String question, List<String> variants})? polling,
   });
 
+  /// Updates an OPEN (state 0) beacon owned by [userId].
+  /// Throws if not found, not owned, or not in the OPEN state.
+  Future<BeaconEntity> updateBeacon({
+    required String beaconId,
+    required String userId,
+    required String title,
+    required String description,
+    String? context,
+    Set<String>? tags,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+  });
+
   Future<void> deleteBeaconById(String id, {required String userId});
 
   Future<void> updateBeaconState({

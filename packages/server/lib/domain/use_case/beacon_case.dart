@@ -220,6 +220,37 @@ final class BeaconCase extends UseCaseBase {
     return beacon;
   }
 
+  /// Updates an open (published) beacon. Polling is not changed.
+  Future<BeaconEntity> update({
+    required String userId,
+    required String beaconId,
+    required String title,
+    String? description,
+    String? context,
+    String? tags,
+    DateTime? endAt,
+    DateTime? startAt,
+    Coordinates? coordinates,
+    String? iconCode,
+    int? iconBackground,
+  }) async {
+    final normalizedIcon = _normalizeIconCode(iconCode);
+    return _beaconRepository.updateBeacon(
+      beaconId: beaconId,
+      userId: userId,
+      title: title,
+      description: description ?? '',
+      context: context,
+      tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
+      latitude: coordinates?.lat,
+      longitude: coordinates?.long,
+      startAt: startAt,
+      endAt: endAt,
+      iconCode: normalizedIcon,
+      iconBackground: normalizedIcon == null ? null : iconBackground,
+    );
+  }
+
   //
   Future<BeaconEntity> addImage({
     required String beaconId,

@@ -28,6 +28,7 @@ final class MutationBeacon extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
+    update,
     updateDraft,
     deleteById,
     addImage,
@@ -77,6 +78,38 @@ final class MutationBeacon extends GqlNodeBase {
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
           draft: _draft.fromArgs(args) ?? false,
+        )
+        .then((v) => v.asJson),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get update => GraphQLObjectField(
+    'beaconUpdate',
+    gqlTypeBeacon.nonNullable(),
+    arguments: [
+      InputFieldId.field,
+      InputFieldTitle.fieldNonNullable,
+      InputFieldDescription.field,
+      InputFieldCoordinates.field,
+      InputFieldContext.field,
+      _startAt.fieldNullable,
+      _endAt.fieldNullable,
+      _tags.fieldNullable,
+      _iconCode.fieldNullable,
+      _iconBackground.fieldNullable,
+    ],
+    resolve: (_, args) => _beaconCase
+        .update(
+          userId: getCredentials(args).sub,
+          beaconId: InputFieldId.fromArgsNonNullable(args),
+          title: InputFieldTitle.fromArgsNonNullable(args),
+          description: InputFieldDescription.fromArgs(args),
+          coordinates: InputFieldCoordinates.fromArgs(args),
+          context: InputFieldContext.fromArgs(args),
+          startAt: _startAt.fromArgs(args),
+          endAt: _endAt.fromArgs(args),
+          tags: _tags.fromArgs(args),
+          iconCode: _iconCode.fromArgs(args),
+          iconBackground: _iconBackground.fromArgs(args),
         )
         .then((v) => v.asJson),
   );

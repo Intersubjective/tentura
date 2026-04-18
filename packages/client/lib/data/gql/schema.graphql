@@ -2527,6 +2527,7 @@ type mutation_root {
   beaconCommit(helpType: String, id: String!, message: String): Boolean!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_Beacon!
   beaconCreate(context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, polling: PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconUpdateDraft(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, polling: PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!

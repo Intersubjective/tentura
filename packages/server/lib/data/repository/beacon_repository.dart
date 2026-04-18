@@ -264,6 +264,60 @@ class BeaconRepository implements BeaconRepositoryPort {
     return getBeaconById(beaconId: beaconId, filterByUserId: userId);
   });
 
+  /// Updates an OPEN beacon (state 0) owned by [userId].
+  @override
+  Future<BeaconEntity> updateBeacon({
+    required String beaconId,
+    required String userId,
+    required String title,
+    required String description,
+    String? context,
+    Set<String>? tags,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+  }) => _database.withMutatingUser(userId, () async {
+    final row = await _database.managers.beacons
+        .filter(
+          (e) => e.id.equals(beaconId) & e.userId.id.equals(userId),
+        )
+        .getSingleOrNull();
+
+    if (row == null) {
+      throw const BeaconCreateException(
+        description: 'Beacon not found or not owned by user',
+      );
+    }
+
+    if (row.state != 0) {
+      throw const BeaconCreateException(
+        description: 'Only open beacons can be edited',
+      );
+    }
+
+    await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
+      (o) => o(
+        title: Value(title),
+        description: Value(description),
+        context: Value(_beaconContextForDb(context)),
+        tags: Value(
+          tags == null || tags.isEmpty ? '' : tags.join(','),
+        ),
+        lat: Value(latitude),
+        long: Value(longitude),
+        startAt: Value(startAt == null ? null : PgDateTime(startAt)),
+        endAt: Value(endAt == null ? null : PgDateTime(endAt)),
+        iconCode: Value(iconCode),
+        iconBackground: Value(iconBackground),
+      ),
+    );
+
+    return getBeaconById(beaconId: beaconId, filterByUserId: userId);
+  });
+
   @override
   Future<void> deleteBeaconById(String id, {required String userId}) =>
       _database.withMutatingUser(userId, () async {

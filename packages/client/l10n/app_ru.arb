@@ -256,6 +256,18 @@
   "@editDraftTitle": {
     "context": "BeaconCreateScreen"
   },
+  "editBeaconTitle": "Редактировать маяк",
+  "@editBeaconTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "buttonSaveChanges": "Сохранить изменения",
+  "@buttonSaveChanges": {
+    "context": "BeaconCreateScreen"
+  },
+  "editBeacon": "Редактировать маяк",
+  "@editBeacon": {
+    "context": "BeaconMineControl"
+  },
   "draftSavedMessage": "Черновик сохранён",
   "@draftSavedMessage": {
     "context": "BeaconCreateScreen"

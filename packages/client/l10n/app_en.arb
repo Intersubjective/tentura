@@ -256,6 +256,18 @@
   "@editDraftTitle": {
     "context": "BeaconCreateScreen"
   },
+  "editBeaconTitle": "Edit Beacon",
+  "@editBeaconTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "buttonSaveChanges": "Save Changes",
+  "@buttonSaveChanges": {
+    "context": "BeaconCreateScreen"
+  },
+  "editBeacon": "Edit Beacon",
+  "@editBeacon": {
+    "context": "BeaconMineControl"
+  },
   "draftSavedMessage": "Draft saved",
   "@draftSavedMessage": {
     "context": "BeaconCreateScreen"

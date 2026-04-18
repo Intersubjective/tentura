@@ -186,6 +186,58 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i4.Future<_i2.BeaconEntity>);
 
   @override
+  _i4.Future<_i2.BeaconEntity> updateBeacon({
+    required String? beaconId,
+    required String? userId,
+    required String? title,
+    required String? description,
+    String? context,
+    Set<String>? tags,
+    DateTime? startAt,
+    DateTime? endAt,
+    double? latitude,
+    double? longitude,
+    String? iconCode,
+    int? iconBackground,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateBeacon, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+              #title: title,
+              #description: description,
+              #context: context,
+              #tags: tags,
+              #startAt: startAt,
+              #endAt: endAt,
+              #latitude: latitude,
+              #longitude: longitude,
+              #iconCode: iconCode,
+              #iconBackground: iconBackground,
+            }),
+            returnValue: _i4.Future<_i2.BeaconEntity>.value(
+              _FakeBeaconEntity_0(
+                this,
+                Invocation.method(#updateBeacon, [], {
+                  #beaconId: beaconId,
+                  #userId: userId,
+                  #title: title,
+                  #description: description,
+                  #context: context,
+                  #tags: tags,
+                  #startAt: startAt,
+                  #endAt: endAt,
+                  #latitude: latitude,
+                  #longitude: longitude,
+                  #iconCode: iconCode,
+                  #iconBackground: iconBackground,
+                }),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.BeaconEntity>);
+
+  @override
   _i4.Future<void> deleteBeaconById(String? id, {required String? userId}) =>
       (super.noSuchMethod(
             Invocation.method(#deleteBeaconById, [id], {#userId: userId}),
