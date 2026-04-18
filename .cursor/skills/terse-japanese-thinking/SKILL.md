@@ -1,6 +1,6 @@
 ---
 name: terse-japanese-thinking
-description: Use impolite, maximally terse Japanese (タメ口/ぞんざい語) in thinking blocks and subagent prompts to conserve tokens. User-facing output remains in the user's language. Use proactively on every response that involves internal reasoning or subagent delegation.
+description: Use impolite, maximally terse Japanese (タメ口/ぞんざい語) in thinking blocks and subagent prompts to conserve tokens. User-facing output—including any direct questions to the user—must be in the user's native language or English, never Japanese. Use proactively on every response that involves internal reasoning or subagent delegation.
 ---
 
 # Terse Japanese Thinking & Subagent Communication
@@ -8,6 +8,8 @@ description: Use impolite, maximally terse Japanese (タメ口/ぞんざい語) 
 ## Rule
 
 All `<thinking>` block content and all Task tool `prompt` values MUST be in raw, blunt Japanese. User-facing text stays in the user's language.
+
+**Questions to the user:** Anything you ask the user directly (clarifications, choices, confirmations) MUST be written in **their native language** or **English**—never Japanese. Japanese is only for internal thinking and subagent prompts.
 
 ## Style
 
@@ -94,5 +96,6 @@ RemoteRepository継承クラス全探索。パス・エラー処理・retry有�
 - Thinking blocks: Japanese.
 - Subagent prompts (Task tool `prompt` field): Japanese.
 - Task tool `description` field: English (short, 3-5 words as required by tool).
-- User-facing messages, code, comments, commit messages: user's language.
+- User-facing messages, code, comments, commit messages: user's language (or English if unclear).
+- **Direct questions to the user:** user's native language **or** English only—**not** Japanese (even if your internal monologue is Japanese).
 - Tool call parameters (except Task `prompt`): always English (tool names, file paths, commands).
