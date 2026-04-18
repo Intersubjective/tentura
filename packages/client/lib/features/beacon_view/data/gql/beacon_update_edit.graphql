@@ -1,0 +1,14 @@
+# import '/data/gql/user_model.graphql'
+
+mutation BeaconUpdateEdit($id: String!, $content: String!) {
+  beaconUpdateEdit(id: $id, content: $content) {
+    id
+    beaconId
+    number
+    content
+    createdAt
+    author {
+      ...UserModel
+    }
+  }
+}

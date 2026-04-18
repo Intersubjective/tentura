@@ -10,6 +10,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInvitation,
   gqlTypeProfile,
   gqlTypeBeacon,
+  gqlTypeBeaconAuthorUpdate,
   gqlTypeMyForwardRecipient,
   gqlTypeBeaconInvolvement,
   gqlTypeMutualScore,
@@ -132,6 +133,17 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
       GraphQLListType(gqlTypeMutualScore.nonNullable()),
     ),
     field('user_presence', gqlTypeUserPresence),
+  ]);
+
+/// V2-only: return payload for `beaconUpdatePost` / `beaconUpdateEdit`.
+final gqlTypeBeaconAuthorUpdate = GraphQLObjectType('BeaconAuthorUpdate', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('beaconId', graphQLString.nonNullable()),
+    field('number', graphQLInt.nonNullable()),
+    field('content', graphQLString.nonNullable()),
+    field('createdAt', graphQLDate.nonNullable()),
+    field('author', gqlTypeUserPublic.nonNullable()),
   ]);
 
 final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
