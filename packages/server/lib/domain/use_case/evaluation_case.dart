@@ -51,6 +51,8 @@ final class EvaluationCase extends UseCaseBase {
   Future<void> _ensureExpiredClosed() => _evaluationRepository.closeExpiredWindows();
 
   /// Author closes beacon and opens the Phase 1 review window (state 5).
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> beaconCloseWithReview({
     required String beaconId,
     required String userId,
@@ -160,6 +162,8 @@ final class EvaluationCase extends UseCaseBase {
     }
   }
 
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
   Future<List<Map<String, dynamic>>> evaluationParticipants({
     required String beaconId,
     required String evaluatorId,
@@ -262,6 +266,8 @@ final class EvaluationCase extends UseCaseBase {
   }
 
   /// Open-beacon draft targets: same visibility as at closure, for current graph.
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
   Future<List<Map<String, dynamic>>> evaluationDraftParticipants({
     required String beaconId,
     required String evaluatorId,
@@ -324,6 +330,8 @@ final class EvaluationCase extends UseCaseBase {
     return out;
   }
 
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
   Future<List<Map<String, dynamic>>> evaluationDrafts({
     required String beaconId,
     required String evaluatorId,
@@ -435,6 +443,8 @@ final class EvaluationCase extends UseCaseBase {
     return true;
   }
 
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> reviewWindowStatus({
     required String beaconId,
     required String userId,
@@ -478,6 +488,8 @@ final class EvaluationCase extends UseCaseBase {
     };
   }
 
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> evaluationSummary({
     required String beaconId,
     required String userId,

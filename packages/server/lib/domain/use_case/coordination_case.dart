@@ -40,6 +40,8 @@ final class CoordinationCase extends UseCaseBase {
     required String beaconId,
   }) => _coordinationRepository.commitmentsWithCoordination(beaconId);
 
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> setCoordinationResponse({
     required String beaconId,
     required String commitUserId,

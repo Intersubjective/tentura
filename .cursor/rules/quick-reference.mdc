@@ -35,7 +35,7 @@ One-line rules for quick lookup. See detailed files for explanations.
 ## Architecture
 - **Inward dependencies:** outer layers depend on inner contracts (domain stays pure; data implements domain **ports** on the server)
 - **Server domain:** use cases use **`domain/port/*`** only — verify with `rg "package:tentura_server/data/repository" packages/server/lib/domain` (should be empty)
-- **Client `lib/domain/`:** must not import `package:tentura/.../data/` or `.../ui/` — enforced by **`packages/tentura_lints`** (`custom_lint` on the client)
+- **`packages/tentura_lints` (`custom_lint` on client + server):** `no_domain_to_data_or_ui_import`, `no_cubit_to_data_service_import`, `no_map_dynamic_in_use_case_api`, `no_raw_graphql_in_dart`, `cubit_requires_use_case_for_multi_repos` — see **Static enforcement** in `architecture.mdc`
 - Repositories return domain entities, never Ferry types or Drift models
 - **Image / picker boundary:** repository pick APIs use domain **`ImagePicked`** (or equivalent); keep **`XFile`** and similar types inside **data** only
 - Use cases orchestrate business logic; repositories handle remote/local I/O

@@ -13,6 +13,8 @@ export 'package:tentura/ui/bloc/state_base.dart';
 export 'profile_edit_state.dart';
 
 class ProfileEditCubit extends Cubit<ProfileEditState> {
+  // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
+  // ignore: cubit_requires_use_case_for_multi_repos
   ProfileEditCubit({
     required Profile profile,
     ImageRepository? imageRepository,

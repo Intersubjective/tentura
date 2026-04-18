@@ -30,6 +30,9 @@ custom_lint:
   rules:
     - no_domain_to_data_or_ui_import
     - no_cubit_to_data_service_import
+    - no_map_dynamic_in_use_case_api
+    - no_raw_graphql_in_dart
+    - cubit_requires_use_case_for_multi_repos
 
 bloc:
   rules:

@@ -7,3 +7,17 @@ alwaysApply: true
 
 - **After** a coherent task or meaningful source edit: run workspace diagnostics on changed paths and fix issues you introduced (includes `custom_lint` where enabled).
 - **Before** `git commit` (or staging a commit): re-check the same scope so analyzer/CI (`--fatal-infos`) stays green.
+
+## `tentura_lints` (`packages/tentura_lints`)
+
+Rules live under `packages/tentura_lints/lib/src/rules/`; register in `lib/tentura_lints.dart`. Client + server enable them in each package’s `analysis_options.yaml` under `custom_lint:`. CI runs `dart run custom_lint` after `dart analyze` / `flutter analyze` (see `.github/workflows/pipeline.yml`). Full wording: **Static enforcement** in `architecture.mdc`.
+
+| Rule | One line |
+|------|----------|
+| `no_domain_to_data_or_ui_import` | Client `lib/domain/`: no `package:tentura/.../data/` or `.../ui/` imports. |
+| `no_cubit_to_data_service_import` | Client `**/ui/bloc/*_cubit.dart`: no `.../data/service/` imports. |
+| `no_map_dynamic_in_use_case_api` | `**/lib/domain/use_case/**/*.dart`: public API must not return `Map<String, dynamic>` / `List<Map<…>>` / bare `dynamic`. |
+| `no_raw_graphql_in_dart` | No inline GraphQL document strings or `gql('…')`; use `.graphql` + generated `*Req`. |
+| `cubit_requires_use_case_for_multi_repos` | Client `packages/client/.../ui/bloc/*_cubit.dart`: ≥2 repo params ⇒ must inject a `*Case`. |
+
+**Baselines:** existing debt uses `// TODO(contract): Phase-2 DTO migration — …` plus `// ignore: <rule>` until Phase 2 DTO work removes them.

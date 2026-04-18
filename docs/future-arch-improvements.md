@@ -34,6 +34,8 @@ Related product docs: `beacon-evaluation-feature-design.md`, `beacon-evaluation-
 
 4. **Untyped `Map<String, dynamic>`** — Use case results are maps consumed by GraphQL. Typed DTOs in the domain layer, mapped at the resolver boundary, would improve refactors and IDE support.
 
+   **Phase 1 (lints-first, shipped):** `no_map_dynamic_in_use_case_api` in `packages/tentura_lints` blocks new map-shaped public use-case APIs; existing server violations are baselined with `// TODO(contract): Phase-2 DTO migration — …` + `// ignore: no_map_dynamic_in_use_case_api` so Phase B refactors can remove them file-by-file. Related: `cubit_requires_use_case_for_multi_repos` + baselines for multi-repo cubits pending thin `*Case` orchestration.
+
 5. **Server-side user-visible strings** — Summary messages (e.g. “No feedback”, privacy-limited copy) are English literals in **`evaluation_summary_rules.dart`** (Phase A moved them out of `EvaluationCase`). For multilingual UX, define whether copy is **client-localized from codes** or **server-rendered with locale**—then implement consistently (Phase C).
 
 6. **Client loading granularity** — `submitOne` drives **full-screen** loading for the review screen. Acceptable today; consider per-row or overlay “saving” state if UX needs to keep the list visible during saves.

@@ -26,6 +26,9 @@ linter:
 
 custom_lint:
   rules:
+    no_map_dynamic_in_use_case_api: true
+    no_raw_graphql_in_dart: true
+    cubit_requires_use_case_for_multi_repos: true
     styles_ordering: true
     prefer_html_methods: true
     prefer_styles_getter: true
