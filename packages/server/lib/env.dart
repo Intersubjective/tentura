@@ -134,7 +134,8 @@ class Env {
        kS3Endpoint = kS3Endpoint ?? _env['S3_ENDPOINT'] ?? '',
        kS3Bucket = kS3Bucket ?? _env['S3_BUCKET'] ?? '',
        kS3PathStyle = kS3PathStyle ?? _env['S3_PATH_STYLE'] == 'true',
-       kS3UseSSL = kS3UseSSL ?? _env['S3_USE_SSL'] == 'true',
+       kS3UseSSL = kS3UseSSL ??
+           _inferS3UseSsl(_env['S3_USE_SSL'], kS3Endpoint ?? _env['S3_ENDPOINT'] ?? ''),
 
        // Meritrank service
        meritrankCalculateTimeout =
@@ -255,7 +256,8 @@ class Env {
   /// Path-style URLs (e.g. MinIO at localhost). Virtual-hosted style for S3/Spaces.
   final bool kS3PathStyle;
 
-  /// HTTPS for the S3 API connection (`S3_USE_SSL=true`). Default false (HTTP), e.g. local MinIO.
+  /// HTTPS for the S3 API (`S3_USE_SSL=true` / `false`). If unset: TLS on for
+  /// `*.digitaloceanspaces.com` and `*.amazonaws.com`, else HTTP (local MinIO).
   final bool kS3UseSSL;
 
   /// When non-null, object uploads send `x-amz-acl` with this value.
@@ -349,6 +351,20 @@ class Env {
   }
 
   static final _env = Platform.environment;
+
+  /// When [explicit] is non-empty, only the value `true` enables TLS.
+  /// When unset or empty: TLS for known HTTPS-only S3 hosts; otherwise plain HTTP (MinIO).
+  static bool _inferS3UseSsl(String? explicit, String endpoint) {
+    final trimmed = explicit?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) {
+      return trimmed.toLowerCase() == 'true';
+    }
+    final e = endpoint.toLowerCase();
+    if (e.contains('digitaloceanspaces.com') || e.contains('amazonaws.com')) {
+      return true;
+    }
+    return false;
+  }
 
   static String? _putObjectAclFromEnv(String? rawAcl, String endpoint) {
     final trimmed = rawAcl?.trim();
