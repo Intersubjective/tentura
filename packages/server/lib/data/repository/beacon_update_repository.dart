@@ -24,17 +24,19 @@ class BeaconUpdateRepository implements BeaconUpdateRepositoryPort {
     required String beaconId,
     required String authorId,
     required String content,
-  }) => _database.withMutatingUser(authorId, () => _database.transaction(() async {
+  }) => _database.withMutatingUser(authorId, () async {
+    // [withMutatingUser] already runs inside a transaction — do not nest
+    // another [transaction] (savepoint + rollback issues on PG).
     await _database.customSelect(
-      'SELECT id FROM public.beacon WHERE id = ? FOR UPDATE',
+      r'SELECT id FROM public.beacon WHERE id = $1 FOR UPDATE',
       variables: [Variable<String>(beaconId)],
     ).getSingle();
 
     final nextRow = await _database.customSelect(
-      '''
+      r'''
 SELECT coalesce(max(number), 0) + 1 AS n
 FROM public.beacon_update
-WHERE beacon_id = ?
+WHERE beacon_id = $1
 ''',
       variables: [Variable<String>(beaconId)],
     ).getSingle();
@@ -49,7 +51,7 @@ WHERE beacon_id = ?
       ),
     );
     return _toEntity(row);
-  }));
+  });
 
   @override
   Future<BeaconUpdateEntity> editUpdate({
