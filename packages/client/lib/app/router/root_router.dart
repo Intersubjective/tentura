@@ -226,18 +226,20 @@ class RootRouter extends RootStackRouter {
       //
     ),
 
-    // Graph
+    // Graph — register `/graph/forwards/:id` before `/graph/:id` so
+    // `pushPath('/graph/forwards/B…')` does not match the trust graph route
+    // with id `forwards` (which would leave an empty graph when popping back).
+    AutoRoute(
+      usesPathAsKey: true,
+      page: ForwardsGraphRoute.page,
+      path: '$kPathForwardsGraph/:id',
+    ),
+
     AutoRoute(
       usesPathAsKey: true,
       page: GraphRoute.page,
       path: '$kPathGraph/:id',
       //
-    ),
-
-    AutoRoute(
-      usesPathAsKey: true,
-      page: ForwardsGraphRoute.page,
-      path: '$kPathForwardsGraph/:id',
     ),
 
     // Chat
