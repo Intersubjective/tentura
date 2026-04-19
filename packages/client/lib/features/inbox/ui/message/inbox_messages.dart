@@ -16,11 +16,15 @@ class InboxBeaconMovedMessage extends LocalizableMessage {
   /// confirmation instead of the generic "moved to Watching" copy.
   final bool ownBeaconForward;
 
+  /// Inbox primary tabs: 0 = Needs me, 1 = Watching. Rejected uses
+  /// [navigatesToRejectedArchive] instead of tab index.
   int get tabIndex => switch (toStatus) {
         InboxItemStatus.watching => 1,
-        InboxItemStatus.rejected => 2,
         _ => 0,
       };
+
+  bool get navigatesToRejectedArchive =>
+      toStatus == InboxItemStatus.rejected;
 
   @override
   String get toEn => switch (toStatus) {

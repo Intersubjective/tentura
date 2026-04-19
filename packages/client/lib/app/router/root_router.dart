@@ -52,7 +52,7 @@ class RootRouter extends RootStackRouter {
       page: HomeRoute.page,
       path: kPathHome,
       children: [
-        // Inbox
+        // Inbox (tab body only; rejected archive is a root-level full-screen route)
         AutoRoute(
           initial: true,
           page: InboxRoute.page,
@@ -74,6 +74,22 @@ class RootRouter extends RootStackRouter {
           path: kPathProfile.split('/').last,
         ),
       ],
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _settingsCubit.state.introEnabled ? const IntroRoute() : null,
+        ),
+        AutoRouteGuard.redirect(
+          (_) => _authCubit.state.isNotAuthenticated
+              ? const AuthLoginRoute()
+              : null,
+        ),
+      ],
+    ),
+
+    // Inbox rejected archive (full-screen stack route; no bottom tabs)
+    AutoRoute(
+      page: InboxRejectedRoute.page,
+      path: kPathInboxRejected,
       guards: [
         AutoRouteGuard.redirect(
           (_) => _settingsCubit.state.introEnabled ? const IntroRoute() : null,

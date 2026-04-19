@@ -89,6 +89,9 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
             return HomeBottomNavListener(
               tabsRouter: tabsRouter,
               child: NavigationBar(
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainer,
+                surfaceTintColor: Colors.transparent,
                 onDestinationSelected: (index) {
                   final prev = tabsRouter.activeIndex;
                   tabsRouter.setActiveIndex(index);

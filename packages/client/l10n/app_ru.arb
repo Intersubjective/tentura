@@ -914,6 +914,22 @@
   "@inboxSortDeadline": {
     "context": "InboxScreen"
   },
+  "inboxSortMenuTitle": "Сортировка",
+  "@inboxSortMenuTitle": {
+    "context": "InboxScreen"
+  },
+  "inboxRejectedTitle": "Отклонённые",
+  "@inboxRejectedTitle": {
+    "context": "InboxScreen"
+  },
+  "inboxNeedsMeEmptyCalm": "Входящие пусты. Новые запросы появятся здесь.",
+  "@inboxNeedsMeEmptyCalm": {
+    "context": "InboxScreen"
+  },
+  "inboxWatchingEmptyCalm": "Нечего отслеживать.",
+  "@inboxWatchingEmptyCalm": {
+    "context": "InboxScreen"
+  },
   "inboxTabNeedsMe": "Ждёт меня",
   "@inboxTabNeedsMe": {
     "context": "InboxScreen"
@@ -1155,6 +1171,10 @@
         "type": "int"
       }
     }
+  },
+  "inboxForwardedByLabel": "Переслали",
+  "@inboxForwardedByLabel": {
+    "context": "InboxItemTile"
   },
   "inboxFromForwarder": "От {name}",
   "@inboxFromForwarder": {
