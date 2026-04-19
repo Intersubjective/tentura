@@ -34,14 +34,34 @@ class ProfileAppBar extends StatelessWidget {
             context.read<ScreenCubit>().showRating();
           }
         },
-        itemBuilder: (context) => [
+        itemBuilder: (menuContext) => [
           PopupMenuItem<String>(
             value: 'edit',
-            child: Text(l10n.profileOverflowEdit),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.edit_outlined,
+                  size: 22,
+                  color: Theme.of(menuContext).colorScheme.onSurface,
+                ),
+                const SizedBox(width: 12),
+                Text(l10n.profileOverflowEdit),
+              ],
+            ),
           ),
           PopupMenuItem<String>(
             value: 'rating',
-            child: Text(l10n.rating),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.leaderboard,
+                  size: 22,
+                  color: Theme.of(menuContext).colorScheme.onSurface,
+                ),
+                const SizedBox(width: 12),
+                Text(l10n.rating),
+              ],
+            ),
           ),
         ],
       ),

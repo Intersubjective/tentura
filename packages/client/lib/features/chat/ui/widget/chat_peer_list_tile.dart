@@ -75,11 +75,7 @@ class ChatPeerListTile extends StatelessWidget {
                               ),
                               style: SelfUserHighlight.nameStyle(
                                 theme,
-                                profile.isSeeingMe && !isSelf
-                                    ? base?.copyWith(
-                                        decoration: TextDecoration.underline,
-                                      )
-                                    : base,
+                                base,
                                 isSelf,
                               ),
                             );
