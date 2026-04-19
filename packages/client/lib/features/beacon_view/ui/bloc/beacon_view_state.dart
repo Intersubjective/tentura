@@ -190,6 +190,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// Forward edges where the current user is the sender for this beacon.
     @Default([]) List<ForwardEdge> myForwards,
 
+    /// Forward edges involving the viewer (sender or recipient), newest first — Forwards screen feed.
+    @Default([]) List<ForwardEdge> viewerForwardEdges,
+
     /// V2 `beaconInvolvement` id sets (for recipient reaction icons on [myForwards]).
     @Default({}) Set<String> involvementCommittedIds,
     @Default({}) Set<String> involvementWatchingIds,

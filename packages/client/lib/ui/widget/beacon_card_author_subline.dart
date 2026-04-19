@@ -11,11 +11,15 @@ class BeaconCardAuthorSubline extends StatelessWidget {
   const BeaconCardAuthorSubline({
     required this.author,
     this.avatarSize = 22,
+    this.trailing,
     super.key,
   });
 
   final Profile author;
   final double avatarSize;
+
+  /// Placed immediately after the display name (e.g. deadline pill on inbox cards).
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +30,15 @@ class BeaconCardAuthorSubline extends StatelessWidget {
       buildWhen: (p, c) => p.profile.id != c.profile.id,
       builder: (context, state) {
         final isSelf = SelfUserHighlight.profileIsSelf(author, state.profile.id);
+        final name = SelfUserHighlight.displayName(l10n, author, state.profile.id);
+        final nameStyle = SelfUserHighlight.nameStyle(
+          theme,
+          theme.textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+          isSelf,
+        );
+        final tail = trailing;
         return Row(
           children: [
             SelfAwareAvatar(
@@ -35,18 +48,27 @@ class BeaconCardAuthorSubline extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Expanded(
-              child: Text(
-                SelfUserHighlight.displayName(l10n, author, state.profile.id),
-                style: SelfUserHighlight.nameStyle(
-                  theme,
-                  theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  isSelf,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              child: tail == null
+                  ? Text(
+                      name,
+                      style: nameStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: nameStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        tail,
+                      ],
+                    ),
             ),
           ],
         );

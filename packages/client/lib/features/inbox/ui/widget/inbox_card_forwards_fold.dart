@@ -5,7 +5,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -19,15 +18,19 @@ Profile _senderProfile(InboxForwardSender s) => Profile(
           : null,
     );
 
-/// Collapsed: right-aligned “Forwarded by” + mini avatars + chevron (no note text).
-/// Expanded: per-sender name + avatar, then note (right-aligned) + vertical bar under avatar.
+/// Collapsed: category flush left; “Forwarded by” + mini avatars + chevron on the right (no note text).
+/// Expanded: per-sender name + avatar, then note (right-aligned) + vertical bar under avatar (full-width rows).
 class InboxCardForwardsFold extends StatefulWidget {
   const InboxCardForwardsFold({
     required this.provenance,
+    required this.categoryLabel,
     super.key,
   });
 
   final InboxProvenance provenance;
+
+  /// Beacon category, left-aligned on the same row as the fold header.
+  final String categoryLabel;
 
   @override
   State<InboxCardForwardsFold> createState() => _InboxCardForwardsFoldState();
@@ -63,63 +66,73 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
       color: scheme.onSurfaceVariant,
       fontWeight: FontWeight.w500,
     );
+    final categoryStyle = theme.textTheme.labelSmall?.copyWith(
+      color: scheme.onSurfaceVariant,
+    );
+
+    final headerRight = Semantics(
+      expanded: _expanded,
+      child: GestureDetector(
+        onTap: () => setState(() => _expanded = !_expanded),
+        behavior: HitTestBehavior.translucent,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.inboxForwardedByLabel,
+              style: labelStyle,
+            ),
+            const SizedBox(width: 6),
+            CompactForwarderAvatars(
+              profiles: profiles,
+              overflowCount: overflow,
+              size: 18,
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              _expanded
+                  ? Icons.keyboard_arrow_up
+                  : Icons.keyboard_arrow_down,
+              size: 18,
+              color: scheme.primary,
+            ),
+          ],
+        ),
+      ),
+    );
 
     Widget headerRow() => Row(
           children: [
-            const SizedBox(width: 40 + kSpacingSmall),
             Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    l10n.inboxForwardedByLabel,
-                    style: labelStyle,
-                  ),
-                  const SizedBox(width: 6),
-                  CompactForwarderAvatars(
-                    profiles: profiles,
-                    overflowCount: overflow,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    size: 18,
-                    color: scheme.primary,
-                  ),
-                ],
+              child: Text(
+                widget.categoryLabel,
+                style: categoryStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            headerRight,
           ],
         );
 
-    return Semantics(
-      expanded: _expanded,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GestureDetector(
-            onTap: () => setState(() => _expanded = !_expanded),
-            behavior: HitTestBehavior.translucent,
-            child: headerRow(),
-          ),
-          if (_expanded) ...[
-            const SizedBox(height: 8),
-            for (var i = 0; i < senders.length; i++) ...[
-              if (i > 0) const SizedBox(height: 8),
-              _SenderNoteBlock(
-                sender: senders[i],
-                l10n: l10n,
-                theme: theme,
-                scheme: scheme,
-                viewerId: viewerId,
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        headerRow(),
+        if (_expanded) ...[
+          const SizedBox(height: 8),
+          for (var i = 0; i < senders.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            _SenderNoteBlock(
+              sender: senders[i],
+              l10n: l10n,
+              theme: theme,
+              scheme: scheme,
+              viewerId: viewerId,
+            ),
           ],
         ],
-      ),
+      ],
     );
   }
 }
@@ -187,16 +200,9 @@ class _SenderNoteBlock extends StatelessWidget {
     );
 
     if (note.isEmpty) {
-      return Row(
-        children: [
-          const SizedBox(width: 40 + kSpacingSmall),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: header,
-            ),
-          ),
-        ],
+      return Align(
+        alignment: Alignment.centerRight,
+        child: header,
       );
     }
 
@@ -204,7 +210,6 @@ class _SenderNoteBlock extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(width: 40 + kSpacingSmall),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,

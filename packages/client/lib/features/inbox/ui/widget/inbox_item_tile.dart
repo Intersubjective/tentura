@@ -117,19 +117,21 @@ class InboxItemTile extends StatelessWidget {
               Column(
                 children: [
                   BeaconIdentityTile(beacon: beacon, size: 40),
-                  const SizedBox(height: 2),
-                  SizedBox(
-                    width: 40,
-                    child: Text(
-                      category,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                  if (!hasProvenance) ...[
+                    const SizedBox(height: 2),
+                    SizedBox(
+                      width: 40,
+                      child: Text(
+                        category,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(width: kSpacingSmall),
@@ -150,19 +152,12 @@ class InboxItemTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: BeaconCardAuthorSubline(
-                              author: beacon.author,
-                              avatarSize: 20,
-                            ),
-                          ),
-                          if (beacon.endAt != null) ...[
-                            const SizedBox(width: 6),
-                            InboxCardDeadlinePill(endAt: beacon.endAt),
-                          ],
-                        ],
+                      BeaconCardAuthorSubline(
+                        author: beacon.author,
+                        avatarSize: 20,
+                        trailing: beacon.endAt != null
+                            ? InboxCardDeadlinePill(endAt: beacon.endAt)
+                            : null,
                       ),
                     ],
                   ),
@@ -194,7 +189,10 @@ class InboxItemTile extends StatelessWidget {
           ),
           if (hasProvenance) ...[
             const SizedBox(height: 6),
-            InboxCardForwardsFold(provenance: item.provenance),
+            InboxCardForwardsFold(
+              provenance: item.provenance,
+              categoryLabel: category,
+            ),
           ],
           const SizedBox(height: 8),
           if (item.status == InboxItemStatus.rejected &&
@@ -245,8 +243,7 @@ class InboxItemTile extends StatelessWidget {
                         child: Text(
                           summary,
                           style: style,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
                         ),
                       ),
                     ],

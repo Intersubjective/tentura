@@ -244,10 +244,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         ),
         _case.fetchBeaconUpdates(beaconId: beaconId),
         _case.fetchInboxContextForBeacon(beaconId),
-        _case.fetchMyForwardEdges(
-          beaconId: beaconId,
-          myUserId: myUserId,
-        ),
+        _case.fetchForwardEdgesForBeacon(beaconId),
         _case.fetchBeaconInvolvement(beaconId: beaconId),
       ]);
 
@@ -288,8 +285,17 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                 InboxProvenance provenance,
                 String latestNotePreview,
               });
-      final myForwards = results[4] as List<ForwardEdge>;
+      final allForwardEdges = results[4] as List<ForwardEdge>;
       final involvement = results[5] as BeaconInvolvementData;
+
+      final myForwards = allForwardEdges
+          .where((e) => e.sender.id == myUserId)
+          .toList(growable: false);
+      final viewerForwardEdges = allForwardEdges
+          .where(
+            (e) => e.sender.id == myUserId || e.recipient.id == myUserId,
+          )
+          .toList(growable: false);
 
       final isCommitted = commitments
           .where((c) => c.status == 0)
@@ -352,6 +358,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           forwardProvenance: inboxCtx.provenance,
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
           myForwards: myForwards,
+          viewerForwardEdges: viewerForwardEdges,
           involvementCommittedIds: involvement.committedIds,
           involvementWatchingIds: involvement.watchingIds,
           involvementOnwardForwarderIds: involvement.onwardForwarderIds,
@@ -370,11 +377,34 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final (:beacon, comment: _) = await _case.fetchBeaconByCommentId(
         state.focusCommentId,
       );
+      final beaconId = beacon.id;
+      final myUserId = state.myProfile.id;
       final hasForwardedThisBeaconOnce = await _case
-          .currentUserHasForwardedBeacon(beacon.id);
-      final inboxCtx = await _case.fetchInboxContextForBeacon(
-        beacon.id,
-      );
+          .currentUserHasForwardedBeacon(beaconId);
+      final inboxCtxEdgesInv = await Future.wait([
+        _case.fetchInboxContextForBeacon(beaconId),
+        _case.fetchForwardEdgesForBeacon(beaconId),
+        _case.fetchBeaconInvolvement(beaconId: beaconId),
+      ]);
+      final inboxCtx =
+          inboxCtxEdgesInv[0]
+              as ({
+                InboxItemStatus? status,
+                InboxProvenance provenance,
+                String latestNotePreview,
+              });
+      final allForwardEdges = inboxCtxEdgesInv[1] as List<ForwardEdge>;
+      final involvement = inboxCtxEdgesInv[2] as BeaconInvolvementData;
+
+      final myForwards = allForwardEdges
+          .where((e) => e.sender.id == myUserId)
+          .toList(growable: false);
+      final viewerForwardEdges = allForwardEdges
+          .where(
+            (e) => e.sender.id == myUserId || e.recipient.id == myUserId,
+          )
+          .toList(growable: false);
+
       emit(
         state.copyWith(
           beacon: beacon,
@@ -382,6 +412,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           inboxStatus: inboxCtx.status,
           forwardProvenance: inboxCtx.provenance,
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
+          myForwards: myForwards,
+          viewerForwardEdges: viewerForwardEdges,
+          involvementCommittedIds: involvement.committedIds,
+          involvementWatchingIds: involvement.watchingIds,
+          involvementOnwardForwarderIds: involvement.onwardForwarderIds,
+          involvementRejectedIds: involvement.rejectedIds,
           status: StateStatus.isSuccess,
         ),
       );
