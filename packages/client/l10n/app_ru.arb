@@ -1755,6 +1755,21 @@
       }
     }
   },
+  "forwardReactionCommitted": "Принял участие",
+  "@forwardReactionCommitted": {
+    "context": "BeaconViewScreen",
+    "description": "Label when a forward recipient committed to the beacon"
+  },
+  "forwardReactionWatching": "Наблюдает",
+  "@forwardReactionWatching": {
+    "context": "BeaconViewScreen",
+    "description": "Label when a forward recipient is watching the beacon"
+  },
+  "forwardReactionForwardedOnward": "Переслал дальше",
+  "@forwardReactionForwardedOnward": {
+    "context": "BeaconViewScreen",
+    "description": "Label when a forward recipient forwarded the beacon to someone else"
+  },
   "dialogCommitTitle": "Принять участие",
   "@dialogCommitTitle": {
     "context": "BeaconViewScreen",

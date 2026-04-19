@@ -186,6 +186,10 @@ final class BeaconViewCase extends UseCaseBase {
         myUserId: myUserId,
       );
 
+  /// All forward edges on the beacon, newest first (`ForwardEdgesFetch`: `order_by: created_at desc`).
+  Future<List<ForwardEdge>> fetchForwardEdgesForBeacon(String beaconId) =>
+      _forwardRepository.fetchEdges(beaconId: beaconId);
+
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
   }) =>
