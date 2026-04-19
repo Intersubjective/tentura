@@ -87,72 +87,57 @@ class _FriendsScreenState extends State<FriendsScreen>
         child: Scaffold(
           backgroundColor: scheme.surface,
           appBar: InboxStyleAppBar(
-            leading: _NetworkOverflowMenu(
-              onEnterCode: () => unawaited(ConnectBottomSheet.show(context)),
+            leading: IconButton(
+              icon: const Icon(Icons.menu),
+              tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              onPressed: () {
+                // Placeholder until Network menu contents are defined.
+              },
             ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: BlocSelector<FriendsCubit, FriendsState, int>(
-                    bloc: friendsCubit,
-                    selector: (s) => s.friends.length,
-                    builder: (context, friendsCount) {
-                      return BlocSelector<
-                        InvitationCubit,
-                        InvitationState,
-                        int
-                      >(
-                        bloc: _invitationCubit,
-                        selector: (s) => s.invitations.length,
-                        builder: (context, inviteCount) {
-                          return TabBar(
-                            controller: _tabController,
-                            automaticIndicatorColorAdjustment: false,
-                            tabAlignment: TabAlignment.start,
-                            isScrollable: true,
-                            labelPadding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                            ),
-                            labelColor: scheme.onPrimary,
-                            unselectedLabelColor: scheme.onPrimary.withValues(
-                              alpha: 0.72,
-                            ),
-                            indicatorColor: scheme.onPrimary,
-                            dividerColor: Colors.transparent,
-                            indicatorSize: TabBarIndicatorSize.label,
-                            labelStyle: theme.textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: scheme.onPrimary,
-                            ),
-                            unselectedLabelStyle: theme.textTheme.labelLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: scheme.onPrimary.withValues(
-                                    alpha: 0.72,
-                                  ),
-                                ),
-                            tabs: [
-                              Tab(
-                                text: '${l10n.friendsTitle} ($friendsCount)',
-                              ),
-                              Tab(
-                                text:
-                                    '${l10n.invitationScreenTitle} ($inviteCount)',
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
+            title: BlocSelector<InvitationCubit, InvitationState, int>(
+              bloc: _invitationCubit,
+              selector: (s) => s.invitations.length,
+              builder: (context, inviteCount) {
+                return TabBar(
+                  controller: _tabController,
+                  automaticIndicatorColorAdjustment: false,
+                  tabAlignment: TabAlignment.start,
+                  isScrollable: true,
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  labelColor: scheme.onPrimary,
+                  unselectedLabelColor: scheme.onPrimary.withValues(
+                    alpha: 0.72,
                   ),
-                ),
-                IconButton(
-                  tooltip: l10n.friendsCreateInvitation,
-                  onPressed: () => unawaited(_onCreateInvitation(context)),
-                  icon: const Icon(Icons.person_add_alt_1),
-                ),
-              ],
+                  indicatorColor: scheme.onPrimary,
+                  dividerColor: Colors.transparent,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  labelStyle: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onPrimary,
+                  ),
+                  unselectedLabelStyle: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: scheme.onPrimary.withValues(alpha: 0.72),
+                  ),
+                  tabs: [
+                    Tab(text: l10n.friendsTitle),
+                    Tab(
+                      text:
+                          '${l10n.invitationScreenTitle} ($inviteCount)',
+                    ),
+                  ],
+                );
+              },
             ),
+            actions: [
+              IconButton(
+                tooltip: l10n.friendsEnterCode,
+                onPressed: () => unawaited(ConnectBottomSheet.show(context)),
+                icon: const Icon(Icons.qr_code_scanner),
+              ),
+            ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(LinearPiActive.height),
               child: BlocSelector<InvitationCubit, InvitationState, bool>(
@@ -184,40 +169,13 @@ class _FriendsScreenState extends State<FriendsScreen>
               _InvitesTabBody(
                 invitationCubit: _invitationCubit,
                 l10n: l10n,
+                onCreateInvitation: () =>
+                    unawaited(_onCreateInvitation(context)),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _NetworkOverflowMenu extends StatelessWidget {
-  const _NetworkOverflowMenu({required this.onEnterCode});
-
-  final VoidCallback onEnterCode;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.menu),
-      tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-      onSelected: (value) {
-        if (value == 'code') {
-          onEnterCode();
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'code',
-          child: Text(l10n.friendsEnterCode),
-        ),
-      ],
     );
   }
 }
@@ -279,13 +237,16 @@ class _InvitesTabBody extends StatelessWidget {
   const _InvitesTabBody({
     required this.invitationCubit,
     required this.l10n,
+    required this.onCreateInvitation,
   });
 
   final InvitationCubit invitationCubit;
   final L10n l10n;
+  final VoidCallback onCreateInvitation;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return RefreshIndicator.adaptive(
       onRefresh: invitationCubit.fetch,
       child: BlocBuilder<InvitationCubit, InvitationState>(
@@ -293,62 +254,76 @@ class _InvitesTabBody extends StatelessWidget {
         bloc: invitationCubit,
         buildWhen: (_, c) => c.isSuccess,
         builder: (_, state) {
-          if (state.invitations.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                SizedBox(
-                  height: MediaQuery.sizeOf(context).height * 0.5,
-                  child: Center(
-                    child: Text(
-                      l10n.labelNothingHere,
-                      style: Theme.of(context).textTheme.displaySmall,
-                      textAlign: TextAlign.center,
+          return CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.person_add_alt_1),
+                      label: Text(l10n.friendsCreateInvitation),
+                      onPressed: onCreateInvitation,
                     ),
                   ),
                 ),
-              ],
-            );
-          }
-          return ListView.separated(
-            itemCount: state.invitations.length,
-            itemBuilder: (_, i) {
-              final invitation = state.invitations[i];
-              if (state.invitations.length > kFetchListOffset &&
-                  state.invitations.length == i + 1) {
-                unawaited(invitationCubit.fetch(clear: false));
-              }
-              final createdAt = invitation.createdAt.toLocal();
-              return ListTile(
-                key: ValueKey(invitation),
-                title: Text(invitation.id),
-                subtitle: Text(
-                  '${dateFormatYMD(createdAt)}  ${timeFormatHm(createdAt)}',
-                ),
-                trailing: IconButton(
-                  onPressed: () async {
-                    if (await InvitationRemoveDialog.show(context) ?? false) {
-                      await invitationCubit.deleteInvitationById(
-                        invitation.id,
-                      );
+              ),
+              if (state.invitations.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      l10n.labelNothingHere,
+                      style: theme.textTheme.displaySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              else
+                SliverList.separated(
+                  itemCount: state.invitations.length,
+                  separatorBuilder: separatorBuilder,
+                  itemBuilder: (context, i) {
+                    final invitation = state.invitations[i];
+                    if (state.invitations.length > kFetchListOffset &&
+                        state.invitations.length == i + 1) {
+                      unawaited(invitationCubit.fetch(clear: false));
                     }
+                    final createdAt = invitation.createdAt.toLocal();
+                    return ListTile(
+                      key: ValueKey(invitation),
+                      title: Text(invitation.id),
+                      subtitle: Text(
+                        '${dateFormatYMD(createdAt)}  ${timeFormatHm(createdAt)}',
+                      ),
+                      trailing: IconButton(
+                        onPressed: () async {
+                          if (await InvitationRemoveDialog.show(context) ??
+                              false) {
+                            await invitationCubit.deleteInvitationById(
+                              invitation.id,
+                            );
+                          }
+                        },
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          color: Colors.red[300],
+                        ),
+                      ),
+                      onTap: () => ShareCodeDialog.show(
+                        context,
+                        header: l10n.labelInvitationCode,
+                        link: Uri.parse(kServerName).replace(
+                          path: kPathAppLinkView,
+                          queryParameters: {'id': invitation.id},
+                        ),
+                      ),
+                    );
                   },
-                  icon: Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.red[300],
-                  ),
                 ),
-                onTap: () => ShareCodeDialog.show(
-                  context,
-                  header: l10n.labelInvitationCode,
-                  link: Uri.parse(kServerName).replace(
-                    path: kPathAppLinkView,
-                    queryParameters: {'id': invitation.id},
-                  ),
-                ),
-              );
-            },
-            separatorBuilder: separatorBuilder,
+            ],
           );
         },
       ),
