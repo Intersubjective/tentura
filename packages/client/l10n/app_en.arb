@@ -587,6 +587,10 @@
   "@profile": {
     "context": "HomeScreen"
   },
+  "profileOverflowEdit": "Edit profile",
+  "@profileOverflowEdit": {
+    "context": "ProfileAppBar"
+  },
   "introTitle": "Build Your Network with Clarity",
   "@introTitle": {
     "context": "Intro"
@@ -1370,6 +1374,26 @@
   },
   "myWorkFilterArchived": "Archived",
   "@myWorkFilterArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSortRecent": "Recent",
+  "@myWorkSortRecent": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSortOldest": "Oldest",
+  "@myWorkSortOldest": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSortAlphabetical": "A–Z",
+  "@myWorkSortAlphabetical": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkFilterMenuTooltip": "Choose filter",
+  "@myWorkFilterMenuTooltip": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOverflowArchive": "Archived",
+  "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyAll": "No authored or committed work yet",

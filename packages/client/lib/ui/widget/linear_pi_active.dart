@@ -5,15 +5,28 @@ class LinearPiActive extends StatefulWidget {
 
   static const size = Size.fromHeight(height);
 
-  static Widget builder(BuildContext context, bool isLoading) =>
-      isLoading ? const LinearPiActive() : const SizedBox(height: height);
+  static Widget builder(
+    BuildContext context,
+    bool isLoading, {
+    Color? color,
+    Color? backgroundColor,
+  }) => isLoading
+      ? LinearPiActive(
+          color: color,
+          backgroundColor: backgroundColor,
+        )
+      : const SizedBox(height: height);
 
   const LinearPiActive({
     Duration duration = const Duration(seconds: 2),
+    this.color,
+    this.backgroundColor,
     super.key,
   }) : _duration = duration;
 
   final Duration _duration;
+  final Color? color;
+  final Color? backgroundColor;
 
   @override
   State<LinearPiActive> createState() => _LinearPiActiveState();
@@ -42,6 +55,9 @@ class _LinearPiActiveState extends State<LinearPiActive>
   }
 
   @override
-  Widget build(BuildContext context) =>
-      LinearProgressIndicator(value: _controller.value);
+  Widget build(BuildContext context) => LinearProgressIndicator(
+    value: _controller.value,
+    color: widget.color,
+    backgroundColor: widget.backgroundColor,
+  );
 }

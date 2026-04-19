@@ -4,6 +4,7 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 
 import 'entity/my_work_card_view_model.dart';
 import 'entity/my_work_fetch_types.dart';
+import 'entity/my_work_sort.dart';
 
 /// Sort key: higher = earlier in list. Tie-break with [Beacon.updatedAt], then id.
 int myWorkCardSortTier(MyWorkCardViewModel vm) {
@@ -18,14 +19,39 @@ int myWorkCardSortTier(MyWorkCardViewModel vm) {
 }
 
 int compareMyWorkCards(MyWorkCardViewModel a, MyWorkCardViewModel b) {
-  final t = myWorkCardSortTier(b).compareTo(myWorkCardSortTier(a));
-  if (t != 0) return t;
-  final u = b.beacon.updatedAt.compareTo(a.beacon.updatedAt);
-  if (u != 0) return u;
-  return a.beaconId.compareTo(b.beaconId);
+  return compareMyWorkCardsForSort(MyWorkSort.recent, a, b);
 }
 
-MyWorkCardViewModel _deriveAuthored({required Beacon beacon, bool archived = false}) {
+/// Applies [MyWorkSort] after the attention tier (same tier ordering as legacy list).
+int compareMyWorkCardsForSort(
+  MyWorkSort sort,
+  MyWorkCardViewModel a,
+  MyWorkCardViewModel b,
+) {
+  final t = myWorkCardSortTier(b).compareTo(myWorkCardSortTier(a));
+  if (t != 0) return t;
+  switch (sort) {
+    case MyWorkSort.recent:
+      final u = b.beacon.updatedAt.compareTo(a.beacon.updatedAt);
+      if (u != 0) return u;
+      return a.beaconId.compareTo(b.beaconId);
+    case MyWorkSort.oldest:
+      final u = a.beacon.updatedAt.compareTo(b.beacon.updatedAt);
+      if (u != 0) return u;
+      return a.beaconId.compareTo(b.beaconId);
+    case MyWorkSort.alphabetical:
+      final ta = a.beacon.title.trim().toLowerCase();
+      final tb = b.beacon.title.trim().toLowerCase();
+      final c = ta.compareTo(tb);
+      if (c != 0) return c;
+      return a.beaconId.compareTo(b.beaconId);
+  }
+}
+
+MyWorkCardViewModel _deriveAuthored({
+  required Beacon beacon,
+  bool archived = false,
+}) {
   final lc = beacon.lifecycle;
   if (!archived && lc == BeaconLifecycle.draft) {
     return MyWorkCardViewModel(
@@ -57,8 +83,9 @@ MyWorkCardViewModel _deriveAuthored({required Beacon beacon, bool archived = fal
   }
 
   final showReviewCommitmentsCta =
-      beacon.coordinationStatus == BeaconCoordinationStatus.commitmentsWaitingForReview &&
-          beacon.commitmentCount > 0;
+      beacon.coordinationStatus ==
+          BeaconCoordinationStatus.commitmentsWaitingForReview &&
+      beacon.commitmentCount > 0;
 
   return MyWorkCardViewModel(
     beaconId: beacon.id,
@@ -114,8 +141,12 @@ List<MyWorkCardViewModel> buildNonArchivedViewModels({
   required List<Beacon> authoredNonClosed,
   required List<MyWorkCommittedRow> committedNonClosed,
 }) {
-  final authored = authoredNonClosed.map((b) => _deriveAuthored(beacon: b)).toList();
-  final committed = committedNonClosed.map((r) => _deriveCommitted(row: r)).toList();
+  final authored = authoredNonClosed
+      .map((b) => _deriveAuthored(beacon: b))
+      .toList();
+  final committed = committedNonClosed
+      .map((r) => _deriveCommitted(row: r))
+      .toList();
   final merged = [...authored, ...committed]..sort(compareMyWorkCards);
   return merged;
 }
@@ -125,7 +156,9 @@ List<MyWorkCardViewModel> buildArchivedViewModels({
   required List<Beacon> authoredClosed,
   required List<MyWorkCommittedRow> committedClosed,
 }) {
-  final authored = authoredClosed.map((b) => _deriveAuthored(beacon: b, archived: true)).toList();
+  final authored = authoredClosed
+      .map((b) => _deriveAuthored(beacon: b, archived: true))
+      .toList();
   final committed = committedClosed
       .map((r) => _deriveCommitted(row: r, archived: true))
       .toList();
