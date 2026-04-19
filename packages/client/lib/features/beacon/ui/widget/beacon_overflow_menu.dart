@@ -34,6 +34,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onWithdraw,
     this.onForward,
     this.onViewForwards,
+    this.onForwardsGraph,
     this.onWatch,
     this.onStopWatching,
     this.onCantHelp,
@@ -57,6 +58,7 @@ class BeaconOverflowMenu extends StatelessWidget {
   final Future<void> Function()? onWithdraw;
   final VoidCallback? onForward;
   final VoidCallback? onViewForwards;
+  final VoidCallback? onForwardsGraph;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
   final Future<void> Function()? onCantHelp;
@@ -141,6 +143,13 @@ class BeaconOverflowMenu extends StatelessWidget {
         l10n.overflowMenuSeeForwards,
       );
     }
+    if (onForwardsGraph != null) {
+      add(
+        'forwards_graph',
+        TenturaIcons.graph,
+        l10n.forwardsGraphMenuTitle,
+      );
+    }
     if (onWatch != null) {
       add('watch', Icons.visibility_outlined, l10n.actionWatch);
     }
@@ -191,6 +200,7 @@ class BeaconOverflowMenu extends StatelessWidget {
         'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
         'forward' => onForward?.call(),
         'view_forwards' => onViewForwards?.call(),
+        'forwards_graph' => onForwardsGraph?.call(),
         'watch' => onWatch?.call(),
         'stop_watch' => onStopWatching?.call(),
         'cant_help' => unawaited(_deferPopupAction(context, onCantHelp)),

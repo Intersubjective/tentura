@@ -555,9 +555,17 @@
   "@hideNegative": {
     "context": "GraphScreen"
   },
-  "graphView": "Graph view",
+  "graphView": "Trust graph",
   "@graphView": {
     "context": "GraphScreen"
+  },
+  "forwardsGraphView": "Forwards graph",
+  "@forwardsGraphView": {
+    "context": "ForwardsGraphScreen"
+  },
+  "forwardsGraphMenuTitle": "Forwards graph",
+  "@forwardsGraphMenuTitle": {
+    "context": "BeaconOverflowMenu"
   },
   "myField": "My Field",
   "@myField": {

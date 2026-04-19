@@ -178,6 +178,9 @@ class InboxItemTile extends StatelessWidget {
                     '$kPathBeaconForwards/${beacon.id}',
                   ),
                 ),
+                onForwardsGraph: () => context
+                    .read<ScreenCubit>()
+                    .showForwardsGraphFor(beacon.id),
                 onWatch: onWatch,
                 onStopWatching: onStopWatching,
                 onCantHelp: onCantHelp,

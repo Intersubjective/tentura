@@ -9,20 +9,23 @@ import '../../domain/entity/edge_directed.dart';
 import '../../domain/entity/node_details.dart';
 
 import '../gql/_g/graph_fetch.req.gql.dart';
+import 'graph_source_repository.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
-class GraphRepository extends RemoteRepository {
+class GraphRepository extends RemoteRepository implements GraphSourceRepository {
   GraphRepository({
     required super.remoteApiService,
     required super.log,
   });
 
+  @override
   Future<Set<EdgeDirected>> fetch({
     bool positiveOnly = true,
     String context = '',
     String? focus,
     int offset = 0,
     int limit = 5,
+    String? viewerUserId,
   }) async {
     final data = await requestDataOnlineOrThrow(
       GGraphFetchReq(
@@ -30,7 +33,7 @@ class GraphRepository extends RemoteRepository {
           // ..context = const Context().withEntry(
           //   HttpLinkHeaders(headers: {kHeaderQueryContext: context}),
           // )
-          ..vars.focus = focus
+          ..vars.focus = focus ?? ''
           ..vars.limit = limit
           ..vars.offset = offset
           ..vars.context = context

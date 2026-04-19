@@ -84,6 +84,8 @@ class BeaconMineControl extends StatelessWidget {
           onViewForwards: () => unawaited(
             context.router.pushPath('$kPathBeaconForwards/${beacon.id}'),
           ),
+          onForwardsGraph: () =>
+              context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
           onDelete: () async {
             await Future<void>.delayed(Duration.zero);
             if (!context.mounted) return;

@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
+import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 import '../widget/unified_forward_row.dart';
@@ -51,9 +52,17 @@ class BeaconForwardsScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final cubit = context.read<BeaconViewCubit>();
+    final screenCubit = context.read<ScreenCubit>();
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.labelForwards),
+        actions: [
+          IconButton(
+            icon: const Icon(TenturaIcons.graph),
+            tooltip: l10n.forwardsGraphView,
+            onPressed: () => screenCubit.showForwardsGraphFor(id),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: BlocSelector<BeaconViewCubit, BeaconViewState, bool>(

@@ -26,6 +26,7 @@ import 'package:tentura/features/favorites/data/repository/favorites_remote_repo
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/friends/data/repository/friends_remote_repository.dart';
 import 'package:tentura/features/geo/data/repository/geo_repository.dart';
+import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart';
 import 'package:tentura/features/graph/data/repository/graph_repository.dart';
 
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
@@ -53,6 +54,10 @@ class InboxRepositoryMock extends Mock implements InboxRepository {}
 
 @Injectable(as: GraphRepository, env: [Environment.test], order: 1)
 class GraphRepositoryMock extends Mock implements GraphRepository {}
+
+@Injectable(as: ForwardsGraphRepository, env: [Environment.test], order: 1)
+class ForwardsGraphRepositoryMock extends Mock
+    implements ForwardsGraphRepository {}
 
 @Injectable(as: ChatLocalRepositoryPort, env: [Environment.test], order: 1)
 class ChatLocalRepositoryMock extends Mock implements ChatLocalRepositoryPort {}
