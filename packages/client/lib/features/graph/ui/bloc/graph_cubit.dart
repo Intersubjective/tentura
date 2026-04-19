@@ -16,6 +16,7 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../../data/repository/graph_repository.dart';
+import '../../data/repository/graph_source_repository.dart';
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/edge_directed.dart';
 import '../../domain/entity/node_details.dart';
@@ -31,7 +32,10 @@ class GraphCubit extends Cubit<GraphState> {
   GraphCubit({
     required Profile me,
     String? focus,
-    GraphRepository? graphRepository,
+    GraphSourceRepository? graphSourceRepository,
+    /// When set, [GraphCubit] always loads forwards for this beacon id and
+    /// does not refetch on node focus changes (forwards graph is static).
+    this.forwardsGraphBeaconId,
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
   }) : _egoNode = UserNode(
@@ -40,7 +44,7 @@ class GraphCubit extends Cubit<GraphState> {
          size: 80,
          positionHint: 0,
        ),
-       _graphRepository = graphRepository ?? GetIt.I<GraphRepository>(),
+       _graphSource = graphSourceRepository ?? GetIt.I<GraphRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        super(
@@ -52,7 +56,9 @@ class GraphCubit extends Cubit<GraphState> {
     unawaited(_fetch());
   }
 
-  final GraphRepository _graphRepository;
+  final GraphSourceRepository _graphSource;
+
+  final String? forwardsGraphBeaconId;
 
   final BeaconRepository _beaconRepository;
 
@@ -89,12 +95,17 @@ class GraphCubit extends Cubit<GraphState> {
         // ignore: discarded_futures //
         ..jumpToNode(node);
     }
-    unawaited(_fetch());
+    if (forwardsGraphBeaconId == null) {
+      unawaited(_fetch());
+    }
   }
 
   ///
   ///
   Future<void> setContext(String? context) {
+    if (forwardsGraphBeaconId != null) {
+      return Future.value();
+    }
     emit(state.copyWith(context: context ?? '', focus: ''));
     graphController.clear();
     _fetchLimits.clear();
@@ -104,6 +115,9 @@ class GraphCubit extends Cubit<GraphState> {
   ///
   ///
   void togglePositiveOnly() {
+    if (forwardsGraphBeaconId != null) {
+      return;
+    }
     emit(state.copyWith(positiveOnly: !state.positiveOnly, focus: ''));
     graphController.clear();
     _fetchLimits.clear();
@@ -115,13 +129,16 @@ class GraphCubit extends Cubit<GraphState> {
   Future<void> _fetch() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      final fetchFocus = forwardsGraphBeaconId ?? state.focus;
+      final limitKey = fetchFocus;
       // Fetch Edges
-      final edges = await _graphRepository.fetch(
+      final edges = await _graphSource.fetch(
         positiveOnly: state.positiveOnly,
         context: state.context,
-        focus: state.focus,
-        limit: _fetchLimits[state.focus] =
-            (_fetchLimits[state.focus] ?? 0) + kFetchWindowSize,
+        focus: fetchFocus.isEmpty ? null : fetchFocus,
+        limit: _fetchLimits[limitKey] =
+            (_fetchLimits[limitKey] ?? 0) + kFetchWindowSize,
+        viewerUserId: state.me.id,
       );
 
       for (final e in edges) {
@@ -133,21 +150,41 @@ class GraphCubit extends Cubit<GraphState> {
         });
       }
 
+      // Ensure every edge source exists as a node (forwards chains often only
+      // attach metadata on `dst`; MeritRank rows may still omit some `src`).
+      // MeritRank may also reference non-graph entity ids (e.g. C/O); this UI
+      // only renders users and beacons, so other prefixes are skipped.
+      for (final e in edges) {
+        if (_nodes.containsKey(e.src)) continue;
+        if (e.src.startsWith('U')) {
+          _nodes[e.src] = UserNode(
+            user: await _profileRepository.fetchById(e.src),
+            positionHint: _nodes.length,
+          );
+        } else if (e.src.startsWith('B')) {
+          _nodes[e.src] = BeaconNode(
+            beacon: await _beaconRepository.fetchBeaconById(e.src),
+            positionHint: _nodes.length,
+          );
+        }
+      }
+
       // Add FocusNode in case there were no edges containing it
       if (state.focus.isNotEmpty && !_nodes.containsKey(state.focus)) {
-        _nodes[state.focus] = switch (state.focus[0]) {
-          'U' => UserNode(
-            user: await _profileRepository.fetchById(state.focus),
+        final f = state.focus;
+        if (f.startsWith('U')) {
+          _nodes[f] = UserNode(
+            user: await _profileRepository.fetchById(f),
             positionHint: _nodes.length,
             pinned: true,
-          ),
-          'B' => BeaconNode(
-            beacon: await _beaconRepository.fetchBeaconById(state.focus),
+          );
+        } else if (f.startsWith('B')) {
+          _nodes[f] = BeaconNode(
+            beacon: await _beaconRepository.fetchBeaconById(f),
             positionHint: _nodes.length,
             pinned: true,
-          ),
-          _ => throw Exception('Unsupported Node type!'),
-        };
+          );
+        }
       }
 
       emit(state.copyWith(status: StateStatus.isSuccess));

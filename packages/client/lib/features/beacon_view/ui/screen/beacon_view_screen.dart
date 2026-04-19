@@ -110,6 +110,7 @@ Widget _beaconViewAppBarOverflow({
       onViewForwards: () => unawaited(
         context.router.pushPath('$kPathBeaconForwards/$beaconId'),
       ),
+      onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
       onDelete: () async {
         if (!context.mounted) return;
         if (await BeaconDeleteDialog.show(context) ?? false) {
@@ -169,6 +170,7 @@ Widget _beaconViewAppBarOverflow({
     onViewForwards: () => unawaited(
       context.router.pushPath('$kPathBeaconForwards/$beaconId'),
     ),
+    onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
     onWatch: state.inboxStatus == InboxItemStatus.needsMe
         ? () => unawaited(cubit.moveToWatching())
         : null,

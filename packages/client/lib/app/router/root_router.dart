@@ -234,6 +234,12 @@ class RootRouter extends RootStackRouter {
       //
     ),
 
+    AutoRoute(
+      usesPathAsKey: true,
+      page: ForwardsGraphRoute.page,
+      path: '$kPathForwardsGraph/:id',
+    ),
+
     // Chat
     AutoRoute(
       keepHistory: false,

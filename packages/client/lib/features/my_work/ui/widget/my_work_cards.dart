@@ -314,6 +314,8 @@ class _AuthoredActiveCard extends StatelessWidget {
               onViewForwards: () => unawaited(
                 context.router.pushPath('$kPathBeaconForwards/${b.id}'),
               ),
+              onForwardsGraph: () =>
+                  context.read<ScreenCubit>().showForwardsGraphFor(b.id),
               onDelete: () async {
                 await Future<void>.delayed(Duration.zero);
                 if (!context.mounted) return;
@@ -415,6 +417,8 @@ class _CommittedActiveCard extends StatelessWidget {
               onViewForwards: () => unawaited(
                 context.router.pushPath('$kPathBeaconForwards/${b.id}'),
               ),
+              onForwardsGraph: () =>
+                  context.read<ScreenCubit>().showForwardsGraphFor(b.id),
               onComplaint: () =>
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
@@ -688,6 +692,8 @@ class _ClosedAuthoredCard extends StatelessWidget {
               onViewForwards: () => unawaited(
                 context.router.pushPath('$kPathBeaconForwards/${b.id}'),
               ),
+              onForwardsGraph: () =>
+                  context.read<ScreenCubit>().showForwardsGraphFor(b.id),
               onDelete: () async {
                 await Future<void>.delayed(Duration.zero);
                 if (!context.mounted) return;
@@ -778,6 +784,8 @@ class _ClosedCommittedCard extends StatelessWidget {
               onViewForwards: () => unawaited(
                 context.router.pushPath('$kPathBeaconForwards/${b.id}'),
               ),
+              onForwardsGraph: () =>
+                  context.read<ScreenCubit>().showForwardsGraphFor(b.id),
               onComplaint: () =>
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),

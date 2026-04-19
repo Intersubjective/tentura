@@ -19,6 +19,9 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void showGraphFor(String id) => emit(state.navigateTo('$kPathGraph/$id'));
 
+  void showForwardsGraphFor(String id) =>
+      emit(state.navigateTo('$kPathForwardsGraph/$id'));
+
   void showRating() => emit(state.navigateTo(kPathRating));
 
   void showBeaconsOf(String id) =>

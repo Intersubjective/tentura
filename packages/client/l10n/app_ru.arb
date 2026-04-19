@@ -555,9 +555,17 @@
   "@hideNegative": {
     "context": "GraphScreen"
   },
-  "graphView": "Просмотр графа",
+  "graphView": "Граф доверия",
   "@graphView": {
     "context": "GraphScreen"
+  },
+  "forwardsGraphView": "Граф пересылок",
+  "@forwardsGraphView": {
+    "context": "ForwardsGraphScreen"
+  },
+  "forwardsGraphMenuTitle": "Граф пересылок",
+  "@forwardsGraphMenuTitle": {
+    "context": "BeaconOverflowMenu"
   },
   "myField": "Моё поле",
   "@myField": {
