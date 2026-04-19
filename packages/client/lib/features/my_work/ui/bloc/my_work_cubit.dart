@@ -28,9 +28,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
        super(const MyWorkState()) {
-    _beaconChanges = (myWorkCase ?? GetIt.I<MyWorkCase>())
-        .beaconChanges
-        .listen(_onBeaconChanged, cancelOnError: false);
+    _beaconChanges = (myWorkCase ?? GetIt.I<MyWorkCase>()).beaconChanges.listen(
+      _onBeaconChanged,
+      cancelOnError: false,
+    );
     _commitmentChanges = _forwardRepository.commitmentChanges.listen(
       (_) => unawaited(fetch()),
       cancelOnError: false,
@@ -176,6 +177,11 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     emit(state.copyWith(filter: filter));
   }
 
+  void setSort(MyWorkSort sort) {
+    if (state.sort == sort) return;
+    emit(state.copyWith(sort: sort));
+  }
+
   Future<void> _fetchClosed(int seq) async {
     final userId = _profileCubit.state.profile.id;
     if (userId.isEmpty) {
@@ -220,26 +226,30 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   void _onBeaconChanged(RepositoryEvent<Beacon> event) => switch (event) {
-        RepositoryEventCreate<Beacon>() ||
-        RepositoryEventUpdate<Beacon>() ||
-        RepositoryEventInvalidate<Beacon>() =>
-          unawaited(fetch()),
-        RepositoryEventDelete<Beacon>(value: final b) =>
-          _removeBeaconFromState(b.id),
-        _ => null,
-      };
+    RepositoryEventCreate<Beacon>() ||
+    RepositoryEventUpdate<Beacon>() ||
+    RepositoryEventInvalidate<Beacon>() => unawaited(fetch()),
+    RepositoryEventDelete<Beacon>(value: final b) => _removeBeaconFromState(
+      b.id,
+    ),
+    _ => null,
+  };
 
   void _removeBeaconFromState(String beaconId) {
     emit(
       state.copyWith(
-        nonArchivedCards:
-            state.nonArchivedCards.where((c) => c.beaconId != beaconId).toList(),
-        archivedCards:
-            state.archivedCards.where((c) => c.beaconId != beaconId).toList(),
-        authoredClosedIdHints:
-            state.authoredClosedIdHints.where((id) => id != beaconId).toList(),
-        committedClosedIdHints:
-            state.committedClosedIdHints.where((id) => id != beaconId).toList(),
+        nonArchivedCards: state.nonArchivedCards
+            .where((c) => c.beaconId != beaconId)
+            .toList(),
+        archivedCards: state.archivedCards
+            .where((c) => c.beaconId != beaconId)
+            .toList(),
+        authoredClosedIdHints: state.authoredClosedIdHints
+            .where((id) => id != beaconId)
+            .toList(),
+        committedClosedIdHints: state.committedClosedIdHints
+            .where((id) => id != beaconId)
+            .toList(),
       ),
     );
     _reportMyWorkActivity();

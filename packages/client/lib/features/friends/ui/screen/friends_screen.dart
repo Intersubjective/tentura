@@ -1,18 +1,19 @@
 import 'dart:async';
 
-import 'package:get_it/get_it.dart';
-import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/chat/ui/widget/chat_peer_list_tile.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
-import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
 
@@ -72,6 +73,7 @@ class _FriendsScreenState extends State<FriendsScreen>
   Widget build(BuildContext context) {
     final friendsCubit = GetIt.I<FriendsCubit>();
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final l10n = L10n.of(context)!;
 
     return BlocProvider.value(
@@ -83,41 +85,91 @@ class _FriendsScreenState extends State<FriendsScreen>
           ),
         ],
         child: Scaffold(
-          appBar: AppBar(
-            title: Text(l10n.friendsTitle),
-            automaticallyImplyLeading: false,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.link),
-                tooltip: l10n.friendsEnterCode,
-                onPressed: () => unawaited(ConnectBottomSheet.show(context)),
-              ),
-              IconButton(
-                icon: const Icon(Icons.person_add_alt_1),
-                tooltip: l10n.friendsCreateInvitation,
-                onPressed: () => unawaited(_onCreateInvitation(context)),
-              ),
-            ],
+          backgroundColor: scheme.surface,
+          appBar: InboxStyleAppBar(
+            leading: _NetworkOverflowMenu(
+              onEnterCode: () => unawaited(ConnectBottomSheet.show(context)),
+            ),
+            title: Row(
+              children: [
+                Expanded(
+                  child: BlocSelector<FriendsCubit, FriendsState, int>(
+                    bloc: friendsCubit,
+                    selector: (s) => s.friends.length,
+                    builder: (context, friendsCount) {
+                      return BlocSelector<
+                        InvitationCubit,
+                        InvitationState,
+                        int
+                      >(
+                        bloc: _invitationCubit,
+                        selector: (s) => s.invitations.length,
+                        builder: (context, inviteCount) {
+                          return TabBar(
+                            controller: _tabController,
+                            automaticIndicatorColorAdjustment: false,
+                            tabAlignment: TabAlignment.start,
+                            isScrollable: true,
+                            labelPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                            ),
+                            labelColor: scheme.onPrimary,
+                            unselectedLabelColor: scheme.onPrimary.withValues(
+                              alpha: 0.72,
+                            ),
+                            indicatorColor: scheme.onPrimary,
+                            dividerColor: Colors.transparent,
+                            indicatorSize: TabBarIndicatorSize.label,
+                            labelStyle: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onPrimary,
+                            ),
+                            unselectedLabelStyle: theme.textTheme.labelLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: scheme.onPrimary.withValues(
+                                    alpha: 0.72,
+                                  ),
+                                ),
+                            tabs: [
+                              Tab(
+                                text: '${l10n.friendsTitle} ($friendsCount)',
+                              ),
+                              Tab(
+                                text:
+                                    '${l10n.invitationScreenTitle} ($inviteCount)',
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                IconButton(
+                  tooltip: l10n.friendsCreateInvitation,
+                  onPressed: () => unawaited(_onCreateInvitation(context)),
+                  icon: const Icon(Icons.person_add_alt_1),
+                ),
+              ],
+            ),
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(52),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  BlocSelector<InvitationCubit, InvitationState, bool>(
-                    key: Key('Friends.InvitationLoader:${_invitationCubit.hashCode}'),
-                    selector: (state) => state.isLoading,
-                    builder: LinearPiActive.builder,
-                    bloc: _invitationCubit,
-                  ),
-                  TabBar(
-                    controller: _tabController,
-                    tabs: [
-                      Tab(text: l10n.friendsTitle),
-                      Tab(text: l10n.invitationScreenTitle),
-                    ],
-                  ),
-                ],
+              preferredSize: const Size.fromHeight(LinearPiActive.height),
+              child: BlocSelector<InvitationCubit, InvitationState, bool>(
+                key: Key(
+                  'Friends.InvitationLoader:${_invitationCubit.hashCode}',
+                ),
+                bloc: _invitationCubit,
+                selector: (state) => state.isLoading,
+                builder: (context, isLoading) {
+                  final onPrimary = Theme.of(context).colorScheme.onPrimary;
+                  return LinearPiActive.builder(
+                    context,
+                    isLoading,
+                    color: onPrimary.withValues(alpha: 0.85),
+                    backgroundColor: onPrimary.withValues(alpha: 0.15),
+                  );
+                },
               ),
             ),
           ),
@@ -137,6 +189,35 @@ class _FriendsScreenState extends State<FriendsScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _NetworkOverflowMenu extends StatelessWidget {
+  const _NetworkOverflowMenu({required this.onEnterCode});
+
+  final VoidCallback onEnterCode;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.menu),
+      tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      onSelected: (value) {
+        if (value == 'code') {
+          onEnterCode();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'code',
+          child: Text(l10n.friendsEnterCode),
+        ),
+      ],
     );
   }
 }

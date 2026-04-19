@@ -587,6 +587,10 @@
   "@profile": {
     "context": "HomeScreen"
   },
+  "profileOverflowEdit": "Редактировать профиль",
+  "@profileOverflowEdit": {
+    "context": "ProfileAppBar"
+  },
   "introTitle": "Стройте свою личную сеть прозрачно!",
   "@introTitle": {
     "context": "Intro"
@@ -1370,6 +1374,26 @@
   },
   "myWorkFilterArchived": "Архив",
   "@myWorkFilterArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSortRecent": "Недавние",
+  "@myWorkSortRecent": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSortOldest": "Старые",
+  "@myWorkSortOldest": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkSortAlphabetical": "А–Я",
+  "@myWorkSortAlphabetical": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkFilterMenuTooltip": "Фильтр списка",
+  "@myWorkFilterMenuTooltip": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkOverflowArchive": "Архив",
+  "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyAll": "Пока нет созданных или принятых дел",

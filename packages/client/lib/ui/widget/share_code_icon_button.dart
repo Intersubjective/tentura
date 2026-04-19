@@ -8,12 +8,14 @@ class ShareCodeIconButton extends StatelessWidget {
   const ShareCodeIconButton({
     required this.header,
     required this.link,
+    this.icon = Icons.qr_code,
     super.key,
   });
 
   ShareCodeIconButton.id(
     String id, {
     Key? key,
+    IconData icon = Icons.qr_code,
   }) : this(
          key: key,
          header: id,
@@ -24,14 +26,16 @@ class ShareCodeIconButton extends StatelessWidget {
                queryParameters: {'id': id},
                path: kPathAppLinkView,
              ),
+         icon: icon,
        );
 
   final String header;
   final Uri link;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) => IconButton(
-    icon: const Icon(Icons.qr_code),
+    icon: Icon(icon),
     onPressed: () => ShareCodeDialog.show(
       context,
       link: link,
