@@ -152,12 +152,14 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
               return Scaffold(
                 backgroundColor: scheme.surface,
                 appBar: AppBar(
-                  backgroundColor: scheme.surfaceContainer,
+                  // Same fill as the inbox card Commit [FilledButton] default style.
+                  backgroundColor: scheme.primary,
                   surfaceTintColor: Colors.transparent,
                   elevation: 0,
                   scrolledUnderElevation: 0,
                   toolbarHeight: 48,
-                  foregroundColor: scheme.onSurface,
+                  foregroundColor: scheme.onPrimary,
+                  iconTheme: IconThemeData(color: scheme.onPrimary),
                   // Tab root: never show a back control (some nested routes still
                   // reserve leading width unless this is explicit).
                   automaticallyImplyLeading: false,
@@ -228,16 +230,18 @@ class _InboxTabStrip extends StatelessWidget {
           tabAlignment: TabAlignment.start,
           isScrollable: true,
           labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-          labelColor: scheme.primary,
-          unselectedLabelColor: scheme.onSurfaceVariant,
-          indicatorColor: scheme.primary,
+          labelColor: scheme.onPrimary,
+          unselectedLabelColor: scheme.onPrimary.withValues(alpha: 0.72),
+          indicatorColor: scheme.onPrimary,
           dividerColor: Colors.transparent,
           indicatorSize: TabBarIndicatorSize.label,
           labelStyle: theme.textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w600,
+            color: scheme.onPrimary,
           ),
           unselectedLabelStyle: theme.textTheme.labelLarge?.copyWith(
             fontWeight: FontWeight.w500,
+            color: scheme.onPrimary.withValues(alpha: 0.72),
           ),
           tabs: [
             Tab(text: '${l10n.inboxTabNeedsMe} ($needsMeCount)'),
@@ -297,7 +301,7 @@ class _InboxSortButtonState extends State<_InboxSortButton> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             minimumSize: const Size(0, 40),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            foregroundColor: scheme.onSurface,
+            foregroundColor: scheme.onPrimary,
           ),
           onPressed: () => _onPressed(sort),
           child: Row(
@@ -311,13 +315,14 @@ class _InboxSortButtonState extends State<_InboxSortButton> {
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w600,
+                    color: scheme.onPrimary,
                   ),
                 ),
               ),
               Icon(
                 Icons.swap_vert,
                 size: 20,
-                color: scheme.onSurface,
+                color: scheme.onPrimary,
               ),
             ],
           ),
