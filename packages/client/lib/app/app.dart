@@ -73,8 +73,11 @@ class App extends StatelessWidget {
           deepLinkBuilder: router.deepLinkBuilder,
           deepLinkTransformer: router.deepLinkTransformer,
           reevaluateListenable: router.reevaluateListenable,
+          // One observer instance per Navigator. Nested AutoRouter inherits
+          // observers from ancestors; GetIt singleton caused observer.navigator
+          // assertion failures on nested stacks (e.g. web).
           navigatorObservers: () => [
-            GetIt.I<SentryNavigatorObserver>(),
+            SentryNavigatorObserver(),
           ],
         ),
         supportedLocales: L10n.supportedLocales,

@@ -914,6 +914,22 @@
   "@inboxSortDeadline": {
     "context": "InboxScreen"
   },
+  "inboxSortMenuTitle": "Sort by",
+  "@inboxSortMenuTitle": {
+    "context": "InboxScreen"
+  },
+  "inboxRejectedTitle": "Rejected",
+  "@inboxRejectedTitle": {
+    "context": "InboxScreen"
+  },
+  "inboxNeedsMeEmptyCalm": "Inbox is clear. New requests will appear here.",
+  "@inboxNeedsMeEmptyCalm": {
+    "context": "InboxScreen"
+  },
+  "inboxWatchingEmptyCalm": "Nothing to watch.",
+  "@inboxWatchingEmptyCalm": {
+    "context": "InboxScreen"
+  },
   "inboxTabNeedsMe": "Needs me",
   "@inboxTabNeedsMe": {
     "context": "InboxScreen"
@@ -1155,6 +1171,10 @@
         "type": "int"
       }
     }
+  },
+  "inboxForwardedByLabel": "Forwarded by",
+  "@inboxForwardedByLabel": {
+    "context": "InboxItemTile"
   },
   "inboxFromForwarder": "From {name}",
   "@inboxFromForwarder": {

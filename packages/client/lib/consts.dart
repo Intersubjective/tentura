@@ -25,6 +25,7 @@ const kPathSignUp = '/sign/up';
 const kPathSettings = '/settings';
 const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
+const kPathInboxRejected = '$kPathInbox/rejected';
 const kPathMyWork = '/home/work';
 const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';

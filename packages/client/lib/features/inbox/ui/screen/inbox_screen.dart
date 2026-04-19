@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
-
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
@@ -21,6 +21,9 @@ import '../message/inbox_messages.dart';
 import '../widget/inbox_item_tile.dart';
 import '../widget/inbox_tombstone_card.dart';
 import '../widget/rejection_dialog.dart';
+
+const _kInboxListPadding = EdgeInsets.fromLTRB(8, 4, 8, 12);
+const _kInboxCardSeparator = 6.0;
 
 @RoutePage()
 class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -50,12 +53,10 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
     final inboxCubit = context.read<InboxCubit>();
 
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
         listenWhen: (prev, curr) =>
             prev.inboxReselectCount != curr.inboxReselectCount,
@@ -79,158 +80,333 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
               action: SnackBarAction(
                 label: l10n.inboxViewInTab,
                 onPressed: () {
-                  DefaultTabController.of(context).animateTo(msg.tabIndex);
+                  if (msg.navigatesToRejectedArchive) {
+                    unawaited(openInboxRejectedArchive(context));
+                  } else {
+                    DefaultTabController.of(context).animateTo(msg.tabIndex);
+                  }
                 },
               ),
             );
           },
-          child: SafeArea(
-            minimum: kPaddingSmallH,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                BlocSelector<InboxCubit, InboxState, InboxSort>(
-                  selector: (state) => state.sort,
-                  builder: (_, sort) {
-                    final chipStyle = AppChoiceChipStyle(theme.colorScheme);
-                    return Padding(
-                      padding: kPaddingSmallV,
-                      child: Wrap(
-                        spacing: kSpacingSmall,
-                        children: [
-                          for (final s in InboxSort.values)
-                            ChoiceChip(
-                              color: chipStyle.background,
-                              labelStyle: theme.textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: chipStyle.labelForeground,
-                              ),
-                              checkmarkColor: chipStyle.checkmarkColor,
-                              side: chipStyle.outline,
-                              selected: sort == s,
-                              label: Text(
-                                switch (s) {
-                                  InboxSort.recent => l10n.inboxSortRecent,
-                                  InboxSort.meritRank =>
-                                    l10n.inboxSortMeritRank,
-                                  InboxSort.deadline => l10n.inboxSortDeadline,
-                                },
-                              ),
-                              onSelected: (_) => inboxCubit.setSort(s),
-                            ),
-                        ],
-                      ),
+          child: BlocBuilder<InboxCubit, InboxState>(
+            buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
+            builder: (_, state) {
+              final theme = Theme.of(context);
+              final scheme = theme.colorScheme;
+              final l10n = L10n.of(context)!;
+
+              late final Widget body;
+              if (state.isLoading) {
+                body = const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                );
+              } else if (state.items.isEmpty) {
+                body = TabBarView(
+                  children: [
+                    _InboxTabKeepAlive(
+                      storageKey: 'inbox-tab-needs-global-empty',
+                      child: _inboxGlobalEmpty(theme: theme, l10n: l10n),
+                    ),
+                    _InboxTabKeepAlive(
+                      storageKey: 'inbox-tab-watching-global-empty',
+                      child: _watchingQuietEmpty(theme: theme, l10n: l10n),
+                    ),
+                  ],
+                );
+              } else {
+                body = BlocBuilder<NewStuffCubit, NewStuffState>(
+                  buildWhen: (p, c) =>
+                      p.inboxLastSeenMs != c.inboxLastSeenMs ||
+                      p.maxInboxActivityMs != c.maxInboxActivityMs,
+                  builder: (context, _) {
+                    final newStuff = context.read<NewStuffCubit>();
+                    return TabBarView(
+                      children: [
+                        _InboxTabKeepAlive(
+                          storageKey: 'inbox-tab-needs',
+                          child: _needsMeTabBody(
+                            context,
+                            inboxCubit,
+                            state,
+                            l10n,
+                            newStuff,
+                          ),
+                        ),
+                        _InboxTabKeepAlive(
+                          storageKey: 'inbox-tab-watching',
+                          child: _watchingTabBody(
+                            context,
+                            inboxCubit,
+                            state.watching,
+                            l10n,
+                            newStuff,
+                          ),
+                        ),
+                      ],
                     );
                   },
-                ),
-                BlocSelector<InboxCubit, InboxState, (int, int)>(
-                  selector: (state) =>
-                      (state.needsMe.length, state.watching.length),
-                  builder: (_, counts) => TabBar(
-                    automaticIndicatorColorAdjustment: false,
-                    labelColor: theme.colorScheme.primary,
-                    unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-                    indicatorColor: theme.colorScheme.primary,
-                    dividerColor: theme.colorScheme.outlineVariant,
-                    tabs: [
-                      Tab(
-                        text: counts.$1 > 0
-                            ? '${l10n.inboxTabNeedsMe} (${counts.$1})'
-                            : l10n.inboxTabNeedsMe,
-                      ),
-                      Tab(
-                        text: counts.$2 > 0
-                            ? '${l10n.inboxTabWatching} (${counts.$2})'
-                            : l10n.inboxTabWatching,
-                      ),
-                      Tab(text: l10n.inboxTabRejected),
+                );
+              }
+
+              return Scaffold(
+                backgroundColor: scheme.surface,
+                appBar: AppBar(
+                  backgroundColor: scheme.surfaceContainer,
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  toolbarHeight: 48,
+                  foregroundColor: scheme.onSurface,
+                  // Tab root: never show a back control (some nested routes still
+                  // reserve leading width unless this is explicit).
+                  automaticallyImplyLeading: false,
+                  leadingWidth: 0,
+                  titleSpacing: 8,
+                  title: const Row(
+                    children: [
+                      Expanded(child: _InboxTabStrip()),
+                      _InboxSortButton(),
+                      _InboxOverflowMenu(),
+                      SizedBox(width: 4),
                     ],
                   ),
                 ),
-                Expanded(
-                  child: BlocBuilder<NewStuffCubit, NewStuffState>(
-                    buildWhen: (p, c) =>
-                        p.inboxLastSeenMs != c.inboxLastSeenMs ||
-                        p.maxInboxActivityMs != c.maxInboxActivityMs,
-                    builder: (context, _) {
-                      final newStuff = context.read<NewStuffCubit>();
-                      return BlocBuilder<InboxCubit, InboxState>(
-                        buildWhen: (_, c) =>
-                            c.isSuccess || c.isLoading || c.hasError,
-                        builder: (_, state) {
-                          if (state.isLoading) {
-                            return const Center(
-                              child: CircularProgressIndicator.adaptive(),
-                            );
-                          }
-                          if (state.items.isEmpty) {
-                            return Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.inbox_outlined,
-                                    size: 64,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(height: kSpacingMedium),
-                                  Text(
-                                    l10n.inboxEmpty,
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: kSpacingSmall),
-                                  Text(
-                                    l10n.inboxEmptyHint,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                          return TabBarView(
-                            children: [
-                              _needsMeTabBody(
-                                context,
-                                inboxCubit,
-                                state,
-                                l10n,
-                                newStuff,
-                              ),
-                              _tabBody(
-                                context,
-                                inboxCubit,
-                                state.watching,
-                                l10n.inboxTabWatchingEmpty,
-                                1,
-                                newStuff,
-                              ),
-                              _tabBody(
-                                context,
-                                inboxCubit,
-                                state.rejected,
-                                l10n.inboxTabRejectedEmpty,
-                                2,
-                                newStuff,
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+                body: body,
+              );
+            },
           ),
         ),
       ),
     );
   }
+}
+
+class _InboxTabKeepAlive extends StatefulWidget {
+  const _InboxTabKeepAlive({
+    required this.storageKey,
+    required this.child,
+  });
+
+  final String storageKey;
+  final Widget child;
+
+  @override
+  State<_InboxTabKeepAlive> createState() => _InboxTabKeepAliveState();
+}
+
+class _InboxTabKeepAliveState extends State<_InboxTabKeepAlive>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return KeyedSubtree(
+      key: PageStorageKey<String>(widget.storageKey),
+      child: widget.child,
+    );
+  }
+}
+
+/// Primary inbox tabs on the app bar row (no separate "Inbox" title).
+class _InboxTabStrip extends StatelessWidget {
+  const _InboxTabStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = L10n.of(context)!;
+
+    return BlocSelector<InboxCubit, InboxState, int>(
+      selector: (s) => s.needsMe.length,
+      builder: (_, needsMeCount) {
+        return TabBar(
+          automaticIndicatorColorAdjustment: false,
+          tabAlignment: TabAlignment.start,
+          isScrollable: true,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+          labelColor: scheme.primary,
+          unselectedLabelColor: scheme.onSurfaceVariant,
+          indicatorColor: scheme.primary,
+          dividerColor: Colors.transparent,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          unselectedLabelStyle: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+          tabs: [
+            Tab(text: '${l10n.inboxTabNeedsMe} ($needsMeCount)'),
+            Tab(text: l10n.inboxTabWatching),
+          ],
+        );
+      },
+    );
+  }
+}
+
+InboxSort _inboxSortAfter(InboxSort current) => switch (current) {
+      InboxSort.recent => InboxSort.meritRank,
+      InboxSort.meritRank => InboxSort.deadline,
+      InboxSort.deadline => InboxSort.recent,
+    };
+
+/// Cycles [InboxSort] on each tap; debounces bursts so one accidental double-tap
+/// does not skip a mode.
+class _InboxSortButton extends StatefulWidget {
+  const _InboxSortButton();
+
+  @override
+  State<_InboxSortButton> createState() => _InboxSortButtonState();
+}
+
+class _InboxSortButtonState extends State<_InboxSortButton> {
+  static const _debounce = Duration(milliseconds: 220);
+
+  DateTime? _lastTap;
+
+  void _onPressed(InboxSort current) {
+    final now = DateTime.now();
+    if (_lastTap != null && now.difference(_lastTap!) < _debounce) {
+      return;
+    }
+    _lastTap = now;
+    context.read<InboxCubit>().setSort(_inboxSortAfter(current));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = L10n.of(context)!;
+
+    return BlocSelector<InboxCubit, InboxState, InboxSort>(
+      selector: (s) => s.sort,
+      builder: (context, sort) {
+        final scheme = theme.colorScheme;
+        final label = switch (sort) {
+          InboxSort.recent => l10n.inboxSortRecent,
+          InboxSort.meritRank => l10n.inboxSortMeritRank,
+          InboxSort.deadline => l10n.inboxSortDeadline,
+        };
+        return TextButton(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            minimumSize: const Size(0, 40),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            foregroundColor: scheme.onSurface,
+          ),
+          onPressed: () => _onPressed(sort),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 88),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.swap_vert,
+                size: 20,
+                color: scheme.onSurface,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _InboxOverflowMenu extends StatelessWidget {
+  const _InboxOverflowMenu();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      onSelected: (value) {
+        if (value == 'rejected') {
+          unawaited(openInboxRejectedArchive(context));
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'rejected',
+          child: Text(l10n.inboxRejectedTitle),
+        ),
+      ],
+    );
+  }
+}
+
+Widget _inboxGlobalEmpty({
+  required ThemeData theme,
+  required L10n l10n,
+}) {
+  final scheme = theme.colorScheme;
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 48,
+            color: scheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            l10n.inboxEmpty,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.inboxEmptyHint,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _watchingQuietEmpty({
+  required ThemeData theme,
+  required L10n l10n,
+}) {
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Text(
+        l10n.inboxWatchingEmptyCalm,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    ),
+  );
 }
 
 Widget _needsMeTabBody(
@@ -241,65 +417,66 @@ Widget _needsMeTabBody(
   NewStuffCubit newStuff,
 ) {
   final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
   final tombstones = state.tombstonesLast24h;
   final needsMe = state.needsMe;
 
   if (tombstones.isEmpty && needsMe.isEmpty) {
     return Center(
-      child: Text(
-        l10n.inboxTabNeedsEmpty,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          l10n.inboxNeedsMeEmptyCalm,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }
 
   return RefreshIndicator.adaptive(
-    onRefresh: () => inboxCubit.fetch(),
+    onRefresh: inboxCubit.fetch,
     child: CustomScrollView(
+      key: const PageStorageKey<String>('inbox-needs-me-scroll'),
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
+        if (tombstones.isNotEmpty || needsMe.isNotEmpty)
+          const SliverToBoxAdapter(child: SizedBox(height: 4)),
         if (tombstones.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: Padding(
-              padding: kPaddingSmallV,
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.inboxTombstoneQueueStatus,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          letterSpacing: 1.2,
-                          color: theme.colorScheme.outline,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        l10n.inboxTombstoneSectionTitle,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                  Expanded(
                     child: Text(
-                      l10n.inboxTombstoneLast24h,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.outline,
+                      l10n.inboxTombstoneSectionTitle,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      child: Text(
+                        l10n.inboxTombstoneLast24h,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: scheme.outline,
+                        ),
                       ),
                     ),
                   ),
@@ -309,11 +486,12 @@ Widget _needsMeTabBody(
           ),
           SliverList.separated(
             itemCount: tombstones.length,
-            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: _kInboxCardSeparator),
             itemBuilder: (_, i) {
               final item = tombstones[i];
               return Padding(
-                padding: kPaddingSmallH,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: InboxTombstoneCard(
                   key: ValueKey('tombstone-${item.beaconId}'),
                   item: item,
@@ -325,35 +503,25 @@ Widget _needsMeTabBody(
               );
             },
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: kSpacingMedium)),
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
         ],
         if (needsMe.isNotEmpty) ...[
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: kPaddingSmallH.add(kPaddingSmallV),
-              child: Text(
-                l10n.inboxTabNeedsMe,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
           SliverList.separated(
             itemCount: needsMe.length,
-            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+            separatorBuilder: (_, _) =>
+                const SizedBox(height: _kInboxCardSeparator),
             itemBuilder: (_, i) {
               final item = needsMe[i];
               return Padding(
-                padding: kPaddingSmallH,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: InboxItemTile(
                   key: ValueKey(item.beaconId),
                   item: item,
                   inboxHighlight: newStuff.inboxRowHighlight(
                     latestForwardAt: item.latestForwardAt,
                     forwardCount: item.forwardCount,
-                    beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
+                    beaconActivityEpochMs:
+                        item.newStuffBeaconOnlyActivityEpochMs,
                   ),
                   onOpenBeacon: () => context.router.pushPath(
                     '$kPathBeaconView/${item.beaconId}',
@@ -379,49 +547,55 @@ Widget _needsMeTabBody(
         ] else if (tombstones.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: kPaddingSmallH.add(const EdgeInsets.only(top: 8)),
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
               child: Text(
-                l10n.inboxTabNeedsEmpty,
+                l10n.inboxNeedsMeEmptyCalm,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: scheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
           ),
+        const SliverToBoxAdapter(child: SizedBox(height: 12)),
       ],
     ),
   );
 }
 
-Widget _tabBody(
+Widget _watchingTabBody(
   BuildContext context,
   InboxCubit inboxCubit,
   List<InboxItem> items,
-  String emptyHint,
-  int tabIndex,
+  L10n l10n,
   NewStuffCubit newStuff,
 ) {
   final theme = Theme.of(context);
 
   if (items.isEmpty) {
     return Center(
-      child: Text(
-        emptyHint,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          l10n.inboxWatchingEmptyCalm,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
       ),
     );
   }
 
   return RefreshIndicator.adaptive(
-    onRefresh: () => inboxCubit.fetch(),
+    onRefresh: inboxCubit.fetch,
     child: ListView.separated(
-      padding: kPaddingSmallV,
+      key: const PageStorageKey<String>('inbox-watching-scroll'),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: _kInboxListPadding,
       itemCount: items.length,
-      separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
+      separatorBuilder: (_, _) =>
+          const SizedBox(height: _kInboxCardSeparator),
       itemBuilder: (_, i) {
         final item = items[i];
         return InboxItemTile(
@@ -438,24 +612,14 @@ Widget _tabBody(
           onTap: () => context.router.pushPath(
             '$kPathForwardBeacon/${item.beaconId}',
           ),
-          onWatch: tabIndex == 0
-              ? () => inboxCubit.setWatching(item.beaconId)
-              : null,
-          onStopWatching: tabIndex == 1
-              ? () => inboxCubit.stopWatching(item.beaconId)
-              : null,
-          onCantHelp: tabIndex == 0 || tabIndex == 1
-              ? () async {
-                  final msg = await showRejectionDialog(context);
-                  if (!context.mounted) return;
-                  if (msg != null) {
-                    await inboxCubit.reject(item.beaconId, message: msg);
-                  }
-                }
-              : null,
-          onMoveToInbox: tabIndex == 2
-              ? () => inboxCubit.unreject(item.beaconId)
-              : null,
+          onStopWatching: () => inboxCubit.stopWatching(item.beaconId),
+          onCantHelp: () async {
+            final msg = await showRejectionDialog(context);
+            if (!context.mounted) return;
+            if (msg != null) {
+              await inboxCubit.reject(item.beaconId, message: msg);
+            }
+          },
           onCommit: _inboxCardAllowsCommit(item)
               ? () => _inboxCommit(context, item.beacon!)
               : null,
@@ -465,6 +629,14 @@ Widget _tabBody(
       },
     ),
   );
+}
+
+/// Pushes full-screen rejected archive, then refreshes the tab inbox when popped.
+Future<void> openInboxRejectedArchive(BuildContext context) async {
+  final cubit = context.read<InboxCubit>();
+  await context.router.pushPath(kPathInboxRejected);
+  if (!context.mounted) return;
+  await cubit.fetch();
 }
 
 bool _inboxCardAllowsCommit(InboxItem item) {

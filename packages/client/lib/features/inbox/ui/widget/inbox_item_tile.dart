@@ -17,22 +17,10 @@ import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart'
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import '../../domain/entity/inbox_item.dart';
-import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
 import 'inbox_card_action_row.dart';
 import 'inbox_card_deadline_pill.dart';
-import 'inbox_card_meta_chips.dart';
-import 'inbox_card_note_quote.dart';
-import 'inbox_card_provenance_row.dart';
-
-String _relayNotePreview(InboxProvenance p, String latestNotePreview) {
-  if (p.senders.isNotEmpty) {
-    final n = p.senders.first.notePreview;
-    if (n.isNotEmpty) return n;
-  }
-  if (p.strongestNotePreview.isNotEmpty) return p.strongestNotePreview;
-  return latestNotePreview;
-}
+import 'inbox_card_forwards_fold.dart';
 
 class InboxItemTile extends StatelessWidget {
   const InboxItemTile({
@@ -111,11 +99,12 @@ class InboxItemTile extends StatelessWidget {
 
     final showNewStuffDot = inboxHighlight != InboxRowHighlightKind.none;
     final hasProvenance = showProvenance && item.provenance.senders.isNotEmpty;
-    final notePreview = hasProvenance
-        ? _relayNotePreview(item.provenance, item.latestNotePreview)
-        : '';
 
     const cardPadding = EdgeInsets.fromLTRB(12, 10, 12, 10);
+
+    final category = beacon.context.trim().isEmpty
+        ? l10n.inboxCategoryGeneral
+        : beacon.context.trim();
 
     return BeaconCardShell(
       padding: cardPadding,
@@ -125,7 +114,24 @@ class InboxItemTile extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              BeaconIdentityTile(beacon: beacon, size: 40),
+              Column(
+                children: [
+                  BeaconIdentityTile(beacon: beacon, size: 40),
+                  const SizedBox(height: 2),
+                  SizedBox(
+                    width: 40,
+                    child: Text(
+                      category,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(width: kSpacingSmall),
               Expanded(
                 child: GestureDetector(
@@ -144,18 +150,24 @@ class InboxItemTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
-                      BeaconCardAuthorSubline(
-                        author: beacon.author,
-                        avatarSize: 20,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: BeaconCardAuthorSubline(
+                              author: beacon.author,
+                              avatarSize: 20,
+                            ),
+                          ),
+                          if (beacon.endAt != null) ...[
+                            const SizedBox(width: 6),
+                            InboxCardDeadlinePill(endAt: beacon.endAt),
+                          ],
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
-              if (beacon.endAt != null) ...[
-                const SizedBox(width: 6),
-                InboxCardDeadlinePill(endAt: beacon.endAt),
-              ],
               const SizedBox(width: 4),
               BeaconOverflowMenu(
                 beacon: beacon,
@@ -182,17 +194,9 @@ class InboxItemTile extends StatelessWidget {
           ),
           if (hasProvenance) ...[
             const SizedBox(height: 6),
-            InboxCardProvenanceRow(
-              provenance: item.provenance,
-              coordinationStatus: beacon.coordinationStatus,
-            ),
-          ],
-          if (hasProvenance && notePreview.trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
-            InboxCardNoteQuote(text: notePreview),
+            InboxCardForwardsFold(provenance: item.provenance),
           ],
           const SizedBox(height: 8),
-          InboxCardMetaChips(beacon: beacon, item: item),
           if (item.status == InboxItemStatus.rejected &&
               item.rejectionMessage.isNotEmpty) ...[
             const SizedBox(height: 6),
