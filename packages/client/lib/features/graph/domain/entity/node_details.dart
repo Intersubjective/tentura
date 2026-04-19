@@ -60,9 +60,14 @@ final class UserNode extends NodeDetails {
     super.pinned,
     super.size,
     super.positionHint,
+    this.isCommitter = false,
   });
 
   final Profile user;
+
+  /// True when the user has an active commitment for the focused beacon
+  /// (forwards graph only). Used by the renderer to draw a highlight ring.
+  final bool isCommitter;
 
   @override
   String get userId => user.id;
@@ -90,6 +95,7 @@ final class UserNode extends NodeDetails {
     user: user,
     pinned: isPinned,
     positionHint: positionHint,
+    isCommitter: isCommitter,
   );
 
   @override
@@ -98,7 +104,23 @@ final class UserNode extends NodeDetails {
     size: size,
     pinned: pinned,
     positionHint: positionHint,
+    isCommitter: isCommitter,
   );
+
+  UserNode copyWithIsCommitter(bool value) => UserNode(
+    user: user,
+    size: size,
+    pinned: pinned,
+    positionHint: positionHint,
+    isCommitter: value,
+  );
+
+  @override
+  int get hashCode => super.hashCode ^ isCommitter.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      super == other && other is UserNode && other.isCommitter == isCommitter;
 }
 
 final class BeaconNode extends NodeDetails {

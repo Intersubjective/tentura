@@ -1,13 +1,25 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
 
 import '../../domain/entity/edge_directed.dart';
 import '../../domain/entity/node_details.dart';
 import 'graph_source_repository.dart';
 
-/// Builds a directed graph from `beacon_forward_edge` rows for one beacon.
+/// Result payload for [ForwardsGraphRepository.fetchForwardsGraph].
+typedef ForwardsGraphPayload = ({
+  Set<EdgeDirected> edges,
+  Set<String> committerIds,
+});
+
+/// Builds a directed graph from the V2 `beaconForwardGraph` query for one
+/// beacon. The query returns the viewer's directly-visible edges, their
+/// parent_edge_id ancestor closure, and the chains that delivered the beacon
+/// to each active committer. See
+/// `packages/server/lib/domain/use_case/beacon_forward_graph_case.dart`.
 @Singleton(env: [Environment.dev, Environment.prod])
 class ForwardsGraphRepository implements GraphSourceRepository {
   ForwardsGraphRepository(
@@ -20,6 +32,44 @@ class ForwardsGraphRepository implements GraphSourceRepository {
 
   static const _weight = 1.0;
 
+  /// Forwards-graph specific fetch that also surfaces the committer ids so the
+  /// renderer can highlight committed users. Source/destination user nodes are
+  /// not pre-populated on the returned edges; the cubit lazy-fetches them.
+  Future<ForwardsGraphPayload> fetchForwardsGraph({
+    required String beaconId,
+  }) async {
+    final results = await Future.wait<Object>([
+      _beaconRepository.fetchBeaconById(beaconId),
+      _forwardRepository.fetchForwardGraph(beaconId: beaconId),
+    ]);
+    final beacon = results[0] as Beacon;
+    final graph = results[1] as ForwardGraph;
+
+    final edges = <EdgeDirected>{
+      (
+        src: graph.authorId,
+        dst: beacon.id,
+        weight: _weight,
+        node: BeaconNode(beacon: beacon),
+      ),
+      for (final e in graph.edges)
+        (
+          src: e.senderId,
+          dst: e.recipientId,
+          weight: _weight,
+          node: null,
+        ),
+    };
+
+    return (
+      edges: edges,
+      committerIds: graph.committerIds,
+    );
+  }
+
+  /// [GraphSourceRepository] adapter used by the shared `GraphCubit` code path.
+  /// Drops the committer ids; callers that need them call
+  /// [fetchForwardsGraph] directly.
   @override
   Future<Set<EdgeDirected>> fetch({
     bool positiveOnly = true,
@@ -33,41 +83,7 @@ class ForwardsGraphRepository implements GraphSourceRepository {
     if (beaconId == null || beaconId.isEmpty) {
       return {};
     }
-
-    final beacon = await _beaconRepository.fetchBeaconById(beaconId);
-    final forwardEdges = await _forwardRepository.fetchEdges(beaconId: beaconId);
-
-    final authorId = beacon.author.id;
-    final result = <EdgeDirected>{};
-
-    final viewerId = viewerUserId;
-    if (viewerId != null &&
-        viewerId.isNotEmpty &&
-        viewerId != authorId) {
-      result.add((
-        src: viewerId,
-        dst: authorId,
-        weight: _weight,
-        node: UserNode(user: beacon.author),
-      ));
-    }
-
-    result.add((
-      src: authorId,
-      dst: beacon.id,
-      weight: _weight,
-      node: BeaconNode(beacon: beacon),
-    ));
-
-    for (final e in forwardEdges) {
-      result.add((
-        src: e.sender.id,
-        dst: e.recipient.id,
-        weight: _weight,
-        node: UserNode(user: e.recipient),
-      ));
-    }
-
-    return result;
+    final payload = await fetchForwardsGraph(beaconId: beaconId);
+    return payload.edges;
   }
 }

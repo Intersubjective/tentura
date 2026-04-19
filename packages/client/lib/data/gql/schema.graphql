@@ -3874,6 +3874,7 @@ type query_root {
     where: beacon_bool_exp
   ): [beacon!]!
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
+  beaconForwardGraph(id: String!): v2_ForwardGraphResult!
 
   """fetch data from the table: "beacon" using primary key columns"""
   beacon_by_pk(id: String!): beacon
@@ -6176,6 +6177,22 @@ type v2_BeaconInvolvement {
 type v2_MyForwardRecipient {
   recipientId: String!
   note: String!
+}
+
+type v2_ForwardGraphEdge {
+  id: String!
+  beaconId: String!
+  senderId: String!
+  recipientId: String!
+  parentEdgeId: String
+  batchId: String
+}
+
+type v2_ForwardGraphResult {
+  beaconId: String!
+  authorId: String!
+  committerIds: [String!]!
+  edges: [v2_ForwardGraphEdge!]!
 }
 
 type v2_CommitmentWithCoordinationRow {
