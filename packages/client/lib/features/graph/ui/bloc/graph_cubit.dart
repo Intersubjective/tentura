@@ -15,6 +15,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
+import '../../data/repository/forwards_graph_repository.dart';
 import '../../data/repository/graph_repository.dart';
 import '../../data/repository/graph_source_repository.dart';
 import '../../domain/entity/edge_details.dart';
@@ -75,6 +76,10 @@ class GraphCubit extends Cubit<GraphState> {
     _egoNode.id: _egoNode,
   };
 
+  /// Active committers for [forwardsGraphBeaconId] (forwards graph only).
+  /// Highlighted via [UserNode.isCommitter] in the renderer.
+  Set<String> _committerIds = const <String>{};
+
   @override
   Future<void> close() {
     graphController.dispose();
@@ -131,67 +136,104 @@ class GraphCubit extends Cubit<GraphState> {
     try {
       final fetchFocus = forwardsGraphBeaconId ?? state.focus;
       final limitKey = fetchFocus;
-      // Fetch Edges
-      final edges = await _graphSource.fetch(
-        positiveOnly: state.positiveOnly,
-        context: state.context,
-        focus: fetchFocus.isEmpty ? null : fetchFocus,
-        limit: _fetchLimits[limitKey] =
-            (_fetchLimits[limitKey] ?? 0) + kFetchWindowSize,
-        viewerUserId: state.me.id,
-      );
 
-      for (final e in edges) {
-        _nodes.putIfAbsent(e.dst, () {
-          final isFocus = state.focus.isNotEmpty && state.focus == e.dst;
-          return e.node
-              .copyWithPinned(isFocus)
-              .copyWithPositionHint(_nodes.length);
-        });
+      Set<EdgeDirected> edges;
+      final source = _graphSource;
+      if (forwardsGraphBeaconId != null && source is ForwardsGraphRepository) {
+        final payload =
+            await source.fetchForwardsGraph(beaconId: forwardsGraphBeaconId!);
+        edges = payload.edges;
+        _committerIds = payload.committerIds;
+      } else {
+        edges = await _graphSource.fetch(
+          positiveOnly: state.positiveOnly,
+          context: state.context,
+          focus: fetchFocus.isEmpty ? null : fetchFocus,
+          limit: _fetchLimits[limitKey] =
+              (_fetchLimits[limitKey] ?? 0) + kFetchWindowSize,
+          viewerUserId: state.me.id,
+        );
       }
 
-      // Ensure every edge source exists as a node (forwards chains often only
-      // attach metadata on `dst`; MeritRank rows may still omit some `src`).
-      // MeritRank may also reference non-graph entity ids (e.g. C/O); this UI
-      // only renders users and beacons, so other prefixes are skipped.
+      for (final e in edges) {
+        if (_nodes.containsKey(e.dst)) continue;
+        final isFocus = state.focus.isNotEmpty && state.focus == e.dst;
+        final node = e.node;
+        if (node != null) {
+          _nodes[e.dst] = node
+              .copyWithPinned(isFocus)
+              .copyWithPositionHint(_nodes.length);
+        } else {
+          final lazy = await _resolveNodeById(
+            e.dst,
+            pinned: isFocus,
+          );
+          if (lazy != null) {
+            _nodes[e.dst] = lazy;
+          }
+        }
+      }
+
+      // Ensure every edge source exists as a node (forwards chains never carry
+      // node payloads; MeritRank rows may still omit some `src`). Non-user /
+      // non-beacon prefixes (C/O) are skipped — this UI only renders those.
       for (final e in edges) {
         if (_nodes.containsKey(e.src)) continue;
-        if (e.src.startsWith('U')) {
-          _nodes[e.src] = UserNode(
-            user: await _profileRepository.fetchById(e.src),
-            positionHint: _nodes.length,
-          );
-        } else if (e.src.startsWith('B')) {
-          _nodes[e.src] = BeaconNode(
-            beacon: await _beaconRepository.fetchBeaconById(e.src),
-            positionHint: _nodes.length,
-          );
+        final lazy = await _resolveNodeById(e.src);
+        if (lazy != null) {
+          _nodes[e.src] = lazy;
         }
       }
 
       // Add FocusNode in case there were no edges containing it
       if (state.focus.isNotEmpty && !_nodes.containsKey(state.focus)) {
-        final f = state.focus;
-        if (f.startsWith('U')) {
-          _nodes[f] = UserNode(
-            user: await _profileRepository.fetchById(f),
-            positionHint: _nodes.length,
-            pinned: true,
-          );
-        } else if (f.startsWith('B')) {
-          _nodes[f] = BeaconNode(
-            beacon: await _beaconRepository.fetchBeaconById(f),
-            positionHint: _nodes.length,
-            pinned: true,
-          );
+        final lazy = await _resolveNodeById(state.focus, pinned: true);
+        if (lazy != null) {
+          _nodes[state.focus] = lazy;
         }
       }
+
+      _applyCommitterHighlights();
 
       emit(state.copyWith(status: StateStatus.isSuccess));
 
       _updateGraph(edges);
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<NodeDetails?> _resolveNodeById(
+    String id, {
+    bool pinned = false,
+  }) async {
+    if (id.startsWith('U')) {
+      return UserNode(
+        user: await _profileRepository.fetchById(id),
+        positionHint: _nodes.length,
+        pinned: pinned,
+        isCommitter: _committerIds.contains(id),
+      );
+    }
+    if (id.startsWith('B')) {
+      return BeaconNode(
+        beacon: await _beaconRepository.fetchBeaconById(id),
+        positionHint: _nodes.length,
+        pinned: pinned,
+      );
+    }
+    return null;
+  }
+
+  /// Stamps `isCommitter` on every committer's [UserNode] currently in
+  /// [_nodes]. Called after each fetch so late-arriving nodes pick up the flag.
+  void _applyCommitterHighlights() {
+    if (_committerIds.isEmpty) return;
+    for (final id in _committerIds) {
+      final node = _nodes[id];
+      if (node is UserNode && !node.isCommitter) {
+        _nodes[id] = node.copyWithIsCommitter(true);
+      }
     }
   }
 

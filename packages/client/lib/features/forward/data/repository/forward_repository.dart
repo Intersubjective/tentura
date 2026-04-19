@@ -12,8 +12,10 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
 import '../../domain/entity/commitment_event.dart';
 import '../../domain/entity/forward_edge.dart';
+import '../../domain/entity/forward_graph.dart';
 import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
+import '../gql/_g/beacon_forward_graph.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
@@ -185,6 +187,39 @@ class ForwardRepository {
     required String myUserId,
   }) => fetchEdges(beaconId: beaconId)
       .then((edges) => edges.where((e) => e.sender.id == myUserId).toList());
+
+  /// Fetches the forwards-graph payload for a beacon (V2 `beaconForwardGraph`).
+  ///
+  /// Returns the edges visible to the viewer plus the parent_edge_id ancestor
+  /// closure and the chains that delivered the beacon to each active
+  /// committer. The viewer must be the author OR have at least one forward
+  /// edge for the beacon OR have an active commitment.
+  Future<ForwardGraph> fetchForwardGraph({required String beaconId}) =>
+      _remoteApiService
+          .request(
+            GBeaconForwardGraphReq((r) => r..vars.id = beaconId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r.dataOrThrow(label: _label).beaconForwardGraph)
+          .then(
+            (g) => ForwardGraph(
+              beaconId: g.beaconId,
+              authorId: g.authorId,
+              committerIds: g.committerIds.toSet(),
+              edges: g.edges
+                  .map(
+                    (e) => ForwardGraphEdge(
+                      id: e.id,
+                      beaconId: e.beaconId,
+                      senderId: e.senderId,
+                      recipientId: e.recipientId,
+                      parentEdgeId: e.parentEdgeId,
+                      batchId: e.batchId,
+                    ),
+                  )
+                  .toList(),
+            ),
+          );
 
   Future<List<ForwardEdge>> fetchEdges({required String beaconId}) =>
       _remoteApiService

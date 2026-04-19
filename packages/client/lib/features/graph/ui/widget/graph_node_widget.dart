@@ -37,15 +37,19 @@ class GraphNodeWidget extends StatelessWidget {
               userNode.user,
               state.profile.id,
             );
-            if (s > 48 || !isSelf) {
-              return core;
+            Widget result = core;
+            if (userNode.isCommitter) {
+              result = _CommitterRing(size: s, child: result);
             }
-            return SelfUserHighlight.wrapSmallAvatar(
-              context,
-              avatarSize: s,
-              isSelf: isSelf,
-              child: core,
-            );
+            if (isSelf && s <= 48) {
+              result = SelfUserHighlight.wrapSmallAvatar(
+                context,
+                avatarSize: s,
+                isSelf: isSelf,
+                child: result,
+              );
+            }
+            return result;
           },
         ),
         final BeaconNode beaconNode => BeaconImage(
@@ -60,4 +64,57 @@ class GraphNodeWidget extends StatelessWidget {
             child: widget,
           );
   }
+}
+
+/// Distinct accent ring for users who committed to the focused beacon
+/// (forwards graph). Drawn outside the avatar so it does not collide with the
+/// self-user ring (which uses [ColorScheme.primary]).
+class _CommitterRing extends StatelessWidget {
+  const _CommitterRing({required this.size, required this.child});
+
+  final double size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.tertiary;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(child: child),
+          IgnorePointer(
+            child: CustomPaint(
+              painter: _CommitterRingPainter(color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommitterRingPainter extends CustomPainter {
+  _CommitterRingPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 3.0;
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.shortestSide / 2 - stroke / 2;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke
+      ..isAntiAlias = true;
+    canvas.drawCircle(c, r, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CommitterRingPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

@@ -13,6 +13,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconAuthorUpdate,
   gqlTypeMyForwardRecipient,
   gqlTypeBeaconInvolvement,
+  gqlTypeForwardGraphEdge,
+  gqlTypeForwardGraphResult,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
   gqlTypeUserPresence,
@@ -83,6 +85,34 @@ final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
       GraphQLListType(gqlTypeMyForwardRecipient.nonNullable()),
     ),
   ]);
+
+/// One forward edge for the forwards-graph view (V2 `beaconForwardGraph`).
+final gqlTypeForwardGraphEdge = GraphQLObjectType('ForwardGraphEdge', null)
+  ..fields.addAll([
+    field('id', graphQLString.nonNullable()),
+    field('beaconId', graphQLString.nonNullable()),
+    field('senderId', graphQLString.nonNullable()),
+    field('recipientId', graphQLString.nonNullable()),
+    field('parentEdgeId', graphQLString),
+    field('batchId', graphQLString),
+  ]);
+
+/// Result of `beaconForwardGraph`: edge set (visible + ancestor closure +
+/// chains-to-committers) plus the committer ids the client should highlight.
+final gqlTypeForwardGraphResult =
+    GraphQLObjectType('ForwardGraphResult', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('authorId', graphQLString.nonNullable()),
+        field(
+          'committerIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'edges',
+          GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()).nonNullable(),
+        ),
+      ]);
 
 /// Return type for `userUpdate` / remote-schema mutations (minimal).
 final gqlTypeProfile = GraphQLObjectType('User', null)

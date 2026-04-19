@@ -1,0 +1,20 @@
+# V2: forwards-graph view edges. Returns the edges visible to the viewer plus
+# the parent_edge_id ancestor closure and the chains that delivered the beacon
+# to each active committer. Authorization: viewer must be the author OR have at
+# least one forward edge for the beacon OR have an active commitment.
+
+query BeaconForwardGraph($id: String!) {
+  beaconForwardGraph(id: $id) {
+    beaconId
+    authorId
+    committerIds
+    edges {
+      id
+      beaconId
+      senderId
+      recipientId
+      parentEdgeId
+      batchId
+    }
+  }
+}

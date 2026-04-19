@@ -4,8 +4,8 @@ import '../../domain/entity/edge_directed.dart';
 
 /// Pluggable backend for graph cubit (MeritRank graph vs forwards edges).
 abstract class GraphSourceRepository {
-  /// Optional viewer id; forwards graph repository uses it to link ego to the
-  /// beacon author when they differ.
+  /// Optional viewer id (GraphCubit passes the signed-in user). MeritRank
+  /// graph may use it; forwards graph ignores it.
   Future<Set<EdgeDirected>> fetch({
     bool positiveOnly = true,
     String context = '',
