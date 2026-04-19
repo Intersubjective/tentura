@@ -163,14 +163,12 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                   // Tab root: never show a back control (some nested routes still
                   // reserve leading width unless this is explicit).
                   automaticallyImplyLeading: false,
-                  leadingWidth: 0,
+                  leading: const _InboxOverflowMenu(),
                   titleSpacing: 8,
                   title: const Row(
                     children: [
                       Expanded(child: _InboxTabStrip()),
                       _InboxSortButton(),
-                      _InboxOverflowMenu(),
-                      SizedBox(width: 4),
                     ],
                   ),
                 ),
@@ -340,7 +338,8 @@ class _InboxOverflowMenu extends StatelessWidget {
     final l10n = L10n.of(context)!;
 
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert),
+      icon: const Icon(Icons.menu),
+      tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       onSelected: (value) {
