@@ -22,6 +22,12 @@ class BeaconInfo extends StatelessWidget {
     this.isTitleLarge = false,
     this.showTitle = true,
     this.onClickTag,
+    /// When true, description and tags render before image block (operational layouts).
+    this.descriptionBeforeMedia = false,
+    /// Caps gallery / hero image height when set.
+    this.mediaMaxHeight,
+    /// When true with multiple images, passes [mediaMaxHeight] into [BeaconImageGallery].
+    this.compactImageGallery = false,
     super.key,
   });
 
@@ -31,28 +37,26 @@ class BeaconInfo extends StatelessWidget {
   final bool isShowBeaconEnabled;
   final bool showTitle;
   final TagClickCallback? onClickTag;
+  final bool descriptionBeforeMedia;
+  final double? mediaMaxHeight;
+  final bool compactImageGallery;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
-    final showGallery = !isShowBeaconEnabled && beacon.images.length > 1;
+    final useGallery = !isShowBeaconEnabled && beacon.images.length > 1;
+    final maxH = mediaMaxHeight;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (showGallery && beacon.hasPicture)
-          Padding(
+    final mediaBlock = useGallery && beacon.hasPicture
+        ? Padding(
             padding: kPaddingSmallT,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: BeaconImageGallery(beacon: beacon),
+            child: BeaconImageGallery(
+              beacon: beacon,
+              maxHeight: compactImageGallery ? maxH : null,
             ),
           )
-        else
-          GestureDetector(
+        : GestureDetector(
             onTap: isShowBeaconEnabled
                 ? () => context.read<ScreenCubit>().showBeacon(beacon.id)
                 : null,
@@ -66,18 +70,27 @@ class BeaconInfo extends StatelessWidget {
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(16),
                       ),
-                      child: BeaconImage(
-                        beacon: beacon,
-                        enableGalleryTap: !isShowBeaconEnabled,
-                      ),
+                      child: maxH != null
+                          ? SizedBox(
+                              height: maxH,
+                              width: double.infinity,
+                              child: BeaconImage(
+                                beacon: beacon,
+                                enableGalleryTap: !isShowBeaconEnabled,
+                              ),
+                            )
+                          : BeaconImage(
+                              beacon: beacon,
+                              enableGalleryTap: !isShowBeaconEnabled,
+                            ),
                     ),
                   ),
               ],
             ),
-          ),
+          );
 
-        if (showTitle)
-          GestureDetector(
+    final titleBlock = showTitle
+        ? GestureDetector(
             onTap: isShowBeaconEnabled
                 ? () => context.read<ScreenCubit>().showBeacon(beacon.id)
                 : null,
@@ -88,20 +101,19 @@ class BeaconInfo extends StatelessWidget {
                 maxLines: 1,
                 textAlign: TextAlign.left,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    (isTitleLarge
-                            ? theme.textTheme.headlineLarge
-                            : theme.textTheme.headlineMedium)
-                        ?.copyWith(
-                          decoration: TextDecoration.underline,
-                        ),
+                style: (isTitleLarge
+                        ? theme.textTheme.headlineLarge
+                        : theme.textTheme.headlineMedium)
+                    ?.copyWith(
+                      decoration: TextDecoration.underline,
+                    ),
               ),
             ),
-          ),
+          )
+        : const SizedBox.shrink();
 
-        //Beacon Timerange
-        if (beacon.startAt != null || beacon.endAt != null)
-          Padding(
+    final timerangeBlock = beacon.startAt != null || beacon.endAt != null
+        ? Padding(
             padding: const EdgeInsets.only(bottom: kSpacingSmall),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -120,11 +132,11 @@ class BeaconInfo extends StatelessWidget {
                 ),
               ],
             ),
-          ),
+          )
+        : const SizedBox.shrink();
 
-        // Beacon Description
-        if (beacon.description.isNotEmpty)
-          Padding(
+    final descriptionBlock = beacon.description.isNotEmpty
+        ? Padding(
             padding: kPaddingSmallT,
             child: isShowMoreEnabled
                 ? ShowMoreText(
@@ -136,11 +148,11 @@ class BeaconInfo extends StatelessWidget {
                     beacon.description,
                     style: ShowMoreText.buildTextStyle(context),
                   ),
-          ),
+          )
+        : const SizedBox.shrink();
 
-        // Beacon Geolocation
-        if (beacon.coordinates?.isNotEmpty ?? false)
-          Align(
+    final geoBlock = (beacon.coordinates?.isNotEmpty ?? false)
+        ? Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               icon: const Icon(TenturaIcons.location),
@@ -155,11 +167,11 @@ class BeaconInfo extends StatelessWidget {
                 center: beacon.coordinates,
               ),
             ),
-          ),
+          )
+        : const SizedBox.shrink();
 
-        // Tags
-        if (beacon.tags.isNotEmpty)
-          Wrap(
+    final tagsBlock = beacon.tags.isNotEmpty
+        ? Wrap(
             children: [
               for (final tag in beacon.tags)
                 TextButton(
@@ -171,8 +183,30 @@ class BeaconInfo extends StatelessWidget {
                   child: Text('#$tag'),
                 ),
             ],
-          ),
-      ],
+          )
+        : const SizedBox.shrink();
+
+    final coreColumn = descriptionBeforeMedia
+        ? <Widget>[
+            titleBlock,
+            timerangeBlock,
+            descriptionBlock,
+            geoBlock,
+            tagsBlock,
+            mediaBlock,
+          ]
+        : <Widget>[
+            mediaBlock,
+            titleBlock,
+            timerangeBlock,
+            descriptionBlock,
+            geoBlock,
+            tagsBlock,
+          ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: coreColumn,
     );
   }
 }

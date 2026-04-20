@@ -8,17 +8,13 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
-import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
-import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
@@ -27,34 +23,54 @@ import 'package:tentura/ui/dialog/share_code_dialog.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
+import '../widget/activity_list.dart';
+import '../widget/beacon_operational_collapsible_header.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
+import '../widget/overview/beacon_overview_tab.dart';
 
-String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
-  BeaconLifecycle.open => l10n.beaconLifecycleOpen,
-  BeaconLifecycle.closed => l10n.beaconLifecycleClosed,
-  BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
-  BeaconLifecycle.draft => l10n.beaconLifecycleDraft,
-  BeaconLifecycle.pendingReview => l10n.beaconLifecyclePendingReview,
-  BeaconLifecycle.closedReviewOpen => l10n.beaconLifecycleClosedReviewOpen,
-  BeaconLifecycle.closedReviewComplete =>
-    l10n.beaconLifecycleClosedReviewComplete,
-};
-
-/// Query [kQueryBeaconViewTab]: `timeline` | `commitments` | `details`.
+/// Query [kQueryBeaconViewTab]: `overview` | `commitments` | `activity` (legacy: `timeline`, `details`, `forwards`).
 int _beaconViewTabIndex(String? viewTab) {
   switch (viewTab) {
     case 'commitments':
       return 1;
-    case 'details':
-      return 2;
-    case 'forwards':
-      // Legacy tab id: forwards moved to [BeaconForwardsScreen].
-      return 0;
+    case 'activity':
     case 'timeline':
+      return 2;
+    case 'details':
+    case 'forwards':
+    case 'overview':
     default:
       return 0;
   }
+}
+
+bool _forwardInPrimaryCta(BeaconViewState state) {
+  final b = state.beacon;
+  if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
+    return false;
+  }
+  if (!state.isCommitted && b.allowsNewCommitAsNonAuthor) {
+    return true;
+  }
+  if (state.isCommitted && !b.allowsWithdrawWhileCommitted) {
+    return true;
+  }
+  return false;
+}
+
+bool _hideCommitWithdrawFromOverflow(BeaconViewState state) {
+  final b = state.beacon;
+  if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
+    return false;
+  }
+  if (!state.isCommitted && b.allowsNewCommitAsNonAuthor) {
+    return true;
+  }
+  if (state.isCommitted && b.allowsWithdrawWhileCommitted) {
+    return true;
+  }
+  return false;
 }
 
 const _beaconAuthorUpdateEditWindow = Duration(hours: 1);
@@ -72,6 +88,8 @@ Widget _beaconViewAppBarOverflow({
 }) {
   final b = state.beacon;
   final beaconId = b.id;
+  final hideOverflowForward = _forwardInPrimaryCta(state);
+  final hideCommitWithdraw = _hideCommitWithdrawFromOverflow(state);
 
   if (state.isBeaconMine) {
     return BeaconOverflowMenu(
@@ -123,7 +141,9 @@ Widget _beaconViewAppBarOverflow({
 
   return BeaconOverflowMenu(
     beacon: b,
-    onCommit: !state.isCommitted && b.allowsNewCommitAsNonAuthor
+    onCommit: !hideCommitWithdraw &&
+            !state.isCommitted &&
+            b.allowsNewCommitAsNonAuthor
         ? () async {
             if (!context.mounted) return;
             final useCommitAnyway =
@@ -146,7 +166,9 @@ Widget _beaconViewAppBarOverflow({
             }
           }
         : null,
-    onWithdraw: state.isCommitted && b.allowsWithdrawWhileCommitted
+    onWithdraw: !hideCommitWithdraw &&
+            state.isCommitted &&
+            b.allowsWithdrawWhileCommitted
         ? () async {
             if (!context.mounted) return;
             final outcome = await CommitmentMessageDialog.show(
@@ -164,9 +186,11 @@ Widget _beaconViewAppBarOverflow({
             }
           }
         : null,
-    onForward: () => unawaited(
-      context.router.pushPath('$kPathForwardBeacon/$beaconId'),
-    ),
+    onForward: hideOverflowForward
+        ? null
+        : () => unawaited(
+              context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+            ),
     onViewForwards: () => unawaited(
       context.router.pushPath('$kPathBeaconForwards/$beaconId'),
     ),
@@ -208,7 +232,7 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
   final String? isDeepLink;
 
-  /// `timeline` | `commitments` | `details` — initial tab in the detail tabs.
+  /// `overview` | `commitments` | `activity` (legacy: `timeline`, `details`, `forwards`).
   final String? viewTab;
 
   @override
@@ -239,86 +263,9 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
     final screenCubit = context.read<ScreenCubit>();
     final beaconViewCubit = context.read<BeaconViewCubit>();
     return Scaffold(
-      appBar: AppBar(
-        title: BlocBuilder<BeaconViewCubit, BeaconViewState>(
-          bloc: beaconViewCubit,
-          buildWhen: (p, c) =>
-              p.isLoading != c.isLoading ||
-              p.beacon.author.id != c.beacon.author.id ||
-              p.beacon.author.title != c.beacon.author.title,
-          builder: (context, state) {
-            if (state.isLoading) {
-              return Text(l10n.beaconViewTitle);
-            }
-            final theme = Theme.of(context);
-            final author = state.beacon.author;
-            final name =
-                author.title.isEmpty ? l10n.noName : author.title;
-            return Row(
-              children: [
-                InkWell(
-                  onTap: () =>
-                      context.read<ScreenCubit>().showProfile(author.id),
-                  customBorder: const CircleBorder(),
-                  child: AvatarRated(
-                    profile: author,
-                    size: 32,
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: kPaddingH,
-                    child: InkWell(
-                      onTap: () => context
-                          .read<ScreenCubit>()
-                          .showProfile(author.id),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        leading: isDeepLink == 'true'
-            ? BackButton(
-                onPressed: () => AutoRouter.of(context).navigatePath(kPathHome),
-              )
-            : const AutoLeadingButton(),
-        actions: [
-          BlocBuilder<BeaconViewCubit, BeaconViewState>(
-            builder: (context, state) {
-              return _beaconViewAppBarOverflow(
-                context: context,
-                state: state,
-                cubit: beaconViewCubit,
-                screenCubit: screenCubit,
-                l10n: l10n,
-              );
-            },
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: BlocSelector<BeaconViewCubit, BeaconViewState, bool>(
-            selector: (state) => state.isLoading,
-            builder: LinearPiActive.builder,
-            bloc: beaconViewCubit,
-          ),
-        ),
-      ),
       body: BlocBuilder<BeaconViewCubit, BeaconViewState>(
         bloc: beaconViewCubit,
         buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
@@ -330,119 +277,11 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
               child: CircularProgressIndicator.adaptive(),
             );
           }
-          final beacon = state.beacon;
-          final theme = Theme.of(context);
-          return ListView(
-            padding: kPaddingAll,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: kSpacingSmall),
-                child: BeaconCardHeaderRow(
-                  beacon: beacon,
-                  titleMaxLines: 3,
-                  subline: const SizedBox.shrink(),
-                  menu: const SizedBox.shrink(),
-                ),
-              ),
-
-              Padding(
-                padding: kPaddingSmallV,
-                child: Wrap(
-                  spacing: kSpacingSmall,
-                  runSpacing: kSpacingSmall,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (beacon.lifecycle != BeaconLifecycle.open)
-                      BeaconCardPill(
-                        label: _lifecycleLabel(l10n, beacon.lifecycle),
-                      ),
-                    if (state.isBeaconMine)
-                      BeaconCardPill(
-                        label: coordinationStatusLabel(
-                          l10n,
-                          beacon.coordinationStatus,
-                        ),
-                        backgroundColor: theme.colorScheme.surfaceContainerHigh,
-                        foregroundColor: theme.colorScheme.onSurfaceVariant,
-                        onTap: () async {
-                          await showBeaconCoordinationStatusBottomSheet(
-                            context: context,
-                            onPick: (s) => unawaited(
-                              beaconViewCubit.setBeaconCoordinationStatus(
-                                BeaconCoordinationStatus.fromSmallint(s),
-                              ),
-                            ),
-                          );
-                        },
-                      )
-                    else if (beacon.coordinationStatus !=
-                            BeaconCoordinationStatus.noCommitmentsYet &&
-                        beacon.coordinationStatus !=
-                            BeaconCoordinationStatus
-                                .commitmentsWaitingForReview)
-                      BeaconCardPill(
-                        label: coordinationStatusLabel(
-                          l10n,
-                          beacon.coordinationStatus,
-                        ),
-                        backgroundColor: theme.colorScheme.surfaceContainerHigh,
-                        foregroundColor: theme.colorScheme.onSurfaceVariant,
-                      ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: kSpacingMedium),
-
-              _TabSection(
-                initialTabIndex: _beaconViewTabIndex(viewTab),
-                beacon: beacon,
-                timeline: state.timeline,
-                commitments: state.commitments,
-                myUserId: state.myProfile.id,
-                isAuthorView: state.isBeaconMine,
-                onPostUpdate: () async {
-                  await _showPostAuthorUpdateSheet(
-                    context,
-                    beaconViewCubit,
-                    l10n,
-                  );
-                },
-                onEditTimelineUpdate: (u) async {
-                  await _showEditAuthorUpdateSheet(
-                    context,
-                    beaconViewCubit,
-                    l10n,
-                    initial: u.content,
-                    updateId: u.id,
-                    createdAt: u.createdAt,
-                  );
-                },
-                onEditCommitment: (commitment) async {
-                  final outcome = await CommitmentMessageDialog.show(
-                    context,
-                    title: l10n.dialogUpdateCommitTitle,
-                    hintText: l10n.hintCommitMessage,
-                    initialText: commitment.message,
-                  );
-                  if (outcome != null && outcome.message.isNotEmpty) {
-                    await beaconViewCubit.commit(message: outcome.message);
-                  }
-                },
-                onAuthorCoordination: (commitment) async {
-                  await showCoordinationResponseBottomSheet(
-                    context: context,
-                    commitUserTitle: commitment.user.title,
-                    onPick: (t) => unawaited(
-                      beaconViewCubit.setCoordinationResponse(
-                        commitUserId: commitment.user.id,
-                        responseType: t,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
+          return _BeaconOperationalScrollView(
+            beaconViewCubit: beaconViewCubit,
+            screenCubit: screenCubit,
+            isDeepLink: isDeepLink == 'true',
+            initialTabIndex: _beaconViewTabIndex(viewTab),
           );
         },
       ),
@@ -450,47 +289,35 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
   }
 }
 
-class _TabSection extends StatefulWidget {
-  const _TabSection({
-    required this.beacon,
-    required this.timeline,
-    required this.commitments,
-    required this.myUserId,
-    required this.onEditCommitment,
-    required this.isAuthorView,
-    required this.onAuthorCoordination,
-    required this.onPostUpdate,
-    required this.onEditTimelineUpdate,
-    this.initialTabIndex = 0,
+class _BeaconOperationalScrollView extends StatefulWidget {
+  const _BeaconOperationalScrollView({
+    required this.beaconViewCubit,
+    required this.screenCubit,
+    required this.isDeepLink,
+    required this.initialTabIndex,
   });
 
-  final Beacon beacon;
+  final BeaconViewCubit beaconViewCubit;
+  final ScreenCubit screenCubit;
+  final bool isDeepLink;
   final int initialTabIndex;
-  final List<TimelineEntry> timeline;
-  final List<TimelineCommitment> commitments;
-  final String myUserId;
-  final Future<void> Function(TimelineCommitment) onEditCommitment;
-  final bool isAuthorView;
-  final Future<void> Function(TimelineCommitment) onAuthorCoordination;
-  final Future<void> Function() onPostUpdate;
-  final Future<void> Function(TimelineUpdate) onEditTimelineUpdate;
 
   @override
-  State<_TabSection> createState() => _TabSectionState();
+  State<_BeaconOperationalScrollView> createState() =>
+      _BeaconOperationalScrollViewState();
 }
 
-class _TabSectionState extends State<_TabSection>
+class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    final idx = widget.initialTabIndex.clamp(0, 2);
     _tabController = TabController(
       length: 3,
       vsync: this,
-      initialIndex: idx,
+      initialIndex: widget.initialTabIndex.clamp(0, 2),
     );
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
@@ -505,109 +332,460 @@ class _TabSectionState extends State<_TabSection>
     super.dispose();
   }
 
+  Future<void> _pickCoordinationStatus(BuildContext context) async {
+    await showBeaconCoordinationStatusBottomSheet(
+      context: context,
+      onPick: (s) => unawaited(
+        widget.beaconViewCubit.setBeaconCoordinationStatus(
+          BeaconCoordinationStatus.fromSmallint(s),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _runCommitFlow(BuildContext context, L10n l10n) async {
+    if (!context.mounted) return;
+    final useCommitAnyway =
+        widget.beaconViewCubit.state.beacon.coordinationStatus ==
+        BeaconCoordinationStatus.enoughHelpCommitted;
+    final outcome = await CommitmentMessageDialog.show(
+      context,
+      title: useCommitAnyway
+          ? l10n.dialogCommitAnywayTitle
+          : l10n.dialogCommitTitle,
+      hintText: l10n.hintCommitMessage,
+      allowEmptyMessage: true,
+      showHelpTypeChips: true,
+    );
+    if (outcome != null && context.mounted) {
+      await widget.beaconViewCubit.commit(
+        message: outcome.message,
+        helpType: outcome.helpTypeWire,
+      );
+    }
+  }
+
+  Future<void> _runWithdrawFlow(BuildContext context, L10n l10n) async {
+    if (!context.mounted) return;
+    final outcome = await CommitmentMessageDialog.show(
+      context,
+      title: l10n.dialogWithdrawTitle,
+      hintText: l10n.hintWithdrawReason,
+      allowEmptyMessage: true,
+      requireUncommitReason: true,
+    );
+    if (outcome?.uncommitReasonWire != null && context.mounted) {
+      await widget.beaconViewCubit.withdraw(
+        message: outcome!.message,
+        uncommitReason: outcome.uncommitReasonWire!,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final beacon = widget.beacon;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: l10n.labelTimeline),
-            Tab(text: l10n.labelCommitments),
-            Tab(text: l10n.beaconDetailsSection),
-          ],
-        ),
-        const SizedBox(height: kSpacingSmall),
-        if (_tabController.index == 0) ...[
-          if (widget.isAuthorView &&
-              beacon.lifecycle == BeaconLifecycle.open)
-            Padding(
-              padding: const EdgeInsets.only(bottom: kSpacingSmall),
-              child: FilledButton.icon(
-                icon: const Icon(Icons.campaign_outlined),
-                label: Text(l10n.postUpdateCTA),
-                onPressed: () => unawaited(widget.onPostUpdate()),
-              ),
-            ),
-          if (widget.timeline.isEmpty)
-            Padding(
-              padding: kPaddingSmallV,
-              child: Text(
-                l10n.noActivityYet,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+    return BlocBuilder<BeaconViewCubit, BeaconViewState>(
+      bloc: widget.beaconViewCubit,
+      buildWhen: (p, c) =>
+          p.beacon != c.beacon ||
+          p.timeline != c.timeline ||
+          p.commitments != c.commitments ||
+          p.isCommitted != c.isCommitted ||
+          p.isLoading != c.isLoading ||
+          p.forwardProvenance != c.forwardProvenance ||
+          p.inboxStatus != c.inboxStatus ||
+          p.viewerForwardEdges != c.viewerForwardEdges,
+      builder: (context, state) {
+        final beaconId = state.beacon.id;
+        return NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              SliverOverlapAbsorber(
+                handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                  context,
                 ),
-              ),
-            ),
-          for (final entry in widget.timeline)
-            _TimelineEntryTile(
-              entry: entry,
-              beacon: beacon,
-              isAuthorView: widget.isAuthorView,
-              onEditTimelineUpdate: widget.onEditTimelineUpdate,
-            ),
-        ] else if (_tabController.index == 1) ...[
-          BeaconEvaluationHooks(
-            beaconId: beacon.id,
-            lifecycle: beacon.lifecycle,
-          ),
-          Padding(
-            padding: kPaddingSmallV,
-            child: Wrap(
-              spacing: kSpacingSmall,
-              runSpacing: kSpacingSmall,
-              children: [
-                BeaconCardPill(
-                  label: l10n.inboxCommitmentsCount(
-                    widget.commitments.where((c) => !c.isWithdrawn).length,
+                sliver: SliverAppBar(
+                  pinned: true,
+                  forceElevated: innerBoxIsScrolled,
+                  leading: widget.isDeepLink
+                      ? BackButton(
+                          onPressed: () =>
+                              AutoRouter.of(context).navigatePath(kPathHome),
+                        )
+                      : const AutoLeadingButton(),
+                  title: _CompactAuthorAppBarTitle(
+                    state: state,
+                    screenCubit: widget.screenCubit,
+                    l10n: l10n,
                   ),
-                ),
-              ],
-            ),
-          ),
-          for (final c in widget.commitments)
-            CommitmentTile(
-              commitment: c,
-              beaconAuthor: beacon.author,
-              isMine: c.user.id == widget.myUserId,
-              isAuthorView: widget.isAuthorView,
-              onAuthorTapCoordination: widget.isAuthorView && !c.isWithdrawn
-                  ? () => unawaited(widget.onAuthorCoordination(c))
-                  : null,
-              onEdit: c.user.id == widget.myUserId && !c.isWithdrawn
-                  ? () => unawaited(widget.onEditCommitment(c))
-                  : null,
-            ),
-        ] else ...[
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              BeaconInfo(
-                key: ValueKey(beacon),
-                beacon: beacon,
-                isTitleLarge: true,
-                isShowMoreEnabled: false,
-                isShowBeaconEnabled: false,
-                showTitle: false,
-              ),
-              if (beacon.context.trim().isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: kSpacingSmall),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Chip(
-                      label: Text(beacon.context.trim()),
+                  actions: [
+                    _beaconViewAppBarOverflow(
+                      context: context,
+                      state: state,
+                      cubit: widget.beaconViewCubit,
+                      screenCubit: widget.screenCubit,
+                      l10n: l10n,
+                    ),
+                  ],
+                  bottom: PreferredSize(
+                    preferredSize: const Size.fromHeight(4),
+                    child: BlocSelector<BeaconViewCubit, BeaconViewState, bool>(
+                      bloc: widget.beaconViewCubit,
+                      selector: (s) => s.isLoading,
+                      builder: LinearPiActive.builder,
                     ),
                   ),
                 ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    kSpacingMedium,
+                    kSpacingSmall,
+                    kSpacingMedium,
+                    0,
+                  ),
+                  child: BeaconOperationalCollapsibleHeader(
+                    state: state,
+                    onStatusChipTap: state.isBeaconMine
+                        ? () => unawaited(_pickCoordinationStatus(context))
+                        : null,
+                    onUpdateStatus: state.isBeaconMine
+                        ? () => unawaited(_pickCoordinationStatus(context))
+                        : null,
+                    onPostUpdate: () => unawaited(
+                      _showPostAuthorUpdateSheet(
+                        context,
+                        widget.beaconViewCubit,
+                        l10n,
+                      ),
+                    ),
+                    onCommit: () => unawaited(_runCommitFlow(context, l10n)),
+                    onEditCommitment: () async {
+                      TimelineCommitment? mine;
+                      for (final c in state.commitments) {
+                        if (!c.isWithdrawn && c.user.id == state.myProfile.id) {
+                          mine = c;
+                          break;
+                        }
+                      }
+                      if (mine == null || !context.mounted) return;
+                      final outcome = await CommitmentMessageDialog.show(
+                        context,
+                        title: l10n.dialogUpdateCommitTitle,
+                        hintText: l10n.hintCommitMessage,
+                        initialText: mine.message,
+                      );
+                      if (outcome != null &&
+                          outcome.message.isNotEmpty &&
+                          context.mounted) {
+                        await widget.beaconViewCubit.commit(
+                          message: outcome.message,
+                        );
+                      }
+                    },
+                    onWithdraw: () => unawaited(_runWithdrawFlow(context, l10n)),
+                    onForward: () => unawaited(
+                      context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+                    ),
+                    onViewChain: () =>
+                        widget.screenCubit.showForwardsGraphFor(beaconId),
+                  ),
+                ),
+              ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedSegmentBarDelegate(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: kSpacingMedium,
+                    ),
+                    child: Center(
+                      child: SegmentedButton<int>(
+                        segments: [
+                          ButtonSegment(
+                            value: 0,
+                            label: Text(l10n.labelBeaconTabOverview),
+                          ),
+                          ButtonSegment(
+                            value: 1,
+                            label: Text(l10n.labelCommitments),
+                          ),
+                          ButtonSegment(
+                            value: 2,
+                            label: Text(l10n.labelBeaconTabActivity),
+                          ),
+                        ],
+                        selected: {_tabController.index},
+                        onSelectionChanged: (s) {
+                          final i = s.first;
+                          _tabController.animateTo(i);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ];
+          },
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              _BeaconTabScroll(
+                tabKey: const PageStorageKey<String>('beacon-overview'),
+                child: BeaconOverviewTab(
+                  state: state,
+                  onTapForwardChain: () =>
+                      widget.screenCubit.showForwardsGraphFor(beaconId),
+                  onViewAllCommitments: () => _tabController.animateTo(1),
+                  onEditTimelineUpdate: (u) => _showEditAuthorUpdateSheet(
+                    context,
+                    widget.beaconViewCubit,
+                    l10n,
+                    initial: u.content,
+                    updateId: u.id,
+                    createdAt: u.createdAt,
+                  ),
+                ),
+              ),
+              _BeaconTabScroll(
+                tabKey: const PageStorageKey<String>('beacon-commitments'),
+                child: _CommitmentsTabBody(
+                  state: state,
+                  beaconViewCubit: widget.beaconViewCubit,
+                  l10n: l10n,
+                ),
+              ),
+              _BeaconTabScroll(
+                tabKey: const PageStorageKey<String>('beacon-activity'),
+                child: BeaconActivityList(
+                  timeline: state.timeline,
+                  beacon: state.beacon,
+                  isAuthorView: state.isBeaconMine,
+                  onEditTimelineUpdate: (u) => _showEditAuthorUpdateSheet(
+                    context,
+                    widget.beaconViewCubit,
+                    l10n,
+                    initial: u.content,
+                    updateId: u.id,
+                    createdAt: u.createdAt,
+                  ),
+                ),
+              ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+class _CompactAuthorAppBarTitle extends StatelessWidget {
+  const _CompactAuthorAppBarTitle({
+    required this.state,
+    required this.screenCubit,
+    required this.l10n,
+  });
+
+  final BeaconViewState state;
+  final ScreenCubit screenCubit;
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.isLoading && state.beacon.id.isEmpty) {
+      return Text(l10n.beaconViewTitle);
+    }
+    final theme = Theme.of(context);
+    final author = state.beacon.author;
+    final name = author.title.isEmpty ? l10n.noName : author.title;
+    return InkWell(
+      onTap: () => screenCubit.showProfile(author.id),
+      child: Row(
+        children: [
+          AvatarRated(
+            profile: author,
+            size: 24,
+          ),
+          const SizedBox(width: kSpacingSmall),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pinned tab bar: fixed height so layoutExtent matches paintExtent under
+/// NestedScrollView (avoids invalid SliverGeometry on web).
+class _PinnedSegmentBarDelegate extends SliverPersistentHeaderDelegate {
+  _PinnedSegmentBarDelegate({required this.child});
+
+  final Widget child;
+
+  static const double _barHeight = 56;
+
+  @override
+  double get minExtent => _barHeight;
+
+  @override
+  double get maxExtent => _barHeight;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: overlapsContent ? 0.5 : 0,
+      child: SizedBox(
+        height: _barHeight,
+        width: double.infinity,
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedSegmentBarDelegate oldDelegate) {
+    return child != oldDelegate.child;
+  }
+}
+
+class _BeaconTabScroll extends StatelessWidget {
+  const _BeaconTabScroll({
+    required this.tabKey,
+    required this.child,
+  });
+
+  final PageStorageKey<String> tabKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(
+      builder: (context) {
+        return CustomScrollView(
+          key: tabKey,
+          slivers: [
+            SliverOverlapInjector(
+              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+            ),
+            SliverPadding(
+              padding: kPaddingAll,
+              sliver: SliverToBoxAdapter(child: child),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CommitmentsTabBody extends StatelessWidget {
+  const _CommitmentsTabBody({
+    required this.state,
+    required this.beaconViewCubit,
+    required this.l10n,
+  });
+
+  final BeaconViewState state;
+  final BeaconViewCubit beaconViewCubit;
+  final L10n l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final beacon = state.beacon;
+    final active =
+        state.commitments.where((c) => !c.isWithdrawn).toList(growable: false);
+    final withdrawn =
+        state.commitments.where((c) => c.isWithdrawn).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        BeaconEvaluationHooks(
+          beaconId: beacon.id,
+          lifecycle: beacon.lifecycle,
+        ),
+        for (final c in active)
+          CommitmentTile(
+            commitment: c,
+            beaconAuthor: beacon.author,
+            isMine: c.user.id == state.myProfile.id,
+            isAuthorView: state.isBeaconMine,
+            onAuthorTapCoordination: state.isBeaconMine && !c.isWithdrawn
+                ? () => unawaited(
+                      showCoordinationResponseBottomSheet(
+                        context: context,
+                        commitUserTitle: c.user.title,
+                        onPick: (t) => unawaited(
+                          beaconViewCubit.setCoordinationResponse(
+                            commitUserId: c.user.id,
+                            responseType: t,
+                          ),
+                        ),
+                      ),
+                    )
+                : null,
+            onEdit: c.user.id == state.myProfile.id && !c.isWithdrawn
+                ? () async {
+                    final outcome = await CommitmentMessageDialog.show(
+                      context,
+                      title: l10n.dialogUpdateCommitTitle,
+                      hintText: l10n.hintCommitMessage,
+                      initialText: c.message,
+                    );
+                    if (outcome != null &&
+                        outcome.message.isNotEmpty &&
+                        context.mounted) {
+                      await beaconViewCubit.commit(message: outcome.message);
+                    }
+                  }
+                : null,
+            onWithdraw: c.user.id == state.myProfile.id &&
+                    !c.isWithdrawn &&
+                    beacon.allowsWithdrawWhileCommitted
+                ? () async {
+                    final outcome = await CommitmentMessageDialog.show(
+                      context,
+                      title: l10n.dialogWithdrawTitle,
+                      hintText: l10n.hintWithdrawReason,
+                      allowEmptyMessage: true,
+                      requireUncommitReason: true,
+                    );
+                    if (outcome?.uncommitReasonWire != null &&
+                        context.mounted) {
+                      await beaconViewCubit.withdraw(
+                        message: outcome!.message,
+                        uncommitReason: outcome.uncommitReasonWire!,
+                      );
+                    }
+                  }
+                : null,
+          ),
+        if (withdrawn.isNotEmpty)
+          ExpansionTile(
+            title: Text(l10n.beaconShowWithdrawn(withdrawn.length)),
+            children: [
+              for (final c in withdrawn)
+                CommitmentTile(
+                  commitment: c,
+                  beaconAuthor: beacon.author,
+                  isMine: c.user.id == state.myProfile.id,
+                  isAuthorView: state.isBeaconMine,
+                ),
+            ],
+          ),
       ],
     );
   }
@@ -755,241 +933,5 @@ Future<void> _showEditAuthorUpdateSheet(
     }
   } finally {
     controller.dispose();
-  }
-}
-
-String _timelineEventTimestamp(DateTime utc) {
-  final local = utc.toLocal();
-  return '${dateFormatYMD(local)} ${timeFormatHm(local)}';
-}
-
-String _timelineCommitmentUpdatedLine(L10n l10n, TimelineCommitmentUpdated e) {
-  final base = l10n.timelineCommitmentDetailsUpdated(e.committer.title);
-  final help = helpTypeLabel(l10n, e.helpType);
-  if (help != null && help.isNotEmpty) {
-    return '$base · $help';
-  }
-  return base;
-}
-
-class _TimelineEntryTile extends StatelessWidget {
-  const _TimelineEntryTile({
-    required this.entry,
-    required this.beacon,
-    required this.isAuthorView,
-    required this.onEditTimelineUpdate,
-  });
-
-  final TimelineEntry entry;
-  final Beacon beacon;
-  final bool isAuthorView;
-  final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    return Padding(
-      padding: kPaddingSmallV,
-      child: switch (entry) {
-        final TimelineCommitmentCreated e => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.handshake,
-              size: 18,
-              color: theme.colorScheme.tertiary,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text(
-                e.message.isNotEmpty
-                    ? l10n.timelineCommittedWithMessage(
-                        e.committer.title,
-                        e.message,
-                      )
-                    : l10n.timelineCommitted(e.committer.title),
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Text(
-              _timelineEventTimestamp(e.timestamp),
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-        final TimelineCommitmentUpdated e => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.edit_note,
-              size: 18,
-              color: theme.colorScheme.secondary,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text(
-                _timelineCommitmentUpdatedLine(l10n, e),
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Text(
-              _timelineEventTimestamp(e.timestamp),
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-        final TimelineAuthorCoordinationResponse e => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.flag_outlined,
-              size: 18,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text(
-                l10n.timelineAuthorCoordinationResponseLine(
-                  e.author.title,
-                  e.committer.title,
-                  coordinationResponseLabel(l10n, e.response) ?? '',
-                ),
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Text(
-              _timelineEventTimestamp(e.timestamp),
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-        final TimelineCommitmentWithdrawn e => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.heart_broken,
-              size: 18,
-              color: theme.colorScheme.error,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text(
-                e.message.isNotEmpty
-                    ? l10n.timelineWithdrewWithMessage(
-                        e.committer.title,
-                        e.message,
-                      )
-                    : l10n.timelineWithdrew(e.committer.title),
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Text(
-              _timelineEventTimestamp(e.timestamp),
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-        final TimelineUpdate e => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              Icons.edit_note,
-              size: 18,
-              color: theme.colorScheme.secondary,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text(
-                '${l10n.updateNumberLabel(e.number)} · ${l10n.timelineUpdate(e.author.title, e.content)}',
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            if (isAuthorView &&
-                beacon.lifecycle == BeaconLifecycle.open &&
-                _authorUpdateEditableNow(e.createdAt))
-              IconButton(
-                tooltip: l10n.editUpdateCTA,
-                icon: const Icon(Icons.edit_outlined),
-                iconSize: 18,
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                onPressed: () => unawaited(onEditTimelineUpdate(e)),
-              ),
-            Text(
-              _timelineEventTimestamp(e.timestamp),
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-        final TimelineBeaconCoordinationStatusChanged e => Row(
-          children: [
-            Icon(
-              Icons.sync_alt,
-              size: 18,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text(
-                l10n.timelineBeaconCoordinationStatusChanged(
-                  e.author.title,
-                  coordinationStatusLabel(l10n, e.status),
-                ),
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Text(
-              _timelineEventTimestamp(e.timestamp),
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-        final TimelineBeaconLifecycleChanged e => Row(
-          children: [
-            Icon(
-              Icons.flag_outlined,
-              size: 18,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text(
-                l10n.timelineBeaconLifecycleChanged(
-                  e.author.title,
-                  _lifecycleLabel(l10n, e.lifecycle),
-                ),
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Text(
-              _timelineEventTimestamp(e.timestamp),
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-        final TimelineCreation e => Row(
-          children: [
-            Icon(
-              Icons.flag_outlined,
-              size: 18,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text(
-                l10n.timelineCreated(e.author.title),
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Text(
-              _timelineEventTimestamp(e.timestamp),
-              style: theme.textTheme.labelSmall,
-            ),
-          ],
-        ),
-      },
-    );
   }
 }

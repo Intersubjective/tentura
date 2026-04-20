@@ -2005,5 +2005,83 @@
   },
   "labelSetCoordinationResponse": "Set coordination signal",
   "labelBeaconCoordinationSummary": "Coverage on this beacon",
-  "coordinationSetOverallStatus": "Set overall coordination status"
+  "coordinationSetOverallStatus": "Set overall coordination status",
+  "labelBeaconTabOverview": "Overview",
+  "labelBeaconTabActivity": "Activity",
+  "beaconCtaUpdateStatus": "Update status",
+  "beaconCtaEditCommitment": "Edit commitment",
+  "beaconCtaViewChain": "View chain",
+  "beaconCtaReadOnly": "Read only",
+  "beaconChipCommitsCount": "{count} commits",
+  "@beaconChipCommitsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconChipUsefulCount": "{count} useful",
+  "@beaconChipUsefulCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconChipForwardedBy": "Forwarded by {count}",
+  "@beaconChipForwardedBy": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconChipYouForwarded": "You forwarded ×{count}",
+  "@beaconChipYouForwarded": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconChipMoreHelpNeeded": "More help needed",
+  "beaconChipReviewingCommitments": "Reviewing commitments",
+  "beaconChipEnoughHelp": "Enough help",
+  "beaconChipHelpTypeCommitted": "{type}",
+  "@beaconChipHelpTypeCommitted": {
+    "placeholders": {
+      "type": { "type": "String" }
+    }
+  },
+  "beaconChipDeadlineOn": "Ends {date}",
+  "@beaconChipDeadlineOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "beaconNeedSummaryTitle": "Need",
+  "beaconCoordinationCardTitle": "Coordination state",
+  "beaconYourRelationTitle": "Your relation",
+  "beaconCommitSnapshotTitle": "Commitments",
+  "beaconViewAllCommitments": "View all commitments",
+  "beaconLatestUpdateTitle": "Latest author update",
+  "beaconForwardChainPreview": "Forward chain",
+  "beaconForwardChainTapHint": "Tap for full graph",
+  "beaconDescriptionAttachmentsTitle": "Description & attachments",
+  "beaconShowWithdrawn": "Show {count} withdrawn",
+  "@beaconShowWithdrawn": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconActivityEditsCollapsed": "{name} edited their commitment · ×{count}",
+  "@beaconActivityEditsCollapsed": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "beaconActivitySectionHigh": "Milestones",
+  "beaconActivitySectionMedium": "Coordination",
+  "beaconActivitySectionLow": "Edits",
+  "beaconNoActivityYetShort": "No activity yet",
+  "beaconViaChain": "via {chain}",
+  "@beaconViaChain": {
+    "placeholders": {
+      "chain": { "type": "String" }
+    }
+  },
+  "beaconRelationNoTrail": "No forward chain recorded for you."
 }

@@ -9,24 +9,17 @@ import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
-import 'package:tentura/ui/widget/show_more_text.dart';
 
 import '../bloc/beacon_view_state.dart';
-import 'self_aware_plain_mini_avatar.dart';
 
-/// Committer avatar column width (matches default mini-avatar size + trailing gap).
-double _commitmentAvatarColumnWidth() =>
-    AvatarRated.sizeSmall + kSpacingMedium;
-
-/// Sits in the avatar column beside author coordination text.
-const double _authorReactionAvatarSize = AvatarRated.sizeSmall * 0.55;
-
+/// Compact commitment roster row (not a comment thread).
 class CommitmentTile extends StatelessWidget {
   const CommitmentTile({
     required this.commitment,
     required this.beaconAuthor,
     this.isMine = false,
     this.onEdit,
+    this.onWithdraw,
     this.isAuthorView = false,
     this.onAuthorTapCoordination,
     super.key,
@@ -36,6 +29,7 @@ class CommitmentTile extends StatelessWidget {
   final Profile beaconAuthor;
   final bool isMine;
   final VoidCallback? onEdit;
+  final VoidCallback? onWithdraw;
   final bool isAuthorView;
   final VoidCallback? onAuthorTapCoordination;
 
@@ -44,235 +38,155 @@ class CommitmentTile extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final isWithdrawn = commitment.isWithdrawn;
-    final opacity = isWithdrawn ? 0.65 : 1.0;
+    final opacity = isWithdrawn ? 0.55 : 1.0;
     final dateShown = isWithdrawn ? commitment.updatedAt : commitment.createdAt;
     final coordinationLabel = coordinationResponseLabel(
       l10n,
       commitment.coordinationResponse,
     );
-    final showCoordinationRow = coordinationLabel != null;
-    final trailingIconSlots =
-        (isAuthorView && onAuthorTapCoordination != null && !isWithdrawn
-            ? 1
-            : 0) +
-        (isMine && onEdit != null ? 1 : 0);
-    const kIconButtonWidth = 48.0;
-    final trailingIconsWidth = trailingIconSlots * kIconButtonWidth;
 
     return Opacity(
       opacity: opacity,
-      child: Column(
-        children: [
-          const Divider(),
-          Padding(
-            key: const Key('CommitmentHeader'),
-            padding: kPaddingSmallT,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: _commitmentAvatarColumnWidth(),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: GestureDetector(
-                          onTap: isMine
-                              ? null
-                              : () => context.read<ScreenCubit>().showProfile(
-                                  commitment.user.id,
-                                ),
-                          child: SelfAwarePlainMiniAvatar(profile: commitment.user),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: kSpacingSmall),
+        child: Padding(
+          padding: kPaddingAllS,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: isMine
+                        ? null
+                        : () => context.read<ScreenCubit>().showProfile(
+                              commitment.user.id,
+                            ),
+                    child: AvatarRated(
+                      profile: commitment.user,
+                    ),
+                  ),
+                  const SizedBox(width: kSpacingSmall),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        BlocBuilder<ProfileCubit, ProfileState>(
+                          buildWhen: (p, c) => p.profile.id != c.profile.id,
+                          builder: (context, state) {
+                            return Text(
+                              SelfUserHighlight.displayName(
+                                l10n,
+                                commitment.user,
+                                state.profile.id,
+                              ),
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          },
                         ),
+                        Text(
+                          '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'
+                              '${commitment.isEdited ? ' · ${l10n.labelEdited}' : ''}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isWithdrawn)
+                    BeaconCardPill(
+                      label: l10n.labelWithdrawn,
+                      backgroundColor: theme.colorScheme.errorContainer,
+                      foregroundColor: theme.colorScheme.onErrorContainer,
+                    ),
+                ],
+              ),
+              if (helpTypeLabel(l10n, commitment.helpType) != null) ...[
+                const SizedBox(height: kSpacingSmall),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: BeaconCardPill(
+                    label: helpTypeLabel(l10n, commitment.helpType)!,
+                    backgroundColor: theme.colorScheme.surfaceContainerHigh,
+                    foregroundColor: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (commitment.message.isNotEmpty) ...[
+                const SizedBox(height: kSpacingSmall),
+                Text(
+                  commitment.message,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+              if (coordinationLabel != null && !isWithdrawn) ...[
+                const SizedBox(height: kSpacingSmall),
+                Wrap(
+                  spacing: kSpacingSmall,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      l10n.labelCoordinationStatus,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                Flexible(
-                                  child: BlocBuilder<ProfileCubit, ProfileState>(
-                                    buildWhen: (p, c) =>
-                                        p.profile.id != c.profile.id,
-                                    builder: (context, state) {
-                                      final isSelf =
-                                          SelfUserHighlight.profileIsSelf(
-                                        commitment.user,
-                                        state.profile.id,
-                                      );
-                                      return Text(
-                                        SelfUserHighlight.displayName(
-                                          l10n,
-                                          commitment.user,
-                                          state.profile.id,
-                                        ),
-                                        style: SelfUserHighlight.nameStyle(
-                                          theme,
-                                          theme.textTheme.headlineMedium,
-                                          isSelf,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                                    if (isWithdrawn) ...[
-                                      const SizedBox(width: kSpacingSmall),
-                                      BeaconCardPill(
-                                        label: l10n.labelWithdrawn,
-                                        backgroundColor:
-                                            theme.colorScheme.errorContainer,
-                                        foregroundColor: theme
-                                            .colorScheme.onErrorContainer,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                dateFormatYMD(dateShown),
-                                style: theme.textTheme.labelSmall,
-                              ),
-                            ],
-                          ),
-                          Padding(
-                            padding: kPaddingSmallT,
-                            child: ShowMoreText(
-                              commitment.message,
-                              style:
-                                  ShowMoreText.buildTextStyle(context).copyWith(
-                                color: isWithdrawn
-                                    ? theme.colorScheme.onSurfaceVariant
-                                    : null,
-                              ),
-                              colorClickableText: theme.colorScheme.primary,
-                            ),
-                          ),
-                          if (commitment.isEdited)
-                            Padding(
-                              padding: kPaddingSmallT,
-                              child: Text(
-                                l10n.labelEdited,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                          if (helpTypeLabel(l10n, commitment.helpType) != null)
-                            Padding(
-                              padding: kPaddingSmallT,
-                              child: BeaconCardPill(
-                                label: helpTypeLabel(
-                                  l10n,
-                                  commitment.helpType,
-                                )!,
-                                backgroundColor:
-                                    theme.colorScheme.surfaceContainerHigh,
-                                foregroundColor:
-                                    theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                        ],
+                    BeaconCardPill(
+                      label: coordinationLabel,
+                      backgroundColor:
+                          theme.colorScheme.secondaryContainer.withValues(
+                        alpha: 0.85,
                       ),
+                      foregroundColor: theme.colorScheme.onSecondaryContainer,
                     ),
-                    if (isAuthorView &&
-                        onAuthorTapCoordination != null &&
-                        !isWithdrawn)
-                      IconButton(
-                        tooltip: l10n.labelSetCoordinationResponse,
-                        icon: const Icon(Icons.flag_outlined, size: 20),
+                    if (isAuthorView && onAuthorTapCoordination != null)
+                      TextButton(
                         onPressed: onAuthorTapCoordination,
-                      ),
-                    if (isMine && onEdit != null)
-                      IconButton(
-                        icon: const Icon(Icons.edit, size: 18),
-                        onPressed: onEdit,
+                        child: Text(l10n.labelSetCoordinationResponse),
                       ),
                   ],
                 ),
-                if (showCoordinationRow)
-                  Padding(
-                    padding: kPaddingSmallT,
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: _commitmentAvatarColumnWidth(),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: GestureDetector(
-                              onTap: () => context
-                                  .read<ScreenCubit>()
-                                  .showProfile(beaconAuthor.id),
-                              child: SelfAwarePlainMiniAvatar(
-                                profile: beaconAuthor,
-                                size: _authorReactionAvatarSize,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer
-                                  .withValues(alpha: 0.72),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: theme.colorScheme.primary
-                                    .withValues(alpha: 0.35),
-                              ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              child: Text(
-                                coordinationLabel,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color:
-                                      theme.colorScheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: trailingIconsWidth),
-                      ],
-                    ),
-                  ),
-                if (isWithdrawn &&
-                    uncommitReasonLabel(l10n, commitment.uncommitReason) !=
-                        null)
-                  Padding(
-                    padding: kPaddingSmallT,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(width: _commitmentAvatarColumnWidth()),
-                        Expanded(
-                          child: Text(
-                            uncommitReasonLabel(
-                              l10n,
-                              commitment.uncommitReason,
-                            )!,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
-            ),
+              if (isMine && !isWithdrawn && (onEdit != null || onWithdraw != null))
+                Padding(
+                  padding: const EdgeInsets.only(top: kSpacingSmall),
+                  child: Wrap(
+                    spacing: kSpacingSmall,
+                    children: [
+                      if (onEdit != null)
+                        TextButton(
+                          onPressed: onEdit,
+                          child: Text(l10n.beaconCtaEditCommitment),
+                        ),
+                      if (onWithdraw != null)
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: theme.colorScheme.error,
+                          ),
+                          onPressed: onWithdraw,
+                          child: Text(l10n.dialogWithdrawTitle),
+                        ),
+                    ],
+                  ),
+                ),
+              if (isWithdrawn &&
+                  uncommitReasonLabel(l10n, commitment.uncommitReason) != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: kSpacingSmall),
+                  child: Text(
+                    uncommitReasonLabel(l10n, commitment.uncommitReason)!,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
