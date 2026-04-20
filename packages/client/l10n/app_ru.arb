@@ -2005,5 +2005,83 @@
   },
   "labelSetCoordinationResponse": "Сигнал координации",
   "labelBeaconCoordinationSummary": "Покрытие потребности маяка",
-  "coordinationSetOverallStatus": "Общий статус координации"
+  "coordinationSetOverallStatus": "Общий статус координации",
+  "labelBeaconTabOverview": "Обзор",
+  "labelBeaconTabActivity": "События",
+  "beaconCtaUpdateStatus": "Статус",
+  "beaconCtaEditCommitment": "Изменить участие",
+  "beaconCtaViewChain": "Цепочка",
+  "beaconCtaReadOnly": "Только просмотр",
+  "beaconChipCommitsCount": "{count} участий",
+  "@beaconChipCommitsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconChipUsefulCount": "{count} полезных",
+  "@beaconChipUsefulCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconChipForwardedBy": "Переслано от {count}",
+  "@beaconChipForwardedBy": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconChipYouForwarded": "Вы переслали ×{count}",
+  "@beaconChipYouForwarded": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconChipMoreHelpNeeded": "Нужна ещё помощь",
+  "beaconChipReviewingCommitments": "Проверка участий",
+  "beaconChipEnoughHelp": "Достаточно помощи",
+  "beaconChipHelpTypeCommitted": "{type}",
+  "@beaconChipHelpTypeCommitted": {
+    "placeholders": {
+      "type": { "type": "String" }
+    }
+  },
+  "beaconChipDeadlineOn": "До {date}",
+  "@beaconChipDeadlineOn": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+  "beaconNeedSummaryTitle": "Потребность",
+  "beaconCoordinationCardTitle": "Координация",
+  "beaconYourRelationTitle": "Почему вы это видите",
+  "beaconCommitSnapshotTitle": "Участия",
+  "beaconViewAllCommitments": "Все участия",
+  "beaconLatestUpdateTitle": "Обновление автора",
+  "beaconForwardChainPreview": "Цепочка пересылок",
+  "beaconForwardChainTapHint": "Нажмите для графа",
+  "beaconDescriptionAttachmentsTitle": "Описание и вложения",
+  "beaconShowWithdrawn": "Показать снятые ({count})",
+  "@beaconShowWithdrawn": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconActivityEditsCollapsed": "{name} правил участие · ×{count}",
+  "@beaconActivityEditsCollapsed": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "beaconActivitySectionHigh": "Вехи",
+  "beaconActivitySectionMedium": "Координация",
+  "beaconActivitySectionLow": "Правки",
+  "beaconNoActivityYetShort": "Пока нет событий",
+  "beaconViaChain": "через {chain}",
+  "@beaconViaChain": {
+    "placeholders": {
+      "chain": { "type": "String" }
+    }
+  },
+  "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок."
 }
