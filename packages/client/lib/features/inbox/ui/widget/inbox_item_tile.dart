@@ -102,10 +102,6 @@ class InboxItemTile extends StatelessWidget {
 
     const cardPadding = EdgeInsets.fromLTRB(12, 10, 12, 10);
 
-    final category = beacon.context.trim().isEmpty
-        ? l10n.inboxCategoryGeneral
-        : beacon.context.trim();
-
     return BeaconCardShell(
       padding: cardPadding,
       child: Column(
@@ -114,26 +110,7 @@ class InboxItemTile extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                children: [
-                  BeaconIdentityTile(beacon: beacon, size: 40),
-                  if (!hasProvenance) ...[
-                    const SizedBox(height: 2),
-                    SizedBox(
-                      width: 40,
-                      child: Text(
-                        category,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              BeaconIdentityTile(beacon: beacon, size: 40),
               const SizedBox(width: kSpacingSmall),
               Expanded(
                 child: GestureDetector(
@@ -158,6 +135,7 @@ class InboxItemTile extends StatelessWidget {
                         trailing: beacon.endAt != null
                             ? InboxCardDeadlinePill(endAt: beacon.endAt)
                             : null,
+                        category: BeaconCardCategoryMeta(beacon: beacon),
                       ),
                     ],
                   ),
@@ -194,7 +172,6 @@ class InboxItemTile extends StatelessWidget {
             const SizedBox(height: 6),
             InboxCardForwardsFold(
               provenance: item.provenance,
-              categoryLabel: category,
             ),
           ],
           const SizedBox(height: 8),
