@@ -503,6 +503,7 @@ class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollVi
                     ),
                     child: Center(
                       child: SegmentedButton<int>(
+                        showSelectedIcon: false,
                         segments: [
                           ButtonSegment(
                             value: 0,
