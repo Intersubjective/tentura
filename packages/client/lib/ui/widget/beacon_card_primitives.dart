@@ -215,7 +215,7 @@ class BeaconCardPill extends StatelessWidget {
   }
 }
 
-/// Icon + child row for metadata strips (topic, commitments, photos, insights).
+/// Icon + child row for metadata strips (topic, commitments, insights).
 ///
 /// Use [mainAxisSize] [MainAxisSize.max] with an [Expanded] child for a
 /// full-width context line; default [MainAxisSize.min] fits [Wrap] children.

@@ -11,7 +11,7 @@ String _beaconCategoryLabel(Beacon beacon, L10n l10n) {
   return c.isEmpty ? l10n.inboxCategoryGeneral : c;
 }
 
-/// Divider + metadata strip (topic, commitments, time remaining, photo count).
+/// Divider + metadata strip (topic, commitments, time remaining).
 class BeaconCardStatsRow extends StatelessWidget {
   const BeaconCardStatsRow({
     required this.beacon,
@@ -80,20 +80,6 @@ class BeaconCardStatsRow extends StatelessWidget {
                         : scheme.onSurfaceVariant,
                     fontWeight:
                         hoursRemaining.urgent ? FontWeight.w600 : null,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            if (beacon.images.isNotEmpty)
-              BeaconCardMetaItem(
-                icon: Icons.photo_library_outlined,
-                child: Text(
-                  beacon.images.length > 99
-                      ? '99+'
-                      : '${beacon.images.length}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
