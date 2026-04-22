@@ -259,7 +259,10 @@ class _AuthoredActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(author: b.author),
+            subline: BeaconCardAuthorSubline(
+              author: b.author,
+              category: BeaconCardCategoryMeta(beacon: b),
+            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               onGraph: b.myVote >= 0
@@ -407,7 +410,10 @@ class _CommittedActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(author: b.author),
+            subline: BeaconCardAuthorSubline(
+              author: b.author,
+              category: BeaconCardCategoryMeta(beacon: b),
+            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               onForward: () => unawaited(
@@ -443,23 +449,6 @@ class _CommittedActiveCard extends StatelessWidget {
             ],
           ),
           BeaconCardStatsRow(beacon: b),
-          if (b.context.trim().isNotEmpty) ...[
-            const SizedBox(height: kSpacingSmall),
-            BeaconCardMetaItem(
-              icon: Icons.topic_outlined,
-              mainAxisSize: MainAxisSize.max,
-              child: Expanded(
-                child: Text(
-                  b.context.trim(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: kSpacingSmall),
           Container(
             width: double.infinity,
@@ -539,7 +528,10 @@ class _DraftAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(author: b.author),
+            subline: BeaconCardAuthorSubline(
+              author: b.author,
+              category: BeaconCardCategoryMeta(beacon: b),
+            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               editActionLabel: l10n.myWorkEditDraft,
@@ -568,23 +560,6 @@ class _DraftAuthoredCard extends StatelessWidget {
               BeaconCardPill(label: l10n.myWorkChipDraft),
             ],
           ),
-          if (b.context.trim().isNotEmpty) ...[
-            const SizedBox(height: kSpacingSmall),
-            BeaconCardMetaItem(
-              icon: Icons.topic_outlined,
-              mainAxisSize: MainAxisSize.max,
-              child: Expanded(
-                child: Text(
-                  b.context.trim(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          ],
           const SizedBox(height: kSpacingSmall),
           Text(
             l10n.myWorkDraftStatusLine(b.commitmentCount),
@@ -635,7 +610,10 @@ class _ClosedAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(author: b.author),
+            subline: BeaconCardAuthorSubline(
+              author: b.author,
+              category: BeaconCardCategoryMeta(beacon: b),
+            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               onGraph: b.myVote >= 0
@@ -772,7 +750,10 @@ class _ClosedCommittedCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(author: b.author),
+            subline: BeaconCardAuthorSubline(
+              author: b.author,
+              category: BeaconCardCategoryMeta(beacon: b),
+            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               onForward: () => unawaited(

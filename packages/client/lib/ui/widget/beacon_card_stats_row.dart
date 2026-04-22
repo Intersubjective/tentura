@@ -6,12 +6,7 @@ import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
-String _beaconCategoryLabel(Beacon beacon, L10n l10n) {
-  final c = beacon.context.trim();
-  return c.isEmpty ? l10n.inboxCategoryGeneral : c;
-}
-
-/// Divider + metadata strip (topic, commitments, time remaining).
+/// Divider + metadata strip (commitments, time remaining).
 class BeaconCardStatsRow extends StatelessWidget {
   const BeaconCardStatsRow({
     required this.beacon,
@@ -27,7 +22,6 @@ class BeaconCardStatsRow extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final categoryLabel = _beaconCategoryLabel(beacon, l10n);
     final hoursRemaining = beaconCardDeadlineRemainingMeta(l10n, beacon.endAt);
 
     return Column(
@@ -47,17 +41,6 @@ class BeaconCardStatsRow extends StatelessWidget {
           runSpacing: kSpacingSmall,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            BeaconCardMetaItem(
-              icon: Icons.topic_outlined,
-              child: Text(
-                categoryLabel,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
             BeaconCardMetaItem(
               icon: Icons.groups_outlined,
               child: Text(

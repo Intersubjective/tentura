@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
@@ -242,6 +243,42 @@ class BeaconCardMetaItem extends StatelessWidget {
         const SizedBox(width: 4),
         child,
       ],
+    );
+  }
+}
+
+String beaconCardCategoryLabel(Beacon beacon, L10n l10n) {
+  final c = beacon.context.trim();
+  return c.isEmpty ? l10n.inboxCategoryGeneral : c;
+}
+
+/// Topic / category line (icon + label) for beacon card headers.
+///
+/// Use as `BeaconCardAuthorSubline.category`, wrapped in `Flexible` by that
+/// widget so the label can ellipsize when space is tight.
+class BeaconCardCategoryMeta extends StatelessWidget {
+  const BeaconCardCategoryMeta({required this.beacon, super.key});
+
+  final Beacon beacon;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return BeaconCardMetaItem(
+      icon: Icons.topic_outlined,
+      mainAxisSize: MainAxisSize.max,
+      child: Expanded(
+        child: Text(
+          beaconCardCategoryLabel(beacon, l10n),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
     );
   }
 }

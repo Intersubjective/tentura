@@ -18,19 +18,15 @@ Profile _senderProfile(InboxForwardSender s) => Profile(
           : null,
     );
 
-/// Collapsed: category flush left; “Forwarded by” + mini avatars + chevron on the right (no note text).
+/// Collapsed: “Forwarded by” + mini avatars + chevron (no note text).
 /// Expanded: per-sender name + avatar, then note (right-aligned) + vertical bar under avatar (full-width rows).
 class InboxCardForwardsFold extends StatefulWidget {
   const InboxCardForwardsFold({
     required this.provenance,
-    required this.categoryLabel,
     super.key,
   });
 
   final InboxProvenance provenance;
-
-  /// Beacon category, left-aligned on the same row as the fold header.
-  final String categoryLabel;
 
   @override
   State<InboxCardForwardsFold> createState() => _InboxCardForwardsFoldState();
@@ -66,10 +62,6 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
       color: scheme.onSurfaceVariant,
       fontWeight: FontWeight.w500,
     );
-    final categoryStyle = theme.textTheme.labelSmall?.copyWith(
-      color: scheme.onSurfaceVariant,
-    );
-
     final headerRight = Semantics(
       expanded: _expanded,
       child: GestureDetector(
@@ -102,17 +94,8 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
     );
 
     Widget headerRow() => Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.categoryLabel,
-                style: categoryStyle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            headerRight,
-          ],
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [headerRight],
         );
 
     return Column(

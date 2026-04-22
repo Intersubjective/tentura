@@ -12,6 +12,7 @@ class BeaconCardAuthorSubline extends StatelessWidget {
     required this.author,
     this.avatarSize = 22,
     this.trailing,
+    this.category,
     super.key,
   });
 
@@ -20,6 +21,9 @@ class BeaconCardAuthorSubline extends StatelessWidget {
 
   /// Placed immediately after the display name (e.g. deadline pill on inbox cards).
   final Widget? trailing;
+
+  /// Topic / category row after the name and [trailing] (e.g. `BeaconCardCategoryMeta`).
+  final Widget? category;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +43,8 @@ class BeaconCardAuthorSubline extends StatelessWidget {
           isSelf,
         );
         final tail = trailing;
+        final cat = category;
+        final hasExtras = tail != null || cat != null;
         return Row(
           children: [
             SelfAwareAvatar(
@@ -48,7 +54,7 @@ class BeaconCardAuthorSubline extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Expanded(
-              child: tail == null
+              child: !hasExtras
                   ? Text(
                       name,
                       style: nameStyle,
@@ -58,6 +64,7 @@ class BeaconCardAuthorSubline extends StatelessWidget {
                   : Row(
                       children: [
                         Flexible(
+                          flex: cat != null ? 3 : 1,
                           child: Text(
                             name,
                             style: nameStyle,
@@ -65,8 +72,17 @@ class BeaconCardAuthorSubline extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        tail,
+                        if (tail != null) ...[
+                          const SizedBox(width: 6),
+                          tail,
+                        ],
+                        if (cat != null) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            flex: 2,
+                            child: cat,
+                          ),
+                        ],
                       ],
                     ),
             ),
