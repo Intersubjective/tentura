@@ -13,7 +13,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_card_stats_row.dart';
-import 'package:tentura/ui/widget/beacon_photo_count.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
@@ -529,8 +528,6 @@ class _DraftAuthoredCard extends StatelessWidget {
               activityWhenLine: activityWhenLine,
             ),
           ),
-          if (b.images.isNotEmpty) BeaconPhotoCount(count: b.images.length),
-          if (b.images.isNotEmpty) const SizedBox(width: kSpacingSmall),
           TextButton(
             onPressed: () => _openEditDraft(context, b.id),
             child: Text(l10n.myWorkEditDraft),
