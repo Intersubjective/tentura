@@ -9,7 +9,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart'
@@ -19,7 +18,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import 'inbox_card_action_row.dart';
-import 'inbox_card_deadline_pill.dart';
 import 'inbox_card_forwards_fold.dart';
 
 class InboxItemTile extends StatelessWidget {
@@ -99,85 +97,63 @@ class InboxItemTile extends StatelessWidget {
 
     final showNewStuffDot = inboxHighlight != InboxRowHighlightKind.none;
     final hasProvenance = showProvenance && item.provenance.senders.isNotEmpty;
-
-    const cardPadding = EdgeInsets.fromLTRB(12, 10, 12, 10);
+    final showDeadlineOrForwardsRow =
+        hasProvenance || beacon.endAt != null;
 
     return BeaconCardShell(
-      padding: cardPadding,
+      footer: showCtaRow
+          ? InboxCardActionRow(
+              onCommit: onCommit,
+              onForward: onTap,
+              secondaryLabel: secondaryLabel,
+              secondaryIcon: secondaryIcon,
+              onSecondary: secondaryLabel != null ? _onSecondaryPressed : null,
+            )
+          : null,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              BeaconIdentityTile(beacon: beacon, size: 40),
-              const SizedBox(width: kSpacingSmall),
-              Expanded(
-                child: GestureDetector(
-                  onTap: onOpenBeacon,
-                  behavior: HitTestBehavior.translucent,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        beacon.title.isEmpty ? '—' : beacon.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onSurface,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      BeaconCardAuthorSubline(
-                        author: beacon.author,
-                        avatarSize: 20,
-                        trailing: beacon.endAt != null
-                            ? InboxCardDeadlinePill(endAt: beacon.endAt)
-                            : null,
-                        category: BeaconCardCategoryMeta(beacon: beacon),
-                      ),
-                    ],
-                  ),
+          BeaconCardHeaderRow(
+            beacon: beacon,
+            onTitleBlockTap: onOpenBeacon,
+            subline: BeaconCardAuthorSubline(
+              author: beacon.author,
+              category: BeaconCardCategoryMeta(beacon: beacon),
+            ),
+            menu: BeaconOverflowMenu(
+              beacon: beacon,
+              onOpenBeacon: onOpenBeacon,
+              onCommit: onCommit != null
+                  ? () async {
+                      await onCommit?.call();
+                    }
+                  : null,
+              onForward: onTap,
+              onViewForwards: () => unawaited(
+                context.router.pushPath(
+                  '$kPathBeaconForwards/${beacon.id}',
                 ),
               ),
-              const SizedBox(width: 4),
-              BeaconOverflowMenu(
-                beacon: beacon,
-                onOpenBeacon: onOpenBeacon,
-                onCommit: onCommit != null
-                    ? () async {
-                        await onCommit?.call();
-                      }
-                    : null,
-                onForward: onTap,
-                onViewForwards: () => unawaited(
-                  context.router.pushPath(
-                    '$kPathBeaconForwards/${beacon.id}',
-                  ),
-                ),
-                onForwardsGraph: () => context
-                    .read<ScreenCubit>()
-                    .showForwardsGraphFor(beacon.id),
-                onWatch: onWatch,
-                onStopWatching: onStopWatching,
-                onCantHelp: onCantHelp,
-                onMoveToInbox: onMoveToInbox,
-                onComplaint: () =>
-                    context.read<ScreenCubit>().showComplaint(beacon.id),
-              ),
-            ],
+              onForwardsGraph: () =>
+                  context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
+              onWatch: onWatch,
+              onStopWatching: onStopWatching,
+              onCantHelp: onCantHelp,
+              onMoveToInbox: onMoveToInbox,
+              onComplaint: () =>
+                  context.read<ScreenCubit>().showComplaint(beacon.id),
+            ),
           ),
-          if (hasProvenance) ...[
-            const SizedBox(height: 6),
+          if (showDeadlineOrForwardsRow) ...[
+            const SizedBox(height: kSpacingSmall),
             InboxCardForwardsFold(
               provenance: item.provenance,
+              deadlineEndAt: beacon.endAt,
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: kSpacingSmall),
           if (item.status == InboxItemStatus.rejected &&
-              item.rejectionMessage.isNotEmpty) ...[
-            const SizedBox(height: 6),
+              item.rejectionMessage.isNotEmpty)
             Text(
               item.rejectionMessage,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -186,7 +162,6 @@ class InboxItemTile extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          ],
           if (showNewStuffDot)
             BlocBuilder<NewStuffCubit, NewStuffState>(
               buildWhen: (p, c) => p.inboxLastSeenMs != c.inboxLastSeenMs,
@@ -217,7 +192,7 @@ class InboxItemTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const NewStuffDot(
-                        padding: EdgeInsets.only(right: 6, top: 2),
+                        padding: EdgeInsets.only(right: 8, top: 2),
                       ),
                       Expanded(
                         child: Text(
@@ -231,16 +206,6 @@ class InboxItemTile extends StatelessWidget {
                 );
               },
             ),
-          if (showCtaRow) ...[
-            const SizedBox(height: 8),
-            InboxCardActionRow(
-              onCommit: onCommit,
-              onForward: onTap,
-              secondaryLabel: secondaryLabel,
-              secondaryIcon: secondaryIcon,
-              onSecondary: secondaryLabel != null ? _onSecondaryPressed : null,
-            ),
-          ],
         ],
       ),
     );

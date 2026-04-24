@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -23,10 +24,15 @@ Profile _senderProfile(InboxForwardSender s) => Profile(
 class InboxCardForwardsFold extends StatefulWidget {
   const InboxCardForwardsFold({
     required this.provenance,
+    this.deadlineEndAt,
     super.key,
   });
 
   final InboxProvenance provenance;
+
+  /// When set, a calendar-style due line (My Work status strip typography) on
+  /// the same row as the forwarder control, left-aligned.
+  final DateTime? deadlineEndAt;
 
   @override
   State<InboxCardForwardsFold> createState() => _InboxCardForwardsFoldState();
@@ -46,7 +52,9 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
   @override
   Widget build(BuildContext context) {
     final senders = widget.provenance.senders;
-    if (senders.isEmpty) return const SizedBox.shrink();
+    if (senders.isEmpty && widget.deadlineEndAt == null) {
+      return const SizedBox.shrink();
+    }
 
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
@@ -62,41 +70,109 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
       color: scheme.onSurfaceVariant,
       fontWeight: FontWeight.w500,
     );
-    final headerRight = Semantics(
-      expanded: _expanded,
-      child: GestureDetector(
-        onTap: () => setState(() => _expanded = !_expanded),
-        behavior: HitTestBehavior.translucent,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+    final headerRight = senders.isEmpty
+        ? null
+        : Semantics(
+            expanded: _expanded,
+            child: GestureDetector(
+              onTap: () => setState(() => _expanded = !_expanded),
+              behavior: HitTestBehavior.translucent,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.inboxForwardedByLabel,
+                    style: labelStyle,
+                  ),
+                  const SizedBox(width: 6),
+                  CompactForwarderAvatars(
+                    profiles: profiles,
+                    overflowCount: overflow,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+                ],
+              ),
+            ),
+          );
+
+    final deadlineMeta =
+        beaconCardCalendarDeadlineStatus(l10n, widget.deadlineEndAt);
+    final baseDeadlineStyle = theme.textTheme.labelSmall!.copyWith(
+      fontSize: 11,
+      height: 1.15,
+      color: scheme.onSurfaceVariant,
+      fontWeight: FontWeight.w500,
+    );
+    final deadlineStyle = deadlineMeta != null && deadlineMeta.overdue
+        ? baseDeadlineStyle.copyWith(
+            color: scheme.error,
+            fontWeight: FontWeight.w600,
+          )
+        : baseDeadlineStyle;
+    final deadlineChild = deadlineMeta == null
+        ? null
+        : Text(
+            deadlineMeta.text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: deadlineStyle,
+          );
+
+    Widget headerRow() {
+      final right = headerRight;
+      if (deadlineChild == null && right == null) {
+        return const SizedBox.shrink();
+      }
+      if (right == null) {
+        return Row(
           children: [
-            Text(
-              l10n.inboxForwardedByLabel,
-              style: labelStyle,
-            ),
-            const SizedBox(width: 6),
-            CompactForwarderAvatars(
-              profiles: profiles,
-              overflowCount: overflow,
-              size: 18,
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              _expanded
-                  ? Icons.keyboard_arrow_up
-                  : Icons.keyboard_arrow_down,
-              size: 18,
-              color: scheme.primary,
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: deadlineChild,
+              ),
             ),
           ],
-        ),
-      ),
-    );
-
-    Widget headerRow() => Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [headerRight],
         );
+      }
+      if (deadlineChild == null) {
+        return Row(
+          children: [
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: right,
+              ),
+            ),
+          ],
+        );
+      }
+      return Row(
+        children: [
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: deadlineChild,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: right,
+            ),
+          ),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

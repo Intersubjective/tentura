@@ -143,10 +143,12 @@ List<MyWorkCardViewModel> buildNonArchivedViewModels({
 }) {
   final authored = authoredNonClosed
       .map((b) => _deriveAuthored(beacon: b))
-      .toList();
+      .toList(growable: false);
+  final authoredIds = authored.map((v) => v.beaconId).toSet();
   final committed = committedNonClosed
       .map((r) => _deriveCommitted(row: r))
-      .toList();
+      .where((v) => !authoredIds.contains(v.beaconId))
+      .toList(growable: false);
   final merged = [...authored, ...committed]..sort(compareMyWorkCards);
   return merged;
 }
@@ -158,10 +160,12 @@ List<MyWorkCardViewModel> buildArchivedViewModels({
 }) {
   final authored = authoredClosed
       .map((b) => _deriveAuthored(beacon: b, archived: true))
-      .toList();
+      .toList(growable: false);
+  final authoredIds = authored.map((v) => v.beaconId).toSet();
   final committed = committedClosed
       .map((r) => _deriveCommitted(row: r, archived: true))
-      .toList();
+      .where((v) => !authoredIds.contains(v.beaconId))
+      .toList(growable: false);
   final merged = [...authored, ...committed]..sort(compareMyWorkCards);
   return merged;
 }

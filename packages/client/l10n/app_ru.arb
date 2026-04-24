@@ -1456,6 +1456,137 @@
   "@myWorkChipForwarded": {
     "context": "MyWorkScreen"
   },
+  "myWorkStatusDraft": "Черновик",
+  "@myWorkStatusDraft": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusNoCommitments": "Нет обязательств",
+  "@myWorkStatusNoCommitments": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusNeedsMoreHelp": "Нужна помощь",
+  "@myWorkStatusNeedsMoreHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusReviewingCommitments": "Проверяем обязательства",
+  "@myWorkStatusReviewingCommitments": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusEnoughHelp": "Помощи достаточно",
+  "@myWorkStatusEnoughHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusClosed": "Закрыто",
+  "@myWorkStatusClosed": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusOverdue": "просрочено",
+  "@myWorkStatusOverdue": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusDueToday": "сегодня",
+  "@myWorkStatusDueToday": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusDueTomorrow": "завтра",
+  "@myWorkStatusDueTomorrow": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusDueWeekday": "{weekday}",
+  "@myWorkStatusDueWeekday": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "weekday": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkStatusNoDeadline": "без срока",
+  "@myWorkStatusNoDeadline": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusAwaitingClose": "ожидает закрытия",
+  "@myWorkStatusAwaitingClose": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusReviewOpen": "проверка открыта",
+  "@myWorkStatusReviewOpen": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusWaitingOnAuthor": "ждём автора",
+  "@myWorkStatusWaitingOnAuthor": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusZeroCommitted": "0 принятых",
+  "@myWorkStatusZeroCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusOneCommitted": "1 принято",
+  "@myWorkStatusOneCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusNCommitted": "{count} принято",
+  "@myWorkStatusNCommitted": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkStatusReadyToClose": "можно закрыть",
+  "@myWorkStatusReadyToClose": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusReadyForReview": "Готово к проверке",
+  "@myWorkStatusReadyForReview": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusCommittedPersonal": "Принято",
+  "@myWorkStatusCommittedPersonal": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusMirrorNeedsMoreHelp": "нужна помощь",
+  "@myWorkStatusMirrorNeedsMoreHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusMirrorReviewingCommitments": "проверяем обязательства",
+  "@myWorkStatusMirrorReviewingCommitments": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusMirrorEnoughHelp": "помощи достаточно",
+  "@myWorkStatusMirrorEnoughHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusMirrorClosed": "закрыто",
+  "@myWorkStatusMirrorClosed": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusAcknowledgeContributions": "подтвердить вклад",
+  "@myWorkStatusAcknowledgeContributions": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusCommitmentWithResponse": "{commitment}: {response}",
+  "@myWorkStatusCommitmentWithResponse": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "commitment": {
+        "type": "String"
+      },
+      "response": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkStatusNParticipants": "{count, plural, =0{0 участников} one{1 участник} few{{count} участника} many{{count} участников} other{{count} участников}}",
+  "@myWorkStatusNParticipants": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "myWorkReviewCommitmentsCta": "Проверить обязательства",
   "@myWorkReviewCommitmentsCta": {
     "context": "MyWorkScreen"
@@ -1472,29 +1603,7 @@
   "@myWorkArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkNoAuthorResponse": "Ответа пока нет",
-  "@myWorkNoAuthorResponse": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkAuthorResponseLine": "Ответ автора: {response}",
-  "@myWorkAuthorResponseLine": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "response": {
-        "type": "String"
-      }
-    }
-  },
-  "myWorkYourNoteLine": "Ваша заметка: {note}",
-  "@myWorkYourNoteLine": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "note": {
-        "type": "String"
-      }
-    }
-  },
-  "myWorkUpdatedLine": "Обновлено {when}",
+  "myWorkUpdatedLine": "обновлено {when}",
   "@myWorkUpdatedLine": {
     "context": "MyWorkScreen",
     "placeholders": {

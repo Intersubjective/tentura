@@ -5,6 +5,26 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
+/// Font size for list-card metadata strips (My Work status line, author-line
+/// middots, etc.).
+const double kBeaconCardMetadataStripFontSize = 11;
+
+/// Typography shared by [beaconCardMetadataStripSeparator] and My Work status.
+TextStyle beaconCardMetadataStripTextStyle(ThemeData theme) {
+  final scheme = theme.colorScheme;
+  return theme.textTheme.labelSmall!.copyWith(
+    fontSize: kBeaconCardMetadataStripFontSize,
+    height: 1.15,
+    color: scheme.onSurfaceVariant,
+    fontWeight: FontWeight.w500,
+  );
+}
+
+/// Middot gap between strip segments (`slot1 · slot2` style).
+Widget beaconCardMetadataStripSeparator(ThemeData theme) {
+  return Text(' · ', style: beaconCardMetadataStripTextStyle(theme));
+}
+
 /// Surface, shape, and optional tap target for beacon list cards.
 ///
 /// Uses Material with ColorScheme.surfaceContainer (or [muted] / [color] overrides),
@@ -111,7 +131,9 @@ class BeaconCardHeaderRow extends StatelessWidget {
     required this.beacon,
     required this.subline,
     required this.menu,
-    this.titleMaxLines = 1,
+    this.titleMaxLines = 2,
+    this.identitySize = 48,
+    this.onTitleBlockTap,
     super.key,
   });
 
@@ -120,34 +142,49 @@ class BeaconCardHeaderRow extends StatelessWidget {
   final Widget menu;
   final int titleMaxLines;
 
+  /// Passed to [BeaconIdentityTile] (inbox / My Work list cards use the same size).
+  final double identitySize;
+
+  /// When set (e.g. inbox), title + subline respond to tap without wrapping the menu.
+  final VoidCallback? onTitleBlockTap;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
+    Widget titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          beacon.title.isEmpty ? '—' : beacon.title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: scheme.onSurface,
+          ),
+          maxLines: titleMaxLines,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        subline,
+      ],
+    );
+    final onTap = onTitleBlockTap;
+    if (onTap != null) {
+      titleBlock = GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.translucent,
+        child: titleBlock,
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        BeaconIdentityTile(beacon: beacon),
+        BeaconIdentityTile(beacon: beacon, size: identitySize),
         const SizedBox(width: kSpacingSmall),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                beacon.title.isEmpty ? '—' : beacon.title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurface,
-                ),
-                maxLines: titleMaxLines,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              subline,
-            ],
-          ),
-        ),
+        Expanded(child: titleBlock),
+        const SizedBox(width: 4),
         menu,
       ],
     );
