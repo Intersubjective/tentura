@@ -66,6 +66,31 @@ void main() {
     expect(vms.single.showReviewCta, isTrue);
   });
 
+  test('authored beacon drops duplicate committed row for same id', () {
+    final beacon = _b(
+      id: 'both',
+      lifecycle: BeaconLifecycle.open,
+      coordination: BeaconCoordinationStatus.enoughHelpCommitted,
+      commitmentCount: 2,
+    );
+    final row = (
+      beacon: beacon,
+      commitMessage: 'mine',
+      helpType: null,
+      authorResponseType: null,
+      forwarderSenders: const <Profile>[],
+      commitmentRowUpdatedAt: DateTime(2025, 1, 3),
+      authorCoordinationUpdatedAt: null,
+    );
+    final vms = buildNonArchivedViewModels(
+      authoredNonClosed: [beacon],
+      committedNonClosed: [row],
+    );
+    expect(vms.length, 1);
+    expect(vms.single.role, MyWorkCardRole.authored);
+    expect(vms.single.kind, MyWorkCardKind.authoredActive);
+  });
+
   test('buildArchivedViewModels yields closed kinds', () {
     final closed = [_b(id: 'z', lifecycle: BeaconLifecycle.closed)];
     final row = (

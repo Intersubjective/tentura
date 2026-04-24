@@ -22,9 +22,6 @@ import '../widget/inbox_item_tile.dart';
 import '../widget/inbox_tombstone_card.dart';
 import '../widget/rejection_dialog.dart';
 
-const _kInboxListPadding = EdgeInsets.fromLTRB(8, 4, 8, 12);
-const _kInboxCardSeparator = 6.0;
-
 @RoutePage()
 class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
   const InboxScreen({super.key});
@@ -172,7 +169,10 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                     ],
                   ),
                 ),
-                body: body,
+                body: SafeArea(
+                  minimum: kPaddingSmallH,
+                  child: body,
+                ),
               );
             },
           ),
@@ -252,10 +252,10 @@ class _InboxTabStrip extends StatelessWidget {
 }
 
 InboxSort _inboxSortAfter(InboxSort current) => switch (current) {
-      InboxSort.recent => InboxSort.meritRank,
-      InboxSort.meritRank => InboxSort.deadline,
-      InboxSort.deadline => InboxSort.recent,
-    };
+  InboxSort.recent => InboxSort.meritRank,
+  InboxSort.meritRank => InboxSort.deadline,
+  InboxSort.deadline => InboxSort.recent,
+};
 
 /// Cycles [InboxSort] on each tap; debounces bursts so one accidental double-tap
 /// does not skip a mode.
@@ -447,11 +447,11 @@ Widget _needsMeTabBody(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         if (tombstones.isNotEmpty || needsMe.isNotEmpty)
-          const SliverToBoxAdapter(child: SizedBox(height: 4)),
+          const SliverToBoxAdapter(child: SizedBox(height: kSpacingSmall)),
         if (tombstones.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+              padding: const EdgeInsets.fromLTRB(0, 4, 0, kSpacingSmall),
               child: Row(
                 children: [
                   Expanded(
@@ -490,20 +490,16 @@ Widget _needsMeTabBody(
           ),
           SliverList.separated(
             itemCount: tombstones.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(height: _kInboxCardSeparator),
+            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
             itemBuilder: (_, i) {
               final item = tombstones[i];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: InboxTombstoneCard(
-                  key: ValueKey('tombstone-${item.beaconId}'),
-                  item: item,
-                  onOpen: () => context.router.pushPath(
-                    '$kPathBeaconView/${item.beaconId}',
-                  ),
-                  onDismiss: () => inboxCubit.dismissTombstone(item.beaconId),
+              return InboxTombstoneCard(
+                key: ValueKey('tombstone-${item.beaconId}'),
+                item: item,
+                onOpen: () => context.router.pushPath(
+                  '$kPathBeaconView/${item.beaconId}',
                 ),
+                onDismiss: () => inboxCubit.dismissTombstone(item.beaconId),
               );
             },
           ),
@@ -512,39 +508,34 @@ Widget _needsMeTabBody(
         if (needsMe.isNotEmpty) ...[
           SliverList.separated(
             itemCount: needsMe.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(height: _kInboxCardSeparator),
+            separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
             itemBuilder: (_, i) {
               final item = needsMe[i];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: InboxItemTile(
-                  key: ValueKey(item.beaconId),
-                  item: item,
-                  inboxHighlight: newStuff.inboxRowHighlight(
-                    latestForwardAt: item.latestForwardAt,
-                    forwardCount: item.forwardCount,
-                    beaconActivityEpochMs:
-                        item.newStuffBeaconOnlyActivityEpochMs,
-                  ),
-                  onOpenBeacon: () => context.router.pushPath(
-                    '$kPathBeaconView/${item.beaconId}',
-                  ),
-                  onTap: () => context.router.pushPath(
-                    '$kPathForwardBeacon/${item.beaconId}',
-                  ),
-                  onWatch: () => inboxCubit.setWatching(item.beaconId),
-                  onCantHelp: () async {
-                    final msg = await showRejectionDialog(context);
-                    if (!context.mounted) return;
-                    if (msg != null) {
-                      await inboxCubit.reject(item.beaconId, message: msg);
-                    }
-                  },
-                  onCommit: _inboxCardAllowsCommit(item)
-                      ? () => _inboxCommit(context, item.beacon!)
-                      : null,
+              return InboxItemTile(
+                key: ValueKey(item.beaconId),
+                item: item,
+                inboxHighlight: newStuff.inboxRowHighlight(
+                  latestForwardAt: item.latestForwardAt,
+                  forwardCount: item.forwardCount,
+                  beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
                 ),
+                onOpenBeacon: () => context.router.pushPath(
+                  '$kPathBeaconView/${item.beaconId}',
+                ),
+                onTap: () => context.router.pushPath(
+                  '$kPathForwardBeacon/${item.beaconId}',
+                ),
+                onWatch: () => inboxCubit.setWatching(item.beaconId),
+                onCantHelp: () async {
+                  final msg = await showRejectionDialog(context);
+                  if (!context.mounted) return;
+                  if (msg != null) {
+                    await inboxCubit.reject(item.beaconId, message: msg);
+                  }
+                },
+                onCommit: _inboxCardAllowsCommit(item)
+                    ? () => _inboxCommit(context, item.beacon!)
+                    : null,
               );
             },
           ),
@@ -596,10 +587,9 @@ Widget _watchingTabBody(
     child: ListView.separated(
       key: const PageStorageKey<String>('inbox-watching-scroll'),
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: _kInboxListPadding,
+      padding: kPaddingSmallV,
       itemCount: items.length,
-      separatorBuilder: (_, _) =>
-          const SizedBox(height: _kInboxCardSeparator),
+      separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
       itemBuilder: (_, i) {
         final item = items[i];
         return InboxItemTile(

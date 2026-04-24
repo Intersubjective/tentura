@@ -17,9 +17,6 @@ import '../widget/inbox_item_tile.dart';
 class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
   const InboxRejectedScreen({super.key});
 
-  static const _listPadding = EdgeInsets.fromLTRB(8, 4, 8, 12);
-  static const _separatorH = 6.0;
-
   @override
   Widget wrappedRoute(BuildContext context) =>
       BlocSelector<AuthCubit, AuthState, String>(
@@ -67,70 +64,73 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
         ),
         title: Text(l10n.inboxRejectedTitle),
       ),
-      body: BlocBuilder<NewStuffCubit, NewStuffState>(
-        buildWhen: (p, c) =>
-            p.inboxLastSeenMs != c.inboxLastSeenMs ||
-            p.maxInboxActivityMs != c.maxInboxActivityMs,
-        builder: (context, _) {
-          final newStuff = context.read<NewStuffCubit>();
-          return BlocBuilder<InboxCubit, InboxState>(
-            buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
-            builder: (_, state) {
-              if (state.isLoading) {
-                return const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                );
-              }
-              final items = state.rejected;
-              if (items.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      l10n.inboxTabRejectedEmpty,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
+      body: SafeArea(
+        minimum: kPaddingSmallH,
+        child: BlocBuilder<NewStuffCubit, NewStuffState>(
+          buildWhen: (p, c) =>
+              p.inboxLastSeenMs != c.inboxLastSeenMs ||
+              p.maxInboxActivityMs != c.maxInboxActivityMs,
+          builder: (context, _) {
+            final newStuff = context.read<NewStuffCubit>();
+            return BlocBuilder<InboxCubit, InboxState>(
+              buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
+              builder: (_, state) {
+                if (state.isLoading) {
+                  return const Center(
+                    child: CircularProgressIndicator.adaptive(),
+                  );
+                }
+                final items = state.rejected;
+                if (items.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        l10n.inboxTabRejectedEmpty,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
+                  );
+                }
+                return RefreshIndicator.adaptive(
+                  onRefresh: inboxCubit.fetch,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: kPaddingSmallV,
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: kSpacingSmall),
+                    itemBuilder: (_, i) {
+                      final item = items[i];
+                      return InboxItemTile(
+                        key: ValueKey(item.beaconId),
+                        item: item,
+                        inboxHighlight: newStuff.inboxRowHighlight(
+                          latestForwardAt: item.latestForwardAt,
+                          forwardCount: item.forwardCount,
+                          beaconActivityEpochMs:
+                              item.newStuffBeaconOnlyActivityEpochMs,
+                        ),
+                        onOpenBeacon: () => context.router.pushPath(
+                          '$kPathBeaconView/${item.beaconId}',
+                        ),
+                        onTap: () => context.router.pushPath(
+                          '$kPathForwardBeacon/${item.beaconId}',
+                        ),
+                        onMoveToInbox: () => inboxCubit.unreject(item.beaconId),
+                        showCtaRow: false,
+                        showProvenance: false,
+                      );
+                    },
                   ),
                 );
-              }
-              return RefreshIndicator.adaptive(
-                onRefresh: inboxCubit.fetch,
-                child: ListView.separated(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: _listPadding,
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: _separatorH),
-                  itemBuilder: (_, i) {
-                    final item = items[i];
-                    return InboxItemTile(
-                      key: ValueKey(item.beaconId),
-                      item: item,
-                      inboxHighlight: newStuff.inboxRowHighlight(
-                        latestForwardAt: item.latestForwardAt,
-                        forwardCount: item.forwardCount,
-                        beaconActivityEpochMs:
-                            item.newStuffBeaconOnlyActivityEpochMs,
-                      ),
-                      onOpenBeacon: () => context.router.pushPath(
-                        '$kPathBeaconView/${item.beaconId}',
-                      ),
-                      onTap: () => context.router.pushPath(
-                        '$kPathForwardBeacon/${item.beaconId}',
-                      ),
-                      onMoveToInbox: () => inboxCubit.unreject(item.beaconId),
-                      showCtaRow: false,
-                      showProvenance: false,
-                    );
-                  },
-                ),
-              );
-            },
-          );
-        },
+              },
+            );
+          },
+        ),
       ),
     );
   }

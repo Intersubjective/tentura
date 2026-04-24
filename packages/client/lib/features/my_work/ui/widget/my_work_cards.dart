@@ -6,30 +6,23 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/beacon_card_stats_row.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
-
-String _truncate(String s, int max) {
-  final t = s.trim();
-  if (t.length <= max) return t;
-  return '${t.substring(0, max - 1)}…';
-}
 
 String _formatDateTimeActivityLine(DateTime d) =>
     '${dateFormatYMD(d)} ${timeFormatHm(d)}';
@@ -184,76 +177,67 @@ class _AuthoredActiveCard extends StatelessWidget {
     final theme = Theme.of(context);
     final b = vm.beacon;
 
-    String? attentionLabel(MyWorkAttentionChip c) => switch (c) {
-      MyWorkAttentionChip.reviewPending => l10n.myWorkChipReviewPending,
-      MyWorkAttentionChip.reviewWindowOpen => l10n.myWorkChipReviewWindowOpen,
-      MyWorkAttentionChip.moreHelpNeeded => l10n.myWorkChipMoreHelp,
-    };
-
     final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
+    final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
+
+    final hasReviewCta = vm.showReviewCommitmentsCta;
+    final needsForwardCta = !vm.authorHasForwardedOnce;
+    final footerActions = (hasReviewCta || needsForwardCta)
+        ? Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (hasReviewCta)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.tonal(
+                    onPressed: () => _openBeacon(context, b.id),
+                    child: Text(l10n.myWorkReviewCommitmentsCta),
+                  ),
+                ),
+              if (hasReviewCta && needsForwardCta)
+                const SizedBox(height: kSpacingSmall),
+              if (needsForwardCta)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => unawaited(
+                      context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.arrow_forward,
+                          size: 18,
+                          color: theme.colorScheme.onPrimary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          l10n.inboxCardOpenBeacon,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          )
+        : null;
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _myWorkFooterActivityBlock(
-                  context: context,
-                  highlight: highlight,
-                  reasonLabels: newStuffReasonLabels,
-                  activityWhenLine: activityWhenLine,
-                ),
-              ),
-              if (vm.showReviewCommitmentsCta)
-                FilledButton.tonal(
-                  onPressed: () => _openBeacon(context, b.id),
-                  child: Text(l10n.myWorkReviewCommitmentsCta),
-                ),
-            ],
-          ),
-          if (!vm.authorHasForwardedOnce) ...[
-            const SizedBox(height: kSpacingSmall),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => unawaited(
-                  context.router.pushPath('$kPathForwardBeacon/${b.id}'),
-                ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  foregroundColor: theme.colorScheme.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.arrow_forward,
-                      size: 18,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      l10n.inboxCardOpenBeacon,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+      footer: footerActions,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -334,22 +318,16 @@ class _AuthoredActiveCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kSpacingSmall),
-          Wrap(
-            spacing: kSpacingSmall,
-            runSpacing: kSpacingSmall,
-            children: [
-              BeaconCardPill(label: l10n.myWorkChipAuthor),
-              if (vm.attentionChip != null)
-                BeaconCardPill(
-                  label: attentionLabel(vm.attentionChip!)!,
-                  emphasized:
-                      vm.attentionChip != MyWorkAttentionChip.reviewPending,
-                ),
-              if (vm.authorHasForwardedOnce)
-                BeaconCardPill(label: l10n.myWorkChipForwarded),
-            ],
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
-          BeaconCardStatsRow(beacon: b),
+          const SizedBox(height: kSpacingSmall),
+          _myWorkFooterActivityBlock(
+            context: context,
+            highlight: highlight,
+            reasonLabels: newStuffReasonLabels,
+            activityWhenLine: activityWhenLine,
+          ),
         ],
       ),
     );
@@ -372,39 +350,20 @@ class _CommittedActiveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final b = vm.beacon;
-
-    final responseText = vm.authorResponseType == null
-        ? l10n.myWorkNoAuthorResponse
-        : (coordinationResponseLabel(l10n, vm.authorResponseType) ??
-              l10n.myWorkNoAuthorResponse);
-
-    final note = vm.commitMessage.isEmpty
-        ? '—'
-        : _truncate(vm.commitMessage, 120);
+    final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
-      footer: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: _myWorkFooterActivityBlock(
-              context: context,
-              highlight: highlight,
-              reasonLabels: newStuffReasonLabels,
-              activityWhenLine: activityWhenLine,
-            ),
-          ),
-          if (vm.showReviewCta)
-            FilledButton.tonal(
-              onPressed: () => _openReviewContributions(context, b.id),
-              child: Text(l10n.myWorkReviewCta),
-            ),
-        ],
-      ),
+      footer: vm.showReviewCta
+          ? Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.tonal(
+                onPressed: () => _openReviewContributions(context, b.id),
+                child: Text(l10n.myWorkReviewCta),
+              ),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -429,54 +388,15 @@ class _CommittedActiveCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kSpacingSmall),
-          Wrap(
-            spacing: kSpacingSmall,
-            runSpacing: kSpacingSmall,
-            children: [
-              BeaconCardPill(label: l10n.myWorkChipCommitted),
-              if (b.coordinationStatus ==
-                  BeaconCoordinationStatus.moreOrDifferentHelpNeeded)
-                BeaconCardPill(
-                  label: l10n.myWorkChipMoreHelp,
-                  emphasized: true,
-                ),
-              if (vm.showReadyForReviewChip)
-                BeaconCardPill(
-                  label: l10n.myWorkChipReadyForReview,
-                ),
-              if (vm.authorHasForwardedOnce)
-                BeaconCardPill(label: l10n.myWorkChipForwarded),
-            ],
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
-          BeaconCardStatsRow(beacon: b),
           const SizedBox(height: kSpacingSmall),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.myWorkYourNoteLine(note),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.myWorkAuthorResponseLine(responseText),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
+          _myWorkFooterActivityBlock(
+            context: context,
+            highlight: highlight,
+            reasonLabels: newStuffReasonLabels,
+            activityWhenLine: activityWhenLine,
           ),
         ],
       ),
@@ -502,26 +422,17 @@ class _DraftAuthoredCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final b = vm.beacon;
+    final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
 
     return BeaconCardShell(
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
-      footer: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: _myWorkFooterActivityBlock(
-              context: context,
-              highlight: highlight,
-              reasonLabels: newStuffReasonLabels,
-              activityWhenLine: activityWhenLine,
-            ),
-          ),
-          TextButton(
-            onPressed: () => _openEditDraft(context, b.id),
-            child: Text(l10n.myWorkEditDraft),
-          ),
-        ],
+      footer: Align(
+        alignment: Alignment.centerRight,
+        child: TextButton(
+          onPressed: () => _openEditDraft(context, b.id),
+          child: Text(l10n.myWorkEditDraft),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,12 +464,8 @@ class _DraftAuthoredCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kSpacingSmall),
-          Wrap(
-            spacing: kSpacingSmall,
-            children: [
-              BeaconCardPill(label: l10n.myWorkChipAuthor),
-              BeaconCardPill(label: l10n.myWorkChipDraft),
-            ],
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
@@ -566,6 +473,13 @@ class _DraftAuthoredCard extends StatelessWidget {
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
+          const SizedBox(height: kSpacingSmall),
+          _myWorkFooterActivityBlock(
+            context: context,
+            highlight: highlight,
+            reasonLabels: newStuffReasonLabels,
+            activityWhenLine: activityWhenLine,
           ),
         ],
       ),
@@ -592,6 +506,7 @@ class _ClosedAuthoredCard extends StatelessWidget {
     final b = vm.beacon;
     final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
+    final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
@@ -685,16 +600,9 @@ class _ClosedAuthoredCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kSpacingSmall),
-          Wrap(
-            spacing: kSpacingSmall,
-            children: [
-              BeaconCardPill(label: l10n.myWorkChipAuthor),
-              BeaconCardPill(label: l10n.beaconLifecycleClosed),
-              if (vm.authorHasForwardedOnce)
-                BeaconCardPill(label: l10n.myWorkChipForwarded),
-            ],
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
-          BeaconCardStatsRow(beacon: b),
           const SizedBox(height: kSpacingSmall),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -732,6 +640,7 @@ class _ClosedCommittedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
+    final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
@@ -769,22 +678,9 @@ class _ClosedCommittedCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kSpacingSmall),
-          Wrap(
-            spacing: kSpacingSmall,
-            children: [
-              BeaconCardPill(label: l10n.myWorkChipCommitted),
-              if (b.coordinationStatus ==
-                  BeaconCoordinationStatus.moreOrDifferentHelpNeeded)
-                BeaconCardPill(
-                  label: l10n.myWorkChipMoreHelp,
-                  emphasized: true,
-                ),
-              BeaconCardPill(label: l10n.beaconLifecycleClosed),
-              if (vm.authorHasForwardedOnce)
-                BeaconCardPill(label: l10n.myWorkChipForwarded),
-            ],
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
-          BeaconCardStatsRow(beacon: b),
           const SizedBox(height: kSpacingSmall),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,

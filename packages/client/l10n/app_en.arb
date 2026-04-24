@@ -1456,6 +1456,137 @@
   "@myWorkChipForwarded": {
     "context": "MyWorkScreen"
   },
+  "myWorkStatusDraft": "Draft",
+  "@myWorkStatusDraft": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusNoCommitments": "No commitments",
+  "@myWorkStatusNoCommitments": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusNeedsMoreHelp": "Needs more help",
+  "@myWorkStatusNeedsMoreHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusReviewingCommitments": "Reviewing commitments",
+  "@myWorkStatusReviewingCommitments": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusEnoughHelp": "Enough help",
+  "@myWorkStatusEnoughHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusClosed": "Closed",
+  "@myWorkStatusClosed": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusOverdue": "overdue",
+  "@myWorkStatusOverdue": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusDueToday": "due today",
+  "@myWorkStatusDueToday": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusDueTomorrow": "due tomorrow",
+  "@myWorkStatusDueTomorrow": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusDueWeekday": "due {weekday}",
+  "@myWorkStatusDueWeekday": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "weekday": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkStatusNoDeadline": "no deadline",
+  "@myWorkStatusNoDeadline": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusAwaitingClose": "awaiting close",
+  "@myWorkStatusAwaitingClose": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusReviewOpen": "review open",
+  "@myWorkStatusReviewOpen": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusWaitingOnAuthor": "waiting on author",
+  "@myWorkStatusWaitingOnAuthor": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusZeroCommitted": "0 committed",
+  "@myWorkStatusZeroCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusOneCommitted": "1 committed",
+  "@myWorkStatusOneCommitted": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusNCommitted": "{count} committed",
+  "@myWorkStatusNCommitted": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkStatusReadyToClose": "ready to close",
+  "@myWorkStatusReadyToClose": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusReadyForReview": "Ready for review",
+  "@myWorkStatusReadyForReview": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusCommittedPersonal": "Committed",
+  "@myWorkStatusCommittedPersonal": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusMirrorNeedsMoreHelp": "needs more help",
+  "@myWorkStatusMirrorNeedsMoreHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusMirrorReviewingCommitments": "reviewing commitments",
+  "@myWorkStatusMirrorReviewingCommitments": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusMirrorEnoughHelp": "enough help",
+  "@myWorkStatusMirrorEnoughHelp": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusMirrorClosed": "closed",
+  "@myWorkStatusMirrorClosed": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusAcknowledgeContributions": "acknowledge contributions",
+  "@myWorkStatusAcknowledgeContributions": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkStatusCommitmentWithResponse": "{commitment}: {response}",
+  "@myWorkStatusCommitmentWithResponse": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "commitment": {
+        "type": "String"
+      },
+      "response": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkStatusNParticipants": "{count, plural, =0{0 participants} one{1 participant} other{{count} participants}}",
+  "@myWorkStatusNParticipants": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "myWorkReviewCommitmentsCta": "Review commitments",
   "@myWorkReviewCommitmentsCta": {
     "context": "MyWorkScreen"
@@ -1472,29 +1603,7 @@
   "@myWorkArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkNoAuthorResponse": "No response yet",
-  "@myWorkNoAuthorResponse": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkAuthorResponseLine": "Author response: {response}",
-  "@myWorkAuthorResponseLine": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "response": {
-        "type": "String"
-      }
-    }
-  },
-  "myWorkYourNoteLine": "Your note: {note}",
-  "@myWorkYourNoteLine": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "note": {
-        "type": "String"
-      }
-    }
-  },
-  "myWorkUpdatedLine": "Updated {when}",
+  "myWorkUpdatedLine": "updated {when}",
   "@myWorkUpdatedLine": {
     "context": "MyWorkScreen",
     "placeholders": {
