@@ -2186,6 +2186,22 @@
   "beaconActivitySectionMedium": "Coordination",
   "beaconActivitySectionLow": "Edits",
   "beaconNoActivityYetShort": "No activity yet",
+  "commitmentsTabAuthorLabelCaption": "author label",
+  "commitmentsTabMineLabel": "mine",
+  "commitmentsTabActionEdit": "edit",
+  "commitmentsTabActionWithdraw": "withdraw",
+  "commitmentsTabSummaryUseful": "{n} useful",
+  "@commitmentsTabSummaryUseful": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "commitmentsTabSummaryNeedCoordination": "{n} needs coordination",
+  "@commitmentsTabSummaryNeedCoordination": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
   "beaconViaChain": "via {chain}",
   "@beaconViaChain": {
     "placeholders": {
