@@ -11,6 +11,7 @@ import 'beacon_gallery_viewer.dart';
 class BeaconImageGallery extends StatefulWidget {
   const BeaconImageGallery({
     required this.beacon,
+
     /// When set, constrains gallery height (e.g. beacon overview operational layout).
     this.maxHeight,
     super.key,
@@ -49,8 +50,12 @@ class _BeaconImageGalleryState extends State<BeaconImageGallery> {
   Widget build(BuildContext context) {
     final images = widget.beacon.images;
     final imageUrls = widget.beacon.imageUrls;
+    final storageKey = widget.maxHeight == null
+        ? 'beacon-gallery-${widget.beacon.id}-full'
+        : 'beacon-gallery-${widget.beacon.id}-compact-${widget.maxHeight}';
 
     final pageView = PageView.builder(
+      key: PageStorageKey<String>(storageKey),
       controller: _pageController,
       itemCount: imageUrls.length,
       onPageChanged: (i) => setState(() => _currentPage = i),
