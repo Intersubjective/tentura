@@ -44,6 +44,12 @@ class CommitmentTile extends StatelessWidget {
       l10n,
       commitment.coordinationResponse,
     );
+    final responsePillColors = commitment.coordinationResponse == null
+        ? null
+        : coordinationResponseColor(
+            theme.colorScheme,
+            commitment.coordinationResponse!,
+          );
 
     return Opacity(
       opacity: opacity,
@@ -137,11 +143,10 @@ class CommitmentTile extends StatelessWidget {
                     ),
                     BeaconCardPill(
                       label: coordinationLabel,
-                      backgroundColor:
-                          theme.colorScheme.secondaryContainer.withValues(
+                      backgroundColor: responsePillColors!.bg.withValues(
                         alpha: 0.85,
                       ),
-                      foregroundColor: theme.colorScheme.onSecondaryContainer,
+                      foregroundColor: responsePillColors.fg,
                     ),
                     if (isAuthorView && onAuthorTapCoordination != null)
                       TextButton(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
@@ -20,6 +21,17 @@ class MyWorkCardStatusStrip extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final baseStyle = beaconCardStatusLineTextStyle(theme);
+    final response = data.slot1ResponseType;
+    final coord = data.slot1CoordinationStatus;
+    final slot1Color = response != null
+        ? coordinationResponseOnSurfaceColor(scheme, response)
+        : (coord != null ? coordinationStatusColor(scheme, coord) : null);
+    final slot1Style = slot1Color != null
+        ? baseStyle.copyWith(
+            color: slot1Color,
+            fontWeight: FontWeight.w600,
+          )
+        : baseStyle;
     final slot2Style = data.timeSlotOverdue
         ? baseStyle.copyWith(
             color: scheme.error,
@@ -32,7 +44,7 @@ class MyWorkCardStatusStrip extends StatelessWidget {
       child: Text.rich(
         TextSpan(
           children: [
-            TextSpan(text: data.slot1, style: baseStyle),
+            TextSpan(text: data.slot1, style: slot1Style),
             TextSpan(text: ' · ', style: baseStyle),
             TextSpan(text: data.slot2, style: slot2Style),
             TextSpan(text: ' · ', style: baseStyle),

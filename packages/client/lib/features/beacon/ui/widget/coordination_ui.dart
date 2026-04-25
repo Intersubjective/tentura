@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -21,9 +23,60 @@ String? coordinationResponseLabel(L10n l10n, CoordinationResponseType? r) {
       l10n.coordinationNeedDifferentSkill,
     CoordinationResponseType.needCoordination =>
       l10n.coordinationNeedCoordination,
-    CoordinationResponseType.notSuitable => l10n.coordinationNotSuitable,
+      CoordinationResponseType.notSuitable => l10n.coordinationNotSuitable,
   };
 }
+
+Color coordinationStatusColor(ColorScheme scheme, BeaconCoordinationStatus s) =>
+    switch (s) {
+      BeaconCoordinationStatus.noCommitmentsYet => scheme.onSurfaceVariant,
+      BeaconCoordinationStatus.commitmentsWaitingForReview => scheme.primary,
+      BeaconCoordinationStatus.moreOrDifferentHelpNeeded => scheme.error,
+      BeaconCoordinationStatus.enoughHelpCommitted => scheme.tertiary,
+    };
+
+/// Main palette roles for emphasized text on a neutral card (e.g. My Work status strip).
+/// Pills use [coordinationResponseColor] `fg` on tinted backgrounds; for plain `Text` on
+/// [ColorScheme.surface], use this instead of those container-foreground colors.
+Color coordinationResponseOnSurfaceColor(
+  ColorScheme scheme,
+  CoordinationResponseType r,
+) =>
+    switch (r) {
+      CoordinationResponseType.useful => scheme.tertiary,
+      CoordinationResponseType.overlapping => scheme.secondary,
+      CoordinationResponseType.needDifferentSkill => scheme.error,
+      CoordinationResponseType.needCoordination => scheme.primary,
+      CoordinationResponseType.notSuitable => scheme.error,
+    };
+
+/// Background / foreground for per-commitment author reaction (pills on tinted fill).
+({Color bg, Color fg}) coordinationResponseColor(
+  ColorScheme scheme,
+  CoordinationResponseType r,
+) =>
+    switch (r) {
+      CoordinationResponseType.useful => (
+          bg: scheme.tertiaryContainer,
+          fg: scheme.onTertiaryContainer,
+        ),
+      CoordinationResponseType.overlapping => (
+          bg: scheme.secondaryContainer,
+          fg: scheme.onSecondaryContainer,
+        ),
+      CoordinationResponseType.needDifferentSkill => (
+          bg: scheme.errorContainer,
+          fg: scheme.onErrorContainer,
+        ),
+      CoordinationResponseType.needCoordination => (
+          bg: scheme.primaryContainer,
+          fg: scheme.onPrimaryContainer,
+        ),
+      CoordinationResponseType.notSuitable => (
+          bg: scheme.errorContainer,
+          fg: scheme.onErrorContainer,
+        ),
+    };
 
 String? uncommitReasonLabel(L10n l10n, String? wireKey) {
   if (wireKey == null || wireKey.isEmpty) return null;

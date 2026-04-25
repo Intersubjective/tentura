@@ -313,13 +313,13 @@ class _AuthoredActiveCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-          ),
-          const SizedBox(height: 4),
           BeaconCardMetadataLine(
             beacon: b,
             updatedLine: activityWhenLine,
+          ),
+          const SizedBox(height: 6),
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
           const SizedBox(height: kSpacingSmall),
           _myWorkFooterActivityBlock(
@@ -383,13 +383,13 @@ class _CommittedActiveCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-          ),
-          const SizedBox(height: 4),
           BeaconCardMetadataLine(
             beacon: b,
             updatedLine: activityWhenLine,
+          ),
+          const SizedBox(height: 6),
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
           const SizedBox(height: kSpacingSmall),
           _myWorkFooterActivityBlock(
@@ -459,13 +459,13 @@ class _DraftAuthoredCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-          ),
-          const SizedBox(height: 4),
           BeaconCardMetadataLine(
             beacon: b,
             updatedLine: activityWhenLine,
+          ),
+          const SizedBox(height: 6),
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
@@ -595,13 +595,13 @@ class _ClosedAuthoredCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-          ),
-          const SizedBox(height: 4),
           BeaconCardMetadataLine(
             beacon: b,
             updatedLine: activityWhenLine,
+          ),
+          const SizedBox(height: 6),
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
           const SizedBox(height: kSpacingSmall),
           Row(
@@ -673,13 +673,13 @@ class _ClosedCommittedCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-          ),
-          const SizedBox(height: 4),
           BeaconCardMetadataLine(
             beacon: b,
             updatedLine: activityWhenLine,
+          ),
+          const SizedBox(height: 6),
+          MyWorkCardStatusStrip(
+            data: statusLine,
           ),
           const SizedBox(height: kSpacingSmall),
           Row(
