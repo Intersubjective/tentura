@@ -265,17 +265,17 @@ class _SenderNoteBlock extends StatelessWidget {
       );
     }
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                header,
-                const SizedBox(height: 2),
-                Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        header,
+        const SizedBox(height: 2),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Text(
                   note,
                   textAlign: TextAlign.end,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -284,21 +284,21 @@ class _SenderNoteBlock extends StatelessWidget {
                     height: 1.35,
                   ),
                 ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 18,
-            child: Center(
-              child: Container(
-                width: 2,
-                height: double.infinity,
-                color: scheme.primary.withValues(alpha: 0.45),
               ),
-            ),
+              SizedBox(
+                width: 18,
+                child: Center(
+                  child: Container(
+                    width: 2,
+                    height: double.infinity,
+                    color: scheme.primary.withValues(alpha: 0.45),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
