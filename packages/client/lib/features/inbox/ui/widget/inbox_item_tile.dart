@@ -59,7 +59,8 @@ class InboxItemTile extends StatelessWidget {
   final InboxRowHighlightKind inboxHighlight;
 
   String? _secondaryLabel(L10n l10n) {
-    if (onCantHelp != null) return l10n.inboxActionNotForMe;
+    // Icon-only tertiary button for "Not for me" (see _secondaryIcon()).
+    if (onCantHelp != null) return null;
     if (onStopWatching != null) return l10n.actionStopWatching;
     if (onMoveToInbox != null) return l10n.actionMoveToInbox;
     return null;
@@ -97,8 +98,7 @@ class InboxItemTile extends StatelessWidget {
 
     final showNewStuffDot = inboxHighlight != InboxRowHighlightKind.none;
     final hasProvenance = showProvenance && item.provenance.senders.isNotEmpty;
-    final showDeadlineOrForwardsRow =
-        hasProvenance || beacon.endAt != null;
+    final showDeadlineOrForwardsRow = hasProvenance || beacon.endAt != null;
 
     return BeaconCardShell(
       footer: showCtaRow
@@ -107,7 +107,9 @@ class InboxItemTile extends StatelessWidget {
               onForward: onTap,
               secondaryLabel: secondaryLabel,
               secondaryIcon: secondaryIcon,
-              onSecondary: secondaryLabel != null ? _onSecondaryPressed : null,
+              onSecondary: (secondaryLabel != null || secondaryIcon != null)
+                  ? _onSecondaryPressed
+                  : null,
             )
           : null,
       child: Column(
