@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-
-import 'commitment_tokens.dart';
 
 /// Compact summary above the commitment list (no pills, no metric grid).
 class CommitmentsSummaryCard extends StatelessWidget {
@@ -20,32 +19,18 @@ class CommitmentsSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final tones = CommitmentToneColors.of(context);
-
-    final titleStyle = theme.textTheme.titleSmall?.copyWith(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      color: theme.colorScheme.onSurface,
-    );
+    final tt = context.tt;
 
     final showSecond = usefulCount > 0 || needsCoordinationCount > 0;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: tones.cardBorder),
-        boxShadow: kCommitmentCardShadows(context),
-      ),
+    return TenturaTechCardStatic(
+      showShadow: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             l10n.beaconOverviewActiveCommitments(activeCount),
-            style: titleStyle,
+            style: TenturaText.title(tt.text),
           ),
           if (showSecond) ...[
             const SizedBox(height: 6),
@@ -53,9 +38,9 @@ class CommitmentsSummaryCard extends StatelessWidget {
               l10n: l10n,
               usefulCount: usefulCount,
               needsCoordinationCount: needsCoordinationCount,
-              good: tones.good,
-              warning: tones.warning,
-              neutral: tones.neutral,
+              good: tt.good,
+              warning: tt.warn,
+              neutral: tt.textMuted,
             ),
           ],
         ],
@@ -83,30 +68,29 @@ class _SummarySubline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final base = theme.textTheme.bodySmall?.copyWith(
-      fontSize: 13,
-      height: 1.35,
-    );
+    final base = TenturaText.body(neutral);
 
     if (usefulCount > 0 && needsCoordinationCount > 0) {
       return Text.rich(
         TextSpan(
-          style: base?.copyWith(color: neutral),
+          style: base,
           children: [
             TextSpan(
               text: l10n.commitmentsTabSummaryUseful(usefulCount),
-              style: base?.copyWith(color: good, fontWeight: FontWeight.w500),
+              style: base.copyWith(color: good, fontWeight: FontWeight.w500),
             ),
             TextSpan(
               text: ' · ',
-              style: base?.copyWith(color: neutral),
+              style: base,
             ),
             TextSpan(
               text: l10n.commitmentsTabSummaryNeedCoordination(
                 needsCoordinationCount,
               ),
-              style: base?.copyWith(color: warning, fontWeight: FontWeight.w500),
+              style: base.copyWith(
+                color: warning,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -115,12 +99,12 @@ class _SummarySubline extends StatelessWidget {
     if (usefulCount > 0) {
       return Text(
         l10n.commitmentsTabSummaryUseful(usefulCount),
-        style: base?.copyWith(color: good, fontWeight: FontWeight.w500),
+        style: base.copyWith(color: good, fontWeight: FontWeight.w500),
       );
     }
     return Text(
       l10n.commitmentsTabSummaryNeedCoordination(needsCoordinationCount),
-      style: base?.copyWith(color: warning, fontWeight: FontWeight.w500),
+      style: base.copyWith(color: warning, fontWeight: FontWeight.w500),
     );
   }
 }

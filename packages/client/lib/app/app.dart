@@ -12,7 +12,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/app_reload.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/theme.dart';
+import 'package:tentura/design_system/tentura_theme.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -67,8 +67,8 @@ class App extends StatelessWidget {
         themeMode: themeMode,
         scaffoldMessengerKey: snackbarKey,
         debugShowCheckedModeBanner: false,
-        theme: createAppTheme(colorSchemeLight),
-        darkTheme: createAppTheme(colorSchemeDark),
+        theme: TenturaTheme.light(),
+        darkTheme: TenturaTheme.dark(),
         routerConfig: router.config(
           deepLinkBuilder: router.deepLinkBuilder,
           deepLinkTransformer: router.deepLinkTransformer,

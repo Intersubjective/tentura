@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
-import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
 /// Single-line operational status for My Desk cards: `slot1 · slot2 · slot3`.
 ///
@@ -20,7 +20,10 @@ class MyWorkCardStatusStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final baseStyle = beaconCardStatusLineTextStyle(theme);
+    final tt = context.tt;
+    final baseStyle = TenturaText.status(tt.textMuted).copyWith(
+      fontWeight: FontWeight.w500,
+    );
     final response = data.slot1ResponseType;
     final coord = data.slot1CoordinationStatus;
     final slot1Color = response != null

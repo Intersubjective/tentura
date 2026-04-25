@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_text.dart';
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -24,8 +26,8 @@ const double kBeaconCardMetadataAttributionBarHeight = 12;
 /// Font size for metadata-line middots and legacy strips.
 const double kBeaconCardMetadataStripFontSize = 11;
 
-/// Status line (slot1 · slot2 · slot3) on list cards.
-const double kBeaconCardStatusLineFontSize = 12;
+/// Status line (slot1 · slot2 · slot3) on list cards — matches [TenturaText.status].
+const double kBeaconCardStatusLineFontSize = 10;
 
 /// Typography shared by [beaconCardMetadataStripSeparator] and My Work status.
 TextStyle beaconCardMetadataStripTextStyle(ThemeData theme) {
@@ -51,11 +53,9 @@ TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
 
 /// My Work / inbox operational status line (`committed · …`).
 TextStyle beaconCardStatusLineTextStyle(ThemeData theme) {
-  final scheme = theme.colorScheme;
-  return theme.textTheme.labelSmall!.copyWith(
-    fontSize: kBeaconCardStatusLineFontSize,
-    height: 1.2,
-    color: scheme.onSurfaceVariant,
+  final tt = theme.extension<TenturaTokens>();
+  final muted = tt?.textMuted ?? theme.colorScheme.onSurfaceVariant;
+  return TenturaText.status(muted).copyWith(
     fontWeight: FontWeight.w500,
   );
 }
@@ -99,6 +99,7 @@ class BeaconCardShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
     final hasFooter = footer != null;
     final mainPadding =
         padding ??
@@ -122,14 +123,15 @@ class BeaconCardShell extends StatelessWidget {
         color ??
         (muted
             ? scheme.surfaceContainerHighest.withValues(alpha: 0.45)
-            : scheme.surfaceContainer);
+            : tt.surface);
 
+    final r = tt.cardRadius;
     final inkRadius = hasFooter
-        ? const BorderRadius.only(
-            topLeft: Radius.circular(8),
-            topRight: Radius.circular(8),
+        ? BorderRadius.only(
+            topLeft: Radius.circular(r),
+            topRight: Radius.circular(r),
           )
-        : BorderRadius.circular(8);
+        : BorderRadius.circular(r);
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -160,9 +162,12 @@ class BeaconCardShell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: kBeaconCardShellHorizontalMargin),
       child: Material(
         color: bg,
-        borderRadius: BorderRadius.circular(8),
-        elevation: muted ? 0 : 0.5,
-        shadowColor: scheme.shadow.withValues(alpha: 0.12),
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(r),
+          side: BorderSide(color: tt.border),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: body,
       ),
     );

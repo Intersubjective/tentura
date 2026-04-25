@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
@@ -11,16 +12,12 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../bloc/beacon_view_state.dart';
 import '../../util/beacon_chip_derivation.dart';
 
-const double _kOverviewCardRadius = 16;
 const double _kOverviewSectionGap = 12;
-const double _kOverviewIconTile = 36;
-const double _kOverviewIconTileRadius = 12;
 
 /// Foldable overview section: icon, title, summary, optional meta, chevron, expanded body.
 class BeaconOverviewSectionCard extends StatefulWidget {
@@ -67,32 +64,18 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final titleStyle = theme.textTheme.titleMedium?.copyWith(
-      fontSize: 15,
-      fontWeight: FontWeight.w600,
-    );
-    final summaryBaseStyle = theme.textTheme.bodyMedium?.copyWith(
-      fontSize: 13,
-      color: scheme.onSurfaceVariant,
-    );
+    final tt = context.tt;
     final summaryStyle = widget.summaryColor != null
-        ? summaryBaseStyle?.copyWith(color: widget.summaryColor)
-        : summaryBaseStyle;
-    final metaStyle = theme.textTheme.labelSmall?.copyWith(
-      fontSize: 12,
-      color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
-    );
+        ? TenturaText.body(tt.textMuted).copyWith(color: widget.summaryColor)
+        : TenturaText.body(tt.textMuted);
+    final metaStyle = TenturaText.meta(tt.textFaint);
 
     return Material(
       key: PageStorageKey<String>(widget.storageId),
-      color: scheme.surface,
-      elevation: 0.5,
-      shadowColor: scheme.shadow.withValues(alpha: 0.08),
+      color: tt.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(_kOverviewCardRadius),
-        side: BorderSide(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(tt.cardRadius),
+        side: BorderSide(color: tt.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -107,18 +90,19 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: _kOverviewIconTile,
-                    height: _kOverviewIconTile,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
-                      color: scheme.primaryContainer.withValues(alpha: 0.55),
-                      borderRadius:
-                          BorderRadius.circular(_kOverviewIconTileRadius),
+                      color: tt.borderSubtle,
+                      borderRadius: BorderRadius.circular(
+                        TenturaRadii.cardDense,
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: Icon(
                       widget.icon,
                       size: 20,
-                      color: scheme.onPrimaryContainer,
+                      color: tt.textMuted,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -128,7 +112,7 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
                       children: [
                         Text(
                           widget.title,
-                          style: titleStyle,
+                          style: TenturaText.title(tt.text),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -152,12 +136,13 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
                   const SizedBox(width: 4),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: scheme.onSurfaceVariant,
+                    color: tt.textMuted,
                   ),
                 ],
               ),
             ),
           ),
+          if (_expanded) const TenturaHairlineDivider(),
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
@@ -354,7 +339,7 @@ class _CoordinationBody extends StatelessWidget {
                 .take(3))
               Padding(
                 padding: const EdgeInsets.only(left: 4),
-                child: AvatarRated(
+                child: TenturaAvatar(
                   profile: u.user,
                   size: 24,
                 ),
@@ -364,9 +349,9 @@ class _CoordinationBody extends StatelessWidget {
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
-          child: FilledButton.tonal(
+          child: TenturaCommandButton(
+            label: l10n.beaconViewAndCoordinateCommitments,
             onPressed: onViewAllCommitments,
-            child: Text(l10n.beaconViewAndCoordinateCommitments),
           ),
         ),
       ],
