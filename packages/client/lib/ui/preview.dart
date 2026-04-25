@@ -1,7 +1,7 @@
 import 'package:flutter/widget_previews.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/ui/theme.dart';
+import 'package:tentura/design_system/tentura_theme.dart';
 
 export 'package:flutter/widget_previews.dart';
 export 'package:flutter/widgets.dart';
@@ -13,8 +13,8 @@ const commonWidgetsGroup = 'Shared Widgets';
 
 /// Create Theme for Preview
 PreviewThemeData previewThemeData() => PreviewThemeData(
-  materialLight: createAppTheme(colorSchemeLight),
-  materialDark: createAppTheme(colorSchemeDark),
+  materialLight: TenturaTheme.light(),
+  materialDark: TenturaTheme.dark(),
 );
 
 // Preview data

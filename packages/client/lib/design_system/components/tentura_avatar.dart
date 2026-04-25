@@ -2,21 +2,46 @@ import 'package:blurhash_shader/blurhash_shader.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
-/// 32×32 rounded-square avatar (radius 8) for the Commitments tab — not social/round.
-class CommitmentAvatar extends StatelessWidget {
-  const CommitmentAvatar({
+
+import '../tentura_tokens.dart';
+import '../tentura_text.dart';
+
+/// 32px circular identifier avatar; thin border; initials fallback 10 semibold.
+class TenturaAvatar extends StatelessWidget {
+  const TenturaAvatar({
     required this.profile,
     super.key,
+    this.size,
   });
 
-  static const double size = 32;
-  static const double cornerRadius = 8;
-
   final Profile profile;
+  final double? size;
 
-  int get _cacheSize => size.ceil();
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final s = size ?? tt.avatarSize;
+    final cache = s.ceil();
+    return Container(
+      width: s,
+      height: s,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: tt.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: profile.hasNoAvatar
+          ? _Initials(lettering: _initialsFor(profile), size: s)
+          : _Network(
+              profile: profile,
+              cacheSize: cache,
+              initials: _initialsFor(profile),
+              size: s,
+            ),
+    );
+  }
 
-  String get _initials {
+  static String _initialsFor(Profile profile) {
     final t = profile.title.trim();
     if (t.isEmpty) {
       return '?';
@@ -32,48 +57,28 @@ class CommitmentAvatar extends StatelessWidget {
     }
     return t[0].toUpperCase();
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final base = profile.hasNoAvatar
-        ? _Initials(lettering: _initials, scheme: scheme)
-        : _NetworkOrBlur(
-            profile: profile,
-            cacheSize: _cacheSize,
-            initials: _initials,
-            scheme: scheme,
-          );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(cornerRadius),
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: base,
-      ),
-    );
-  }
 }
 
-class _NetworkOrBlur extends StatelessWidget {
-  const _NetworkOrBlur({
+class _Network extends StatelessWidget {
+  const _Network({
     required this.profile,
     required this.cacheSize,
     required this.initials,
-    required this.scheme,
+    required this.size,
   });
 
   final Profile profile;
   final int cacheSize;
   final String initials;
-  final ColorScheme scheme;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final image = profile.image;
     final net = Image.network(
       profile.avatarUrl,
-      errorBuilder: (_, _, _) => _Initials(lettering: initials, scheme: scheme),
+      errorBuilder: (context, error, stackTrace) =>
+          _Initials(lettering: initials, size: size),
       cacheHeight: cacheSize,
       cacheWidth: cacheSize,
       fit: BoxFit.cover,
@@ -91,24 +96,24 @@ class _NetworkOrBlur extends StatelessWidget {
 class _Initials extends StatelessWidget {
   const _Initials({
     required this.lettering,
-    required this.scheme,
+    required this.size,
   });
 
   final String lettering;
-  final ColorScheme scheme;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
     return ColoredBox(
-      color: scheme.surfaceContainerHighest,
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Center(
         child: Text(
           lettering,
           maxLines: 1,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: scheme.onSurfaceVariant,
+          style: TenturaText.meta(tt.textFaint).copyWith(
             fontSize: 10,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),

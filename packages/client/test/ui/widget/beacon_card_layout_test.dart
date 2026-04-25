@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -33,6 +34,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: TenturaTheme.light(),
         home: MediaQuery(
           data: const MediaQueryData(size: Size(360, 800)),
           child: Scaffold(

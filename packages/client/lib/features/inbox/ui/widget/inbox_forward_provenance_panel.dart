@@ -458,6 +458,7 @@ class _ProvenanceOverlappingRestAvatars extends StatelessWidget {
 
     final step = size - overlap;
     final width = size + (n - 1) * step;
+    final theme = Theme.of(context);
 
     return SizedBox(
       width: width,
@@ -506,7 +507,7 @@ class _ProvenanceOverlappingRestAvatars extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   '+$overflowCount',
-                  style: TextStyle(
+                  style: theme.textTheme.labelSmall?.copyWith(
                     fontSize: 8,
                     fontWeight: FontWeight.w700,
                     color: badgeTextColor,

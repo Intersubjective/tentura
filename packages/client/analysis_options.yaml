@@ -33,6 +33,9 @@ custom_lint:
     - no_map_dynamic_in_use_case_api
     - no_raw_graphql_in_dart
     - cubit_requires_use_case_for_multi_repos
+    - no_operational_raw_color
+    - no_operational_raw_text_style
+    - no_operational_pill_widgets_in_beacon_view
 
 bloc:
   rules:

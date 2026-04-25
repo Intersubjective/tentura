@@ -39,6 +39,7 @@ class CompactForwarderAvatars extends StatelessWidget {
     return BlocBuilder<ProfileCubit, ProfileState>(
       buildWhen: (p, c) => p.profile.id != c.profile.id,
       builder: (context, state) {
+        final theme = Theme.of(context);
         return SizedBox(
           width: width,
           height: size,
@@ -87,7 +88,7 @@ class CompactForwarderAvatars extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Text(
                       '+$overflowCount',
-                      style: TextStyle(
+                      style: theme.textTheme.labelSmall?.copyWith(
                         fontSize: 8,
                         fontWeight: FontWeight.w700,
                         color: badgeFg,

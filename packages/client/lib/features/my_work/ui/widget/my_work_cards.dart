@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -180,7 +181,6 @@ class _AuthoredActiveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
     final b = vm.beacon;
 
     final repo = GetIt.I<BeaconRepository>();
@@ -197,9 +197,9 @@ class _AuthoredActiveCard extends StatelessWidget {
               if (hasReviewCta)
                 Align(
                   alignment: Alignment.centerRight,
-                  child: FilledButton.tonal(
+                  child: TenturaCommandButton(
+                    label: l10n.myWorkReviewCommitmentsCta,
                     onPressed: () => _openBeacon(context, b.id),
-                    child: Text(l10n.myWorkReviewCommitmentsCta),
                   ),
                 ),
               if (hasReviewCta && needsForwardCta)
@@ -207,33 +207,11 @@ class _AuthoredActiveCard extends StatelessWidget {
               if (needsForwardCta)
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: TenturaCommandButton(
+                    label: l10n.inboxCardOpenBeacon,
+                    icon: const Icon(Icons.arrow_forward),
                     onPressed: () => unawaited(
                       context.router.pushPath('$kPathForwardBeacon/${b.id}'),
-                    ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.arrow_forward,
-                          size: 18,
-                          color: theme.colorScheme.onPrimary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          l10n.inboxCardOpenBeacon,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onPrimary,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ),
@@ -364,9 +342,9 @@ class _CommittedActiveCard extends StatelessWidget {
       footer: vm.showReviewCta
           ? Align(
               alignment: Alignment.centerRight,
-              child: FilledButton.tonal(
+              child: TenturaCommandButton(
+                label: l10n.myWorkReviewCta,
                 onPressed: () => _openReviewContributions(context, b.id),
-                child: Text(l10n.myWorkReviewCta),
               ),
             )
           : null,
@@ -435,9 +413,9 @@ class _DraftAuthoredCard extends StatelessWidget {
       onTap: () => _openEditDraft(context, b.id),
       footer: Align(
         alignment: Alignment.centerRight,
-        child: TextButton(
+        child: TenturaTextAction(
+          label: l10n.myWorkEditDraft,
           onPressed: () => _openEditDraft(context, b.id),
-          child: Text(l10n.myWorkEditDraft),
         ),
       ),
       child: Column(
@@ -518,12 +496,13 @@ class _ClosedAuthoredCard extends StatelessWidget {
       onTap: () => _openBeacon(context, b.id),
       footer: Align(
         alignment: Alignment.centerRight,
-        child: TextButton(
+        child: TenturaTextAction(
+          label: l10n.myWorkArchive,
+          tone: TenturaTone.neutral,
           onPressed: () => showSnackBar(
             context,
             text: l10n.myWorkArchivePlaceholder,
           ),
-          child: Text(l10n.myWorkArchive),
         ),
       ),
       child: Column(
@@ -652,12 +631,13 @@ class _ClosedCommittedCard extends StatelessWidget {
       onTap: () => _openBeacon(context, b.id),
       footer: Align(
         alignment: Alignment.centerRight,
-        child: TextButton(
+        child: TenturaTextAction(
+          label: l10n.myWorkArchive,
+          tone: TenturaTone.neutral,
           onPressed: () => showSnackBar(
             context,
             text: l10n.myWorkArchivePlaceholder,
           ),
-          child: Text(l10n.myWorkArchive),
         ),
       ),
       child: Column(

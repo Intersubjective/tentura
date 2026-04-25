@@ -1,0 +1,18 @@
+---
+description: Tentura Flutter operational UI — use design system tokens and components
+applyWhen:
+  - pathMatches: "packages/client/lib/design_system/**/*.dart"
+  - pathMatches: "packages/client/lib/features/**/ui/**/*.dart"
+  - pathMatches: "packages/client/lib/ui/**/*.dart"
+---
+
+# Tentura design system (client UI)
+
+Before changing layout, typography, colors, or shared widgets in `packages/client`:
+
+1. Read [`docs/tentura-design-system.md`](../../docs/tentura-design-system.md).
+2. Prefer `import 'package:tentura/design_system/tentura_design_system.dart';` and `context.tt` for operational tokens.
+3. Do not add raw `Color(0x…)` / `Colors.*` (except well-known cases like `Colors.transparent`) or ad-hoc `TextStyle(` in `features/beacon_view`, `features/my_work`, or `features/inbox` — `custom_lint` enforces this.
+4. For beacon detail list surfaces, avoid `Chip`, `SegmentedButton`, and pill-style status; use the `Tentura*` components listed in the doc.
+
+If the design doc and code disagree, update the doc after confirming product intent.

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -8,8 +9,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
-import 'commitment_avatar.dart';
-import 'commitment_tokens.dart';
 import '../bloc/beacon_view_state.dart';
 
 // TODO(contract): [CommitmentState] inProgress / done when backend exposes lifecycle;
@@ -35,17 +34,16 @@ class CommitmentTile extends StatelessWidget {
   final bool isAuthorView;
   final VoidCallback? onAuthorTapCoordination;
 
-  static const double _cardRadius = 12;
   static const double _contentGap = 10;
   static const double _rowGap = 12;
 
-  Color _authorLabelColor(CommitmentToneColors t, CoordinationResponseType r) {
+  Color _authorLabelColor(TenturaTokens tt, CoordinationResponseType r) {
     return switch (r) {
-      CoordinationResponseType.useful => t.good,
-      CoordinationResponseType.needCoordination => t.warning,
-      CoordinationResponseType.overlapping => t.info,
-      CoordinationResponseType.needDifferentSkill => t.danger,
-      CoordinationResponseType.notSuitable => t.danger,
+      CoordinationResponseType.useful => tt.good,
+      CoordinationResponseType.needCoordination => tt.warn,
+      CoordinationResponseType.overlapping => tt.info,
+      CoordinationResponseType.needDifferentSkill => tt.danger,
+      CoordinationResponseType.notSuitable => tt.danger,
     };
   }
 
@@ -53,7 +51,7 @@ class CommitmentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final tones = CommitmentToneColors.of(context);
+    final tt = context.tt;
     final isWithdrawn = commitment.isWithdrawn;
     final opacity = isWithdrawn ? 0.55 : 1.0;
     final dateShown = isWithdrawn ? commitment.updatedAt : commitment.createdAt;
@@ -62,22 +60,15 @@ class CommitmentTile extends StatelessWidget {
       commitment.coordinationResponse,
     );
     final offerLabel = helpTypeLabel(l10n, commitment.helpType);
-    final borderColor = isMine ? tones.cardBorderMine : tones.cardBorder;
     // Active / Withdrawn only (spec allows more states later).
     final stateCaption =
         isWithdrawn ? l10n.labelWithdrawn : l10n.beaconsFilterActive;
 
     return Opacity(
       opacity: opacity,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(_cardRadius),
-          border: Border.all(color: borderColor),
-          boxShadow: kCommitmentCardShadows(context),
-        ),
+      child: TenturaTechCardStatic(
+        isOwned: isMine,
+        showShadow: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -90,7 +81,7 @@ class CommitmentTile extends StatelessWidget {
                       : () => context.read<ScreenCubit>().showProfile(
                             commitment.user.id,
                           ),
-                  child: CommitmentAvatar(profile: commitment.user),
+                  child: TenturaAvatar(profile: commitment.user),
                 ),
                 const SizedBox(width: _contentGap),
                 Expanded(
@@ -110,44 +101,35 @@ class CommitmentTile extends StatelessWidget {
                                     commitment.user,
                                     state.profile.id,
                                   ),
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                                  style: TenturaText.title(
+                                    theme.colorScheme.onSurface,
                                   ),
                                 );
                               },
                             ),
                             if (isMine) ...[
                               const SizedBox(height: 2),
-                              Text(
+                              TenturaStatusText(
                                 l10n.commitmentsTabMineLabel,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: tones.mine,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                tone: TenturaTone.info,
                               ),
                             ],
                             const SizedBox(height: 2),
-                            Text(
+                            TenturaMetaText(
                               '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'
                               '${commitment.isEdited ? ' · ${l10n.labelEdited}' : ''}',
-                              style: kCommitmentMonoTimestamp(
-                                context,
-                                tones.muted,
-                              ),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        stateCaption,
-                        style: kCommitmentMonoStatus(
-                          context,
-                          isWithdrawn ? tones.danger : tones.neutral,
-                        ),
-                      ),
+                      if (isWithdrawn)
+                        TenturaStatusText(
+                          stateCaption,
+                          tone: TenturaTone.danger,
+                        )
+                      else
+                        TenturaStatusText(stateCaption),
                     ],
                   ),
                 ),
@@ -155,46 +137,33 @@ class CommitmentTile extends StatelessWidget {
             ),
             if (offerLabel != null) ...[
               const SizedBox(height: _rowGap),
-              Text(
-                offerLabel.toUpperCase(),
-                style: kCommitmentMonoOfferType(
-                  context,
-                  tones.neutral,
-                ),
-              ),
+              TenturaTypeLabel(offerLabel),
             ],
             if (commitment.message.isNotEmpty) ...[
               if (offerLabel == null) const SizedBox(height: _rowGap),
               if (offerLabel != null) const SizedBox(height: 6),
               Text(
                 commitment.message,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontSize: 13,
-                  height: 20 / 13,
-                ),
+                style: TenturaText.body(theme.colorScheme.onSurface),
               ),
             ],
             if (!isWithdrawn &&
                 (coordinationLabel != null ||
                     (isAuthorView && onAuthorTapCoordination != null))) ...[
               const SizedBox(height: _rowGap),
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: borderColor,
-              ),
+              const TenturaHairlineDivider(subtle: false),
               const SizedBox(height: 8),
               _AuthorFooter(
                 l10n: l10n,
-                tones: tones,
+                tt: tt,
                 coordinationLabel: coordinationLabel,
                 responseType: commitment.coordinationResponse,
                 authorLabelColor: commitment.coordinationResponse != null
                     ? _authorLabelColor(
-                        tones,
+                        tt,
                         commitment.coordinationResponse!,
                       )
-                    : tones.muted,
+                    : tt.textMuted,
                 isAuthorView: isAuthorView,
                 onAuthorTapCoordination: onAuthorTapCoordination,
               ),
@@ -205,41 +174,17 @@ class CommitmentTile extends StatelessWidget {
                 child: Row(
                   children: [
                     if (onEdit != null)
-                      TextButton(
+                      TenturaTextAction(
+                        label: l10n.commitmentsTabActionEdit,
                         onPressed: onEdit,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          minimumSize: const Size(44, 44),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          l10n.commitmentsTabActionEdit,
-                          style: kCommitmentMonoAction(context, tones.mine),
-                        ),
                       ),
                     if (onEdit != null && onWithdraw != null)
                       const SizedBox(width: 4),
                     if (onWithdraw != null)
-                      TextButton(
+                      TenturaTextAction(
+                        label: l10n.commitmentsTabActionWithdraw,
                         onPressed: onWithdraw,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          minimumSize: const Size(44, 44),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          l10n.commitmentsTabActionWithdraw,
-                          style: kCommitmentMonoAction(
-                            context,
-                            tones.danger,
-                          ),
-                        ),
+                        tone: TenturaTone.danger,
                       ),
                   ],
                 ),
@@ -250,10 +195,7 @@ class CommitmentTile extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 uncommitReasonLabel(l10n, commitment.uncommitReason)!,
-                style: kCommitmentMonoCaption(
-                  context,
-                  tones.muted,
-                ),
+                style: TenturaText.meta(tt.textMuted),
               ),
             ],
           ],
@@ -266,7 +208,7 @@ class CommitmentTile extends StatelessWidget {
 class _AuthorFooter extends StatelessWidget {
   const _AuthorFooter({
     required this.l10n,
-    required this.tones,
+    required this.tt,
     required this.coordinationLabel,
     required this.responseType,
     required this.authorLabelColor,
@@ -275,7 +217,7 @@ class _AuthorFooter extends StatelessWidget {
   });
 
   final L10n l10n;
-  final CommitmentToneColors tones;
+  final TenturaTokens tt;
   final String? coordinationLabel;
   final CoordinationResponseType? responseType;
   final Color authorLabelColor;
@@ -290,10 +232,7 @@ class _AuthorFooter extends StatelessWidget {
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: kCommitmentMonoCaption(
-                context,
-                tones.muted,
-              ),
+              style: TenturaText.meta(tt.textMuted),
               children: [
                 TextSpan(
                   text: l10n.commitmentsTabAuthorLabelCaption,
@@ -302,18 +241,12 @@ class _AuthorFooter extends StatelessWidget {
                   const TextSpan(text: '  '),
                   TextSpan(
                     text: coordinationLabel,
-                    style: kCommitmentMonoOfferType(
-                      context,
-                      authorLabelColor,
-                    ),
+                    style: TenturaText.typeLabel(authorLabelColor),
                   ),
                 ] else
                   TextSpan(
                     text: ' —',
-                    style: kCommitmentMonoCaption(
-                      context,
-                      tones.muted,
-                    ),
+                    style: TenturaText.meta(tt.textMuted),
                   ),
               ],
             ),
@@ -321,21 +254,9 @@ class _AuthorFooter extends StatelessWidget {
         ),
         if (isAuthorView && onAuthorTapCoordination != null) ...[
           const SizedBox(width: 6),
-          TextButton(
+          TenturaTextAction(
+            label: l10n.labelSetCoordinationResponse,
             onPressed: onAuthorTapCoordination,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              minimumSize: const Size(44, 44),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              l10n.labelSetCoordinationResponse,
-              style: kCommitmentMonoAction(
-                context,
-                tones.mine,
-              ),
-              textAlign: TextAlign.end,
-            ),
           ),
         ],
       ],

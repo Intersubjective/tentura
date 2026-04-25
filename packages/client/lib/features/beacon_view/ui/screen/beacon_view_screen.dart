@@ -10,6 +10,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
@@ -527,39 +528,14 @@ class _BeaconOperationalScrollViewState
                   child: Align(
                     child: SizedBox(
                       width: double.infinity,
-                      child: SegmentedButton<int>(
-                        showSelectedIcon: false,
-                        style: const ButtonStyle(
-                          padding: WidgetStatePropertyAll(
-                            EdgeInsets.symmetric(
-                              horizontal: kSpacingSmall / 2,
-                              vertical: kSpacingSmall / 2,
-                            ),
-                          ),
-                          minimumSize: WidgetStatePropertyAll(Size(0, 44)),
-                        ),
-                        segments: [
-                          ButtonSegment(
-                            value: 0,
-                            label: _BeaconTabSegmentLabel(
-                              l10n.labelBeaconTabOverview,
-                            ),
-                          ),
-                          ButtonSegment(
-                            value: 1,
-                            label: _BeaconTabSegmentLabel(
-                              l10n.labelCommitments,
-                            ),
-                          ),
-                          ButtonSegment(
-                            value: 2,
-                            label: _BeaconTabSegmentLabel(
-                              l10n.labelBeaconTabActivity,
-                            ),
-                          ),
+                      child: TenturaUnderlineTabs(
+                        tabs: [
+                          l10n.labelBeaconTabOverview,
+                          l10n.labelCommitments,
+                          l10n.labelBeaconTabActivity,
                         ],
-                        selected: {_tabIndex},
-                        onSelectionChanged: (s) => _setTab(s.first),
+                        selectedIndex: _tabIndex,
+                        onChanged: _setTab,
                       ),
                     ),
                   ),
@@ -622,25 +598,6 @@ class _BeaconDetailHeader extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BeaconTabSegmentLabel extends StatelessWidget {
-  const _BeaconTabSegmentLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Text(
-        label,
-        maxLines: 1,
-        softWrap: false,
-        textAlign: TextAlign.center,
       ),
     );
   }
