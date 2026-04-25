@@ -2161,7 +2161,7 @@
     }
   },
   "beaconNeedSummaryTitle": "Need",
-  "beaconCoordinationCardTitle": "Coordination state",
+  "beaconCoordinationCardTitle": "Coordination",
   "beaconYourRelationTitle": "Your relation",
   "beaconCommitSnapshotTitle": "Commitments",
   "beaconViewAllCommitments": "View all commitments",
@@ -2192,5 +2192,78 @@
       "chain": { "type": "String" }
     }
   },
-  "beaconRelationNoTrail": "No forward chain recorded for you."
+  "beaconRelationNoTrail": "No forward chain recorded for you.",
+  "beaconOverviewCoordinationHeaderPair": "{a} · {b}",
+  "@beaconOverviewCoordinationHeaderPair": {
+    "placeholders": {
+      "a": { "type": "String" },
+      "b": { "type": "String" }
+    }
+  },
+  "beaconOverviewNeedsShortMoreHelp": "Needs more help",
+  "beaconOverviewActiveCommitments": "{count, plural, one{1 active commitment} other{{count} active commitments}}",
+  "@beaconOverviewActiveCommitments": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconOverviewUsefulAndCoord": "{useful} useful · {need} needs coordination",
+  "@beaconOverviewUsefulAndCoord": {
+    "placeholders": {
+      "useful": { "type": "int" },
+      "need": { "type": "int" }
+    }
+  },
+  "beaconViewAndCoordinateCommitments": "View and coordinate commitments",
+  "beaconOverviewDiagnosisNeedDifferentSkillBody": "Existing offers help, but do not cover the remaining gap.",
+  "beaconOverviewDiagnosisNeedCoordinationBody": "Commitments need clearer coordination before work can move forward.",
+  "beaconOverviewDiagnosisGenericMoreHelpBody": "Coverage does not match the remaining gap yet.",
+  "beaconOverviewNoAuthorUpdate": "No update posted yet",
+  "beaconOverviewNeedEmpty": "No details yet",
+  "beaconOverviewNeedMeta": "Created by {author} · {context}",
+  "@beaconOverviewNeedMeta": {
+    "placeholders": {
+      "author": { "type": "String" },
+      "context": { "type": "String" }
+    }
+  },
+  "beaconOverviewNeedMetaAuthorOnly": "Created by {author}",
+  "@beaconOverviewNeedMetaAuthorOnly": {
+    "placeholders": {
+      "author": { "type": "String" }
+    }
+  },
+  "beaconOverviewPhotosCount": "{count, plural, one{1 photo} other{{count} photos}}",
+  "@beaconOverviewPhotosCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconOverviewDescriptionTextOnly": "Text description",
+  "beaconOverviewActivityEventCount": "{count, plural, one{1 event} other{{count} events}}",
+  "@beaconOverviewActivityEventCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconOverviewForwardAuthorSummary": "{people, plural, one{1 person in your forward network} other{{people} people in your forward network}}",
+  "@beaconOverviewForwardAuthorSummary": {
+    "placeholders": {
+      "people": { "type": "int" }
+    }
+  },
+  "beaconOverviewHopsFromAuthor": "{hops, plural, one{1 hop from author} other{{hops} hops from author}}",
+  "@beaconOverviewHopsFromAuthor": {
+    "placeholders": {
+      "hops": { "type": "int" }
+    }
+  },
+  "beaconOverviewPeopleInChain": "{people, plural, one{1 person in chain} other{{people} people in chain}}",
+  "@beaconOverviewPeopleInChain": {
+    "placeholders": {
+      "people": { "type": "int" }
+    }
+  },
+  "beaconOverviewForwardEmpty": "No forward path recorded for you",
+  "beaconOverviewActivityLogTitle": "Activity log"
 }

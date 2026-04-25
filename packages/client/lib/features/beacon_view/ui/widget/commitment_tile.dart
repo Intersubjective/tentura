@@ -146,7 +146,10 @@ class CommitmentTile extends StatelessWidget {
                       backgroundColor: responsePillColors!.bg.withValues(
                         alpha: 0.85,
                       ),
-                      foregroundColor: responsePillColors.fg,
+                      foregroundColor: coordinationResponseOnSurfaceColor(
+                        theme.colorScheme,
+                        commitment.coordinationResponse!,
+                      ),
                     ),
                     if (isAuthorView && onAuthorTapCoordination != null)
                       TextButton(

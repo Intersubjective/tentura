@@ -541,8 +541,6 @@ class _BeaconOperationalScrollViewState
                 ),
                 child: BeaconOverviewTab(
                   state: state,
-                  onTapForwardChain: () =>
-                      widget.screenCubit.showForwardsGraphFor(beaconId),
                   onViewAllCommitments: () => _tabController.animateTo(1),
                   onEditTimelineUpdate: (u) => _showEditAuthorUpdateSheet(
                     context,

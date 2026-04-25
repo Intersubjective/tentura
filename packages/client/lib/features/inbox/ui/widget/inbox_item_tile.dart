@@ -99,6 +99,21 @@ class InboxItemTile extends StatelessWidget {
     final showNewStuffDot = inboxHighlight != InboxRowHighlightKind.none;
     final hasProvenance = showProvenance && item.provenance.senders.isNotEmpty;
     final showDeadlineOrForwardsRow = hasProvenance || beacon.endAt != null;
+    final updatedLine = switch (inboxHighlight) {
+      InboxRowHighlightKind.updatedBeaconOnly => () {
+          final at = DateTime.fromMillisecondsSinceEpoch(
+            item.newStuffActivityEpochMs,
+          );
+          return l10n.myWorkUpdatedLine(
+            '${dateFormatYMD(at)} ${timeFormatHm(at)}',
+          );
+        }(),
+      _ => beaconHasRealUpdate(beacon)
+          ? l10n.myWorkUpdatedLine(
+              '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
+            )
+          : null,
+    };
 
     return BeaconCardShell(
       footer: showCtaRow
@@ -145,16 +160,14 @@ class InboxItemTile extends StatelessWidget {
           const SizedBox(height: 6),
           BeaconCardMetadataLine(
             beacon: beacon,
-            updatedLine: l10n.myWorkUpdatedLine(
-              '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
-            ),
+            updatedLine: updatedLine,
           ),
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               coordinationStatusLabel(l10n, beacon.coordinationStatus),
               style: theme.textTheme.labelSmall?.copyWith(
-                color: coordinationStatusColor(
+                color: coordinationStatusOnSurfaceColor(
                   theme.colorScheme,
                   beacon.coordinationStatus,
                 ),

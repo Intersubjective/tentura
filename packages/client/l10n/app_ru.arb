@@ -2192,5 +2192,78 @@
       "chain": { "type": "String" }
     }
   },
-  "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок."
+  "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок.",
+  "beaconOverviewCoordinationHeaderPair": "{a} · {b}",
+  "@beaconOverviewCoordinationHeaderPair": {
+    "placeholders": {
+      "a": { "type": "String" },
+      "b": { "type": "String" }
+    }
+  },
+  "beaconOverviewNeedsShortMoreHelp": "Нужна ещё помощь",
+  "beaconOverviewActiveCommitments": "{count, plural, one{1 активное участие} few{{count} активных участия} many{{count} активных участий} other{{count} активных участий}}",
+  "@beaconOverviewActiveCommitments": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconOverviewUsefulAndCoord": "{useful} полезн. · {need} — нужна коорд.",
+  "@beaconOverviewUsefulAndCoord": {
+    "placeholders": {
+      "useful": { "type": "int" },
+      "need": { "type": "int" }
+    }
+  },
+  "beaconViewAndCoordinateCommitments": "Просмотреть и скоординировать участия",
+  "beaconOverviewDiagnosisNeedDifferentSkillBody": "Есть отклики, но они не закрывают оставшийся разрыв.",
+  "beaconOverviewDiagnosisNeedCoordinationBody": "Участиям не хватает ясной координации, прежде чем двигаться дальше.",
+  "beaconOverviewDiagnosisGenericMoreHelpBody": "Покрытие ещё не соответствует оставшейся потребности.",
+  "beaconOverviewNoAuthorUpdate": "Пока нет обновления",
+  "beaconOverviewNeedEmpty": "Пока нет текста",
+  "beaconOverviewNeedMeta": "Создал(а) {author} · {context}",
+  "@beaconOverviewNeedMeta": {
+    "placeholders": {
+      "author": { "type": "String" },
+      "context": { "type": "String" }
+    }
+  },
+  "beaconOverviewNeedMetaAuthorOnly": "Создал(а) {author}",
+  "@beaconOverviewNeedMetaAuthorOnly": {
+    "placeholders": {
+      "author": { "type": "String" }
+    }
+  },
+  "beaconOverviewPhotosCount": "{count, plural, one{1 фото} few{{count} фото} many{{count} фото} other{{count} фото}}",
+  "@beaconOverviewPhotosCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconOverviewDescriptionTextOnly": "Текстовое описание",
+  "beaconOverviewActivityEventCount": "{count, plural, one{1 событие} few{{count} события} many{{count} событий} other{{count} событий}}",
+  "@beaconOverviewActivityEventCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconOverviewForwardAuthorSummary": "{people, plural, one{1 человек в сети пересылок} few{{people} человека в сети пересылок} many{{people} человек в сети пересылок} other{{people} человек в сети пересылок}}",
+  "@beaconOverviewForwardAuthorSummary": {
+    "placeholders": {
+      "people": { "type": "int" }
+    }
+  },
+  "beaconOverviewHopsFromAuthor": "{hops, plural, one{1 шаг от автора} few{{hops} шага от автора} many{{hops} шагов от автора} other{{hops} шагов от автора}}",
+  "@beaconOverviewHopsFromAuthor": {
+    "placeholders": {
+      "hops": { "type": "int" }
+    }
+  },
+  "beaconOverviewPeopleInChain": "{people, plural, one{1 человек в цепи} few{{people} человека в цепи} many{{people} человек в цепи} other{{people} человек в цепи}}",
+  "@beaconOverviewPeopleInChain": {
+    "placeholders": {
+      "people": { "type": "int" }
+    }
+  },
+  "beaconOverviewForwardEmpty": "Нет зарегистрированной для вас цепочки",
+  "beaconOverviewActivityLogTitle": "Журнал событий"
 }

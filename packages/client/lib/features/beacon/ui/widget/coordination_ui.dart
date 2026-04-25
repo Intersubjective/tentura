@@ -4,6 +4,25 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+// --- Semantic colors (on neutral [ColorScheme.surface] / body text) ------------
+//
+// Beacon coordination (beacon.coordination_status):
+//   noCommitmentsYet          -> onSurfaceVariant  (idle)
+//   commitmentsWaitingForReview -> primary         (action / review)
+//   moreOrDifferentHelpNeeded -> error             (gap)
+//   enoughHelpCommitted     -> tertiary           (satisfied)
+//
+// Per-commitment author reaction (response_type):
+//   useful                  -> tertiary
+//   overlapping             -> secondary
+//   needDifferentSkill      -> error
+//   needCoordination        -> primary
+//   notSuitable             -> error
+//
+// Pills: use [coordinationResponseColor] for tinted fill; use
+// [coordinationResponseOnSurfaceColor] for label ink so it matches list rows.
+// ----------------------------------------------------------------------------
+
 String coordinationStatusLabel(L10n l10n, BeaconCoordinationStatus s) =>
     switch (s) {
       BeaconCoordinationStatus.noCommitmentsYet => l10n.coordinationNoCommitments,
@@ -27,7 +46,10 @@ String? coordinationResponseLabel(L10n l10n, CoordinationResponseType? r) {
   };
 }
 
-Color coordinationStatusColor(ColorScheme scheme, BeaconCoordinationStatus s) =>
+Color coordinationStatusOnSurfaceColor(
+  ColorScheme scheme,
+  BeaconCoordinationStatus s,
+) =>
     switch (s) {
       BeaconCoordinationStatus.noCommitmentsYet => scheme.onSurfaceVariant,
       BeaconCoordinationStatus.commitmentsWaitingForReview => scheme.primary,
@@ -35,9 +57,18 @@ Color coordinationStatusColor(ColorScheme scheme, BeaconCoordinationStatus s) =>
       BeaconCoordinationStatus.enoughHelpCommitted => scheme.tertiary,
     };
 
-/// Main palette roles for emphasized text on a neutral card (e.g. My Work status strip).
-/// Pills use [coordinationResponseColor] `fg` on tinted backgrounds; for plain `Text` on
-/// [ColorScheme.surface], use this instead of those container-foreground colors.
+/// Dominant per-commitment response takes precedence; otherwise [beaconStatus].
+Color coordinationContextOnSurfaceColor(
+  ColorScheme scheme, {
+  required BeaconCoordinationStatus beaconStatus,
+  CoordinationResponseType? dominantResponse,
+}) {
+  if (dominantResponse != null) {
+    return coordinationResponseOnSurfaceColor(scheme, dominantResponse);
+  }
+  return coordinationStatusOnSurfaceColor(scheme, beaconStatus);
+}
+
 Color coordinationResponseOnSurfaceColor(
   ColorScheme scheme,
   CoordinationResponseType r,
@@ -50,7 +81,8 @@ Color coordinationResponseOnSurfaceColor(
       CoordinationResponseType.notSuitable => scheme.error,
     };
 
-/// Background / foreground for per-commitment author reaction (pills on tinted fill).
+/// Tinted pill fill; pair with [coordinationResponseOnSurfaceColor] for the label
+/// so chip text matches status lines (avoid `fg` on neutral surfaces).
 ({Color bg, Color fg}) coordinationResponseColor(
   ColorScheme scheme,
   CoordinationResponseType r,
