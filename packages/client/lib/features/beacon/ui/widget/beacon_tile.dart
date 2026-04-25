@@ -116,7 +116,7 @@ class BeaconTile extends StatelessWidget {
               child: Text(
                 coordinationStatusLabel(l10n, beacon.coordinationStatus),
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: coordinationStatusColor(
+                  color: coordinationStatusOnSurfaceColor(
                     theme.colorScheme,
                     beacon.coordinationStatus,
                   ),

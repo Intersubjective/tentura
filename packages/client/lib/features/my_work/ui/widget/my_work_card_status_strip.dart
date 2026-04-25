@@ -25,7 +25,9 @@ class MyWorkCardStatusStrip extends StatelessWidget {
     final coord = data.slot1CoordinationStatus;
     final slot1Color = response != null
         ? coordinationResponseOnSurfaceColor(scheme, response)
-        : (coord != null ? coordinationStatusColor(scheme, coord) : null);
+        : (coord != null
+            ? coordinationStatusOnSurfaceColor(scheme, coord)
+            : null);
     final slot1Style = slot1Color != null
         ? baseStyle.copyWith(
             color: slot1Color,

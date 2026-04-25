@@ -192,11 +192,12 @@ class BeaconCardMetadataBlock extends StatelessWidget {
   final TextStyle nameStyle;
   final TextStyle baseStyle;
   final String category;
-  final String updatedLine;
+  final String? updatedLine;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final updated = updatedLine?.trim() ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -226,35 +227,37 @@ class BeaconCardMetadataBlock extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            SizedBox(
-              width: kBeaconCardMetadataAvatarSize,
-              child: Center(
-                child: ExcludeSemantics(
-                  child: Container(
-                    width: kBeaconCardMetadataAttributionBarWidth,
-                    height: kBeaconCardMetadataAttributionBarHeight,
-                    decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(1),
+        if (updated.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              SizedBox(
+                width: kBeaconCardMetadataAvatarSize,
+                child: Center(
+                  child: ExcludeSemantics(
+                    child: Container(
+                      width: kBeaconCardMetadataAttributionBarWidth,
+                      height: kBeaconCardMetadataAttributionBarHeight,
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.45),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                updatedLine,
-                style: baseStyle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  updated,
+                  style: baseStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -268,7 +271,7 @@ class BeaconCardMetadataLine extends StatelessWidget {
   });
 
   final Beacon beacon;
-  final String updatedLine;
+  final String? updatedLine;
 
   @override
   Widget build(BuildContext context) {
@@ -300,6 +303,18 @@ class BeaconCardMetadataLine extends StatelessWidget {
       },
     );
   }
+}
+
+/// True iff `updatedAt` looks like a real edit (not the initial create).
+///
+/// We treat `updatedAt == createdAt` (or a tiny server-side delta) as "no update".
+bool beaconHasRealUpdate(
+  Beacon beacon, {
+  Duration tolerance = const Duration(seconds: 2),
+}) {
+  final created = beacon.createdAt.toUtc();
+  final updated = beacon.updatedAt.toUtc();
+  return updated.isAfter(created.add(tolerance));
 }
 
 /// Identity tile, title, and trailing overflow (single header row; no sublines).

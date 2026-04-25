@@ -26,12 +26,19 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 String _formatDateTimeActivityLine(DateTime d) =>
     '${dateFormatYMD(d)} ${timeFormatHm(d)}';
 
-String _myWorkActivityWhenLine(
+String? _myWorkActivityWhenLine(
   L10n l10n,
   MyWorkCardViewModel vm,
   MyWorkCardHighlightKind highlight,
 ) {
   final b = vm.beacon;
+  if (highlight == MyWorkCardHighlightKind.newBeacon) {
+    // Creating a beacon does not count as an "update" for the cards.
+    return null;
+  }
+  if (highlight == MyWorkCardHighlightKind.none && !beaconHasRealUpdate(b)) {
+    return null;
+  }
   final at = highlight == MyWorkCardHighlightKind.none
       ? b.updatedAt
       : DateTime.fromMillisecondsSinceEpoch(vm.newStuffActivityEpochMs);
@@ -168,7 +175,7 @@ class _AuthoredActiveCard extends StatelessWidget {
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String activityWhenLine;
+  final String? activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
@@ -344,7 +351,7 @@ class _CommittedActiveCard extends StatelessWidget {
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String activityWhenLine;
+  final String? activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
@@ -414,7 +421,7 @@ class _DraftAuthoredCard extends StatelessWidget {
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String activityWhenLine;
+  final String? activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
@@ -497,7 +504,7 @@ class _ClosedAuthoredCard extends StatelessWidget {
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String activityWhenLine;
+  final String? activityWhenLine;
 
   @override
   Widget build(BuildContext context) {
@@ -633,7 +640,7 @@ class _ClosedCommittedCard extends StatelessWidget {
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String activityWhenLine;
+  final String? activityWhenLine;
 
   @override
   Widget build(BuildContext context) {

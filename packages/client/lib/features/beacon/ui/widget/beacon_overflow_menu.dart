@@ -186,38 +186,36 @@ class BeaconOverflowMenu extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return PopupMenuButton<String>(
-      padding: EdgeInsets.zero,
-      iconSize: 22,
-      constraints: const BoxConstraints(
-        minWidth: 32,
-        minHeight: 40,
-        maxWidth: 32,
-        maxHeight: 40,
+    return SizedBox(
+      width: 32,
+      height: 40,
+      child: PopupMenuButton<String>(
+        padding: EdgeInsets.zero,
+        iconSize: 22,
+        itemBuilder: (_) => entries,
+        onSelected: (value) => switch (value) {
+          'open_beacon' => onOpenBeacon?.call(),
+          'graph' => onGraph?.call(),
+          'share' => onShare?.call(),
+          'toggle_lifecycle' => unawaited(
+            _deferPopupAction(context, onToggleLifecycle),
+          ),
+          'edit' => onEdit?.call(),
+          'commit' => unawaited(_deferPopupAction(context, onCommit)),
+          'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
+          'forward' => onForward?.call(),
+          'view_forwards' => onViewForwards?.call(),
+          'forwards_graph' => onForwardsGraph?.call(),
+          'watch' => onWatch?.call(),
+          'stop_watch' => onStopWatching?.call(),
+          'cant_help' => unawaited(_deferPopupAction(context, onCantHelp)),
+          'move_inbox' => onMoveToInbox?.call(),
+          'delete' => unawaited(_deferPopupAction(context, onDelete)),
+          'complaint' => _deferSync(context, onComplaint),
+          _ => null,
+        },
+        icon: const Icon(Icons.more_vert, size: 22),
       ),
-      itemBuilder: (_) => entries,
-      onSelected: (value) => switch (value) {
-        'open_beacon' => onOpenBeacon?.call(),
-        'graph' => onGraph?.call(),
-        'share' => onShare?.call(),
-        'toggle_lifecycle' => unawaited(
-          _deferPopupAction(context, onToggleLifecycle),
-        ),
-        'edit' => onEdit?.call(),
-        'commit' => unawaited(_deferPopupAction(context, onCommit)),
-        'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
-        'forward' => onForward?.call(),
-        'view_forwards' => onViewForwards?.call(),
-        'forwards_graph' => onForwardsGraph?.call(),
-        'watch' => onWatch?.call(),
-        'stop_watch' => onStopWatching?.call(),
-        'cant_help' => unawaited(_deferPopupAction(context, onCantHelp)),
-        'move_inbox' => onMoveToInbox?.call(),
-        'delete' => unawaited(_deferPopupAction(context, onDelete)),
-        'complaint' => _deferSync(context, onComplaint),
-        _ => null,
-      },
-      child: const Icon(Icons.more_vert, size: 22),
     );
   }
 }
