@@ -166,7 +166,7 @@ class App extends StatelessWidget {
                     listener: commonScreenBlocListener,
                   ),
                 ],
-                child: kIsWeb
+                child: _kIsDesktopWeb
                     ? _webPhoneFrame(
                         context,
                         media,
@@ -181,6 +181,15 @@ class App extends StatelessWidget {
     },
   );
 }
+
+/// True for Flutter web on desktop OS hosts (dev tools, desktop browsers).
+/// Mobile web (`TargetPlatform.android` / `iOS` / fuchsia) uses the real viewport
+/// with no additional width/height frame.
+bool get _kIsDesktopWeb =>
+    kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows);
 
 /// Web phone frame without [LayoutBuilder]: nested layout during route transitions
 /// (e.g. back from full-screen routes) can trigger "_RenderLayoutBuilder was mutated".
