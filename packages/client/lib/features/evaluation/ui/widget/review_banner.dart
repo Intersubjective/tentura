@@ -24,8 +24,14 @@ class ReviewBanner extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 12),
         child: SizedBox(
           width: double.infinity,
+          height: 40,
           child: FilledButton(
             onPressed: onPrimary,
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: Text(l10n.evaluationBannerDraftReview),
           ),
         ),

@@ -2186,6 +2186,22 @@
   "beaconActivitySectionMedium": "Координация",
   "beaconActivitySectionLow": "Правки",
   "beaconNoActivityYetShort": "Пока нет событий",
+  "commitmentsTabAuthorLabelCaption": "метка автора",
+  "commitmentsTabMineLabel": "моё",
+  "commitmentsTabActionEdit": "правка",
+  "commitmentsTabActionWithdraw": "снять",
+  "commitmentsTabSummaryUseful": "{n} полезн.",
+  "@commitmentsTabSummaryUseful": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "commitmentsTabSummaryNeedCoordination": "{n} — нужна коорд.",
+  "@commitmentsTabSummaryNeedCoordination": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
   "beaconViaChain": "через {chain}",
   "@beaconViaChain": {
     "placeholders": {

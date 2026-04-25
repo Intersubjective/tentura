@@ -14,6 +14,7 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
@@ -30,6 +31,7 @@ import '../widget/activity_list.dart';
 import '../widget/beacon_operational_collapsible_header.dart';
 import '../widget/beacon_primary_cta_bar.dart';
 import '../widget/commitment_tile.dart';
+import '../widget/commitments_summary_card.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 import '../widget/overview/beacon_overview_tab.dart';
 
@@ -446,6 +448,8 @@ class _BeaconOperationalScrollViewState
                 kSpacingMedium,
                 kSpacingSmall,
               )
+            : _tabIndex == 1
+            ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
             : kPaddingAll;
 
         // Single CustomScrollView (no NestedScrollView) so the scroll position
@@ -737,6 +741,16 @@ class _CommitmentsTabBody extends StatelessWidget {
     final withdrawn = state.commitments
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
+    final usefulCount = active
+        .where((c) => c.coordinationResponse == CoordinationResponseType.useful)
+        .length;
+    final needsCoordinationCount = active
+        .where(
+          (c) =>
+              c.coordinationResponse ==
+              CoordinationResponseType.needCoordination,
+        )
+        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -745,33 +759,40 @@ class _CommitmentsTabBody extends StatelessWidget {
           beaconId: beacon.id,
           lifecycle: beacon.lifecycle,
         ),
-        for (final c in active)
+        CommitmentsSummaryCard(
+          activeCount: active.length,
+          usefulCount: usefulCount,
+          needsCoordinationCount: needsCoordinationCount,
+        ),
+        if (active.isNotEmpty || withdrawn.isNotEmpty)
+          const SizedBox(height: 12),
+        for (var i = 0; i < active.length; i++) ...[
+          if (i != 0) const SizedBox(height: 12),
           CommitmentTile(
-            commitment: c,
-            beaconAuthor: beacon.author,
-            isMine: c.user.id == state.myProfile.id,
+            commitment: active[i],
+            isMine: active[i].user.id == state.myProfile.id,
             isAuthorView: state.isBeaconMine,
-            onAuthorTapCoordination: state.isBeaconMine && !c.isWithdrawn
+            onAuthorTapCoordination: state.isBeaconMine && !active[i].isWithdrawn
                 ? () => unawaited(
                     showCoordinationResponseBottomSheet(
                       context: context,
-                      commitUserTitle: c.user.title,
+                      commitUserTitle: active[i].user.title,
                       onPick: (t) => unawaited(
                         beaconViewCubit.setCoordinationResponse(
-                          commitUserId: c.user.id,
+                          commitUserId: active[i].user.id,
                           responseType: t,
                         ),
                       ),
                     ),
                   )
                 : null,
-            onEdit: c.user.id == state.myProfile.id && !c.isWithdrawn
+            onEdit: active[i].user.id == state.myProfile.id && !active[i].isWithdrawn
                 ? () async {
                     final outcome = await CommitmentMessageDialog.show(
                       context,
                       title: l10n.dialogUpdateCommitTitle,
                       hintText: l10n.hintCommitMessage,
-                      initialText: c.message,
+                      initialText: active[i].message,
                     );
                     if (outcome != null &&
                         outcome.message.isNotEmpty &&
@@ -781,8 +802,8 @@ class _CommitmentsTabBody extends StatelessWidget {
                   }
                 : null,
             onWithdraw:
-                c.user.id == state.myProfile.id &&
-                    !c.isWithdrawn &&
+                active[i].user.id == state.myProfile.id &&
+                    !active[i].isWithdrawn &&
                     beacon.allowsWithdrawWhileCommitted
                 ? () async {
                     final outcome = await CommitmentMessageDialog.show(
@@ -802,19 +823,23 @@ class _CommitmentsTabBody extends StatelessWidget {
                   }
                 : null,
           ),
-        if (withdrawn.isNotEmpty)
+        ],
+        if (withdrawn.isNotEmpty) ...[
+          if (active.isNotEmpty) const SizedBox(height: 12),
           ExpansionTile(
             title: Text(l10n.beaconShowWithdrawn(withdrawn.length)),
             children: [
-              for (final c in withdrawn)
+              for (var j = 0; j < withdrawn.length; j++) ...[
+                if (j != 0) const SizedBox(height: 12),
                 CommitmentTile(
-                  commitment: c,
-                  beaconAuthor: beacon.author,
-                  isMine: c.user.id == state.myProfile.id,
+                  commitment: withdrawn[j],
+                  isMine: withdrawn[j].user.id == state.myProfile.id,
                   isAuthorView: state.isBeaconMine,
                 ),
+              ],
             ],
           ),
+        ],
       ],
     );
   }
