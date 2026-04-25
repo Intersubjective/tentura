@@ -6,9 +6,8 @@ include:
 analyzer:
   errors:
     specify_nonobvious_property_types: ignore
-  plugins:
-    - custom_lint
   exclude:
+    - "../../.pub-cache/**"
     - "**/*.gql.dart"
     - "**/*.gql.g.dart"
     - "**/*.freezed.dart"

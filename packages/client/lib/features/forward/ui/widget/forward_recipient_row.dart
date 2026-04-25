@@ -105,53 +105,74 @@ class ForwardRecipientRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  BlocBuilder<ProfileCubit, ProfileState>(
-                    buildWhen: (p, c) => p.profile.id != c.profile.id,
-                    builder: (context, state) {
-                      return Text(
-                        SelfUserHighlight.displayName(
-                          l10n,
-                          candidate.profile,
-                          state.profile.id,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: SelfUserHighlight.nameStyle(
-                          Theme.of(context),
-                          TenturaText.title(
-                            canSelect ? tt.text : tt.textMuted,
-                          ),
-                          SelfUserHighlight.profileIsSelf(
-                            candidate.profile,
-                            state.profile.id,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 2),
                   Row(
                     children: [
                       Expanded(
-                        child: presence.isNotEmpty
-                            ? Text(
-                                presence,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TenturaText.meta(tt.textMuted),
-                              )
-                            : const SizedBox.shrink(),
+                        child: BlocBuilder<ProfileCubit, ProfileState>(
+                          buildWhen: (p, c) => p.profile.id != c.profile.id,
+                          builder: (context, state) {
+                            return Text(
+                              SelfUserHighlight.displayName(
+                                l10n,
+                                candidate.profile,
+                                state.profile.id,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: SelfUserHighlight.nameStyle(
+                                Theme.of(context),
+                                TenturaText.title(
+                                  canSelect ? tt.text : tt.textMuted,
+                                ),
+                                SelfUserHighlight.profileIsSelf(
+                                  candidate.profile,
+                                  state.profile.id,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                      if (presence.isNotEmpty) const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          relationLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.end,
-                          style: TenturaText.meta(relationColor).copyWith(
-                            fontWeight: FontWeight.w600,
+                      if (isSelected &&
+                          canSelect &&
+                          onTogglePersonalizedNoteEditor != null)
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
                           ),
+                          onPressed: onTogglePersonalizedNoteEditor,
+                          child: Text(
+                            personalizedNoteEditorOpen
+                                ? l10n.forwardHidePersonalizedNote
+                                : l10n.forwardAddPersonalizedNote,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TenturaText.command(tt.info),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (presence.isNotEmpty)
+                        Text(
+                          presence,
+                          style: TenturaText.meta(tt.textMuted),
+                        ),
+                      Text(
+                        relationLabel,
+                        style: TenturaText.meta(relationColor).copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -160,40 +181,10 @@ class ForwardRecipientRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isSelected &&
-                    canSelect &&
-                    onTogglePersonalizedNoteEditor != null) ...[
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    onPressed: onTogglePersonalizedNoteEditor,
-                    child: Text(
-                      personalizedNoteEditorOpen
-                          ? l10n.forwardHidePersonalizedNote
-                          : l10n.forwardAddPersonalizedNote,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TenturaText.command(tt.info),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                _ForwardRowCheckbox(
-                  isSelected: isSelected,
-                  enabled: canSelect,
-                  onTap: onToggle,
-                ),
-              ],
+            _ForwardRowCheckbox(
+              isSelected: isSelected,
+              enabled: canSelect,
+              onTap: onToggle,
             ),
           ],
         ),
