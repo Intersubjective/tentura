@@ -29,41 +29,19 @@ class MyWorkCardStatusStrip extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(top: 2),
-      child: Row(
-        children: [
-          Flexible(
-            flex: 5,
-            child: Text(
-              data.slot1,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: baseStyle,
-            ),
-          ),
-          beaconCardMetadataStripSeparator(theme),
-          Flexible(
-            flex: 5,
-            child: Text(
-              data.slot2,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: slot2Style,
-            ),
-          ),
-          beaconCardMetadataStripSeparator(theme),
-          Expanded(
-            flex: 4,
-            child: Text(
-              data.slot3,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: baseStyle,
-            ),
-          ),
-        ],
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: data.slot1, style: baseStyle),
+            TextSpan(text: ' · ', style: baseStyle),
+            TextSpan(text: data.slot2, style: slot2Style),
+            TextSpan(text: ' · ', style: baseStyle),
+            TextSpan(text: data.slot3, style: baseStyle),
+          ],
+        ),
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
