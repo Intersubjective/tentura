@@ -6,14 +6,10 @@ import '../utils/screen_size.dart';
 class QrCode extends StatelessWidget {
   const QrCode({
     required this.data,
-    this.backgroundColor = Colors.white24,
-    this.foregroundColor = Colors.black87,
     super.key,
   });
 
   final String data;
-  final Color backgroundColor;
-  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
@@ -28,16 +24,17 @@ class QrCode extends StatelessWidget {
       child: QrImageView(
         // key: ValueKey(data),
         data: data,
-        backgroundColor: backgroundColor,
-        dataModuleStyle: QrDataModuleStyle(
+        // Always high-contrast: black on white, independent of theme
+        backgroundColor: Colors.white,
+        dataModuleStyle: const QrDataModuleStyle(
           // We can`t read inverted QR
-          color: foregroundColor,
-          dataModuleShape: QrDataModuleShape.square,
+          color: Colors.black,
         ),
-        eyeStyle: QrEyeStyle(
-          // We can`t read inverted QR
-          color: foregroundColor,
+        // Same as QrImageView default; pin square finders if package defaults change
+        // ignore: avoid_redundant_argument_values
+        eyeStyle: const QrEyeStyle(
           eyeShape: QrEyeShape.square,
+          color: Colors.black,
         ),
       ),
     ),
