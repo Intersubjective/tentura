@@ -187,6 +187,14 @@ class BeaconOverflowMenu extends StatelessWidget {
     }
 
     return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      iconSize: 22,
+      constraints: const BoxConstraints(
+        minWidth: 32,
+        minHeight: 40,
+        maxWidth: 32,
+        maxHeight: 40,
+      ),
       itemBuilder: (_) => entries,
       onSelected: (value) => switch (value) {
         'open_beacon' => onOpenBeacon?.call(),
@@ -209,7 +217,7 @@ class BeaconOverflowMenu extends StatelessWidget {
         'complaint' => _deferSync(context, onComplaint),
         _ => null,
       },
-      child: const Icon(Icons.more_vert),
+      child: const Icon(Icons.more_vert, size: 22),
     );
   }
 }

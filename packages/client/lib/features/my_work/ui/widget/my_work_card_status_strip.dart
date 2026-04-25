@@ -19,7 +19,7 @@ class MyWorkCardStatusStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final baseStyle = beaconCardMetadataStripTextStyle(theme);
+    final baseStyle = beaconCardStatusLineTextStyle(theme);
     final slot2Style = data.timeSlotOverdue
         ? baseStyle.copyWith(
             color: scheme.error,
@@ -28,7 +28,7 @@ class MyWorkCardStatusStrip extends StatelessWidget {
         : baseStyle;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 2),
+      padding: EdgeInsets.zero,
       child: Text.rich(
         TextSpan(
           children: [
