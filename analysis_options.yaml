@@ -3,6 +3,7 @@ include:
 
 analyzer:
   exclude:
+    - ".pub-cache/**"
     - "packages/widgetbook/**"
     - "temp/**"
 

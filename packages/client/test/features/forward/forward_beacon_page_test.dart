@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
-import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 import 'package:tentura/features/forward/ui/screen/forward_beacon_screen.dart';
 import 'package:tentura/features/forward/ui/widget/compact_beacon_context_strip.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -35,27 +31,24 @@ void main() {
     addTearDown(cubit.close);
 
     final beacon = Beacon.empty.copyWith(
-      createdAt: DateTime.utc(2025, 5, 1),
-      updatedAt: DateTime.utc(2025, 5, 1),
       id: 'aaaaaaaa-bbbb-cccc-dddd-1234567890ab',
       title: 'Test beacon',
       context: 'General',
-      lifecycle: BeaconLifecycle.open,
       startAt: DateTime.utc(2025, 5, 12),
       endAt: DateTime.utc(2025, 5, 19),
     );
 
     final candidates = [
-      ForwardCandidate(
-        profile: const Profile(
+      const ForwardCandidate(
+        profile: Profile(
           id: 'u1',
           title: 'Clara',
           rScore: 1,
           score: 70,
         ),
       ),
-      ForwardCandidate(
-        profile: const Profile(
+      const ForwardCandidate(
+        profile: Profile(
           id: 'u2',
           title: 'Zed',
           rScore: 1,
@@ -69,7 +62,6 @@ void main() {
         beaconId: 'b1',
         beacon: beacon,
         candidates: candidates,
-        status: const StateIsSuccess(),
       ),
     );
 
@@ -109,19 +101,14 @@ void main() {
     addTearDown(cubit.close);
 
     final beacon = Beacon.empty.copyWith(
-      createdAt: DateTime.utc(2025, 5, 1),
-      updatedAt: DateTime.utc(2025, 5, 1),
       id: 'id',
       title: 'T',
-      lifecycle: BeaconLifecycle.open,
     );
 
     cubit.emit(
       ForwardState(
         beaconId: 'b1',
         beacon: beacon,
-        candidates: const [],
-        status: const StateIsSuccess(),
       ),
     );
 
@@ -161,11 +148,7 @@ void main() {
     );
     addTearDown(cubit.close);
 
-    cubit.emit(
-      const ForwardState(
-        status: StateIsSuccess(),
-      ),
-    );
+    cubit.emit(const ForwardState());
 
     await tester.pumpWidget(
       MaterialApp(
