@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -141,13 +142,6 @@ class InboxItemTile extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(beacon.id),
             ),
           ),
-          if (showDeadlineOrForwardsRow) ...[
-            const SizedBox(height: 6),
-            InboxCardForwardsFold(
-              provenance: item.provenance,
-              deadlineEndAt: beacon.endAt,
-            ),
-          ],
           const SizedBox(height: 6),
           BeaconCardMetadataLine(
             beacon: beacon,
@@ -155,6 +149,25 @@ class InboxItemTile extends StatelessWidget {
               '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              coordinationStatusLabel(l10n, beacon.coordinationStatus),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: coordinationStatusColor(
+                  theme.colorScheme,
+                  beacon.coordinationStatus,
+                ),
+              ),
+            ),
+          ),
+          if (showDeadlineOrForwardsRow) ...[
+            const SizedBox(height: 6),
+            InboxCardForwardsFold(
+              provenance: item.provenance,
+              deadlineEndAt: beacon.endAt,
+            ),
+          ],
           if (item.status == InboxItemStatus.rejected &&
               item.rejectionMessage.isNotEmpty)
             Padding(

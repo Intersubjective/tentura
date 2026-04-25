@@ -1,5 +1,6 @@
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -13,11 +14,19 @@ final class MyWorkStatusLineData {
     required this.slot2,
     required this.slot3,
     required this.timeSlotOverdue,
+    this.slot1ResponseType,
+    this.slot1CoordinationStatus,
   });
 
   final String slot1;
   final String slot2;
   final String slot3;
+
+  /// When set, [slot1] is tinted for the viewer's committed-card author reaction.
+  final CoordinationResponseType? slot1ResponseType;
+
+  /// When set, [slot1] is tinted for the authored card beacon coordination state.
+  final BeaconCoordinationStatus? slot1CoordinationStatus;
 
   /// When true, [slot2] should use warning/error emphasis (deadline passed).
   final bool timeSlotOverdue;
@@ -86,6 +95,7 @@ MyWorkStatusLineData _authoredActive(
     slot2: time.text,
     slot3: slot3,
     timeSlotOverdue: time.overdue,
+    slot1CoordinationStatus: b.coordinationStatus,
   );
 }
 
@@ -124,6 +134,7 @@ MyWorkStatusLineData _committedActive(
       slot2: l10n.myWorkStatusMirrorClosed,
       slot3: l10n.myWorkStatusAcknowledgeContributions,
       timeSlotOverdue: false,
+      slot1ResponseType: vm.authorResponseType,
     );
   }
 
@@ -139,6 +150,7 @@ MyWorkStatusLineData _committedActive(
     slot2: time.text,
     slot3: slot3,
     timeSlotOverdue: time.overdue,
+    slot1ResponseType: vm.authorResponseType,
   );
 }
 
@@ -160,6 +172,7 @@ MyWorkStatusLineData _committedClosed(
     slot2: time.text,
     slot3: slot3,
     timeSlotOverdue: time.overdue,
+    slot1ResponseType: vm.authorResponseType,
   );
 }
 

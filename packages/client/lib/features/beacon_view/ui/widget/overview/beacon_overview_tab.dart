@@ -50,6 +50,10 @@ class BeaconOverviewTab extends StatelessWidget {
                 coordinationStatusLabel(l10n, beacon.coordinationStatus),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
+                  color: coordinationStatusColor(
+                    theme.colorScheme,
+                    beacon.coordinationStatus,
+                  ),
                 ),
               ),
               const SizedBox(height: kSpacingSmall),

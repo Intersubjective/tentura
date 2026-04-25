@@ -348,7 +348,6 @@ class BeaconCardHeaderRow extends StatelessWidget {
     }
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         BeaconIdentityTile(beacon: beacon, size: identitySize),
         const SizedBox(width: kSpacingSmall),
