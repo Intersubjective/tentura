@@ -345,29 +345,20 @@ class _BeaconOperationalScrollView extends StatefulWidget {
 }
 
 class _BeaconOperationalScrollViewState
-    extends State<_BeaconOperationalScrollView>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+    extends State<_BeaconOperationalScrollView> {
+  late int _tabIndex;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: 3,
-      vsync: this,
-      initialIndex: widget.initialTabIndex.clamp(0, 2),
-    );
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {});
-      }
-    });
+    _tabIndex = widget.initialTabIndex.clamp(0, 2);
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  void _setTab(int i) {
+    if (_tabIndex == i) return;
+    setState(() {
+      _tabIndex = i;
+    });
   }
 
   Future<void> _pickCoordinationStatus(BuildContext context) async {
@@ -406,6 +397,7 @@ class _BeaconOperationalScrollViewState
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
     return BlocBuilder<BeaconViewCubit, BeaconViewState>(
       bloc: widget.beaconViewCubit,
       buildWhen: (p, c) =>
@@ -419,33 +411,77 @@ class _BeaconOperationalScrollViewState
           p.viewerForwardEdges != c.viewerForwardEdges,
       builder: (context, state) {
         final beaconId = state.beacon.id;
-        return NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) {
-            return [
-              SliverToBoxAdapter(
-                child: _BeaconDetailHeader(
-                  beacon: state.beacon,
-                  screenCubit: widget.screenCubit,
-                ),
+        Future<void> editUpdate(TimelineUpdate u) => _showEditAuthorUpdateSheet(
+          context,
+          widget.beaconViewCubit,
+          l10n,
+          initial: u.content,
+          updateId: u.id,
+          createdAt: u.createdAt,
+        );
+
+        final tabBody = switch (_tabIndex) {
+          0 => BeaconOverviewTab(
+            state: state,
+            onViewAllCommitments: () => _setTab(1),
+            onEditTimelineUpdate: editUpdate,
+          ),
+          1 => _CommitmentsTabBody(
+            state: state,
+            beaconViewCubit: widget.beaconViewCubit,
+            l10n: l10n,
+          ),
+          _ => BeaconActivityList(
+            timeline: state.timeline,
+            beacon: state.beacon,
+            isAuthorView: state.isBeaconMine,
+            onEditTimelineUpdate: editUpdate,
+          ),
+        };
+
+        final tabPadding = _tabIndex == 0
+            ? const EdgeInsets.fromLTRB(
+                kSpacingMedium,
+                kSpacingSmall / 2,
+                kSpacingMedium,
+                kSpacingSmall,
+              )
+            : kPaddingAll;
+
+        // Single CustomScrollView (no NestedScrollView) so the scroll position
+        // is unified: there is no outer/inner coordinator that can let the
+        // body scroll past its end when the tab content fits the viewport.
+        return CustomScrollView(
+          physics: const ClampingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: _BeaconDetailHeader(
+                beacon: state.beacon,
+                screenCubit: widget.screenCubit,
               ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _PinnedStatusStripDelegate(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      kSpacingMedium,
-                      kSpacingSmall / 2,
-                      kSpacingMedium,
-                      kSpacingSmall / 2,
-                    ),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: BeaconOperationalStatusStrip(state: state),
-                    ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _PinnedStatusStripDelegate(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    kSpacingMedium,
+                    kSpacingSmall / 2,
+                    kSpacingMedium,
+                    kSpacingSmall / 2,
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: BeaconOperationalStatusStrip(state: state),
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
+            ),
+            SliverToBoxAdapter(
+              // Opaque surface so the CTA bar fully covers tab content while
+              // it travels behind the pinned status strip during a scroll.
+              child: ColoredBox(
+                color: scheme.surface,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
                     kSpacingMedium,
@@ -467,117 +503,77 @@ class _BeaconOperationalScrollViewState
                     ),
                     onCommit: () => _runCommitFlow(context, l10n),
                     onForward: () => unawaited(
-                      context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+                      context.router.pushPath(
+                        '$kPathForwardBeacon/$beaconId',
+                      ),
                     ),
                     onViewChain: () =>
                         widget.screenCubit.showForwardsGraphFor(beaconId),
                   ),
                 ),
               ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _PinnedSegmentBarDelegate(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: kSpacingMedium,
-                    ),
-                    child: Align(
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: SegmentedButton<int>(
-                          showSelectedIcon: false,
-                          style: const ButtonStyle(
-                            padding: WidgetStatePropertyAll(
-                              EdgeInsets.symmetric(
-                                horizontal: kSpacingSmall / 2,
-                                vertical: kSpacingSmall / 2,
-                              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _PinnedSegmentBarDelegate(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: kSpacingMedium,
+                  ),
+                  child: Align(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<int>(
+                        showSelectedIcon: false,
+                        style: const ButtonStyle(
+                          padding: WidgetStatePropertyAll(
+                            EdgeInsets.symmetric(
+                              horizontal: kSpacingSmall / 2,
+                              vertical: kSpacingSmall / 2,
                             ),
-                            minimumSize: WidgetStatePropertyAll(Size(0, 44)),
                           ),
-                          segments: [
-                            ButtonSegment(
-                              value: 0,
-                              label: _BeaconTabSegmentLabel(
-                                l10n.labelBeaconTabOverview,
-                              ),
-                            ),
-                            ButtonSegment(
-                              value: 1,
-                              label: _BeaconTabSegmentLabel(
-                                l10n.labelCommitments,
-                              ),
-                            ),
-                            ButtonSegment(
-                              value: 2,
-                              label: _BeaconTabSegmentLabel(
-                                l10n.labelBeaconTabActivity,
-                              ),
-                            ),
-                          ],
-                          selected: {_tabController.index},
-                          onSelectionChanged: (s) {
-                            final i = s.first;
-                            _tabController.animateTo(i);
-                          },
+                          minimumSize: WidgetStatePropertyAll(Size(0, 44)),
                         ),
+                        segments: [
+                          ButtonSegment(
+                            value: 0,
+                            label: _BeaconTabSegmentLabel(
+                              l10n.labelBeaconTabOverview,
+                            ),
+                          ),
+                          ButtonSegment(
+                            value: 1,
+                            label: _BeaconTabSegmentLabel(
+                              l10n.labelCommitments,
+                            ),
+                          ),
+                          ButtonSegment(
+                            value: 2,
+                            label: _BeaconTabSegmentLabel(
+                              l10n.labelBeaconTabActivity,
+                            ),
+                          ),
+                        ],
+                        selected: {_tabIndex},
+                        onSelectionChanged: (s) => _setTab(s.first),
                       ),
                     ),
                   ),
                 ),
               ),
-            ];
-          },
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _BeaconTabScroll(
-                tabKey: const PageStorageKey<String>('beacon-overview'),
-                contentPadding: const EdgeInsets.fromLTRB(
-                  kSpacingMedium,
-                  kSpacingSmall / 2,
-                  kSpacingMedium,
-                  kSpacingSmall,
-                ),
-                child: BeaconOverviewTab(
-                  state: state,
-                  onViewAllCommitments: () => _tabController.animateTo(1),
-                  onEditTimelineUpdate: (u) => _showEditAuthorUpdateSheet(
-                    context,
-                    widget.beaconViewCubit,
-                    l10n,
-                    initial: u.content,
-                    updateId: u.id,
-                    createdAt: u.createdAt,
-                  ),
-                ),
-              ),
-              _BeaconTabScroll(
-                tabKey: const PageStorageKey<String>('beacon-commitments'),
-                child: _CommitmentsTabBody(
-                  state: state,
-                  beaconViewCubit: widget.beaconViewCubit,
-                  l10n: l10n,
-                ),
-              ),
-              _BeaconTabScroll(
-                tabKey: const PageStorageKey<String>('beacon-activity'),
-                child: BeaconActivityList(
-                  timeline: state.timeline,
-                  beacon: state.beacon,
-                  isAuthorView: state.isBeaconMine,
-                  onEditTimelineUpdate: (u) => _showEditAuthorUpdateSheet(
-                    context,
-                    widget.beaconViewCubit,
-                    l10n,
-                    initial: u.content,
-                    updateId: u.id,
-                    createdAt: u.createdAt,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+            SliverPadding(
+              key: ValueKey<int>(_tabIndex),
+              padding: tabPadding,
+              sliver: SliverToBoxAdapter(child: tabBody),
+            ),
+            // Pads any remaining viewport so short tab content cannot be
+            // scrolled out of view; collapses to zero when content overflows.
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: SizedBox.shrink(),
+            ),
+          ],
         );
       },
     );
@@ -718,31 +714,6 @@ class _PinnedSegmentBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _PinnedSegmentBarDelegate oldDelegate) {
     return child != oldDelegate.child;
-  }
-}
-
-class _BeaconTabScroll extends StatelessWidget {
-  const _BeaconTabScroll({
-    required this.tabKey,
-    required this.child,
-    this.contentPadding = kPaddingAll,
-  });
-
-  final PageStorageKey<String> tabKey;
-  final Widget child;
-  final EdgeInsets contentPadding;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomScrollView(
-      key: tabKey,
-      slivers: [
-        SliverPadding(
-          padding: contentPadding,
-          sliver: SliverToBoxAdapter(child: child),
-        ),
-      ],
-    );
   }
 }
 
