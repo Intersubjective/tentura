@@ -7,10 +7,12 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
-import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
@@ -286,17 +288,17 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
             scrolledUnderElevation: 0,
+            toolbarHeight: InboxStyleAppBar.toolbarHeight,
+            leadingWidth: InboxStyleAppBar.toolbarHeight,
+            foregroundColor: scheme.onSurface,
+            titleSpacing: 8,
             leading: isFromDeepLink
                 ? BackButton(
                     onPressed: () =>
                         AutoRouter.of(context).navigatePath(kPathHome),
                   )
                 : const AutoLeadingButton(),
-            title: _BeaconAppBarTitle(
-              state: state,
-              screenCubit: screenCubit,
-              l10n: l10n,
-            ),
+            title: Text(l10n.beaconViewTitle),
             actions: [
               _beaconViewAppBarOverflow(
                 context: context,
@@ -420,6 +422,12 @@ class _BeaconOperationalScrollViewState
         return NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) {
             return [
+              SliverToBoxAdapter(
+                child: _BeaconDetailHeader(
+                  beacon: state.beacon,
+                  screenCubit: widget.screenCubit,
+                ),
+              ),
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _PinnedStatusStripDelegate(
@@ -474,7 +482,6 @@ class _BeaconOperationalScrollViewState
                       horizontal: kSpacingMedium,
                     ),
                     child: Align(
-                      alignment: Alignment.center,
                       child: SizedBox(
                         width: double.infinity,
                         child: SegmentedButton<int>(
@@ -579,6 +586,49 @@ class _BeaconOperationalScrollViewState
   }
 }
 
+/// Beacon identity, title, and author row: same block layout as My Desk cards, without
+/// [BeaconCardShell] or a separate surface, and without the metadata “update” line.
+class _BeaconDetailHeader extends StatelessWidget {
+  const _BeaconDetailHeader({
+    required this.beacon,
+    required this.screenCubit,
+  });
+
+  final Beacon beacon;
+  final ScreenCubit screenCubit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        kSpacingMedium,
+        kSpacingSmall,
+        kSpacingMedium,
+        kSpacingSmall / 2,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BeaconCardHeaderRow(
+            beacon: beacon,
+            menu: const SizedBox.shrink(),
+          ),
+          const SizedBox(height: 6),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => screenCubit.showProfile(beacon.author.id),
+            child: BeaconCardAuthorSubline(
+              author: beacon.author,
+              category: BeaconCardCategoryMeta(beacon: beacon),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BeaconTabSegmentLabel extends StatelessWidget {
   const _BeaconTabSegmentLabel(this.label);
 
@@ -594,108 +644,6 @@ class _BeaconTabSegmentLabel extends StatelessWidget {
         softWrap: false,
         textAlign: TextAlign.center,
       ),
-    );
-  }
-}
-
-class _BeaconAppBarTitle extends StatelessWidget {
-  const _BeaconAppBarTitle({
-    required this.state,
-    required this.screenCubit,
-    required this.l10n,
-  });
-
-  final BeaconViewState state;
-  final ScreenCubit screenCubit;
-  final L10n l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    if (state.isLoading && state.beacon.id.isEmpty) {
-      return Text(l10n.beaconViewTitle);
-    }
-    final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
-    final colorScheme = theme.colorScheme;
-    final beacon = state.beacon;
-    final author = beacon.author;
-    final authorName = author.title.isEmpty ? l10n.noName : author.title;
-    final titleText = beacon.title.isEmpty ? '—' : beacon.title;
-    final contextStr = beacon.context.trim();
-    final hasCategory = contextStr.isNotEmpty;
-
-    return Row(
-      children: [
-        BeaconIdentityTile(
-          beacon: beacon,
-          size: 32,
-        ),
-        const SizedBox(width: kSpacingSmall),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                titleText,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => screenCubit.showProfile(author.id),
-                      child: Row(
-                        children: [
-                          AvatarRated(
-                            profile: author,
-                            size: 20,
-                            withRating: false,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              authorName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.labelSmall,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (hasCategory) ...[
-                    Text(
-                      '·',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        contextStr,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
