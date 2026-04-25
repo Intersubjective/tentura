@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
@@ -20,23 +21,31 @@ class ForwardCubit extends Cubit<ForwardState> {
     required String beaconId,
     String context = '',
     ForwardCase? forwardCase,
-  }) : _forwardCase = forwardCase ?? GetIt.I<ForwardCase>(),
+    @visibleForTesting bool debugSkipInitialLoad = false,
+  }) : _forwardCase = forwardCase ??
+           (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
        super(ForwardState(beaconId: beaconId, context: context)) {
-    unawaited(_loadCandidates());
+    if (!debugSkipInitialLoad) {
+      unawaited(_loadCandidates());
+    }
   }
 
-  final ForwardCase _forwardCase;
+  final ForwardCase? _forwardCase;
 
   Future<void> _loadCandidates() async {
+    final forwardCase = _forwardCase;
+    if (forwardCase == null) {
+      return;
+    }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final results = await Future.wait([
-        _forwardCase.fetchForwardCandidates(context: state.context),
-        _forwardCase.fetchBeaconInvolvement(beaconId: state.beaconId),
+        forwardCase.fetchForwardCandidates(context: state.context),
+        forwardCase.fetchBeaconInvolvement(beaconId: state.beaconId),
       ]);
       final profiles = results[0] as Iterable<Profile>;
       final involvement = results[1] as BeaconInvolvementData;
-      final myId = await _forwardCase.getCurrentAccountId();
+      final myId = await forwardCase.getCurrentAccountId();
 
       final candidates = profiles
           .where((p) => p.id != myId)
@@ -110,10 +119,6 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(state.copyWith(selectedIds: selected, perRecipientNotes: notes));
   }
 
-  void setSearchQuery(String query) {
-    emit(state.copyWith(searchQuery: query));
-  }
-
   void setNote(String note) {
     emit(state.copyWith(note: note));
   }
@@ -135,6 +140,10 @@ class ForwardCubit extends Cubit<ForwardState> {
   }
 
   Future<void> forward() async {
+    final forwardCase = _forwardCase;
+    if (forwardCase == null) {
+      return;
+    }
     if (state.selectedIds.isEmpty) return;
 
     final selectedCandidates = state.candidates
@@ -157,7 +166,7 @@ class ForwardCubit extends Cubit<ForwardState> {
           perNotes[id] = personal.trim();
         }
       }
-      await _forwardCase.forwardBeacon(
+      await forwardCase.forwardBeacon(
         beaconId: state.beaconId,
         recipientIds: state.selectedIds.toList(),
         note: state.note.isEmpty ? null : state.note,

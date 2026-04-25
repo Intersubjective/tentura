@@ -1364,6 +1364,51 @@
   "@forwardSortedByMr": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardCompactSearchHint": "search or type @name",
+  "@forwardCompactSearchHint": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardOverlaySearchHint": "search recipients",
+  "@forwardOverlaySearchHint": {
+    "context": "ForwardBeaconScreen full-screen search"
+  },
+  "forwardAddSharedNoteCommand": "add shared note",
+  "@forwardAddSharedNoteCommand": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardAddPersonalizedNote": "add personalized note",
+  "@forwardAddPersonalizedNote": {
+    "context": "ForwardBeaconScreen recipient row"
+  },
+  "forwardHidePersonalizedNote": "hide personalized note",
+  "@forwardHidePersonalizedNote": {
+    "context": "ForwardBeaconScreen recipient row"
+  },
+  "forwardMrSortShort": "MR sort",
+  "@forwardMrSortShort": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardContactsCount": "{count} contacts",
+  "@forwardContactsCount": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forwardScopeBestShort": "best",
+  "@forwardScopeBestShort": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeUnseenShort": "unseen",
+  "@forwardScopeUnseenShort": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeInvolvedShort": "involved",
+  "@forwardScopeInvolvedShort": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardHidePersonalizedNotes": "Hide personalized notes",
   "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"
