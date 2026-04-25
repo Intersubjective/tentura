@@ -9,7 +9,6 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
@@ -43,11 +42,14 @@ Widget _myWorkFooterActivityBlock({
   required BuildContext context,
   required MyWorkCardHighlightKind highlight,
   required List<String> reasonLabels,
-  required String activityWhenLine,
 }) {
   final theme = Theme.of(context);
   final scheme = theme.colorScheme;
   final style = theme.textTheme.labelSmall?.copyWith(color: scheme.outline);
+  final showNew = highlight != MyWorkCardHighlightKind.none;
+  if (!showNew && reasonLabels.isEmpty) {
+    return const SizedBox.shrink();
+  }
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
@@ -55,28 +57,25 @@ Widget _myWorkFooterActivityBlock({
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _myWorkNewStuffDot(context, highlight),
+          if (showNew) _myWorkNewStuffDot(context, highlight) else const SizedBox.shrink(),
           Expanded(
-            child: Text(
-              activityWhenLine,
-              style: style,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: reasonLabels.isEmpty
+                ? const SizedBox.shrink()
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final line in reasonLabels)
+                        Text(
+                          line,
+                          style: style,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
           ),
         ],
       ),
-      if (reasonLabels.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.only(left: 22, top: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final line in reasonLabels)
-                Text(line, style: style),
-            ],
-          ),
-        ),
     ],
   );
 }
@@ -243,10 +242,6 @@ class _AuthoredActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(
-              author: b.author,
-              category: BeaconCardCategoryMeta(beacon: b),
-            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               onGraph: b.myVote >= 0
@@ -317,16 +312,20 @@ class _AuthoredActiveCard extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: kSpacingSmall),
+          const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+          ),
+          const SizedBox(height: 4),
+          BeaconCardMetadataLine(
+            beacon: b,
+            updatedLine: activityWhenLine,
           ),
           const SizedBox(height: kSpacingSmall),
           _myWorkFooterActivityBlock(
             context: context,
             highlight: highlight,
             reasonLabels: newStuffReasonLabels,
-            activityWhenLine: activityWhenLine,
           ),
         ],
       ),
@@ -369,10 +368,6 @@ class _CommittedActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(
-              author: b.author,
-              category: BeaconCardCategoryMeta(beacon: b),
-            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               onForward: () => unawaited(
@@ -387,16 +382,20 @@ class _CommittedActiveCard extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
           ),
-          const SizedBox(height: kSpacingSmall),
+          const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+          ),
+          const SizedBox(height: 4),
+          BeaconCardMetadataLine(
+            beacon: b,
+            updatedLine: activityWhenLine,
           ),
           const SizedBox(height: kSpacingSmall),
           _myWorkFooterActivityBlock(
             context: context,
             highlight: highlight,
             reasonLabels: newStuffReasonLabels,
-            activityWhenLine: activityWhenLine,
           ),
         ],
       ),
@@ -439,10 +438,6 @@ class _DraftAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(
-              author: b.author,
-              category: BeaconCardCategoryMeta(beacon: b),
-            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               editActionLabel: l10n.myWorkEditDraft,
@@ -463,9 +458,14 @@ class _DraftAuthoredCard extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: kSpacingSmall),
+          const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+          ),
+          const SizedBox(height: 4),
+          BeaconCardMetadataLine(
+            beacon: b,
+            updatedLine: activityWhenLine,
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
@@ -479,7 +479,6 @@ class _DraftAuthoredCard extends StatelessWidget {
             context: context,
             highlight: highlight,
             reasonLabels: newStuffReasonLabels,
-            activityWhenLine: activityWhenLine,
           ),
         ],
       ),
@@ -525,10 +524,6 @@ class _ClosedAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(
-              author: b.author,
-              category: BeaconCardCategoryMeta(beacon: b),
-            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               onGraph: b.myVote >= 0
@@ -599,9 +594,14 @@ class _ClosedAuthoredCard extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: kSpacingSmall),
+          const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+          ),
+          const SizedBox(height: 4),
+          BeaconCardMetadataLine(
+            beacon: b,
+            updatedLine: activityWhenLine,
           ),
           const SizedBox(height: kSpacingSmall),
           Row(
@@ -612,7 +612,6 @@ class _ClosedAuthoredCard extends StatelessWidget {
                   context: context,
                   highlight: highlight,
                   reasonLabels: newStuffReasonLabels,
-                  activityWhenLine: activityWhenLine,
                 ),
               ),
             ],
@@ -659,10 +658,6 @@ class _ClosedCommittedCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
-            subline: BeaconCardAuthorSubline(
-              author: b.author,
-              category: BeaconCardCategoryMeta(beacon: b),
-            ),
             menu: BeaconOverflowMenu(
               beacon: b,
               onForward: () => unawaited(
@@ -677,9 +672,14 @@ class _ClosedCommittedCard extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
           ),
-          const SizedBox(height: kSpacingSmall),
+          const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+          ),
+          const SizedBox(height: 4),
+          BeaconCardMetadataLine(
+            beacon: b,
+            updatedLine: activityWhenLine,
           ),
           const SizedBox(height: kSpacingSmall),
           Row(
@@ -690,7 +690,6 @@ class _ClosedCommittedCard extends StatelessWidget {
                   context: context,
                   highlight: highlight,
                   reasonLabels: newStuffReasonLabels,
-                  activityWhenLine: activityWhenLine,
                 ),
               ),
             ],

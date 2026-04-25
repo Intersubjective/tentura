@@ -1,13 +1,27 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
-/// Font size for list-card metadata strips (My Work status line, author-line
-/// middots, etc.).
+/// List-card layout tokens (inbox + My Work).
+const double kBeaconCardShellHorizontalMargin = 8;
+const double kBeaconCardBodyMinHeight = 104;
+const double kBeaconCardHeaderIconSize = 40;
+const double kBeaconCardMenuSlotWidth = 32;
+const double kBeaconCardMenuSlotHeight = 40;
+const double kBeaconCardMetadataAvatarSize = 22;
+
+/// Font size for metadata-line middots and legacy strips.
 const double kBeaconCardMetadataStripFontSize = 11;
+
+/// Status line (slot1 · slot2 · slot3) on list cards.
+const double kBeaconCardStatusLineFontSize = 12;
 
 /// Typography shared by [beaconCardMetadataStripSeparator] and My Work status.
 TextStyle beaconCardMetadataStripTextStyle(ThemeData theme) {
@@ -15,6 +29,28 @@ TextStyle beaconCardMetadataStripTextStyle(ThemeData theme) {
   return theme.textTheme.labelSmall!.copyWith(
     fontSize: kBeaconCardMetadataStripFontSize,
     height: 1.15,
+    color: scheme.onSurfaceVariant,
+    fontWeight: FontWeight.w500,
+  );
+}
+
+/// Typography for the full-width author / context / updated line.
+TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
+  final scheme = theme.colorScheme;
+  return theme.textTheme.labelSmall!.copyWith(
+    fontSize: kBeaconCardMetadataStripFontSize,
+    height: 1.15,
+    color: scheme.onSurfaceVariant,
+    fontWeight: FontWeight.w400,
+  );
+}
+
+/// My Work / inbox operational status line (`committed · …`).
+TextStyle beaconCardStatusLineTextStyle(ThemeData theme) {
+  final scheme = theme.colorScheme;
+  return theme.textTheme.labelSmall!.copyWith(
+    fontSize: kBeaconCardStatusLineFontSize,
+    height: 1.2,
     color: scheme.onSurfaceVariant,
     fontWeight: FontWeight.w500,
   );
@@ -72,7 +108,10 @@ class BeaconCardShell extends StatelessWidget {
             : kPaddingAllS);
     final paddedMain = Padding(
       padding: mainPadding,
-      child: child,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: kBeaconCardBodyMinHeight),
+        child: child,
+      ),
     );
 
     final bg =
@@ -113,68 +152,164 @@ class BeaconCardShell extends StatelessWidget {
       ],
     );
 
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(8),
-      elevation: muted ? 0 : 0.5,
-      shadowColor: scheme.shadow.withValues(alpha: 0.12),
-      child: body,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kBeaconCardShellHorizontalMargin),
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+        elevation: muted ? 0 : 0.5,
+        shadowColor: scheme.shadow.withValues(alpha: 0.12),
+        child: body,
+      ),
     );
   }
 }
 
-/// Identity tile, title column, and trailing slot (e.g. overflow menu).
-///
-/// [subline] is typically [Text] or a [Row] with avatar + author name.
+/// Avatar + author display name + context (single line). Separate from the
+/// updated time row; used inside [BeaconCardMetadataLine].
+class BeaconCardAuthorContextRow extends StatelessWidget {
+  const BeaconCardAuthorContextRow({
+    required this.author,
+    required this.name,
+    required this.nameStyle,
+    required this.baseStyle,
+    required this.category,
+    super.key,
+  });
+
+  final Profile author;
+  final String name;
+  final TextStyle nameStyle;
+  final TextStyle baseStyle;
+  final String category;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SelfAwareAvatar(
+          profile: author,
+          size: kBeaconCardMetadataAvatarSize,
+          withRating: false,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              style: baseStyle,
+              children: [
+                TextSpan(text: name, style: nameStyle),
+                TextSpan(text: ' · ', style: baseStyle),
+                TextSpan(text: category),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Author/context row (own object) plus a full-width "updated" line aligned to
+/// the card content edge, not to the avatar.
+class BeaconCardMetadataLine extends StatelessWidget {
+  const BeaconCardMetadataLine({
+    required this.beacon,
+    required this.updatedLine,
+    super.key,
+  });
+
+  final Beacon beacon;
+  final String updatedLine;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final base = beaconCardMetadataLineTextStyle(theme);
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      buildWhen: (p, c) => p.profile.id != c.profile.id,
+      builder: (context, state) {
+        final isSelf = SelfUserHighlight.profileIsSelf(
+          beacon.author,
+          state.profile.id,
+        );
+        final name = SelfUserHighlight.displayName(
+          l10n,
+          beacon.author,
+          state.profile.id,
+        );
+        final nameStyle = SelfUserHighlight.nameStyle(theme, base, isSelf);
+        final category = beaconCardCategoryLabel(beacon, l10n);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            BeaconCardAuthorContextRow(
+              author: beacon.author,
+              name: name,
+              nameStyle: nameStyle,
+              baseStyle: base,
+              category: category,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              updatedLine,
+              style: base,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Identity tile, title, and trailing overflow (single header row; no sublines).
 class BeaconCardHeaderRow extends StatelessWidget {
   const BeaconCardHeaderRow({
     required this.beacon,
-    required this.subline,
     required this.menu,
     this.titleMaxLines = 2,
-    this.identitySize = 48,
+    this.identitySize = kBeaconCardHeaderIconSize,
     this.onTitleBlockTap,
     super.key,
   });
 
   final Beacon beacon;
-  final Widget subline;
   final Widget menu;
   final int titleMaxLines;
 
-  /// Passed to [BeaconIdentityTile] (inbox / My Work list cards use the same size).
+  /// Passed to [BeaconIdentityTile] (inbox / My Work list cards use 40px).
   final double identitySize;
 
-  /// When set (e.g. inbox), title + subline respond to tap without wrapping the menu.
+  /// When set, the title [Text] opens detail without wrapping the menu.
   final VoidCallback? onTitleBlockTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
+    const titleStyle = TextStyle(
+      fontSize: 15,
+      height: 1.25,
+      fontWeight: FontWeight.w600,
+    );
 
-    Widget titleBlock = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          beacon.title.isEmpty ? '—' : beacon.title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: scheme.onSurface,
-          ),
-          maxLines: titleMaxLines,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 2),
-        subline,
-      ],
+    Widget title = Text(
+      beacon.title.isEmpty ? '—' : beacon.title,
+      style: titleStyle.copyWith(color: scheme.onSurface),
+      maxLines: titleMaxLines,
+      overflow: TextOverflow.ellipsis,
     );
     final onTap = onTitleBlockTap;
     if (onTap != null) {
-      titleBlock = GestureDetector(
+      title = GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.translucent,
-        child: titleBlock,
+        child: title,
       );
     }
 
@@ -183,9 +318,15 @@ class BeaconCardHeaderRow extends StatelessWidget {
       children: [
         BeaconIdentityTile(beacon: beacon, size: identitySize),
         const SizedBox(width: kSpacingSmall),
-        Expanded(child: titleBlock),
-        const SizedBox(width: 4),
-        menu,
+        Expanded(child: title),
+        SizedBox(
+          width: kBeaconCardMenuSlotWidth,
+          height: kBeaconCardMenuSlotHeight,
+          child: Align(
+            alignment: Alignment.topRight,
+            child: menu,
+          ),
+        ),
       ],
     );
   }

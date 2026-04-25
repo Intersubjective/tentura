@@ -7,7 +7,6 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
@@ -118,10 +117,6 @@ class InboxItemTile extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: beacon,
             onTitleBlockTap: onOpenBeacon,
-            subline: BeaconCardAuthorSubline(
-              author: beacon.author,
-              category: BeaconCardCategoryMeta(beacon: beacon),
-            ),
             menu: BeaconOverflowMenu(
               beacon: beacon,
               onOpenBeacon: onOpenBeacon,
@@ -147,22 +142,31 @@ class InboxItemTile extends StatelessWidget {
             ),
           ),
           if (showDeadlineOrForwardsRow) ...[
-            const SizedBox(height: kSpacingSmall),
+            const SizedBox(height: 6),
             InboxCardForwardsFold(
               provenance: item.provenance,
               deadlineEndAt: beacon.endAt,
             ),
           ],
-          const SizedBox(height: kSpacingSmall),
+          const SizedBox(height: 6),
+          BeaconCardMetadataLine(
+            beacon: beacon,
+            updatedLine: l10n.myWorkUpdatedLine(
+              '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
+            ),
+          ),
           if (item.status == InboxItemStatus.rejected &&
               item.rejectionMessage.isNotEmpty)
-            Text(
-              item.rejectionMessage,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+            Padding(
+              padding: const EdgeInsets.only(top: kSpacingSmall),
+              child: Text(
+                item.rejectionMessage,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           if (showNewStuffDot)
             BlocBuilder<NewStuffCubit, NewStuffState>(
