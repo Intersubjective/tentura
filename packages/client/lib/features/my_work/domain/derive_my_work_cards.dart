@@ -1,6 +1,8 @@
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura/domain/entity/profile.dart';
 
 import 'entity/my_work_card_view_model.dart';
 import 'entity/my_work_fetch_types.dart';
@@ -168,4 +170,32 @@ List<MyWorkCardViewModel> buildArchivedViewModels({
       .toList(growable: false);
   final merged = [...authored, ...committed]..sort(compareMyWorkCards);
   return merged;
+}
+
+/// View model for beacon view, aligned with My Work card derivation (`myWorkStatusLine`).
+MyWorkCardViewModel myWorkCardViewModelForBeaconView({
+  required Beacon beacon,
+  required bool isBeaconMine,
+  required bool isCommitted,
+  required String myCommitMessage,
+  CoordinationResponseType? myAuthorResponseType,
+  DateTime? myCommitmentUpdatedAt,
+}) {
+  if (isBeaconMine) {
+    return _deriveAuthored(beacon: beacon);
+  }
+  if (isCommitted) {
+    final archived = beacon.lifecycle.isClosedSection;
+    final row = (
+      beacon: beacon,
+      commitMessage: myCommitMessage,
+      helpType: null,
+      authorResponseType: myAuthorResponseType,
+      forwarderSenders: <Profile>[],
+      commitmentRowUpdatedAt: myCommitmentUpdatedAt ?? beacon.updatedAt,
+      authorCoordinationUpdatedAt: null,
+    );
+    return _deriveCommitted(row: row, archived: archived);
+  }
+  return _deriveAuthored(beacon: beacon);
 }

@@ -35,9 +35,12 @@ const kPaddingBottomTextInput = EdgeInsets.only(
   right: kSpacingMedium,
 );
 
-/// Fixed phone-frame width for web (mobile-only target; MediaQuery size matches this).
-const double kWebPhoneFrameWidth = 400;
-const kWebAspectRatio = 9 / 16;
+/// Fixed phone-frame size for web (mobile-only target; MediaQuery size matches this).
+///
+/// Baseline target: mass-market Android phones (portrait ~20:9).
+/// This yields a 360x800 logical dp canvas when the browser is wide enough.
+const double kWebPhoneFrameWidth = 360;
+const kWebAspectRatio = 9 / 20;
 
 const kBorderRadius = 8.0;
 

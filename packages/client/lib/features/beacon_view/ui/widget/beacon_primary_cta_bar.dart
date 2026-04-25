@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/card_triage_action_row.dart';
+import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/beacon_view_state.dart';
 
@@ -13,8 +15,6 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
     required this.onUpdateStatus,
     required this.onPostUpdate,
     required this.onCommit,
-    required this.onEditCommitment,
-    required this.onWithdraw,
     required this.onForward,
     required this.onViewChain,
     super.key,
@@ -23,9 +23,7 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
   final BeaconViewState state;
   final VoidCallback? onUpdateStatus;
   final VoidCallback? onPostUpdate;
-  final VoidCallback? onCommit;
-  final VoidCallback? onEditCommitment;
-  final VoidCallback? onWithdraw;
+  final Future<void> Function()? onCommit;
   final VoidCallback? onForward;
   final VoidCallback? onViewChain;
 
@@ -33,115 +31,165 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final beacon = state.beacon;
     final open = beacon.lifecycle == BeaconLifecycle.open;
 
-    Widget? primary;
-    Widget? secondary;
-
-    if (state.isBeaconMine && open) {
-      primary = onUpdateStatus != null
-          ? FilledButton(
-              onPressed: onUpdateStatus,
-              child: Text(l10n.beaconCtaUpdateStatus),
-            )
-          : null;
-      secondary = onPostUpdate != null
-          ? TextButton(
-              onPressed: onPostUpdate,
-              child: Text(l10n.postUpdateCTA),
-            )
-          : null;
-    } else if (!state.isBeaconMine && open) {
-      if (!state.isCommitted && beacon.allowsNewCommitAsNonAuthor) {
-        primary = onCommit != null
-            ? FilledButton(
-                onPressed: onCommit,
-                child: Text(l10n.labelCommit),
-              )
-            : null;
-        secondary = onForward != null
-            ? TextButton(
-                onPressed: onForward,
-                child: Text(l10n.labelForward),
-              )
-            : null;
-      } else if (state.isCommitted) {
-        if (beacon.allowsWithdrawWhileCommitted) {
-          primary = onEditCommitment != null
-              ? FilledButton(
-                  onPressed: onEditCommitment,
-                  child: Text(l10n.beaconCtaEditCommitment),
-                )
-              : null;
-          secondary = onWithdraw != null
-              ? TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                  ),
-                  onPressed: onWithdraw,
-                  child: Text(l10n.dialogWithdrawTitle),
-                )
-              : null;
-        } else {
-          primary = onForward != null
-              ? FilledButton(
-                  onPressed: onForward,
-                  child: Text(l10n.labelForward),
-                )
-              : null;
-          secondary = onViewChain != null
-              ? TextButton(
-                  onPressed: onViewChain,
-                  child: Text(l10n.beaconCtaViewChain),
-                )
-              : null;
-        }
-      } else {
-        primary = onForward != null
-            ? FilledButton(
-                onPressed: onForward,
-                child: Text(l10n.labelForward),
-              )
-            : null;
-        secondary = onViewChain != null
-            ? TextButton(
-                onPressed: onViewChain,
-                child: Text(l10n.beaconCtaViewChain),
-              )
-            : null;
+    if (!open) {
+      if (onViewChain == null) {
+        return Padding(
+          padding: const EdgeInsets.only(top: kSpacingSmall),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: BeaconCardPillReadOnly(l10n: l10n),
+          ),
+        );
       }
-    } else {
-      secondary = onViewChain != null
-          ? TextButton(
-              onPressed: onViewChain,
-              child: Text(l10n.beaconCtaViewChain),
-            )
-          : null;
+      final tertiaryStyle = TextButton.styleFrom(
+        foregroundColor: scheme.onSurfaceVariant,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      );
+      return Padding(
+        padding: const EdgeInsets.only(top: kSpacingSmall),
+        child: Row(
+          children: [
+            BeaconCardPillReadOnly(l10n: l10n),
+            const SizedBox(width: kSpacingSmall),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  style: tertiaryStyle,
+                  onPressed: onViewChain,
+                  icon: const Icon(TenturaIcons.graph, size: 16),
+                  label: Text(
+                    l10n.beaconCtaViewChain,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
-    if (primary == null && secondary == null && open) {
+    if (state.isBeaconMine) {
+      final primary = onUpdateStatus != null
+          ? FilledButton(
+              onPressed: onUpdateStatus,
+              style: FilledButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                alignment: Alignment.center,
+              ),
+              child: Text(
+                l10n.beaconCtaUpdateStatus,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
+            )
+          : null;
+      final secondary = onPostUpdate != null
+          ? OutlinedButton(
+              onPressed: onPostUpdate,
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                alignment: Alignment.center,
+              ),
+              child: Text(
+                l10n.postUpdateCTA,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
+            )
+          : null;
+
+      if (primary == null && secondary == null) {
+        return const SizedBox.shrink();
+      }
+
+      return Padding(
+        padding: const EdgeInsets.only(top: kSpacingSmall),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (primary != null) ...[
+              Expanded(
+                flex: secondary != null ? 5 : 1,
+                child: primary,
+              ),
+            ],
+            if (primary != null && secondary != null)
+              const SizedBox(width: kSpacingSmall),
+            if (secondary != null) ...[
+              Expanded(
+                flex: primary != null ? 4 : 1,
+                child: secondary,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final canCommit =
+        !state.isCommitted && beacon.allowsNewCommitAsNonAuthor;
+    final showCommit = canCommit && onCommit != null;
+    final showForward = onForward != null;
+    final showViewChain = onViewChain != null;
+
+    if (!showForward && !showCommit && !showViewChain) {
       return const SizedBox.shrink();
     }
 
+    if (showForward) {
+      return Padding(
+        padding: const EdgeInsets.only(top: kSpacingSmall),
+        child: CardTriageActionRow(
+          onCommit: showCommit ? onCommit : null,
+          onForward: onForward!,
+          secondaryLabel: showViewChain ? l10n.beaconCtaViewChain : null,
+          secondaryIcon: showViewChain ? TenturaIcons.graph : null,
+          onSecondary: showViewChain
+              ? () async {
+                  onViewChain!();
+                }
+              : null,
+        ),
+      );
+    }
+
+    if (!showViewChain) {
+      return const SizedBox.shrink();
+    }
+
+    final tertiaryStyle = TextButton.styleFrom(
+      foregroundColor: scheme.onSurfaceVariant,
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+    );
+
     return Padding(
       padding: const EdgeInsets.only(top: kSpacingSmall),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!open)
-            Padding(
-              padding: const EdgeInsets.only(bottom: kSpacingSmall),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: BeaconCardPillReadOnly(l10n: l10n),
-              ),
-            ),
-          ?primary,
-          if (primary != null && secondary != null)
-            const SizedBox(height: kSpacingSmall),
-          ?secondary,
-        ],
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          style: tertiaryStyle,
+          onPressed: onViewChain,
+          icon: const Icon(TenturaIcons.graph, size: 16),
+          label: Text(
+            l10n.beaconCtaViewChain,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ),
     );
   }

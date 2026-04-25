@@ -111,4 +111,49 @@ void main() {
       {MyWorkCardKind.authoredClosed, MyWorkCardKind.committedClosed},
     );
   });
+
+  test('myWorkCardViewModelForBeaconView mirrors authored list derivation', () {
+    final b = _b(
+      id: 'bv1',
+      lifecycle: BeaconLifecycle.open,
+      coordination: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+      commitmentCount: 1,
+    );
+    final fromList = buildNonArchivedViewModels(
+      authoredNonClosed: [b],
+      committedNonClosed: const [],
+    ).single;
+    final fromBeaconView = myWorkCardViewModelForBeaconView(
+      beacon: b,
+      isBeaconMine: true,
+      isCommitted: false,
+      myCommitMessage: '',
+    );
+    expect(fromBeaconView, fromList);
+  });
+
+  test('myWorkCardViewModelForBeaconView mirrors committed list derivation', () {
+    final b = _b(id: 'bv2', lifecycle: BeaconLifecycle.open);
+    final row = (
+      beacon: b,
+      commitMessage: 'hi',
+      helpType: null,
+      authorResponseType: null,
+      forwarderSenders: const <Profile>[],
+      commitmentRowUpdatedAt: DateTime(2025, 3),
+      authorCoordinationUpdatedAt: null,
+    );
+    final fromList = buildNonArchivedViewModels(
+      authoredNonClosed: const [],
+      committedNonClosed: [row],
+    ).single;
+    final fromBeaconView = myWorkCardViewModelForBeaconView(
+      beacon: b,
+      isBeaconMine: false,
+      isCommitted: true,
+      myCommitMessage: 'hi',
+      myCommitmentUpdatedAt: DateTime(2025, 3),
+    );
+    expect(fromBeaconView, fromList);
+  });
 }
