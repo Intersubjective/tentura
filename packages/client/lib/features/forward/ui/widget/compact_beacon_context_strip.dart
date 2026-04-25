@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
@@ -73,11 +74,22 @@ class CompactBeaconContextStrip extends StatelessWidget {
               ..write(' · ')
               ..write(dateRange);
           }
-          return Text(
-            buffer.toString(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TenturaText.meta(tt.textMuted),
+          return Row(
+            children: [
+              SelfAwarePlainMiniAvatar(
+                profile: beacon.author,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  buffer.toString(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.meta(tt.textMuted),
+                ),
+              ),
+            ],
           );
         },
       ),
