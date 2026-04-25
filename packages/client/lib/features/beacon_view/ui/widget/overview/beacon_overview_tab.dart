@@ -44,7 +44,8 @@ class BeaconOverviewTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _OverviewCard(
+        _OverviewSection(
+          storageKey: 'ov-need-${beacon.id}',
           title: l10n.beaconNeedSummaryTitle,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,7 +124,8 @@ class BeaconOverviewTab extends StatelessWidget {
             ],
           ),
         ),
-        _OverviewCard(
+        _OverviewSection(
+          storageKey: 'ov-coord-${beacon.id}',
           title: l10n.beaconCoordinationCardTitle,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -163,7 +165,8 @@ class BeaconOverviewTab extends StatelessWidget {
           ),
         ),
         if (_hasRelationContext(state))
-          _OverviewCard(
+          _OverviewSection(
+            storageKey: 'ov-relation-${beacon.id}',
             title: l10n.beaconYourRelationTitle,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -185,7 +188,8 @@ class BeaconOverviewTab extends StatelessWidget {
               ],
             ),
           ),
-        _OverviewCard(
+        _OverviewSection(
+          storageKey: 'ov-snap-${beacon.id}',
           title: l10n.beaconCommitSnapshotTitle,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -223,7 +227,8 @@ class BeaconOverviewTab extends StatelessWidget {
           ),
         ),
         if (latest != null)
-          _OverviewCard(
+          _OverviewSection(
+            storageKey: 'ov-latest-${beacon.id}',
             title: l10n.beaconLatestUpdateTitle,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -262,13 +267,14 @@ class BeaconOverviewTab extends StatelessWidget {
               ],
             ),
           ),
-        _OverviewCard(
+        _OverviewSection(
+          storageKey: 'ov-fwd-${beacon.id}',
           title: l10n.beaconForwardChainPreview,
           child: InkWell(
             onTap: onTapForwardChain,
             borderRadius: BorderRadius.circular(8),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: kSpacingSmall),
+              padding: const EdgeInsets.symmetric(vertical: kSpacingSmall / 2),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -278,7 +284,7 @@ class BeaconOverviewTab extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: kSpacingSmall / 2),
                   Text(
                     l10n.beaconForwardChainTapHint,
                     style: theme.textTheme.labelSmall?.copyWith(
@@ -290,12 +296,14 @@ class BeaconOverviewTab extends StatelessWidget {
             ),
           ),
         ),
-        _OverviewCard(
+        _OverviewSection(
+          storageKey: 'ov-desc-${beacon.id}',
           title: l10n.beaconDescriptionAttachmentsTitle,
           child: BeaconInfo(
             key: ValueKey('overview-${beacon.id}'),
             beacon: beacon,
             isShowBeaconEnabled: false,
+            isShowMoreEnabled: false,
             showTitle: false,
             descriptionBeforeMedia: true,
             mediaMaxHeight: 180,
@@ -304,7 +312,7 @@ class BeaconOverviewTab extends StatelessWidget {
         ),
         if (beacon.context.trim().isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: kSpacingSmall),
+            padding: const EdgeInsets.only(top: kSpacingSmall / 2),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Chip(
@@ -344,12 +352,14 @@ String _forwardChainLine(L10n l10n, BeaconViewState state) {
   return l10n.beaconRelationNoTrail;
 }
 
-class _OverviewCard extends StatelessWidget {
-  const _OverviewCard({
+class _OverviewSection extends StatelessWidget {
+  const _OverviewSection({
+    required this.storageKey,
     required this.title,
     required this.child,
   });
 
+  final String storageKey;
   final String title;
   final Widget child;
 
@@ -357,22 +367,24 @@ class _OverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      margin: const EdgeInsets.only(bottom: kSpacingMedium),
-      child: Padding(
-        padding: kPaddingAll,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: kSpacingSmall),
-            child,
-          ],
+      key: PageStorageKey<String>(storageKey),
+      margin: const EdgeInsets.only(bottom: kSpacingSmall),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        maintainState: true,
+        tilePadding: const EdgeInsets.symmetric(horizontal: kSpacingSmall),
+        visualDensity: VisualDensity.compact,
+        minTileHeight: 44,
+        title: Text(
+          title,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
+        childrenPadding: kPaddingSmallH.add(
+          const EdgeInsets.only(bottom: kSpacingSmall),
+        ),
+        children: [child],
       ),
     );
   }

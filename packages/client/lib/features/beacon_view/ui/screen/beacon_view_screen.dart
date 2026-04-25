@@ -8,6 +8,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
@@ -25,6 +26,7 @@ import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/activity_list.dart';
 import '../widget/beacon_operational_collapsible_header.dart';
+import '../widget/beacon_primary_cta_bar.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 import '../widget/overview/beacon_overview_tab.dart';
@@ -117,10 +119,10 @@ Widget _beaconViewAppBarOverflow({
       },
       onEdit: b.lifecycle == BeaconLifecycle.open
           ? () => unawaited(
-                context.router.pushPath(
-                  '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
-                ),
-              )
+              context.router.pushPath(
+                '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
+              ),
+            )
           : null,
       onForward: () => unawaited(
         context.router.pushPath('$kPathForwardBeacon/$beaconId'),
@@ -141,7 +143,8 @@ Widget _beaconViewAppBarOverflow({
 
   return BeaconOverflowMenu(
     beacon: b,
-    onCommit: !hideCommitWithdraw &&
+    onCommit:
+        !hideCommitWithdraw &&
             !state.isCommitted &&
             b.allowsNewCommitAsNonAuthor
         ? () async {
@@ -166,7 +169,8 @@ Widget _beaconViewAppBarOverflow({
             }
           }
         : null,
-    onWithdraw: !hideCommitWithdraw &&
+    onWithdraw:
+        !hideCommitWithdraw &&
             state.isCommitted &&
             b.allowsWithdrawWhileCommitted
         ? () async {
@@ -189,8 +193,8 @@ Widget _beaconViewAppBarOverflow({
     onForward: hideOverflowForward
         ? null
         : () => unawaited(
-              context.router.pushPath('$kPathForwardBeacon/$beaconId'),
-            ),
+            context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+          ),
     onViewForwards: () => unawaited(
       context.router.pushPath('$kPathBeaconForwards/$beaconId'),
     ),
@@ -265,26 +269,59 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final screenCubit = context.read<ScreenCubit>();
     final beaconViewCubit = context.read<BeaconViewCubit>();
-    return Scaffold(
-      body: BlocBuilder<BeaconViewCubit, BeaconViewState>(
-        bloc: beaconViewCubit,
-        buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
-        builder: (_, state) {
-          if (state.isLoading &&
-              state.timeline.isEmpty &&
-              state.commitments.isEmpty) {
-            return const Center(
-              child: CircularProgressIndicator.adaptive(),
-            );
-          }
-          return _BeaconOperationalScrollView(
-            beaconViewCubit: beaconViewCubit,
-            screenCubit: screenCubit,
-            isDeepLink: isDeepLink == 'true',
-            initialTabIndex: _beaconViewTabIndex(viewTab),
-          );
-        },
-      ),
+    final l10n = L10n.of(context)!;
+    final isFromDeepLink = isDeepLink == 'true';
+    return BlocBuilder<BeaconViewCubit, BeaconViewState>(
+      bloc: beaconViewCubit,
+      buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
+      builder: (context, state) {
+        final scheme = Theme.of(context).colorScheme;
+        final showInitialLoading =
+            state.isLoading &&
+            state.timeline.isEmpty &&
+            state.commitments.isEmpty;
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: scheme.surface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            leading: isFromDeepLink
+                ? BackButton(
+                    onPressed: () =>
+                        AutoRouter.of(context).navigatePath(kPathHome),
+                  )
+                : const AutoLeadingButton(),
+            title: _BeaconAppBarTitle(
+              state: state,
+              screenCubit: screenCubit,
+              l10n: l10n,
+            ),
+            actions: [
+              _beaconViewAppBarOverflow(
+                context: context,
+                state: state,
+                cubit: beaconViewCubit,
+                screenCubit: screenCubit,
+                l10n: l10n,
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(4),
+              child: LinearPiActive.builder(context, state.isLoading),
+            ),
+          ),
+          body: showInitialLoading
+              ? const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                )
+              : _BeaconOperationalScrollView(
+                  beaconViewCubit: beaconViewCubit,
+                  screenCubit: screenCubit,
+                  initialTabIndex: _beaconViewTabIndex(viewTab),
+                ),
+        );
+      },
     );
   }
 }
@@ -293,13 +330,11 @@ class _BeaconOperationalScrollView extends StatefulWidget {
   const _BeaconOperationalScrollView({
     required this.beaconViewCubit,
     required this.screenCubit,
-    required this.isDeepLink,
     required this.initialTabIndex,
   });
 
   final BeaconViewCubit beaconViewCubit;
   final ScreenCubit screenCubit;
-  final bool isDeepLink;
   final int initialTabIndex;
 
   @override
@@ -307,7 +342,8 @@ class _BeaconOperationalScrollView extends StatefulWidget {
       _BeaconOperationalScrollViewState();
 }
 
-class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollView>
+class _BeaconOperationalScrollViewState
+    extends State<_BeaconOperationalScrollView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
@@ -365,23 +401,6 @@ class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollVi
     }
   }
 
-  Future<void> _runWithdrawFlow(BuildContext context, L10n l10n) async {
-    if (!context.mounted) return;
-    final outcome = await CommitmentMessageDialog.show(
-      context,
-      title: l10n.dialogWithdrawTitle,
-      hintText: l10n.hintWithdrawReason,
-      allowEmptyMessage: true,
-      requireUncommitReason: true,
-    );
-    if (outcome?.uncommitReasonWire != null && context.mounted) {
-      await widget.beaconViewCubit.withdraw(
-        message: outcome!.message,
-        uncommitReason: outcome.uncommitReasonWire!,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -401,39 +420,19 @@ class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollVi
         return NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) {
             return [
-              SliverOverlapAbsorber(
-                handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
-                  context,
-                ),
-                sliver: SliverAppBar(
-                  pinned: true,
-                  forceElevated: innerBoxIsScrolled,
-                  leading: widget.isDeepLink
-                      ? BackButton(
-                          onPressed: () =>
-                              AutoRouter.of(context).navigatePath(kPathHome),
-                        )
-                      : const AutoLeadingButton(),
-                  title: _CompactAuthorAppBarTitle(
-                    state: state,
-                    screenCubit: widget.screenCubit,
-                    l10n: l10n,
-                  ),
-                  actions: [
-                    _beaconViewAppBarOverflow(
-                      context: context,
-                      state: state,
-                      cubit: widget.beaconViewCubit,
-                      screenCubit: widget.screenCubit,
-                      l10n: l10n,
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedStatusStripDelegate(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      kSpacingMedium,
+                      kSpacingSmall / 2,
+                      kSpacingMedium,
+                      kSpacingSmall / 2,
                     ),
-                  ],
-                  bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(4),
-                    child: BlocSelector<BeaconViewCubit, BeaconViewState, bool>(
-                      bloc: widget.beaconViewCubit,
-                      selector: (s) => s.isLoading,
-                      builder: LinearPiActive.builder,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: BeaconOperationalStatusStrip(state: state),
                     ),
                   ),
                 ),
@@ -442,15 +441,12 @@ class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollVi
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
                     kSpacingMedium,
-                    kSpacingSmall,
-                    kSpacingMedium,
                     0,
+                    kSpacingMedium,
+                    kSpacingSmall / 2,
                   ),
-                  child: BeaconOperationalCollapsibleHeader(
+                  child: BeaconPrimaryCtaBar(
                     state: state,
-                    onStatusChipTap: state.isBeaconMine
-                        ? () => unawaited(_pickCoordinationStatus(context))
-                        : null,
                     onUpdateStatus: state.isBeaconMine
                         ? () => unawaited(_pickCoordinationStatus(context))
                         : null,
@@ -461,31 +457,7 @@ class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollVi
                         l10n,
                       ),
                     ),
-                    onCommit: () => unawaited(_runCommitFlow(context, l10n)),
-                    onEditCommitment: () async {
-                      TimelineCommitment? mine;
-                      for (final c in state.commitments) {
-                        if (!c.isWithdrawn && c.user.id == state.myProfile.id) {
-                          mine = c;
-                          break;
-                        }
-                      }
-                      if (mine == null || !context.mounted) return;
-                      final outcome = await CommitmentMessageDialog.show(
-                        context,
-                        title: l10n.dialogUpdateCommitTitle,
-                        hintText: l10n.hintCommitMessage,
-                        initialText: mine.message,
-                      );
-                      if (outcome != null &&
-                          outcome.message.isNotEmpty &&
-                          context.mounted) {
-                        await widget.beaconViewCubit.commit(
-                          message: outcome.message,
-                        );
-                      }
-                    },
-                    onWithdraw: () => unawaited(_runWithdrawFlow(context, l10n)),
+                    onCommit: () => _runCommitFlow(context, l10n),
                     onForward: () => unawaited(
                       context.router.pushPath('$kPathForwardBeacon/$beaconId'),
                     ),
@@ -501,28 +473,47 @@ class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollVi
                     padding: const EdgeInsets.symmetric(
                       horizontal: kSpacingMedium,
                     ),
-                    child: Center(
-                      child: SegmentedButton<int>(
-                        showSelectedIcon: false,
-                        segments: [
-                          ButtonSegment(
-                            value: 0,
-                            label: Text(l10n.labelBeaconTabOverview),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<int>(
+                          showSelectedIcon: false,
+                          style: const ButtonStyle(
+                            padding: WidgetStatePropertyAll(
+                              EdgeInsets.symmetric(
+                                horizontal: kSpacingSmall / 2,
+                                vertical: kSpacingSmall / 2,
+                              ),
+                            ),
+                            minimumSize: WidgetStatePropertyAll(Size(0, 44)),
                           ),
-                          ButtonSegment(
-                            value: 1,
-                            label: Text(l10n.labelCommitments),
-                          ),
-                          ButtonSegment(
-                            value: 2,
-                            label: Text(l10n.labelBeaconTabActivity),
-                          ),
-                        ],
-                        selected: {_tabController.index},
-                        onSelectionChanged: (s) {
-                          final i = s.first;
-                          _tabController.animateTo(i);
-                        },
+                          segments: [
+                            ButtonSegment(
+                              value: 0,
+                              label: _BeaconTabSegmentLabel(
+                                l10n.labelBeaconTabOverview,
+                              ),
+                            ),
+                            ButtonSegment(
+                              value: 1,
+                              label: _BeaconTabSegmentLabel(
+                                l10n.labelCommitments,
+                              ),
+                            ),
+                            ButtonSegment(
+                              value: 2,
+                              label: _BeaconTabSegmentLabel(
+                                l10n.labelBeaconTabActivity,
+                              ),
+                            ),
+                          ],
+                          selected: {_tabController.index},
+                          onSelectionChanged: (s) {
+                            final i = s.first;
+                            _tabController.animateTo(i);
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -535,6 +526,12 @@ class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollVi
             children: [
               _BeaconTabScroll(
                 tabKey: const PageStorageKey<String>('beacon-overview'),
+                contentPadding: const EdgeInsets.fromLTRB(
+                  kSpacingMedium,
+                  kSpacingSmall / 2,
+                  kSpacingMedium,
+                  kSpacingSmall,
+                ),
                 child: BeaconOverviewTab(
                   state: state,
                   onTapForwardChain: () =>
@@ -582,8 +579,27 @@ class _BeaconOperationalScrollViewState extends State<_BeaconOperationalScrollVi
   }
 }
 
-class _CompactAuthorAppBarTitle extends StatelessWidget {
-  const _CompactAuthorAppBarTitle({
+class _BeaconTabSegmentLabel extends StatelessWidget {
+  const _BeaconTabSegmentLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(
+        label,
+        maxLines: 1,
+        softWrap: false,
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
+class _BeaconAppBarTitle extends StatelessWidget {
+  const _BeaconAppBarTitle({
     required this.state,
     required this.screenCubit,
     required this.l10n,
@@ -599,28 +615,125 @@ class _CompactAuthorAppBarTitle extends StatelessWidget {
       return Text(l10n.beaconViewTitle);
     }
     final theme = Theme.of(context);
-    final author = state.beacon.author;
-    final name = author.title.isEmpty ? l10n.noName : author.title;
-    return InkWell(
-      onTap: () => screenCubit.showProfile(author.id),
-      child: Row(
-        children: [
-          AvatarRated(
-            profile: author,
-            size: 24,
+    final textTheme = theme.textTheme;
+    final colorScheme = theme.colorScheme;
+    final beacon = state.beacon;
+    final author = beacon.author;
+    final authorName = author.title.isEmpty ? l10n.noName : author.title;
+    final titleText = beacon.title.isEmpty ? '—' : beacon.title;
+    final contextStr = beacon.context.trim();
+    final hasCategory = contextStr.isNotEmpty;
+
+    return Row(
+      children: [
+        BeaconIdentityTile(
+          beacon: beacon,
+          size: 32,
+        ),
+        const SizedBox(width: kSpacingSmall),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                titleText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => screenCubit.showProfile(author.id),
+                      child: Row(
+                        children: [
+                          AvatarRated(
+                            profile: author,
+                            size: 20,
+                            withRating: false,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              authorName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.labelSmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (hasCategory) ...[
+                    Text(
+                      '·',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        contextStr,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ),
-          const SizedBox(width: kSpacingSmall),
-          Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Pinned status strip under [NestedScrollView] (fixed height; see tab bar).
+class _PinnedStatusStripDelegate extends SliverPersistentHeaderDelegate {
+  _PinnedStatusStripDelegate({required this.child});
+
+  final Widget child;
+
+  static const double _height = 48;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: overlapsContent ? 0.5 : 0,
+      child: SizedBox(
+        height: _height,
+        width: double.infinity,
+        child: child,
       ),
     );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedStatusStripDelegate oldDelegate) {
+    return child != oldDelegate.child;
   }
 }
 
@@ -666,28 +779,23 @@ class _BeaconTabScroll extends StatelessWidget {
   const _BeaconTabScroll({
     required this.tabKey,
     required this.child,
+    this.contentPadding = kPaddingAll,
   });
 
   final PageStorageKey<String> tabKey;
   final Widget child;
+  final EdgeInsets contentPadding;
 
   @override
   Widget build(BuildContext context) {
-    return Builder(
-      builder: (context) {
-        return CustomScrollView(
-          key: tabKey,
-          slivers: [
-            SliverOverlapInjector(
-              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-            ),
-            SliverPadding(
-              padding: kPaddingAll,
-              sliver: SliverToBoxAdapter(child: child),
-            ),
-          ],
-        );
-      },
+    return CustomScrollView(
+      key: tabKey,
+      slivers: [
+        SliverPadding(
+          padding: contentPadding,
+          sliver: SliverToBoxAdapter(child: child),
+        ),
+      ],
     );
   }
 }
@@ -706,10 +814,12 @@ class _CommitmentsTabBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final beacon = state.beacon;
-    final active =
-        state.commitments.where((c) => !c.isWithdrawn).toList(growable: false);
-    final withdrawn =
-        state.commitments.where((c) => c.isWithdrawn).toList(growable: false);
+    final active = state.commitments
+        .where((c) => !c.isWithdrawn)
+        .toList(growable: false);
+    final withdrawn = state.commitments
+        .where((c) => c.isWithdrawn)
+        .toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -726,17 +836,17 @@ class _CommitmentsTabBody extends StatelessWidget {
             isAuthorView: state.isBeaconMine,
             onAuthorTapCoordination: state.isBeaconMine && !c.isWithdrawn
                 ? () => unawaited(
-                      showCoordinationResponseBottomSheet(
-                        context: context,
-                        commitUserTitle: c.user.title,
-                        onPick: (t) => unawaited(
-                          beaconViewCubit.setCoordinationResponse(
-                            commitUserId: c.user.id,
-                            responseType: t,
-                          ),
+                    showCoordinationResponseBottomSheet(
+                      context: context,
+                      commitUserTitle: c.user.title,
+                      onPick: (t) => unawaited(
+                        beaconViewCubit.setCoordinationResponse(
+                          commitUserId: c.user.id,
+                          responseType: t,
                         ),
                       ),
-                    )
+                    ),
+                  )
                 : null,
             onEdit: c.user.id == state.myProfile.id && !c.isWithdrawn
                 ? () async {
@@ -753,7 +863,8 @@ class _CommitmentsTabBody extends StatelessWidget {
                     }
                   }
                 : null,
-            onWithdraw: c.user.id == state.myProfile.id &&
+            onWithdraw:
+                c.user.id == state.myProfile.id &&
                     !c.isWithdrawn &&
                     beacon.allowsWithdrawWhileCommitted
                 ? () async {
