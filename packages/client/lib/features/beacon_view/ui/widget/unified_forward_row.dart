@@ -382,7 +382,36 @@ class _NoteColumnWithBar extends StatelessWidget {
       );
     }
 
-    final barColumn = SizedBox(
+    final textAlign = barTrailing ? TextAlign.end : TextAlign.start;
+    final textStyle = theme.textTheme.bodySmall?.copyWith(
+      color: scheme.onSurfaceVariant,
+      fontStyle: FontStyle.italic,
+      height: 1.35,
+    );
+
+    final lowerChildren = <Widget>[];
+    if (hasNote) {
+      lowerChildren.add(
+        Text(
+          noteTrim,
+          textAlign: textAlign,
+          style: textStyle,
+        ),
+      );
+    }
+    if (hasReactions) {
+      if (hasNote) {
+        lowerChildren.add(const SizedBox(height: 8));
+      }
+      for (var i = 0; i < reactionRows.length; i++) {
+        if (i > 0) {
+          lowerChildren.add(const SizedBox(height: 4));
+        }
+        lowerChildren.add(reactionRows[i]);
+      }
+    }
+
+    final bar = SizedBox(
       width: _kBarColumnWidth,
       child: Center(
         child: Container(
@@ -393,58 +422,64 @@ class _NoteColumnWithBar extends StatelessWidget {
       ),
     );
 
-    final textAlign = barTrailing ? TextAlign.end : TextAlign.start;
-    final crossAxis =
-        barTrailing ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final afterHeaderGap = hasNote ? 2.0 : 4.0;
 
-    final column = Column(
-      crossAxisAlignment: crossAxis,
-      children: [
-        header,
-        if (hasNote) ...[
-          const SizedBox(height: 2),
-          Text(
-            noteTrim,
-            textAlign: textAlign,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-              fontStyle: FontStyle.italic,
-              height: 1.35,
+    if (barTrailing) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          header,
+          SizedBox(height: afterHeaderGap),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: lowerChildren,
+                  ),
+                ),
+                bar,
+              ],
             ),
           ),
         ],
-        if (hasReactions) ...[
-          SizedBox(height: hasNote ? 8 : 4),
-          for (var i = 0; i < reactionRows.length; i++) ...[
-            if (i > 0) const SizedBox(height: 4),
-            reactionRows[i],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(width: _kBarColumnWidth),
+            const SizedBox(width: 8),
+            Expanded(child: header),
           ],
-        ],
+        ),
+        SizedBox(height: afterHeaderGap),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              bar,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: lowerChildren,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
-    );
-
-    final content = Expanded(
-      child: barTrailing
-          ? column
-          : Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: column,
-            ),
-    );
-
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: barTrailing
-            ? [
-                content,
-                barColumn,
-              ]
-            : [
-                barColumn,
-                content,
-              ],
-      ),
     );
   }
 }
