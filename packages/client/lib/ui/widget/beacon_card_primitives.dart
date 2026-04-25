@@ -17,6 +17,10 @@ const double kBeaconCardMenuSlotWidth = 32;
 const double kBeaconCardMenuSlotHeight = 40;
 const double kBeaconCardMetadataAvatarSize = 22;
 
+/// Visual tie-in under the small metadata avatar; matches forwarder note bars.
+const double kBeaconCardMetadataAttributionBarWidth = 2;
+const double kBeaconCardMetadataAttributionBarHeight = 12;
+
 /// Font size for metadata-line middots and legacy strips.
 const double kBeaconCardMetadataStripFontSize = 11;
 
@@ -165,15 +169,21 @@ class BeaconCardShell extends StatelessWidget {
   }
 }
 
-/// Avatar + author display name + context (single line). Separate from the
-/// updated time row; used inside [BeaconCardMetadataLine].
-class BeaconCardAuthorContextRow extends StatelessWidget {
-  const BeaconCardAuthorContextRow({
+/// Author + context on the first row; a second row with the primary decorative
+/// bar and [updatedLine] on the same horizontal band, vertically centered
+/// together. The name and [updatedLine] start at the same x (to the right of
+/// the avatar / bar column).
+///
+/// [BeaconCardMetadataLine] resolves l10n + self-highlight; use it in list cards
+/// (inbox, My Work). [BeaconCardMetadataBlock] is the layout primitive for tests.
+class BeaconCardMetadataBlock extends StatelessWidget {
+  const BeaconCardMetadataBlock({
     required this.author,
     required this.name,
     required this.nameStyle,
     required this.baseStyle,
     required this.category,
+    required this.updatedLine,
     super.key,
   });
 
@@ -182,38 +192,74 @@ class BeaconCardAuthorContextRow extends StatelessWidget {
   final TextStyle nameStyle;
   final TextStyle baseStyle;
   final String category;
+  final String updatedLine;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        SelfAwareAvatar(
-          profile: author,
-          size: kBeaconCardMetadataAvatarSize,
-          withRating: false,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              style: baseStyle,
-              children: [
-                TextSpan(text: name, style: nameStyle),
-                TextSpan(text: ' · ', style: baseStyle),
-                TextSpan(text: category),
-              ],
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SelfAwareAvatar(
+              profile: author,
+              size: kBeaconCardMetadataAvatarSize,
+              withRating: false,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  style: baseStyle,
+                  children: [
+                    TextSpan(text: name, style: nameStyle),
+                    TextSpan(text: ' · ', style: baseStyle),
+                    TextSpan(text: category),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            SizedBox(
+              width: kBeaconCardMetadataAvatarSize,
+              child: Center(
+                child: ExcludeSemantics(
+                  child: Container(
+                    width: kBeaconCardMetadataAttributionBarWidth,
+                    height: kBeaconCardMetadataAttributionBarHeight,
+                    decoration: BoxDecoration(
+                      color: scheme.primary.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                updatedLine,
+                style: baseStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-/// Author/context row (own object) plus a full-width "updated" line aligned to
-/// the card content edge, not to the avatar.
 class BeaconCardMetadataLine extends StatelessWidget {
   const BeaconCardMetadataLine({
     required this.beacon,
@@ -243,25 +289,13 @@ class BeaconCardMetadataLine extends StatelessWidget {
         );
         final nameStyle = SelfUserHighlight.nameStyle(theme, base, isSelf);
         final category = beaconCardCategoryLabel(beacon, l10n);
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            BeaconCardAuthorContextRow(
-              author: beacon.author,
-              name: name,
-              nameStyle: nameStyle,
-              baseStyle: base,
-              category: category,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              updatedLine,
-              style: base,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+        return BeaconCardMetadataBlock(
+          author: beacon.author,
+          name: name,
+          nameStyle: nameStyle,
+          baseStyle: base,
+          category: category,
+          updatedLine: updatedLine,
         );
       },
     );
