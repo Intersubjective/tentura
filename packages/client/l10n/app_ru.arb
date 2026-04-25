@@ -1364,6 +1364,51 @@
   "@forwardSortedByMr": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardCompactSearchHint": "поиск или @имя",
+  "@forwardCompactSearchHint": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardOverlaySearchHint": "поиск получателей",
+  "@forwardOverlaySearchHint": {
+    "context": "ForwardBeaconScreen full-screen search"
+  },
+  "forwardAddSharedNoteCommand": "добавить общую заметку",
+  "@forwardAddSharedNoteCommand": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardAddPersonalizedNote": "персональная заметка",
+  "@forwardAddPersonalizedNote": {
+    "context": "ForwardBeaconScreen recipient row"
+  },
+  "forwardHidePersonalizedNote": "скрыть заметку",
+  "@forwardHidePersonalizedNote": {
+    "context": "ForwardBeaconScreen recipient row"
+  },
+  "forwardMrSortShort": "MR сорт.",
+  "@forwardMrSortShort": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardContactsCount": "{count} контактов",
+  "@forwardContactsCount": {
+    "context": "ForwardBeaconScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "forwardScopeBestShort": "лучшие",
+  "@forwardScopeBestShort": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeUnseenShort": "не видели",
+  "@forwardScopeUnseenShort": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardScopeInvolvedShort": "в цепочке",
+  "@forwardScopeInvolvedShort": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardHidePersonalizedNotes": "Скрыть персональные заметки",
   "@forwardHidePersonalizedNotes": {
     "context": "ForwardBeaconScreen"
