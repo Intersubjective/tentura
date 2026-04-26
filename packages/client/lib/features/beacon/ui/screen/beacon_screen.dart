@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
+import 'package:tentura/features/inbox/domain/enum.dart';
+import 'package:tentura/features/inbox/ui/widget/inbox_item_tile.dart';
 
 import '../../domain/enum.dart';
 import '../bloc/beacon_cubit.dart';
-import '../widget/beacon_tile.dart';
 
 @RoutePage()
 class BeaconScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -133,10 +136,17 @@ class _BeaconScreenState extends State<BeaconScreen> {
                   final beacon = state.beacons[i];
                   return Padding(
                     padding: kPaddingSmallV,
-                    child: BeaconTile(
-                      key: ValueKey(beacon),
-                      isMine: state.isMine,
-                      beacon: beacon,
+                    child: InboxItemTile(
+                      key: ValueKey(beacon.id),
+                      item: _inboxItemFromBeacon(beacon),
+                      onOpenBeacon: () => context.router.pushPath(
+                        '$kPathBeaconView/${beacon.id}',
+                      ),
+                      onTap: () => context.router.pushPath(
+                        '$kPathForwardBeacon/${beacon.id}',
+                      ),
+                      showCtaRow: false,
+                      showProvenance: false,
                     ),
                   );
                 },
@@ -145,3 +155,11 @@ class _BeaconScreenState extends State<BeaconScreen> {
     ),
   );
 }
+
+InboxItem _inboxItemFromBeacon(Beacon beacon) => InboxItem(
+      beaconId: beacon.id,
+      latestForwardAt: beacon.updatedAt,
+      beacon: beacon,
+      context: beacon.context,
+      status: InboxItemStatus.watching,
+    );
