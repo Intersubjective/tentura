@@ -94,9 +94,10 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   final scheme = theme.colorScheme;
 
                   final isDark = scheme.brightness == Brightness.dark;
-                  final selectedFg = isDark
+                  final selectedIconFg = isDark
                       ? scheme.onSecondaryContainer
                       : scheme.onPrimary;
+                  final selectedLabelFg = scheme.onSurface;
                   final unselectedFg = scheme.onSurfaceVariant;
                   final indicator = isDark
                       ? scheme.secondaryContainer
@@ -108,7 +109,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                         final selected =
                             states.contains(WidgetState.selected);
                         return IconThemeData(
-                          color: selected ? selectedFg : unselectedFg,
+                          color: selected ? selectedIconFg : unselectedFg,
                         );
                       }),
                       labelTextStyle: WidgetStateProperty.resolveWith((
@@ -118,7 +119,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                             states.contains(WidgetState.selected);
                         final base = theme.textTheme.labelMedium;
                         return base?.copyWith(
-                          color: selected ? selectedFg : unselectedFg,
+                          color: selected ? selectedLabelFg : unselectedFg,
                           fontWeight:
                               selected ? FontWeight.w600 : FontWeight.w500,
                         );
