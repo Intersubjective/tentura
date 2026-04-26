@@ -7,7 +7,6 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import '../utils/screen_size.dart';
 
 class QRScanDialog extends StatefulWidget {
   static Future<String?> show(BuildContext context) =>
@@ -119,12 +118,13 @@ class _QRScanDialogState extends State<QRScanDialog> {
   }
 
   Rect _getScanWindow() {
-    final size = MediaQuery.of(context).size;
-    final scanAreaSize = switch (ScreenSize.get(size)) {
-      ScreenSmall _ => size.width * 0.75,
-      ScreenMedium _ => size.width * 0.7,
-      ScreenLarge _ => size.width * 0.6,
-      ScreenBig _ => size.width * 0.5,
+    final size = MediaQuery.sizeOf(context);
+    final h = size.height;
+    final scanAreaSize = switch (h) {
+      < 600 => size.width * 0.75,
+      < 800 => size.width * 0.7,
+      < 1200 => size.width * 0.6,
+      _ => size.width * 0.5,
     };
     return Rect.fromCenter(
       center: size.center(Offset.zero),

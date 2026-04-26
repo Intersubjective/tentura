@@ -1,3 +1,6 @@
+// DEPRECATED scope: prefer `context.tt` (TenturaTokens) for new layout; do not add
+// new `kPadding*` / spacing constants here — use design-system tokens instead.
+
 import 'package:intl/intl.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
@@ -34,13 +37,6 @@ const kPaddingBottomTextInput = EdgeInsets.only(
   left: kSpacingMedium,
   right: kSpacingMedium,
 );
-
-/// Fixed phone-frame size for web (mobile-only target; MediaQuery size matches this).
-///
-/// Baseline target: mass-market Android phones (portrait ~20:9).
-/// This yields a 360x800 logical dp canvas when the browser is wide enough.
-const double kWebPhoneFrameWidth = 360;
-const kWebAspectRatio = 9 / 20;
 
 const kBorderRadius = 8.0;
 

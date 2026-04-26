@@ -17,23 +17,15 @@ const double kBeaconCardBodyMinHeight = 104;
 const double kBeaconCardHeaderIconSize = 40;
 const double kBeaconCardMenuSlotWidth = 32;
 const double kBeaconCardMenuSlotHeight = 40;
-const double kBeaconCardMetadataAvatarSize = 22;
 
 /// Visual tie-in under the small metadata avatar; matches forwarder note bars.
 const double kBeaconCardMetadataAttributionBarWidth = 2;
 const double kBeaconCardMetadataAttributionBarHeight = 12;
 
-/// Font size for metadata-line middots and legacy strips.
-const double kBeaconCardMetadataStripFontSize = 11;
-
-/// Status line (slot1 · slot2 · slot3) on list cards — matches [TenturaText.status].
-const double kBeaconCardStatusLineFontSize = 10;
-
 /// Typography shared by [beaconCardMetadataStripSeparator] and My Work status.
 TextStyle beaconCardMetadataStripTextStyle(ThemeData theme) {
   final scheme = theme.colorScheme;
-  return theme.textTheme.labelSmall!.copyWith(
-    fontSize: kBeaconCardMetadataStripFontSize,
+  return theme.textTheme.bodySmall!.copyWith(
     height: 1.15,
     color: scheme.onSurfaceVariant,
     fontWeight: FontWeight.w500,
@@ -43,8 +35,7 @@ TextStyle beaconCardMetadataStripTextStyle(ThemeData theme) {
 /// Typography for the full-width author / context / updated line.
 TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
   final scheme = theme.colorScheme;
-  return theme.textTheme.labelSmall!.copyWith(
-    fontSize: kBeaconCardMetadataStripFontSize,
+  return theme.textTheme.bodySmall!.copyWith(
     height: 1.15,
     color: scheme.onSurfaceVariant,
     fontWeight: FontWeight.w400,
@@ -55,9 +46,7 @@ TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
 TextStyle beaconCardStatusLineTextStyle(ThemeData theme) {
   final tt = theme.extension<TenturaTokens>();
   final muted = tt?.textMuted ?? theme.colorScheme.onSurfaceVariant;
-  return TenturaText.status(muted).copyWith(
-    fontWeight: FontWeight.w500,
-  );
+  return TenturaText.status(muted);
 }
 
 /// Middot gap between strip segments (`slot1 · slot2` style).
@@ -202,6 +191,7 @@ class BeaconCardMetadataBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final metaAvatar = context.tt.metadataAvatarSize;
     final updated = updatedLine?.trim() ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -212,7 +202,7 @@ class BeaconCardMetadataBlock extends StatelessWidget {
           children: [
             SelfAwareAvatar(
               profile: author,
-              size: kBeaconCardMetadataAvatarSize,
+              size: metaAvatar,
               withRating: false,
             ),
             const SizedBox(width: 6),
@@ -237,7 +227,7 @@ class BeaconCardMetadataBlock extends StatelessWidget {
           Row(
             children: [
               SizedBox(
-                width: kBeaconCardMetadataAvatarSize,
+                width: metaAvatar,
                 child: Center(
                   child: ExcludeSemantics(
                     child: Container(
@@ -345,16 +335,15 @@ class BeaconCardHeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    const titleStyle = TextStyle(
-      fontSize: 15,
-      height: 1.25,
-      fontWeight: FontWeight.w600,
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final titleStyle = theme.textTheme.titleSmall!.copyWith(
+      color: scheme.onSurface,
     );
 
     Widget title = Text(
       beacon.title.isEmpty ? '—' : beacon.title,
-      style: titleStyle.copyWith(color: scheme.onSurface),
+      style: titleStyle,
       maxLines: titleMaxLines,
       overflow: TextOverflow.ellipsis,
     );
