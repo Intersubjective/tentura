@@ -69,10 +69,11 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
     final sectionTitleStyle = theme.textTheme.titleSmall!.copyWith(
       color: tt.text,
     );
+    // Collapsed summary: status-scale (13) for coordination status line; body for other previews.
     final summaryStyle = widget.summaryColor != null
-        ? TenturaText.body(tt.textMuted).copyWith(color: widget.summaryColor)
+        ? TenturaText.status(widget.summaryColor!)
         : TenturaText.body(tt.textMuted);
-    final metaStyle = TenturaText.bodySmall(tt.textFaint);
+    final metaStyle = theme.textTheme.bodySmall!.copyWith(color: tt.textFaint);
 
     return Material(
       key: PageStorageKey<String>(widget.storageId),
@@ -285,12 +286,14 @@ class _CoordinationBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sectionHeaderStyle = theme.textTheme.titleSmall;
-    final bodyStyle = theme.textTheme.bodyMedium?.copyWith(
-      height: 1.40,
+    final sectionHeaderStyle = theme.textTheme.titleSmall!.copyWith(
+      color: theme.colorScheme.onSurface,
     );
-    final metaStyle = theme.textTheme.bodySmall?.copyWith(
-      height: 1.35,
+    final bodyStyle = theme.textTheme.bodyMedium!.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final metaStyle = theme.textTheme.bodySmall!.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
     );
     final diagnosis = _coordinationDiagnosis(l10n, state);
     return Column(
@@ -298,14 +301,12 @@ class _CoordinationBody extends StatelessWidget {
       children: [
         Text(
           diagnosis.title,
-          style: sectionHeaderStyle?.copyWith(color: diagnosisTitleColor),
+          style: TenturaText.typeLabel(diagnosisTitleColor),
         ),
         const SizedBox(height: 4),
         Text(
           diagnosis.body,
-          style: bodyStyle?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+          style: bodyStyle,
         ),
         const SizedBox(height: 14),
         Text(
@@ -337,9 +338,7 @@ class _CoordinationBody extends StatelessWidget {
                       useful,
                       needCoordination,
                     ),
-                    style: metaStyle?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: metaStyle,
                   ),
                 ],
               ),
@@ -388,8 +387,7 @@ class _NeedBody extends StatelessWidget {
         : l10n.beaconOverviewNeedEmpty;
     return Text(
       first,
-      style: theme.textTheme.bodyMedium?.copyWith(
-        height: 1.40,
+      style: theme.textTheme.bodyMedium!.copyWith(
         color: theme.colorScheme.onSurfaceVariant,
       ),
     );
@@ -417,7 +415,7 @@ class _CoordinationAuthorUpdateBlock extends StatelessWidget {
     if (u == null) {
       return Text(
         l10n.beaconOverviewNoAuthorUpdate,
-        style: theme.textTheme.bodySmall?.copyWith(
+        style: theme.textTheme.bodySmall!.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
       );
@@ -434,9 +432,7 @@ class _CoordinationAuthorUpdateBlock extends StatelessWidget {
                 builder: (context, ps) {
                   return Text(
                     '${SelfUserHighlight.displayName(l10n, u.author, ps.profile.id)} · ${u.content}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      height: 1.40,
-                    ),
+                    style: theme.textTheme.bodyMedium,
                   );
                 },
               ),
@@ -454,7 +450,7 @@ class _CoordinationAuthorUpdateBlock extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '${dateFormatYMD(u.createdAt.toLocal())} ${timeFormatHm(u.createdAt.toLocal())}',
-          style: theme.textTheme.bodySmall?.copyWith(
+          style: theme.textTheme.bodySmall!.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),

@@ -71,13 +71,18 @@ On **Beacon view** (`features/beacon_view`), keep a clear ladder:
 
 | Element | Role |
 |--------|------|
+| App bar title ([`BeaconViewScreen`](../packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart)) | `titleLarge` (20 / 700) |
 | Beacon title (header) | `titleMedium` (18 / 700) — pass `titleStyle` into [`BeaconCardHeaderRow`](../packages/client/lib/ui/widget/beacon_card_primitives.dart) from the detail screen only; **list cards** keep default `titleSmall`. |
 | Overview foldable section titles | `titleSmall` (15 / 600) |
+| Overview coordination **collapsed** summary (accent line under section title) | `TenturaText.status` (13 / 500) — same scale as status strip; other foldable section summaries (need / description preview) stay `TenturaText.body` (15) muted |
+| Overview coordination **expanded** diagnosis title (e.g. need-different-skill label) | `TenturaText.typeLabel` (13 / 700) — aligns with commitment coordination labels |
 | Overview / Coordination prose (diagnosis body, author update text, need excerpt) | `bodyMedium` (15 / 400) |
 | Metadata (counts under headers, timestamps, status strip) | `bodySmall` / `TenturaText.status` (13) |
 | Commitment tile display name | `titleSmall` — below the beacon title, above body message |
 | Commitments summary heading | `titleSmall` — matches overview sections |
-| Primary / secondary Material buttons | theme `labelLarge` (15 / 700) — unchanged |
+| Commitments tab summary subline (useful / need coordination counts) | `bodySmall` (13) with semantic colors — matches overview “useful · coordination” meta |
+| Activity tab section headers | `titleSmall` — same weight as other section titles (no extra bold bump) |
+| Primary / secondary Material buttons (incl. [`CardTriageActionRow`](../packages/client/lib/ui/widget/card_triage_action_row.dart), owner CTAs in [`BeaconPrimaryCtaBar`](../packages/client/lib/features/beacon_view/ui/widget/beacon_primary_cta_bar.dart)) | `labelLarge` (15 / 700) via `theme.textTheme.labelLarge` |
 
 ## No global text scaler override
 
@@ -89,7 +94,7 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 2. **Statuses = plain colored text** — semantic color on **`bodySmall`**-scale type (see [`TenturaText.status`](../packages/client/lib/design_system/tentura_text.dart)); no `Chip` / pill backgrounds for state on operational surfaces.
 3. **Flat record cards** — white surface, 1px border, radius from tokens, padding/gap from `context.tt`, shadow minimal or off.
 4. **Hairlines** — use [`TenturaHairlineDivider`](../packages/client/lib/design_system/components/tentura_hairline_divider.dart), not nested cards.
-5. **Tabs** — underline row with 2px active indicator ([`TenturaUnderlineTabs`](../packages/client/lib/design_system/components/tentura_underline_tabs.dart)), not `SegmentedButton` on beacon detail. Labels stay at **13px** logical size; use **ellipsis** when width is tight, not scaled-down paint size.
+5. **Tabs** — underline row with 2px active indicator ([`TenturaUnderlineTabs`](../packages/client/lib/design_system/components/tentura_underline_tabs.dart)), not `SegmentedButton` on beacon detail. Labels stay at **13px** logical size; use **ellipsis** when width is tight, not scaled-down paint size. Vertical padding follows **`context.tt.rowGap`** (density), not a fixed px hack.
 6. **Actions** — [`TenturaTextAction`](../packages/client/lib/design_system/components/tentura_text_action.dart) / [`TenturaCommandButton`](../packages/client/lib/design_system/components/tentura_command_button.dart); avoid filled buttons inside dense cards unless truly primary.
 7. **Avatars** — size from `context.tt` (`avatarSize`, `metadataAvatarSize`, `cardAvatarSize`), circle + thin border ([`TenturaAvatar`](../packages/client/lib/design_system/components/tentura_avatar.dart)).
 8. **A11y** — min tap targets (e.g. button height from tokens); respect system text scaling.

@@ -60,7 +60,7 @@ class _TabCell extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: EdgeInsets.symmetric(vertical: tt.rowGap),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
