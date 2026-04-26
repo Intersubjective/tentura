@@ -194,11 +194,13 @@
 
 ## Manual QA matrix (devices)
 
-| Target | Text scale / width | Result |
-|--------|---------------------|--------|
-| Android physical (360–393 dp) | 1.0, 1.15, 1.3 | *Pending — run on device* |
-| iOS Simulator | Largest Dynamic Type | *Pending* |
-| Chrome desktop | 390 / 520 / 1024 / 1440 px | *Pending* |
+
+| Target                        | Text scale / width         | Result                    |
+| ----------------------------- | -------------------------- | ------------------------- |
+| Android physical (360–393 dp) | 1.0, 1.15, 1.3             | *Pending — run on device* |
+| iOS Simulator                 | Largest Dynamic Type       | *Pending*                 |
+| Chrome desktop                | 390 / 520 / 1024 / 1440 px | *Pending*                 |
+
 
 **Automated (2026-04-26, Linux CI dev):** `dart analyze --fatal-infos` + `dart run custom_lint` clean for `packages/client` and `packages/tentura_lints`; `dart analyze --fatal-infos` clean for `packages/server`; `flutter test test/golden/typography_overhaul_test.dart` pass.
 
@@ -207,3 +209,4 @@
 - **Audit scope:** all journal checklist rows above (~120+ feature/ui paths) marked verified during Phases 2–4; inline numeric `TextStyle.fontSize` removed from operational UI except documented exceptions (`rating_scatter_view` painter; proportional `avatar_rated`; design-system `TenturaText`).
 - **New enforcement:** `no_inline_font_size` custom lint + 30 typography goldens.
 - **Journal lifecycle:** **Keep** this file in `docs/` permanently (no delete-after-merge); status line set to **Archived** at closeout.
+
