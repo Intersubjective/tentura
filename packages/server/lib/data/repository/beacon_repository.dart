@@ -55,6 +55,8 @@ class BeaconRepository implements BeaconRepositoryPort {
     int? iconBackground,
     /// When set, overrides DB default (0=OPEN). Use 3 for DRAFT.
     int? state,
+    String? needSummary,
+    String? successCriteria,
   }) => _database.withMutatingUser(authorId, () async {
     final pollingModel = polling == null
         ? null
@@ -91,6 +93,8 @@ class BeaconRepository implements BeaconRepositoryPort {
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
         state: Value(state ?? 0),
+        needSummary: Value(needSummary),
+        successCriteria: Value(successCriteria),
       ),
     );
 
@@ -188,6 +192,8 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     ({String question, List<String> variants})? polling,
+    String? needSummary,
+    String? successCriteria,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
         .filter(
@@ -257,6 +263,8 @@ class BeaconRepository implements BeaconRepositoryPort {
           pollingId: poll != null
               ? Value(newPollingModel!.id)
               : Value(existing.pollingId),
+          needSummary: Value(needSummary),
+          successCriteria: Value(successCriteria),
         ),
       );
     });
@@ -279,6 +287,8 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? needSummary,
+    String? successCriteria,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
         .filter(
@@ -312,6 +322,8 @@ class BeaconRepository implements BeaconRepositoryPort {
         endAt: Value(endAt == null ? null : PgDateTime(endAt)),
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
+        needSummary: Value(needSummary),
+        successCriteria: Value(successCriteria),
       ),
     );
 

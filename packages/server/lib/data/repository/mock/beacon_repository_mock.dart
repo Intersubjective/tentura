@@ -39,6 +39,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     int? state,
+    String? needSummary,
+    String? successCriteria,
   }) async {
     final now = DateTime.timestamp();
     final beacon = BeaconEntity(
@@ -67,6 +69,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       tags: tags,
       iconCode: iconCode,
       iconBackground: iconBackground,
+      needSummary: needSummary,
+      successCriteria: successCriteria,
     );
     return storageById[beacon.id] = beacon;
   }
@@ -86,6 +90,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     ({String question, List<String> variants})? polling,
+    String? needSummary,
+    String? successCriteria,
   }) async {
     final existing = storageById[beaconId];
     if (existing == null ||
@@ -129,6 +135,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       iconBackground: iconBackground,
       polling: pollingEntity,
       updatedAt: now,
+      needSummary: needSummary,
+      successCriteria: successCriteria,
     );
     return storageById[beaconId] = updated;
   }
@@ -147,6 +155,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? needSummary,
+    String? successCriteria,
   }) async {
     final existing = storageById[beaconId];
     if (existing == null ||
@@ -169,6 +179,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       iconCode: iconCode,
       iconBackground: iconBackground,
       updatedAt: DateTime.timestamp(),
+      needSummary: needSummary,
+      successCriteria: successCriteria,
     );
     return storageById[beaconId] = updated;
   }

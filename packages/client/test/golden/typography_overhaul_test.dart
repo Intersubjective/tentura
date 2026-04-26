@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/widget/forward_bottom_composer.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_need_brief.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -57,6 +58,8 @@ void main() {
     title: 'Beacon view header — compact title row',
     context: 'Projects',
     author: const Profile(id: 'a3', title: 'Jordan Lee'),
+    needSummary:
+        'Need-first line under author: volunteers for debris clearance.',
   );
 
   Future<void> pumpTypographyGolden(
@@ -295,9 +298,16 @@ class _BeaconHeaderGoldenBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BeaconCardShell(
-      child: BeaconCardHeaderRow(
-        beacon: beacon,
-        menu: const SizedBox(width: 40, height: 40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BeaconCardHeaderRow(
+            beacon: beacon,
+            menu: const SizedBox(width: 40, height: 40),
+          ),
+          BeaconNeedBrief(beacon: beacon),
+        ],
       ),
     );
   }

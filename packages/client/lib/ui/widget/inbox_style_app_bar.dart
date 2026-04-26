@@ -50,8 +50,9 @@ class SliverInboxStyleAppBar extends StatelessWidget {
     this.leading,
     this.actions,
     this.bottom,
-    this.floating = true,
-    this.snap = true,
+    this.pinned = true,
+    this.floating = false,
+    this.snap = false,
     super.key,
   });
 
@@ -59,6 +60,7 @@ class SliverInboxStyleAppBar extends StatelessWidget {
   final Widget title;
   final List<Widget>? actions;
   final PreferredSizeWidget? bottom;
+  final bool pinned;
   final bool floating;
   final bool snap;
 
@@ -66,6 +68,7 @@ class SliverInboxStyleAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return SliverAppBar(
+      pinned: pinned,
       floating: floating,
       snap: snap,
       backgroundColor: scheme.primary,

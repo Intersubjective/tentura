@@ -34,4 +34,6 @@ BeaconEntity beaconModelToEntity(
   tags: model.tags.split(',').toSet(),
   iconCode: model.iconCode,
   iconBackground: model.iconBackground,
+  needSummary: model.needSummary,
+  successCriteria: model.successCriteria,
 );

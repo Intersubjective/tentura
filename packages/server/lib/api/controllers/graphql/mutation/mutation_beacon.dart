@@ -20,6 +20,10 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _iconBackground = InputFieldInt(fieldName: 'iconBackground');
 
+  final _needSummary = InputFieldString(fieldName: 'needSummary');
+
+  final _successCriteria = InputFieldString(fieldName: 'successCriteria');
+
   final _draft = InputFieldBool(fieldName: 'draft');
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
@@ -61,6 +65,8 @@ final class MutationBeacon extends GqlNodeBase {
       _tags.fieldNullable,
       _iconCode.fieldNullable,
       _iconBackground.fieldNullable,
+      _needSummary.fieldNullable,
+      _successCriteria.fieldNullable,
       _draft.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
@@ -78,6 +84,8 @@ final class MutationBeacon extends GqlNodeBase {
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
           draft: _draft.fromArgs(args) ?? false,
+          needSummary: _needSummary.fromArgs(args),
+          successCriteria: _successCriteria.fromArgs(args),
         )
         .then((v) => v.asJson),
   );
@@ -96,6 +104,8 @@ final class MutationBeacon extends GqlNodeBase {
       _tags.fieldNullable,
       _iconCode.fieldNullable,
       _iconBackground.fieldNullable,
+      _needSummary.fieldNullable,
+      _successCriteria.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .update(
@@ -110,6 +120,8 @@ final class MutationBeacon extends GqlNodeBase {
           tags: _tags.fromArgs(args),
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
+          needSummary: _needSummary.fromArgs(args),
+          successCriteria: _successCriteria.fromArgs(args),
         )
         .then((v) => v.asJson),
   );
@@ -129,6 +141,8 @@ final class MutationBeacon extends GqlNodeBase {
       _tags.fieldNullable,
       _iconCode.fieldNullable,
       _iconBackground.fieldNullable,
+      _needSummary.fieldNullable,
+      _successCriteria.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .updateDraft(
@@ -144,6 +158,8 @@ final class MutationBeacon extends GqlNodeBase {
           tags: _tags.fromArgs(args),
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
+          needSummary: _needSummary.fromArgs(args),
+          successCriteria: _successCriteria.fromArgs(args),
         )
         .then((v) => v.asJson),
   );

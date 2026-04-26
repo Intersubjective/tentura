@@ -17,6 +17,8 @@ abstract class BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     int? state,
+    String? needSummary,
+    String? successCriteria,
   });
 
   Future<BeaconEntity> getBeaconById({
@@ -38,6 +40,8 @@ abstract class BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     ({String question, List<String> variants})? polling,
+    String? needSummary,
+    String? successCriteria,
   });
 
   /// Updates an OPEN (state 0) beacon owned by [userId].
@@ -55,6 +59,8 @@ abstract class BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? needSummary,
+    String? successCriteria,
   });
 
   Future<void> deleteBeaconById(String id, {required String userId});

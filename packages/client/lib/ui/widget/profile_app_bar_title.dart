@@ -17,20 +17,23 @@ class ProfileAppBarTitle extends StatelessWidget {
     final textTheme = theme.textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Title
         Text(
           profile.title.isEmpty ? L10n.of(context)!.noName : profile.title,
-          style: textTheme.headlineMedium,
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
-
-        // ID
         Text(
           profile.id,
-          style: textTheme.bodySmall?.copyWith(
-            color: theme.hintColor,
-            fontSize: textTheme.bodySmall?.fontSize,
+          style: textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

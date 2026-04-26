@@ -54,132 +54,193 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
 
     return DefaultTabController(
       length: 2,
-      child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
-        listenWhen: (prev, curr) =>
-            prev.inboxReselectCount != curr.inboxReselectCount,
-        listener: (context, _) {
-          inboxCubit.setSort(InboxSort.recent);
-          DefaultTabController.of(context).animateTo(0);
-        },
-        child: BlocListener<InboxCubit, InboxState>(
+      child: _InboxMovedSnackBarDismisser(
+        child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
           listenWhen: (prev, curr) =>
-              curr.status is StateIsMessaging &&
-              (curr.status as StateIsMessaging).message
-                  is InboxBeaconMovedMessage,
-          listener: (context, state) {
-            final msg =
-                (state.status as StateIsMessaging).message
-                    as InboxBeaconMovedMessage;
-            final l10n = L10n.of(context)!;
-            showSnackBar(
-              context,
-              text: msg.toL10n(l10n.localeName),
-              action: SnackBarAction(
-                label: l10n.inboxViewInTab,
-                onPressed: () {
-                  if (msg.navigatesToRejectedArchive) {
-                    unawaited(openInboxRejectedArchive(context));
-                  } else {
-                    DefaultTabController.of(context).animateTo(msg.tabIndex);
-                  }
-                },
-              ),
-            );
+              prev.inboxReselectCount != curr.inboxReselectCount,
+          listener: (context, _) {
+            inboxCubit.setSort(InboxSort.recent);
+            DefaultTabController.of(context).animateTo(0);
           },
-          child: BlocBuilder<InboxCubit, InboxState>(
-            buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
-            builder: (_, state) {
-              final theme = Theme.of(context);
-              final scheme = theme.colorScheme;
+          child: BlocListener<InboxCubit, InboxState>(
+            listenWhen: (prev, curr) =>
+                curr.status is StateIsMessaging &&
+                (curr.status as StateIsMessaging).message
+                    is InboxBeaconMovedMessage,
+            listener: (context, state) {
+              final msg =
+                  (state.status as StateIsMessaging).message
+                      as InboxBeaconMovedMessage;
               final l10n = L10n.of(context)!;
-
-              late final Widget body;
-              if (state.isLoading) {
-                body = const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                );
-              } else if (state.items.isEmpty) {
-                body = TabBarView(
-                  children: [
-                    _InboxTabKeepAlive(
-                      storageKey: 'inbox-tab-needs-global-empty',
-                      child: _inboxGlobalEmpty(theme: theme, l10n: l10n),
-                    ),
-                    _InboxTabKeepAlive(
-                      storageKey: 'inbox-tab-watching-global-empty',
-                      child: _watchingQuietEmpty(theme: theme, l10n: l10n),
-                    ),
-                  ],
-                );
-              } else {
-                body = BlocBuilder<NewStuffCubit, NewStuffState>(
-                  buildWhen: (p, c) =>
-                      p.inboxLastSeenMs != c.inboxLastSeenMs ||
-                      p.maxInboxActivityMs != c.maxInboxActivityMs,
-                  builder: (context, _) {
-                    final newStuff = context.read<NewStuffCubit>();
-                    return TabBarView(
-                      children: [
-                        _InboxTabKeepAlive(
-                          storageKey: 'inbox-tab-needs',
-                          child: _needsMeTabBody(
-                            context,
-                            inboxCubit,
-                            state,
-                            l10n,
-                            newStuff,
-                          ),
-                        ),
-                        _InboxTabKeepAlive(
-                          storageKey: 'inbox-tab-watching',
-                          child: _watchingTabBody(
-                            context,
-                            inboxCubit,
-                            state.watching,
-                            l10n,
-                            newStuff,
-                          ),
-                        ),
-                      ],
-                    );
+              showSnackBar(
+                context,
+                text: msg.toL10n(l10n.localeName),
+                action: SnackBarAction(
+                  label: l10n.inboxViewInTab,
+                  onPressed: () {
+                    if (msg.navigatesToRejectedArchive) {
+                      unawaited(openInboxRejectedArchive(context));
+                    } else {
+                      DefaultTabController.of(context).animateTo(msg.tabIndex);
+                    }
                   },
-                );
-              }
-
-              return Scaffold(
-                backgroundColor: scheme.surface,
-                appBar: AppBar(
-                  // Same fill as the inbox card Commit [FilledButton] default style.
-                  backgroundColor: scheme.primary,
-                  surfaceTintColor: Colors.transparent,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  toolbarHeight: 48,
-                  foregroundColor: scheme.onPrimary,
-                  iconTheme: IconThemeData(color: scheme.onPrimary),
-                  // Tab root: never show a back control (some nested routes still
-                  // reserve leading width unless this is explicit).
-                  automaticallyImplyLeading: false,
-                  leading: const _InboxOverflowMenu(),
-                  titleSpacing: 8,
-                  title: const Row(
-                    children: [
-                      Expanded(child: _InboxTabStrip()),
-                      _InboxSortButton(),
-                    ],
-                  ),
-                ),
-                body: SafeArea(
-                  minimum: kPaddingSmallH,
-                  child: body,
                 ),
               );
             },
+            child: BlocBuilder<InboxCubit, InboxState>(
+              buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
+              builder: (_, state) {
+                final theme = Theme.of(context);
+                final scheme = theme.colorScheme;
+                final l10n = L10n.of(context)!;
+
+                late final Widget body;
+                if (state.isLoading) {
+                  body = const Center(
+                    child: CircularProgressIndicator.adaptive(),
+                  );
+                } else if (state.items.isEmpty) {
+                  body = TabBarView(
+                    children: [
+                      _InboxTabKeepAlive(
+                        storageKey: 'inbox-tab-needs-global-empty',
+                        child: _inboxGlobalEmpty(theme: theme, l10n: l10n),
+                      ),
+                      _InboxTabKeepAlive(
+                        storageKey: 'inbox-tab-watching-global-empty',
+                        child: _watchingQuietEmpty(theme: theme, l10n: l10n),
+                      ),
+                    ],
+                  );
+                } else {
+                  body = BlocBuilder<NewStuffCubit, NewStuffState>(
+                    buildWhen: (p, c) =>
+                        p.inboxLastSeenMs != c.inboxLastSeenMs ||
+                        p.maxInboxActivityMs != c.maxInboxActivityMs,
+                    builder: (context, _) {
+                      final newStuff = context.read<NewStuffCubit>();
+                      return TabBarView(
+                        children: [
+                          _InboxTabKeepAlive(
+                            storageKey: 'inbox-tab-needs',
+                            child: _needsMeTabBody(
+                              context,
+                              inboxCubit,
+                              state,
+                              l10n,
+                              newStuff,
+                            ),
+                          ),
+                          _InboxTabKeepAlive(
+                            storageKey: 'inbox-tab-watching',
+                            child: _watchingTabBody(
+                              context,
+                              inboxCubit,
+                              state.watching,
+                              l10n,
+                              newStuff,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                }
+
+                return Scaffold(
+                  backgroundColor: scheme.surface,
+                  appBar: AppBar(
+                    // Same fill as the inbox card Commit [FilledButton] default style.
+                    backgroundColor: scheme.primary,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
+                    toolbarHeight: 48,
+                    foregroundColor: scheme.onPrimary,
+                    iconTheme: IconThemeData(color: scheme.onPrimary),
+                    // Tab root: never show a back control (some nested routes still
+                    // reserve leading width unless this is explicit).
+                    automaticallyImplyLeading: false,
+                    titleSpacing: 8,
+                    title: const Row(
+                      children: [
+                        Expanded(child: _InboxTabStrip()),
+                        _InboxSortButton(),
+                      ],
+                    ),
+                    actions: const [_InboxOverflowMenu()],
+                  ),
+                  body: SafeArea(
+                    minimum: kPaddingSmallH,
+                    child: body,
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// Hides the "beacon moved" snack bar when the user switches Needs me ↔
+/// Watching or leaves the Inbox home tab (global [snackbarKey] messenger).
+class _InboxMovedSnackBarDismisser extends StatefulWidget {
+  const _InboxMovedSnackBarDismisser({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_InboxMovedSnackBarDismisser> createState() =>
+      _InboxMovedSnackBarDismisserState();
+}
+
+class _InboxMovedSnackBarDismisserState
+    extends State<_InboxMovedSnackBarDismisser> {
+  TabController? _tabController;
+  var _lastTabIndex = 0;
+
+  void _clearSnackBars() {
+    (ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState)
+        ?.clearSnackBars();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tc = DefaultTabController.of(context);
+    if (!identical(_tabController, tc)) {
+      _tabController?.removeListener(_onInboxTabChanged);
+      _tabController = tc;
+      _lastTabIndex = tc.index;
+      _tabController!.addListener(_onInboxTabChanged);
+    }
+  }
+
+  void _onInboxTabChanged() {
+    final tc = _tabController;
+    if (tc == null || tc.indexIsChanging) return;
+    if (tc.index != _lastTabIndex) {
+      _lastTabIndex = tc.index;
+      _clearSnackBars();
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController?.removeListener(_onInboxTabChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocListener<NewStuffCubit, NewStuffState>(
+        listenWhen: (prev, curr) =>
+            prev.activeHomeTabIndex == 0 && curr.activeHomeTabIndex != 0,
+        listener: (_, _) => _clearSnackBars(),
+        child: widget.child,
+      );
 }
 
 class _InboxTabKeepAlive extends StatefulWidget {
@@ -338,8 +399,8 @@ class _InboxOverflowMenu extends StatelessWidget {
     final l10n = L10n.of(context)!;
 
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.menu),
-      tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+      icon: const Icon(Icons.more_vert),
+      tooltip: MaterialLocalizations.of(context).showMenuTooltip,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       onSelected: (value) {

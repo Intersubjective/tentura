@@ -45,7 +45,6 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
       child: Scaffold(
         backgroundColor: scheme.surface,
         appBar: InboxStyleAppBar(
-          leading: const _MyWorkOverflowMenu(),
           title: const Row(
             children: [
               Expanded(child: _MyWorkFilterMenu()),
@@ -58,6 +57,7 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
               onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
               icon: const Icon(Icons.add),
             ),
+            const _MyWorkOverflowMenu(),
           ],
         ),
         body: const SafeArea(
@@ -75,27 +75,18 @@ class _MyWorkOverflowMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final scaffold = Scaffold.maybeOf(context);
-    final hasDrawer = scaffold?.hasDrawer ?? false;
 
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.menu),
-      tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+      icon: const Icon(Icons.more_vert),
+      tooltip: MaterialLocalizations.of(context).showMenuTooltip,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       onSelected: (value) {
         if (value == 'archive') {
           context.read<MyWorkCubit>().setFilter(MyWorkFilter.archived);
-        } else if (value == 'drawer' && scaffold != null) {
-          scaffold.openDrawer();
         }
       },
       itemBuilder: (context) => [
-        if (hasDrawer)
-          PopupMenuItem<String>(
-            value: 'drawer',
-            child: Text(MaterialLocalizations.of(context).drawerLabel),
-          ),
         PopupMenuItem<String>(
           value: 'archive',
           child: Text(l10n.myWorkOverflowArchive),

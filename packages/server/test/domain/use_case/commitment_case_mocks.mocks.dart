@@ -64,6 +64,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
     String? iconCode,
     int? iconBackground,
     int? state,
+    String? needSummary,
+    String? successCriteria,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBeacon, [], {
@@ -82,6 +84,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #iconCode: iconCode,
               #iconBackground: iconBackground,
               #state: state,
+              #needSummary: needSummary,
+              #successCriteria: successCriteria,
             }),
             returnValue: _i4.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -102,6 +106,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
                   #state: state,
+                  #needSummary: needSummary,
+                  #successCriteria: successCriteria,
                 }),
               ),
             ),
@@ -145,6 +151,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
     String? iconCode,
     int? iconBackground,
     ({String question, List<String> variants})? polling,
+    String? needSummary,
+    String? successCriteria,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#updateDraftBeacon, [], {
@@ -161,6 +169,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #iconCode: iconCode,
               #iconBackground: iconBackground,
               #polling: polling,
+              #needSummary: needSummary,
+              #successCriteria: successCriteria,
             }),
             returnValue: _i4.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -179,6 +189,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
                   #polling: polling,
+                  #needSummary: needSummary,
+                  #successCriteria: successCriteria,
                 }),
               ),
             ),
@@ -199,6 +211,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
     double? longitude,
     String? iconCode,
     int? iconBackground,
+    String? needSummary,
+    String? successCriteria,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#updateBeacon, [], {
@@ -214,6 +228,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #longitude: longitude,
               #iconCode: iconCode,
               #iconBackground: iconBackground,
+              #needSummary: needSummary,
+              #successCriteria: successCriteria,
             }),
             returnValue: _i4.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -231,6 +247,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #longitude: longitude,
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
+                  #needSummary: needSummary,
+                  #successCriteria: successCriteria,
                 }),
               ),
             ),

@@ -10,6 +10,8 @@ mutation BeaconCreate(
   $tags: String = "",
   $iconCode: String,
   $iconBackground: Int,
+  $needSummary: String,
+  $successCriteria: String,
   $draft: Boolean
 ) {
   beaconCreate(
@@ -24,6 +26,8 @@ mutation BeaconCreate(
     tags: $tags,
     iconCode: $iconCode,
     iconBackground: $iconBackground,
+    needSummary: $needSummary,
+    successCriteria: $successCriteria,
     draft: $draft
   ) {
     id

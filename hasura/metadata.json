@@ -175,6 +175,8 @@
                 "permission": {
                   "columns": [
                     "context",
+                    "coordination_status",
+                    "coordination_status_updated_at",
                     "created_at",
                     "description",
                     "end_at",
@@ -183,15 +185,15 @@
                     "id",
                     "lat",
                     "long",
+                    "need_summary",
                     "polling_id",
                     "start_at",
                     "state",
+                    "success_criteria",
                     "tags",
                     "title",
                     "updated_at",
-                    "user_id",
-                    "coordination_status",
-                    "coordination_status_updated_at"
+                    "user_id"
                   ],
                   "computed_fields": [
                     "is_pinned",

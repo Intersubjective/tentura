@@ -29,6 +29,7 @@ import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/activity_list.dart';
+import '../widget/beacon_need_brief.dart';
 import '../widget/beacon_operational_collapsible_header.dart';
 import '../widget/beacon_primary_cta_bar.dart';
 import '../widget/commitment_tile.dart';
@@ -606,6 +607,7 @@ class _BeaconDetailHeader extends StatelessWidget {
               category: BeaconCardCategoryMeta(beacon: beacon),
             ),
           ),
+          BeaconNeedBrief(beacon: beacon),
         ],
       ),
     );

@@ -109,31 +109,43 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
               ),
             )
           : null;
+      final forward = onForward != null
+          ? OutlinedButton.icon(
+              onPressed: onForward,
+              icon: const Icon(Icons.send, size: 18),
+              label: Text(
+                l10n.labelForward,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: scheme.primary,
+                textStyle: theme.textTheme.labelLarge!.copyWith(
+                  color: scheme.primary,
+                ),
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                alignment: Alignment.center,
+              ),
+            )
+          : null;
 
-      if (primary == null && secondary == null) {
+      if (primary == null && secondary == null && forward == null) {
         return const SizedBox.shrink();
       }
 
       return Padding(
         padding: const EdgeInsets.only(top: kSpacingSmall),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final narrow =
-                constraints.maxWidth < kCardTriageActionRowNarrowMaxWidth;
-            if (narrow &&
-                primary != null &&
-                secondary != null) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  primary,
-                  const SizedBox(height: kSpacingSmall),
-                  secondary,
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              // [SliverToBoxAdapter] can pass unbounded max height; [stretch] needs a
+              // finite cross-axis extent and throws (beacon view scroll body).
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (primary != null) ...[
                   Expanded(
@@ -150,8 +162,15 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
                   ),
                 ],
               ],
-            );
-          },
+            ),
+            if (forward != null) ...[
+              const SizedBox(height: kSpacingSmall),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: forward,
+              ),
+            ],
+          ],
         ),
       );
     }

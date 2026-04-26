@@ -71,11 +71,64 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               validator: (text) => titleValidator(_l10n, text),
             ),
 
-            // Description
+            // Need summary (short canonical ask)
             TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: InputDecoration(
-                hintText: _l10n.labelDescription,
+                labelText: _l10n.beaconNeedSummaryFieldLabel,
+                helperText: _l10n.beaconNeedSummaryHelper,
+              ),
+              keyboardType: TextInputType.multiline,
+              maxLength: BeaconCreateCubit.kNeedSummaryHardMax,
+              minLines: 2,
+              maxLines: 4,
+              initialValue: _cubit.state.needSummary,
+              onChanged: (v) {
+                _cubit
+                  ..setNeedSummary(v)
+                  ..validate();
+              },
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              validator: (text) {
+                final t = text ?? '';
+                if (t.length > BeaconCreateCubit.kNeedSummaryHardMax) {
+                  return _l10n.beaconNeedSummaryTooLongError;
+                }
+                return null;
+              },
+            ),
+
+            // Success criteria (optional)
+            TextFormField(
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              decoration: InputDecoration(
+                labelText: _l10n.beaconSuccessCriteriaFieldLabel,
+              ),
+              keyboardType: TextInputType.multiline,
+              maxLength: BeaconCreateCubit.kSuccessCriteriaHardMax,
+              minLines: 1,
+              maxLines: 3,
+              initialValue: _cubit.state.successCriteria,
+              onChanged: (v) {
+                _cubit
+                  ..setSuccessCriteria(v)
+                  ..validate();
+              },
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              validator: (text) {
+                final t = text ?? '';
+                if (t.length > BeaconCreateCubit.kSuccessCriteriaHardMax) {
+                  return _l10n.beaconSuccessCriteriaTooLongError;
+                }
+                return null;
+              },
+            ),
+
+            // Description (longer context)
+            TextFormField(
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              decoration: InputDecoration(
+                hintText: _l10n.beaconAddContextHint,
               ),
               keyboardType: TextInputType.multiline,
               maxLength: kDescriptionMaxLength,

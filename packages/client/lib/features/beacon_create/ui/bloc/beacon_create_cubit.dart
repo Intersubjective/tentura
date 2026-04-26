@@ -54,6 +54,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   final ImageRepository _imageRepository;
 
+  static const kNeedSummaryHardMax = 280;
+
+  static const kNeedSummaryPublishMin = 16;
+
+  static const kSuccessCriteriaHardMax = 240;
+
   static String _draftSafeTitle(String raw) {
     final t = raw.trim();
     if (t.length >= kTitleMinLength) {
@@ -106,6 +112,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         state.copyWith(
           draftId: beacon.id,
           title: beacon.title,
+          needSummary: beacon.needSummary ?? '',
+          successCriteria: beacon.successCriteria ?? '',
           description: beacon.description,
           tags: beacon.tags,
           coordinates: coordinates,
@@ -156,6 +164,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         state.copyWith(
           editId: beacon.id,
           title: beacon.title,
+          needSummary: beacon.needSummary ?? '',
+          successCriteria: beacon.successCriteria ?? '',
           description: beacon.description,
           tags: beacon.tags,
           coordinates: coordinates,
@@ -185,6 +195,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   ///
   ///
   void setDescription(String value) => emit(state.copyWith(description: value));
+
+  void setNeedSummary(String value) => emit(state.copyWith(needSummary: value));
+
+  void setSuccessCriteria(String value) =>
+      emit(state.copyWith(successCriteria: value));
 
   ///
   ///
@@ -319,6 +334,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     if (state.description.length > kDescriptionMaxLength) {
       return false;
     }
+    if (state.needSummary.length > kNeedSummaryHardMax) {
+      return false;
+    }
+    if (state.successCriteria.length > kSuccessCriteriaHardMax) {
+      return false;
+    }
     return true;
   }
 
@@ -378,6 +399,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     final iconCode = state.iconCode?.trim();
     final hasIcon = iconCode != null && iconCode.isNotEmpty;
     final id = state.draftId ?? '';
+    final ns = state.needSummary.trim();
+    final sc = state.successCriteria.trim();
     return Beacon(
       id: id,
       createdAt: now,
@@ -387,6 +410,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       title: _draftSafeTitle(state.title),
       coordinates: state.coordinates,
       description: state.description,
+      needSummary: ns.isEmpty ? null : ns,
+      successCriteria: sc.isEmpty ? null : sc,
       startAt: state.startAt,
       endAt: state.endAt,
       images: state.images,
@@ -475,6 +500,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       final now = DateTime.timestamp();
       final iconCode = state.iconCode?.trim();
       final hasIcon = iconCode != null && iconCode.isNotEmpty;
+      final ns = state.needSummary.trim();
+      final sc = state.successCriteria.trim();
       final beaconPayload = Beacon(
         id: id,
         createdAt: now,
@@ -484,6 +511,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         title: state.title,
         coordinates: state.coordinates,
         description: state.description,
+        needSummary: ns.isEmpty ? null : ns,
+        successCriteria: sc.isEmpty ? null : sc,
         startAt: state.startAt,
         endAt: state.endAt,
         images: state.images,
@@ -528,6 +557,13 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   ///
   ///
   Future<void> publish({required String context}) async {
+    if (state.needSummary.trim().length < kNeedSummaryPublishMin) {
+      return emit(
+        state.copyWith(
+          status: StateHasError(const BeaconNeedSummaryTooShortException()),
+        ),
+      );
+    }
     final variants = state.variants.where((e) => e.isNotEmpty).toList();
     final hasPolling = state.question.isNotEmpty && variants.isNotEmpty;
     if (hasPolling) {
@@ -582,6 +618,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       } else {
         final iconCode = state.iconCode?.trim();
         final hasIcon = iconCode != null && iconCode.isNotEmpty;
+        final ns = state.needSummary.trim();
+        final sc = state.successCriteria.trim();
         final beacon = await _beaconRepository.create(
           Beacon(
             createdAt: now,
@@ -591,6 +629,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             title: state.title,
             coordinates: state.coordinates,
             description: state.description,
+            needSummary: ns.isEmpty ? null : ns,
+            successCriteria: sc.isEmpty ? null : sc,
             startAt: state.startAt,
             endAt: state.endAt,
             images: state.images,
