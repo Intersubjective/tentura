@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'tentura_colors.dart';
 import 'tentura_radii.dart';
@@ -61,12 +60,9 @@ abstract final class TenturaTheme {
     );
 
     final onSurface = colorScheme.onSurface;
-    final textTheme = GoogleFonts.robotoTextTheme(
-      baseTextTheme(
-        onSurface: onSurface,
-        onSurfaceVariant: colorScheme.onSurfaceVariant,
-        tokens: tokens,
-      ),
+    final textTheme = baseTextTheme(
+      onSurface: onSurface,
+      onSurfaceVariant: colorScheme.onSurfaceVariant,
     );
 
     return ThemeData(
@@ -124,33 +120,27 @@ abstract final class TenturaTheme {
     );
   }
 
-  /// Base roles mapped to [TenturaText] for dense operational screens.
+  /// Base roles mapped to [TenturaText] for dense operational screens (Inter).
   static TextTheme baseTextTheme({
     required Color onSurface,
     required Color onSurfaceVariant,
-    required TenturaTokens tokens,
   }) {
     return TextTheme(
-      displayMedium: const TextStyle(fontSize: 45),
-      titleLarge: TenturaText.title(onSurface).copyWith(fontSize: 22),
-      titleMedium: TenturaText.title(onSurface).copyWith(fontSize: 18),
-      titleSmall: TenturaText.title(onSurface),
-      headlineLarge: const TextStyle(fontSize: 22),
-      headlineMedium: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-        color: onSurface,
-      ),
-      headlineSmall: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        color: onSurface,
-      ),
-      bodyLarge: TenturaText.body(onSurface).copyWith(fontSize: 16, height: 1.4),
-      bodyMedium: TenturaText.body(onSurface).copyWith(fontSize: 14, height: 1.4),
-      bodySmall: TenturaText.body(onSurface),
-      labelLarge: TenturaText.command(onSurface),
-      labelSmall: TenturaText.meta(onSurfaceVariant),
+      displayLarge: TenturaText.displayLarge(onSurface),
+      displayMedium: TenturaText.displayMedium(onSurface),
+      displaySmall: TenturaText.displaySmall(onSurface),
+      headlineLarge: TenturaText.headlineLarge(onSurface),
+      headlineMedium: TenturaText.headlineMedium(onSurface),
+      headlineSmall: TenturaText.headlineSmall(onSurface),
+      titleLarge: TenturaText.titleLarge(onSurface),
+      titleMedium: TenturaText.title(onSurface),
+      titleSmall: TenturaText.titleSmall(onSurface),
+      bodyLarge: TenturaText.bodyLarge(onSurface),
+      bodyMedium: TenturaText.bodyMedium(onSurface),
+      bodySmall: TenturaText.bodySmall(onSurface),
+      labelLarge: TenturaText.labelLarge(onSurface),
+      labelMedium: TenturaText.labelMedium(onSurface),
+      labelSmall: TenturaText.labelSmall(onSurfaceVariant),
     ).apply(
       bodyColor: onSurface,
       displayColor: onSurface,

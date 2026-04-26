@@ -16,4 +16,6 @@ export 'tentura_spacing.dart';
 export 'tentura_text.dart';
 export 'tentura_theme.dart';
 export 'tentura_tokens.dart';
+export 'tentura_responsive_scope.dart';
+export 'tentura_window_class.dart';
 export 'tentura_tone.dart';

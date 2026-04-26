@@ -167,11 +167,11 @@ class ForwardRecipientRow extends StatelessWidget {
                       if (presence.isNotEmpty)
                         Text(
                           presence,
-                          style: TenturaText.meta(tt.textMuted),
+                          style: TenturaText.bodySmall(tt.textMuted),
                         ),
                       Text(
                         relationLabel,
-                        style: TenturaText.meta(relationColor).copyWith(
+                        style: TenturaText.bodySmall(relationColor).copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +11,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/app_reload.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
@@ -87,132 +87,85 @@ class App extends StatelessWidget {
           if (child == null) {
             return const SizedBox();
           }
-          final media = MediaQuery.of(context);
-          return MediaQuery(
-            data: media.copyWith(
-              textScaler: TextScaler.noScaling,
-            ),
-            child: MultiBlocProvider(
-              providers: [
-                BlocProvider.value(
-                  value: GetIt.I<ScreenCubit>(),
+          return MultiBlocProvider(
+            providers: [
+              BlocProvider.value(
+                value: GetIt.I<ScreenCubit>(),
+              ),
+              BlocProvider.value(
+                value: GetIt.I<SettingsCubit>(),
+              ),
+              BlocProvider.value(
+                value: GetIt.I<AuthCubit>(),
+              ),
+              BlocProvider.value(
+                value: GetIt.I<ProfileCubit>(),
+              ),
+              BlocProvider.value(
+                value: GetIt.I<AppUpdateCubit>(),
+              ),
+            ],
+            child: MultiBlocListener(
+              listeners: [
+                BlocListener<AppUpdateCubit, AppUpdateState>(
+                  listenWhen: (previous, current) =>
+                      previous.updateAvailable != current.updateAvailable ||
+                      previous.dismissed != current.dismissed,
+                  listener: (context, state) {
+                    final messenger = ScaffoldMessenger.maybeOf(context);
+                    if (messenger == null) {
+                      return;
+                    }
+                    if (!state.updateAvailable || state.dismissed) {
+                      messenger.clearMaterialBanners();
+                      return;
+                    }
+                    messenger
+                      ..clearMaterialBanners()
+                      ..showMaterialBanner(
+                        MaterialBanner(
+                          content: const Text(
+                            kIsWeb
+                                ? 'A new version is available. '
+                                      'Refresh the page to update.'
+                                : 'A new version is available. '
+                                      'Please update the app.',
+                          ),
+                          actions: [
+                            if (kIsWeb)
+                              const TextButton(
+                                onPressed: reloadWebApp,
+                                child: Text('Refresh'),
+                              ),
+                            TextButton(
+                              onPressed: () =>
+                                  context.read<AppUpdateCubit>().dismiss(),
+                              child: const Text('Dismiss'),
+                            ),
+                          ],
+                        ),
+                      );
+                  },
                 ),
-                BlocProvider.value(
-                  value: GetIt.I<SettingsCubit>(),
+                BlocListener<ScreenCubit, ScreenState>(
+                  listener: (context, state) => commonScreenBlocListener(
+                    context,
+                    state,
+                    listenNavigatingState: false,
+                  ),
                 ),
-                BlocProvider.value(
-                  value: GetIt.I<AuthCubit>(),
+                const BlocListener<SettingsCubit, SettingsState>(
+                  listener: commonScreenBlocListener,
                 ),
-                BlocProvider.value(
-                  value: GetIt.I<ProfileCubit>(),
-                ),
-                BlocProvider.value(
-                  value: GetIt.I<AppUpdateCubit>(),
+                const BlocListener<AuthCubit, AuthState>(
+                  listener: commonScreenBlocListener,
                 ),
               ],
-              child: MultiBlocListener(
-                listeners: [
-                  BlocListener<AppUpdateCubit, AppUpdateState>(
-                    listenWhen: (previous, current) =>
-                        previous.updateAvailable != current.updateAvailable ||
-                        previous.dismissed != current.dismissed,
-                    listener: (context, state) {
-                      final messenger = ScaffoldMessenger.maybeOf(context);
-                      if (messenger == null) {
-                        return;
-                      }
-                      if (!state.updateAvailable || state.dismissed) {
-                        messenger.clearMaterialBanners();
-                        return;
-                      }
-                      messenger
-                        ..clearMaterialBanners()
-                        ..showMaterialBanner(
-                          MaterialBanner(
-                            content: const Text(
-                              kIsWeb
-                                  ? 'A new version is available. '
-                                        'Refresh the page to update.'
-                                  : 'A new version is available. '
-                                        'Please update the app.',
-                            ),
-                            actions: [
-                              if (kIsWeb)
-                                const TextButton(
-                                  onPressed: reloadWebApp,
-                                  child: Text('Refresh'),
-                                ),
-                              TextButton(
-                                onPressed: () =>
-                                    context.read<AppUpdateCubit>().dismiss(),
-                                child: const Text('Dismiss'),
-                              ),
-                            ],
-                          ),
-                        );
-                    },
-                  ),
-                  BlocListener<ScreenCubit, ScreenState>(
-                    listener: (context, state) => commonScreenBlocListener(
-                      context,
-                      state,
-                      listenNavigatingState: false,
-                    ),
-                  ),
-                  const BlocListener<SettingsCubit, SettingsState>(
-                    listener: commonScreenBlocListener,
-                  ),
-                  const BlocListener<AuthCubit, AuthState>(
-                    listener: commonScreenBlocListener,
-                  ),
-                ],
-                child: _kIsDesktopWeb
-                    ? _webPhoneFrame(
-                        context,
-                        media,
-                        child,
-                      )
-                    : child,
-              ),
+              child: TenturaResponsiveScope(child: child),
             ),
           );
         },
       );
     },
-  );
-}
-
-/// True for Flutter web on desktop OS hosts (dev tools, desktop browsers).
-/// Mobile web (`TargetPlatform.android` / `iOS` / fuchsia) uses the real viewport
-/// with no additional width/height frame.
-bool get _kIsDesktopWeb =>
-    kIsWeb &&
-    (defaultTargetPlatform == TargetPlatform.linux ||
-        defaultTargetPlatform == TargetPlatform.macOS ||
-        defaultTargetPlatform == TargetPlatform.windows);
-
-/// Web phone frame without [LayoutBuilder]: nested layout during route transitions
-/// (e.g. back from full-screen routes) can trigger "_RenderLayoutBuilder was mutated".
-Widget _webPhoneFrame(
-  BuildContext context,
-  MediaQueryData media,
-  Widget child,
-) {
-  final frameW = math.min(kWebPhoneFrameWidth, media.size.width);
-  final frameH = frameW / kWebAspectRatio;
-  return ColoredBox(
-    color: Theme.of(context).colorScheme.surfaceBright,
-    child: Center(
-      child: SizedBox(
-        width: frameW,
-        height: frameH,
-        child: MediaQuery(
-          data: media.copyWith(
-            size: Size(frameW, frameH),
-          ),
-          child: child,
-        ),
-      ),
-    ),
   );
 }
