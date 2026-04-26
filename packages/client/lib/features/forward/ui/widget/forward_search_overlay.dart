@@ -90,9 +90,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                           child: TextField(
                             controller: _controller,
                             focusNode: _focus,
-                            style: TenturaText.bodySmall(tt.text).copyWith(
-                              fontSize: 15,
-                            ),
+                            style: TenturaText.body(tt.text),
                             decoration: InputDecoration.collapsed(
                               hintText: l10n.forwardOverlaySearchHint,
                               hintStyle: TenturaText.bodySmall(tt.textFaint),

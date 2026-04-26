@@ -10,7 +10,7 @@ class CompactForwarderAvatars extends StatelessWidget {
   const CompactForwarderAvatars({
     required this.profiles,
     this.overflowCount = 0,
-    this.size = 20,
+    this.size = 24,
     this.overlap = 6,
     super.key,
   });
@@ -88,8 +88,7 @@ class CompactForwarderAvatars extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Text(
                       '+$overflowCount',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: 8,
+                      style: theme.textTheme.labelMedium!.copyWith(
                         fontWeight: FontWeight.w700,
                         color: badgeFg,
                         height: 1,

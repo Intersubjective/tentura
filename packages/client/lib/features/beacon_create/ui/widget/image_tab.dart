@@ -90,9 +90,9 @@ class ImageTab extends StatelessWidget {
                             ),
                             child: Text(
                               '${index + 1}',
-                              style: const TextStyle(
+                              style: Theme.of(context).textTheme.labelMedium!
+                                  .copyWith(
                                 color: Colors.white,
-                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),

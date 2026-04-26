@@ -105,8 +105,7 @@ class _InboxCardForwardsFoldState extends State<InboxCardForwardsFold> {
 
     final deadlineMeta =
         beaconCardCalendarDeadlineStatus(l10n, widget.deadlineEndAt);
-    final baseDeadlineStyle = theme.textTheme.labelSmall!.copyWith(
-      fontSize: 11,
+    final baseDeadlineStyle = theme.textTheme.bodySmall!.copyWith(
       height: 1.15,
       color: scheme.onSurfaceVariant,
       fontWeight: FontWeight.w500,

@@ -112,7 +112,6 @@ class _Initials extends StatelessWidget {
           lettering,
           maxLines: 1,
           style: TenturaText.bodySmall(tt.textFaint).copyWith(
-            fontSize: 10,
             fontWeight: FontWeight.w600,
           ),
         ),
