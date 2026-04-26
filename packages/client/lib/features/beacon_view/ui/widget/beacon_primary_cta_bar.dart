@@ -45,56 +45,25 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
           ),
         );
       }
-      final tertiaryStyle = TextButton.styleFrom(
-        foregroundColor: scheme.onSurfaceVariant,
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      );
-      final viewChainBtn = TextButton.icon(
-        style: tertiaryStyle,
-        onPressed: onViewChain,
-        icon: const Icon(TenturaIcons.graph, size: 16),
-        label: Text(
-          l10n.beaconCtaViewChain,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
       return Padding(
         padding: const EdgeInsets.only(top: kSpacingSmall),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final narrow =
-                constraints.maxWidth < kCardTriageActionRowNarrowMaxWidth;
-            if (narrow) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: BeaconCardPillReadOnly(l10n: l10n),
-                  ),
-                  const SizedBox(height: kSpacingSmall),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: viewChainBtn,
-                  ),
-                ],
-              );
-            }
-            return Row(
-              children: [
-                BeaconCardPillReadOnly(l10n: l10n),
-                const SizedBox(width: kSpacingSmall),
-                Expanded(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: viewChainBtn,
-                  ),
-                ),
-              ],
-            );
-          },
+        child: Row(
+          children: [
+            BeaconCardPillReadOnly(l10n: l10n),
+            const Spacer(),
+            IconButton(
+              onPressed: onViewChain,
+              icon: const Icon(TenturaIcons.graph, size: 22),
+              style: IconButton.styleFrom(
+                foregroundColor: scheme.onSurfaceVariant,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.all(8),
+                minimumSize: const Size(44, 44),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              tooltip: l10n.beaconCtaViewChain,
+            ),
+          ],
         ),
       );
     }
@@ -196,8 +165,8 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
         child: CardTriageActionRow(
           onCommit: showCommit ? onCommit : null,
           onForward: onForward!,
-          secondaryLabel: showViewChain ? l10n.beaconCtaViewChain : null,
           secondaryIcon: showViewChain ? TenturaIcons.graph : null,
+          secondaryTooltip: showViewChain ? l10n.beaconCtaViewChain : null,
           onSecondary: showViewChain
               ? () async {
                   onViewChain!();
@@ -211,25 +180,21 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final tertiaryStyle = TextButton.styleFrom(
-      foregroundColor: scheme.onSurfaceVariant,
-      visualDensity: VisualDensity.compact,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-    );
-
     return Padding(
       padding: const EdgeInsets.only(top: kSpacingSmall),
       child: Align(
         alignment: Alignment.centerRight,
-        child: TextButton.icon(
-          style: tertiaryStyle,
+        child: IconButton(
           onPressed: onViewChain,
-          icon: const Icon(TenturaIcons.graph, size: 16),
-          label: Text(
-            l10n.beaconCtaViewChain,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          icon: const Icon(TenturaIcons.graph, size: 22),
+          style: IconButton.styleFrom(
+            foregroundColor: scheme.onSurfaceVariant,
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(8),
+            minimumSize: const Size(44, 44),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
+          tooltip: l10n.beaconCtaViewChain,
         ),
       ),
     );
