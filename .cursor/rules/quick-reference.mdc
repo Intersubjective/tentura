@@ -166,7 +166,7 @@ One-line rules for quick lookup. See detailed files for explanations.
 ## Typography & Responsive
 - Use `TenturaText.*` / `theme.textTheme.*` — never inline `fontSize` in `features/**` or `ui/**` (see `no_inline_font_size` + design doc)
 - Floors: metadata 13, body 15, label 15, navLabel 12.5; sizes 8/10/11/12 banned in `features/**` and `ui/**`
-- WindowClass: &lt;600 compact, 600–839 regular, &gt;=840 expanded; density via `context.tt` tokens, not type scale
+- WindowClass: &lt;600 compact, 600≤w&lt;840 regular, ≥840 expanded; density via `context.tt` tokens, not type scale
 - Never override `textScaler` globally; let Flutter handle a11y scaling
 - `web/index.html` viewport: `width=device-width`, `initial-scale=1`, `viewport-fit=cover`; no `maximum-scale`, no `user-scalable=no`
 

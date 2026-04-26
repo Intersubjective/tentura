@@ -13,7 +13,7 @@ Before changing layout, typography, colors, or shared widgets in `packages/clien
 1. Read [`docs/tentura-design-system.md`](../../docs/tentura-design-system.md) and [`docs/typography-overhaul-journal.md`](../../docs/typography-overhaul-journal.md) when doing typography work.
 2. Prefer `import 'package:tentura/design_system/tentura_design_system.dart';`, `context.tt` for density tokens, and `TenturaText.*` / `theme.textTheme.*` for type — **no inline `fontSize:`** in `features/**` or `ui/**` (lint: `no_inline_font_size`).
 3. **Floors:** metadata ≥ 13 (`bodySmall`), body ≥ 15, action labels ≥ 15; nav labels 12.5 only exception. Banned literal sizes 8/10/11/12 in those trees.
-4. **WindowClass:** width &lt; 600 compact, 600–839 regular, ≥ 840 expanded. Density (padding, icons, avatars, button height, max width) varies by class; **text sizes do not**.
+4. **WindowClass:** width &lt; 600 compact, 600 ≤ *w* &lt; 840 regular, ≥ 840 expanded. Density (padding, gaps, icons, avatars, button height, max width) varies by class; **text sizes do not**.
 5. **Never** globally override `textScaler` (e.g. `TextScaler.noScaling` on the whole app).
 6. Do not add raw `Color(0x…)` / `Colors.*` (except well-known cases like `Colors.transparent`) or ad-hoc `TextStyle(` in `features/beacon_view`, `features/my_work`, or `features/inbox` — `custom_lint` enforces this.
 7. For beacon detail list surfaces, avoid `Chip`, `SegmentedButton`, and pill-style status; use the `Tentura*` components listed in the doc.

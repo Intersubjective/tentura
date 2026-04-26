@@ -64,16 +64,14 @@ class _TabCell extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                maxLines: 1,
-                softWrap: false,
-                textAlign: TextAlign.center,
-                style: TenturaText.tabLabel(
-                  selected ? active : inactive,
-                ),
+            Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TenturaText.tabLabel(
+                selected ? active : inactive,
               ),
             ),
             const SizedBox(height: 6),

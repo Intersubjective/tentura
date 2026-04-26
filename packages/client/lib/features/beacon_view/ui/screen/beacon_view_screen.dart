@@ -573,6 +573,8 @@ class _BeaconDetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         kSpacingMedium,
@@ -587,6 +589,9 @@ class _BeaconDetailHeader extends StatelessWidget {
           BeaconCardHeaderRow(
             beacon: beacon,
             menu: const SizedBox.shrink(),
+            titleStyle: theme.textTheme.titleMedium!.copyWith(
+              color: scheme.onSurface,
+            ),
           ),
           const SizedBox(height: 6),
           GestureDetector(

@@ -148,7 +148,11 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Mine / secondary info on cards (sky-tinted border emphasis).
   Color get borderMine => skyBorder;
 
-  /// Density for `windowClass`; colors and radii unchanged.
+  /// Density for [windowClass]. Colors, radii, and [TextTheme] sizes are unchanged.
+  ///
+  /// Varies: avatar/icon/button metrics, app bar / bottom nav chrome, [contentMaxWidth],
+  /// and spacing tokens ([cardPadding], [cardGap], [screenHPadding], [rowGap],
+  /// [sectionGap], [iconTextGap], [avatarTextGap]).
   TenturaTokens applyWindowClass(WindowClass windowClass) {
     switch (windowClass) {
       case WindowClass.compact:
@@ -160,6 +164,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           cardAvatarSize: 40,
           appBarHeight: 56,
           bottomNavHeight: 64,
+          cardPadding: TenturaSpacing.cardPaddingAll,
+          cardGap: TenturaSpacing.cardGap,
+          screenHPadding: TenturaSpacing.screenH,
+          rowGap: TenturaSpacing.row,
+          sectionGap: TenturaSpacing.section,
+          iconTextGap: TenturaSpacing.iconText,
+          avatarTextGap: TenturaSpacing.avatarText,
           refreshContentMaxWidth: true,
         );
       case WindowClass.regular:
@@ -172,6 +183,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           appBarHeight: 60,
           bottomNavHeight: 72,
           contentMaxWidth: 560,
+          cardPadding: const EdgeInsets.all(14),
+          cardGap: 11,
+          screenHPadding: 20,
+          rowGap: 9,
+          sectionGap: 14,
+          iconTextGap: 7,
+          avatarTextGap: 13,
           refreshContentMaxWidth: true,
         );
       case WindowClass.expanded:
@@ -184,6 +202,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           appBarHeight: 60,
           bottomNavHeight: 72,
           contentMaxWidth: 720,
+          cardPadding: const EdgeInsets.all(16),
+          cardGap: 12,
+          screenHPadding: 24,
+          rowGap: 10,
+          sectionGap: 16,
+          iconTextGap: 8,
+          avatarTextGap: 14,
           refreshContentMaxWidth: true,
         );
     }

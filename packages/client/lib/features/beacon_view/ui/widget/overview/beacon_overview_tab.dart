@@ -64,7 +64,11 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final tt = context.tt;
+    final sectionTitleStyle = theme.textTheme.titleSmall!.copyWith(
+      color: tt.text,
+    );
     final summaryStyle = widget.summaryColor != null
         ? TenturaText.body(tt.textMuted).copyWith(color: widget.summaryColor)
         : TenturaText.body(tt.textMuted);
@@ -85,7 +89,10 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
           InkWell(
             onTap: _toggle,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: tt.screenHPadding,
+                vertical: tt.cardPadding.top,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -112,7 +119,7 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
                       children: [
                         Text(
                           widget.title,
-                          style: TenturaText.title(tt.text),
+                          style: sectionTitleStyle,
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -149,7 +156,12 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
             alignment: Alignment.topCenter,
             child: _expanded
                 ? Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    padding: EdgeInsets.fromLTRB(
+                      tt.screenHPadding,
+                      0,
+                      tt.screenHPadding,
+                      tt.screenHPadding,
+                    ),
                     child: widget.expanded,
                   )
                 : const SizedBox.shrink(),
@@ -273,10 +285,11 @@ class _CoordinationBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final titleStyle = theme.textTheme.bodySmall?.copyWith(
-      fontWeight: FontWeight.w600,
+    final sectionHeaderStyle = theme.textTheme.titleSmall;
+    final bodyStyle = theme.textTheme.bodyMedium?.copyWith(
+      height: 1.40,
     );
-    final bodyStyle = theme.textTheme.bodySmall?.copyWith(
+    final metaStyle = theme.textTheme.bodySmall?.copyWith(
       height: 1.35,
     );
     final diagnosis = _coordinationDiagnosis(l10n, state);
@@ -285,7 +298,7 @@ class _CoordinationBody extends StatelessWidget {
       children: [
         Text(
           diagnosis.title,
-          style: titleStyle?.copyWith(color: diagnosisTitleColor),
+          style: sectionHeaderStyle?.copyWith(color: diagnosisTitleColor),
         ),
         const SizedBox(height: 4),
         Text(
@@ -297,7 +310,7 @@ class _CoordinationBody extends StatelessWidget {
         const SizedBox(height: 14),
         Text(
           l10n.beaconLatestUpdateTitle,
-          style: titleStyle,
+          style: sectionHeaderStyle,
         ),
         const SizedBox(height: 6),
         _CoordinationAuthorUpdateBlock(
@@ -316,7 +329,7 @@ class _CoordinationBody extends StatelessWidget {
                 children: [
                   Text(
                     l10n.beaconOverviewActiveCommitments(active),
-                    style: titleStyle,
+                    style: sectionHeaderStyle,
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -324,7 +337,7 @@ class _CoordinationBody extends StatelessWidget {
                       useful,
                       needCoordination,
                     ),
-                    style: bodyStyle?.copyWith(
+                    style: metaStyle?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -375,8 +388,8 @@ class _NeedBody extends StatelessWidget {
         : l10n.beaconOverviewNeedEmpty;
     return Text(
       first,
-      style: theme.textTheme.bodySmall?.copyWith(
-        height: 1.35,
+      style: theme.textTheme.bodyMedium?.copyWith(
+        height: 1.40,
         color: theme.colorScheme.onSurfaceVariant,
       ),
     );
@@ -421,8 +434,8 @@ class _CoordinationAuthorUpdateBlock extends StatelessWidget {
                 builder: (context, ps) {
                   return Text(
                     '${SelfUserHighlight.displayName(l10n, u.author, ps.profile.id)} · ${u.content}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      height: 1.35,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      height: 1.40,
                     ),
                   );
                 },

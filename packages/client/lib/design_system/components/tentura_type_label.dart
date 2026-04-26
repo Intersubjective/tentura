@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../tentura_text.dart';
 import '../tentura_tokens.dart';
 
-/// Uppercase monospace type / offer line.
+/// Uppercase type / offer line (`TenturaText.typeLabel`, Inter + letter spacing).
 class TenturaTypeLabel extends StatelessWidget {
   const TenturaTypeLabel(
     this.text, {
