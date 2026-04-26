@@ -18,6 +18,7 @@ Rules live under `packages/tentura_lints/lib/src/rules/`; register in `lib/tentu
 | `no_cubit_to_data_service_import` | Client `**/ui/bloc/*_cubit.dart`: no `.../data/service/` imports. |
 | `no_map_dynamic_in_use_case_api` | `**/lib/domain/use_case/**/*.dart`: public API must not return `Map<String, dynamic>` / `List<Map<…>>` / bare `dynamic`. |
 | `no_raw_graphql_in_dart` | No inline GraphQL document strings or `gql('…')`; use `.graphql` + generated `*Req`. |
+| `no_inline_font_size` | Client `lib/features/**` + `lib/ui/**`: no numeric literal `TextStyle(fontSize: …)` (use `TextTheme` / `TenturaText`; allow-list `design_system/`, `rating_scatter_view.dart`, `colors_drawer.dart`). |
 | `cubit_requires_use_case_for_multi_repos` | Client `packages/client/.../ui/bloc/*_cubit.dart`: ≥2 repo params ⇒ must inject a `*Case`. |
 
 **Baselines:** existing debt uses `// TODO(contract): Phase-2 DTO migration — …` plus `// ignore: <rule>` until Phase 2 DTO work removes them.
