@@ -73,6 +73,9 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
           ? FilledButton(
               onPressed: onUpdateStatus,
               style: FilledButton.styleFrom(
+                textStyle: theme.textTheme.labelLarge!.copyWith(
+                  color: scheme.onPrimary,
+                ),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                 alignment: Alignment.center,
@@ -89,6 +92,10 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
           ? OutlinedButton(
               onPressed: onPostUpdate,
               style: OutlinedButton.styleFrom(
+                foregroundColor: scheme.primary,
+                textStyle: theme.textTheme.labelLarge!.copyWith(
+                  color: scheme.primary,
+                ),
                 visualDensity: VisualDensity.compact,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

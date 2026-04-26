@@ -179,6 +179,7 @@
 
 ## Decisions made during execution
 
+- **Beacon detail — iPhone SE / narrow pass (2026-04):** Overview coordination collapsed summary uses `TenturaText.status` (not `body`); expanded diagnosis title uses `TenturaText.typeLabel` to match commitment coordination labels; `BeaconViewScreen` app bar title uses `titleLarge`; `CardTriageActionRow` and owner `BeaconPrimaryCtaBar` buttons set `textTheme.labelLarge`; commitments tab summary subline uses `bodySmall`; activity section headers use plain `titleSmall`; `TenturaUnderlineTabs` vertical padding uses `context.tt.rowGap`.
 - **Beacon detail typography (post–Phase 5):** Beacon header title uses optional `titleStyle` on `BeaconCardHeaderRow` (`titleMedium` on detail only). Overview section cards use `titleSmall` + `bodyMedium` prose + `bodySmall` metadata; commitment tiles use `titleSmall` for names; `TenturaUnderlineTabs` uses ellipsis instead of `FittedBox` shrink; `CardTriageActionRow` / `BeaconPrimaryCtaBar` stack tertiary or owner actions on a second row when width &lt; `kCardTriageActionRowNarrowMaxWidth` (~380 logical px).
 - **Phase 3:** Inbox / My Work `+N` overflow badges: `labelMedium` + **w700**, avatar ring size raised **20 → 24** (`_kAvatarSize`, `CompactForwarderAvatars` default) so 13px+ text fits.
 - **Phase 3:** `forward_search_overlay` search field: `TenturaText.body(tt.text)` for 15px body (was `bodySmall` + 15 override).

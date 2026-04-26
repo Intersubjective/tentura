@@ -69,7 +69,7 @@ class _SummarySubline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = TenturaText.body(neutral);
+    final base = TenturaText.bodySmall(neutral);
 
     if (usefulCount > 0 && needsCoordinationCount > 0) {
       return Text.rich(
@@ -78,7 +78,7 @@ class _SummarySubline extends StatelessWidget {
           children: [
             TextSpan(
               text: l10n.commitmentsTabSummaryUseful(usefulCount),
-              style: base.copyWith(color: good, fontWeight: FontWeight.w500),
+              style: base.copyWith(color: good),
             ),
             TextSpan(
               text: ' · ',
@@ -90,7 +90,6 @@ class _SummarySubline extends StatelessWidget {
               ),
               style: base.copyWith(
                 color: warning,
-                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -100,12 +99,12 @@ class _SummarySubline extends StatelessWidget {
     if (usefulCount > 0) {
       return Text(
         l10n.commitmentsTabSummaryUseful(usefulCount),
-        style: base.copyWith(color: good, fontWeight: FontWeight.w500),
+        style: base.copyWith(color: good),
       );
     }
     return Text(
       l10n.commitmentsTabSummaryNeedCoordination(needsCoordinationCount),
-      style: base.copyWith(color: warning, fontWeight: FontWeight.w500),
+      style: base.copyWith(color: warning),
     );
   }
 }

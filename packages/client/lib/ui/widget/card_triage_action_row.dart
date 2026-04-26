@@ -32,7 +32,9 @@ class CardTriageActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final actionLabelStyle = theme.textTheme.labelLarge!;
     final hasCommit = onCommit != null;
     final hasSecondary =
         onSecondary != null &&
@@ -51,6 +53,8 @@ class CardTriageActionRow extends StatelessWidget {
         softWrap: false,
       ),
       style: OutlinedButton.styleFrom(
+        foregroundColor: scheme.primary,
+        textStyle: actionLabelStyle.copyWith(color: scheme.primary),
         visualDensity: VisualDensity.compact,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -70,6 +74,7 @@ class CardTriageActionRow extends StatelessWidget {
         softWrap: false,
       ),
       style: FilledButton.styleFrom(
+        textStyle: actionLabelStyle.copyWith(color: scheme.onPrimary),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         alignment: Alignment.center,
@@ -78,6 +83,7 @@ class CardTriageActionRow extends StatelessWidget {
 
     final tertiaryStyle = TextButton.styleFrom(
       foregroundColor: scheme.onSurfaceVariant,
+      textStyle: actionLabelStyle.copyWith(color: scheme.onSurfaceVariant),
       visualDensity: VisualDensity.compact,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
     );

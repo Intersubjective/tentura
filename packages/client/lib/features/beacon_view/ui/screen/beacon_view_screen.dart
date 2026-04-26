@@ -280,7 +280,8 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
       bloc: beaconViewCubit,
       buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
       builder: (context, state) {
-        final scheme = Theme.of(context).colorScheme;
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
         final showInitialLoading =
             state.isLoading &&
             state.timeline.isEmpty &&
@@ -294,6 +295,9 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
             toolbarHeight: InboxStyleAppBar.toolbarHeight,
             leadingWidth: InboxStyleAppBar.toolbarHeight,
             foregroundColor: scheme.onSurface,
+            titleTextStyle: theme.textTheme.titleLarge!.copyWith(
+              color: scheme.onSurface,
+            ),
             titleSpacing: 8,
             leading: isFromDeepLink
                 ? BackButton(
