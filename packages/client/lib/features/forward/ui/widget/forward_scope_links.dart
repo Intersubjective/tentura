@@ -33,38 +33,37 @@ class ForwardScopeLinks extends StatelessWidget {
           child: InkWell(
             onTap: () => onScopeChanged(f),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 48),
+              constraints: BoxConstraints(minHeight: tt.buttonHeight),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: EdgeInsets.symmetric(vertical: tt.rowGap),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      padding: EdgeInsets.symmetric(horizontal: tt.iconTextGap),
+                      child: Text.rich(
+                        TextSpan(
                           children: [
-                            Text(
-                              label,
-                              maxLines: 1,
-                              softWrap: false,
+                            TextSpan(
+                              text: label,
                               style: TenturaText.tabLabel(
                                 active ? activeColor : tt.textMuted,
                               ),
                             ),
-                            Text(
-                              '/$count',
-                              maxLines: 1,
-                              softWrap: false,
-                              style: TenturaText.bodySmall(tt.textFaint),
+                            TextSpan(
+                              text: '/$count',
+                              style: TenturaText.withTabular(
+                                TenturaText.bodySmall(tt.textFaint),
+                              ),
                             ),
                           ],
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: tt.iconTextGap),
                     SizedBox(
                       width: double.infinity,
                       height: 2,

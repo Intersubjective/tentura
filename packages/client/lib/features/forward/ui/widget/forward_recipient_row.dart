@@ -49,48 +49,44 @@ class ForwardRecipientRow extends StatelessWidget {
     };
   }
 
-  Color _relationColor(TenturaTokens tt) {
-    if (!candidate.isReachable) {
-      return tt.textMuted;
+  TenturaTone _relationTone() {
+    if (candidate.involvement != CandidateInvolvement.declined &&
+        candidate.involvement != CandidateInvolvement.author &&
+        !candidate.isReachable) {
+      return TenturaTone.neutral;
     }
     if (candidate.involvement == CandidateInvolvement.declined ||
         candidate.involvement == CandidateInvolvement.author) {
-      return tt.warn;
+      return TenturaTone.warn;
     }
-    switch (candidate.involvement) {
-      case CandidateInvolvement.unseen:
-        return candidate.canForwardTo ? tt.good : tt.textMuted;
-      case CandidateInvolvement.forwarded:
-      case CandidateInvolvement.forwardedByMe:
-      case CandidateInvolvement.watching:
-      case CandidateInvolvement.committed:
-      case CandidateInvolvement.withdrawn:
-        return tt.warn;
-      case CandidateInvolvement.declined:
-      case CandidateInvolvement.author:
-        return tt.warn;
+    if (candidate.involvement == CandidateInvolvement.unseen) {
+      return candidate.canForwardTo ? TenturaTone.good : TenturaTone.neutral;
     }
+    return TenturaTone.warn;
   }
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
     final canSelect = candidate.canForwardTo;
     final relationLabel = _relationLabel(l10n);
-    final relationColor = _relationColor(tt);
     final presence = profilePresenceDisplayLine(
       l10n: l10n,
       locale: Localizations.localeOf(context),
       status: candidate.profile.presenceStatus,
       lastSeenAt: candidate.profile.presenceLastSeenAt,
     );
+    final nameBaseStyle = TenturaText.titleSmall(
+      canSelect ? tt.text : tt.textMuted,
+    );
 
     return InkWell(
       onTap: canSelect ? onToggle : null,
       child: Padding(
         padding: EdgeInsets.symmetric(
-          vertical: 8,
+          vertical: tt.rowGap,
           horizontal: tt.screenHPadding,
         ),
         child: Row(
@@ -98,69 +94,40 @@ class ForwardRecipientRow extends StatelessWidget {
           children: [
             SelfAwareAvatar(
               profile: candidate.profile,
-              size: 32,
+              size: tt.cardAvatarSize,
             ),
             SizedBox(width: tt.avatarTextGap),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: BlocBuilder<ProfileCubit, ProfileState>(
-                          buildWhen: (p, c) => p.profile.id != c.profile.id,
-                          builder: (context, state) {
-                            return Text(
-                              SelfUserHighlight.displayName(
-                                l10n,
-                                candidate.profile,
-                                state.profile.id,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: SelfUserHighlight.nameStyle(
-                                Theme.of(context),
-                                TenturaText.title(
-                                  canSelect ? tt.text : tt.textMuted,
-                                ),
-                                SelfUserHighlight.profileIsSelf(
-                                  candidate.profile,
-                                  state.profile.id,
-                                ),
-                              ),
-                            );
-                          },
+                  BlocBuilder<ProfileCubit, ProfileState>(
+                    buildWhen: (p, c) => p.profile.id != c.profile.id,
+                    builder: (context, state) {
+                      return Text(
+                        SelfUserHighlight.displayName(
+                          l10n,
+                          candidate.profile,
+                          state.profile.id,
                         ),
-                      ),
-                      if (isSelected &&
-                          canSelect &&
-                          onTogglePersonalizedNoteEditor != null)
-                        TextButton(
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 4,
-                            ),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          onPressed: onTogglePersonalizedNoteEditor,
-                          child: Text(
-                            personalizedNoteEditorOpen
-                                ? l10n.forwardHidePersonalizedNote
-                                : l10n.forwardAddPersonalizedNote,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TenturaText.command(tt.info),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: SelfUserHighlight.nameStyle(
+                          theme,
+                          nameBaseStyle,
+                          SelfUserHighlight.profileIsSelf(
+                            candidate.profile,
+                            state.profile.id,
                           ),
                         ),
-                    ],
+                      );
+                    },
                   ),
+                  // Tight before presence / relation (do not use rowGap: a 44px-tall
+                  // name+checkbox row was forcing extra empty space under one-line names).
                   const SizedBox(height: 2),
                   Wrap(
-                    spacing: 8,
+                    spacing: tt.iconTextGap,
                     runSpacing: 2,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
@@ -169,18 +136,39 @@ class ForwardRecipientRow extends StatelessWidget {
                           presence,
                           style: TenturaText.bodySmall(tt.textMuted),
                         ),
-                      Text(
+                      TenturaStatusText(
                         relationLabel,
-                        style: TenturaText.bodySmall(relationColor).copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        tone: _relationTone(),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: tt.rowGap),
+            if (isSelected &&
+                canSelect &&
+                onTogglePersonalizedNoteEditor != null) ...[
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 44,
+                  minHeight: 44,
+                ),
+                tooltip: personalizedNoteEditorOpen
+                    ? l10n.forwardHidePersonalizedNote
+                    : l10n.forwardAddPersonalizedNote,
+                icon: Icon(
+                  personalizedNoteEditorOpen
+                      ? Icons.expand_less
+                      : Icons.add_comment_outlined,
+                  size: tt.iconSize,
+                  color: personalizedNoteEditorOpen ? tt.info : tt.textMuted,
+                ),
+                onPressed: onTogglePersonalizedNoteEditor,
+              ),
+              SizedBox(width: tt.iconTextGap),
+            ],
             _ForwardRowCheckbox(
               isSelected: isSelected,
               enabled: canSelect,
@@ -210,19 +198,32 @@ class _ForwardRowCheckbox extends StatelessWidget {
     final borderColor = enabled
         ? (isSelected ? tt.info : tt.border)
         : tt.borderSubtle;
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Container(
-        width: 20,
-        height: 20,
-        decoration: BoxDecoration(
-          color: isSelected && enabled ? tt.info : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: borderColor),
+    return Semantics(
+      checked: isSelected,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: isSelected && enabled ? tt.info : Colors.transparent,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: borderColor),
+                ),
+                child: isSelected && enabled
+                    ? Icon(Icons.check, size: 14, color: tt.surface)
+                    : null,
+              ),
+            ),
+          ),
         ),
-        child: isSelected && enabled
-            ? Icon(Icons.check, size: 14, color: tt.surface)
-            : null,
       ),
     );
   }
