@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -89,90 +88,41 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
           bottomNavigationBuilder: (context, tabsRouter) {
             return HomeBottomNavListener(
               tabsRouter: tabsRouter,
-              child: Builder(
-                builder: (context) {
-                  final theme = Theme.of(context);
-                  final scheme = theme.colorScheme;
-
-                  final isDark = scheme.brightness == Brightness.dark;
-                  final selectedIconFg = isDark
-                      ? scheme.onSecondaryContainer
-                      : scheme.onPrimary;
-                  final selectedLabelFg = scheme.onSurface;
-                  final unselectedFg = scheme.onSurfaceVariant;
-                  final indicator = isDark
-                      ? scheme.secondaryContainer
-                      : scheme.primary;
-
-                  return NavigationBarTheme(
-                    data: NavigationBarThemeData(
-                      height: context.tt.bottomNavHeight,
-                      iconTheme: WidgetStateProperty.resolveWith((states) {
-                        final selected =
-                            states.contains(WidgetState.selected);
-                        return IconThemeData(
-                          color: selected ? selectedIconFg : unselectedFg,
-                        );
-                      }),
-                      labelTextStyle: WidgetStateProperty.resolveWith((
-                        states,
-                      ) {
-                        final selected =
-                            states.contains(WidgetState.selected);
-                        final base = TenturaText.navLabel(
-                          selected ? selectedLabelFg : unselectedFg,
-                        );
-                        return base.copyWith(
-                          fontWeight:
-                              selected ? FontWeight.w600 : FontWeight.w500,
-                        );
-                      }),
-                    ),
-                    child: NavigationBar(
-                      backgroundColor: scheme.surfaceContainer,
-                      surfaceTintColor: Colors.transparent,
-                      onDestinationSelected: (index) {
-                        final prev = tabsRouter.activeIndex;
-                        tabsRouter.setActiveIndex(index);
-                        if (index == prev) {
-                          final reselect =
-                              context.read<HomeTabReselectCubit>();
-                          if (index == 0) {
-                            reselect.bumpInboxReselect();
-                          } else if (index == 1) {
-                            reselect.bumpMyWorkReselect();
-                          }
-                        }
-                      },
-                      indicatorColor: indicator,
-                      selectedIndex: tabsRouter.activeIndex,
-                      destinations: [
-                        NavigationDestination(
-                          icon: const InboxNavbarItem(),
-                          selectedIcon:
-                              const InboxNavbarItem(selected: true),
-                          label: l10n.inbox,
-                        ),
-                        NavigationDestination(
-                          icon: const MyWorkNavbarItem(),
-                          selectedIcon:
-                              const MyWorkNavbarItem(selected: true),
-                          label: l10n.myWork,
-                        ),
-                        NavigationDestination(
-                          icon: const FriendsNavbarItem(),
-                          selectedIcon:
-                              const FriendsNavbarItem(selected: true),
-                          label: l10n.network,
-                        ),
-                        NavigationDestination(
-                          icon: const ProfileNavBarItem(),
-                          label: profileTabLabel,
-                        ),
-                      ],
-                    ),
-                  );
+              child: NavigationBar(
+                onDestinationSelected: (index) {
+                  final prev = tabsRouter.activeIndex;
+                  tabsRouter.setActiveIndex(index);
+                  if (index == prev) {
+                    final reselect = context.read<HomeTabReselectCubit>();
+                    if (index == 0) {
+                      reselect.bumpInboxReselect();
+                    } else if (index == 1) {
+                      reselect.bumpMyWorkReselect();
+                    }
+                  }
                 },
+                selectedIndex: tabsRouter.activeIndex,
+                destinations: [
+                  NavigationDestination(
+                    icon: const InboxNavbarItem(),
+                    selectedIcon: const InboxNavbarItem(selected: true),
+                    label: l10n.inbox,
+                  ),
+                  NavigationDestination(
+                    icon: const MyWorkNavbarItem(),
+                    selectedIcon: const MyWorkNavbarItem(selected: true),
+                    label: l10n.myWork,
+                  ),
+                  NavigationDestination(
+                    icon: const FriendsNavbarItem(),
+                    selectedIcon: const FriendsNavbarItem(selected: true),
+                    label: l10n.network,
+                  ),
+                  NavigationDestination(
+                    icon: const ProfileNavBarItem(),
+                    label: profileTabLabel,
+                  ),
+                ],
               ),
             );
           },
