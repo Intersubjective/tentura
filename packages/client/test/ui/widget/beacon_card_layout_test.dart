@@ -81,8 +81,9 @@ void main() {
     await tester.pumpWidget(
       BlocProvider<ProfileCubit>.value(
         value: profileCubit,
-        child: const MaterialApp(
-          home: MediaQuery(
+        child: MaterialApp(
+          theme: TenturaTheme.light(),
+          home: const MediaQuery(
             data: MediaQueryData(size: Size(360, 800)),
             child: Scaffold(
               body: Center(
