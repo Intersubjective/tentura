@@ -250,6 +250,43 @@ Default is `0.0.0`, which disables the check (any client is accepted).
 - **Cubit:** `packages/client/lib/ui/bloc/app_update_cubit.dart` — `AppUpdateCubit`
 - **Banner:** `packages/client/lib/app/app.dart` — `BlocListener<AppUpdateCubit, …>`
 
+## Typography & responsive design (client)
+
+Tentura uses **semantic typography** and **width-based layout classes**, not proportional “shrink everything on narrow phones.” Full spec: [`docs/tentura-design-system.md`](docs/tentura-design-system.md). Work log: [`docs/typography-overhaul-journal.md`](docs/typography-overhaul-journal.md).
+
+### Hard floors (logical px)
+
+- **Metadata / secondary** (status lines, hints): minimum **13** — use `theme.textTheme.bodySmall` / `TenturaText.bodySmall`.
+- **Body:** minimum **15** — `bodyMedium` / `TenturaText.body`.
+- **Primary actions / buttons:** minimum **15** — `labelLarge`.
+- **Bottom navigation labels:** **12.5** is the **only** exception below 13 — `TenturaText.navLabel` or equivalent.
+- **Do not** use literal font sizes **8, 10, 11, 12** in `packages/client/lib/features/**` or `packages/client/lib/ui/**` (use semantic roles; `custom_lint` may enforce).
+
+### WindowClass breakpoints
+
+Drive **density** (padding, gaps, icon size, avatar sizes, button height, app bar / bottom nav chrome, `contentMaxWidth`) from **logical width**:
+
+| Class | Width |
+|-------|-------|
+| `compact` | &lt; 600 |
+| `regular` | 600–839 |
+| `expanded` | ≥ 840 |
+
+**Do not** change `TextTheme` font sizes per class — only `TenturaTokens` (via `TenturaResponsiveScope` / `context.tt`).
+
+### Proportional sizing
+
+**Do not** size typography or global UI from `MediaQuery.sizeOf(context).width / N` or similar “design width” ratios. That shrinks already-small text on phones and blows up type on tablets. **Allowed** exceptions: layout that is inherently proportional (e.g. chat bubble `maxWidth: screenWidth * 0.75`, bottom sheet height fractions) — document in the typography journal if non-obvious.
+
+### Accessibility
+
+- **Never** wrap the entire app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling)`.
+- **Web:** `packages/client/web/index.html` must use `width=device-width, initial-scale=1.0`, `viewport-fit=cover`; do not set `maximum-scale` or `user-scalable=no`.
+
+### Font
+
+Primary UI font is **Inter** (bundled under `packages/client/fonts/`). Prefer `TenturaText` + `textTheme`; avoid `google_fonts` at runtime for app chrome.
+
 ## Flutter web: conditional imports (JS and wasm)
 
 Do **not** gate web-only implementations with `if (dart.library.html)` in
