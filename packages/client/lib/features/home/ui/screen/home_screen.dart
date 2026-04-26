@@ -81,7 +81,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
       bloc: GetIt.I<ProfileCubit>(),
       selector: (state) => state.profile.title,
       builder: (context, profileTitle) {
-        final profileTabLabel = profileTitle.isEmpty
+        // Fixed tab label keeps the profile icon stable; long names go to tooltip.
+        final profileTooltipLabel = profileTitle.isEmpty
             ? l10n.noName
             : profileTitle;
         return AutoTabsScaffold(
@@ -120,7 +121,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   ),
                   NavigationDestination(
                     icon: const ProfileNavBarItem(),
-                    label: profileTabLabel,
+                    label: l10n.profile,
+                    tooltip: profileTooltipLabel,
                   ),
                 ],
               ),
