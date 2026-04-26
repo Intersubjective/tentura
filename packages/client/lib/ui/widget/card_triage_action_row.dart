@@ -3,18 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-/// Breakpoint: below this width, optional tertiary moves to a second row so
-/// Commit + Forward keep usable width (iPhone SE, narrow web).
+/// Owner CTA row stacks vertically below this width (`BeaconPrimaryCtaBar`).
 const double kCardTriageActionRowNarrowMaxWidth = 380;
 
 /// Triage actions for beacon cards: Commit primary, Forward outlined, optional
-/// tertiary (inbox: Not for me / stop watching; beacon detail: View chain).
+/// tertiary (beacon detail: View chain as icon-only on the right).
 class CardTriageActionRow extends StatelessWidget {
   const CardTriageActionRow({
     required this.onForward,
     this.onCommit,
     this.secondaryLabel,
     this.secondaryIcon,
+    this.secondaryTooltip,
     this.onSecondary,
     super.key,
   });
@@ -23,6 +23,10 @@ class CardTriageActionRow extends StatelessWidget {
   final VoidCallback onForward;
   final String? secondaryLabel;
   final IconData? secondaryIcon;
+
+  /// Shown for icon-only tertiary (a11y / long-press hint).
+  final String? secondaryTooltip;
+
   final Future<void> Function()? onSecondary;
 
   @override
@@ -80,11 +84,15 @@ class CardTriageActionRow extends StatelessWidget {
 
     Widget? tertiary;
     if (hasSecondary) {
+      Future<void> onTap() async {
+        await onSecondary?.call();
+      }
+
       if (secondaryIcon != null && secondaryLabel != null) {
         tertiary = TextButton.icon(
           style: tertiaryStyle,
           onPressed: () async {
-            await onSecondary?.call();
+            await onTap();
           },
           icon: Icon(secondaryIcon, size: 16),
           label: Text(
@@ -94,18 +102,26 @@ class CardTriageActionRow extends StatelessWidget {
           ),
         );
       } else if (secondaryIcon != null) {
-        tertiary = TextButton(
-          style: tertiaryStyle,
+        final tip = secondaryTooltip?.trim();
+        tertiary = IconButton(
           onPressed: () async {
-            await onSecondary?.call();
+            await onTap();
           },
-          child: Icon(secondaryIcon, size: 16),
+          icon: Icon(secondaryIcon, size: 22),
+          style: IconButton.styleFrom(
+            foregroundColor: scheme.onSurfaceVariant,
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(8),
+            minimumSize: const Size(44, 44),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          tooltip: tip != null && tip.isNotEmpty ? tip : null,
         );
       } else {
         tertiary = TextButton(
           style: tertiaryStyle,
           onPressed: () async {
-            await onSecondary?.call();
+            await onTap();
           },
           child: Text(
             secondaryLabel!,
@@ -116,7 +132,7 @@ class CardTriageActionRow extends StatelessWidget {
       }
     }
 
-    final primaryRow = Row(
+    return Row(
       children: [
         if (hasCommit) ...[
           Expanded(
@@ -135,41 +151,6 @@ class CardTriageActionRow extends StatelessWidget {
           tertiary,
         ],
       ],
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < kCardTriageActionRowNarrowMaxWidth;
-        if (narrow && hasSecondary && tertiary != null) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  if (hasCommit) ...[
-                    Expanded(
-                      flex: commitFlex,
-                      child: commitBtn,
-                    ),
-                    const SizedBox(width: kSpacingSmall),
-                    Expanded(
-                      flex: forwardFlex,
-                      child: forwardBtn,
-                    ),
-                  ] else
-                    Expanded(child: forwardBtn),
-                ],
-              ),
-              const SizedBox(height: kSpacingSmall),
-              Align(
-                alignment: Alignment.centerRight,
-                child: tertiary,
-              ),
-            ],
-          );
-        }
-        return primaryRow;
-      },
     );
   }
 }
