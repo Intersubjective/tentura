@@ -8,6 +8,7 @@ enum WindowClass {
   expanded,
 }
 
+/// [WindowClass.regular] is **600 ≤ width < 840** (see `docs/tentura-design-system.md`).
 WindowClass windowClassForWidth(double width) {
   if (width < 600) return WindowClass.compact;
   if (width < 840) return WindowClass.regular;

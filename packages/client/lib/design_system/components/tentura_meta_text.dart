@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../tentura_text.dart';
 import '../tentura_tokens.dart';
 
-/// Muted metadata line (timestamps, middots) — monospace, faint slate.
+/// Muted metadata line (timestamps, middots) — `bodySmall` Inter, muted token.
 class TenturaMetaText extends StatelessWidget {
   const TenturaMetaText(
     this.text, {

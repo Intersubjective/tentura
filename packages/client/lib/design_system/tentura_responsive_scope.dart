@@ -5,8 +5,8 @@ import 'tentura_window_class.dart';
 
 /// Rebuilds `Theme` with `TenturaTokens` density for the current `WindowClass`.
 ///
-/// `TextTheme` sizes are unchanged from `TenturaTheme`; only token fields such as
-/// padding, icon size, and `contentMaxWidth` vary.
+/// `TextTheme` sizes are unchanged from `TenturaTheme`; [TenturaTokens.applyWindowClass]
+/// updates spacing, chrome sizes, avatar/icon metrics, and `contentMaxWidth`.
 class TenturaResponsiveScope extends StatelessWidget {
   const TenturaResponsiveScope({required this.child, super.key});
 

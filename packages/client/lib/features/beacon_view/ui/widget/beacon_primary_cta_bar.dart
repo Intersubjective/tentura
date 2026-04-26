@@ -50,28 +50,51 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       );
+      final viewChainBtn = TextButton.icon(
+        style: tertiaryStyle,
+        onPressed: onViewChain,
+        icon: const Icon(TenturaIcons.graph, size: 16),
+        label: Text(
+          l10n.beaconCtaViewChain,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
       return Padding(
         padding: const EdgeInsets.only(top: kSpacingSmall),
-        child: Row(
-          children: [
-            BeaconCardPillReadOnly(l10n: l10n),
-            const SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  style: tertiaryStyle,
-                  onPressed: onViewChain,
-                  icon: const Icon(TenturaIcons.graph, size: 16),
-                  label: Text(
-                    l10n.beaconCtaViewChain,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow =
+                constraints.maxWidth < kCardTriageActionRowNarrowMaxWidth;
+            if (narrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: BeaconCardPillReadOnly(l10n: l10n),
+                  ),
+                  const SizedBox(height: kSpacingSmall),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: viewChainBtn,
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                BeaconCardPillReadOnly(l10n: l10n),
+                const SizedBox(width: kSpacingSmall),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: viewChainBtn,
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       );
     }
@@ -117,24 +140,42 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
 
       return Padding(
         padding: const EdgeInsets.only(top: kSpacingSmall),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (primary != null) ...[
-              Expanded(
-                flex: secondary != null ? 5 : 1,
-                child: primary,
-              ),
-            ],
-            if (primary != null && secondary != null)
-              const SizedBox(width: kSpacingSmall),
-            if (secondary != null) ...[
-              Expanded(
-                flex: primary != null ? 4 : 1,
-                child: secondary,
-              ),
-            ],
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow =
+                constraints.maxWidth < kCardTriageActionRowNarrowMaxWidth;
+            if (narrow &&
+                primary != null &&
+                secondary != null) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  primary,
+                  const SizedBox(height: kSpacingSmall),
+                  secondary,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (primary != null) ...[
+                  Expanded(
+                    flex: secondary != null ? 5 : 1,
+                    child: primary,
+                  ),
+                ],
+                if (primary != null && secondary != null)
+                  const SizedBox(width: kSpacingSmall),
+                if (secondary != null) ...[
+                  Expanded(
+                    flex: primary != null ? 4 : 1,
+                    child: secondary,
+                  ),
+                ],
+              ],
+            );
+          },
         ),
       );
     }

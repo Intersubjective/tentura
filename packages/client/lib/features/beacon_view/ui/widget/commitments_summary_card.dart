@@ -20,6 +20,7 @@ class CommitmentsSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final theme = Theme.of(context);
 
     final showSecond = usefulCount > 0 || needsCoordinationCount > 0;
 
@@ -30,7 +31,7 @@ class CommitmentsSummaryCard extends StatelessWidget {
         children: [
           Text(
             l10n.beaconOverviewActiveCommitments(activeCount),
-            style: TenturaText.title(tt.text),
+            style: theme.textTheme.titleSmall!.copyWith(color: tt.text),
           ),
           if (showSecond) ...[
             const SizedBox(height: 6),

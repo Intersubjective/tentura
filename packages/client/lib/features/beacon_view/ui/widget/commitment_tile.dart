@@ -101,8 +101,8 @@ class CommitmentTile extends StatelessWidget {
                                     commitment.user,
                                     state.profile.id,
                                   ),
-                                  style: TenturaText.title(
-                                    theme.colorScheme.onSurface,
+                                  style: theme.textTheme.titleSmall!.copyWith(
+                                    color: theme.colorScheme.onSurface,
                                   ),
                                 );
                               },

@@ -30,11 +30,12 @@ Primary font: **Inter** (bundled assets). Use `TenturaText.*` helpers and `Theme
 | Metadata / status / secondary | `bodySmall`                                                            | 13   | 500    | 1.35                  |
 | Primary actions / buttons     | `labelLarge`                                                           | 15   | 700    | 1.20                  |
 | Chips / secondary labels      | `labelMedium`                                                          | 13   | 600    | 1.20                  |
-| Bottom nav labels             | `navLabel` (via `TenturaText.navLabel` or `labelMedium` tuned for nav) | 12.5 | 600    | 1.20                  |
-| Type / mono-like labels       | `typeLabel`                                                            | 13   | 700    | — (letterSpacing 0.3) |
-| Tab labels                    | `tabLabel`                                                             | 13   | 600    | 1.20                  |
-| Command emphasis              | `command`                                                              | 15   | 700    | 1.20                  |
+| Bottom nav labels             | `TenturaText.navLabel` (`NavigationBarTheme` in app theme)             | 12.5 | 600    | 1.20                  |
+| Type / offer labels           | `TenturaText.typeLabel` (Inter; letter-spaced, not a second font)         | 13   | 700    | 1.35 (letterSpacing 0.3) |
+| Tab labels                    | `TenturaText.tabLabel` (`TenturaUnderlineTabs`)                        | 13   | 600    | 1.20                  |
+| Command emphasis              | `TenturaText.command`                                                  | 15   | 700    | 1.20                  |
 
+`command`, `typeLabel`, `tabLabel`, and `navLabel` are **TenturaText** helpers only (not separate `TextTheme` slots). All other rows map to both `TenturaText.*` and `ThemeData.textTheme` via `TenturaTheme.baseTextTheme` in `tentura_theme.dart`.
 
 For **tabular numerals** (timers, counts): `TenturaText.withTabular(style)`.
 
@@ -46,7 +47,7 @@ Width drives layout density, **not** font size:
 | WindowClass | Width (logical px) | Behavior |
 |-------------|-------------------|----------|
 | `compact` | &lt; 600 | Phone; smallest density tokens |
-| `regular` | 600–839 | Tablet / narrow desktop; medium tokens |
+| `regular` | 600 ≤ *w* &lt; 840 | Tablet / narrow desktop; medium tokens (same class at width 839.5, etc.) |
 | `expanded` | ≥ 840 | Wide desktop; largest density tokens, `contentMaxWidth` cap |
 
 
@@ -62,6 +63,22 @@ Width drives layout density, **not** font size:
 
 Do **not** scale the whole UI proportionally from screen width (no `fontSize: 14 * (width / 390)`).
 
+**Compact width:** reflow actions (e.g. second row for tertiary) and use ellipsis on tabs — do **not** visually shrink tab or action text with `FittedBox` / proportional font hacks.
+
+## Beacon detail — type hierarchy
+
+On **Beacon view** (`features/beacon_view`), keep a clear ladder:
+
+| Element | Role |
+|--------|------|
+| Beacon title (header) | `titleMedium` (18 / 700) — pass `titleStyle` into [`BeaconCardHeaderRow`](../packages/client/lib/ui/widget/beacon_card_primitives.dart) from the detail screen only; **list cards** keep default `titleSmall`. |
+| Overview foldable section titles | `titleSmall` (15 / 600) |
+| Overview / Coordination prose (diagnosis body, author update text, need excerpt) | `bodyMedium` (15 / 400) |
+| Metadata (counts under headers, timestamps, status strip) | `bodySmall` / `TenturaText.status` (13) |
+| Commitment tile display name | `titleSmall` — below the beacon title, above body message |
+| Commitments summary heading | `titleSmall` — matches overview sections |
+| Primary / secondary Material buttons | theme `labelLarge` (15 / 700) — unchanged |
+
 ## No global text scaler override
 
 Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling)`. Let Flutter apply system / accessibility text scaling. Design dense cards so they remain usable at **text scale ~1.3** (wrap rows, allow soft wrap, reduce padding via tokens if needed — never shrink semantic type below floors).
@@ -72,7 +89,7 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 2. **Statuses = plain colored text** — semantic color on **`bodySmall`**-scale type (see [`TenturaText.status`](../packages/client/lib/design_system/tentura_text.dart)); no `Chip` / pill backgrounds for state on operational surfaces.
 3. **Flat record cards** — white surface, 1px border, radius from tokens, padding/gap from `context.tt`, shadow minimal or off.
 4. **Hairlines** — use [`TenturaHairlineDivider`](../packages/client/lib/design_system/components/tentura_hairline_divider.dart), not nested cards.
-5. **Tabs** — underline row with 2px active indicator ([`TenturaUnderlineTabs`](../packages/client/lib/design_system/components/tentura_underline_tabs.dart)), not `SegmentedButton` on beacon detail.
+5. **Tabs** — underline row with 2px active indicator ([`TenturaUnderlineTabs`](../packages/client/lib/design_system/components/tentura_underline_tabs.dart)), not `SegmentedButton` on beacon detail. Labels stay at **13px** logical size; use **ellipsis** when width is tight, not scaled-down paint size.
 6. **Actions** — [`TenturaTextAction`](../packages/client/lib/design_system/components/tentura_text_action.dart) / [`TenturaCommandButton`](../packages/client/lib/design_system/components/tentura_command_button.dart); avoid filled buttons inside dense cards unless truly primary.
 7. **Avatars** — size from `context.tt` (`avatarSize`, `metadataAvatarSize`, `cardAvatarSize`), circle + thin border ([`TenturaAvatar`](../packages/client/lib/design_system/components/tentura_avatar.dart)).
 8. **A11y** — min tap targets (e.g. button height from tokens); respect system text scaling.

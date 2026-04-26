@@ -320,6 +320,7 @@ class BeaconCardHeaderRow extends StatelessWidget {
     this.titleMaxLines = 2,
     this.identitySize = kBeaconCardHeaderIconSize,
     this.onTitleBlockTap,
+    this.titleStyle,
     super.key,
   });
 
@@ -333,17 +334,23 @@ class BeaconCardHeaderRow extends StatelessWidget {
   /// When set, the title [Text] opens detail without wrapping the menu.
   final VoidCallback? onTitleBlockTap;
 
+  /// Optional title style. Default is `Theme.of(context).textTheme.titleSmall`
+  /// (inbox / My Work). Beacon detail passes `titleMedium` so the page subject
+  /// outranks section cards.
+  final TextStyle? titleStyle;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final titleStyle = theme.textTheme.titleSmall!.copyWith(
-      color: scheme.onSurface,
-    );
+    final resolvedTitleStyle = titleStyle ??
+        theme.textTheme.titleSmall!.copyWith(
+          color: scheme.onSurface,
+        );
 
     Widget title = Text(
       beacon.title.isEmpty ? '—' : beacon.title,
-      style: titleStyle,
+      style: resolvedTitleStyle,
       maxLines: titleMaxLines,
       overflow: TextOverflow.ellipsis,
     );

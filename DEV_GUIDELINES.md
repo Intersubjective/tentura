@@ -269,7 +269,7 @@ Drive **density** (padding, gaps, icon size, avatar sizes, button height, app ba
 | Class | Width |
 |-------|-------|
 | `compact` | &lt; 600 |
-| `regular` | 600–839 |
+| `regular` | 600 ≤ *w* &lt; 840 |
 | `expanded` | ≥ 840 |
 
 **Do not** change `TextTheme` font sizes per class — only `TenturaTokens` (via `TenturaResponsiveScope` / `context.tt`).
