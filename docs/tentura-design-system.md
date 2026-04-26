@@ -6,7 +6,7 @@ Operational, minimal, record-list UI for `packages/client`. Not a social feed, m
 
 | Area | Location |
 |------|----------|
-| Theme + `ThemeExtension` | [`packages/client/lib/design_system/tentura_theme.dart`](../packages/client/lib/design_system/tentura_theme.dart), [`tentura_tokens.dart`](../packages/client/lib/design_system/tentura_tokens.dart) |
+| Theme + `ThemeExtension` | [`tentura_theme.dart`](../packages/client/lib/design_system/tentura_theme.dart), [`tentura_tokens.dart`](../packages/client/lib/design_system/tentura_tokens.dart) |
 | Text styles | [`tentura_text.dart`](../packages/client/lib/design_system/tentura_text.dart) |
 | Window breakpoints | [`tentura_window_class.dart`](../packages/client/lib/design_system/tentura_window_class.dart), [`tentura_responsive_scope.dart`](../packages/client/lib/design_system/tentura_responsive_scope.dart) |
 | Components | [`packages/client/lib/design_system/components/`](../packages/client/lib/design_system/components/) |
@@ -20,20 +20,21 @@ Access tokens: `import 'package:tentura/design_system/tentura_design_system.dart
 
 Primary font: **Inter** (bundled assets). Use `TenturaText.*` helpers and `ThemeData.textTheme` roles — **never** inline `fontSize:` in `features/**` or `ui/**` (enforced by `no_inline_font_size` where enabled).
 
-| Role | TenturaText / TextTheme | Size | Weight | Line height |
-|------|-------------------------|------|--------|-------------|
-| Card / beacon title | `titleMedium` | 18 | 700 | 1.22 |
-| Large title | `titleLarge` | 20 | 700 | 1.22 |
-| Section / small title | `titleSmall` | 15 | 600 | 1.25 |
-| Body | `bodyMedium` | 15 | 400 | 1.40 |
-| Body large | `bodyLarge` | 16 | 400 | 1.40 |
-| Metadata / status / secondary | `bodySmall` | 13 | 500 | 1.35 |
-| Primary actions / buttons | `labelLarge` | 15 | 700 | 1.20 |
-| Chips / secondary labels | `labelMedium` | 13 | 600 | 1.20 |
-| Bottom nav labels | `navLabel` (via `TenturaText.navLabel` or `labelMedium` tuned for nav) | 12.5 | 600 | 1.20 |
-| Type / mono-like labels | `typeLabel` | 13 | 700 | — (letterSpacing 0.3) |
-| Tab labels | `tabLabel` | 13 | 600 | 1.20 |
-| Command emphasis | `command` | 15 | 700 | 1.20 |
+| Role                          | TenturaText / TextTheme                                                | Size | Weight | Line height           |
+| ----------------------------- | ---------------------------------------------------------------------- | ---- | ------ | --------------------- |
+| Card / beacon title           | `titleMedium`                                                          | 18   | 700    | 1.22                  |
+| Large title                   | `titleLarge`                                                           | 20   | 700    | 1.22                  |
+| Section / small title         | `titleSmall`                                                           | 15   | 600    | 1.25                  |
+| Body                          | `bodyMedium`                                                           | 15   | 400    | 1.40                  |
+| Body large                    | `bodyLarge`                                                            | 16   | 400    | 1.40                  |
+| Metadata / status / secondary | `bodySmall`                                                            | 13   | 500    | 1.35                  |
+| Primary actions / buttons     | `labelLarge`                                                           | 15   | 700    | 1.20                  |
+| Chips / secondary labels      | `labelMedium`                                                          | 13   | 600    | 1.20                  |
+| Bottom nav labels             | `navLabel` (via `TenturaText.navLabel` or `labelMedium` tuned for nav) | 12.5 | 600    | 1.20                  |
+| Type / mono-like labels       | `typeLabel`                                                            | 13   | 700    | — (letterSpacing 0.3) |
+| Tab labels                    | `tabLabel`                                                             | 13   | 600    | 1.20                  |
+| Command emphasis              | `command`                                                              | 15   | 700    | 1.20                  |
+
 
 For **tabular numerals** (timers, counts): `TenturaText.withTabular(style)`.
 
@@ -41,11 +42,13 @@ For **tabular numerals** (timers, counts): `TenturaText.withTabular(style)`.
 
 Width drives layout density, **not** font size:
 
+
 | WindowClass | Width (logical px) | Behavior |
 |-------------|-------------------|----------|
 | `compact` | &lt; 600 | Phone; smallest density tokens |
 | `regular` | 600–839 | Tablet / narrow desktop; medium tokens |
 | `expanded` | ≥ 840 | Wide desktop; largest density tokens, `contentMaxWidth` cap |
+
 
 `TenturaResponsiveScope` selects `TenturaTokens` preset per class. **TextTheme sizes stay identical** across classes; only padding, gaps, icon sizes, avatar sizes, button heights, app bar / bottom nav heights, and max content width change.
 
@@ -76,13 +79,15 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 
 ## Token summary (light)
 
-| Token | Role |
-|-------|------|
-| `bg` | `#F8FAFC` scaffold |
-| `surface` | `#FFFFFF` cards |
-| `border` / `borderSubtle` | hairlines |
-| `text` / `textMuted` / `textFaint` | hierarchy |
-| `info` (sky) / `good` (emerald) / `warn` (amber) / `danger` (rose) | semantics |
+
+| Token                                                              | Role               |
+| ------------------------------------------------------------------ | ------------------ |
+| `bg`                                                               | `#F8FAFC` scaffold |
+| `surface`                                                          | `#FFFFFF` cards    |
+| `border` / `borderSubtle`                                          | hairlines          |
+| `text` / `textMuted` / `textFaint`                                 | hierarchy          |
+| `info` (sky) / `good` (emerald) / `warn` (amber) / `danger` (rose) | semantics          |
+
 
 ## Components (use these)
 
@@ -93,11 +98,13 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 
 ## Do / don’t (operational areas)
 
-| Do | Don’t |
-|----|--------|
+
+| Do                                               | Don’t                                                                                                                      |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | `context.tt` + `TenturaText` / `theme.textTheme` | `Color(0x…)`, `Colors.*` (except e.g. `Colors.transparent` where needed) in `beacon_view`, `my_work`, `inbox` feature code |
-| `TenturaTechCard` for record rows | Ad-hoc `TextStyle(fontSize: …)` in those folders |
-| Plain text status | `Chip` / `SegmentedButton` in `beacon_view` `widget/` + `screen/` |
+| `TenturaTechCard` for record rows                | Ad-hoc `TextStyle(fontSize: …)` in those folders                                                                           |
+| Plain text status                                | `Chip` / `SegmentedButton` in `beacon_view` `widget/` + `screen/`                                                          |
+
 
 Custom lint: `no_operational_raw_color`, `no_operational_raw_text_style`, `no_operational_pill_widgets_in_beacon_view` in [`packages/tentura_lints`](../packages/tentura_lints); plus `no_inline_font_size` for `features/**` and `ui/**` (allow-listed paths in rule).
 
