@@ -3,6 +3,7 @@ import 'package:custom_lint_builder/custom_lint_builder.dart';
 import 'src/rules/cubit_requires_use_case_for_multi_repos.dart';
 import 'src/rules/no_cubit_to_data_service_imports.dart';
 import 'src/rules/no_domain_to_data_imports.dart';
+import 'src/rules/no_inline_font_size.dart';
 import 'src/rules/no_map_dynamic_in_use_case_api.dart';
 import 'src/rules/no_operational_pill_widgets.dart';
 import 'src/rules/no_operational_raw_color.dart';
@@ -18,6 +19,7 @@ final class _TenturaLintsPlugin extends PluginBase {
     const NoCubitToDataServiceImports(),
     const NoMapDynamicInUseCaseApi(),
     const NoRawGraphqlInDart(),
+    const NoInlineFontSize(),
     const CubitRequiresUseCaseForMultiRepos(),
     const NoOperationalRawColor(),
     const NoOperationalRawTextStyle(),

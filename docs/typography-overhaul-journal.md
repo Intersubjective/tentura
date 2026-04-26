@@ -1,6 +1,6 @@
 # Typography & Responsive Overhaul — Journal
 
-**Status:** Active (archive header will be updated at closeout)
+**Status:** Archived 2026-04 — kept in-repo as the permanent record of decisions and audit (see **Journal lifecycle** below).
 
 ## Locked decisions
 
@@ -186,3 +186,24 @@
 ## Deferred / out-of-scope
 
 - **`rating_scatter_view.dart` CustomPainter axis labels:** may use literal `fontSize` (currently 18); must stay ≥ 13. No `Theme.of` in painter — exception to “no inline fontSize” rule.
+
+## Phase 5 — Enforcement & tests
+
+- **`no_inline_font_size` (`tentura_lints`):** flags numeric literal `fontSize:` on `TextStyle(` in `packages/client/lib/features/**` and `lib/ui/**`. Allow-list: `design_system/`, `rating_scatter_view.dart`, `colors_drawer.dart`. Enabled in `packages/client/analysis_options.yaml`.
+- **Golden tests:** `packages/client/test/golden/typography_overhaul_test.dart` — 30 PNGs under `test/golden/goldens/` (inbox-style card, my-work-style card, beacon header, forward composer, bottom nav × 360×800 / 600×900 / 1024×800 × text scaler 1.0 and 1.3). Run: `flutter test test/golden/typography_overhaul_test.dart`; refresh: add `--update-goldens`.
+
+## Manual QA matrix (devices)
+
+| Target | Text scale / width | Result |
+|--------|---------------------|--------|
+| Android physical (360–393 dp) | 1.0, 1.15, 1.3 | *Pending — run on device* |
+| iOS Simulator | Largest Dynamic Type | *Pending* |
+| Chrome desktop | 390 / 520 / 1024 / 1440 px | *Pending* |
+
+**Automated (2026-04-26, Linux CI dev):** `dart analyze --fatal-infos` + `dart run custom_lint` clean for `packages/client` and `packages/tentura_lints`; `dart analyze --fatal-infos` clean for `packages/server`; `flutter test test/golden/typography_overhaul_test.dart` pass.
+
+## Closeout summary
+
+- **Audit scope:** all journal checklist rows above (~120+ feature/ui paths) marked verified during Phases 2–4; inline numeric `TextStyle.fontSize` removed from operational UI except documented exceptions (`rating_scatter_view` painter; proportional `avatar_rated`; design-system `TenturaText`).
+- **New enforcement:** `no_inline_font_size` custom lint + 30 typography goldens.
+- **Journal lifecycle:** **Keep** this file in `docs/` permanently (no delete-after-merge); status line set to **Archived** at closeout.
