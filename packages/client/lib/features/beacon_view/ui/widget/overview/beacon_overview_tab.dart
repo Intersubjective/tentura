@@ -273,12 +273,10 @@ class _CoordinationBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final titleStyle = theme.textTheme.titleSmall?.copyWith(
-      fontSize: 13,
+    final titleStyle = theme.textTheme.bodySmall?.copyWith(
       fontWeight: FontWeight.w600,
     );
     final bodyStyle = theme.textTheme.bodySmall?.copyWith(
-      fontSize: 12,
       height: 1.35,
     );
     final diagnosis = _coordinationDiagnosis(l10n, state);
@@ -378,7 +376,6 @@ class _NeedBody extends StatelessWidget {
     return Text(
       first,
       style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: 13,
         height: 1.35,
         color: theme.colorScheme.onSurfaceVariant,
       ),
@@ -408,7 +405,6 @@ class _CoordinationAuthorUpdateBlock extends StatelessWidget {
       return Text(
         l10n.beaconOverviewNoAuthorUpdate,
         style: theme.textTheme.bodySmall?.copyWith(
-          fontSize: 13,
           color: theme.colorScheme.onSurfaceVariant,
         ),
       );
@@ -426,7 +422,6 @@ class _CoordinationAuthorUpdateBlock extends StatelessWidget {
                   return Text(
                     '${SelfUserHighlight.displayName(l10n, u.author, ps.profile.id)} · ${u.content}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 13,
                       height: 1.35,
                     ),
                   );
@@ -446,8 +441,7 @@ class _CoordinationAuthorUpdateBlock extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '${dateFormatYMD(u.createdAt.toLocal())} ${timeFormatHm(u.createdAt.toLocal())}',
-          style: theme.textTheme.labelSmall?.copyWith(
-            fontSize: 12,
+          style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),

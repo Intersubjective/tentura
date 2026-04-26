@@ -10,8 +10,8 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/inbox_provenance.dart';
 
-/// Matches mock `w-5 h-5` (20px) for collapsed provenance avatars.
-const _kAvatarSize = 20.0;
+/// Collapsed provenance avatars — min ~24 logical px so +N badge fits `labelMedium`.
+const _kAvatarSize = 24.0;
 
 /// Negative overlap between stacked forwarder avatars (`-space-x-1.5` in mock).
 const _kAvatarOverlap = 6.0;
@@ -507,8 +507,7 @@ class _ProvenanceOverlappingRestAvatars extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   '+$overflowCount',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 8,
+                  style: theme.textTheme.labelMedium!.copyWith(
                     fontWeight: FontWeight.w700,
                     color: badgeTextColor,
                     height: 1,

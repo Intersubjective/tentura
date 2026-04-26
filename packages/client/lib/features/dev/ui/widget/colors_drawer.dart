@@ -9,7 +9,7 @@ class ColorsDrawer extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     return Drawer(
       child: DefaultTextStyle(
-        style: const TextStyle(fontSize: 20, height: 2),
+        style: theme.textTheme.titleSmall!.copyWith(height: 2),
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [

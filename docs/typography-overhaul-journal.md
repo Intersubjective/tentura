@@ -183,4 +183,9 @@
 
 ## Deferred / out-of-scope
 
-(empty; append as needed)
+- **`rating_scatter_view.dart` CustomPainter axis labels:** may use literal `fontSize` (currently 18); must stay ≥ 13. No `Theme.of` in painter — exception to “no inline fontSize” rule.
+
+## Decisions made during execution (Phase 3)
+
+- Inbox / My Work `+N` overflow badges: `labelMedium` + **w700**, avatar ring size raised **20 → 24** (`_kAvatarSize`, `CompactForwarderAvatars` default) so 13px+ text fits.
+- `forward_search_overlay` search field: `TenturaText.body(tt.text)` for 15px body (was `bodySmall` + 15 override).
