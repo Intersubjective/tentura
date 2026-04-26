@@ -111,7 +111,7 @@ class _Initials extends StatelessWidget {
         child: Text(
           lettering,
           maxLines: 1,
-          style: TenturaText.meta(tt.textFaint).copyWith(
+          style: TenturaText.bodySmall(tt.textFaint).copyWith(
             fontSize: 10,
             fontWeight: FontWeight.w600,
           ),

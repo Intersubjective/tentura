@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'tentura_colors.dart';
 import 'tentura_radii.dart';
 import 'tentura_spacing.dart';
+import 'tentura_window_class.dart';
 
 /// Tentura-specific tokens (operational UI) not covered well by [ColorScheme] alone.
 @immutable
@@ -25,6 +26,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.cardRadius,
     required this.buttonRadius,
     required this.avatarSize,
+    required this.iconSize,
+    required this.buttonHeight,
+    required this.metadataAvatarSize,
+    required this.cardAvatarSize,
+    required this.appBarHeight,
+    required this.bottomNavHeight,
+    required this.contentMaxWidth,
     required this.cardPadding,
     required this.cardGap,
     required this.screenHPadding,
@@ -55,6 +63,15 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   final double cardRadius;
   final double buttonRadius;
   final double avatarSize;
+  final double iconSize;
+  final double buttonHeight;
+  final double metadataAvatarSize;
+  final double cardAvatarSize;
+  final double appBarHeight;
+  final double bottomNavHeight;
+
+  /// When non-null, root content is constrained (desktop / tablet). `null` = full width.
+  final double? contentMaxWidth;
 
   final EdgeInsets cardPadding;
   final double cardGap;
@@ -79,7 +96,14 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     skyBorder: TenturaPalette.skyBorder,
     cardRadius: TenturaRadii.card,
     buttonRadius: TenturaRadii.button,
-    avatarSize: 32,
+    avatarSize: 36,
+    iconSize: 22,
+    buttonHeight: 44,
+    metadataAvatarSize: 24,
+    cardAvatarSize: 40,
+    appBarHeight: 56,
+    bottomNavHeight: 64,
+    contentMaxWidth: null,
     cardPadding: TenturaSpacing.cardPaddingAll,
     cardGap: TenturaSpacing.cardGap,
     screenHPadding: TenturaSpacing.screenH,
@@ -104,7 +128,14 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     skyBorder: TenturaPalette.skyBorderDark,
     cardRadius: TenturaRadii.card,
     buttonRadius: TenturaRadii.button,
-    avatarSize: 32,
+    avatarSize: 36,
+    iconSize: 22,
+    buttonHeight: 44,
+    metadataAvatarSize: 24,
+    cardAvatarSize: 40,
+    appBarHeight: 56,
+    bottomNavHeight: 64,
+    contentMaxWidth: null,
     cardPadding: TenturaSpacing.cardPaddingAll,
     cardGap: TenturaSpacing.cardGap,
     screenHPadding: TenturaSpacing.screenH,
@@ -116,6 +147,47 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
 
   /// Mine / secondary info on cards (sky-tinted border emphasis).
   Color get borderMine => skyBorder;
+
+  /// Density for `windowClass`; colors and radii unchanged.
+  TenturaTokens applyWindowClass(WindowClass windowClass) {
+    switch (windowClass) {
+      case WindowClass.compact:
+        return copyWith(
+          avatarSize: 36,
+          iconSize: 22,
+          buttonHeight: 44,
+          metadataAvatarSize: 24,
+          cardAvatarSize: 40,
+          appBarHeight: 56,
+          bottomNavHeight: 64,
+          refreshContentMaxWidth: true,
+        );
+      case WindowClass.regular:
+        return copyWith(
+          avatarSize: 40,
+          iconSize: 24,
+          buttonHeight: 46,
+          metadataAvatarSize: 26,
+          cardAvatarSize: 44,
+          appBarHeight: 60,
+          bottomNavHeight: 72,
+          contentMaxWidth: 560,
+          refreshContentMaxWidth: true,
+        );
+      case WindowClass.expanded:
+        return copyWith(
+          avatarSize: 44,
+          iconSize: 26,
+          buttonHeight: 48,
+          metadataAvatarSize: 28,
+          cardAvatarSize: 48,
+          appBarHeight: 60,
+          bottomNavHeight: 72,
+          contentMaxWidth: 720,
+          refreshContentMaxWidth: true,
+        );
+    }
+  }
 
   @override
   TenturaTokens copyWith({
@@ -134,6 +206,14 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? cardRadius,
     double? buttonRadius,
     double? avatarSize,
+    double? iconSize,
+    double? buttonHeight,
+    double? metadataAvatarSize,
+    double? cardAvatarSize,
+    double? appBarHeight,
+    double? bottomNavHeight,
+    double? contentMaxWidth,
+    bool refreshContentMaxWidth = false,
     EdgeInsets? cardPadding,
     double? cardGap,
     double? screenHPadding,
@@ -158,6 +238,15 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       cardRadius: cardRadius ?? this.cardRadius,
       buttonRadius: buttonRadius ?? this.buttonRadius,
       avatarSize: avatarSize ?? this.avatarSize,
+      iconSize: iconSize ?? this.iconSize,
+      buttonHeight: buttonHeight ?? this.buttonHeight,
+      metadataAvatarSize: metadataAvatarSize ?? this.metadataAvatarSize,
+      cardAvatarSize: cardAvatarSize ?? this.cardAvatarSize,
+      appBarHeight: appBarHeight ?? this.appBarHeight,
+      bottomNavHeight: bottomNavHeight ?? this.bottomNavHeight,
+      contentMaxWidth: refreshContentMaxWidth
+          ? contentMaxWidth
+          : this.contentMaxWidth,
       cardPadding: cardPadding ?? this.cardPadding,
       cardGap: cardGap ?? this.cardGap,
       screenHPadding: screenHPadding ?? this.screenHPadding,
@@ -166,6 +255,13 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       iconTextGap: iconTextGap ?? this.iconTextGap,
       avatarTextGap: avatarTextGap ?? this.avatarTextGap,
     );
+  }
+
+  static double? _lerpMaxWidth(double? a, double? b, double t) {
+    if (a == null && b == null) return null;
+    if (a == null) return b;
+    if (b == null) return a;
+    return lerpDouble(a, b, t);
   }
 
   @override
@@ -187,6 +283,17 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       cardRadius: lerpDouble(cardRadius, other.cardRadius, t)!,
       buttonRadius: lerpDouble(buttonRadius, other.buttonRadius, t)!,
       avatarSize: lerpDouble(avatarSize, other.avatarSize, t)!,
+      iconSize: lerpDouble(iconSize, other.iconSize, t)!,
+      buttonHeight: lerpDouble(buttonHeight, other.buttonHeight, t)!,
+      metadataAvatarSize: lerpDouble(
+        metadataAvatarSize,
+        other.metadataAvatarSize,
+        t,
+      )!,
+      cardAvatarSize: lerpDouble(cardAvatarSize, other.cardAvatarSize, t)!,
+      appBarHeight: lerpDouble(appBarHeight, other.appBarHeight, t)!,
+      bottomNavHeight: lerpDouble(bottomNavHeight, other.bottomNavHeight, t)!,
+      contentMaxWidth: _lerpMaxWidth(contentMaxWidth, other.contentMaxWidth, t),
       cardPadding: EdgeInsets.lerp(cardPadding, other.cardPadding, t)!,
       cardGap: lerpDouble(cardGap, other.cardGap, t)!,
       screenHPadding: lerpDouble(screenHPadding, other.screenHPadding, t)!,

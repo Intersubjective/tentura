@@ -22,7 +22,7 @@ class TenturaMetaText extends StatelessWidget {
       text,
       maxLines: maxLines,
       overflow: overflow,
-      style: TenturaText.meta(context.tt.textMuted),
+      style: TenturaText.bodySmall(context.tt.textMuted),
     );
   }
 }

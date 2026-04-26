@@ -58,7 +58,7 @@ class ForwardScopeLinks extends StatelessWidget {
                               '/$count',
                               maxLines: 1,
                               softWrap: false,
-                              style: TenturaText.meta(tt.textFaint),
+                              style: TenturaText.bodySmall(tt.textFaint),
                             ),
                           ],
                         ),

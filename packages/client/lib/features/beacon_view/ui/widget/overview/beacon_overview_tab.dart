@@ -68,7 +68,7 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
     final summaryStyle = widget.summaryColor != null
         ? TenturaText.body(tt.textMuted).copyWith(color: widget.summaryColor)
         : TenturaText.body(tt.textMuted);
-    final metaStyle = TenturaText.meta(tt.textFaint);
+    final metaStyle = TenturaText.bodySmall(tt.textFaint);
 
     return Material(
       key: PageStorageKey<String>(widget.storageId),

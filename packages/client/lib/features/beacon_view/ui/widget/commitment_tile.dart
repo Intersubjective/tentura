@@ -195,7 +195,7 @@ class CommitmentTile extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 uncommitReasonLabel(l10n, commitment.uncommitReason)!,
-                style: TenturaText.meta(tt.textMuted),
+                style: TenturaText.bodySmall(tt.textMuted),
               ),
             ],
           ],
@@ -232,7 +232,7 @@ class _AuthorFooter extends StatelessWidget {
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: TenturaText.meta(tt.textMuted),
+              style: TenturaText.bodySmall(tt.textMuted),
               children: [
                 TextSpan(
                   text: l10n.commitmentsTabAuthorLabelCaption,
@@ -246,7 +246,7 @@ class _AuthorFooter extends StatelessWidget {
                 ] else
                   TextSpan(
                     text: ' —',
-                    style: TenturaText.meta(tt.textMuted),
+                    style: TenturaText.bodySmall(tt.textMuted),
                   ),
               ],
             ),

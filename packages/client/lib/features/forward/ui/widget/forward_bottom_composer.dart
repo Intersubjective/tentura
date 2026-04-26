@@ -53,7 +53,7 @@ class ForwardBottomComposer extends StatelessWidget {
                   textAlignVertical: TextAlignVertical.top,
                   decoration: InputDecoration(
                     hintText: l10n.forwardSharedNoteHint.toLowerCase(),
-                    hintStyle: TenturaText.meta(tt.textFaint),
+                    hintStyle: TenturaText.bodySmall(tt.textFaint),
                     filled: true,
                     fillColor: tt.surface,
                     contentPadding: const EdgeInsets.all(12),

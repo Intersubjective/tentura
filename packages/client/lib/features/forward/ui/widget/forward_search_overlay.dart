@@ -90,12 +90,12 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                           child: TextField(
                             controller: _controller,
                             focusNode: _focus,
-                            style: TenturaText.meta(tt.text).copyWith(
+                            style: TenturaText.bodySmall(tt.text).copyWith(
                               fontSize: 15,
                             ),
                             decoration: InputDecoration.collapsed(
                               hintText: l10n.forwardOverlaySearchHint,
-                              hintStyle: TenturaText.meta(tt.textFaint),
+                              hintStyle: TenturaText.bodySmall(tt.textFaint),
                             ),
                           ),
                         ),
@@ -118,7 +118,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                             child: Text(
                               l10n.labelNothingHere,
                               textAlign: TextAlign.center,
-                              style: TenturaText.meta(tt.textMuted),
+                              style: TenturaText.bodySmall(tt.textMuted),
                             ),
                           ),
                         )

@@ -86,7 +86,7 @@ class CompactBeaconContextStrip extends StatelessWidget {
                   buffer.toString(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TenturaText.meta(tt.textMuted),
+                  style: TenturaText.bodySmall(tt.textMuted),
                 ),
               ),
             ],

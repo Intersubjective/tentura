@@ -189,7 +189,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                                       ? l10n.noReachableContacts
                                       : l10n.labelNothingHere,
                                   textAlign: TextAlign.center,
-                                  style: TenturaText.meta(tt.textMuted),
+                                  style: TenturaText.bodySmall(tt.textMuted),
                                 ),
                               ),
                             )
