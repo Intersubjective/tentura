@@ -46,6 +46,17 @@ final _fmtHm = DateFormat.Hm();
 final GlobalKey<ScaffoldMessengerState> snackbarKey =
     GlobalKey<ScaffoldMessengerState>();
 
+/// Clears snack bars when a new route is stacked (e.g. leaving Inbox for a
+/// beacon). Per-navigator instance — do not use a singleton (nested routers).
+class ClearSnackBarsOnPushObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (previousRoute != null) {
+      snackbarKey.currentState?.clearSnackBars();
+    }
+  }
+}
+
 String dateFormatYMD(DateTime? dateTime) =>
     dateTime == null ? '' : _fmtYMd.format(dateTime);
 

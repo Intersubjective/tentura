@@ -32,6 +32,8 @@ abstract class BeaconEntity with _$BeaconEntity {
     Set<String>? tags,
     String? iconCode,
     int? iconBackground,
+    String? needSummary,
+    String? successCriteria,
   }) = _BeaconEntity;
 
   const BeaconEntity._();

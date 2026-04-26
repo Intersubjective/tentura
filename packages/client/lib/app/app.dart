@@ -78,6 +78,7 @@ class App extends StatelessWidget {
           // assertion failures on nested stacks (e.g. web).
           navigatorObservers: () => [
             SentryNavigatorObserver(),
+            ClearSnackBarsOnPushObserver(),
           ],
         ),
         supportedLocales: L10n.supportedLocales,

@@ -128,6 +128,17 @@ final class BeaconCreateException extends ExceptionBase {
       );
 }
 
+final class BeaconNeedSummaryTooShortException extends ExceptionBase {
+  const BeaconNeedSummaryTooShortException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconNeedSummaryTooShort,
+        ),
+        description:
+            description ?? 'Need summary must be at least 16 characters',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode evaluationCode,

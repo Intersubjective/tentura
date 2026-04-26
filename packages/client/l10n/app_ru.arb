@@ -2214,6 +2214,18 @@
   "beaconForwardChainPreview": "Цепочка пересылок",
   "beaconForwardChainTapHint": "Нажмите для графа",
   "beaconDescriptionAttachmentsTitle": "Описание и вложения",
+  "beaconNeedCardTitle": "Что нужно",
+  "beaconNeedAndContextTitle": "Запрос и контекст",
+  "beaconContextAttachmentsTitle": "Контекст и вложения",
+  "beaconNeedBriefPrefix": "Запрос:",
+  "beaconDoneWhenTitle": "Готово, когда",
+  "beaconNeedSummaryFieldLabel": "Что нужно?",
+  "beaconNeedSummaryHelper": "Цельтесь в 160–240 символов.",
+  "beaconNeedSummaryTooShortError": "Опишите потребность не короче 16 символов.",
+  "beaconNeedSummaryTooLongError": "Краткое описание потребности — не больше 280 символов.",
+  "beaconSuccessCriteriaTooLongError": "Критерии готовности — не больше 240 символов.",
+  "beaconSuccessCriteriaFieldLabel": "Что считать выполненным? (необязательно)",
+  "beaconAddContextHint": "Добавьте контекст (необязательно)",
   "beaconShowWithdrawn": "Показать снятые ({count})",
   "@beaconShowWithdrawn": {
     "placeholders": {

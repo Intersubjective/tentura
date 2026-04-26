@@ -27,8 +27,7 @@ class ProfileViewAppBar extends StatelessWidget {
     return BlocBuilder<ProfileViewCubit, ProfileViewState>(
       bloc: profileViewCubit,
       builder: (context, state) => SliverAppBar(
-        floating: true,
-        snap: true,
+        pinned: true,
         leading: isFromDeepLink
             ? BackButton(
                 onPressed: () => context.router.navigatePath(kPathHome),
@@ -61,7 +60,7 @@ class ProfileViewAppBar extends StatelessWidget {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(40),
+          preferredSize: LinearPiActive.size,
           child: LinearPiActive.builder(context, state.isLoading),
         ),
       ),

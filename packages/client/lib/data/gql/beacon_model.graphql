@@ -8,6 +8,8 @@ fragment BeaconModel on beacon {
   icon_background
   title
   description
+  need_summary
+  success_criteria
   created_at
   updated_at
   is_pinned

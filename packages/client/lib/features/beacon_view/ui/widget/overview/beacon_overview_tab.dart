@@ -20,6 +20,7 @@ import '../../util/beacon_chip_derivation.dart';
 const double _kOverviewSectionGap = 12;
 
 /// Foldable overview section: icon, title, summary, optional meta, chevron, expanded body.
+/// When [collapsible] is false, the body is always visible (no chevron / tap-to-toggle).
 class BeaconOverviewSectionCard extends StatefulWidget {
   const BeaconOverviewSectionCard({
     required this.storageId,
@@ -30,6 +31,7 @@ class BeaconOverviewSectionCard extends StatefulWidget {
     this.meta,
     this.defaultOpen = false,
     this.summaryColor,
+    this.collapsible = true,
     super.key,
   });
 
@@ -42,6 +44,9 @@ class BeaconOverviewSectionCard extends StatefulWidget {
   final bool defaultOpen;
   final Color? summaryColor;
 
+  /// When false, header is static and [expanded] is always shown (need-first primary card).
+  final bool collapsible;
+
   @override
   State<BeaconOverviewSectionCard> createState() =>
       _BeaconOverviewSectionCardState();
@@ -53,10 +58,15 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
   @override
   void initState() {
     super.initState();
-    _expanded = widget.defaultOpen;
+    if (widget.collapsible) {
+      _expanded = widget.defaultOpen;
+    } else {
+      _expanded = true;
+    }
   }
 
   void _toggle() {
+    if (!widget.collapsible) return;
     setState(() {
       _expanded = !_expanded;
     });
@@ -74,6 +84,72 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
         ? TenturaText.status(widget.summaryColor!)
         : TenturaText.body(tt.textMuted);
     final metaStyle = theme.textTheme.bodySmall!.copyWith(color: tt.textFaint);
+    final effectiveExpanded = !widget.collapsible || _expanded;
+
+    final headerChild = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.cardPadding.top,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: tt.borderSubtle,
+              borderRadius: BorderRadius.circular(
+                TenturaRadii.cardDense,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Icon(
+              widget.icon,
+              size: 20,
+              color: tt.textMuted,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  widget.title,
+                  style: sectionTitleStyle,
+                ),
+                if (widget.summary.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.summary,
+                    style: summaryStyle,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (widget.meta != null && widget.meta!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.meta!,
+                    style: metaStyle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (widget.collapsible) ...[
+            const SizedBox(width: 4),
+            Icon(
+              effectiveExpanded ? Icons.expand_less : Icons.expand_more,
+              color: tt.textMuted,
+            ),
+          ],
+        ],
+      ),
+    );
 
     return Material(
       key: PageStorageKey<String>(widget.storageId),
@@ -87,75 +163,19 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          InkWell(
-            onTap: _toggle,
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: tt.screenHPadding,
-                vertical: tt.cardPadding.top,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: tt.borderSubtle,
-                      borderRadius: BorderRadius.circular(
-                        TenturaRadii.cardDense,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      widget.icon,
-                      size: 20,
-                      color: tt.textMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          widget.title,
-                          style: sectionTitleStyle,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.summary,
-                          style: summaryStyle,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (widget.meta != null && widget.meta!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            widget.meta!,
-                            style: metaStyle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: tt.textMuted,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_expanded) const TenturaHairlineDivider(),
+          if (widget.collapsible)
+            InkWell(
+              onTap: _toggle,
+              child: headerChild,
+            )
+          else
+            headerChild,
+          if (effectiveExpanded) const TenturaHairlineDivider(),
           AnimatedSize(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
             alignment: Alignment.topCenter,
-            child: _expanded
+            child: effectiveExpanded
                 ? Padding(
                     padding: EdgeInsets.fromLTRB(
                       tt.screenHPadding,
@@ -199,53 +219,79 @@ class BeaconOverviewTab extends StatelessWidget {
     final active = activeCommitmentCount(state.commitments);
     final needCoord = _needCoordinationCount(state.commitments);
     final useful = usefulCommitmentCount(state.commitments);
-    final needSummary = _needSummaryLine(beacon, l10n);
-    final needMeta = _needMetaLine(l10n, beacon);
-    final descSummary = _descriptionSummaryLine(l10n, beacon);
+    final contextSummary = _contextAttachmentsSummaryLine(l10n, beacon);
+
+    final coordinationCard = BeaconOverviewSectionCard(
+      storageId: 'ov-${beacon.id}-coord',
+      defaultOpen: true,
+      title: l10n.beaconCoordinationCardTitle,
+      summary: _coordinationHeaderSummary(l10n, state),
+      summaryColor: coordinationAccent,
+      meta: l10n.beaconOverviewActiveCommitments(active),
+      icon: Icons.groups_outlined,
+      expanded: _CoordinationBody(
+        l10n: l10n,
+        state: state,
+        onViewAllCommitments: onViewAllCommitments,
+        useful: useful,
+        needCoordination: needCoord,
+        active: active,
+        diagnosisTitleColor: coordinationAccent,
+        latest: latest,
+        onEditTimelineUpdate: onEditTimelineUpdate,
+      ),
+    );
+
+    final contextCard = BeaconOverviewSectionCard(
+      storageId: 'ov-${beacon.id}-ctx',
+      title: l10n.beaconContextAttachmentsTitle,
+      summary: contextSummary,
+      icon: Icons.attach_file,
+      expanded: BeaconInfo(
+        key: ValueKey('overview-ctx-${beacon.id}'),
+        beacon: beacon,
+        isShowBeaconEnabled: false,
+        isShowMoreEnabled: false,
+        showTitle: false,
+        descriptionBeforeMedia: true,
+        mediaMaxHeight: 180,
+        compactImageGallery: true,
+      ),
+    );
+
+    if (beacon.hasNeedSummary) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BeaconOverviewSectionCard(
+            storageId: 'ov-${beacon.id}-need',
+            collapsible: false,
+            defaultOpen: true,
+            title: l10n.beaconNeedCardTitle,
+            summary: '',
+            icon: Icons.track_changes_outlined,
+            expanded: _NeedSectionBody(l10n: l10n, beacon: beacon),
+          ),
+          const SizedBox(height: _kOverviewSectionGap),
+          coordinationCard,
+          const SizedBox(height: _kOverviewSectionGap),
+          contextCard,
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         BeaconOverviewSectionCard(
-          storageId: 'ov-${beacon.id}-coord',
+          storageId: 'ov-${beacon.id}-legacy-need-ctx',
+          collapsible: false,
           defaultOpen: true,
-          title: l10n.beaconCoordinationCardTitle,
-          summary: _coordinationHeaderSummary(l10n, state),
-          summaryColor: coordinationAccent,
-          meta: l10n.beaconOverviewActiveCommitments(active),
-          icon: Icons.groups_outlined,
-          expanded: _CoordinationBody(
-            l10n: l10n,
-            state: state,
-            onViewAllCommitments: onViewAllCommitments,
-            useful: useful,
-            needCoordination: needCoord,
-            active: active,
-            diagnosisTitleColor: coordinationAccent,
-            latest: latest,
-            onEditTimelineUpdate: onEditTimelineUpdate,
-          ),
-        ),
-        const SizedBox(height: _kOverviewSectionGap),
-        BeaconOverviewSectionCard(
-          storageId: 'ov-${beacon.id}-need',
-          title: l10n.beaconNeedSummaryTitle,
-          summary: needSummary,
-          meta: needMeta,
-          icon: Icons.track_changes_outlined,
-          expanded: _NeedBody(
-            l10n: l10n,
-            beacon: beacon,
-          ),
-        ),
-        const SizedBox(height: _kOverviewSectionGap),
-        BeaconOverviewSectionCard(
-          storageId: 'ov-${beacon.id}-desc',
-          title: l10n.beaconDescriptionAttachmentsTitle,
-          summary: descSummary,
-          icon: Icons.attach_file,
+          title: l10n.beaconNeedAndContextTitle,
+          summary: contextSummary,
+          icon: Icons.article_outlined,
           expanded: BeaconInfo(
-            key: ValueKey('overview-${beacon.id}'),
+            key: ValueKey('overview-legacy-${beacon.id}'),
             beacon: beacon,
             isShowBeaconEnabled: false,
             isShowMoreEnabled: false,
@@ -255,6 +301,45 @@ class BeaconOverviewTab extends StatelessWidget {
             compactImageGallery: true,
           ),
         ),
+        const SizedBox(height: _kOverviewSectionGap),
+        coordinationCard,
+      ],
+    );
+  }
+}
+
+class _NeedSectionBody extends StatelessWidget {
+  const _NeedSectionBody({
+    required this.l10n,
+    required this.beacon,
+  });
+
+  final L10n l10n;
+  final Beacon beacon;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bodyStyle = theme.textTheme.bodyMedium!.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final ns = beacon.needSummary?.trim() ?? '';
+    final sc = beacon.successCriteria?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(ns, style: bodyStyle),
+        if (sc != null && sc.isNotEmpty) ...[
+          SizedBox(height: context.tt.rowGap),
+          Text(
+            l10n.beaconDoneWhenTitle,
+            style: theme.textTheme.titleSmall!.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(sc, style: bodyStyle),
+        ],
       ],
     );
   }
@@ -365,31 +450,6 @@ class _CoordinationBody extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _NeedBody extends StatelessWidget {
-  const _NeedBody({
-    required this.l10n,
-    required this.beacon,
-  });
-
-  final L10n l10n;
-  final Beacon beacon;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final d = beacon.description.trim();
-    final first = d.isNotEmpty
-        ? (d.contains('\n') ? d.split('\n').first.trim() : d)
-        : l10n.beaconOverviewNeedEmpty;
-    return Text(
-      first,
-      style: theme.textTheme.bodyMedium!.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
     );
   }
 }
@@ -523,29 +583,7 @@ int _needCoordinationCount(List<TimelineCommitment> commitments) => commitments
     )
     .length;
 
-String _needSummaryLine(Beacon beacon, L10n l10n) {
-  return firstParagraphNeedLine(beacon) ??
-      (beacon.title.trim().isNotEmpty
-          ? beacon.title.trim()
-          : l10n.beaconOverviewNeedEmpty);
-}
-
-String? _needMetaLine(L10n l10n, Beacon beacon) {
-  final a = beacon.author.title.trim();
-  final c = beacon.context.trim();
-  if (a.isEmpty && c.isEmpty) {
-    return null;
-  }
-  if (a.isNotEmpty && c.isNotEmpty) {
-    return l10n.beaconOverviewNeedMeta(a, c);
-  }
-  if (a.isNotEmpty) {
-    return l10n.beaconOverviewNeedMetaAuthorOnly(a);
-  }
-  return c;
-}
-
-String _descriptionSummaryLine(L10n l10n, Beacon beacon) {
+String _contextAttachmentsSummaryLine(L10n l10n, Beacon beacon) {
   if (beacon.hasPicture) {
     return l10n.beaconOverviewPhotosCount(beacon.images.length);
   }

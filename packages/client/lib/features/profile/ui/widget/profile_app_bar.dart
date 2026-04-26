@@ -22,49 +22,6 @@ class ProfileAppBar extends StatelessWidget {
     final l10n = L10n.of(context)!;
 
     return SliverInboxStyleAppBar(
-      leading: PopupMenuButton<String>(
-        icon: const Icon(Icons.menu),
-        tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-        onSelected: (value) {
-          if (value == 'edit') {
-            context.read<ScreenCubit>().showProfileEditor();
-          } else if (value == 'rating') {
-            context.read<ScreenCubit>().showRating();
-          }
-        },
-        itemBuilder: (menuContext) => [
-          PopupMenuItem<String>(
-            value: 'edit',
-            child: Row(
-              children: [
-                Icon(
-                  Icons.edit_outlined,
-                  size: 22,
-                  color: Theme.of(menuContext).colorScheme.onSurface,
-                ),
-                const SizedBox(width: 12),
-                Text(l10n.profileOverflowEdit),
-              ],
-            ),
-          ),
-          PopupMenuItem<String>(
-            value: 'rating',
-            child: Row(
-              children: [
-                Icon(
-                  Icons.leaderboard,
-                  size: 22,
-                  color: Theme.of(menuContext).colorScheme.onSurface,
-                ),
-                const SizedBox(width: 12),
-                Text(l10n.rating),
-              ],
-            ),
-          ),
-        ],
-      ),
       title: Row(
         children: [
           SelfAwareAvatar(
@@ -102,9 +59,43 @@ class ProfileAppBar extends StatelessWidget {
         ],
       ),
       actions: [
+        IconButton(
+          tooltip: l10n.profileOverflowEdit,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          onPressed: () => context.read<ScreenCubit>().showProfileEditor(),
+          icon: const Icon(Icons.edit_outlined),
+        ),
         Padding(
           padding: const EdgeInsets.only(right: 4),
           child: ShareCodeIconButton.id(profile.id),
+        ),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          onSelected: (value) {
+            if (value == 'rating') {
+              context.read<ScreenCubit>().showRating();
+            }
+          },
+          itemBuilder: (menuContext) => [
+            PopupMenuItem<String>(
+              value: 'rating',
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.leaderboard,
+                    size: 22,
+                    color: Theme.of(menuContext).colorScheme.onSurface,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(l10n.rating),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );

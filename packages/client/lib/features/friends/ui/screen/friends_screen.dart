@@ -87,15 +87,6 @@ class _FriendsScreenState extends State<FriendsScreen>
         child: Scaffold(
           backgroundColor: scheme.surface,
           appBar: InboxStyleAppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.menu),
-              tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-              onPressed: () {
-                // Placeholder until Network menu contents are defined.
-              },
-            ),
             title: BlocSelector<InvitationCubit, InvitationState, int>(
               bloc: _invitationCubit,
               selector: (s) => s.invitations.length,

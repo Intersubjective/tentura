@@ -2214,6 +2214,18 @@
   "beaconForwardChainPreview": "Forward chain",
   "beaconForwardChainTapHint": "Tap for full graph",
   "beaconDescriptionAttachmentsTitle": "Description & attachments",
+  "beaconNeedCardTitle": "Need",
+  "beaconNeedAndContextTitle": "Need & context",
+  "beaconContextAttachmentsTitle": "Context & attachments",
+  "beaconNeedBriefPrefix": "Need:",
+  "beaconDoneWhenTitle": "Done when",
+  "beaconNeedSummaryFieldLabel": "What is needed?",
+  "beaconNeedSummaryHelper": "Aim for 160–240 characters.",
+  "beaconNeedSummaryTooShortError": "Describe the need in at least 16 characters.",
+  "beaconNeedSummaryTooLongError": "Need summary must be 280 characters or fewer.",
+  "beaconSuccessCriteriaTooLongError": "Success criteria must be 240 characters or fewer.",
+  "beaconSuccessCriteriaFieldLabel": "What counts as done? (optional)",
+  "beaconAddContextHint": "Add context (optional)",
   "beaconShowWithdrawn": "Show {count} withdrawn",
   "@beaconShowWithdrawn": {
     "placeholders": {

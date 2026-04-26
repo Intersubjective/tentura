@@ -64,6 +64,7 @@ class UserExceptionCodes extends ExceptionCodes {
 enum BeaconExceptionCode {
   unspecifiedException,
   beaconCreateException,
+  beaconNeedSummaryTooShort,
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {

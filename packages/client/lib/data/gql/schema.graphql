@@ -103,6 +103,8 @@ type beacon {
   coordination_status_updated_at: timestamptz
   created_at: timestamptz!
   description: String!
+  need_summary: String
+  success_criteria: String
   end_at: timestamptz
 
   """An array relationship"""
@@ -1433,6 +1435,12 @@ enum beacon_select_column {
   description
 
   """column name"""
+  need_summary
+
+  """column name"""
+  success_criteria
+
+  """column name"""
   end_at
 
   """column name"""
@@ -2536,9 +2544,9 @@ type mutation_root {
   beaconCloseWithReview(id: String!): v2_BeaconCloseReviewResult!
   beaconCommit(helpType: String, id: String!, message: String): Boolean!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_Beacon!
-  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, polling: PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
-  beaconUpdate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, startAt: String, tags: String, title: String!): v2_Beacon!
-  beaconUpdateDraft(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, polling: PollingInput, startAt: String, tags: String, title: String!): v2_Beacon!
+  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, needSummary: String, polling: PollingInput, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdateDraft(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, polling: PollingInput, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReorderImages(beaconId: String!, imageIds: [String!]!): Boolean!

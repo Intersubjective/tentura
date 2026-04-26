@@ -14,6 +14,16 @@ final class TitleTooShortException extends UserInputException {
   String get toRu => 'Название слишком короткое';
 }
 
+final class BeaconNeedSummaryTooShortException extends UserInputException {
+  const BeaconNeedSummaryTooShortException();
+
+  @override
+  String get toEn => 'Describe the need in at least 16 characters.';
+
+  @override
+  String get toRu => 'Опишите потребность не короче 16 символов.';
+}
+
 /// Polling Input Exceptions
 sealed class PollingInputExceptions extends LocalizableException {
   const PollingInputExceptions();

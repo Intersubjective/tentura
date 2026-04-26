@@ -8,6 +8,8 @@ part 'beacon_create_state.freezed.dart';
 abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
   const factory BeaconCreateState({
     @Default('') String title,
+    @Default('') String needSummary,
+    @Default('') String successCriteria,
     @Default('') String description,
     @Default('') String location,
     @Default('') String question,

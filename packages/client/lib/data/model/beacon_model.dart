@@ -20,6 +20,8 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       createdAt: i.created_at,
       updatedAt: i.updated_at,
       description: i.description,
+      needSummary: i.need_summary,
+      successCriteria: i.success_criteria,
       isPinned: i.is_pinned ?? false,
       context: i.context ?? '',
       myVote: i.my_vote ?? 0,
