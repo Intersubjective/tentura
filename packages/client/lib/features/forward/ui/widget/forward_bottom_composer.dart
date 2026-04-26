@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'forward_input_decoration.dart';
+
 class ForwardBottomComposer extends StatelessWidget {
   const ForwardBottomComposer({
     required this.selectedIds,
@@ -33,16 +35,16 @@ class ForwardBottomComposer extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           tt.screenHPadding,
-          8,
+          tt.rowGap,
           tt.screenHPadding,
-          8,
+          tt.rowGap,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (noteExpanded) ...[
-              const SizedBox(height: 8),
+              SizedBox(height: tt.rowGap),
               SizedBox(
                 height: 64,
                 child: TextField(
@@ -51,64 +53,54 @@ class ForwardBottomComposer extends StatelessWidget {
                   maxLines: null,
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,
-                  decoration: InputDecoration(
+                  cursorColor: tt.info,
+                  style: TenturaText.body(tt.text),
+                  decoration: forwardNoteInputDecoration(
+                    context,
                     hintText: l10n.forwardSharedNoteHint.toLowerCase(),
-                    hintStyle: TenturaText.bodySmall(tt.textFaint),
-                    filled: true,
-                    fillColor: tt.surface,
-                    contentPadding: const EdgeInsets.all(12),
                     suffixIcon: IconButton(
                       icon: Icon(Icons.expand_less, color: tt.textMuted),
-                      tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                      tooltip:
+                          MaterialLocalizations.of(context).closeButtonTooltip,
                       onPressed: onToggleNoteExpanded,
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: tt.border),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: tt.border),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: tt.skyBorder),
-                    ),
                   ),
-                  style: TenturaText.body(tt.text),
                 ),
               ),
             ] else ...[
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: onToggleNoteExpanded,
-                child: SizedBox(
-                  height: 32,
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.add_comment_outlined,
-                        size: 18,
-                        color: tt.textMuted,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        l10n.forwardAddSharedNoteCommand,
-                        style: TenturaText.command(tt.textMuted),
-                      ),
-                    ],
+              SizedBox(height: tt.rowGap),
+              Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  onTap: onToggleNoteExpanded,
+                  child: SizedBox(
+                    height: tt.buttonHeight,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.add_comment_outlined,
+                          size: tt.iconSize,
+                          color: tt.textMuted,
+                        ),
+                        SizedBox(width: tt.rowGap),
+                        Text(
+                          l10n.forwardAddSharedNoteCommand,
+                          style: TenturaText.command(tt.textMuted),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
-            const SizedBox(height: 8),
+            SizedBox(height: tt.rowGap),
             SizedBox(
-              height: 40,
+              height: tt.buttonHeight,
               child: OutlinedButton(
                 onPressed: onForward,
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: Size(0, tt.buttonHeight),
+                  padding: EdgeInsets.symmetric(horizontal: tt.cardPadding.top),
                   side: BorderSide(
                     color: enabled ? tt.skyBorder : tt.borderSubtle,
                   ),
@@ -129,7 +121,7 @@ class ForwardBottomComposer extends StatelessWidget {
                       size: 14,
                       color: enabled ? tt.info : tt.textFaint,
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: tt.rowGap),
                     Text(
                       enabled
                           ? l10n.forwardToCount(selectedIds.length)

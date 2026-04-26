@@ -6,7 +6,9 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
+import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/widget/forward_bottom_composer.dart';
+import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -179,6 +181,20 @@ void main() {
       }
     });
 
+    testWidgets('forward recipient row', (tester) async {
+      for (final s in sizes) {
+        for (final scale in scalers) {
+          await pumpTypographyGolden(
+            tester,
+            id: 'forward_recipient',
+            body: const _ForwardRecipientGoldenBody(),
+            logicalSize: s,
+            textScaler: scale,
+          );
+        }
+      }
+    });
+
     testWidgets('bottom navigation bar', (tester) async {
       for (final s in sizes) {
         for (final scale in scalers) {
@@ -282,6 +298,35 @@ class _BeaconHeaderGoldenBody extends StatelessWidget {
       child: BeaconCardHeaderRow(
         beacon: beacon,
         menu: const SizedBox(width: 40, height: 40),
+      ),
+    );
+  }
+}
+
+class _ForwardRecipientGoldenBody extends StatelessWidget {
+  const _ForwardRecipientGoldenBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surface,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ForwardRecipientRow(
+            candidate: const ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                title: 'Dmitrii long display name for ellipsis',
+                rScore: 1,
+              ),
+            ),
+            isSelected: true,
+            onToggle: () {},
+            personalizedNoteEditorOpen: true,
+            onTogglePersonalizedNoteEditor: () {},
+          ),
+        ],
       ),
     );
   }

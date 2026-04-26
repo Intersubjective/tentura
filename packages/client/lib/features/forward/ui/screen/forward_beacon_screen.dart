@@ -172,7 +172,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                     const TenturaHairlineDivider(),
                     if (beacon != null && beacon.id.isNotEmpty) ...[
                       CompactBeaconContextStrip(beacon: beacon),
-                      const SizedBox(height: 8),
+                      SizedBox(height: tt.rowGap),
                     ],
                     ForwardScopeLinks(
                       activeFilter: state.activeFilter,
@@ -194,7 +194,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                               ),
                             )
                           : ListView(
-                              padding: const EdgeInsets.only(bottom: 8),
+                              padding: EdgeInsets.only(bottom: tt.rowGap),
                               children: [
                                 for (var i = 0; i < visible.length; i++) ...[
                                   if (i > 0) const TenturaHairlineDivider(),

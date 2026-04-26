@@ -84,6 +84,23 @@ On **Beacon view** (`features/beacon_view`), keep a clear ladder:
 | Activity tab section headers | `titleSmall` — same weight as other section titles (no extra bold bump) |
 | Primary / secondary Material buttons (incl. [`CardTriageActionRow`](../packages/client/lib/ui/widget/card_triage_action_row.dart), owner CTAs in [`BeaconPrimaryCtaBar`](../packages/client/lib/features/beacon_view/ui/widget/beacon_primary_cta_bar.dart)) | `labelLarge` (15 / 700) via `theme.textTheme.labelLarge` |
 
+## Forward Beacon picker — type hierarchy
+
+On **Forward Beacon** (`features/forward` — `ForwardBeaconPage`, `ForwardRecipientRow`, `ForwardScopeLinks`, `ForwardBottomComposer`), keep a compact list hierarchy; do not compete with `titleMedium` on every row.
+
+| Element | Role |
+|--------|------|
+| Screen title (top bar) | `TenturaText.title` / `titleMedium` (18 / 700) — same as other modal-style titles |
+| Subtitle (beacon title · lifecycle) | `bodySmall` muted |
+| Context strip (author · context · dates) | `bodySmall` + `metadataAvatarSize` / token gaps from `context.tt` |
+| Scope tabs (best / unseen / involved) | `TenturaText.tabLabel` (13) for label; `bodySmall` or tabular `bodySmall` for `/count`; **ellipsis** when tight — **no `FittedBox` scale-down** |
+| Recipient display name | `titleSmall` (15 / 600), not `title` — use `SelfUserHighlight.nameStyle` with `TenturaText.titleSmall` as base |
+| Presence + involvement line | `bodySmall` for presence; `TenturaStatusText` + `TenturaTone` for forward-path status (plain text, not chips) |
+| Personalized note action (add/hide) | **Icon only** (`add_comment_outlined` / `expand_less`), **immediately left of** the row checkbox, with the same strings as **tooltip** when the row is selected |
+| Per-recipient + shared note fields | Same tokenized `InputDecoration` (surface, border, `TenturaRadii.cardDense`, `TenturaText.body` for input) |
+| Primary Forward CTA | `TenturaText.command` / `OutlinedButton` with height ≥ `context.tt.buttonHeight` |
+| List row avatars + checkbox hit targets | Avatar size from `context.tt` (`cardAvatarSize` or `avatarSize`); checkbox visual stays small but wrap in at least **44×44** logical px tap target |
+
 ## No global text scaler override
 
 Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling)`. Let Flutter apply system / accessibility text scaling. Design dense cards so they remain usable at **text scale ~1.3** (wrap rows, allow soft wrap, reduce padding via tokens if needed — never shrink semantic type below floors).

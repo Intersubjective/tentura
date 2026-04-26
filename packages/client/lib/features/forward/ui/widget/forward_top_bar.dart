@@ -27,13 +27,16 @@ class ForwardTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     return Padding(
-      padding: EdgeInsets.only(left: 4, right: tt.screenHPadding),
+      padding: EdgeInsets.only(
+        left: tt.iconTextGap,
+        right: tt.screenHPadding,
+      ),
       child: Row(
         children: [
           IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-            icon: Icon(Icons.close, size: 22, color: tt.text),
+            icon: Icon(Icons.close, size: tt.iconSize, color: tt.text),
             tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
             onPressed: () => context.router.maybePop(),
           ),
@@ -61,7 +64,7 @@ class ForwardTopBar extends StatelessWidget {
             IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              icon: Icon(Icons.search, size: 22, color: tt.text),
+              icon: Icon(Icons.search, size: tt.iconSize, color: tt.text),
               tooltip: searchTooltip,
               onPressed: onSearchPressed,
             ),
@@ -69,7 +72,7 @@ class ForwardTopBar extends StatelessWidget {
             IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-              icon: Icon(Icons.tune, size: 22, color: tt.text),
+              icon: Icon(Icons.tune, size: tt.iconSize, color: tt.text),
               tooltip: filterTooltip,
               onPressed: onFilterPressed,
             ),

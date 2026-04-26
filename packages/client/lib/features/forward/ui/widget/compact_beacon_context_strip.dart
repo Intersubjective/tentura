@@ -54,7 +54,7 @@ class CompactBeaconContextStrip extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.symmetric(
         horizontal: tt.screenHPadding,
-        vertical: 6,
+        vertical: tt.iconTextGap,
       ),
       decoration: BoxDecoration(
         border: Border(
@@ -78,9 +78,9 @@ class CompactBeaconContextStrip extends StatelessWidget {
             children: [
               SelfAwarePlainMiniAvatar(
                 profile: beacon.author,
-                size: 16,
+                size: tt.metadataAvatarSize,
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: tt.iconTextGap),
               Expanded(
                 child: Text(
                   buffer.toString(),
