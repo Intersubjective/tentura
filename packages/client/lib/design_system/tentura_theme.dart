@@ -65,6 +65,14 @@ abstract final class TenturaTheme {
       onSurfaceVariant: colorScheme.onSurfaceVariant,
     );
 
+    final isDark = colorScheme.brightness == Brightness.dark;
+    final navIndicatorColor = isDark
+        ? colorScheme.secondaryContainer
+        : colorScheme.primary;
+    final navSelectedIconColor = isDark
+        ? colorScheme.onSecondaryContainer
+        : colorScheme.onPrimary;
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
@@ -115,6 +123,44 @@ abstract final class TenturaTheme {
           borderRadius: BorderRadius.circular(tokens.cardRadius),
           side: BorderSide(color: tokens.border),
         ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: tokens.bottomNavHeight,
+        backgroundColor: colorScheme.surfaceContainer,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: navIndicatorColor,
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return IconThemeData(
+              size: 24,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.38),
+            );
+          }
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(
+              size: 24,
+              color: navSelectedIconColor,
+            );
+          }
+          return IconThemeData(
+            size: 24,
+            color: colorScheme.onSurfaceVariant,
+          );
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final disabled = states.contains(WidgetState.disabled);
+          final selected = states.contains(WidgetState.selected);
+
+          final color = disabled
+              ? colorScheme.onSurfaceVariant.withValues(alpha: 0.38)
+              : selected
+                  ? colorScheme.onSurface
+                  : colorScheme.onSurfaceVariant;
+
+          return TenturaText.navLabel(color).copyWith(
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          );
+        }),
       ),
       textTheme: textTheme,
     );
