@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -105,6 +106,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
 
                   return NavigationBarTheme(
                     data: NavigationBarThemeData(
+                      height: context.tt.bottomNavHeight,
                       iconTheme: WidgetStateProperty.resolveWith((states) {
                         final selected =
                             states.contains(WidgetState.selected);
@@ -117,9 +119,10 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                       ) {
                         final selected =
                             states.contains(WidgetState.selected);
-                        final base = theme.textTheme.labelMedium;
-                        return base?.copyWith(
-                          color: selected ? selectedLabelFg : unselectedFg,
+                        final base = TenturaText.navLabel(
+                          selected ? selectedLabelFg : unselectedFg,
+                        );
+                        return base.copyWith(
                           fontWeight:
                               selected ? FontWeight.w600 : FontWeight.w500,
                         );
