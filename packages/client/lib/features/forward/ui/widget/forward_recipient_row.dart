@@ -6,6 +6,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
+import 'package:tentura/ui/widget/show_more_text.dart';
 
 import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
@@ -65,6 +66,14 @@ class ForwardRecipientRow extends StatelessWidget {
     return TenturaTone.warn;
   }
 
+  Color _relationStatusColor(TenturaTokens tt) => switch (_relationTone()) {
+        TenturaTone.neutral => tt.textMuted,
+        TenturaTone.info => tt.info,
+        TenturaTone.good => tt.good,
+        TenturaTone.warn => tt.warn,
+        TenturaTone.danger => tt.danger,
+      };
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -72,6 +81,10 @@ class ForwardRecipientRow extends StatelessWidget {
     final theme = Theme.of(context);
     final canSelect = candidate.canForwardTo;
     final relationLabel = _relationLabel(l10n);
+    final forwardedByMeWithNote =
+        candidate.involvement == CandidateInvolvement.forwardedByMe &&
+            candidate.myForwardNote != null &&
+            candidate.myForwardNote!.isNotEmpty;
     final presence = profilePresenceDisplayLine(
       l10n: l10n,
       locale: Localizations.localeOf(context),
@@ -136,10 +149,22 @@ class ForwardRecipientRow extends StatelessWidget {
                           presence,
                           style: TenturaText.bodySmall(tt.textMuted),
                         ),
-                      TenturaStatusText(
-                        relationLabel,
-                        tone: _relationTone(),
-                      ),
+                      if (forwardedByMeWithNote)
+                        ShowMoreText(
+                          l10n.forwardedByMeWithNote(candidate.myForwardNote!),
+                          style: TenturaText.status(
+                            _relationStatusColor(tt),
+                          ),
+                          colorClickableText: theme.colorScheme.primary,
+                          trimLines: 1,
+                          trimCollapsedText: l10n.forwardMyNoteViewMore,
+                          trimExpandedText: l10n.forwardMyNoteShowLess,
+                        )
+                      else
+                        TenturaStatusText(
+                          relationLabel,
+                          tone: _relationTone(),
+                        ),
                     ],
                   ),
                 ],

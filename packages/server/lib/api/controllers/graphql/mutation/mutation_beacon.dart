@@ -54,7 +54,7 @@ final class MutationBeacon extends GqlNodeBase {
     'beaconCreate',
     gqlTypeBeacon.nonNullable(),
     arguments: [
-      InputFieldTitle.fieldNonNullable,
+      InputFieldBeaconTitle.fieldNonNullable,
       InputFieldDescription.field,
       InputFieldCoordinates.field,
       InputFieldUpload.fieldImage,
@@ -72,7 +72,7 @@ final class MutationBeacon extends GqlNodeBase {
     resolve: (_, args) => _beaconCase
         .create(
           userId: getCredentials(args).sub,
-          title: InputFieldTitle.fromArgsNonNullable(args),
+          title: InputFieldBeaconTitle.fromArgsNonNullable(args),
           description: InputFieldDescription.fromArgs(args),
           coordinates: InputFieldCoordinates.fromArgs(args),
           imageBytes: InputFieldUpload.fromArgs(args),
@@ -95,7 +95,7 @@ final class MutationBeacon extends GqlNodeBase {
     gqlTypeBeacon.nonNullable(),
     arguments: [
       InputFieldId.field,
-      InputFieldTitle.fieldNonNullable,
+      InputFieldBeaconTitle.fieldNonNullable,
       InputFieldDescription.field,
       InputFieldCoordinates.field,
       InputFieldContext.field,
@@ -111,7 +111,7 @@ final class MutationBeacon extends GqlNodeBase {
         .update(
           userId: getCredentials(args).sub,
           beaconId: InputFieldId.fromArgsNonNullable(args),
-          title: InputFieldTitle.fromArgsNonNullable(args),
+          title: InputFieldBeaconTitle.fromArgsNonNullable(args),
           description: InputFieldDescription.fromArgs(args),
           coordinates: InputFieldCoordinates.fromArgs(args),
           context: InputFieldContext.fromArgs(args),
@@ -131,7 +131,7 @@ final class MutationBeacon extends GqlNodeBase {
     gqlTypeBeacon.nonNullable(),
     arguments: [
       InputFieldId.field,
-      InputFieldTitle.fieldNonNullable,
+      InputFieldBeaconTitle.fieldNonNullable,
       InputFieldDescription.field,
       InputFieldCoordinates.field,
       InputFieldContext.field,
@@ -148,7 +148,7 @@ final class MutationBeacon extends GqlNodeBase {
         .updateDraft(
           userId: getCredentials(args).sub,
           beaconId: InputFieldId.fromArgsNonNullable(args),
-          title: InputFieldTitle.fromArgsNonNullable(args),
+          title: InputFieldBeaconTitle.fromArgsNonNullable(args),
           description: InputFieldDescription.fromArgs(args),
           coordinates: InputFieldCoordinates.fromArgs(args),
           context: InputFieldContext.fromArgs(args),

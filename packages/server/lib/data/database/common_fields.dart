@@ -14,6 +14,17 @@ mixin TitleDescriptionFields on Table {
       .withDefault(const Constant(''))();
 }
 
+mixin BeaconTitleDescriptionFields on Table {
+  late final title = text().withLength(
+    min: kTitleMinLength,
+    max: kBeaconTitleMaxLength,
+  )();
+
+  late final description = text()
+      .withLength(max: kDescriptionMaxLength)
+      .withDefault(const Constant(''))();
+}
+
 mixin TimestampsFields on Table {
   late final createdAt = customType(
     PgTypes.timestampWithTimezone,

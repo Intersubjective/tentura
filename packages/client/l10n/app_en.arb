@@ -1322,6 +1322,14 @@
       }
     }
   },
+  "forwardMyNoteViewMore": "View more",
+  "@forwardMyNoteViewMore": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardMyNoteShowLess": "Show less",
+  "@forwardMyNoteShowLess": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardCommitted": "Committed",
   "@forwardCommitted": {
     "context": "ForwardBeaconScreen"

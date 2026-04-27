@@ -12,6 +12,9 @@ const kTitleMinLength = 3;
 
 const kTitleMaxLength = 32;
 
+/// Beacon `title` only (user/profile [kTitleMaxLength] remains shorter).
+const kBeaconTitleMaxLength = 60;
+
 const kDescriptionMaxLength = 2_048;
 
 const int kRatingSector = 100 ~/ 4;

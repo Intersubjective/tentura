@@ -874,7 +874,10 @@ Future<void> _showPostAuthorUpdateSheet(
       if (t.isNotEmpty) await cubit.postAuthorUpdate(t);
     }
   } finally {
-    controller.dispose();
+    // Sheet route may still rebuild during pop animation; dispose next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+    });
   }
 }
 
@@ -954,6 +957,8 @@ Future<void> _showEditAuthorUpdateSheet(
       }
     }
   } finally {
-    controller.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+    });
   }
 }
