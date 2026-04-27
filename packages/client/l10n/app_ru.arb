@@ -1322,6 +1322,14 @@
       }
     }
   },
+  "forwardMyNoteViewMore": "Ещё",
+  "@forwardMyNoteViewMore": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardMyNoteShowLess": "Свернуть",
+  "@forwardMyNoteShowLess": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardCommitted": "Взяли обязательство",
   "@forwardCommitted": {
     "context": "ForwardBeaconScreen"

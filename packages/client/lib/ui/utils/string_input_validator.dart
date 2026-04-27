@@ -26,6 +26,16 @@ mixin StringInputValidator {
     return null;
   }
 
+  String? beaconTitleValidator(L10n l10n, String? title) {
+    if (title == null || title.length < kTitleMinLength) {
+      return l10n.titleTooShort;
+    }
+    if (title.length > kBeaconTitleMaxLength) {
+      return l10n.titleTooLong;
+    }
+    return null;
+  }
+
   String? descriptionValidator(L10n l10n, String? description) {
     if (description != null && description.length > kDescriptionMaxLength) {
       return l10n.descriptionTooLong;

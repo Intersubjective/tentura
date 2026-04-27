@@ -9,7 +9,7 @@ import 'pollings.dart';
 import 'users.dart';
 
 class Beacons extends Table
-    with TitleDescriptionFields, TimestampsFields, TickerFields {
+    with BeaconTitleDescriptionFields, TimestampsFields, TickerFields {
   late final id = text().clientDefault(() => BeaconEntity.newId)();
 
   @ReferenceName('author')

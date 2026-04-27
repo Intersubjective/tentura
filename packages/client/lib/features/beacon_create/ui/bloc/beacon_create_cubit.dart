@@ -328,7 +328,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   /// Same bounds as [StringInputValidator] title/description checks on the form.
   bool _stateMeetsBaseFormRequirements() {
     final t = state.title;
-    if (t.length < kTitleMinLength || t.length > kTitleMaxLength) {
+    if (t.length < kTitleMinLength || t.length > kBeaconTitleMaxLength) {
       return false;
     }
     if (state.description.length > kDescriptionMaxLength) {

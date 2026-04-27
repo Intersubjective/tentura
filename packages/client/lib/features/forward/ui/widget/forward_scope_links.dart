@@ -98,11 +98,6 @@ class ForwardScopeLinks extends StatelessWidget {
             child: Row(
               children: [
                 scopeTab(
-                  ForwardFilter.bestNext,
-                  l10n.forwardScopeBestShort,
-                  counts.best,
-                ),
-                scopeTab(
                   ForwardFilter.unseen,
                   l10n.forwardScopeUnseenShort,
                   counts.unseen,

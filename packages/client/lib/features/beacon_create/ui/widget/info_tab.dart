@@ -64,11 +64,11 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 hintText: _l10n.beaconTitleRequired,
               ),
               keyboardType: TextInputType.text,
-              maxLength: kTitleMaxLength,
+              maxLength: kBeaconTitleMaxLength,
               initialValue: _cubit.state.title,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               onChanged: _cubit.setTitle,
-              validator: (text) => titleValidator(_l10n, text),
+              validator: (text) => beaconTitleValidator(_l10n, text),
             ),
 
             // Need summary (short canonical ask)

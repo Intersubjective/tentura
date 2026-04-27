@@ -19,6 +19,8 @@ class ShowMoreText extends ReadMoreText {
     super.key,
     super.style,
     super.colorClickableText,
+    super.trimCollapsedText,
+    super.trimExpandedText,
     super.trimLines = kMaxLines,
     super.trimMode = TrimMode.Line,
     super.textAlign = TextAlign.left,

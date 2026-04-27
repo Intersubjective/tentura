@@ -6,11 +6,11 @@ import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 
 void main() {
-  test('defaults to bestNext scope', () {
-    expect(const ForwardState().activeFilter, ForwardFilter.bestNext);
+  test('defaults to unseen scope', () {
+    expect(const ForwardState().activeFilter, ForwardFilter.unseen);
   });
 
-  test('scopeCounts and visibleRecipients for bestNext (MR order)', () {
+  test('scopeCounts and visibleRecipients for unseen (MR order)', () {
     const low = ForwardCandidate(
       profile: Profile(
         id: 'a',
@@ -41,7 +41,8 @@ void main() {
       candidates: [low, high, blocked],
     );
 
-    expect(state.scopeCounts.best, 2);
+    expect(state.scopeCounts.unseen, 2);
+    expect(state.scopeCounts.involved, 1);
     expect(state.visibleRecipients.map((c) => c.id).toList(), ['b', 'a']);
   });
 

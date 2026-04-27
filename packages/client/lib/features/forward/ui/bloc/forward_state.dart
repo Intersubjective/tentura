@@ -14,12 +14,10 @@ enum ForwardFilter { all, bestNext, unseen, alreadyInvolved }
 @immutable
 class ForwardScopeCounts {
   const ForwardScopeCounts({
-    required this.best,
     required this.unseen,
     required this.involved,
   });
 
-  final int best;
   final int unseen;
   final int involved;
 }
@@ -59,7 +57,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default([]) List<ForwardCandidate> candidates,
     @Default({}) Set<String> selectedIds,
     @Default(<String, String>{}) Map<String, String> perRecipientNotes,
-    @Default(ForwardFilter.bestNext) ForwardFilter activeFilter,
+    @Default(ForwardFilter.unseen) ForwardFilter activeFilter,
     Beacon? beacon,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ForwardState;
@@ -105,7 +103,6 @@ abstract class ForwardState extends StateBase with _$ForwardState {
   ForwardScopeCounts get scopeCounts {
     final base = _candidatesBase();
     return ForwardScopeCounts(
-      best: base.where((c) => c.canForwardTo).length,
       unseen: base.where((c) => c.isUnseen).length,
       involved: base.where(matchesInvolvedScope).length,
     );
