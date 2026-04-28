@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-/// Owner CTA row stacks vertically below this width (`BeaconPrimaryCtaBar`).
+/// Owner CTA row stacks vertically below this width (`BeaconOperationalHeaderCard` chips).
 const double kCardTriageActionRowNarrowMaxWidth = 380;
 
 /// Triage actions for beacon cards: Commit primary, Forward outlined, optional
