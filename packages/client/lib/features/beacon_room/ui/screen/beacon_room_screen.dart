@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -96,7 +97,18 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
           appBar: AppBar(
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => context.router.maybePop(),
+              onPressed: () {
+                final router = context.router;
+                if (router.canPop()) {
+                  unawaited(router.maybePop());
+                } else {
+                  unawaited(
+                    router.navigatePath(
+                      '$kPathBeaconView/${widget.beaconId}',
+                    ),
+                  );
+                }
+              },
             ),
             title: Text(l10n.beaconRoomTitle),
             actions: [

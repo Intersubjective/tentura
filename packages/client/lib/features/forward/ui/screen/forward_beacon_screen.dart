@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
@@ -41,13 +42,15 @@ class ForwardBeaconScreen extends StatelessWidget
 
   @override
   Widget build(BuildContext context) {
-    return const ForwardBeaconPage();
+    return ForwardBeaconPage(beaconId: beaconId);
   }
 }
 
 /// Forward beacon recipient picker (compact operational layout).
 class ForwardBeaconPage extends StatefulWidget {
-  const ForwardBeaconPage({super.key});
+  const ForwardBeaconPage({required this.beaconId, super.key});
+
+  final String beaconId;
 
   @override
   State<ForwardBeaconPage> createState() => _ForwardBeaconPageState();
@@ -155,6 +158,9 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                   children: [
                     ForwardTopBar(
                       titleLine: l10n.forwardBeaconTitle,
+                      closeFallbackPath: widget.beaconId.isNotEmpty
+                          ? '$kPathBeaconView/${widget.beaconId}'
+                          : null,
                       subtitleLine: beacon != null && beacon.id.isNotEmpty
                           ? forwardBeaconSubtitle(
                               l10n: l10n,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +11,7 @@ class ForwardTopBar extends StatelessWidget {
   const ForwardTopBar({
     required this.titleLine,
     required this.subtitleLine,
+    this.closeFallbackPath,
     this.onSearchPressed,
     this.onFilterPressed,
     this.searchTooltip,
@@ -18,6 +21,9 @@ class ForwardTopBar extends StatelessWidget {
 
   final String titleLine;
   final String subtitleLine;
+
+  /// When the route stack cannot pop (e.g. web refresh), navigate here on close.
+  final String? closeFallbackPath;
   final VoidCallback? onSearchPressed;
   final VoidCallback? onFilterPressed;
   final String? searchTooltip;
@@ -38,7 +44,14 @@ class ForwardTopBar extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             icon: Icon(Icons.close, size: tt.iconSize, color: tt.text),
             tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-            onPressed: () => context.router.maybePop(),
+            onPressed: () {
+              final router = context.router;
+              if (router.canPop()) {
+                unawaited(router.maybePop());
+              } else if (closeFallbackPath != null) {
+                unawaited(router.navigatePath(closeFallbackPath!));
+              }
+            },
           ),
           Expanded(
             child: Column(

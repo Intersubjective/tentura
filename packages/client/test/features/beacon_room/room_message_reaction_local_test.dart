@@ -1,21 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_message_reaction_local.dart';
 
 void main() {
-  final thumb = BeaconRoomMessageReaction.defaultEmoji;
+  const thumb = BeaconRoomMessageReaction.defaultEmoji;
 
   RoomMessage baseMessage() => RoomMessage(
         id: 'm1',
         beaconId: 'b1',
         authorId: 'u1',
         body: 'hi',
-        createdAt: DateTime.utc(2026, 1, 1),
-        author: const Profile(id: 'u1'),
-        reactionCounts: const {},
-        myReaction: null,
+        createdAt: DateTime.utc(2026),
       );
 
   test('add reaction: increments count and sets myReaction', () {
