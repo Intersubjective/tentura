@@ -6217,6 +6217,14 @@ type RoomMessageRow {
   semanticMarker: Int
   linkedBlockerId: String
   systemPayloadJson: String
+  authorTitle: String!
+  authorHasPicture: Boolean!
+  authorPicHeight: Int!
+  authorPicWidth: Int!
+  authorBlurHash: String!
+  authorImageId: String!
+  reactionsJson: String
+  myReaction: String
 }
 
 type BeaconRoomStateRow {

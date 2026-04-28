@@ -123,6 +123,22 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  Future<void> toggleReaction({
+    required String messageId,
+    required String emoji,
+  }) async {
+    try {
+      await _case.toggleReaction(
+        beaconId: state.beaconId,
+        messageId: messageId,
+        emoji: emoji,
+      );
+      await load();
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> markBlockerFromMessage({
     required String messageId,
     required String title,

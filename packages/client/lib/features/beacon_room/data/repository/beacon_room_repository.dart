@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
 
@@ -6,6 +7,8 @@ import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
@@ -68,16 +71,48 @@ class BeaconRoomRepository {
       );
     return sorted
         .map(
-          (m) => RoomMessage(
-            id: m.id,
-            beaconId: m.beaconId,
-            authorId: m.authorId,
-            body: m.body,
-            createdAt: DateTime.parse(m.createdAt),
-            semanticMarker: m.semanticMarker,
-            linkedBlockerId: m.linkedBlockerId,
-            systemPayloadJson: m.systemPayloadJson,
-          ),
+          (m) {
+            final reactionCounts = <String, int>{};
+            final rawJson = m.reactionsJson;
+            if (rawJson != null && rawJson.isNotEmpty) {
+              final decoded = jsonDecode(rawJson);
+              if (decoded is Map) {
+                for (final e in decoded.entries) {
+                  final k = e.key;
+                  final v = e.value;
+                  if (k is String && v is num) {
+                    reactionCounts[k] = v.toInt();
+                  }
+                }
+              }
+            }
+            final author = Profile(
+              id: m.authorId,
+              title: m.authorTitle,
+              image: m.authorHasPicture && m.authorImageId.isNotEmpty
+                  ? ImageEntity(
+                      id: m.authorImageId,
+                      authorId: m.authorId,
+                      blurHash: m.authorBlurHash,
+                      height: m.authorPicHeight,
+                      width: m.authorPicWidth,
+                    )
+                  : null,
+            );
+            return RoomMessage(
+              id: m.id,
+              beaconId: m.beaconId,
+              authorId: m.authorId,
+              body: m.body,
+              createdAt: DateTime.parse(m.createdAt),
+              author: author,
+              reactionCounts: reactionCounts,
+              myReaction: m.myReaction,
+              semanticMarker: m.semanticMarker,
+              linkedBlockerId: m.linkedBlockerId,
+              systemPayloadJson: m.systemPayloadJson,
+            );
+          },
         )
         .toList();
   }
