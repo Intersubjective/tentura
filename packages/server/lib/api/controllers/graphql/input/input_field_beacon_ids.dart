@@ -3,7 +3,7 @@ part of '_input_types.dart';
 abstract class InputFieldBeaconIds {
   static final field = GraphQLFieldInput(
     _fieldKey,
-    GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+    GraphQLListType(graphQLString.nonNullable()),
   );
 
   static List<String> fromArgs(Map<String, dynamic> args) =>
