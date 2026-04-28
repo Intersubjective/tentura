@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/coordination/coordination_response_type.da
 import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 
 import '_use_case_base.dart';
 
@@ -15,7 +16,8 @@ final class CoordinationCase extends UseCaseBase {
   CoordinationCase(
     this._beaconRepository,
     this._commitmentRepository,
-    this._coordinationRepository, {
+    this._coordinationRepository,
+    this._beaconRoomRepository, {
     required super.env,
     required super.logger,
   });
@@ -23,6 +25,7 @@ final class CoordinationCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final CommitmentRepositoryPort _commitmentRepository;
   final CoordinationRepositoryPort _coordinationRepository;
+  final BeaconRoomRepository _beaconRoomRepository;
 
   Future<void> _ensureAuthor({
     required String beaconId,
@@ -65,6 +68,12 @@ final class CoordinationCase extends UseCaseBase {
       commitUserId: commitUserId,
       authorUserId: authorUserId,
       responseType: responseType,
+    );
+    await _beaconRoomRepository.applyCoordinationResponseToRoomParticipant(
+      beaconId: beaconId,
+      commitUserId: commitUserId,
+      responseType: responseType,
+      authorUserId: authorUserId,
     );
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,
