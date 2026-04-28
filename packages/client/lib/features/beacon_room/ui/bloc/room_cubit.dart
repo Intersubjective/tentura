@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/use_case/beacon_room_case.dart';
+import 'room_message_reaction_local.dart';
 import 'room_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -127,15 +129,36 @@ class RoomCubit extends Cubit<RoomState> {
     required String messageId,
     required String emoji,
   }) async {
+    final idx = state.messages.indexWhere((m) => m.id == messageId);
+    final previousMessages =
+        idx >= 0 ? List<RoomMessage>.from(state.messages) : null;
+
+    if (idx >= 0) {
+      final optimistic = List<RoomMessage>.from(state.messages);
+      optimistic[idx] = toggleRoomMessageReactionLocally(
+        optimistic[idx],
+        emoji,
+      );
+      emit(state.copyWith(messages: optimistic));
+    }
+
     try {
       await _case.toggleReaction(
         beaconId: state.beaconId,
         messageId: messageId,
         emoji: emoji,
       );
-      await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      if (previousMessages != null) {
+        emit(
+          state.copyWith(
+            messages: previousMessages,
+            status: StateHasError(e),
+          ),
+        );
+      } else {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
     }
   }
 

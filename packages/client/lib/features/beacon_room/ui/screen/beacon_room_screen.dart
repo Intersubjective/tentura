@@ -67,7 +67,7 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
 
     return BlocBuilder<RoomCubit, RoomState>(
       buildWhen: (p, c) =>
-          p.messages.length != c.messages.length ||
+          p.messages != c.messages ||
           p.factCards.length != c.factCards.length ||
           p.roomState?.currentPlan != c.roomState?.currentPlan ||
           p.roomState?.lastRoomMeaningfulChange !=

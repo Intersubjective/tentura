@@ -380,15 +380,10 @@ class BeaconRoomRepository {
     required String userId,
   }) =>
       _db.withMutatingUser(userId, () async {
-        final p = await findParticipant(
-          beaconId: beaconId,
-          userId: userId,
-        );
-        if (p == null) {
-          return;
-        }
         await _db.managers.beaconParticipants
-            .filter((r) => r.id.equals(p.id))
+            .filter(
+              (r) => r.beaconId.id(beaconId) & r.userId.id(userId),
+            )
             .update(
               (u) => u(
                 lastSeenRoomAt:
