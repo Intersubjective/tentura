@@ -2148,6 +2148,8 @@
   "coordinationNotSuitable": "Not suitable",
   "coordinationResponseRoomAdmits": "Admits to room",
   "coordinationResponseRoomNoAdmission": "No room admission",
+  "coordinationInviteToRoomRow": "Invite to Room",
+  "coordinationRemoveFromRoom": "Remove from Room",
   "beaconRoomWaitingForApproval": "Waiting for approval",
   "beaconRoomNoAdmission": "No room admission",
   "helpTypeMoney": "Money",

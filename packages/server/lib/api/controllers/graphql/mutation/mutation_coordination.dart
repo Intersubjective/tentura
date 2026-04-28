@@ -17,6 +17,18 @@ final class MutationCoordination extends GqlNodeBase {
     graphQLInt.nonNullable(),
   );
 
+  final GraphQLFieldInput<bool, bool> _inviteToRoomField = GraphQLFieldInput(
+    'inviteToRoom',
+    graphQLBoolean.nonNullable(),
+    defaultValue: false,
+  );
+
+  final GraphQLFieldInput<bool, bool> _removeFromRoomField = GraphQLFieldInput(
+    'removeFromRoom',
+    graphQLBoolean.nonNullable(),
+    defaultValue: false,
+  );
+
   final GraphQLFieldInput<int, int> _coordinationStatusField = GraphQLFieldInput(
     'coordinationStatus',
     graphQLInt.nonNullable(),
@@ -35,6 +47,8 @@ final class MutationCoordination extends GqlNodeBase {
           InputFieldId.field,
           _commitUserId.field,
           _responseTypeField,
+          _inviteToRoomField,
+          _removeFromRoomField,
         ],
         resolve: (_, args) {
           final jwt = getCredentials(args);
@@ -43,6 +57,8 @@ final class MutationCoordination extends GqlNodeBase {
             commitUserId: _commitUserId.fromArgsNonNullable(args),
             authorUserId: jwt.sub,
             responseType: args[_responseTypeField.name]! as int,
+            inviteToRoom: args[_inviteToRoomField.name]! as bool,
+            removeFromRoom: args[_removeFromRoomField.name]! as bool,
           );
         },
       );

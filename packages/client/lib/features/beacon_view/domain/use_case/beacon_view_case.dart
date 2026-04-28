@@ -114,11 +114,15 @@ final class BeaconViewCase extends UseCaseBase {
     required String beaconId,
     required String commitUserId,
     required int responseType,
+    required bool inviteToRoom,
+    required bool removeFromRoom,
   }) =>
       _coordinationRepository.setCoordinationResponse(
         beaconId: beaconId,
         commitUserId: commitUserId,
         responseType: responseType,
+        inviteToRoom: inviteToRoom,
+        removeFromRoom: removeFromRoom,
       );
 
   Future<void> setBeaconCoordinationStatus({

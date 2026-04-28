@@ -76,13 +76,17 @@ class CoordinationRepository {
     required String beaconId,
     required String commitUserId,
     required int responseType,
+    required bool inviteToRoom,
+    required bool removeFromRoom,
   }) => _remoteApiService
       .request(
         GSetCoordinationResponseReq(
           (r) => r
             ..vars.beaconId = beaconId
             ..vars.commitUserId = commitUserId
-            ..vars.responseType = responseType,
+            ..vars.responseType = responseType
+            ..vars.inviteToRoom = inviteToRoom
+            ..vars.removeFromRoom = removeFromRoom,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)

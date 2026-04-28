@@ -6,7 +6,6 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_server/consts/beacon_blocker_consts.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
-import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_blocker_entity.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -289,41 +288,13 @@ class BeaconRoomRepository {
             );
       });
 
-  /// Aligns Drift `beacon_participant.room_access` with author coordination.
-  /// Commit paths do not insert a participant row; this creates one when absent.
-  Future<void> applyCoordinationResponseToRoomParticipant({
+  /// Author coordination: admit helper into beacon Room (creates participant row when absent).
+  Future<void> inviteCommitUserToBeaconRoom({
     required String beaconId,
     required String commitUserId,
-    required int responseType,
     required String authorUserId,
   }) async {
-    final type = CoordinationResponseType.tryFromInt(responseType);
-    if (type == null) {
-      return;
-    }
-
     await _db.withMutatingUser(authorUserId, () async {
-      if (type == CoordinationResponseType.notSuitable) {
-        final existing = await findParticipant(
-          beaconId: beaconId,
-          userId: commitUserId,
-        );
-        if (existing == null) {
-          return;
-        }
-        await _db.managers.beaconParticipants
-            .filter(
-              (r) => r.beaconId.id(beaconId) & r.userId.id(commitUserId),
-            )
-            .update(
-              (o) => o(
-                roomAccess: const Value(RoomAccessBits.none),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-        return;
-      }
-
       final existing = await findParticipant(
         beaconId: beaconId,
         userId: commitUserId,
@@ -354,6 +325,33 @@ class BeaconRoomRepository {
               ),
             );
       }
+    });
+  }
+
+  /// Author coordination: revoke Room access for this helper (`room_access = none`).
+  Future<void> revokeCommitUserBeaconRoomAccess({
+    required String beaconId,
+    required String commitUserId,
+    required String authorUserId,
+  }) async {
+    await _db.withMutatingUser(authorUserId, () async {
+      final existing = await findParticipant(
+        beaconId: beaconId,
+        userId: commitUserId,
+      );
+      if (existing == null) {
+        return;
+      }
+      await _db.managers.beaconParticipants
+          .filter(
+            (r) => r.beaconId.id(beaconId) & r.userId.id(commitUserId),
+          )
+          .update(
+            (o) => o(
+              roomAccess: const Value(RoomAccessBits.none),
+              updatedAt: Value(PgDateTime(DateTime.timestamp())),
+            ),
+          );
     });
   }
 

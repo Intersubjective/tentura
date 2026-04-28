@@ -2148,6 +2148,8 @@
   "coordinationNotSuitable": "Не подходит",
   "coordinationResponseRoomAdmits": "Комната будет доступна",
   "coordinationResponseRoomNoAdmission": "Комната недоступна",
+  "coordinationInviteToRoomRow": "Пригласить в комнату",
+  "coordinationRemoveFromRoom": "Убрать из комнаты",
   "beaconRoomWaitingForApproval": "Ожидает решения",
   "beaconRoomNoAdmission": "Комната недоступна",
   "helpTypeMoney": "Деньги",

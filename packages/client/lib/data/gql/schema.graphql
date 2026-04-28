@@ -2930,7 +2930,7 @@ type mutation_root {
   meritrankInit(forceCalculate: Boolean): Int!
   pollingAct(pollingId: String!, variantId: String!): Boolean!
   setBeaconCoordinationStatus(coordinationStatus: Int!, id: String!): Boolean!
-  setCoordinationResponse(commitUserId: String!, id: String!, responseType: Int!): v2_CoordinationStatusResult!
+  setCoordinationResponse(commitUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_CoordinationStatusResult!
   signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
   signUp(authRequestToken: String!, title: String!): v2_AuthResponse!

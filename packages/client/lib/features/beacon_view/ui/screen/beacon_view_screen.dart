@@ -13,6 +13,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
@@ -715,12 +716,23 @@ class _CommitmentsTabBody extends StatelessWidget {
                     showCoordinationResponseBottomSheet(
                       context: context,
                       commitUserTitle: active[i].user.title,
-                      onPick: (t) => unawaited(
-                        beaconViewCubit.setCoordinationResponse(
-                          commitUserId: active[i].user.id,
-                          responseType: t,
-                        ),
+                      initialResponse: active[i].coordinationResponse,
+                      commitUserAdmittedToRoom: state.roomParticipants.any(
+                        (p) =>
+                            p.userId == active[i].user.id &&
+                            p.roomAccess == RoomAccessBits.admitted,
                       ),
+                      onSave: ({
+                        required responseTypeSmallint,
+                        required inviteToRoom,
+                        required removeFromRoom,
+                      }) =>
+                          beaconViewCubit.setCoordinationResponse(
+                            commitUserId: active[i].user.id,
+                            responseType: responseTypeSmallint,
+                            inviteToRoom: inviteToRoom,
+                            removeFromRoom: removeFromRoom,
+                          ),
                     ),
                   )
                 : null,

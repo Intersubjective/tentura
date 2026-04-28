@@ -216,6 +216,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> setCoordinationResponse({
     required String commitUserId,
     required int responseType,
+    required bool inviteToRoom,
+    required bool removeFromRoom,
   }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
@@ -223,10 +225,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         beaconId: state.beacon.id,
         commitUserId: commitUserId,
         responseType: responseType,
+        inviteToRoom: inviteToRoom,
+        removeFromRoom: removeFromRoom,
       );
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
+      rethrow;
     }
   }
 
