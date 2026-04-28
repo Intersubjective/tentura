@@ -82,7 +82,7 @@ On **Beacon view** (`features/beacon_view`), keep a clear ladder:
 | Commitments summary heading | `titleSmall` — matches overview sections |
 | Commitments tab summary subline (useful / need coordination counts) | `bodySmall` (13) with semantic colors — matches overview “useful · coordination” meta |
 | Activity tab section headers | `titleSmall` — same weight as other section titles (no extra bold bump) |
-| Primary / secondary Material buttons (incl. [`CardTriageActionRow`](../packages/client/lib/ui/widget/card_triage_action_row.dart), owner CTAs in [`BeaconPrimaryCtaBar`](../packages/client/lib/features/beacon_view/ui/widget/beacon_primary_cta_bar.dart)) | `labelLarge` (15 / 700) via `theme.textTheme.labelLarge` |
+| Primary / secondary Material buttons (incl. [`CardTriageActionRow`](../packages/client/lib/ui/widget/card_triage_action_row.dart), beacon detail CTAs in [`BeaconOperationalHeaderCard`](../packages/client/lib/features/beacon_view/ui/widget/beacon_operational_header_card.dart)) | `labelLarge` (15 / 700) via `theme.textTheme.labelLarge` |
 
 ## Forward Beacon picker — type hierarchy
 

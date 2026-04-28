@@ -7,13 +7,10 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/beacon_card_author_subline.dart';
-import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
@@ -31,9 +28,7 @@ import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/activity_list.dart';
-import '../widget/beacon_need_brief.dart';
-import '../widget/beacon_operational_collapsible_header.dart';
-import '../widget/beacon_primary_cta_bar.dart';
+import '../widget/beacon_operational_header_card.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/commitments_summary_card.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
@@ -405,6 +400,32 @@ class _BeaconOperationalScrollViewState
     }
   }
 
+  Future<void> _runUpdateCommitFlow(BuildContext context, L10n l10n) async {
+    if (!context.mounted) return;
+    final cubit = widget.beaconViewCubit;
+    var initialMessage = '';
+    for (final c in cubit.state.commitments) {
+      if (!c.isWithdrawn && c.user.id == cubit.state.myProfile.id) {
+        initialMessage = c.message;
+        break;
+      }
+    }
+    final outcome = await CommitmentMessageDialog.show(
+      context,
+      title: l10n.beaconHeaderUpdateCommitment,
+      hintText: l10n.hintCommitMessage,
+      initialText: initialMessage,
+      allowEmptyMessage: true,
+      showHelpTypeChips: true,
+    );
+    if (outcome != null && context.mounted) {
+      await cubit.commit(
+        message: outcome.message,
+        helpType: outcome.helpTypeWire,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -413,6 +434,8 @@ class _BeaconOperationalScrollViewState
       bloc: widget.beaconViewCubit,
       buildWhen: (p, c) =>
           p.beacon != c.beacon ||
+          p.beacon.coordinationStatus != c.beacon.coordinationStatus ||
+          p.beacon.lifecycle != c.beacon.lifecycle ||
           p.timeline != c.timeline ||
           p.commitments != c.commitments ||
           p.isCommitted != c.isCommitted ||
@@ -476,82 +499,60 @@ class _BeaconOperationalScrollViewState
           physics: const ClampingScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
-              child: _BeaconDetailHeader(
-                beacon: state.beacon,
-                screenCubit: widget.screenCubit,
-              ),
-            ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _PinnedStatusStripDelegate(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    kSpacingMedium,
-                    kSpacingSmall / 2,
-                    kSpacingMedium,
-                    kSpacingSmall / 2,
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: BeaconOperationalStatusStrip(state: state),
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              // Opaque surface so the CTA bar fully covers tab content while
-              // it travels behind the pinned status strip during a scroll.
               child: ColoredBox(
                 color: scheme.surface,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    kSpacingMedium,
-                    0,
-                    kSpacingMedium,
-                    kSpacingSmall / 2,
+                child: BeaconOperationalHeaderCard(
+                  state: state,
+                  overflowMenu: _beaconViewAppBarOverflow(
+                    context: context,
+                    state: state,
+                    cubit: widget.beaconViewCubit,
+                    screenCubit: widget.screenCubit,
+                    l10n: l10n,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      BeaconPrimaryCtaBar(
-                        state: state,
-                        onUpdateStatus: state.isBeaconMine
-                            ? () => unawaited(_pickCoordinationStatus(context))
-                            : null,
-                        onPostUpdate: () => unawaited(
-                          _showPostAuthorUpdateSheet(
-                            context,
-                            widget.beaconViewCubit,
-                            l10n,
-                          ),
-                        ),
-                        onCommit: () => _runCommitFlow(context, l10n),
-                        onForward: () => unawaited(
-                          context.router.pushPath(
-                            '$kPathForwardBeacon/$beaconId',
-                          ),
-                        ),
-                        onViewChain: () =>
-                            widget.screenCubit.showForwardsGraphFor(beaconId),
-                      ),
-                      if (state.isBeaconMine ||
-                          state.beaconRoomCue != null ||
-                          state.roomParticipants.isNotEmpty ||
-                          state.roomActivityEvents.isNotEmpty)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
-                            onPressed: () => unawaited(
-                              context.router.pushPath(
-                                '$kPathBeaconRoom/$beaconId',
-                              ),
+                  onAuthorTap: () =>
+                      widget.screenCubit.showProfile(state.beacon.author.id),
+                  onUpdateStatus: state.isBeaconMine &&
+                          state.beacon.lifecycle == BeaconLifecycle.open
+                      ? () => unawaited(_pickCoordinationStatus(context))
+                      : null,
+                  onPostUpdate: state.isBeaconMine &&
+                          state.beacon.lifecycle == BeaconLifecycle.open
+                      ? () => unawaited(
+                            _showPostAuthorUpdateSheet(
+                              context,
+                              widget.beaconViewCubit,
+                              l10n,
                             ),
-                            icon: const Icon(Icons.forum_outlined),
-                            label: Text(l10n.beaconRoomOpen),
-                          ),
-                        ),
-                    ],
-                  ),
+                          )
+                      : null,
+                  onCommit: !state.isBeaconMine &&
+                          state.beacon.lifecycle == BeaconLifecycle.open &&
+                          !state.isCommitted &&
+                          state.beacon.allowsNewCommitAsNonAuthor
+                      ? () => _runCommitFlow(context, l10n)
+                      : null,
+                  onUpdateCommitment: !state.isBeaconMine &&
+                          state.beacon.lifecycle == BeaconLifecycle.open &&
+                          state.isCommitted &&
+                          state.beacon.allowsWithdrawWhileCommitted
+                      ? () => unawaited(_runUpdateCommitFlow(context, l10n))
+                      : null,
+                  onForward: () => unawaited(
+                        context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+                      ),
+                  onWatch: state.inboxStatus == InboxItemStatus.needsMe
+                      ? () => unawaited(widget.beaconViewCubit.moveToWatching())
+                      : null,
+                  onStopWatching: state.inboxStatus == InboxItemStatus.watching
+                      ? () =>
+                            unawaited(widget.beaconViewCubit.stopWatching())
+                      : null,
+                  onRoom: () => unawaited(
+                        context.router.pushPath('$kPathBeaconRoom/$beaconId'),
+                      ),
+                  onViewChain: () =>
+                      widget.screenCubit.showForwardsGraphFor(beaconId),
                 ),
               ),
             ),
@@ -594,92 +595,6 @@ class _BeaconOperationalScrollViewState
         );
       },
     );
-  }
-}
-
-/// Beacon identity, title, and author row: same block layout as My Desk cards, without
-/// [BeaconCardShell] or a separate surface, and without the metadata “update” line.
-class _BeaconDetailHeader extends StatelessWidget {
-  const _BeaconDetailHeader({
-    required this.beacon,
-    required this.screenCubit,
-  });
-
-  final Beacon beacon;
-  final ScreenCubit screenCubit;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        kSpacingMedium,
-        kSpacingSmall,
-        kSpacingMedium,
-        kSpacingSmall / 2,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          BeaconCardHeaderRow(
-            beacon: beacon,
-            menu: const SizedBox.shrink(),
-            titleStyle: theme.textTheme.titleMedium!.copyWith(
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 6),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => screenCubit.showProfile(beacon.author.id),
-            child: BeaconCardAuthorSubline(
-              author: beacon.author,
-              category: BeaconCardCategoryMeta(beacon: beacon),
-            ),
-          ),
-          BeaconNeedBrief(beacon: beacon),
-        ],
-      ),
-    );
-  }
-}
-
-/// Pinned status strip under [NestedScrollView] (fixed height; see tab bar).
-class _PinnedStatusStripDelegate extends SliverPersistentHeaderDelegate {
-  _PinnedStatusStripDelegate({required this.child});
-
-  final Widget child;
-
-  static const double _height = 48;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: overlapsContent ? 0.5 : 0,
-      child: SizedBox(
-        height: _height,
-        width: double.infinity,
-        child: child,
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _PinnedStatusStripDelegate oldDelegate) {
-    return child != oldDelegate.child;
   }
 }
 

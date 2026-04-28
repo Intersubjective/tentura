@@ -2213,6 +2213,22 @@
       "date": { "type": "String" }
     }
   },
+  "beaconHeaderNoCommitments": "No commitments",
+  "beaconHeaderCommitmentsCount": "{count} committed",
+  "@beaconHeaderCommitmentsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHeaderRoomCount": "Room · {count}",
+  "@beaconHeaderRoomCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHeaderWatch": "Watch",
+  "beaconHeaderStopWatching": "Stop watching",
+  "beaconHeaderUpdateCommitment": "Update commitment",
   "beaconNeedSummaryTitle": "Need",
   "beaconCoordinationCardTitle": "Coordination",
   "beaconPublicStatusCardTitle": "Public status",

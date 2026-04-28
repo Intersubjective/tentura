@@ -2213,6 +2213,22 @@
       "date": { "type": "String" }
     }
   },
+  "beaconHeaderNoCommitments": "Нет принятых",
+  "beaconHeaderCommitmentsCount": "{count} принято",
+  "@beaconHeaderCommitmentsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHeaderRoomCount": "Комната · {count}",
+  "@beaconHeaderRoomCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHeaderWatch": "Наблюдать",
+  "beaconHeaderStopWatching": "Не наблюдать",
+  "beaconHeaderUpdateCommitment": "Изменить отклик",
   "beaconNeedSummaryTitle": "Потребность",
   "beaconCoordinationCardTitle": "Координация",
   "beaconPublicStatusCardTitle": "Публичный статус",
