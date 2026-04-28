@@ -89,23 +89,16 @@ class BeaconRoomRepository {
     }
 
     final ids = msgs.map((m) => m.id).toList();
-    final placeholders = List.generate(ids.length, (_) => '?').join(',');
-    final reactionRows = await _db.customSelect(
-      '''
-SELECT message_id, emoji, user_id
-FROM beacon_room_message_reaction
-WHERE message_id IN ($placeholders)
-''',
-      variables: ids.map((id) => Variable<String>(id)).toList(),
-      readsFrom: {_db.beaconRoomMessageReactions},
-    ).get();
+    final reactionRows = await (_db.select(_db.beaconRoomMessageReactions)
+          ..where((r) => r.messageId.isIn(ids)))
+        .get();
 
     final countsByMessage = <String, Map<String, int>>{};
     final viewerEmojisByMessage = <String, List<String>>{};
     for (final rr in reactionRows) {
-      final mid = rr.data['message_id']! as String;
-      final emoji = rr.data['emoji']! as String;
-      final uid = rr.data['user_id']! as String;
+      final mid = rr.messageId;
+      final emoji = rr.emoji;
+      final uid = rr.userId;
 
       final cm = countsByMessage.putIfAbsent(mid, () => <String, int>{});
       cm[emoji] = (cm[emoji] ?? 0) + 1;
