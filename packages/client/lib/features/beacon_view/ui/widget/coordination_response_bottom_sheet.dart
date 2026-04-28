@@ -35,18 +35,40 @@ Future<void> showCoordinationResponseBottomSheet({
               children: [
                 for (final t in CoordinationResponseType.values)
                   ListTile(
-                    title: Text(
-                      coordinationResponseLabel(l10n, t) ?? '',
-                    ),
-                    subtitle: Text(
-                      t == CoordinationResponseType.notSuitable
-                          ? l10n.coordinationResponseRoomNoAdmission
-                          : l10n.coordinationResponseRoomAdmits,
-                      style: TenturaText.body(
-                        t == CoordinationResponseType.notSuitable
-                            ? Theme.of(ctx).colorScheme.error
-                            : Theme.of(ctx).colorScheme.tertiary,
-                      ),
+                    dense: true,
+                    title: Builder(
+                      builder: (context) {
+                        final scheme = Theme.of(context).colorScheme;
+                        final signalText =
+                            t == CoordinationResponseType.notSuitable
+                                ? l10n.coordinationResponseRoomNoAdmission
+                                : l10n.coordinationResponseRoomAdmits;
+                        final signalColor =
+                            t == CoordinationResponseType.notSuitable
+                                ? scheme.error
+                                : scheme.tertiary;
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                coordinationResponseLabel(l10n, t) ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                signalText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TenturaText.bodySmall(signalColor),
+                                textAlign: TextAlign.end,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     onTap: () {
                       Navigator.of(ctx).pop();
