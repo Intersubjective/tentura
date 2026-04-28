@@ -50,6 +50,8 @@ final class CoordinationCase extends UseCaseBase {
     required String commitUserId,
     required String authorUserId,
     required int responseType,
+    required bool inviteToRoom,
+    required bool removeFromRoom,
   }) async {
     await _ensureAuthor(beaconId: beaconId, userId: authorUserId);
     if (CoordinationResponseType.tryFromInt(responseType) == null) {
@@ -69,12 +71,19 @@ final class CoordinationCase extends UseCaseBase {
       authorUserId: authorUserId,
       responseType: responseType,
     );
-    await _beaconRoomRepository.applyCoordinationResponseToRoomParticipant(
-      beaconId: beaconId,
-      commitUserId: commitUserId,
-      responseType: responseType,
-      authorUserId: authorUserId,
-    );
+    if (removeFromRoom) {
+      await _beaconRoomRepository.revokeCommitUserBeaconRoomAccess(
+        beaconId: beaconId,
+        commitUserId: commitUserId,
+        authorUserId: authorUserId,
+      );
+    } else if (inviteToRoom) {
+      await _beaconRoomRepository.inviteCommitUserToBeaconRoom(
+        beaconId: beaconId,
+        commitUserId: commitUserId,
+        authorUserId: authorUserId,
+      );
+    }
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,
     );
