@@ -534,18 +534,22 @@ class _BeaconOperationalScrollViewState
                         onViewChain: () =>
                             widget.screenCubit.showForwardsGraphFor(beaconId),
                       ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: () => unawaited(
-                            context.router.pushPath(
-                              '$kPathBeaconRoom/$beaconId',
+                      if (state.isBeaconMine ||
+                          state.beaconRoomCue != null ||
+                          state.roomParticipants.isNotEmpty ||
+                          state.roomActivityEvents.isNotEmpty)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () => unawaited(
+                              context.router.pushPath(
+                                '$kPathBeaconRoom/$beaconId',
+                              ),
                             ),
+                            icon: const Icon(Icons.forum_outlined),
+                            label: Text(l10n.beaconRoomOpen),
                           ),
-                          icon: const Icon(Icons.forum_outlined),
-                          label: Text(l10n.beaconRoomOpen),
                         ),
-                      ),
                     ],
                   ),
                 ),
