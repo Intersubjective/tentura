@@ -18,8 +18,8 @@ TimelineCommitment _commitmentMe({
     );
 
 void main() {
-  final author = const Profile(id: 'auth', title: 'Author');
-  final me = const Profile(id: 'me', title: 'Me');
+  const author = Profile(id: 'auth', title: 'Author');
+  const me = Profile(id: 'me', title: 'Me');
   final beacon =
       Beacon.empty.copyWith(id: 'Bxxxx', updatedAt: DateTime(2025), author: author);
 
