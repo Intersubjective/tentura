@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 
 import '../enum.dart';
 import 'inbox_provenance.dart';
+import 'inbox_room_card_hints.dart';
 
 part 'inbox_item.freezed.dart';
 
@@ -30,6 +31,7 @@ abstract class InboxItem with _$InboxItem {
     Beacon? beacon,
     DateTime? beforeResponseTerminalAt,
     DateTime? tombstoneDismissedAt,
+    InboxRoomCardHints? roomHints,
   }) = _InboxItem;
 
   const InboxItem._();

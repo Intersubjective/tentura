@@ -1,7 +1,0 @@
-# import '/data/gql/comment_model.graphql'
-
-query CommentFetchById($id: String!) {
-  comment_by_pk(id: $id) {
-    ...CommentModel
-  }
-}

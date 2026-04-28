@@ -1,6 +1,0 @@
-mutation LikeCommentById($comment_id: String!, $amount: Int!) {
-  insert_vote_comment_one(object: {amount: $amount, object: $comment_id},
-  on_conflict: {constraint: vote_comment_pkey, update_columns: amount}) {
-    amount
-  }
-}

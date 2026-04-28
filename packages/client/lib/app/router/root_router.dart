@@ -190,6 +190,13 @@ class RootRouter extends RootStackRouter {
       path: '$kPathBeaconView/:id',
     ),
 
+    // Beacon coordination room (V2 chat)
+    AutoRoute(
+      usesPathAsKey: true,
+      page: BeaconRoomRoute.page,
+      path: '$kPathBeaconRoom/:id',
+    ),
+
     AutoRoute(
       usesPathAsKey: true,
       page: BeaconForwardsRoute.page,
@@ -298,7 +305,9 @@ class RootRouter extends RootStackRouter {
         ? uri.replace(
             path: switch (uri.queryParameters['id']) {
               final String id when id.startsWith('B') || id.startsWith('C') =>
-                '$kPathBeaconView/$id',
+                uri.queryParameters['dest'] == 'room'
+                    ? '$kPathBeaconRoom/$id'
+                    : '$kPathBeaconView/$id',
               final String id when id.startsWith('O') || id.startsWith('U') =>
                 '$kPathProfileView/$id',
               final String id when id.startsWith('I') =>
@@ -313,6 +322,27 @@ class RootRouter extends RootStackRouter {
           )
         : uri,
   );
+
+  /// Opens a notification [rawLink] (`/#/shared/view?…` or absolute URL).
+  Future<void> openFromNotificationLink(String rawLink) async {
+    final uri = _notificationUriFromRaw(rawLink);
+    final transformed = await deepLinkTransformer(uri);
+    final qp = transformed.queryParameters;
+    var path = transformed.path;
+    if (qp.isNotEmpty) {
+      final q = Uri(queryParameters: qp).query;
+      if (q.isNotEmpty) {
+        path = '$path?$q';
+      }
+    }
+    await pushPath(path);
+  }
+
+  Uri _notificationUriFromRaw(String raw) {
+    final idx = raw.indexOf('/#/');
+    final s = idx == -1 ? raw : raw.substring(idx + 2);
+    return Uri.parse(s.startsWith('/') ? s : '/$s');
+  }
 }
 
 class _ReevaluateFromStreams extends ChangeNotifier {

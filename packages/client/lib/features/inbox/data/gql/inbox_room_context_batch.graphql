@@ -1,0 +1,12 @@
+query InboxRoomContextBatch($beaconIds: [String!]!) {
+  InboxRoomContextBatch(beaconIds: $beaconIds) {
+    beaconId
+    isRoomMember
+    currentPlan
+    lastRoomMeaningfulChange
+    nextMoveText
+    roomUnreadCount
+    openBlockerTitle
+    publicFactSnippet
+  }
+}

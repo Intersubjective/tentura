@@ -2,7 +2,6 @@ import 'package:injectable/injectable.dart';
 import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/data/repository/comment_repository.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/api/view/shared_view/shared_view_document.dart';
@@ -15,7 +14,6 @@ import '_base_controller.dart';
 final class SharedViewController extends BaseController {
   const SharedViewController(
     this._beaconRepository,
-    this._commentRepository,
     this._userRepository,
     this._invitationCase,
     this._opinionCase,
@@ -23,8 +21,6 @@ final class SharedViewController extends BaseController {
   );
 
   final BeaconRepositoryPort _beaconRepository;
-
-  final CommentRepository _commentRepository;
 
   final UserRepositoryPort _userRepository;
 
@@ -56,7 +52,7 @@ final class SharedViewController extends BaseController {
         SharedViewDocument(
           entity: switch (ogId[0]) {
             'B' => await _beaconRepository.getBeaconById(beaconId: ogId),
-            'C' => await _commentRepository.getCommentById(ogId),
+            'C' => throw const IdWrongException(),
             'I' => await _invitationCase.fetchById(invitationId: ogId),
             'O' => await _opinionCase.getOpinionById(ogId),
             'U' => await _userRepository.getById(ogId),

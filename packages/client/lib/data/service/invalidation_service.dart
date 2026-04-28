@@ -31,6 +31,7 @@ class InvalidationService {
   final _beaconChanges = StreamController<String>.broadcast();
   final _commitmentChanges = StreamController<String>.broadcast();
   final _forwardChanges = StreamController<String>.broadcast();
+  final _beaconRoomChanges = StreamController<String>.broadcast();
 
   /// Beacon ID that was changed by another user or session (debounced).
   late final Stream<String> beaconInvalidations = _beaconChanges.stream
@@ -54,6 +55,15 @@ class InvalidationService {
       .expand((batch) => batch.toSet())
       .asBroadcastStream();
 
+  /// Beacon ID whose room chat or participant rows changed (`room_message` /
+  /// `participant` NOTIFY branches; payload `id` is the beacon).
+  late final Stream<String> beaconRoomInvalidations =
+      _beaconRoomChanges.stream
+          .bufferTime(_debounceWindow)
+          .where((batch) => batch.isNotEmpty)
+          .expand((batch) => batch.toSet())
+          .asBroadcastStream();
+
   void _onInvalidation(Map<String, dynamic> msg) {
     final payload = msg['payload'];
     if (payload is! Map<String, dynamic>) return;
@@ -67,6 +77,12 @@ class InvalidationService {
         _commitmentChanges.add(id);
       case 'forward':
         _forwardChanges.add(id);
+      case 'room_message':
+      case 'participant':
+      case 'fact_card':
+      case 'blocker':
+      case 'activity_event':
+        _beaconRoomChanges.add(id);
     }
   }
 
@@ -76,5 +92,6 @@ class InvalidationService {
     await _beaconChanges.close();
     await _commitmentChanges.close();
     await _forwardChanges.close();
+    await _beaconRoomChanges.close();
   }
 }

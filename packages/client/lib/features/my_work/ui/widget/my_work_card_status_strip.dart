@@ -11,10 +11,14 @@ import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 class MyWorkCardStatusStrip extends StatelessWidget {
   const MyWorkCardStatusStrip({
     required this.data,
+    this.roomSubtitle,
     super.key,
   });
 
   final MyWorkStatusLineData data;
+
+  /// Optional second line (room coordination / unread).
+  final String? roomSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -44,21 +48,42 @@ class MyWorkCardStatusStrip extends StatelessWidget {
           )
         : baseStyle;
 
+    final line = Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: data.slot1, style: slot1Style),
+          TextSpan(text: ' · ', style: baseStyle),
+          TextSpan(text: data.slot2, style: slot2Style),
+          TextSpan(text: ' · ', style: baseStyle),
+          TextSpan(text: data.slot3, style: baseStyle),
+        ],
+      ),
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    final room = roomSubtitle?.trim();
+    if (room == null || room.isEmpty) {
+      return Padding(padding: EdgeInsets.zero, child: line);
+    }
     return Padding(
       padding: EdgeInsets.zero,
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(text: data.slot1, style: slot1Style),
-            TextSpan(text: ' · ', style: baseStyle),
-            TextSpan(text: data.slot2, style: slot2Style),
-            TextSpan(text: ' · ', style: baseStyle),
-            TextSpan(text: data.slot3, style: baseStyle),
-          ],
-        ),
-        maxLines: 1,
-        softWrap: false,
-        overflow: TextOverflow.ellipsis,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          line,
+          Padding(
+            padding: EdgeInsets.only(top: tt.iconTextGap / 2),
+            child: Text(
+              room,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+          ),
+        ],
       ),
     );
   }

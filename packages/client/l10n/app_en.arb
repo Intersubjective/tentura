@@ -1899,7 +1899,7 @@
       "status": { "type": "String" }
     }
   },
-  "labelCommitments": "Commitments",
+  "labelCommitments": "People",
   "@labelCommitments": {
     "context": "BeaconViewScreen",
     "description": "Tab title for commitments list"
@@ -2215,6 +2215,13 @@
   },
   "beaconNeedSummaryTitle": "Need",
   "beaconCoordinationCardTitle": "Coordination",
+  "beaconPublicStatusCardTitle": "Public status",
+  "beaconPublicStatusOpen": "Open",
+  "beaconPublicStatusCoordinating": "Coordinating",
+  "beaconPublicStatusMoreHelp": "More help needed",
+  "beaconPublicStatusEnoughHelp": "Enough help",
+  "beaconPublicStatusClosed": "Closed",
+  "beaconPublicStatusNoNote": "No public note",
   "beaconYourRelationTitle": "Your relation",
   "beaconCommitSnapshotTitle": "Commitments",
   "beaconViewAllCommitments": "View all commitments",
@@ -2346,5 +2353,133 @@
     }
   },
   "beaconOverviewForwardEmpty": "No forward path recorded for you",
-  "beaconOverviewActivityLogTitle": "Activity log"
+  "beaconOverviewActivityLogTitle": "Activity log",
+  "beaconRoomTitle": "Room",
+  "beaconRoomMessageHint": "Write a message…",
+  "beaconRoomOpen": "Room",
+  "beaconOverviewPublicFactsTitle": "Public facts",
+  "beaconOverviewPublicFactsCount": "{count, plural, one{1 pinned fact} other{{count} pinned facts}}",
+  "@beaconOverviewPublicFactsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconFactsSheetTitle": "Pinned facts",
+  "beaconFactsSheetEmpty": "No pinned facts yet.",
+  "beaconRoomPinFactTitle": "Pin as fact",
+  "beaconRoomPinFactPublic": "Public — visible beyond the room",
+  "beaconRoomPinFactRoomOnly": "Room only",
+  "beaconRoomPinFactDisabledEmpty": "Add message text before pinning.",
+  "beaconFactsOpenTooltip": "Pinned facts",
+  "labelBeaconTabPeople": "People",
+  "beaconOverviewRoomCueCardTitle": "Room coordination",
+  "beaconRoomStripNowTitle": "Now",
+  "beaconRoomStripPlanLabel": "Plan",
+  "beaconRoomStripLastPrivateFactLabel": "Last room fact",
+  "beaconRoomStripMeaningfulChangeLabel": "Latest change",
+  "beaconRoomStripOpenBlockerHint": "A blocker is open in the room (details in chat).",
+  "beaconRoomYouStripTitle": "You",
+  "beaconRoomYouStripRoleLabel": "Role",
+  "beaconRoomYouStripNextMoveLabel": "Next step",
+  "beaconRoomYouStripEditNextMove": "Update my next step",
+  "beaconRoomYouStripMarkDoneComing": "Mark done — soon",
+  "beaconRoomYouStripNoParticipant": "Room access adds your participant row here.",
+  "beaconActivitySectionCoordination": "Room coordination",
+  "beaconActivityPlanUpdated": "Plan updated",
+  "beaconActivityFactPinned": "Fact pinned",
+  "beaconActivityBlockerOpened": "Blocker opened",
+  "beaconActivityBlockerResolved": "Blocker resolved",
+  "beaconActivityNeedInfoOpened": "Need-info requested",
+  "beaconActivityDoneMarked": "Marked done",
+  "beaconActivityCoordinationFallback": "Room update",
+  "beaconRoomMessageActionsTitle": "Message actions",
+  "beaconRoomActionUpdatePlan": "Update plan…",
+  "beaconRoomActionPinFact": "Pin as fact",
+  "beaconRoomActionMarkBlocker": "Mark blocker…",
+  "beaconRoomActionNeedInfo": "Need info…",
+  "beaconRoomActionMarkDone": "Mark done…",
+  "beaconRoomBlockerTitleHint": "Blocker title",
+  "beaconRoomNeedInfoPickTarget": "Who is this for?",
+  "beaconRoomNeedInfoRequestHint": "What do you need?",
+  "beaconRoomMarkDoneTitle": "What is done?",
+  "beaconRoomMarkDoneMessageOnly": "Mark this message only",
+  "beaconRoomMarkDoneResolveBlocker": "Resolve linked blocker",
+  "beaconRoomMarkDoneConfirmSingleBlocker": "Resolve blocker: {title}",
+  "@beaconRoomMarkDoneConfirmSingleBlocker": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "beaconPeopleSectionTitle": "People & roles",
+  "beaconPeopleParticipantUpdated": "Updated {when}",
+  "@beaconPeopleParticipantUpdated": {
+    "placeholders": {
+      "when": { "type": "String" }
+    }
+  },
+  "beaconPeopleRoleAuthor": "Author",
+  "beaconPeopleRoleSteward": "Steward",
+  "beaconPeopleRoleHelper": "Helper",
+  "beaconPeopleRoleCandidate": "Candidate",
+  "beaconPeopleRoleWatcher": "Watcher",
+  "beaconPeopleRoleForwarder": "Forwarder",
+  "beaconPeopleStatusWatching": "Watching",
+  "beaconPeopleStatusOfferedHelp": "Offered help",
+  "beaconPeopleStatusCandidate": "Candidate",
+  "beaconPeopleStatusAdmitted": "Admitted",
+  "beaconPeopleStatusChecking": "Checking in",
+  "beaconPeopleStatusCommitted": "Committed",
+  "beaconPeopleStatusCommittedUseful": "Committed · marked useful",
+  "beaconPeopleStatusCommittedNeedCoordination": "Committed · needs coordination",
+  "beaconPeopleStatusNeedsInfo": "Needs info",
+  "beaconPeopleStatusBlocked": "Blocked",
+  "beaconPeopleStatusDone": "Done",
+  "beaconPeopleStatusWithdrawn": "Withdrawn",
+  "beaconPeopleStatusUnknown": "Status {code}",
+  "@beaconPeopleStatusUnknown": {
+    "placeholders": {
+      "code": { "type": "int" }
+    }
+  },
+  "inboxCardRoomUnread": "{count, plural, =0{Room up to date} one{1 unread in Room} other{{count} unread in Room}}",
+  "@inboxCardRoomUnread": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "inboxCardRoomPlan": "Room plan: {text}",
+  "@inboxCardRoomPlan": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "inboxCardRoomNextMove": "Next step: {text}",
+  "@inboxCardRoomNextMove": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "inboxCardRoomLastChange": "Latest in Room: {text}",
+  "@inboxCardRoomLastChange": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "inboxCardPublicFactLine": "Public fact: {text}",
+  "@inboxCardPublicFactLine": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "inboxCardOpenBlocker": "Open blocker: {text}",
+  "@inboxCardOpenBlocker": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "forwardIncludePublicNote": "Include public status note in message",
+  "forwardAttachFacts": "Attach public facts to message",
+  "forwardFactChipAttach": "Attach"
 }

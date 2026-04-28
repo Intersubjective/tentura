@@ -30,6 +30,15 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _imageId = InputFieldString(fieldName: 'imageId');
 
+  final GraphQLFieldInput<int, int> _publicStatusField = GraphQLFieldInput(
+    'publicStatus',
+    graphQLInt.nonNullable(),
+  );
+
+  final _lastPublicMeaningfulChange = InputFieldString(
+    fieldName: 'lastPublicMeaningfulChange',
+  );
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
     update,
@@ -38,6 +47,7 @@ final class MutationBeacon extends GqlNodeBase {
     addImage,
     removeImage,
     reorderImages,
+    beaconPublicStatusUpdate,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get deleteById => GraphQLObjectField(
@@ -207,4 +217,25 @@ final class MutationBeacon extends GqlNodeBase {
       imageIds: InputFieldImageIds.fromArgs(args),
     ),
   );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconPublicStatusUpdate =>
+      GraphQLObjectField(
+        'BeaconPublicStatusUpdate',
+        gqlTypeBeacon.nonNullable(),
+        arguments: [
+          InputFieldId.field,
+          _publicStatusField,
+          _lastPublicMeaningfulChange.fieldNullable,
+        ],
+        resolve: (_, args) => _beaconCase
+            .updatePublicStatus(
+              userId: getCredentials(args).sub,
+              beaconId: InputFieldId.fromArgsNonNullable(args),
+              publicStatus: args[_publicStatusField.name]! as int,
+              lastPublicMeaningfulChange: _lastPublicMeaningfulChange.fromArgs(
+                args,
+              ),
+            )
+            .then((v) => v.asJson),
+      );
 }

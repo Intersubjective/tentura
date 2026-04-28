@@ -52,12 +52,36 @@
                 }
               },
               {
-                "name": "comments",
+                "name": "beacon_participants",
                 "using": {
                   "foreign_key_constraint_on": {
                     "column": "beacon_id",
                     "table": {
-                      "name": "comment",
+                      "name": "beacon_participant",
+                      "schema": "public"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "beacon_room_state",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "beacon_id",
+                    "table": {
+                      "name": "beacon_room_state",
+                      "schema": "public"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "beacon_steward",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "beacon_id",
+                    "table": {
+                      "name": "beacon_steward",
                       "schema": "public"
                     }
                   }
@@ -185,8 +209,10 @@
                     "id",
                     "lat",
                     "long",
+                    "last_public_meaningful_change",
                     "need_summary",
                     "polling_id",
+                    "public_status",
                     "start_at",
                     "state",
                     "success_criteria",
@@ -323,108 +349,6 @@
           },
           {
             "table": {
-              "name": "comment",
-              "schema": "public"
-            },
-            "object_relationships": [
-              {
-                "name": "author",
-                "using": {
-                  "foreign_key_constraint_on": "user_id"
-                }
-              },
-              {
-                "name": "beacon",
-                "using": {
-                  "foreign_key_constraint_on": "beacon_id"
-                }
-              }
-            ],
-            "array_relationships": [
-              {
-                "name": "vote_comments",
-                "using": {
-                  "foreign_key_constraint_on": {
-                    "column": "object",
-                    "table": {
-                      "name": "vote_comment",
-                      "schema": "public"
-                    }
-                  }
-                }
-              }
-            ],
-            "computed_fields": [
-              {
-                "name": "my_vote",
-                "definition": {
-                  "function": {
-                    "name": "comment_get_my_vote",
-                    "schema": "public"
-                  },
-                  "session_argument": "hasura_session",
-                  "table_argument": "comment_row"
-                }
-              },
-              {
-                "name": "scores",
-                "definition": {
-                  "function": {
-                    "name": "comment_get_scores",
-                    "schema": "public"
-                  },
-                  "session_argument": "hasura_session"
-                }
-              }
-            ],
-            "insert_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "check": {},
-                  "set": {
-                    "user_id": "x-hasura-User-Id"
-                  },
-                  "columns": [
-                    "beacon_id",
-                    "content"
-                  ]
-                }
-              }
-            ],
-            "select_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "beacon_id",
-                    "content",
-                    "user_id",
-                    "created_at",
-                    "id"
-                  ],
-                  "computed_fields": [
-                    "my_vote"
-                  ],
-                  "filter": {}
-                }
-              }
-            ],
-            "delete_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "filter": {
-                    "user_id": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "table": {
               "name": "complaint",
               "schema": "public"
             }
@@ -445,21 +369,6 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "beacon",
-                      "schema": "public"
-                    }
-                  }
-                }
-              },
-              {
-                "name": "comment",
-                "using": {
-                  "manual_configuration": {
-                    "column_mapping": {
-                      "dst": "id"
-                    },
-                    "insertion_order": null,
-                    "remote_table": {
-                      "name": "comment",
                       "schema": "public"
                     }
                   }
@@ -606,21 +515,6 @@
                     "insertion_order": null,
                     "remote_table": {
                       "name": "beacon",
-                      "schema": "public"
-                    }
-                  }
-                }
-              },
-              {
-                "name": "comment",
-                "using": {
-                  "manual_configuration": {
-                    "column_mapping": {
-                      "dst": "id"
-                    },
-                    "insertion_order": null,
-                    "remote_table": {
-                      "name": "comment",
                       "schema": "public"
                     }
                   }
@@ -937,12 +831,12 @@
                 }
               },
               {
-                "name": "comments",
+                "name": "my_beacon_participations",
                 "using": {
                   "foreign_key_constraint_on": {
                     "column": "user_id",
                     "table": {
-                      "name": "comment",
+                      "name": "beacon_participant",
                       "schema": "public"
                     }
                   }
@@ -967,18 +861,6 @@
                     "column": "subject",
                     "table": {
                       "name": "vote_beacon",
-                      "schema": "public"
-                    }
-                  }
-                }
-              },
-              {
-                "name": "vote_comments",
-                "using": {
-                  "foreign_key_constraint_on": {
-                    "column": "subject",
-                    "table": {
-                      "name": "vote_comment",
                       "schema": "public"
                     }
                   }
@@ -1172,76 +1054,6 @@
                     "amount",
                     "object",
                     "subject",
-                    "created_at",
-                    "updated_at"
-                  ],
-                  "filter": {
-                    "subject": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
-                  }
-                }
-              }
-            ],
-            "update_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "amount"
-                  ],
-                  "filter": {
-                    "subject": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
-                  },
-                  "check": null
-                }
-              }
-            ]
-          },
-          {
-            "table": {
-              "name": "vote_comment",
-              "schema": "public"
-            },
-            "object_relationships": [
-              {
-                "name": "comment",
-                "using": {
-                  "foreign_key_constraint_on": "object"
-                }
-              },
-              {
-                "name": "user",
-                "using": {
-                  "foreign_key_constraint_on": "subject"
-                }
-              }
-            ],
-            "insert_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "check": {},
-                  "set": {
-                    "subject": "x-hasura-User-Id"
-                  },
-                  "columns": [
-                    "amount",
-                    "object"
-                  ]
-                }
-              }
-            ],
-            "select_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "subject",
-                    "object",
-                    "amount",
                     "created_at",
                     "updated_at"
                   ],
@@ -1519,6 +1331,211 @@
                     }
                   },
                   "check": null
+                }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_participant",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "user",
+                "using": {
+                  "foreign_key_constraint_on": "user_id"
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "beacon_id",
+                    "created_at",
+                    "id",
+                    "linked_message_id",
+                    "next_move_source",
+                    "next_move_status",
+                    "next_move_text",
+                    "offer_note",
+                    "role",
+                    "room_access",
+                    "status",
+                    "updated_at",
+                    "user_id"
+                  ],
+                  "filter": {
+                    "_or": [
+                      {
+                        "user_id": {
+                          "_eq": "X-Hasura-User-Id"
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "user_id": {
+                            "_eq": "X-Hasura-User-Id"
+                          }
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "beacon_steward": {
+                            "user_id": {
+                              "_eq": "X-Hasura-User-Id"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "beacon_participants": {
+                            "user_id": {
+                              "_eq": "X-Hasura-User-Id"
+                            },
+                            "room_access": {
+                              "_eq": 3
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_room_state",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "updated_by_user",
+                "using": {
+                  "foreign_key_constraint_on": "updated_by"
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "beacon_id",
+                    "current_plan",
+                    "last_room_meaningful_change",
+                    "open_blocker_id",
+                    "updated_at",
+                    "updated_by"
+                  ],
+                  "filter": {
+                    "_or": [
+                      {
+                        "beacon": {
+                          "user_id": {
+                            "_eq": "X-Hasura-User-Id"
+                          }
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "beacon_steward": {
+                            "user_id": {
+                              "_eq": "X-Hasura-User-Id"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "beacon_participants": {
+                            "user_id": {
+                              "_eq": "X-Hasura-User-Id"
+                            },
+                            "room_access": {
+                              "_eq": 3
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_steward",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "user",
+                "using": {
+                  "foreign_key_constraint_on": "user_id"
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "beacon_id",
+                    "user_id"
+                  ],
+                  "filter": {
+                    "_or": [
+                      {
+                        "user_id": {
+                          "_eq": "X-Hasura-User-Id"
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "user_id": {
+                            "_eq": "X-Hasura-User-Id"
+                          }
+                        }
+                      },
+                      {
+                        "beacon": {
+                          "beacon_participants": {
+                            "user_id": {
+                              "_eq": "X-Hasura-User-Id"
+                            },
+                            "room_access": {
+                              "_eq": 3
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
                 }
               }
             ]

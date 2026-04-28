@@ -3,13 +3,11 @@ import 'package:jaspr/server.dart';
 
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/comment_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/opinion_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 import 'components/beacon_view_component.dart';
-import 'components/comment_view_component.dart';
 import 'components/invitation_view_component.dart';
 import 'components/opinion_view_component.dart';
 import 'components/user_view_component.dart';
@@ -47,21 +45,6 @@ class SharedViewDocument extends StatelessComponent {
         title: beacon.title,
         description: beacon.description,
         imagePath: beacon.imageUrl,
-      ),
-    ),
-
-    // Comment
-    final CommentEntity comment => _buildDocument(
-      body: [
-        BeaconViewComponent(beacon: comment.beacon),
-        _hr,
-        CommentViewComponent(comment: comment),
-      ],
-      meta: _buildMeta(
-        id: comment.id,
-        title: comment.beacon.title,
-        description: comment.content,
-        imagePath: comment.beacon.imageUrl,
       ),
     ),
 

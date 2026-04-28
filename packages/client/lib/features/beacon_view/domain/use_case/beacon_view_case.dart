@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -15,29 +19,30 @@ import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
+import 'package:tentura/features/beacon_room/data/repository/beacon_activity_event_repository.dart';
+import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 
 import '../../data/repository/beacon_author_update_repository.dart';
-import '../../data/repository/beacon_view_repository.dart';
 import '../../data/repository/coordination_repository.dart';
-import '../../domain/typedef.dart';
 
 @singleton
 final class BeaconViewCase extends UseCaseBase {
   BeaconViewCase(
     this._beaconRepository,
-    this._beaconViewRepository,
     this._forwardRepository,
     this._evaluationRepository,
     this._coordinationRepository,
     this._inboxRepository,
-    this._beaconAuthorUpdateRepository, {
+    this._beaconAuthorUpdateRepository,
+    this._factCards,
+    this._beaconRoomCase,
+    this._activityEvents, {
     required super.env,
     required super.logger,
   });
 
   final BeaconRepository _beaconRepository;
-
-  final BeaconViewRepository _beaconViewRepository;
 
   final ForwardRepository _forwardRepository;
 
@@ -48,6 +53,12 @@ final class BeaconViewCase extends UseCaseBase {
   final InboxRepository _inboxRepository;
 
   final BeaconAuthorUpdateRepository _beaconAuthorUpdateRepository;
+
+  final BeaconFactCardRepository _factCards;
+
+  final BeaconRoomCase _beaconRoomCase;
+
+  final BeaconActivityEventRepository _activityEvents;
 
   Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
 
@@ -122,6 +133,38 @@ final class BeaconViewCase extends UseCaseBase {
   Future<Beacon> fetchBeaconById(String beaconId) =>
       _beaconRepository.fetchBeaconById(beaconId);
 
+  Future<List<BeaconFactCard>> fetchFactCards(String beaconId) =>
+      _factCards.list(beaconId: beaconId);
+
+  /// Room API; returns empty when caller is not allowed (e.g. no room access).
+  Future<List<BeaconParticipant>> fetchRoomParticipants(String beaconId) async {
+    try {
+      return await _beaconRoomCase.fetchParticipants(beaconId);
+    } on Object catch (_) {
+      return [];
+    }
+  }
+
+  /// Latest private room state slice; `null` when the viewer cannot use the room API.
+  Future<BeaconRoomState?> fetchRoomStateIfAllowed(String beaconId) async {
+    try {
+      return await _beaconRoomCase.fetchBeaconRoomState(beaconId);
+    } on Object catch (_) {
+      return null;
+    }
+  }
+
+  /// Room coordination activity timeline (V2); empty when not a room member.
+  Future<List<BeaconActivityEvent>> fetchRoomActivityEvents(
+    String beaconId,
+  ) async {
+    try {
+      return await _activityEvents.list(beaconId: beaconId);
+    } on Object catch (_) {
+      return [];
+    }
+  }
+
   Future<
       List<
           ({
@@ -195,9 +238,17 @@ final class BeaconViewCase extends UseCaseBase {
   }) =>
       _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);
 
-  Future<BeaconViewResult> fetchBeaconByCommentId(String commentId) =>
-      _beaconViewRepository.fetchBeaconByCommentId(commentId);
-
   Future<bool> currentUserHasForwardedBeacon(String beaconId) =>
       _forwardRepository.currentUserHasForwardedBeacon(beaconId);
+
+  Future<Beacon> updatePublicStatus({
+    required String beaconId,
+    required int publicStatus,
+    String? lastPublicMeaningfulChange,
+  }) =>
+      _beaconRepository.updatePublicStatus(
+        id: beaconId,
+        publicStatus: publicStatus,
+        lastPublicMeaningfulChange: lastPublicMeaningfulChange,
+      );
 }

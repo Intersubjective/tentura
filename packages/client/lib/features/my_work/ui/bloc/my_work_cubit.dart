@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
+import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
@@ -23,10 +24,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     ProfileCubit? profileCubit,
     ForwardRepository? forwardRepository,
     NewStuffCubit? newStuffCubit,
+    BeaconRoomHintsRepository? roomHints,
   }) : _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
        _profileCubit = profileCubit ?? GetIt.I<ProfileCubit>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
+       _roomHints = roomHints ?? GetIt.I<BeaconRoomHintsRepository>(),
        super(const MyWorkState()) {
     _beaconChanges = (myWorkCase ?? GetIt.I<MyWorkCase>()).beaconChanges.listen(
       _onBeaconChanged,
@@ -47,6 +50,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   final ProfileCubit _profileCubit;
   final ForwardRepository _forwardRepository;
   final NewStuffCubit _newStuffCubit;
+  final BeaconRoomHintsRepository _roomHints;
 
   void _reportMyWorkActivity() {
     if (!state.isSuccess) return;
@@ -139,7 +143,30 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         authoredNonClosed: init.authoredNonClosed,
         committedNonClosed: init.committedNonClosed,
       );
-      final withForwardFlags = await _withAuthorForwardFlags(nonArchived);
+      final hints = await _roomHints.fetchByBeaconIds(
+        nonArchived.map((c) => c.beaconId),
+      );
+      final withHints = nonArchived
+          .map((c) {
+            final h = hints[c.beaconId];
+            if (h == null || !h.isRoomMember) {
+              return c;
+            }
+            final parts = <String>[];
+            if (h.myNextMove.isNotEmpty) {
+              parts.add(h.myNextMove);
+            }
+            if (h.currentPlanSnippet.isNotEmpty) {
+              parts.add(h.currentPlanSnippet);
+            }
+            if (h.roomUnreadCount > 0) {
+              parts.add('+${h.roomUnreadCount}');
+            }
+            if (parts.isEmpty) return c;
+            return c.copyWith(roomInboxSubtitle: parts.join(' · '));
+          })
+          .toList();
+      final withForwardFlags = await _withAuthorForwardFlags(withHints);
       if (isClosed || seq != _fetchSeq) {
         return;
       }
@@ -199,7 +226,31 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         authoredClosed: closed.authoredClosed,
         committedClosed: closed.committedClosed,
       );
-      final archivedWithForwardFlags = await _withAuthorForwardFlags(archived);
+      final archHints = await _roomHints.fetchByBeaconIds(
+        archived.map((c) => c.beaconId),
+      );
+      final archivedWithHints = archived
+          .map((c) {
+            final h = archHints[c.beaconId];
+            if (h == null || !h.isRoomMember) {
+              return c;
+            }
+            final parts = <String>[];
+            if (h.myNextMove.isNotEmpty) {
+              parts.add(h.myNextMove);
+            }
+            if (h.currentPlanSnippet.isNotEmpty) {
+              parts.add(h.currentPlanSnippet);
+            }
+            if (h.roomUnreadCount > 0) {
+              parts.add('+${h.roomUnreadCount}');
+            }
+            if (parts.isEmpty) return c;
+            return c.copyWith(roomInboxSubtitle: parts.join(' · '));
+          })
+          .toList();
+      final archivedWithForwardFlags =
+          await _withAuthorForwardFlags(archivedWithHints);
       if (isClosed || seq != _fetchSeq) {
         return;
       }

@@ -1,0 +1,13 @@
+query BeaconActivityEventList($beaconId: String!) {
+  BeaconActivityEventList(beaconId: $beaconId) {
+    id
+    beaconId
+    visibility
+    type
+    actorId
+    targetUserId
+    sourceMessageId
+    diffJson
+    createdAt
+  }
+}

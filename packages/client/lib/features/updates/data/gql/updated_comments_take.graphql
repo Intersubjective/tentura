@@ -1,9 +1,0 @@
-# import '/data/gql/comment_model.graphql'
-
-# mutation UpdatedCommentsFetch {
-#   updates(args: {prefix: "C"}) {
-#     comment {
-#       ...CommentModel
-#     }
-#   }
-# }

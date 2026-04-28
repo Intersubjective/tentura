@@ -26,6 +26,8 @@ import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 
+import 'package:tentura/domain/entity/beacon_people_lens.dart';
+
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/activity_list.dart';
@@ -35,6 +37,7 @@ import '../widget/beacon_primary_cta_bar.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/commitments_summary_card.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
+import '../widget/beacon_people_participant_card.dart';
 import '../widget/overview/beacon_overview_tab.dart';
 
 /// Query [kQueryBeaconViewTab]: `overview` | `commitments` | `activity` (legacy: `timeline`, `details`, `forwards`).
@@ -416,7 +419,14 @@ class _BeaconOperationalScrollViewState
           p.isLoading != c.isLoading ||
           p.forwardProvenance != c.forwardProvenance ||
           p.inboxStatus != c.inboxStatus ||
-          p.viewerForwardEdges != c.viewerForwardEdges,
+          p.viewerForwardEdges != c.viewerForwardEdges ||
+          p.factCards != c.factCards ||
+          p.roomParticipants.length != c.roomParticipants.length ||
+          (p.roomParticipants.map((e) => '${e.userId}|${e.nextMoveText}').join() !=
+              c.roomParticipants.map((e) => '${e.userId}|${e.nextMoveText}').join()) ||
+          p.beaconRoomCue?.lastRoomMeaningfulChange !=
+              c.beaconRoomCue?.lastRoomMeaningfulChange ||
+          p.beaconRoomCue?.currentPlan != c.beaconRoomCue?.currentPlan,
       builder: (context, state) {
         final beaconId = state.beacon.id;
         Future<void> editUpdate(TimelineUpdate u) => _showEditAuthorUpdateSheet(
@@ -444,6 +454,7 @@ class _BeaconOperationalScrollViewState
             beacon: state.beacon,
             isAuthorView: state.isBeaconMine,
             onEditTimelineUpdate: editUpdate,
+            roomActivityEvents: state.roomActivityEvents,
           ),
         };
 
@@ -499,26 +510,43 @@ class _BeaconOperationalScrollViewState
                     kSpacingMedium,
                     kSpacingSmall / 2,
                   ),
-                  child: BeaconPrimaryCtaBar(
-                    state: state,
-                    onUpdateStatus: state.isBeaconMine
-                        ? () => unawaited(_pickCoordinationStatus(context))
-                        : null,
-                    onPostUpdate: () => unawaited(
-                      _showPostAuthorUpdateSheet(
-                        context,
-                        widget.beaconViewCubit,
-                        l10n,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      BeaconPrimaryCtaBar(
+                        state: state,
+                        onUpdateStatus: state.isBeaconMine
+                            ? () => unawaited(_pickCoordinationStatus(context))
+                            : null,
+                        onPostUpdate: () => unawaited(
+                          _showPostAuthorUpdateSheet(
+                            context,
+                            widget.beaconViewCubit,
+                            l10n,
+                          ),
+                        ),
+                        onCommit: () => _runCommitFlow(context, l10n),
+                        onForward: () => unawaited(
+                          context.router.pushPath(
+                            '$kPathForwardBeacon/$beaconId',
+                          ),
+                        ),
+                        onViewChain: () =>
+                            widget.screenCubit.showForwardsGraphFor(beaconId),
                       ),
-                    ),
-                    onCommit: () => _runCommitFlow(context, l10n),
-                    onForward: () => unawaited(
-                      context.router.pushPath(
-                        '$kPathForwardBeacon/$beaconId',
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () => unawaited(
+                            context.router.pushPath(
+                              '$kPathBeaconRoom/$beaconId',
+                            ),
+                          ),
+                          icon: const Icon(Icons.forum_outlined),
+                          label: Text(l10n.beaconRoomOpen),
+                        ),
                       ),
-                    ),
-                    onViewChain: () =>
-                        widget.screenCubit.showForwardsGraphFor(beaconId),
+                    ],
                   ),
                 ),
               ),
@@ -536,7 +564,7 @@ class _BeaconOperationalScrollViewState
                       child: TenturaUnderlineTabs(
                         tabs: [
                           l10n.labelBeaconTabOverview,
-                          l10n.labelCommitments,
+                          l10n.labelBeaconTabPeople,
                           l10n.labelBeaconTabActivity,
                         ],
                         selectedIndex: _tabIndex,
@@ -720,9 +748,34 @@ class _CommitmentsTabBody extends StatelessWidget {
         )
         .length;
 
+    final peopleRows = beaconParticipantsVisibleForViewer(
+      participants: state.roomParticipants,
+      viewerUserId: state.myProfile.id,
+      authorUserId: beacon.author.id,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (peopleRows.isNotEmpty) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              l10n.beaconPeopleSectionTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < peopleRows.length; i++) ...[
+            if (i != 0) const SizedBox(height: 12),
+            BeaconPeopleParticipantCard(
+              beacon: beacon,
+              participant: peopleRows[i],
+              commitments: state.commitments,
+            ),
+          ],
+          const SizedBox(height: 16),
+        ],
         BeaconEvaluationHooks(
           beaconId: beacon.id,
           lifecycle: beacon.lifecycle,

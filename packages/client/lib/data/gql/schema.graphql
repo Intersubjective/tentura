@@ -104,6 +104,11 @@ type beacon {
   created_at: timestamptz!
   description: String!
   need_summary: String
+  """Outward Beacon Room / Forward strip status."""
+  public_status: smallint!
+
+  """Optional note for last meaningful outward-facing change."""
+  last_public_meaningful_change: String
   success_criteria: String
   end_at: timestamptz
 
@@ -1459,7 +1464,13 @@ enum beacon_select_column {
   long
 
   """column name"""
+  last_public_meaningful_change
+
+  """column name"""
   polling_id
+
+  """column name"""
+  public_status
 
   """column name"""
   start_at
@@ -2554,6 +2565,52 @@ type mutation_root {
   beaconUpdateEdit(id: String!, content: String!): BeaconAuthorUpdate!
   beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]): String!
   beaconWithdraw(id: String!, message: String, uncommitReason: String!): Boolean!
+  RoomMessageCreate(
+    beaconId: String!
+    body: String!
+    replyToMessageId: String
+  ): Boolean!
+  BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
+  BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
+  BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
+  RoomMessageReactionToggle(
+    beaconId: String!
+    messageId: String!
+    emoji: String!
+  ): Boolean!
+  BeaconRoomStatePlanUpdate(beaconId: String!, currentPlan: String!): Boolean!
+  BeaconParticipantSetNextMove(
+    beaconId: String!
+    targetUserId: String!
+    nextMoveText: String!
+    nextMoveSource: Int!
+    nextMoveStatus: Int
+  ): Boolean!
+  BeaconPublicStatusUpdate(id: String!, lastPublicMeaningfulChange: String, publicStatus: Int!): v2_Beacon!
+  BeaconFactCardPin(
+    beaconId: String!
+    factText: String!
+    visibility: Int!
+    sourceMessageId: String
+  ): Boolean!
+  BeaconFactCardCorrect(beaconId: String!, factCardId: String!, newText: String!): Boolean!
+  BeaconFactCardRemove(beaconId: String!, factCardId: String!): Boolean!
+  BeaconRoomMessageMarkBlocker(
+    beaconId: String!
+    messageId: String!
+    title: String!
+    affectedParticipantId: String
+    resolverParticipantId: String
+    visibility: Int
+  ): Boolean!
+  BeaconRoomMessageNeedInfo(
+    beaconId: String!
+    messageId: String!
+    targetUserId: String!
+    requestText: String!
+  ): Boolean!
+  RoomMessageMarkDone(beaconId: String!, messageId: String!, resolveBlocker: Boolean!): Boolean!
+  BeaconParticipantRoomSeen(beaconId: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
 
   """
@@ -4100,6 +4157,12 @@ type query_root {
   evaluationDrafts(id: String!): [v2_EvaluationDraftRow!]
   evaluationParticipants(id: String!): [v2_EvaluationParticipant!]
   evaluationSummary(id: String!): v2_EvaluationSummary!
+  RoomMessageList(beaconId: String!, beforeIso: String): [RoomMessageRow!]!
+  BeaconParticipantList(beaconId: String!): [BeaconParticipantRow!]!
+  BeaconRoomStateGet(beaconId: String!): BeaconRoomStateRow!
+  BeaconActivityEventList(beaconId: String!): [BeaconActivityEventRow!]!
+  InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
+  BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
 
   """
   execute function "graph" which returns "mutual_score"
@@ -6145,6 +6208,78 @@ input uuid_comparison_exp {
   _nin: [uuid!]
 }
 
+type RoomMessageRow {
+  id: String!
+  beaconId: String!
+  authorId: String!
+  body: String!
+  createdAt: String!
+  semanticMarker: Int
+  linkedBlockerId: String
+  systemPayloadJson: String
+}
+
+type BeaconRoomStateRow {
+  beaconId: String!
+  currentPlan: String!
+  openBlockerId: String
+  openBlockerTitle: String
+  lastRoomMeaningfulChange: String
+  updatedAt: String!
+  updatedBy: String
+}
+
+type BeaconActivityEventRow {
+  id: String!
+  beaconId: String!
+  visibility: Int!
+  type: Int!
+  actorId: String
+  targetUserId: String
+  sourceMessageId: String
+  diffJson: String
+  createdAt: String!
+}
+
+type InboxRoomContextRow {
+  beaconId: String!
+  isRoomMember: Boolean!
+  currentPlan: String
+  lastRoomMeaningfulChange: String
+  nextMoveText: String
+  roomUnreadCount: Int!
+  openBlockerTitle: String
+  publicFactSnippet: String
+}
+
+type BeaconParticipantRow {
+  id: String!
+  beaconId: String!
+  userId: String!
+  role: Int!
+  status: Int!
+  roomAccess: Int!
+  offerNote: String
+  nextMoveText: String
+  nextMoveStatus: Int
+  nextMoveSource: Int
+  linkedMessageId: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type BeaconFactCardRow {
+  id: String!
+  beaconId: String!
+  factText: String!
+  visibility: Int!
+  pinnedBy: String!
+  sourceMessageId: String
+  status: Int!
+  createdAt: String!
+  updatedAt: String
+}
+
 type v2_AuthResponse {
   access_token: String!
   expires_in: Int!
@@ -6155,6 +6290,10 @@ type v2_AuthResponse {
 
 type v2_Beacon {
   id: String!
+  iconBackground: Int
+  iconCode: String
+  lastPublicMeaningfulChange: String
+  publicStatus: Int!
 }
 
 type BeaconAuthorUpdate {

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
@@ -18,6 +20,43 @@ import '../../bloc/beacon_view_state.dart';
 import '../../util/beacon_chip_derivation.dart';
 
 const double _kOverviewSectionGap = 12;
+
+BeaconOverviewSectionCard? _roomCueSectionCard(
+  String beaconId,
+  ColorScheme scheme,
+  BeaconRoomState? cue,
+  L10n l10n,
+) {
+  if (cue == null) return null;
+  final lm = cue.lastRoomMeaningfulChange?.trim();
+  final cueBody = (lm != null && lm.isNotEmpty)
+      ? lm
+      : cue.currentPlan.trim();
+  if (cueBody.isEmpty) return null;
+  return BeaconOverviewSectionCard(
+    storageId: 'ov-$beaconId-roomCue',
+    title: l10n.beaconOverviewRoomCueCardTitle,
+    summary: '',
+    icon: Icons.meeting_room_outlined,
+    defaultOpen: true,
+    expanded: Align(
+      alignment: Alignment.centerLeft,
+      child: SelectableText(
+        cueBody,
+        style: TenturaText.body(scheme.onSurfaceVariant),
+      ),
+    ),
+  );
+}
+
+String _publicStatusLine(L10n l10n, int s) => switch (s) {
+  0 => l10n.beaconPublicStatusOpen,
+  1 => l10n.beaconPublicStatusCoordinating,
+  2 => l10n.beaconPublicStatusMoreHelp,
+  3 => l10n.beaconPublicStatusEnoughHelp,
+  4 => l10n.beaconPublicStatusClosed,
+  _ => l10n.beaconPublicStatusOpen,
+};
 
 /// Foldable overview section: icon, title, summary, optional meta, chevron, expanded body.
 /// When [collapsible] is false, the body is always visible (no chevron / tap-to-toggle).
@@ -221,6 +260,55 @@ class BeaconOverviewTab extends StatelessWidget {
     final useful = usefulCommitmentCount(state.commitments);
     final contextSummary = _contextAttachmentsSummaryLine(l10n, beacon);
 
+    final publicFacts = state.factCards
+        .where(
+          (f) =>
+              f.visibility == BeaconFactCardVisibilityBits.public &&
+              f.status != BeaconFactCardStatusBits.removed,
+        )
+        .toList();
+
+    final factsCard = publicFacts.isEmpty
+        ? null
+        : BeaconOverviewSectionCard(
+            storageId: 'ov-${beacon.id}-facts',
+            title: l10n.beaconOverviewPublicFactsTitle,
+            summary: l10n.beaconOverviewPublicFactsCount(publicFacts.length),
+            icon: Icons.fact_check_outlined,
+            expanded: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final f in publicFacts)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                    child: SelectableText(
+                      f.factText,
+                      style: TenturaText.body(scheme.onSurfaceVariant),
+                    ),
+                  ),
+              ],
+            ),
+          );
+
+    final publicRoomCard = BeaconOverviewSectionCard(
+      storageId: 'ov-${beacon.id}-pub',
+      title: l10n.beaconPublicStatusCardTitle,
+      summary: _publicStatusLine(l10n, beacon.publicStatus),
+      meta: beacon.lastPublicMeaningfulChange?.trim().isNotEmpty ?? false
+          ? beacon.lastPublicMeaningfulChange
+          : null,
+      icon: Icons.public_outlined,
+      expanded: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          (beacon.lastPublicMeaningfulChange?.trim().isNotEmpty ?? false)
+              ? beacon.lastPublicMeaningfulChange!.trim()
+              : l10n.beaconPublicStatusNoNote,
+          style: TenturaText.body(scheme.onSurfaceVariant),
+        ),
+      ),
+    );
+
     final coordinationCard = BeaconOverviewSectionCard(
       storageId: 'ov-${beacon.id}-coord',
       defaultOpen: true,
@@ -259,10 +347,23 @@ class BeaconOverviewTab extends StatelessWidget {
       ),
     );
 
+    final roomCueOverviewCard =
+        _roomCueSectionCard(beacon.id, scheme, state.beaconRoomCue, l10n);
+
     if (beacon.hasNeedSummary) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          publicRoomCard,
+          if (roomCueOverviewCard != null) ...[
+            const SizedBox(height: _kOverviewSectionGap),
+            roomCueOverviewCard,
+          ],
+          if (factsCard != null) ...[
+            const SizedBox(height: _kOverviewSectionGap),
+            factsCard,
+          ],
+          const SizedBox(height: _kOverviewSectionGap),
           BeaconOverviewSectionCard(
             storageId: 'ov-${beacon.id}-need',
             collapsible: false,
@@ -283,6 +384,16 @@ class BeaconOverviewTab extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        publicRoomCard,
+        if (roomCueOverviewCard != null) ...[
+          const SizedBox(height: _kOverviewSectionGap),
+          roomCueOverviewCard,
+        ],
+        if (factsCard != null) ...[
+          const SizedBox(height: _kOverviewSectionGap),
+          factsCard,
+        ],
+        const SizedBox(height: _kOverviewSectionGap),
         BeaconOverviewSectionCard(
           storageId: 'ov-${beacon.id}-legacy-need-ctx',
           collapsible: false,

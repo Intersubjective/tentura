@@ -145,7 +145,6 @@ class BeaconPrimaryCtaBar extends StatelessWidget {
             Row(
               // [SliverToBoxAdapter] can pass unbounded max height; [stretch] needs a
               // finite cross-axis extent and throws (beacon view scroll body).
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 if (primary != null) ...[
                   Expanded(

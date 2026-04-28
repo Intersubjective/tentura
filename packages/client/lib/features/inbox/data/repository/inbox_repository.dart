@@ -13,11 +13,18 @@ import '../gql/_g/inbox_item_status_for_beacon.req.gql.dart';
 import '../gql/_g/inbox_set_status.req.gql.dart';
 import '../gql/_g/inbox_tombstone_dismiss.req.gql.dart';
 
+import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
+
 @Singleton(env: [Environment.dev, Environment.prod])
 class InboxRepository {
-  InboxRepository(this._remoteApiService);
+  InboxRepository(
+    this._remoteApiService,
+    this._roomHints,
+  );
 
   final RemoteApiService _remoteApiService;
+
+  final BeaconRoomHintsRepository _roomHints;
 
   final _localMutationController = StreamController<void>.broadcast();
 
@@ -27,30 +34,32 @@ class InboxRepository {
   @disposeMethod
   Future<void> dispose() => _localMutationController.close();
 
-  Future<List<InboxItem>> fetch({required String userId}) => _remoteApiService
-      .request(GInboxFetchReq((r) => r..vars.userId = userId))
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).inbox_item)
-      .then(
-        (v) => v
-            .map(
-              (e) => InboxItem(
-                beaconId: e.beacon_id,
-                context: e.context ?? '',
-                forwardCount: e.forward_count,
-                latestForwardAt: e.latest_forward_at,
-                latestNotePreview: e.latest_note_preview,
-                status: inboxItemStatusFromSmallint(e.status),
-                rejectionMessage: e.rejection_message,
-                beforeResponseTerminalAt: e.before_response_terminal_at,
-                tombstoneDismissedAt: e.tombstone_dismissed_at,
-                provenance: InboxProvenance.parse(e.inbox_provenance_data),
-                isForwardedByMe: e.beacon.my_forward_edges.isNotEmpty,
-                beacon: (e.beacon as BeaconModel).toEntity(),
-              ),
-            )
-            .toList(),
-      );
+  Future<List<InboxItem>> fetch({required String userId}) async {
+    final rows = await _remoteApiService
+        .request(GInboxFetchReq((r) => r..vars.userId = userId))
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).inbox_item);
+    final hints = await _roomHints.fetchByBeaconIds(rows.map((e) => e.beacon_id));
+    return rows
+        .map(
+          (e) => InboxItem(
+            beaconId: e.beacon_id,
+            context: e.context ?? '',
+            forwardCount: e.forward_count,
+            latestForwardAt: e.latest_forward_at,
+            latestNotePreview: e.latest_note_preview,
+            status: inboxItemStatusFromSmallint(e.status),
+            rejectionMessage: e.rejection_message,
+            beforeResponseTerminalAt: e.before_response_terminal_at,
+            tombstoneDismissedAt: e.tombstone_dismissed_at,
+            provenance: InboxProvenance.parse(e.inbox_provenance_data),
+            isForwardedByMe: e.beacon.my_forward_edges.isNotEmpty,
+            beacon: (e.beacon as BeaconModel).toEntity(),
+            roomHints: hints[e.beacon_id],
+          ),
+        )
+        .toList();
+  }
 
   /// Current user's inbox row for this beacon (status + forward provenance).
   /// When there is no row, status is null and provenance is empty.

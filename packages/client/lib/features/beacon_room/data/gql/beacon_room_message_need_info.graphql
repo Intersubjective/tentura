@@ -1,0 +1,13 @@
+mutation BeaconRoomMessageNeedInfo(
+  $beaconId: String!
+  $messageId: String!
+  $targetUserId: String!
+  $requestText: String!
+) {
+  BeaconRoomMessageNeedInfo(
+    beaconId: $beaconId
+    messageId: $messageId
+    targetUserId: $targetUserId
+    requestText: $requestText
+  )
+}

@@ -1,0 +1,11 @@
+query BeaconRoomStateGet($beaconId: String!) {
+  BeaconRoomStateGet(beaconId: $beaconId) {
+    beaconId
+    currentPlan
+    openBlockerId
+    openBlockerTitle
+    lastRoomMeaningfulChange
+    updatedAt
+    updatedBy
+  }
+}

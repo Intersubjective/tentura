@@ -9,6 +9,8 @@ fragment BeaconModel on beacon {
   title
   description
   need_summary
+  public_status
+  last_public_meaningful_change
   success_criteria
   created_at
   updated_at

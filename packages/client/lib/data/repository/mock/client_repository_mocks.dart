@@ -11,13 +11,11 @@ import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dar
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/beacon_view/data/repository/beacon_view_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
 
 import 'package:tentura/features/chat/domain/port/chat_local_repository_port.dart';
 import 'package:tentura/features/chat/domain/port/chat_remote_repository_port.dart';
 
-import 'package:tentura/features/comment/data/repository/comment_repository.dart';
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
 import 'package:tentura/features/context/data/repository/context_repository.dart';
 
@@ -87,9 +85,6 @@ class ForwardRepositoryMock extends Mock implements ForwardRepository {}
 @Injectable(as: AuthRemoteRepositoryPort, env: [Environment.test], order: 1)
 class AuthRemoteRepositoryMock extends Mock implements AuthRemoteRepositoryPort {}
 
-@Injectable(as: CommentRepository, env: [Environment.test], order: 1)
-class CommentRepositoryMock extends Mock implements CommentRepository {}
-
 @Injectable(as: FriendsRemoteRepository, env: [Environment.test], order: 1)
 class FriendsRemoteRepositoryMock extends Mock implements FriendsRemoteRepository {}
 
@@ -119,9 +114,6 @@ class MyWorkRepositoryMock extends Mock implements MyWorkRepository {}
 
 @Injectable(as: ProfileRepositoryPort, env: [Environment.test], order: 1)
 class ProfileRepositoryMock extends Mock implements ProfileRepositoryPort {}
-
-@Injectable(as: BeaconViewRepository, env: [Environment.test], order: 1)
-class BeaconViewRepositoryMock extends Mock implements BeaconViewRepository {}
 
 @Injectable(as: BeaconRepository, env: [Environment.test], order: 1)
 class BeaconRepositoryMock extends Mock implements BeaconRepository {}

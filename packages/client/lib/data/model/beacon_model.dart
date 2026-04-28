@@ -52,6 +52,8 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       commitmentCount: i.commitments_aggregate.aggregate?.count ?? 0,
       iconCode: i.icon_code,
       iconBackground: decodeBeaconIconBackgroundArgb(i.icon_background),
+      publicStatus: i.public_status,
+      lastPublicMeaningfulChange: i.last_public_meaningful_change,
     );
   }
 }

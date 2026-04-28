@@ -2,10 +2,15 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/data/service/invalidation_service.dart';
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
     show BeaconInvolvementData;
@@ -48,11 +53,16 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       },
       cancelOnError: false,
     );
-    unawaited(
-      state.hasFocusedComment
-          ? _fetchBeaconByCommentId()
-          : _fetchBeaconByIdWithTimeline(),
+    _beaconRoomRefreshSub =
+        GetIt.I<InvalidationService>().beaconRoomInvalidations.listen(
+      (bid) {
+        if (!isClosed && bid == state.beacon.id) {
+          unawaited(_fetchBeaconByIdWithTimeline());
+        }
+      },
+      cancelOnError: false,
     );
+    unawaited(_fetchBeaconByIdWithTimeline());
   }
 
   final BeaconViewCase _case;
@@ -61,10 +71,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<CommitmentEvent> _commitmentChangesSub;
 
+  late final StreamSubscription<String> _beaconRoomRefreshSub;
+
   @override
   Future<void> close() async {
     await _forwardCompletedSub.cancel();
     await _commitmentChangesSub.cancel();
+    await _beaconRoomRefreshSub.cancel();
     return super.close();
   }
 
@@ -217,6 +230,23 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
+  Future<void> updatePublicStatus(
+    int publicStatus, {
+    String? lastPublicMeaningfulChange,
+  }) async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _case.updatePublicStatus(
+        beaconId: state.beacon.id,
+        publicStatus: publicStatus,
+        lastPublicMeaningfulChange: lastPublicMeaningfulChange,
+      );
+      await _fetchBeaconByIdWithTimeline();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> setBeaconCoordinationStatus(
     BeaconCoordinationStatus status,
   ) async {
@@ -246,11 +276,15 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchInboxContextForBeacon(beaconId),
         _case.fetchForwardEdgesForBeacon(beaconId),
         _case.fetchBeaconInvolvement(beaconId: beaconId),
+        _case.fetchFactCards(beaconId),
+        _case.fetchRoomParticipants(beaconId),
+        _case.fetchRoomStateIfAllowed(beaconId),
+        _case.fetchRoomActivityEvents(beaconId),
       ]);
 
-      final beacon = results[0] as Beacon;
+      final beacon = results[0]! as Beacon;
       final commitments =
-          results[1]
+          results[1]!
               as List<
                 ({
                   String beaconId,
@@ -268,7 +302,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                 })
               >;
       final updates =
-          results[2]
+          results[2]!
               as List<
                 ({
                   String id,
@@ -279,14 +313,19 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                 })
               >;
       final inboxCtx =
-          results[3]
+          results[3]!
               as ({
                 InboxItemStatus? status,
                 InboxProvenance provenance,
                 String latestNotePreview,
               });
-      final allForwardEdges = results[4] as List<ForwardEdge>;
-      final involvement = results[5] as BeaconInvolvementData;
+      final allForwardEdges = results[4]! as List<ForwardEdge>;
+      final involvement = results[5]! as BeaconInvolvementData;
+      final factCards = results[6]! as List<BeaconFactCard>;
+      final roomParticipants = results[7]! as List<BeaconParticipant>;
+      final beaconRoomCue = results[8] as BeaconRoomState?;
+      final roomActivityEvents =
+          results[9]! as List<BeaconActivityEvent>;
 
       final myForwards = allForwardEdges
           .where((e) => e.sender.id == myUserId)
@@ -364,60 +403,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           involvementOnwardForwarderIds: involvement.onwardForwarderIds,
           involvementRejectedIds: involvement.rejectedIds,
           hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
-          status: StateStatus.isSuccess,
-        ),
-      );
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
-
-  Future<void> _fetchBeaconByCommentId() async {
-    try {
-      final (:beacon, comment: _) = await _case.fetchBeaconByCommentId(
-        state.focusCommentId,
-      );
-      final beaconId = beacon.id;
-      final myUserId = state.myProfile.id;
-      final hasForwardedThisBeaconOnce = await _case
-          .currentUserHasForwardedBeacon(beaconId);
-      final inboxCtxEdgesInv = await Future.wait([
-        _case.fetchInboxContextForBeacon(beaconId),
-        _case.fetchForwardEdgesForBeacon(beaconId),
-        _case.fetchBeaconInvolvement(beaconId: beaconId),
-      ]);
-      final inboxCtx =
-          inboxCtxEdgesInv[0]
-              as ({
-                InboxItemStatus? status,
-                InboxProvenance provenance,
-                String latestNotePreview,
-              });
-      final allForwardEdges = inboxCtxEdgesInv[1] as List<ForwardEdge>;
-      final involvement = inboxCtxEdgesInv[2] as BeaconInvolvementData;
-
-      final myForwards = allForwardEdges
-          .where((e) => e.sender.id == myUserId)
-          .toList(growable: false);
-      final viewerForwardEdges = allForwardEdges
-          .where(
-            (e) => e.sender.id == myUserId || e.recipient.id == myUserId,
-          )
-          .toList(growable: false);
-
-      emit(
-        state.copyWith(
-          beacon: beacon,
-          hasForwardedThisBeaconOnce: hasForwardedThisBeaconOnce,
-          inboxStatus: inboxCtx.status,
-          forwardProvenance: inboxCtx.provenance,
-          inboxLatestNotePreview: inboxCtx.latestNotePreview,
-          myForwards: myForwards,
-          viewerForwardEdges: viewerForwardEdges,
-          involvementCommittedIds: involvement.committedIds,
-          involvementWatchingIds: involvement.watchingIds,
-          involvementOnwardForwarderIds: involvement.onwardForwarderIds,
-          involvementRejectedIds: involvement.rejectedIds,
+          factCards: factCards,
+          roomParticipants: roomParticipants,
+          beaconRoomCue: beaconRoomCue,
+          roomActivityEvents: roomActivityEvents,
           status: StateStatus.isSuccess,
         ),
       );
@@ -468,12 +457,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       switch (id) {
         _ when id.startsWith('B') => BeaconViewState(
           beacon: _emptyBeacon.copyWith(id: id),
-          myProfile: myProfile,
-          status: StateStatus.isLoading,
-        ),
-        _ when id.startsWith('C') => BeaconViewState(
-          beacon: _emptyBeacon,
-          focusCommentId: id,
           myProfile: myProfile,
           status: StateStatus.isLoading,
         ),

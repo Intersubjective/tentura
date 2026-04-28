@@ -1,0 +1,17 @@
+mutation BeaconRoomMessageMarkBlocker(
+  $beaconId: String!
+  $messageId: String!
+  $title: String!
+  $affectedParticipantId: String
+  $resolverParticipantId: String
+  $visibility: Int
+) {
+  BeaconRoomMessageMarkBlocker(
+    beaconId: $beaconId
+    messageId: $messageId
+    title: $title
+    affectedParticipantId: $affectedParticipantId
+    resolverParticipantId: $resolverParticipantId
+    visibility: $visibility
+  )
+}

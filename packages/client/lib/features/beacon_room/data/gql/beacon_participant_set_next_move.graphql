@@ -1,0 +1,15 @@
+mutation BeaconParticipantSetNextMove(
+  $beaconId: String!
+  $targetUserId: String!
+  $nextMoveText: String!
+  $nextMoveSource: Int!
+  $nextMoveStatus: Int
+) {
+  BeaconParticipantSetNextMove(
+    beaconId: $beaconId
+    targetUserId: $targetUserId
+    nextMoveText: $nextMoveText
+    nextMoveSource: $nextMoveSource
+    nextMoveStatus: $nextMoveStatus
+  )
+}

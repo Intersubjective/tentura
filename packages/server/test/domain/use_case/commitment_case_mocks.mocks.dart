@@ -333,6 +333,34 @@ class MockBeaconRepositoryPort extends _i1.Mock
             returnValueForMissingStub: _i4.Future<void>.value(),
           )
           as _i4.Future<void>);
+
+  @override
+  _i4.Future<_i2.BeaconEntity> updatePublicStatus({
+    required String? beaconId,
+    required String? userId,
+    required int? publicStatus,
+    String? lastPublicMeaningfulChange,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#updatePublicStatus, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+              #publicStatus: publicStatus,
+              #lastPublicMeaningfulChange: lastPublicMeaningfulChange,
+            }),
+            returnValue: _i4.Future<_i2.BeaconEntity>.value(
+              _FakeBeaconEntity_0(
+                this,
+                Invocation.method(#updatePublicStatus, [], {
+                  #beaconId: beaconId,
+                  #userId: userId,
+                  #publicStatus: publicStatus,
+                  #lastPublicMeaningfulChange: lastPublicMeaningfulChange,
+                }),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.BeaconEntity>);
 }
 
 /// A class which mocks [CommitmentRepositoryPort].
