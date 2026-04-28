@@ -292,6 +292,7 @@ class BeaconOverviewTab extends StatelessWidget {
 
     final publicRoomCard = BeaconOverviewSectionCard(
       storageId: 'ov-${beacon.id}-pub',
+      collapsible: false,
       title: l10n.beaconPublicStatusCardTitle,
       summary: _publicStatusLine(l10n, beacon.publicStatus),
       meta: beacon.lastPublicMeaningfulChange?.trim().isNotEmpty ?? false
@@ -350,50 +351,32 @@ class BeaconOverviewTab extends StatelessWidget {
     final roomCueOverviewCard =
         _roomCueSectionCard(beacon.id, scheme, state.beaconRoomCue, l10n);
 
-    if (beacon.hasNeedSummary) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          publicRoomCard,
-          if (roomCueOverviewCard != null) ...[
-            const SizedBox(height: _kOverviewSectionGap),
-            roomCueOverviewCard,
-          ],
-          if (factsCard != null) ...[
-            const SizedBox(height: _kOverviewSectionGap),
-            factsCard,
-          ],
-          const SizedBox(height: _kOverviewSectionGap),
-          BeaconOverviewSectionCard(
-            storageId: 'ov-${beacon.id}-need',
-            collapsible: false,
-            defaultOpen: true,
-            title: l10n.beaconNeedCardTitle,
-            summary: '',
-            icon: Icons.track_changes_outlined,
-            expanded: _NeedSectionBody(l10n: l10n, beacon: beacon),
-          ),
-          const SizedBox(height: _kOverviewSectionGap),
-          coordinationCard,
-          const SizedBox(height: _kOverviewSectionGap),
-          contextCard,
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        publicRoomCard,
-        if (roomCueOverviewCard != null) ...[
-          const SizedBox(height: _kOverviewSectionGap),
-          roomCueOverviewCard,
-        ],
-        if (factsCard != null) ...[
-          const SizedBox(height: _kOverviewSectionGap),
-          factsCard,
-        ],
+    final children = <Widget>[
+      publicRoomCard,
+      if (roomCueOverviewCard != null) ...[
         const SizedBox(height: _kOverviewSectionGap),
+        roomCueOverviewCard,
+      ],
+      if (factsCard != null) ...[
+        const SizedBox(height: _kOverviewSectionGap),
+        factsCard,
+      ],
+      const SizedBox(height: _kOverviewSectionGap),
+      if (beacon.hasNeedSummary) ...[
+        BeaconOverviewSectionCard(
+          storageId: 'ov-${beacon.id}-need',
+          collapsible: false,
+          defaultOpen: true,
+          title: l10n.beaconNeedCardTitle,
+          summary: '',
+          icon: Icons.track_changes_outlined,
+          expanded: _NeedSectionBody(l10n: l10n, beacon: beacon),
+        ),
+        const SizedBox(height: _kOverviewSectionGap),
+        coordinationCard,
+        const SizedBox(height: _kOverviewSectionGap),
+        contextCard,
+      ] else ...[
         BeaconOverviewSectionCard(
           storageId: 'ov-${beacon.id}-legacy-need-ctx',
           collapsible: false,
@@ -415,7 +398,20 @@ class BeaconOverviewTab extends StatelessWidget {
         const SizedBox(height: _kOverviewSectionGap),
         coordinationCard,
       ],
+    ];
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
     );
+
+    // `BeaconOverviewTab` is embedded into an outer scroll on the real screen,
+    // but tests often mount it directly into a `Scaffold` body. In that case,
+    // use an internal scroll view to avoid overflow errors.
+    final isInsideScrollable = Scrollable.maybeOf(context) != null;
+    if (isInsideScrollable) return content;
+
+    return SingleChildScrollView(child: content);
   }
 }
 

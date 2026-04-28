@@ -22,8 +22,9 @@ class BeaconNeedBrief extends StatelessWidget {
       child: Text(
         '${l10n.beaconNeedBriefPrefix} ${beacon.needSummary!.trim()}',
         style: TenturaText.body(tt.textMuted),
-        softWrap: true,
-        overflow: TextOverflow.visible,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

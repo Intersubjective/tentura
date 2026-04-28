@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS public.beacon_blocker (
   CONSTRAINT beacon_blocker_visibility_chk CHECK (visibility IN (0, 1)),
   CONSTRAINT beacon_blocker_status_chk CHECK (status IN (0, 1, 2))
 );
-
+''',
+  r'''
 CREATE INDEX IF NOT EXISTS beacon_blocker_beacon_created_idx
   ON public.beacon_blocker (beacon_id, created_at DESC);
 ''',
@@ -51,7 +52,8 @@ CREATE TABLE IF NOT EXISTS public.beacon_activity_event (
   diff jsonb NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-
+''',
+  r'''
 CREATE INDEX IF NOT EXISTS beacon_activity_event_beacon_created_idx
   ON public.beacon_activity_event (beacon_id, created_at DESC);
 ''',

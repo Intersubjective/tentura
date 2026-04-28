@@ -7,7 +7,10 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_blocker_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_update_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';

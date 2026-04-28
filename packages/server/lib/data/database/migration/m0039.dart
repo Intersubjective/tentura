@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS public.beacon_fact_card (
   CONSTRAINT beacon_fact_card_visibility_chk CHECK (visibility IN (0, 1)),
   CONSTRAINT beacon_fact_card_status_chk CHECK (status IN (0, 1, 2))
 );
-
+''',
+  r'''
 CREATE INDEX IF NOT EXISTS beacon_fact_card_beacon_idx
   ON public.beacon_fact_card (beacon_id, created_at DESC);
 ''',
