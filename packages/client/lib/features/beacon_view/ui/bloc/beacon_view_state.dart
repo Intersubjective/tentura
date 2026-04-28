@@ -222,4 +222,32 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get isBeaconMine => beacon.author.id == myProfile.id;
   bool get isBeaconNotMine => beacon.author.id != myProfile.id;
 
+  /// Active commitment row for the current viewer, if any.
+  TimelineCommitment? get myActiveCommitment {
+    for (final c in commitments) {
+      if (!c.isWithdrawn && c.user.id == myProfile.id) {
+        return c;
+      }
+    }
+    return null;
+  }
+
+  /// Author signaled this commitment may use the beacon room (`notSuitable` counts as denial).
+  bool get hasRoomAdmission {
+    final r = myActiveCommitment?.coordinationResponse;
+    return r != null && r != CoordinationResponseType.notSuitable;
+  }
+
+  /// Non-author viewer is committed but has not received an admitting coordination signal.
+  bool get isRoomAdmissionBlocked =>
+      !isBeaconMine && isCommitted && !hasRoomAdmission;
+
+  /// Room chip navigates unless a non-author is committed without admission.
+  bool get canNavigateBeaconRoom =>
+      isBeaconMine || !isCommitted || hasRoomAdmission;
+
+  bool get coordinationDeniesRoomAdmission =>
+      myActiveCommitment?.coordinationResponse ==
+      CoordinationResponseType.notSuitable;
+
 }
