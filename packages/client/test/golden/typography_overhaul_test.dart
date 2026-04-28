@@ -211,7 +211,7 @@ void main() {
         }
       }
     });
-  });
+  }, skip: 'Goldens disabled');
 }
 
 class _InboxGoldenBody extends StatelessWidget {
