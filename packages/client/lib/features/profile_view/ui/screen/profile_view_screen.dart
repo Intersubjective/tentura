@@ -74,9 +74,8 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
         child: CustomScrollView(
           slivers: [
             // Header
-            ProfileViewAppBar(
-              key: const Key('ProfileViewScreen:AppBar'),
-              isFromDeepLink: isDeepLink == 'true',
+            const ProfileViewAppBar(
+              key: Key('ProfileViewScreen:AppBar'),
             ),
 
             // Body

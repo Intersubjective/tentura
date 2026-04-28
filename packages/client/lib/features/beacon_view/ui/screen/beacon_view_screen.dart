@@ -7,6 +7,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
@@ -274,7 +275,6 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
     final screenCubit = context.read<ScreenCubit>();
     final beaconViewCubit = context.read<BeaconViewCubit>();
     final l10n = L10n.of(context)!;
-    final isFromDeepLink = isDeepLink == 'true';
     return BlocBuilder<BeaconViewCubit, BeaconViewState>(
       bloc: beaconViewCubit,
       buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
@@ -298,12 +298,7 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
               color: scheme.onSurface,
             ),
             titleSpacing: 8,
-            leading: isFromDeepLink
-                ? BackButton(
-                    onPressed: () =>
-                        AutoRouter.of(context).navigatePath(kPathHome),
-                  )
-                : const AutoLeadingButton(),
+            leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
             title: Text(l10n.beaconViewTitle),
             actions: [
               _beaconViewAppBarOverflow(
@@ -790,66 +785,19 @@ Future<void> _showPostAuthorUpdateSheet(
   BeaconViewCubit cubit,
   L10n l10n,
 ) async {
-  final controller = TextEditingController();
-  try {
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-        return Padding(
-          padding: EdgeInsets.only(
-            left: kSpacingSmall,
-            right: kSpacingSmall,
-            top: kSpacingMedium,
-            bottom: bottom + kSpacingMedium,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.postUpdateCTA,
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
-              const SizedBox(height: kSpacingSmall),
-              TextField(
-                controller: controller,
-                maxLines: 6,
-                maxLength: kDescriptionMaxLength,
-                decoration: InputDecoration(
-                  hintText: l10n.beaconUpdateComposerHint,
-                ),
-              ),
-              const SizedBox(height: kSpacingSmall),
-              Text(
-                l10n.beaconUpdateEditWindowHint,
-                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: kSpacingSmall),
-              FilledButton(
-                onPressed: () {
-                  if (controller.text.trim().isEmpty) return;
-                  Navigator.of(ctx).pop(true);
-                },
-                child: Text(l10n.postUpdateCTA),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-    if (ok == true) {
-      final t = controller.text.trim();
-      if (t.isNotEmpty) await cubit.postAuthorUpdate(t);
-    }
-  } finally {
-    // Sheet route may still rebuild during pop animation; dispose next frame.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.dispose();
-    });
+  final text = await showModalBottomSheet<String?>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => _AuthorUpdateComposerSheet(
+      title: l10n.postUpdateCTA,
+      hintText: l10n.beaconUpdateComposerHint,
+      submitText: l10n.postUpdateCTA,
+      footerHint: l10n.beaconUpdateEditWindowHint,
+    ),
+  );
+  final t = text?.trim();
+  if (t != null && t.isNotEmpty && context.mounted) {
+    await cubit.postAuthorUpdate(t);
   }
 }
 
@@ -871,66 +819,100 @@ Future<void> _showEditAuthorUpdateSheet(
     }
     return;
   }
-  final controller = TextEditingController(text: initial);
-  try {
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-        return Padding(
-          padding: EdgeInsets.only(
-            left: kSpacingSmall,
-            right: kSpacingSmall,
-            top: kSpacingMedium,
-            bottom: bottom + kSpacingMedium,
+  final text = await showModalBottomSheet<String?>(
+    context: context,
+    isScrollControlled: true,
+    builder: (ctx) => _AuthorUpdateComposerSheet(
+      title: l10n.editUpdateCTA,
+      hintText: l10n.beaconUpdateComposerHint,
+      submitText: l10n.buttonSaveChanges,
+      footerHint: l10n.beaconUpdateEditWindowHint,
+      initialText: initial,
+    ),
+  );
+
+  final t = text?.trim();
+  if (t != null && t.isNotEmpty && t != initial && context.mounted) {
+    await cubit.editAuthorUpdate(id: updateId, content: t);
+  }
+}
+
+class _AuthorUpdateComposerSheet extends StatefulWidget {
+  const _AuthorUpdateComposerSheet({
+    required this.title,
+    required this.hintText,
+    required this.submitText,
+    required this.footerHint,
+    this.initialText,
+  });
+
+  final String title;
+  final String hintText;
+  final String submitText;
+  final String footerHint;
+  final String? initialText;
+
+  @override
+  State<_AuthorUpdateComposerSheet> createState() =>
+      _AuthorUpdateComposerSheetState();
+}
+
+class _AuthorUpdateComposerSheetState extends State<_AuthorUpdateComposerSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.only(
+        left: kSpacingSmall,
+        right: kSpacingSmall,
+        top: kSpacingMedium,
+        bottom: bottom + kSpacingMedium,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.title, style: theme.textTheme.titleMedium),
+          const SizedBox(height: kSpacingSmall),
+          TextField(
+            controller: _controller,
+            maxLines: 6,
+            maxLength: kDescriptionMaxLength,
+            decoration: InputDecoration(hintText: widget.hintText),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.editUpdateCTA,
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
-              const SizedBox(height: kSpacingSmall),
-              TextField(
-                controller: controller,
-                maxLines: 6,
-                maxLength: kDescriptionMaxLength,
-                decoration: InputDecoration(
-                  hintText: l10n.beaconUpdateComposerHint,
-                ),
-              ),
-              const SizedBox(height: kSpacingSmall),
-              Text(
-                l10n.beaconUpdateEditWindowHint,
-                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: kSpacingSmall),
-              FilledButton(
-                onPressed: () {
-                  if (controller.text.trim().isEmpty) return;
-                  Navigator.of(ctx).pop(true);
-                },
-                child: Text(l10n.buttonSaveChanges),
-              ),
-            ],
+          const SizedBox(height: kSpacingSmall),
+          Text(
+            widget.footerHint,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        );
-      },
+          const SizedBox(height: kSpacingSmall),
+          FilledButton(
+            onPressed: () {
+              final t = _controller.text.trim();
+              if (t.isEmpty) return;
+              Navigator.of(context).pop(t);
+            },
+            child: Text(widget.submitText),
+          ),
+        ],
+      ),
     );
-    if (ok == true) {
-      final t = controller.text.trim();
-      if (t.isNotEmpty && t != initial) {
-        await cubit.editAuthorUpdate(id: updateId, content: t);
-      }
-    }
-  } finally {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      controller.dispose();
-    });
   }
 }

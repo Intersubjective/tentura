@@ -1,10 +1,10 @@
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/profile_app_bar_title.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
@@ -13,11 +13,8 @@ import '../bloc/profile_view_cubit.dart';
 
 class ProfileViewAppBar extends StatelessWidget {
   const ProfileViewAppBar({
-    required this.isFromDeepLink,
     super.key,
   });
-
-  final bool isFromDeepLink;
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +25,7 @@ class ProfileViewAppBar extends StatelessWidget {
       bloc: profileViewCubit,
       builder: (context, state) => SliverAppBar(
         pinned: true,
-        leading: isFromDeepLink
-            ? BackButton(
-                onPressed: () => context.router.navigatePath(kPathHome),
-              )
-            : const AutoLeadingButton(),
+        leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
         title: ProfileAppBarTitle(profile: state.profile),
         actions: [
           // Share

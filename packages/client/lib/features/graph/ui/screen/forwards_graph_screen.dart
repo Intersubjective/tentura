@@ -1,7 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -54,7 +56,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
     final cubit = context.read<GraphCubit>();
     return Scaffold(
       appBar: AppBar(
-        leading: const AutoLeadingButton(),
+        leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
         title: Text(l10n.forwardsGraphView),
         actions: [
           PopupMenuButton<void>(

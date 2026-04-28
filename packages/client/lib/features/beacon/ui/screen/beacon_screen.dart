@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
@@ -82,7 +83,7 @@ class _BeaconScreenState extends State<BeaconScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(_l10n.beaconsTitle),
-      leading: const AutoLeadingButton(),
+      leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
       actions: [
         BlocSelector<BeaconCubit, BeaconState, BeaconFilter>(
           selector: (state) => state.filter,
