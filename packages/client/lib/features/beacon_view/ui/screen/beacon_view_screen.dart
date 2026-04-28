@@ -543,9 +543,12 @@ class _BeaconOperationalScrollViewState
                       ? () =>
                             unawaited(widget.beaconViewCubit.stopWatching())
                       : null,
-                  onRoom: () => unawaited(
-                        context.router.pushPath('$kPathBeaconRoom/$beaconId'),
-                      ),
+                  onRoom: state.canNavigateBeaconRoom
+                      ? () => unawaited(
+                            context.router
+                                .pushPath('$kPathBeaconRoom/$beaconId'),
+                          )
+                      : null,
                   onViewChain: () =>
                       widget.screenCubit.showForwardsGraphFor(beaconId),
                 ),

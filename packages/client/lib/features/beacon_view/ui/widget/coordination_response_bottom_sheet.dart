@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -32,6 +33,16 @@ Future<void> showCoordinationResponseBottomSheet({
             ListTile(
               title: Text(
                 coordinationResponseLabel(l10n, t) ?? '',
+              ),
+              subtitle: Text(
+                t == CoordinationResponseType.notSuitable
+                    ? l10n.coordinationResponseRoomNoAdmission
+                    : l10n.coordinationResponseRoomAdmits,
+                style: TenturaText.body(
+                  t == CoordinationResponseType.notSuitable
+                      ? Theme.of(ctx).colorScheme.error
+                      : Theme.of(ctx).colorScheme.tertiary,
+                ),
               ),
               onTap: () {
                 Navigator.of(ctx).pop();

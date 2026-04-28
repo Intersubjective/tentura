@@ -120,9 +120,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     if (open && state.isBeaconMine && onPostUpdate != null) {
       chips.add(
         _HeaderChip(
-          onPressed: onPostUpdate!,
           icon: Icons.add,
           label: l10n.postUpdateCTA,
+          onPressed: onPostUpdate,
         ),
       );
     }
@@ -130,9 +130,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     if (open && onForward != null && !primaryFilledForwardOnly) {
       chips.add(
         _HeaderChip(
-          onPressed: onForward!,
           icon: Icons.send_outlined,
           label: l10n.labelForward,
+          onPressed: onForward,
         ),
       );
     }
@@ -142,9 +142,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         onWatch != null) {
       chips.add(
         _HeaderChip(
-          onPressed: onWatch!,
           icon: Icons.visibility_outlined,
           label: l10n.beaconHeaderWatch,
+          onPressed: onWatch,
         ),
       );
     } else if (open &&
@@ -152,19 +152,28 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         onStopWatching != null) {
       chips.add(
         _HeaderChip(
-          onPressed: onStopWatching!,
           icon: Icons.visibility_off_outlined,
           label: l10n.beaconHeaderStopWatching,
+          onPressed: onStopWatching,
         ),
       );
     }
 
-    if (onRoom != null) {
+    if (state.canNavigateBeaconRoom && onRoom != null) {
       chips.add(
         _HeaderChip(
-          onPressed: onRoom!,
           icon: Icons.forum_outlined,
           label: l10n.beaconHeaderRoomCount(roomCount),
+          onPressed: onRoom,
+        ),
+      );
+    } else if (state.isRoomAdmissionBlocked) {
+      chips.add(
+        _HeaderChip(
+          icon: Icons.forum_outlined,
+          label: state.coordinationDeniesRoomAdmission
+              ? l10n.beaconRoomNoAdmission
+              : l10n.beaconRoomWaitingForApproval,
         ),
       );
     }
@@ -337,29 +346,33 @@ class _PrimaryCtaSlot extends StatelessWidget {
 
 class _HeaderChip extends StatelessWidget {
   const _HeaderChip({
-    required this.onPressed,
     required this.icon,
     required this.label,
+    this.onPressed,
   });
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final IconData icon;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final muted = onPressed == null;
+    final fg =
+        muted ? scheme.onSurfaceVariant.withValues(alpha: 0.54) : scheme.onSurfaceVariant;
     return TextButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 16),
+      icon: Icon(icon, size: 16, color: fg),
       label: Text(
         label,
-        style: TenturaText.command(scheme.onSurfaceVariant),
+        style: TenturaText.command(fg),
       ),
       style: TextButton.styleFrom(
         minimumSize: const Size(0, 36),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        foregroundColor: scheme.onSurfaceVariant,
+        foregroundColor: fg,
+        disabledForegroundColor: fg,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         visualDensity: VisualDensity.compact,
       ),
