@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
 
@@ -82,26 +81,11 @@ final class BeaconRoomCase extends UseCaseBase {
     }
     final before =
         beforeIso != null ? DateTime.tryParse(beforeIso) : null;
-    final rows = await _room.listMessages(
+    return _room.listMessagesEnriched(
       beaconId: beaconId,
+      viewerUserId: userId,
       before: before,
     );
-    return rows
-        .map(
-          (m) => <String, Object?>{
-            'id': m.id,
-            'beaconId': m.beaconId,
-            'authorId': m.authorId,
-            'body': m.body,
-            'createdAt': m.createdAt.dateTime.toIso8601String(),
-            'semanticMarker': m.semanticMarker,
-            'linkedBlockerId': m.linkedBlockerId,
-            'systemPayloadJson': m.systemPayload == null
-                ? null
-                : jsonEncode(m.systemPayload),
-          },
-        )
-        .toList();
   }
 
   Future<Map<String, Object?>> beaconRoomStateGet({

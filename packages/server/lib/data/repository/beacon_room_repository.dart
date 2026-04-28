@@ -48,6 +48,178 @@ class BeaconRoomRepository {
         .get();
   }
 
+  /// Room messages with author profile projection + reaction aggregates for V2
+  /// `RoomMessageList`.
+  Future<List<Map<String, Object?>>> listMessagesEnriched({
+    required String beaconId,
+    required String viewerUserId,
+    DateTime? before,
+    int limit = 50,
+  }) async {
+    final beaconVar = Variable<String>(beaconId);
+    final lim = Variable<int>(limit);
+
+    final List<QueryRow> rows;
+    if (before == null) {
+      rows = await _db.customSelect(
+        '''
+SELECT
+  m.id,
+  m.beacon_id,
+  m.author_id,
+  m.body,
+  m.created_at,
+  m.reply_to_message_id,
+  m.linked_blocker_id,
+  m.linked_next_move_id,
+  m.linked_fact_card_id,
+  m.semantic_marker,
+  m.system_payload,
+  u.title AS author_title,
+  (u.image_id IS NOT NULL) AS author_has_picture,
+  COALESCE(i.height, 0) AS author_pic_height,
+  COALESCE(i.width, 0) AS author_pic_width,
+  COALESCE(i.hash, '') AS author_blur_hash,
+  COALESCE(i.id::text, '') AS author_image_id
+FROM beacon_room_message m
+INNER JOIN "user" u ON u.id = m.author_id
+LEFT JOIN image i ON i.id = u.image_id
+WHERE m.beacon_id = ?
+ORDER BY m.created_at DESC
+LIMIT ?
+''',
+        variables: [beaconVar, lim],
+        readsFrom: {
+          _db.beaconRoomMessages,
+          _db.users,
+          _db.images,
+        },
+      ).get();
+    } else {
+      final pgBefore = Variable<PgDateTime>(
+        PgDateTime(before),
+        PgTypes.timestampWithTimezone,
+      );
+      rows = await _db.customSelect(
+        '''
+SELECT
+  m.id,
+  m.beacon_id,
+  m.author_id,
+  m.body,
+  m.created_at,
+  m.reply_to_message_id,
+  m.linked_blocker_id,
+  m.linked_next_move_id,
+  m.linked_fact_card_id,
+  m.semantic_marker,
+  m.system_payload,
+  u.title AS author_title,
+  (u.image_id IS NOT NULL) AS author_has_picture,
+  COALESCE(i.height, 0) AS author_pic_height,
+  COALESCE(i.width, 0) AS author_pic_width,
+  COALESCE(i.hash, '') AS author_blur_hash,
+  COALESCE(i.id::text, '') AS author_image_id
+FROM beacon_room_message m
+INNER JOIN "user" u ON u.id = m.author_id
+LEFT JOIN image i ON i.id = u.image_id
+WHERE m.beacon_id = ?
+  AND m.created_at < ?
+ORDER BY m.created_at DESC
+LIMIT ?
+''',
+        variables: [beaconVar, pgBefore, lim],
+        readsFrom: {
+          _db.beaconRoomMessages,
+          _db.users,
+          _db.images,
+        },
+      ).get();
+    }
+
+    final ids = rows.map((r) => r.data['id']! as String).toList();
+    if (ids.isEmpty) {
+      return [];
+    }
+
+    final placeholders = List.generate(ids.length, (_) => '?').join(',');
+    final reactionRows = await _db.customSelect(
+      '''
+SELECT message_id, emoji, user_id
+FROM beacon_room_message_reaction
+WHERE message_id IN ($placeholders)
+''',
+      variables: ids.map((id) => Variable<String>(id)).toList(),
+      readsFrom: {_db.beaconRoomMessageReactions},
+    ).get();
+
+    final countsByMessage = <String, Map<String, int>>{};
+    final viewerEmojisByMessage = <String, List<String>>{};
+    for (final rr in reactionRows) {
+      final mid = rr.data['message_id']! as String;
+      final emoji = rr.data['emoji']! as String;
+      final uid = rr.data['user_id']! as String;
+
+      final cm = countsByMessage.putIfAbsent(mid, () => <String, int>{});
+      cm[emoji] = (cm[emoji] ?? 0) + 1;
+
+      if (uid == viewerUserId) {
+        viewerEmojisByMessage.putIfAbsent(mid, () => <String>[]).add(emoji);
+      }
+    }
+
+    String? reactionsJsonFor(String messageId) {
+      final m = countsByMessage[messageId];
+      if (m == null || m.isEmpty) {
+        return null;
+      }
+      return jsonEncode(m);
+    }
+
+    String? myReactionFor(String messageId) {
+      final list = viewerEmojisByMessage[messageId];
+      if (list == null || list.isEmpty) {
+        return null;
+      }
+      final unique = list.toSet().toList()..sort();
+      return unique.join(',');
+    }
+
+    Object? encodeSystemPayload(Object? raw) {
+      if (raw == null) {
+        return null;
+      }
+      if (raw is String) {
+        return raw;
+      }
+      return jsonEncode(raw);
+    }
+
+    return rows.map((r) {
+      final id = r.data['id']! as String;
+      final authorHasPicture = r.data['author_has_picture']! as bool;
+
+      return <String, Object?>{
+        'id': id,
+        'beaconId': r.data['beacon_id']! as String,
+        'authorId': r.data['author_id']! as String,
+        'body': r.data['body']! as String,
+        'createdAt': (r.data['created_at']! as DateTime).toUtc().toIso8601String(),
+        'semanticMarker': r.data['semantic_marker'] as int?,
+        'linkedBlockerId': r.data['linked_blocker_id'] as String?,
+        'systemPayloadJson': encodeSystemPayload(r.data['system_payload']),
+        'authorTitle': r.data['author_title']! as String,
+        'authorHasPicture': authorHasPicture,
+        'authorPicHeight': r.data['author_pic_height']! as int,
+        'authorPicWidth': r.data['author_pic_width']! as int,
+        'authorBlurHash': r.data['author_blur_hash']! as String,
+        'authorImageId': r.data['author_image_id']! as String,
+        'reactionsJson': reactionsJsonFor(id),
+        'myReaction': myReactionFor(id),
+      };
+    }).toList();
+  }
+
   Future<BeaconRoomMessage> insertRoomMessage({
     required String beaconId,
     required String authorId,

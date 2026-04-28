@@ -36,6 +36,11 @@ abstract final class BeaconRoomSemanticMarker {
   static const done = 7;
 }
 
+/// Default emoji for room message reactions (toggle via `RoomMessageReactionToggle`).
+abstract final class BeaconRoomMessageReaction {
+  static const defaultEmoji = '👍';
+}
+
 abstract final class BeaconParticipantStatusBits {
   static const watching = 0;
   static const offeredHelp = 1;

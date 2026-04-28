@@ -46,6 +46,14 @@ final gqlTypeRoomMessageRow =
         field('semanticMarker', graphQLInt),
         field('linkedBlockerId', graphQLString),
         field('systemPayloadJson', graphQLString),
+        field('authorTitle', graphQLString.nonNullable()),
+        field('authorHasPicture', graphQLBoolean.nonNullable()),
+        field('authorPicHeight', graphQLInt.nonNullable()),
+        field('authorPicWidth', graphQLInt.nonNullable()),
+        field('authorBlurHash', graphQLString.nonNullable()),
+        field('authorImageId', graphQLString.nonNullable()),
+        field('reactionsJson', graphQLString),
+        field('myReaction', graphQLString),
       ]);
 
 /// `beacon_room_state` row — one per beacon.

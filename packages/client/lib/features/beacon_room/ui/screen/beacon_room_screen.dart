@@ -137,6 +137,11 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                           myProfile: myProfile,
                           onLongPress: (m) =>
                               _onMessageLongPress(context, cubit, l10n, m),
+                          onToggleReaction: (messageId, emoji) =>
+                              cubit.toggleReaction(
+                                messageId: messageId,
+                                emoji: emoji,
+                              ),
                         ),
                       ),
               ),

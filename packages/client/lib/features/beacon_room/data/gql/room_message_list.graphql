@@ -8,5 +8,13 @@ query RoomMessageList($beaconId: String!, $beforeIso: String) {
     semanticMarker
     linkedBlockerId
     systemPayloadJson
+    authorTitle
+    authorHasPicture
+    authorPicHeight
+    authorPicWidth
+    authorBlurHash
+    authorImageId
+    reactionsJson
+    myReaction
   }
 }
