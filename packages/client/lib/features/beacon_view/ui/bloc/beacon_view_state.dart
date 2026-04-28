@@ -1,5 +1,9 @@
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -174,7 +178,6 @@ class TimelineCreation extends TimelineEntry {
 abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   const factory BeaconViewState({
     required Beacon beacon,
-    @Default('') String focusCommentId,
     @Default([]) List<TimelineEntry> timeline,
     @Default([]) List<TimelineCommitment> commitments,
     @Default(false) bool isCommitted,
@@ -201,6 +204,16 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// True when the current user has forwarded this beacon at least once.
     @Default(false) bool hasForwardedThisBeaconOnce,
+
+    @Default([]) List<BeaconFactCard> factCards,
+
+    /// From V2 room APIs when the viewer has room access (else empty / null).
+    @Default([]) List<BeaconParticipant> roomParticipants,
+    BeaconRoomState? beaconRoomCue,
+
+    /// Server-backed coordination events (Phase 5+); empty when no room API access.
+    @Default([]) List<BeaconActivityEvent> roomActivityEvents,
+
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconViewState;
 
@@ -209,5 +222,4 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get isBeaconMine => beacon.author.id == myProfile.id;
   bool get isBeaconNotMine => beacon.author.id != myProfile.id;
 
-  bool get hasFocusedComment => focusCommentId.isNotEmpty;
 }

@@ -1899,7 +1899,7 @@
       "status": { "type": "String" }
     }
   },
-  "labelCommitments": "Участие",
+  "labelCommitments": "Люди",
   "@labelCommitments": {
     "context": "BeaconViewScreen",
     "description": "Tab title for commitments list"
@@ -2215,6 +2215,13 @@
   },
   "beaconNeedSummaryTitle": "Потребность",
   "beaconCoordinationCardTitle": "Координация",
+  "beaconPublicStatusCardTitle": "Публичный статус",
+  "beaconPublicStatusOpen": "Открыт",
+  "beaconPublicStatusCoordinating": "Координация",
+  "beaconPublicStatusMoreHelp": "Нужна помощь",
+  "beaconPublicStatusEnoughHelp": "Достаточно помощи",
+  "beaconPublicStatusClosed": "Закрыт",
+  "beaconPublicStatusNoNote": "Без примечания",
   "beaconYourRelationTitle": "Почему вы это видите",
   "beaconCommitSnapshotTitle": "Участия",
   "beaconViewAllCommitments": "Все участия",
@@ -2346,5 +2353,133 @@
     }
   },
   "beaconOverviewForwardEmpty": "Нет зарегистрированной для вас цепочки",
-  "beaconOverviewActivityLogTitle": "Журнал событий"
+  "beaconOverviewActivityLogTitle": "Журнал событий",
+  "beaconRoomTitle": "Комната",
+  "beaconRoomMessageHint": "Напишите сообщение…",
+  "beaconRoomOpen": "Комната",
+  "beaconOverviewPublicFactsTitle": "Публичные факты",
+  "beaconOverviewPublicFactsCount": "{count, plural, one{1 закреплённый факт} few{{count} закреплённых факта} many{{count} закреплённых фактов} other{{count} закреплённых фактов}}",
+  "@beaconOverviewPublicFactsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconFactsSheetTitle": "Закреплённые факты",
+  "beaconFactsSheetEmpty": "Пока нет закреплённых фактов.",
+  "beaconRoomPinFactTitle": "Закрепить как факт",
+  "beaconRoomPinFactPublic": "Публично — видно за пределами комнаты",
+  "beaconRoomPinFactRoomOnly": "Только комната",
+  "beaconRoomPinFactDisabledEmpty": "Сначала введите текст сообщения.",
+  "beaconFactsOpenTooltip": "Закреплённые факты",
+  "labelBeaconTabPeople": "Люди",
+  "beaconOverviewRoomCueCardTitle": "В комнате",
+  "beaconRoomStripNowTitle": "Сейчас",
+  "beaconRoomStripPlanLabel": "План",
+  "beaconRoomStripLastPrivateFactLabel": "Последний факт (комната)",
+  "beaconRoomStripMeaningfulChangeLabel": "Последнее изменение",
+  "beaconRoomStripOpenBlockerHint": "Открыт блокер (подробности в чате комнаты).",
+  "beaconRoomYouStripTitle": "Вы",
+  "beaconRoomYouStripRoleLabel": "Роль",
+  "beaconRoomYouStripNextMoveLabel": "Следующий шаг",
+  "beaconRoomYouStripEditNextMove": "Обновить мой следующий шаг",
+  "beaconRoomYouStripMarkDoneComing": "Отметить готово — скоро",
+  "beaconRoomYouStripNoParticipant": "Доступ к комнате добавит вашу строку участника здесь.",
+  "beaconActivitySectionCoordination": "Согласование в комнате",
+  "beaconActivityPlanUpdated": "План обновлён",
+  "beaconActivityFactPinned": "Факт закреплён",
+  "beaconActivityBlockerOpened": "Открыт блокер",
+  "beaconActivityBlockerResolved": "Блокер снят",
+  "beaconActivityNeedInfoOpened": "Запрос информации",
+  "beaconActivityDoneMarked": "Отмечено выполнено",
+  "beaconActivityCoordinationFallback": "Обновление комнаты",
+  "beaconRoomMessageActionsTitle": "Действия с сообщением",
+  "beaconRoomActionUpdatePlan": "Обновить план…",
+  "beaconRoomActionPinFact": "Закрепить как факт",
+  "beaconRoomActionMarkBlocker": "Пометить блокер…",
+  "beaconRoomActionNeedInfo": "Нужна информация…",
+  "beaconRoomActionMarkDone": "Отметить выполнено…",
+  "beaconRoomBlockerTitleHint": "Заголовок блокера",
+  "beaconRoomNeedInfoPickTarget": "Кому адресовано?",
+  "beaconRoomNeedInfoRequestHint": "Что нужно уточнить?",
+  "beaconRoomMarkDoneTitle": "Что сделано?",
+  "beaconRoomMarkDoneMessageOnly": "Только это сообщение",
+  "beaconRoomMarkDoneResolveBlocker": "Снять связанный блокер",
+  "beaconRoomMarkDoneConfirmSingleBlocker": "Снять блокер: {title}",
+  "@beaconRoomMarkDoneConfirmSingleBlocker": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "beaconPeopleSectionTitle": "Люди и роли",
+  "beaconPeopleParticipantUpdated": "Обновлено {when}",
+  "@beaconPeopleParticipantUpdated": {
+    "placeholders": {
+      "when": { "type": "String" }
+    }
+  },
+  "beaconPeopleRoleAuthor": "Автор",
+  "beaconPeopleRoleSteward": "Стюард",
+  "beaconPeopleRoleHelper": "Помощник",
+  "beaconPeopleRoleCandidate": "Кандидат",
+  "beaconPeopleRoleWatcher": "Наблюдатель",
+  "beaconPeopleRoleForwarder": "Переславший",
+  "beaconPeopleStatusWatching": "Наблюдает",
+  "beaconPeopleStatusOfferedHelp": "Предложил помощь",
+  "beaconPeopleStatusCandidate": "Кандидат",
+  "beaconPeopleStatusAdmitted": "Принят",
+  "beaconPeopleStatusChecking": "Связь",
+  "beaconPeopleStatusCommitted": "Обязался",
+  "beaconPeopleStatusCommittedUseful": "Обязался · полезно",
+  "beaconPeopleStatusCommittedNeedCoordination": "Обязался · нужна координация",
+  "beaconPeopleStatusNeedsInfo": "Нужна информация",
+  "beaconPeopleStatusBlocked": "Заблокирован",
+  "beaconPeopleStatusDone": "Готово",
+  "beaconPeopleStatusWithdrawn": "Выбыл",
+  "beaconPeopleStatusUnknown": "Статус {code}",
+  "@beaconPeopleStatusUnknown": {
+    "placeholders": {
+      "code": { "type": "int" }
+    }
+  },
+  "inboxCardRoomUnread": "{count, plural, =0{Комната без новых сообщений} one{1 непрочитанное в комнате} few{{count} непрочитанных в комнате} many{{count} непрочитанных в комнате} other{{count} непрочитанных в комнате}}",
+  "@inboxCardRoomUnread": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "inboxCardRoomPlan": "План в комнате: {text}",
+  "@inboxCardRoomPlan": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "inboxCardRoomNextMove": "Следующий шаг: {text}",
+  "@inboxCardRoomNextMove": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "inboxCardRoomLastChange": "Последнее в комнате: {text}",
+  "@inboxCardRoomLastChange": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "inboxCardPublicFactLine": "Публичный факт: {text}",
+  "@inboxCardPublicFactLine": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "inboxCardOpenBlocker": "Открытый блокер: {text}",
+  "@inboxCardOpenBlocker": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "forwardIncludePublicNote": "Включить публичный статус в текст сообщения",
+  "forwardAttachFacts": "Прикрепить публичные факты к сообщению",
+  "forwardFactChipAttach": "В текст"
 }

@@ -1,0 +1,3 @@
+mutation BeaconRoomStatePlanUpdate($beaconId: String!, $currentPlan: String!) {
+  BeaconRoomStatePlanUpdate(beaconId: $beaconId, currentPlan: $currentPlan)
+}

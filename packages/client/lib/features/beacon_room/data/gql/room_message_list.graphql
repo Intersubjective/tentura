@@ -1,0 +1,12 @@
+query RoomMessageList($beaconId: String!, $beforeIso: String) {
+  RoomMessageList(beaconId: $beaconId, beforeIso: $beforeIso) {
+    id
+    beaconId
+    authorId
+    body
+    createdAt
+    semanticMarker
+    linkedBlockerId
+    systemPayloadJson
+  }
+}

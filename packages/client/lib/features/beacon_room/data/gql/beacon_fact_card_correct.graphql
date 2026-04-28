@@ -1,0 +1,7 @@
+mutation BeaconFactCardCorrect(
+  $beaconId: String!
+  $factCardId: String!
+  $newText: String!
+) {
+  BeaconFactCardCorrect(beaconId: $beaconId, factCardId: $factCardId, newText: $newText)
+}

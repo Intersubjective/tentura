@@ -1,0 +1,17 @@
+query BeaconParticipantList($beaconId: String!) {
+  BeaconParticipantList(beaconId: $beaconId) {
+    id
+    beaconId
+    userId
+    role
+    status
+    roomAccess
+    offerNote
+    nextMoveText
+    nextMoveStatus
+    nextMoveSource
+    linkedMessageId
+    createdAt
+    updatedAt
+  }
+}

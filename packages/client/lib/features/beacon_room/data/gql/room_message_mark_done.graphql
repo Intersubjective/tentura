@@ -1,0 +1,11 @@
+mutation RoomMessageMarkDone(
+  $beaconId: String!
+  $messageId: String!
+  $resolveBlocker: Boolean!
+) {
+  RoomMessageMarkDone(
+    beaconId: $beaconId
+    messageId: $messageId
+    resolveBlocker: $resolveBlocker
+  )
+}

@@ -87,7 +87,8 @@ void main() {
 
     expect(find.byType(FilterChip), findsNothing);
     expect(find.text('BEST NEXT'), findsNothing);
-    expect(find.text('best'), findsWidgets);
+    expect(find.textContaining('unseen'), findsWidgets);
+    expect(find.textContaining('involved'), findsWidgets);
     expect(find.byType(CompactBeaconContextStrip), findsOneWidget);
   });
 

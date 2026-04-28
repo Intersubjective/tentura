@@ -1,0 +1,11 @@
+mutation RoomMessageCreate(
+  $beaconId: String!
+  $body: String!
+  $replyToMessageId: String
+) {
+  RoomMessageCreate(
+    beaconId: $beaconId
+    body: $body
+    replyToMessageId: $replyToMessageId
+  )
+}

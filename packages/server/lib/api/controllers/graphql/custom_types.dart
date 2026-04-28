@@ -26,7 +26,103 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeEvaluationSummary,
   gqlTypeCoordinationStatusResult,
   gqlTypeCommitmentWithCoordinationRow,
+  gqlTypeRoomMessageRow,
+  gqlTypeBeaconRoomStateRow,
+  gqlTypeBeaconParticipantRow,
+  gqlTypeBeaconFactCardRow,
+  gqlTypeBeaconActivityEventRow,
+  gqlTypeInboxRoomContextRow,
 ];
+
+/// V2 room chat message row (minimal projection).
+final gqlTypeRoomMessageRow =
+    GraphQLObjectType('RoomMessageRow', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+        field('authorId', graphQLString.nonNullable()),
+        field('body', graphQLString.nonNullable()),
+        field('createdAt', graphQLString.nonNullable()),
+        field('semanticMarker', graphQLInt),
+        field('linkedBlockerId', graphQLString),
+        field('systemPayloadJson', graphQLString),
+      ]);
+
+/// `beacon_room_state` row — one per beacon.
+final gqlTypeBeaconRoomStateRow =
+    GraphQLObjectType('BeaconRoomStateRow', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('currentPlan', graphQLString.nonNullable()),
+        field('openBlockerId', graphQLString),
+        field('openBlockerTitle', graphQLString),
+        field('lastRoomMeaningfulChange', graphQLString),
+        field('updatedAt', graphQLString.nonNullable()),
+        field('updatedBy', graphQLString),
+      ]);
+
+/// Participant row for BeaconParticipantList (selection via V2 only).
+final gqlTypeBeaconParticipantRow =
+    GraphQLObjectType('BeaconParticipantRow', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+        field('userId', graphQLString.nonNullable()),
+        field('role', graphQLInt.nonNullable()),
+        field('status', graphQLInt.nonNullable()),
+        field('roomAccess', graphQLInt.nonNullable()),
+        field('offerNote', graphQLString),
+        field('nextMoveText', graphQLString),
+        field('nextMoveStatus', graphQLInt),
+        field('nextMoveSource', graphQLInt),
+        field('linkedMessageId', graphQLString),
+        field('createdAt', graphQLString.nonNullable()),
+        field('updatedAt', graphQLString.nonNullable()),
+      ]);
+
+/// `beacon_fact_card` projection for BeaconFactCardList (V2 only).
+final gqlTypeBeaconFactCardRow =
+    GraphQLObjectType('BeaconFactCardRow', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+        field('factText', graphQLString.nonNullable()),
+        field('visibility', graphQLInt.nonNullable()),
+        field('pinnedBy', graphQLString.nonNullable()),
+        field('sourceMessageId', graphQLString),
+        field('status', graphQLInt.nonNullable()),
+        field('createdAt', graphQLString.nonNullable()),
+        field('updatedAt', graphQLString),
+      ]);
+
+/// `beacon_activity_event` projection for BeaconActivityEventList (V2).
+final gqlTypeBeaconActivityEventRow =
+    GraphQLObjectType('BeaconActivityEventRow', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+        field('visibility', graphQLInt.nonNullable()),
+        field('type', graphQLInt.nonNullable()),
+        field('actorId', graphQLString),
+        field('targetUserId', graphQLString),
+        field('sourceMessageId', graphQLString),
+        field('diffJson', graphQLString),
+        field('createdAt', graphQLString.nonNullable()),
+      ]);
+
+/// Inbox / My Work: per-beacon room visibility + unread (V2 batch).
+final gqlTypeInboxRoomContextRow =
+    GraphQLObjectType('InboxRoomContextRow', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('isRoomMember', graphQLBoolean.nonNullable()),
+        field('currentPlan', graphQLString),
+        field('lastRoomMeaningfulChange', graphQLString),
+        field('nextMoveText', graphQLString),
+        field('roomUnreadCount', graphQLInt.nonNullable()),
+        field('openBlockerTitle', graphQLString),
+        field('publicFactSnippet', graphQLString),
+      ]);
 
 final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)
   ..fields.addAll([
@@ -42,6 +138,8 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
     field('id', graphQLString.nonNullable()),
     field('iconCode', graphQLString),
     field('iconBackground', graphQLInt),
+    field('publicStatus', graphQLInt.nonNullable()),
+    field('lastPublicMeaningfulChange', graphQLString),
   ]);
 
 /// Per-recipient forward record from the current user's perspective.

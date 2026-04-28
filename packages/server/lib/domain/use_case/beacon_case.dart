@@ -386,6 +386,20 @@ final class BeaconCase extends UseCaseBase {
     return true;
   }
 
+  /// Author or steward sets outward [BeaconEntity.publicStatus].
+  Future<BeaconEntity> updatePublicStatus({
+    required String userId,
+    required String beaconId,
+    required int publicStatus,
+    String? lastPublicMeaningfulChange,
+  }) =>
+      _beaconRepository.updatePublicStatus(
+        beaconId: beaconId,
+        userId: userId,
+        publicStatus: publicStatus,
+        lastPublicMeaningfulChange: lastPublicMeaningfulChange,
+      );
+
   //
   Future<bool> deleteById({
     required String beaconId,

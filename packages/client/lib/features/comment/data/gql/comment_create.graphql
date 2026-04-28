@@ -1,6 +1,0 @@
-mutation CommentCreate($beacon_id: String!, $content: String!) {
-  insert_comment_one(object: {beacon_id: $beacon_id, content: $content}) {
-    id
-    created_at
-  }
-}

@@ -54,6 +54,9 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     /// Author has forwarded this beacon at least once (authored active cards).
     @Default(false) bool authorHasForwardedOnce,
 
+    /// Admitted room coordination summary line (Phase 6).
+    @Default('') String roomInboxSubtitle,
+
     /// Committed cards: `beacon_commitment.updated_at` from My Work fetch.
     DateTime? commitmentRowUpdatedAt,
 

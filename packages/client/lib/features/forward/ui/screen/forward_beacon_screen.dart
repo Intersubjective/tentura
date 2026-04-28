@@ -143,6 +143,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
             final beacon = state.beacon;
             final visible = state.visibleRecipients;
             final counts = state.scopeCounts;
+            final theme = Theme.of(context);
 
             _syncRecipientNoteControllers(state);
             _prunePersonalizedNoteEditors(state);
@@ -171,7 +172,68 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                     ),
                     const TenturaHairlineDivider(),
                     if (beacon != null && beacon.id.isNotEmpty) ...[
-                      CompactBeaconContextStrip(beacon: beacon),
+                      CompactBeaconContextStrip(
+                        beacon: beacon,
+                        publicFacts: state.publicFactCards,
+                      ),
+                      if (state.publicFactCards.isNotEmpty) ...[
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            tt.screenHPadding,
+                            tt.iconTextGap,
+                            tt.screenHPadding,
+                            0,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              l10n.forwardAttachFacts,
+                              style: TenturaText.labelSmall(tt.textMuted),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: tt.screenHPadding,
+                            vertical: tt.iconTextGap / 2,
+                          ),
+                          child: Wrap(
+                            spacing: tt.iconTextGap,
+                            runSpacing: tt.iconTextGap / 2,
+                            children: [
+                              for (final f in state.publicFactCards)
+                                FilterChip(
+                                  label: Text(
+                                    f.factText.length > 48
+                                        ? '${f.factText.substring(0, 45)}…'
+                                        : f.factText,
+                                  ),
+                                  selected: state.selectedFactIdsForForward
+                                      .contains(f.id),
+                                  onSelected: (_) =>
+                                      cubit.toggleFactForForward(f.id),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (state.viewerIsRoomMember)
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: tt.screenHPadding,
+                          ),
+                          dense: true,
+                          value: state.includePublicStatusNote,
+                          onChanged: (v) => cubit.setIncludePublicStatusNote(
+                            v ?? false,
+                          ),
+                          title: Text(
+                            l10n.forwardIncludePublicNote,
+                            style: TenturaText.bodySmall(
+                              theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
                       SizedBox(height: tt.rowGap),
                     ],
                     ForwardScopeLinks(

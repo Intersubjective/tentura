@@ -1,0 +1,11 @@
+mutation RoomMessageReactionToggle(
+  $beaconId: String!
+  $messageId: String!
+  $emoji: String!
+) {
+  RoomMessageReactionToggle(
+    beaconId: $beaconId
+    messageId: $messageId
+    emoji: $emoji
+  )
+}

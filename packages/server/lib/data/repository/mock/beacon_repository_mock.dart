@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/entity/image_entity.dart';
 import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/consts/beacon_public_status.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
@@ -258,4 +259,31 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     required String beaconId,
     required List<String> imageIds,
   }) async {}
+
+  @override
+  Future<BeaconEntity> updatePublicStatus({
+    required String beaconId,
+    required String userId,
+    required int publicStatus,
+    String? lastPublicMeaningfulChange,
+  }) async {
+    if (publicStatus < BeaconPublicStatusBits.open ||
+        publicStatus > BeaconPublicStatusBits.closed) {
+      throw const BeaconCreateException(description: 'Invalid public status');
+    }
+    final b = storageById[beaconId];
+    if (b == null) {
+      throw IdNotFoundException(id: beaconId);
+    }
+    if (b.author.id != userId) {
+      throw const UnauthorizedException(description: 'Author or steward only');
+    }
+    final note = lastPublicMeaningfulChange?.trim();
+    return storageById[beaconId] = b.copyWith(
+      publicStatus: publicStatus,
+      lastPublicMeaningfulChange:
+          note == null || note.isEmpty ? null : note,
+      updatedAt: DateTime.timestamp(),
+    );
+  }
 }

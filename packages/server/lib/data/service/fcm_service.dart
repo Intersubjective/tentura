@@ -40,6 +40,10 @@ class FcmService {
           'body': message.body,
           if (message.imageUrl != null) 'image': message.imageUrl,
         },
+        if (message.actionUrl != null)
+          'data': {
+            'link': message.actionUrl!,
+          },
         'android': {
           'ttl': '${ttlInSeconds}s',
           ...?androidConfig,

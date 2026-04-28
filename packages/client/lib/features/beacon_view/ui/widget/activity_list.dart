@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
+import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -29,6 +31,7 @@ class BeaconActivityList extends StatelessWidget {
     required this.beacon,
     required this.isAuthorView,
     required this.onEditTimelineUpdate,
+    this.roomActivityEvents = const [],
     super.key,
   });
 
@@ -36,11 +39,24 @@ class BeaconActivityList extends StatelessWidget {
   final Beacon beacon;
   final bool isAuthorView;
   final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
+  final List<BeaconActivityEvent> roomActivityEvents;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    if (timeline.isEmpty) {
+    final coordinationTiles = <Widget>[
+      for (final e in roomActivityEvents)
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.hub_outlined),
+          title: Text(_coordinationTitle(context, e)),
+          subtitle: Text(
+            _activityTs(e.createdAt),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
+    ];
+    if (timeline.isEmpty && coordinationTiles.isEmpty) {
       return Padding(
         padding: kPaddingSmallV,
         child: Text(
@@ -88,6 +104,11 @@ class BeaconActivityList extends StatelessWidget {
         )
         ..addAll(tiles);
     }
+
+    addSection(
+      l10n.beaconActivitySectionCoordination,
+      coordinationTiles,
+    );
 
     addSection(
       l10n.beaconActivitySectionHigh,
@@ -357,6 +378,22 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
       final TimelineCreation e => l10n.timelineCreated(e.author.title),
       TimelineUpdate() => '',
     };
+
+String _coordinationTitle(BuildContext context, BeaconActivityEvent e) {
+  final l10n = L10n.of(context)!;
+  return switch (e.type) {
+    BeaconActivityEventTypeBits.planUpdated => l10n.beaconActivityPlanUpdated,
+    BeaconActivityEventTypeBits.factPinned => l10n.beaconActivityFactPinned,
+    BeaconActivityEventTypeBits.blockerOpened =>
+      l10n.beaconActivityBlockerOpened,
+    BeaconActivityEventTypeBits.blockerResolved =>
+      l10n.beaconActivityBlockerResolved,
+    BeaconActivityEventTypeBits.needInfoOpened =>
+      l10n.beaconActivityNeedInfoOpened,
+    BeaconActivityEventTypeBits.doneMarked => l10n.beaconActivityDoneMarked,
+    _ => l10n.beaconActivityCoordinationFallback,
+  };
+}
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
       BeaconLifecycle.open => l10n.beaconLifecycleOpen,

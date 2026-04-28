@@ -1,0 +1,13 @@
+mutation BeaconFactCardPin(
+  $beaconId: String!
+  $factText: String!
+  $visibility: Int!
+  $sourceMessageId: String
+) {
+  BeaconFactCardPin(
+    beaconId: $beaconId
+    factText: $factText
+    visibility: $visibility
+    sourceMessageId: $sourceMessageId
+  )
+}

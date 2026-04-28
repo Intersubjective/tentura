@@ -1,0 +1,17 @@
+mutation BeaconPublicStatusUpdate(
+  $id: String!
+  $publicStatus: Int!
+  $lastPublicMeaningfulChange: String
+) {
+  BeaconPublicStatusUpdate(
+    id: $id
+    publicStatus: $publicStatus
+    lastPublicMeaningfulChange: $lastPublicMeaningfulChange
+  ) {
+    id
+    iconCode
+    iconBackground
+    publicStatus
+    lastPublicMeaningfulChange
+  }
+}

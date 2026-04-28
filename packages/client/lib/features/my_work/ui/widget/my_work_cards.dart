@@ -305,6 +305,8 @@ class _AuthoredActiveCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+            roomSubtitle:
+                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           _myWorkFooterActivityBlock(
@@ -375,6 +377,8 @@ class _CommittedActiveCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+            roomSubtitle:
+                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           _myWorkFooterActivityBlock(
@@ -451,6 +455,8 @@ class _DraftAuthoredCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+            roomSubtitle:
+                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
@@ -588,6 +594,8 @@ class _ClosedAuthoredCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+            roomSubtitle:
+                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           Row(
@@ -667,6 +675,8 @@ class _ClosedCommittedCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
+            roomSubtitle:
+                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           Row(

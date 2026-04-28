@@ -34,6 +34,8 @@ abstract class BeaconEntity with _$BeaconEntity {
     int? iconBackground,
     String? needSummary,
     String? successCriteria,
+    @Default(0) int publicStatus,
+    String? lastPublicMeaningfulChange,
   }) = _BeaconEntity;
 
   const BeaconEntity._();
@@ -64,5 +66,7 @@ abstract class BeaconEntity with _$BeaconEntity {
     'id': id,
     'iconCode': iconCode,
     'iconBackground': iconBackground,
+    'publicStatus': publicStatus,
+    'lastPublicMeaningfulChange': lastPublicMeaningfulChange,
   };
 }

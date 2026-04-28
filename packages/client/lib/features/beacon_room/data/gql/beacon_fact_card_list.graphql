@@ -1,0 +1,13 @@
+query BeaconFactCardList($beaconId: String!) {
+  BeaconFactCardList(beaconId: $beaconId) {
+    id
+    beaconId
+    factText
+    visibility
+    pinnedBy
+    sourceMessageId
+    status
+    createdAt
+    updatedAt
+  }
+}

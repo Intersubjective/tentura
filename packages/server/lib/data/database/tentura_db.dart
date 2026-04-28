@@ -9,7 +9,6 @@ import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_update_entity.dart';
-import 'package:tentura_server/domain/entity/comment_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/opinion_entity.dart';
@@ -22,13 +21,21 @@ import 'table/beacon_commitment_coordinations.dart';
 import 'table/beacon_evaluation_participants.dart';
 import 'table/beacon_evaluation_visibility.dart';
 import 'table/beacon_evaluations.dart';
+import 'table/beacon_activity_events.dart';
+import 'table/beacon_blockers.dart';
+import 'table/beacon_fact_cards.dart';
 import 'table/beacon_forward_edges.dart';
 import 'table/beacon_images.dart';
 import 'table/beacon_review_statuses.dart';
 import 'table/beacon_review_windows.dart';
 import 'table/beacon_updates.dart';
 import 'table/beacons.dart';
-import 'table/comments.dart';
+import 'table/beacon_participants.dart';
+import 'table/beacon_room_message_attachments.dart';
+import 'table/beacon_room_message_reactions.dart';
+import 'table/beacon_room_messages.dart';
+import 'table/beacon_room_states.dart';
+import 'table/beacon_stewards.dart';
 import 'table/complaints.dart';
 import 'table/fcm_tokens.dart';
 import 'table/images.dart';
@@ -56,13 +63,21 @@ part 'tentura_db.g.dart';
     BeaconEvaluationParticipants,
     BeaconEvaluationVisibility,
     BeaconEvaluations,
+    BeaconActivityEvents,
+    BeaconBlockers,
+    BeaconFactCards,
     BeaconForwardEdges,
     BeaconImages,
     BeaconReviewStatuses,
     BeaconReviewWindows,
     BeaconUpdates,
+    BeaconParticipants,
+    BeaconRoomMessageAttachments,
+    BeaconRoomMessageReactions,
+    BeaconRoomMessages,
+    BeaconRoomStates,
+    BeaconStewards,
     Beacons,
-    Comments,
     Complaints,
     FcmTokens,
     Images,

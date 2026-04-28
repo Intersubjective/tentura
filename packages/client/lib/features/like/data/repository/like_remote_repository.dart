@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/comment.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -10,7 +9,6 @@ import 'package:tentura/data/repository/remote_repository.dart';
 
 import '../../domain/exception.dart';
 import '../gql/_g/like_beacon_by_id.req.gql.dart';
-import '../gql/_g/like_comment_by_id.req.gql.dart';
 import '../gql/_g/like_user_by_id.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -34,13 +32,6 @@ class LikeRemoteRepository extends RemoteRepository {
           myVote: await _likeBeacon(beaconId: e.id, amount: amount),
         );
         _controller.add(RepositoryEventUpdate<Beacon>(result));
-        return result as T;
-
-      case final Comment e:
-        final result = e.copyWith(
-          myVote: await _likeComment(commentId: e.id, amount: amount),
-        );
-        _controller.add(RepositoryEventUpdate<Comment>(result));
         return result as T;
 
       case final Profile e:
@@ -70,24 +61,6 @@ class LikeRemoteRepository extends RemoteRepository {
     );
     final result = data.insert_vote_beacon_one?.amount;
     if (result == null) throw LikeSetException(beaconId);
-    return result;
-  }
-
-  Future<int> _likeComment({
-    required String commentId,
-    required int amount,
-  }) async {
-    final data = await requestDataOnlineOrThrow(
-      GLikeCommentByIdReq(
-        (b) =>
-            b
-              ..vars.amount = amount
-              ..vars.comment_id = commentId,
-      ),
-      label: _label,
-    );
-    final result = data.insert_vote_comment_one?.amount;
-    if (result == null) throw LikeSetException(commentId);
     return result;
   }
 

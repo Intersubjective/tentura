@@ -20,6 +20,8 @@ import '../../domain/enum.dart';
 import 'inbox_card_action_row.dart';
 import 'inbox_card_forwards_fold.dart';
 
+import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
+
 class InboxItemTile extends StatelessWidget {
   const InboxItemTile({
     required this.item,
@@ -174,6 +176,10 @@ class InboxItemTile extends StatelessWidget {
               ),
             ),
           ),
+          if (item.roomHints != null) ...[
+            const SizedBox(height: 6),
+            ..._roomHintLines(context, l10n, item.roomHints!),
+          ],
           if (showDeadlineOrForwardsRow) ...[
             const SizedBox(height: 6),
             InboxCardForwardsFold(
@@ -241,5 +247,91 @@ class InboxItemTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  List<Widget> _roomHintLines(
+    BuildContext context,
+    L10n l10n,
+    InboxRoomCardHints h,
+  ) {
+    final theme = Theme.of(context);
+    final out = <Widget>[];
+    if (h.publicFactSnippet.isNotEmpty) {
+      out.add(
+        Text(
+          l10n.inboxCardPublicFactLine(h.publicFactSnippet),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+    if (h.isRoomMember) {
+      out.add(
+        Text(
+          l10n.inboxCardRoomUnread(h.roomUnreadCount),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.secondary,
+          ),
+        ),
+      );
+      if (h.openBlockerTitle.isNotEmpty) {
+        out.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              l10n.inboxCardOpenBlocker(h.openBlockerTitle),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.tertiary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      }
+      if (h.currentPlanSnippet.isNotEmpty) {
+        out.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              l10n.inboxCardRoomPlan(h.currentPlanSnippet),
+              style: theme.textTheme.bodySmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      }
+      if (h.myNextMove.isNotEmpty) {
+        out.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              l10n.inboxCardRoomNextMove(h.myNextMove),
+              style: theme.textTheme.bodySmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      }
+      if (h.lastRoomMeaningfulChange.isNotEmpty) {
+        out.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              l10n.inboxCardRoomLastChange(h.lastRoomMeaningfulChange),
+              style: theme.textTheme.bodySmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        );
+      }
+    }
+    return out;
   }
 }
