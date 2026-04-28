@@ -29,26 +29,33 @@ Future<void> showCoordinationResponseBottomSheet({
               style: Theme.of(ctx).textTheme.titleSmall,
             ),
           ),
-          for (final t in CoordinationResponseType.values)
-            ListTile(
-              title: Text(
-                coordinationResponseLabel(l10n, t) ?? '',
-              ),
-              subtitle: Text(
-                t == CoordinationResponseType.notSuitable
-                    ? l10n.coordinationResponseRoomNoAdmission
-                    : l10n.coordinationResponseRoomAdmits,
-                style: TenturaText.body(
-                  t == CoordinationResponseType.notSuitable
-                      ? Theme.of(ctx).colorScheme.error
-                      : Theme.of(ctx).colorScheme.tertiary,
-                ),
-              ),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                onPick(t.smallintValue);
-              },
+          Flexible(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                for (final t in CoordinationResponseType.values)
+                  ListTile(
+                    title: Text(
+                      coordinationResponseLabel(l10n, t) ?? '',
+                    ),
+                    subtitle: Text(
+                      t == CoordinationResponseType.notSuitable
+                          ? l10n.coordinationResponseRoomNoAdmission
+                          : l10n.coordinationResponseRoomAdmits,
+                      style: TenturaText.body(
+                        t == CoordinationResponseType.notSuitable
+                            ? Theme.of(ctx).colorScheme.error
+                            : Theme.of(ctx).colorScheme.tertiary,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      onPick(t.smallintValue);
+                    },
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     ),
@@ -90,14 +97,21 @@ Future<void> showBeaconCoordinationStatusBottomSheet({
               style: Theme.of(ctx).textTheme.titleSmall,
             ),
           ),
-          for (final o in options)
-            ListTile(
-              title: Text(o.$2),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                onPick(o.$1);
-              },
+          Flexible(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                for (final o in options)
+                  ListTile(
+                    title: Text(o.$2),
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      onPick(o.$1);
+                    },
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     ),
