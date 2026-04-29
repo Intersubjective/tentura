@@ -59,6 +59,17 @@ void main() {
     expect(rejected.coordinationDeniesRoomAdmission, isTrue);
   });
 
+  test('non-author without commitment cannot open room', () {
+    final notCommitted = BeaconViewState(
+      beacon: beacon,
+      commitments: const [],
+      isCommitted: false,
+      myProfile: me,
+    );
+    expect(notCommitted.canNavigateBeaconRoom, isFalse);
+    expect(notCommitted.isRoomAdmissionBlocked, isFalse);
+  });
+
   test('beacon owner always has canNavigateBeaconRoom', () {
     final ownerCommits = BeaconViewState(
       beacon:
