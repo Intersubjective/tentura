@@ -88,7 +88,7 @@ abstract class BeaconRepositoryPort {
     required List<String> imageIds,
   });
 
-  /// Author or steward only; updates [beacon.public_status] and optional note.
+  /// Author or steward only; updates `beacon.public_status` and optional note.
   Future<BeaconEntity> updatePublicStatus({
     required String beaconId,
     required String userId,

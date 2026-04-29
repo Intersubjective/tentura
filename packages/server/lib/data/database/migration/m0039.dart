@@ -3,7 +3,7 @@ part of '_migrations.dart';
 /// `beacon_fact_card` + FK from `beacon_room_message.linked_fact_card_id`; extends
 /// `notify_entity_change` with a `fact_card` branch (`entity_id` = beacon_id).
 final m0039 = Migration('0039', [
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_fact_card (
   id text NOT NULL PRIMARY KEY DEFAULT (
     concat('F', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12))
@@ -23,15 +23,15 @@ CREATE TABLE IF NOT EXISTS public.beacon_fact_card (
   CONSTRAINT beacon_fact_card_status_chk CHECK (status IN (0, 1, 2))
 );
 ''',
-  r'''
+  '''
 CREATE INDEX IF NOT EXISTS beacon_fact_card_beacon_idx
   ON public.beacon_fact_card (beacon_id, created_at DESC);
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon_room_message
   DROP CONSTRAINT IF EXISTS beacon_room_message_linked_fact_card_id_fkey;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon_room_message
   ADD CONSTRAINT beacon_room_message_linked_fact_card_id_fkey
     FOREIGN KEY (linked_fact_card_id)
@@ -209,10 +209,10 @@ BEGIN
 END;
 $$;
 ''',
-  r'''
+  '''
 DROP TRIGGER IF EXISTS beacon_fact_card_notify ON public.beacon_fact_card;
 ''',
-  r'''
+  '''
 CREATE TRIGGER beacon_fact_card_notify
   AFTER INSERT OR UPDATE OR DELETE ON public.beacon_fact_card
   FOR EACH ROW

@@ -656,7 +656,9 @@ final class BeaconRoomCase extends UseCaseBase {
         'targetUserId': targetUserId,
         'nextMoveText': trimmed,
         'nextMoveSource': nextMoveSource,
-        if (nextMoveStatus != null) 'nextMoveStatus': nextMoveStatus,
+        ...?(nextMoveStatus == null
+            ? null
+            : <String, Object?>{'nextMoveStatus': nextMoveStatus}),
       },
     );
     unawaited(

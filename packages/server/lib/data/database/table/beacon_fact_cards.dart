@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 
 import '../common_fields.dart';

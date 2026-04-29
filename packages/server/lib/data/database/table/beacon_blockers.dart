@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
+import 'package:tentura_server/consts/beacon_blocker_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_blocker_entity.dart';
 
 import 'beacon_participants.dart';

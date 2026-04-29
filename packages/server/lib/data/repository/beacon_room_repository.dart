@@ -74,10 +74,10 @@ class BeaconRoomRepository {
         await _db.managers.users.filter((u) => u.id.isIn(authorIds)).get();
     final userById = {for (final u in users) u.id: u};
 
-    final imageUuidIds = <UuidValue>[
+    final imageUuidIds = {
       for (final u in users)
-        if (u.imageId != null) u.imageId!,
-    ].toSet().toList();
+        if (u.imageId case final UuidValue id) id,
+    }.toList();
 
     final imageByUuid = <UuidValue, Image>{};
     if (imageUuidIds.isNotEmpty) {
@@ -247,8 +247,7 @@ class BeaconRoomRepository {
               userId: userId,
               role: BeaconParticipantRoleBits.helper,
               status: const Value(BeaconParticipantStatusBits.offeredHelp),
-              roomAccess:
-                  const Value(RoomAccessBits.requested),
+              roomAccess: const Value(RoomAccessBits.requested),
               offerNote: Value(note),
             ),
           );
@@ -259,7 +258,7 @@ class BeaconRoomRepository {
               )
               .update(
                 (o) => o(
-                  status: Value(BeaconParticipantStatusBits.offeredHelp),
+                  status: const Value(BeaconParticipantStatusBits.offeredHelp),
                   roomAccess: const Value(RoomAccessBits.requested),
                   offerNote: Value(note),
                   updatedAt: Value(PgDateTime(DateTime.timestamp())),
@@ -282,7 +281,7 @@ class BeaconRoomRepository {
               (o) => o(
                 roomAccess:
                     const Value(RoomAccessBits.admitted),
-                status: Value(BeaconParticipantStatusBits.committed),
+                status: const Value(BeaconParticipantStatusBits.committed),
                 updatedAt: Value(PgDateTime(DateTime.timestamp())),
               ),
             );
@@ -320,7 +319,7 @@ class BeaconRoomRepository {
             .update(
               (o) => o(
                 roomAccess: const Value(RoomAccessBits.admitted),
-                status: Value(BeaconParticipantStatusBits.committed),
+                status: const Value(BeaconParticipantStatusBits.committed),
                 updatedAt: Value(PgDateTime(DateTime.timestamp())),
               ),
             );
@@ -504,7 +503,7 @@ class BeaconRoomRepository {
             id: Value(blockerId),
             beaconId: beaconId,
             title: t,
-            status: Value(BeaconBlockerStatusBits.open),
+            status: const Value(BeaconBlockerStatusBits.open),
             visibility: Value(visibility),
             openedBy: openedBy,
             openedFromMessageId: Value(openedFromMessageId),
@@ -523,7 +522,6 @@ class BeaconRoomRepository {
                   beaconId: beaconId,
                   currentPlan: const Value(''),
                   openBlockerId: Value(blockerId),
-                  lastRoomMeaningfulChange: const Value.absent(),
                   updatedAt: Value(PgDateTime(DateTime.timestamp())),
                   updatedBy: Value(openedBy),
                 ),
@@ -546,7 +544,7 @@ class BeaconRoomRepository {
                 (u) => u(
                   linkedBlockerId: Value(blockerId),
                   semanticMarker:
-                      Value(BeaconRoomSemanticMarker.blocker),
+                      const Value(BeaconRoomSemanticMarker.blocker),
                 ),
               );
         }
@@ -559,9 +557,11 @@ class BeaconRoomRepository {
     String? resolvedFromMessageId,
   }) =>
       _db.withMutatingUser(resolvedByUserId, () async {
-        await _db.managers.beaconBlockers.filter((b) => b.id.equals(blockerId)).update(
+        await _db.managers.beaconBlockers
+            .filter((b) => b.id.equals(blockerId))
+            .update(
               (u) => u(
-                status: Value(BeaconBlockerStatusBits.resolved),
+                status: const Value(BeaconBlockerStatusBits.resolved),
                 resolvedBy: Value(resolvedByUserId),
                 resolvedFromMessageId: Value(resolvedFromMessageId),
                 resolvedAt: Value(PgDateTime(DateTime.timestamp())),
@@ -587,7 +587,7 @@ class BeaconRoomRepository {
             .filter((m) => m.id.equals(messageId))
             .update(
               (u) => u(
-                semanticMarker: Value(BeaconRoomSemanticMarker.done),
+                semanticMarker: const Value(BeaconRoomSemanticMarker.done),
               ),
             );
       });
@@ -607,12 +607,12 @@ class BeaconRoomRepository {
             .filter((r) => r.id.equals(participantRowId))
             .update(
               (u) => u(
-                status: Value(BeaconParticipantStatusBits.needsInfo),
+                status: const Value(BeaconParticipantStatusBits.needsInfo),
                 nextMoveText: Value(trimmed),
                 nextMoveStatus:
-                    Value(BeaconNextMoveStatusBits.requested),
+                    const Value(BeaconNextMoveStatusBits.requested),
                 nextMoveSource:
-                    Value(BeaconNextMoveSourceBits.stewardOrAuthor),
+                    const Value(BeaconNextMoveSourceBits.stewardOrAuthor),
                 linkedMessageId: Value(linkedMessageId),
                 updatedAt: Value(PgDateTime(DateTime.timestamp())),
               ),
