@@ -242,9 +242,12 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get isRoomAdmissionBlocked =>
       !isBeaconMine && isCommitted && !hasRoomAdmission;
 
-  /// Room chip navigates unless a non-author is committed without admission.
+  /// Room chip only when the viewer may use room APIs (mirrors server: author,
+  /// steward, or admitted participant). Non-authors without a commitment or
+  /// coordination admission must not navigate — they get [isRoomAdmissionBlocked]
+  /// or no room chip.
   bool get canNavigateBeaconRoom =>
-      isBeaconMine || !isCommitted || hasRoomAdmission;
+      isBeaconMine || (isCommitted && hasRoomAdmission);
 
   bool get coordinationDeniesRoomAdmission =>
       myActiveCommitment?.coordinationResponse ==
