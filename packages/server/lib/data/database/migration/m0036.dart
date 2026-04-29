@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_steward (
 ''',
   r'''
 CREATE TABLE IF NOT EXISTS public.beacon_participant (
-  id text DEFAULT concat('P', substring((gen_random_uuid())::text, '\\w{12}')) NOT NULL,
+  id text DEFAULT concat('P', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)) NOT NULL,
   beacon_id text NOT NULL
     REFERENCES public.beacon(id) ON UPDATE CASCADE ON DELETE CASCADE,
   user_id text NOT NULL
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_room_state (
 ''',
   r'''
 CREATE TABLE IF NOT EXISTS public.beacon_room_message (
-  id text DEFAULT concat('R', substring((gen_random_uuid())::text, '\\w{12}')) NOT NULL,
+  id text DEFAULT concat('R', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)) NOT NULL,
   beacon_id text NOT NULL
     REFERENCES public.beacon(id) ON UPDATE CASCADE ON DELETE CASCADE,
   author_id text NOT NULL
@@ -77,7 +77,7 @@ CREATE INDEX IF NOT EXISTS beacon_room_message_beacon_created_idx
 ''',
   r'''
 CREATE TABLE IF NOT EXISTS public.beacon_room_message_reaction (
-  id text DEFAULT concat('E', substring((gen_random_uuid())::text, '\\w{12}')) NOT NULL,
+  id text DEFAULT concat('E', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)) NOT NULL,
   message_id text NOT NULL
     REFERENCES public.beacon_room_message(id) ON UPDATE CASCADE ON DELETE CASCADE,
   user_id text NOT NULL
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_room_message_reaction (
 ''',
   r'''
 CREATE TABLE IF NOT EXISTS public.beacon_room_message_attachment (
-  id text DEFAULT concat('A', substring((gen_random_uuid())::text, '\\w{12}')) NOT NULL,
+  id text DEFAULT concat('A', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)) NOT NULL,
   message_id text NOT NULL
     REFERENCES public.beacon_room_message(id) ON UPDATE CASCADE ON DELETE CASCADE,
   kind smallint NOT NULL,
@@ -104,6 +104,32 @@ CREATE TABLE IF NOT EXISTS public.beacon_room_message_attachment (
   position smallint NOT NULL DEFAULT 0,
   PRIMARY KEY (id)
 );
+''',
+  // Fix defaults when this migration is retried after a failed run: IF NOT EXISTS
+  // skipped CREATE with the old broken `substring(uuid::text, '\\w{12}')` form.
+  '''
+ALTER TABLE public.beacon_participant
+  ALTER COLUMN id SET DEFAULT concat(
+    'P', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)
+  );
+''',
+  '''
+ALTER TABLE public.beacon_room_message
+  ALTER COLUMN id SET DEFAULT concat(
+    'R', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)
+  );
+''',
+  '''
+ALTER TABLE public.beacon_room_message_reaction
+  ALTER COLUMN id SET DEFAULT concat(
+    'E', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)
+  );
+''',
+  '''
+ALTER TABLE public.beacon_room_message_attachment
+  ALTER COLUMN id SET DEFAULT concat(
+    'A', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)
+  );
 ''',
   '''
 INSERT INTO public.beacon_participant (
