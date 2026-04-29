@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_steward (
   PRIMARY KEY (beacon_id)
 );
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_participant (
   id text DEFAULT concat('P', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)) NOT NULL,
   beacon_id text NOT NULL
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_room_state (
   PRIMARY KEY (beacon_id)
 );
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_room_message (
   id text DEFAULT concat('R', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)) NOT NULL,
   beacon_id text NOT NULL
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_room_message (
 CREATE INDEX IF NOT EXISTS beacon_room_message_beacon_created_idx
   ON public.beacon_room_message (beacon_id, created_at DESC);
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_room_message_reaction (
   id text DEFAULT concat('E', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)) NOT NULL,
   message_id text NOT NULL
@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS public.beacon_room_message_reaction (
   CONSTRAINT beacon_room_reaction_unique UNIQUE (message_id, user_id, emoji)
 );
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_room_message_attachment (
   id text DEFAULT concat('A', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12)) NOT NULL,
   message_id text NOT NULL
