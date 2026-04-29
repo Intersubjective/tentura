@@ -1,4 +1,4 @@
-/// Role on [beacon_participant.role].
+/// Role on `beacon_participant.role`.
 abstract final class BeaconParticipantRoleBits {
   static const author = 0;
   static const steward = 1;
@@ -8,12 +8,12 @@ abstract final class BeaconParticipantRoleBits {
   static const forwarder = 5;
 }
 
-/// [beacon_room_message.semantic_marker] — sparse system semantics.
+/// `beacon_room_message.semantic_marker` — sparse system semantics.
 abstract final class BeaconRoomSemanticMarker {
   /// System line emitted when coordinated plan text changes (`beacon_room_state`).
   static const updatePlan = 1;
 
-  /// Pinned fact with [BeaconFactCardVisibilityBits.public].
+  /// Pinned fact with `BeaconFactCardVisibilityBits.public`.
   static const pinFactPublic = 2;
 
   /// Pinned fact visible to Room members only.
@@ -22,7 +22,7 @@ abstract final class BeaconRoomSemanticMarker {
   /// Participant next-move / cue line (participant row updated).
   static const participantStatusChanged = 4;
 
-  /// Message linked to a new [beacon_blocker].
+  /// Message linked to a new `beacon_blocker`.
   static const blocker = 5;
 
   /// Need-info request attached to a message / participant cue.
@@ -32,7 +32,7 @@ abstract final class BeaconRoomSemanticMarker {
   static const done = 7;
 }
 
-/// [beacon_participant.next_move_status] (sparse UX enum).
+/// `beacon_participant.next_move_status` (sparse UX enum).
 abstract final class BeaconNextMoveStatusBits {
   static const active = 0;
   static const requested = 1;
@@ -41,14 +41,14 @@ abstract final class BeaconNextMoveStatusBits {
   static const obsolete = 4;
 }
 
-/// [beacon_participant.next_move_source] hint for UX.
+/// `beacon_participant.next_move_source` hint for UX.
 abstract final class BeaconNextMoveSourceBits {
   static const unspecified = 0;
   static const self = 1;
   static const stewardOrAuthor = 2;
 }
 
-/// [beacon_participant.room_access].
+/// `beacon_participant.room_access`.
 abstract final class RoomAccessBits {
   static const none = 0;
   static const requested = 1;

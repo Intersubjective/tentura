@@ -65,9 +65,8 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
   late CoordinationResponseType _selected =
       widget.initialResponse ?? CoordinationResponseType.useful;
 
-  late bool _inviteToRoom = widget.commitUserAdmittedToRoom
-      ? false
-      : _defaultInviteForCoordination(_selected);
+  late bool _inviteToRoom = !widget.commitUserAdmittedToRoom &&
+      _defaultInviteForCoordination(_selected);
 
   bool _inviteTouched = false;
 
@@ -78,7 +77,7 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
       await widget.onSave(
         responseTypeSmallint: _selected.smallintValue,
         inviteToRoom:
-            widget.commitUserAdmittedToRoom ? false : _inviteToRoom,
+            !widget.commitUserAdmittedToRoom && _inviteToRoom,
         removeFromRoom:
             widget.commitUserAdmittedToRoom && _pendingRemoveFromRoom,
       );
@@ -132,103 +131,105 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
             ),
             Divider(height: 1, color: scheme.outlineVariant),
             Expanded(
-              child: ListView(
-                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-                children: [
-                  for (final t in CoordinationResponseType.values) ...[
-                    if (t != CoordinationResponseType.values.first)
-                      SizedBox(height: tt.rowGap * 0.25),
-                    SizedBox(
-                      height: 46,
-                      child: InkWell(
-                        onTap: () => _onResponseSelected(t),
+              child: RadioGroup<CoordinationResponseType>(
+                groupValue: _selected,
+                onChanged: (v) {
+                  if (v != null) _onResponseSelected(v);
+                },
+                child: ListView(
+                  padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                  children: [
+                    for (final t in CoordinationResponseType.values) ...[
+                      if (t != CoordinationResponseType.values.first)
+                        SizedBox(height: tt.rowGap * 0.25),
+                      SizedBox(
+                        height: 46,
+                        child: InkWell(
+                          onTap: () => _onResponseSelected(t),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 40,
+                                child: Radio<CoordinationResponseType>(
+                                  value: t,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  coordinationResponseLabel(l10n, t) ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: tt.rowGap),
+                    Divider(height: 1, color: scheme.outlineVariant),
+                    SizedBox(height: tt.rowGap * 0.5),
+                    if (!widget.commitUserAdmittedToRoom)
+                      SizedBox(
+                        height: 46,
                         child: Row(
                           children: [
-                            SizedBox(
-                              width: 40,
-                              child: Radio<CoordinationResponseType>(
-                                value: t,
-                                groupValue: _selected,
-                                onChanged: (v) {
-                                  if (v != null) _onResponseSelected(v);
-                                },
-                              ),
-                            ),
                             Expanded(
                               child: Text(
-                                coordinationResponseLabel(l10n, t) ?? '',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                l10n.coordinationInviteToRoomRow,
                                 style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: _inviteToRoom,
+                              onChanged: (v) => setState(() {
+                                _inviteTouched = true;
+                                _inviteToRoom = v;
+                              }),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        height: 46,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l10n.coordinationRemoveFromRoom,
+                                style: TenturaText.body(
+                                  _pendingRemoveFromRoom
+                                      ? tt.danger
+                                      : tt.textMuted,
+                                ),
+                              ),
+                            ),
+                            Theme(
+                              data: Theme.of(context).copyWith(
+                                checkboxTheme: CheckboxThemeData(
+                                  fillColor:
+                                      WidgetStateProperty.resolveWith((states) {
+                                    if (states.contains(WidgetState.selected)) {
+                                      return tt.danger;
+                                    }
+                                    return scheme.surfaceContainerHighest;
+                                  }),
+                                ),
+                              ),
+                              child: Checkbox.adaptive(
+                                value: _pendingRemoveFromRoom,
+                                onChanged: (v) => setState(() {
+                                  _pendingRemoveFromRoom = v ?? false;
+                                }),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
                   ],
-                  SizedBox(height: tt.rowGap),
-                  Divider(height: 1, color: scheme.outlineVariant),
-                  SizedBox(height: tt.rowGap * 0.5),
-                  if (!widget.commitUserAdmittedToRoom)
-                    SizedBox(
-                      height: 46,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              l10n.coordinationInviteToRoomRow,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ),
-                          Switch.adaptive(
-                            value: _inviteToRoom,
-                            onChanged: (v) => setState(() {
-                              _inviteTouched = true;
-                              _inviteToRoom = v;
-                            }),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    SizedBox(
-                      height: 46,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              l10n.coordinationRemoveFromRoom,
-                              style: TenturaText.body(
-                                _pendingRemoveFromRoom
-                                    ? tt.danger
-                                    : tt.textMuted,
-                              ),
-                            ),
-                          ),
-                          Theme(
-                            data: Theme.of(context).copyWith(
-                              checkboxTheme: CheckboxThemeData(
-                                fillColor:
-                                    WidgetStateProperty.resolveWith((states) {
-                                  if (states.contains(WidgetState.selected)) {
-                                    return tt.danger;
-                                  }
-                                  return scheme.surfaceContainerHighest;
-                                }),
-                              ),
-                            ),
-                            child: Checkbox.adaptive(
-                              value: _pendingRemoveFromRoom,
-                              onChanged: (v) => setState(() {
-                                _pendingRemoveFromRoom = v ?? false;
-                              }),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
+                ),
               ),
             ),
             Divider(height: 1, color: scheme.outlineVariant),

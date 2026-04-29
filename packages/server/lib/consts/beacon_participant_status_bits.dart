@@ -1,4 +1,4 @@
-/// [beacon_participant.status]
+/// `beacon_participant.status`
 abstract final class BeaconParticipantStatusBits {
   static const watching = 0;
   static const offeredHelp = 1;

@@ -1,4 +1,4 @@
-/// Outward-facing status from [beacon.public_status] (`smallint`).
+/// Outward-facing status from `beacon.public_status` (`smallint`).
 abstract final class BeaconPublicStatusBits {
   static const open = 0;
   static const coordinating = 1;

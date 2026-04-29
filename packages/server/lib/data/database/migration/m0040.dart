@@ -2,7 +2,7 @@ part of '_migrations.dart';
 
 /// Phase 5.1: `beacon_blocker`, `beacon_activity_event`; FKs for room state + messages.
 final m0040 = Migration('0040', [
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_blocker (
   id text NOT NULL PRIMARY KEY DEFAULT (
     concat('K', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12))
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS public.beacon_blocker (
   CONSTRAINT beacon_blocker_status_chk CHECK (status IN (0, 1, 2))
 );
 ''',
-  r'''
+  '''
 CREATE INDEX IF NOT EXISTS beacon_blocker_beacon_created_idx
   ON public.beacon_blocker (beacon_id, created_at DESC);
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.beacon_activity_event (
   id text NOT NULL PRIMARY KEY DEFAULT (
     concat('V', substring(replace(gen_random_uuid()::text, '-', ''), 1, 12))
@@ -53,31 +53,31 @@ CREATE TABLE IF NOT EXISTS public.beacon_activity_event (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 ''',
-  r'''
+  '''
 CREATE INDEX IF NOT EXISTS beacon_activity_event_beacon_created_idx
   ON public.beacon_activity_event (beacon_id, created_at DESC);
 ''',
-  r'''
+  '''
 UPDATE public.beacon_room_state
 SET open_blocker_id = NULL
 WHERE open_blocker_id IS NOT NULL;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon_room_state
   DROP CONSTRAINT IF EXISTS beacon_room_state_open_blocker_fk;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon_room_state
   ADD CONSTRAINT beacon_room_state_open_blocker_fk
   FOREIGN KEY (open_blocker_id)
   REFERENCES public.beacon_blocker(id)
   ON UPDATE CASCADE ON DELETE SET NULL;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon_room_message
   DROP CONSTRAINT IF EXISTS beacon_room_message_linked_blocker_fkey;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon_room_message
   ADD CONSTRAINT beacon_room_message_linked_blocker_fkey
   FOREIGN KEY (linked_blocker_id)

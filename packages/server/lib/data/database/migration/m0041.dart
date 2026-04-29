@@ -260,19 +260,19 @@ BEGIN
 END;
 $$;
 ''',
-  r'''
+  '''
 DROP TRIGGER IF EXISTS beacon_blocker_notify ON public.beacon_blocker;
 ''',
-  r'''
+  '''
 CREATE TRIGGER beacon_blocker_notify
   AFTER INSERT OR UPDATE OR DELETE ON public.beacon_blocker
   FOR EACH ROW
   EXECUTE FUNCTION public.notify_entity_change('blocker');
 ''',
-  r'''
+  '''
 DROP TRIGGER IF EXISTS beacon_activity_event_notify ON public.beacon_activity_event;
 ''',
-  r'''
+  '''
 CREATE TRIGGER beacon_activity_event_notify
   AFTER INSERT OR UPDATE OR DELETE ON public.beacon_activity_event
   FOR EACH ROW
