@@ -48,6 +48,18 @@ abstract final class BeaconNextMoveSourceBits {
   static const stewardOrAuthor = 2;
 }
 
+/// `beacon_room_message_attachment.kind`
+abstract final class BeaconRoomMessageAttachmentKind {
+  static const image = 1;
+  static const file = 2;
+}
+
+/// Max attachments per room message (images + files).
+const kMaxRoomMessageAttachments = 10;
+
+/// Max upload size per attachment (bytes).
+const kMaxRoomMessageAttachmentBytes = 10 * 1024 * 1024;
+
 /// `beacon_participant.room_access`.
 abstract final class RoomAccessBits {
   static const none = 0;

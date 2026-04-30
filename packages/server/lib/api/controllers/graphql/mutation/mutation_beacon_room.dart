@@ -1,5 +1,7 @@
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
+import 'package:tentura_server/domain/exception.dart';
 
+import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
@@ -51,6 +53,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
         roomMessageCreate,
+        roomMessageAttachmentAdd,
         participantOfferHelp,
         beaconRoomAdmit,
         beaconStewardPromote,
@@ -66,20 +69,73 @@ final class MutationBeaconRoom extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get roomMessageCreate =>
       GraphQLObjectField(
         'RoomMessageCreate',
-        graphQLBoolean.nonNullable(),
+        gqlTypeRoomMessageCreatePayload.nonNullable(),
         arguments: [
           _beaconIdStr.field,
           _body.field,
           _replyToMessageId.fieldNullable,
+          InputFieldUpload.fieldNullable,
         ],
-        resolve: (_, args) => _case
-            .createMessage(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-              body: _body.fromArgs(args) ?? '',
-              replyToMessageId: _replyToMessageId.fromArgs(args),
-            )
-            .then((_) => true),
+        resolve: (_, args) async {
+          final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
+          final rawName = uploadMeta?['filename'];
+          final rawType = uploadMeta?['type'];
+          return _case
+              .createMessage(
+                beaconId: _beaconIdStr.fromArgsNonNullable(args),
+                userId: getCredentials(args).sub,
+                body: _body.fromArgs(args) ?? '',
+                replyToMessageId: _replyToMessageId.fromArgs(args),
+                attachmentBytes: InputFieldUpload.fromArgs(args),
+                attachmentFilename:
+                    rawName is String && rawName.trim().isNotEmpty
+                    ? rawName
+                    : null,
+                attachmentMimeType:
+                    rawType is String && rawType.trim().isNotEmpty
+                    ? rawType
+                    : null,
+              )
+              .then((m) => m);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get roomMessageAttachmentAdd =>
+      GraphQLObjectField(
+        'RoomMessageAttachmentAdd',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _messageId.field,
+          InputFieldUpload.field,
+        ],
+        resolve: (_, args) async {
+          final uploadMeta = InputFieldUpload.uploadVariablesFromArgs(args);
+          final rawName = uploadMeta?['filename'];
+          final rawType = uploadMeta?['type'];
+          final bytes = InputFieldUpload.fromArgs(args);
+          if (bytes == null) {
+            throw const BeaconCreateException(
+              description: 'Attachment file is required',
+            );
+          }
+          return _case
+              .addMessageAttachment(
+                beaconId: _beaconIdStr.fromArgsNonNullable(args),
+                userId: getCredentials(args).sub,
+                messageId: _messageId.fromArgsNonNullable(args),
+                attachmentBytes: bytes,
+                attachmentFilename:
+                    rawName is String && rawName.trim().isNotEmpty
+                    ? rawName
+                    : null,
+                attachmentMimeType:
+                    rawType is String && rawType.trim().isNotEmpty
+                    ? rawType
+                    : null,
+              )
+              .then((_) => true);
+        },
       );
 
   GraphQLObjectField<dynamic, dynamic> get participantOfferHelp =>

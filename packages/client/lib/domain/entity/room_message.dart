@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
 
 part 'room_message.freezed.dart';
 
@@ -18,5 +19,6 @@ abstract class RoomMessage with _$RoomMessage {
     int? semanticMarker,
     String? linkedBlockerId,
     String? systemPayloadJson,
+    @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
   }) = _RoomMessage;
 }

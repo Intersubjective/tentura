@@ -1,14 +1,24 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/data/storage/remote_storage.dart';
+import 'package:tentura_server/domain/entity/task_entity.dart';
+import 'package:tentura_server/domain/port/image_repository_port.dart';
+import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
+
+import 'package:tentura_server/utils/id.dart';
+import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
+import 'package:tentura_server/utils/sanitized_attachment_name.dart';
 
 import '_use_case_base.dart';
 
@@ -20,7 +30,10 @@ final class BeaconRoomCase extends UseCaseBase {
   BeaconRoomCase(
     this._room,
     this._factCards,
-    this._push, {
+    this._push,
+    this._imageRepository,
+    this._tasksRepository,
+    this._remoteStorage, {
     required super.env,
     required super.logger,
   });
@@ -30,6 +43,12 @@ final class BeaconRoomCase extends UseCaseBase {
   final BeaconFactCardRepository _factCards;
 
   final BeaconRoomPushService _push;
+
+  final ImageRepositoryPort _imageRepository;
+
+  final TaskRepositoryPort _tasksRepository;
+
+  final RemoteStorage _remoteStorage;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -51,6 +70,9 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String body,
     String? replyToMessageId,
+    Stream<Uint8List>? attachmentBytes,
+    String? attachmentFilename,
+    String? attachmentMimeType,
   }) async {
     final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
     if (!allowed) {
@@ -58,13 +80,39 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Room access required',
       );
     }
-    final row =
-        await _room.insertRoomMessage(
-          beaconId: beaconId,
-          authorId: userId,
-          body: body.trim(),
-          replyToMessageId: replyToMessageId,
-        );
+    final trimmed = body.trim();
+    Uint8List? payload;
+    if (attachmentBytes != null) {
+      payload = await readUint8StreamWithLimit(
+        attachmentBytes,
+        kMaxRoomMessageAttachmentBytes,
+      );
+      if (payload.isEmpty) {
+        payload = null;
+      }
+    }
+    if (trimmed.isEmpty && payload == null) {
+      throw const BeaconCreateException(
+        description: 'Message text or attachment required',
+      );
+    }
+    final row = await _room.insertRoomMessage(
+      beaconId: beaconId,
+      authorId: userId,
+      body: trimmed,
+      replyToMessageId: replyToMessageId,
+    );
+    if (payload != null) {
+      await _addAttachmentBytesToMessage(
+        beaconId: beaconId,
+        userId: userId,
+        messageId: row.id,
+        mutatingUserId: userId,
+        bytes: payload,
+        uploadFilename: attachmentFilename,
+        uploadMimeType: attachmentMimeType,
+      );
+    }
     return {'id': row.id, 'beaconId': row.beaconId};
   }
 
@@ -669,5 +717,185 @@ final class BeaconRoomCase extends UseCaseBase {
       ),
     );
     return true;
+  }
+
+  Future<bool> addMessageAttachment({
+    required String beaconId,
+    required String userId,
+    required String messageId,
+    required Stream<Uint8List> attachmentBytes,
+    String? attachmentFilename,
+    String? attachmentMimeType,
+  }) async {
+    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+    if (!allowed) {
+      throw const UnauthorizedException(description: 'Room access required');
+    }
+    final msg = await _room.getRoomMessageById(messageId);
+    if (msg == null || msg.beaconId != beaconId) {
+      throw IdNotFoundException(
+        id: messageId,
+        description: 'Room message not found',
+      );
+    }
+    if (msg.authorId != userId) {
+      throw const UnauthorizedException(
+        description: 'Only the message author can add attachments',
+      );
+    }
+    final payload = await readUint8StreamWithLimit(
+      attachmentBytes,
+      kMaxRoomMessageAttachmentBytes,
+    );
+    if (payload.isEmpty) {
+      throw const BeaconCreateException(description: 'Empty attachment');
+    }
+    await _addAttachmentBytesToMessage(
+      beaconId: beaconId,
+      userId: userId,
+      messageId: messageId,
+      mutatingUserId: userId,
+      bytes: payload,
+      uploadFilename: attachmentFilename,
+      uploadMimeType: attachmentMimeType,
+    );
+    return true;
+  }
+
+  Future<({Uint8List bytes, String mime, String fileName})> downloadAttachment({
+    required String userId,
+    required String attachmentId,
+  }) async {
+    final row = await _room.getRoomMessageAttachmentById(attachmentId);
+    if (row == null) {
+      throw IdNotFoundException(
+        id: attachmentId,
+        description: 'Attachment not found',
+      );
+    }
+    if (row.kind != BeaconRoomMessageAttachmentKind.file ||
+        row.fileUrl == null ||
+        row.fileUrl!.isEmpty) {
+      throw const IdWrongException(
+        description: 'Not a downloadable file attachment',
+      );
+    }
+    final msg = await _room.getRoomMessageById(row.messageId);
+    if (msg == null) {
+      throw IdNotFoundException(
+        id: attachmentId,
+        description: 'Message missing',
+      );
+    }
+    final roomOk = await _canUseRoom(beaconId: msg.beaconId, userId: userId);
+    if (!roomOk) {
+      throw const UnauthorizedException(description: 'Room access required');
+    }
+    final bytes = await _remoteStorage.getObject(row.fileUrl!);
+    final name =
+        row.fileName.trim().isEmpty ? 'download' : row.fileName.trim();
+    return (bytes: bytes, mime: row.mime, fileName: name);
+  }
+
+  Future<void> _addAttachmentBytesToMessage({
+    required String beaconId,
+    required String userId,
+    required String messageId,
+    required String mutatingUserId,
+    required Uint8List bytes,
+    String? uploadFilename,
+    String? uploadMimeType,
+  }) async {
+    final count = await _room.countAttachmentsForMessage(messageId);
+    if (count >= kMaxRoomMessageAttachments) {
+      throw const BeaconCreateException(
+        description: 'Maximum attachments per message reached',
+      );
+    }
+    final position = count;
+    final label = sanitizedAttachmentBaseName(uploadFilename ?? 'file');
+    final mime = _normalizeAttachmentMime(uploadMimeType, label);
+    final attachmentId = generateId('A');
+    final useImagePipeline = _attachmentLooksLikeImage(mime, label);
+    if (useImagePipeline) {
+      final imageId = await _imageRepository.put(
+        authorId: userId,
+        bytes: Stream.value(bytes),
+      );
+      await _tasksRepository.schedule(
+        TaskEntity(
+          details: TaskCalculateImageHashDetails(imageId: imageId),
+        ),
+      );
+      await _room.insertRoomMessageAttachmentImage(
+        attachmentId: attachmentId,
+        messageId: messageId,
+        position: position,
+        imageId: imageId,
+        mime: mime,
+        sizeBytes: bytes.length,
+        displayName: label,
+        mutatingUserId: mutatingUserId,
+      );
+    } else {
+      final safeObjectName = sanitizedAttachmentBaseName(label);
+      final storagePath =
+          '$kRoomAttachmentsPath/$userId/$attachmentId/$safeObjectName';
+      final meta = <String, String>{
+        kHeaderContentType: mime,
+      };
+      final acl = env.kS3PutObjectAclValue;
+      if (acl != null) {
+        meta['x-amz-acl'] = acl;
+      }
+      await _remoteStorage.putObject(
+        storagePath,
+        Stream.value(bytes),
+        metadata: meta,
+      );
+      await _room.insertRoomMessageAttachmentFile(
+        attachmentId: attachmentId,
+        messageId: messageId,
+        position: position,
+        storagePath: storagePath,
+        mime: mime,
+        sizeBytes: bytes.length,
+        displayName: safeObjectName,
+        mutatingUserId: mutatingUserId,
+      );
+    }
+  }
+
+  static bool _attachmentLooksLikeImage(String mime, String fileLabel) {
+    final m = mime.toLowerCase().trim();
+    if (m.startsWith('image/')) {
+      return true;
+    }
+    final lower = fileLabel.toLowerCase();
+    return lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp') ||
+        lower.endsWith('.gif') ||
+        lower.endsWith('.heic') ||
+        lower.endsWith('.heif');
+  }
+
+  static String _normalizeAttachmentMime(String? rawMime, String fileLabel) {
+    final t = rawMime?.trim();
+    if (t != null && t.isNotEmpty) {
+      return t;
+    }
+    final lower = fileLabel.toLowerCase();
+    if (lower.endsWith('.pdf')) {
+      return 'application/pdf';
+    }
+    if (lower.endsWith('.txt')) {
+      return 'text/plain';
+    }
+    if (_attachmentLooksLikeImage('application/octet-stream', fileLabel)) {
+      return 'image/jpeg';
+    }
+    return 'application/octet-stream';
   }
 }

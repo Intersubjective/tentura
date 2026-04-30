@@ -2507,5 +2507,23 @@
   },
   "forwardIncludePublicNote": "Включить публичный статус в текст сообщения",
   "forwardAttachFacts": "Прикрепить публичные факты к сообщению",
-  "forwardFactChipAttach": "В текст"
+  "forwardFactChipAttach": "В текст",
+  "beaconRoomAttachMenuTooltip": "Вложение",
+  "beaconRoomAttachPickImages": "Фото",
+  "beaconRoomAttachPickFiles": "Файлы",
+  "beaconRoomAttachmentsTooMany": "Не больше {max} файлов.",
+  "@beaconRoomAttachmentsTooMany": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
+  "beaconRoomAttachmentTooLarge": "Каждый файл не больше {maxMb} МБ.",
+  "@beaconRoomAttachmentTooLarge": {
+    "placeholders": {
+      "maxMb": { "type": "int" }
+    }
+  },
+  "beaconRoomAttachmentUntitled": "Файл",
+  "beaconRoomAttachmentOpenFailed": "Не удалось открыть вложение.",
+  "beaconRoomAttachmentOpenShare": "Поделиться файлом"
 }

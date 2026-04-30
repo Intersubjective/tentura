@@ -1,9 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../../data/repository/beacon_blocker_repository.dart';
@@ -37,16 +40,35 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) =>
       _room.fetchParticipants(beaconId);
 
-  Future<bool> createMessage({
+  Future<void> createMessage({
     required String beaconId,
     required String body,
     String? replyToMessageId,
-  }) =>
-      _room.createMessage(
+    List<RoomPendingUpload> uploads = const [],
+  }) async {
+    if (body.trim().isEmpty && uploads.isEmpty) {
+      return;
+    }
+    final first = uploads.isNotEmpty ? uploads.first : null;
+    final extras =
+        uploads.length > 1 ? uploads.sublist(1) : const <RoomPendingUpload>[];
+    final messageId = await _room.createMessage(
+      beaconId: beaconId,
+      body: body,
+      replyToMessageId: replyToMessageId,
+      firstAttachment: first,
+    );
+    for (final u in extras) {
+      await _room.addMessageAttachment(
         beaconId: beaconId,
-        body: body,
-        replyToMessageId: replyToMessageId,
+        messageId: messageId,
+        upload: u,
       );
+    }
+  }
+
+  Future<Uint8List> downloadRoomAttachment(String attachmentId) =>
+      _room.downloadRoomAttachmentBytes(attachmentId);
 
   Future<bool> participantOfferHelp({
     required String beaconId,

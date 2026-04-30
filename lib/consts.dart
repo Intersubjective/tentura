@@ -45,6 +45,8 @@ const kPathAppLinkView = '/shared/view';
 const kPathWebSocketEndpoint = '/api/v2/ws';
 const kPathGraphQLEndpoint = '/api/v1/graphql';
 const kPathGraphQLEndpointV2 = '/api/v2/graphql';
+/// Authenticated binary download for beacon room message file attachments (not images).
+const kPathRoomAttachmentDownload = '/api/v2/room-attachments';
 const kPathFirebaseSwJs = '/firebase-messaging-sw.js';
 
 const String kUserAgent = kAppTitle;
@@ -65,6 +67,9 @@ const kHeaderQueryContext = 'X-Hasura-Query-Context';
 
 const kImageExt = 'jpg';
 const kImagesPath = 'images';
+
+/// Private attachment blobs (served only via [kPathRoomAttachmentDownload]).
+const kRoomAttachmentsPath = 'room_attachments';
 
 const kAvatarPlaceholderBlurhash =
     ':QPjJjoL?bxu~qRjD%xuM{j[%MayIUj[t7j[~qa{xuWBD%of%MWBRjj[j[ayxuj[M{ay?bj[IT'
