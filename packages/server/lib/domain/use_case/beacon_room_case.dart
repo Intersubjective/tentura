@@ -16,6 +16,8 @@ import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 
+import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
+
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
 import 'package:tentura_server/utils/sanitized_attachment_name.dart';
@@ -814,9 +816,13 @@ final class BeaconRoomCase extends UseCaseBase {
     }
     final position = count;
     final label = sanitizedAttachmentBaseName(uploadFilename ?? 'file');
-    final mime = _normalizeAttachmentMime(uploadMimeType, label);
-    final attachmentId = generateId('A');
-    final useImagePipeline = _attachmentLooksLikeImage(mime, label);
+    var mime = _normalizeAttachmentMime(uploadMimeType, label);
+    final sniffedMime = inferImageMimeFromLeadingBytes(bytes);
+    if (sniffedMime != null) {
+      mime = sniffedMime;
+    }
+    final useImagePipeline =
+        sniffedMime != null || _attachmentLooksLikeImage(mime, label);
     if (useImagePipeline) {
       final imageId = await _imageRepository.put(
         authorId: userId,

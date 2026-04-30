@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -788,9 +790,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       if (bytes == null) {
         continue;
       }
-      final mime = pf.extension != null && pf.extension!.trim().isNotEmpty
+      var mime = pf.extension != null && pf.extension!.trim().isNotEmpty
           ? _mimeFromExtension(pf.extension!)
           : 'application/octet-stream';
+      final sniffed = inferImageMimeFromLeadingBytes(bytes);
+      if (sniffed != null) {
+        mime = sniffed;
+      }
       _tryAdd(
         RoomPendingUpload(
           bytes: bytes,
@@ -813,8 +819,71 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         return;
       }
       _text.clear();
-      setState(_pending.clear);
+      setState(() => _pending.clear());
     } on Object catch (_) {}
+  }
+
+  Widget _pendingAttachmentPreview(
+    BuildContext context,
+    ThemeData theme,
+    bool busy,
+    int index,
+  ) {
+    final loc = MaterialLocalizations.of(context);
+    final u = _pending[index];
+    final isImage = u.mimeType.toLowerCase().startsWith('image/');
+    if (!isImage) {
+      return InputChip(
+        label: Text(
+          u.fileName.trim().isEmpty
+              ? L10n.of(context)!.beaconRoomAttachmentUntitled
+              : u.fileName,
+          style: theme.textTheme.labelMedium,
+          overflow: TextOverflow.ellipsis,
+        ),
+        onDeleted: busy ? null : () => setState(() => _pending.removeAt(index)),
+      );
+    }
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            width: 72,
+            height: 72,
+            child: Image.memory(
+              u.bytes,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              errorBuilder: (_, _, _) => Icon(
+                Icons.broken_image_outlined,
+                color: theme.colorScheme.outline,
+              ),
+            ),
+          ),
+        ),
+        if (!busy)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              constraints:
+                  const BoxConstraints.tightFor(width: 36, height: 36),
+              style: IconButton.styleFrom(
+                backgroundColor:
+                    theme.colorScheme.surface.withValues(alpha: 0.92),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              tooltip: loc.deleteButtonTooltip,
+              iconSize: 20,
+              onPressed: () => setState(() => _pending.removeAt(index)),
+              icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -837,17 +906,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                   for (var i = 0; i < _pending.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(right: kSpacingSmall),
-                      child: InputChip(
-                        label: Text(
-                          _pending[i].fileName.trim().isEmpty
-                              ? l10n.beaconRoomAttachmentUntitled
-                              : _pending[i].fileName,
-                          style: theme.textTheme.labelMedium,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        onDeleted: busy
-                            ? null
-                            : () => setState(() => _pending.removeAt(i)),
+                      child: _pendingAttachmentPreview(
+                        context,
+                        theme,
+                        busy,
+                        i,
                       ),
                     ),
                 ],
