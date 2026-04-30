@@ -1,6 +1,6 @@
 /// Safe single-segment filename for storage paths and Content-Disposition.
 String sanitizedAttachmentBaseName(String raw) {
-  var s = raw.replaceAll('\\', '/').split('/').last.trim();
+  var s = raw.split(RegExp(r'[/\\]')).last.trim();
   if (s.isEmpty) {
     return 'file';
   }

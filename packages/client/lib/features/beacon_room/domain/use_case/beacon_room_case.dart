@@ -156,6 +156,17 @@ final class BeaconRoomCase extends UseCaseBase {
   }) =>
       _factCards.remove(beaconId: beaconId, factCardId: factCardId);
 
+  Future<void> setFactVisibility({
+    required String beaconId,
+    required String factCardId,
+    required int visibility,
+  }) =>
+      _factCards.setVisibility(
+        beaconId: beaconId,
+        factCardId: factCardId,
+        visibility: visibility,
+      );
+
   Future<void> markRoomSeenIfAllowed(String beaconId) async {
     try {
       await _room.markRoomSeen(beaconId: beaconId);

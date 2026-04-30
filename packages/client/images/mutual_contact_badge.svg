@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+  <title>Mutual contact</title>
+
+  <circle cx="12" cy="12" r="10" fill="var(--badge-bg, white)"/>
+  <circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-opacity="0.16" stroke-width="1.5"/>
+
+  <rect x="7" y="10.9" width="10" height="2.2" rx="1.1" fill="currentColor"/>
+  <circle cx="7" cy="12" r="3" fill="currentColor"/>
+  <circle cx="17" cy="12" r="3" fill="currentColor"/>
+</svg>

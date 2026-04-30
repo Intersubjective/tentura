@@ -2,7 +2,7 @@ name: tentura
 description: 'Social network for communities'
 publish_to: 'none'
 
-version: 1.22.0
+version: 1.23.0
 
 environment:
   sdk: ^3.11.0
@@ -133,6 +133,7 @@ flutter:
         - asset: fonts/tentura-icons.ttf
   assets:
     - images/placeholder/
+    - images/mutual_contact_badge.svg
     - images/tentura_commit_hand_check.svg
     - images/intro.svg.vec
 

@@ -1,0 +1,11 @@
+mutation BeaconFactCardSetVisibility(
+  $beaconId: String!
+  $factCardId: String!
+  $visibility: Int!
+) {
+  BeaconFactCardSetVisibility(
+    beaconId: $beaconId
+    factCardId: $factCardId
+    visibility: $visibility
+  )
+}

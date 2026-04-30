@@ -3,7 +3,6 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 
 import 'package:tentura_server/env.dart';
-import 'package:tentura_root/consts.dart';
 
 import 'controllers/firebase_sw_controller.dart';
 import 'controllers/websocket_controller.dart';

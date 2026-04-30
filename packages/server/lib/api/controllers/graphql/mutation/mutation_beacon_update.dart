@@ -46,12 +46,11 @@ final class MutationBeaconUpdate extends GqlNodeBase {
         content: content,
       );
       final author = await _userRepository.getById(entity.authorId);
-      final friendship = userId == entity.authorId
-          ? false
-          : await _voteUserFriendshipLookup.isReciprocalSubscribe(
-              viewerId: userId,
-              peerId: entity.authorId,
-            );
+      final friendship = userId != entity.authorId &&
+          await _voteUserFriendshipLookup.isReciprocalSubscribe(
+            viewerId: userId,
+            peerId: entity.authorId,
+          );
       return beaconAuthorUpdateToGqlMap(
         entity,
         userPublicToGqlMap(
@@ -78,12 +77,11 @@ final class MutationBeaconUpdate extends GqlNodeBase {
         content: content,
       );
       final author = await _userRepository.getById(entity.authorId);
-      final friendship = userId == entity.authorId
-          ? false
-          : await _voteUserFriendshipLookup.isReciprocalSubscribe(
-              viewerId: userId,
-              peerId: entity.authorId,
-            );
+      final friendship = userId != entity.authorId &&
+          await _voteUserFriendshipLookup.isReciprocalSubscribe(
+            viewerId: userId,
+            peerId: entity.authorId,
+          );
       return beaconAuthorUpdateToGqlMap(
         entity,
         userPublicToGqlMap(

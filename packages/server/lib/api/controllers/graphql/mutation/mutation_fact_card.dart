@@ -23,7 +23,32 @@ final class MutationFactCard extends GqlNodeBase {
   final _sourceMessageId = InputFieldString(fieldName: 'sourceMessageId');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all =>
-      [beaconFactCardPin, beaconFactCardCorrect, beaconFactCardRemove];
+      [
+        beaconFactCardPin,
+        beaconFactCardCorrect,
+        beaconFactCardRemove,
+        beaconFactCardSetVisibility,
+      ];
+
+  GraphQLObjectField<dynamic, dynamic> get beaconFactCardSetVisibility =>
+      GraphQLObjectField(
+        'BeaconFactCardSetVisibility',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _factCardId.field,
+          _visibility,
+        ],
+        resolve: (_, args) {
+          final vis = args[_visibility.name]! as int;
+          return _case.setVisibility(
+            factCardId: _factCardId.fromArgsNonNullable(args),
+            beaconId: _beaconIdStr.fromArgsNonNullable(args),
+            actorUserId: getCredentials(args).sub,
+            visibility: vis,
+          );
+        },
+      );
 
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardPin =>
       GraphQLObjectField(

@@ -134,9 +134,8 @@ Steward can:
 
 ```text
 approve / reject help offers
-admit people into Room
+admit people into Room / remove people from Room
 manage Room-visible state
-pin facts
 update Room plan
 mark blockers / done / need info
 ```
@@ -162,7 +161,10 @@ see Room plan
 see private fact cards
 see detailed blockers and next moves
 use semantic actions according to permissions
+pin / edit (correct) / remove / change visibility of fact cards (public vs room-only)
 ```
+
+Fact cards: any **admitted Room member** has the same fact-card capabilities; Author/Steward have no extra fact-card powers beyond membership.
 
 ### Candidate helper
 
@@ -705,6 +707,7 @@ ActivityEvent
 │  ├─ plan_updated
 │  ├─ fact_pinned
 │  ├─ fact_corrected
+│  ├─ fact_visibility_changed
 │  ├─ blocker_opened
 │  ├─ blocker_resolved
 │  ├─ need_info_opened
@@ -970,11 +973,21 @@ Rules:
 ```text
 Public fact is visible on Beacon public surfaces.
 Private fact is visible only in Room.
-Only Author/Steward can pin public facts by default.
-Room members may pin private facts.
+Any admitted Room member may pin public or private facts.
+Duplicate pin for the same source message is rejected (one active fact per message).
 ```
 
-### Mark blocker
+### Fact card actions
+
+From the Room facts sheet (AppBar) or the message menu, admitted members can:
+
+```text
+Edit fact text (correct) — ActivityEvent(fact_corrected)
+Toggle visibility public ↔ room-only — ActivityEvent(fact_visibility_changed)
+Jump to source Room message
+Copy fact text
+Remove (unpin) fact — clears message link; server enforces one active fact per source message
+```
 
 Purpose: make an obstacle visible and actionable inside the Room.
 

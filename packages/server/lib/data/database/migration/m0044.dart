@@ -1,8 +1,8 @@
 part of '_migrations.dart';
 
-/// After m0037 dropped `comment` / `vote_comment`, [meritrank_init] still referenced
-/// them. Backfill those edges from `beacon_room_message` instead (same id/author
-/// graph shape as legacy comments; no vote_comment analogue).
+/// After m0037 dropped `comment` / `vote_comment`, the `meritrank_init`
+/// function still referenced them. Backfill those edges from `beacon_room_message`
+/// instead (same id/author graph shape as legacy comments; no vote_comment analogue).
 final m0044 = Migration('0044', [
   r'''
 CREATE OR REPLACE FUNCTION public.meritrank_init()

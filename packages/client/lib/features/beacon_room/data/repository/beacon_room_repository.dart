@@ -117,6 +117,7 @@ class BeaconRoomRepository {
               myReaction: m.myReaction,
               semanticMarker: m.semanticMarker,
               linkedBlockerId: m.linkedBlockerId,
+              linkedFactCardId: m.linkedFactCardId,
               systemPayloadJson: m.systemPayloadJson,
               attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
             );

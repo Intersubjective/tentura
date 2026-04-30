@@ -3,13 +3,13 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/room_message.dart';
@@ -22,6 +22,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/room_cubit.dart';
 import '../widget/beacon_room_you_strip.dart';
+import '../widget/fact_actions_sheet.dart';
 import '../widget/room_facts_sheet.dart';
 import '../widget/room_message_tile.dart';
 import '../widget/room_now_strip.dart';
@@ -44,11 +45,12 @@ class BeaconRoomScreen extends StatefulWidget implements AutoRouteWrapper {
           ),
         ],
         child: MultiBlocListener(
-          listeners: const [
-            BlocListener<ScreenCubit, ScreenState>(
+          listeners: [
+            const BlocListener<ScreenCubit, ScreenState>(
               listener: commonScreenBlocListener,
             ),
             BlocListener<RoomCubit, RoomState>(
+              listenWhen: (p, c) => c.status != p.status,
               listener: commonScreenBlocListener,
             ),
           ],
@@ -61,26 +63,89 @@ class BeaconRoomScreen extends StatefulWidget implements AutoRouteWrapper {
 }
 
 class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
+  final Map<String, GlobalKey> _messageKeys = {};
+
+  GlobalKey _messageKey(String id) =>
+      _messageKeys.putIfAbsent(id, GlobalKey.new);
+
+  bool _roomMessageIsCoordinationStateCard(RoomMessage message) =>
+      message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
+      message.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
+      message.semanticMarker == BeaconRoomSemanticMarker.done;
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final myProfile = GetIt.I<ProfileCubit>().state.profile;
 
-    return BlocBuilder<RoomCubit, RoomState>(
-      buildWhen: (p, c) =>
-          p.messages != c.messages ||
-          p.factCards.length != c.factCards.length ||
-          p.roomState?.currentPlan != c.roomState?.currentPlan ||
-          p.roomState?.lastRoomMeaningfulChange !=
-              c.roomState?.lastRoomMeaningfulChange ||
-          p.roomState?.openBlockerId != c.roomState?.openBlockerId ||
-          p.roomState?.openBlockerTitle != c.roomState?.openBlockerTitle ||
-          p.participants.length != c.participants.length ||
-          p.participants.map((e) => '${e.userId}|${e.nextMoveText}').join() !=
-              c.participants.map((e) => '${e.userId}|${e.nextMoveText}').join() ||
-          p.status != c.status ||
-          p.hasError != c.hasError,
-      builder: (context, state) {
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<RoomCubit, RoomState>(
+          listenWhen: (p, c) =>
+              c.scrollToMessageId != null &&
+              c.scrollToMessageId != p.scrollToMessageId,
+          listener: (ctx, state) {
+            final id = state.scrollToMessageId;
+            if (id == null) return;
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              if (!ctx.mounted) return;
+              final target = _messageKeys[id]?.currentContext;
+              if (target != null) {
+                await Scrollable.ensureVisible(
+                  target,
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOut,
+                  alignment: 0.12,
+                );
+              }
+              if (ctx.mounted) {
+                ctx.read<RoomCubit>().clearScrollToMessageTarget();
+              }
+            });
+          },
+        ),
+        BlocListener<RoomCubit, RoomState>(
+          listenWhen: (p, c) =>
+              c.pendingFactsFocusFactId != null &&
+              c.pendingFactsFocusFactId != p.pendingFactsFocusFactId,
+          listener: (ctx, state) async {
+            final fid = state.pendingFactsFocusFactId;
+            if (fid == null) return;
+            ctx.read<RoomCubit>().clearPendingFactsFocus();
+            if (!ctx.mounted) return;
+            final cub = ctx.read<RoomCubit>();
+            BeaconFactCard? focused;
+            for (final f in state.factCards) {
+              if (f.id == fid) {
+                focused = f;
+                break;
+              }
+            }
+            if (focused != null && ctx.mounted) {
+              await showFactActionsSheet(
+                ctx,
+                cubit: cub,
+                fact: focused,
+              );
+            }
+          },
+        ),
+      ],
+      child: BlocBuilder<RoomCubit, RoomState>(
+        buildWhen: (p, c) =>
+            p.messages != c.messages ||
+            p.factCards.length != c.factCards.length ||
+            p.roomState?.currentPlan != c.roomState?.currentPlan ||
+            p.roomState?.lastRoomMeaningfulChange !=
+                c.roomState?.lastRoomMeaningfulChange ||
+            p.roomState?.openBlockerId != c.roomState?.openBlockerId ||
+            p.roomState?.openBlockerTitle != c.roomState?.openBlockerTitle ||
+            p.participants.length != c.participants.length ||
+            p.participants.map((e) => '${e.userId}|${e.nextMoveText}').join() !=
+                c.participants.map((e) => '${e.userId}|${e.nextMoveText}').join() ||
+            p.status != c.status ||
+            p.hasError != c.hasError,
+        builder: (context, state) {
         final cubit = context.read<RoomCubit>();
         final err = state.status is StateHasError
             ? (state.status as StateHasError).error.toString()
@@ -113,10 +178,14 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
             title: Text(l10n.beaconRoomTitle),
             actions: [
               IconButton(
-                tooltip: l10n.beaconFactsOpenTooltip,
-                icon: const Icon(Icons.fact_check_outlined),
+                tooltip: l10n.beaconRoomFactsBrowseTooltip,
+                icon: const Icon(Icons.manage_search_outlined),
                 onPressed: () => unawaited(
-                  showRoomFactsSheet(context, facts: state.factCards),
+                  showRoomFactsSheet(
+                    context,
+                    cubit: cubit,
+                    participants: state.participants,
+                  ),
                 ),
               ),
             ],
@@ -144,19 +213,36 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                     ? Center(child: Text(err))
                     : ListView.builder(
                         itemCount: state.messages.length,
-                        itemBuilder: (context, i) => RoomMessageTile(
-                          message: state.messages[i],
-                          myProfile: myProfile,
-                          onActionsPressed: (m) =>
-                              _onMessageActionsPressed(context, cubit, l10n, m),
-                          onToggleReaction: (messageId, emoji) =>
-                              cubit.toggleReaction(
-                                messageId: messageId,
-                                emoji: emoji,
-                              ),
-                          onOpenFileAttachment: (a) =>
-                              _openRoomFileAttachment(context, cubit, l10n, a),
-                        ),
+                        itemBuilder: (context, i) {
+                          final m = state.messages[i];
+                          final pf = cubit.factForRoomMessage(m);
+                          final isCoord = _roomMessageIsCoordinationStateCard(m);
+                          return RoomMessageTile(
+                            key: _messageKey(m.id),
+                            message: m,
+                            myProfile: myProfile,
+                            onPinnedFactManage: (!isCoord && pf != null)
+                                ? () => showFactActionsSheet(
+                                      context,
+                                      cubit: cubit,
+                                      fact: pf,
+                                    )
+                                : null,
+                            onActionsPressed: (msg) => _onMessageActionsPressed(
+                              context,
+                              cubit,
+                              l10n,
+                              msg,
+                            ),
+                            onToggleReaction: (messageId, emoji) =>
+                                cubit.toggleReaction(
+                                  messageId: messageId,
+                                  emoji: emoji,
+                                ),
+                            onOpenFileAttachment: (a) =>
+                                _openRoomFileAttachment(context, cubit, l10n, a),
+                          );
+                        },
                       ),
               ),
               if (state.isLoading && state.messages.isEmpty)
@@ -183,7 +269,34 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
           ),
         );
       },
+    ),
     );
+  }
+
+  Future<void> _pinOrManageFactForMessage(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    RoomMessage message,
+    BeaconFactCard? pf,
+  ) async {
+    if (pf != null) {
+      await showFactActionsSheet(
+        context,
+        cubit: cubit,
+        fact: pf,
+      );
+      return;
+    }
+    final text = message.body.trim();
+    if (text.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.beaconRoomPinFactDisabledEmpty)),
+      );
+      return;
+    }
+    await _showPinFactChoices(context, cubit, l10n, message, text);
   }
 
   void _onMessageActionsPressed(
@@ -192,11 +305,14 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
     L10n l10n,
     RoomMessage message,
   ) {
+    final pf = cubit.factForRoomMessage(message);
+    final showFactInMenu = !_roomMessageIsCoordinationStateCard(message);
     unawaited(
       showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
-        builder: (ctx) => SafeArea(
+        builder: (ctx) {
+          return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -216,25 +332,23 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                   unawaited(_showPlanUpdateSheet(context, cubit, l10n));
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.fact_check_outlined),
-                title: Text(l10n.beaconRoomActionPinFact),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final text = message.body.trim();
-                  if (text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.beaconRoomPinFactDisabledEmpty),
+              if (showFactInMenu && pf == null)
+                ListTile(
+                  leading: const Icon(Icons.fact_check_outlined),
+                  title: Text(l10n.beaconRoomActionPinFact),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _pinOrManageFactForMessage(
+                        context,
+                        cubit,
+                        l10n,
+                        message,
+                        null,
                       ),
                     );
-                    return;
-                  }
-                  unawaited(
-                    _showPinFactChoices(context, cubit, l10n, message, text),
-                  );
-                },
-              ),
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.report_problem_outlined),
                 title: Text(l10n.beaconRoomActionMarkBlocker),
@@ -261,7 +375,8 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
               ),
             ],
           ),
-        ),
+        );
+        },
       ),
     );
   }
@@ -819,7 +934,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         return;
       }
       _text.clear();
-      setState(() => _pending.clear());
+      setState(_pending.clear);
     } on Object catch (_) {}
   }
 

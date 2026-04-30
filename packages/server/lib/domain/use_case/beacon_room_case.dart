@@ -815,6 +815,7 @@ final class BeaconRoomCase extends UseCaseBase {
       );
     }
     final position = count;
+    final attachmentId = generateId('A');
     final label = sanitizedAttachmentBaseName(uploadFilename ?? 'file');
     var mime = _normalizeAttachmentMime(uploadMimeType, label);
     final sniffedMime = inferImageMimeFromLeadingBytes(bytes);

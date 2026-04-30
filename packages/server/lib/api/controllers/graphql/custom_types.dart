@@ -53,6 +53,7 @@ final gqlTypeRoomMessageRow =
         field('createdAt', graphQLString.nonNullable()),
         field('semanticMarker', graphQLInt),
         field('linkedBlockerId', graphQLString),
+        field('linkedFactCardId', graphQLString),
         field('systemPayloadJson', graphQLString),
         field('authorTitle', graphQLString.nonNullable()),
         field('authorHasPicture', graphQLBoolean.nonNullable()),
