@@ -6291,6 +6291,7 @@ type BeaconParticipantRow {
   nextMoveStatus: Int
   nextMoveSource: Int
   linkedMessageId: String
+  lastSeenRoomAt: String
   createdAt: String!
   updatedAt: String!
 }

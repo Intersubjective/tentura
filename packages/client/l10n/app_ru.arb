@@ -2468,6 +2468,17 @@
   "beaconRoomYouStripEditNextMove": "Обновить мой следующий шаг",
   "beaconRoomYouStripMarkDoneComing": "Отметить готово — скоро",
   "beaconRoomYouStripNoParticipant": "Доступ к комнате добавит вашу строку участника здесь.",
+  "beaconRoomUnreadDividerCount": "Непрочитанные · {count}",
+  "@beaconRoomUnreadDividerCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconRoomScrollToLatestTooltip": "К последним сообщениям",
+  "beaconRoomNowExpandTooltip": "Развернуть «Сейчас»",
+  "beaconRoomNowCollapseTooltip": "Свернуть «Сейчас»",
+  "beaconRoomYouExpandTooltip": "Развернуть «Вы»",
+  "beaconRoomYouCollapseTooltip": "Свернуть «Вы»",
   "beaconActivitySectionCoordination": "Согласование в комнате",
   "beaconActivityPlanUpdated": "План обновлён",
   "beaconActivityFactPinned": "Факт закреплён",

@@ -545,6 +545,9 @@ final class BeaconRoomCase extends UseCaseBase {
             'nextMoveStatus': r.nextMoveStatus,
             'nextMoveSource': r.nextMoveSource,
             'linkedMessageId': r.linkedMessageId,
+            'lastSeenRoomAt': r.lastSeenRoomAt?.dateTime
+                .toUtc()
+                .toIso8601String(),
             'createdAt': r.createdAt.dateTime.toIso8601String(),
             'updatedAt': r.updatedAt.dateTime.toIso8601String(),
           },

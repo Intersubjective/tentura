@@ -2468,6 +2468,17 @@
   "beaconRoomYouStripEditNextMove": "Update my next step",
   "beaconRoomYouStripMarkDoneComing": "Mark done — soon",
   "beaconRoomYouStripNoParticipant": "Room access adds your participant row here.",
+  "beaconRoomUnreadDividerCount": "Unread · {count}",
+  "@beaconRoomUnreadDividerCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconRoomScrollToLatestTooltip": "Jump to latest messages",
+  "beaconRoomNowExpandTooltip": "Expand Now",
+  "beaconRoomNowCollapseTooltip": "Collapse Now",
+  "beaconRoomYouExpandTooltip": "Expand You",
+  "beaconRoomYouCollapseTooltip": "Collapse You",
   "beaconActivitySectionCoordination": "Room coordination",
   "beaconActivityPlanUpdated": "Plan updated",
   "beaconActivityFactPinned": "Fact pinned",

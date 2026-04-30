@@ -1,12 +1,11 @@
 import 'dart:async';
 
-import 'package:get_it/get_it.dart';
-
 import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/use_case/beacon_room_case.dart';
@@ -31,6 +30,8 @@ class RoomCubit extends Cubit<RoomState> {
   final BeaconRoomCase _case;
 
   late final StreamSubscription<String> _refreshSub;
+
+  bool _markSeenEmittedThisVisit = false;
 
   void _onRemoteRefresh(String id) {
     if (id == state.beaconId) {
@@ -72,6 +73,27 @@ class RoomCubit extends Cubit<RoomState> {
     emit(state.copyWith(scrollToMessageId: messageId));
   }
 
+  Future<void> markSeenNowIfNeeded() async {
+    if (_markSeenEmittedThisVisit) return;
+    try {
+      await _case.markRoomSeenIfAllowed(state.beaconId);
+      _markSeenEmittedThisVisit = true;
+      if (!isClosed) {
+        emit(state.copyWith(pendingMarkSeen: false));
+      }
+    } on Object {
+      /* non-fatal; retry on next bottom / exit */
+    }
+  }
+
+  void toggleNowCollapsed() {
+    emit(state.copyWith(nowCollapsed: !state.nowCollapsed));
+  }
+
+  void toggleYouCollapsed() {
+    emit(state.copyWith(youCollapsed: !state.youCollapsed));
+  }
+
   Future<void> load() async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
@@ -80,16 +102,29 @@ class RoomCubit extends Cubit<RoomState> {
           await _case.fetchParticipants(state.beaconId);
       final roomState = await _case.fetchBeaconRoomState(state.beaconId);
       final factCards = await _case.fetchFactCards(state.beaconId);
+
+      var anchor = state.unreadAnchorAt;
+      if (anchor == null) {
+        final myId = GetIt.I<ProfileCubit>().state.profile.id;
+        for (final p in participants) {
+          if (p.userId == myId) {
+            anchor = p.lastSeenRoomAt;
+            break;
+          }
+        }
+      }
+
       emit(
         state.copyWith(
           messages: messages,
           participants: participants,
           factCards: factCards,
           roomState: roomState,
+          unreadAnchorAt: anchor,
+          pendingMarkSeen: !_markSeenEmittedThisVisit,
           status: const StateIsSuccess(),
         ),
       );
-      unawaited(_case.markRoomSeenIfAllowed(state.beaconId));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -373,6 +408,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   @override
   Future<void> close() async {
+    await markSeenNowIfNeeded();
     await _refreshSub.cancel();
     return super.close();
   }
