@@ -145,47 +145,44 @@ class _RatingPainter extends CustomPainter {
     }
 
     // Handshake replaces eye when reciprocal subscribe (strict friendship).
-    if (isMutualFriend) {
-      final handshakeStyle = TextStyle(
-        fontSize: size.height / 2,
-        fontFamily: Icons.handshake.fontFamily,
-        package: Icons.handshake.fontPackage,
-        color: color,
-      );
-      TextPainter(
-        text: TextSpan(
-          text: String.fromCharCode(Icons.handshake.codePoint),
-          style: handshakeStyle,
-        ),
-        textDirection: TextDirection.ltr,
-      )
-        ..layout()
-        ..paint(
-          canvas,
-          Offset(size.height / 8, size.width / 1.5),
-        );
-    } else if (isSeeingMe != null) {
-      final eyeIcon = isSeeingMe!
-          ? TenturaIcons.eyeOpen
-          : TenturaIcons.eyeClosed;
-      final builder =
-          ui.ParagraphBuilder(
-              ui.ParagraphStyle(
-                fontFamily: eyeIcon.fontFamily,
-                textAlign: TextAlign.right,
-                fontSize: size.height / 2,
-                maxLines: 1,
-              ),
-            )
-            ..pushStyle(ui.TextStyle(color: color))
-            ..addText(String.fromCharCode(eyeIcon.codePoint));
-      final paragraph = builder.build()
-        ..layout(ui.ParagraphConstraints(width: size.width));
-      canvas.drawParagraph(
-        paragraph,
-        Offset(size.height / 8, size.width / 1.5),
-      );
+    final statusGlyph =
+        isMutualFriend ? Icons.handshake : _eyeGlyph(isSeeingMe);
+
+    if (statusGlyph != null) {
+      _paintBottomRightIconGlyph(canvas, size, color, statusGlyph);
     }
+  }
+
+  /// Same layout path as the original eye overlay so glyphs share one position.
+  static void _paintBottomRightIconGlyph(
+    Canvas canvas,
+    Size box,
+    Color color,
+    IconData icon,
+  ) {
+    final builder = ui.ParagraphBuilder(
+      ui.ParagraphStyle(
+        fontFamily: icon.fontFamily,
+        textAlign: TextAlign.right,
+        fontSize: box.height / 2,
+        maxLines: 1,
+      ),
+    )
+      ..pushStyle(ui.TextStyle(color: color))
+      ..addText(String.fromCharCode(icon.codePoint));
+    final paragraph = builder.build()
+      ..layout(ui.ParagraphConstraints(width: box.width));
+    canvas.drawParagraph(
+      paragraph,
+      Offset(box.height / 8, box.width / 1.5),
+    );
+  }
+
+  static IconData? _eyeGlyph(bool? isSeeingMe) {
+    if (isSeeingMe == null) {
+      return null;
+    }
+    return isSeeingMe ? TenturaIcons.eyeOpen : TenturaIcons.eyeClosed;
   }
 
   @override
