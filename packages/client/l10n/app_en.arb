@@ -2262,7 +2262,11 @@
   "beaconNeedSummaryTooLongError": "Need summary must be 280 characters or fewer.",
   "beaconSuccessCriteriaTooLongError": "Success criteria must be 240 characters or fewer.",
   "beaconSuccessCriteriaFieldLabel": "What counts as done? (optional)",
-  "beaconAddContextHint": "Add context (optional)",
+  "beaconAddContextHint": "Add description",
+  "beaconDescriptionRequired": "Description is required",
+  "@beaconDescriptionRequired": {},
+  "beaconDescriptionTooLong": "Description must be 16 characters or fewer",
+  "@beaconDescriptionTooLong": {},
   "beaconShowWithdrawn": "Show {count} withdrawn",
   "@beaconShowWithdrawn": {
     "placeholders": {

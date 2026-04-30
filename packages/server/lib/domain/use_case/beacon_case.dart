@@ -32,6 +32,17 @@ String? _trimOrNull(String? raw) {
   return t.isEmpty ? null : t;
 }
 
+String _normalizeBeaconDescription(String? raw) {
+  final t = (raw ?? '').trim();
+  if (t.isEmpty) {
+    throw const BeaconCreateException(description: 'Description is required');
+  }
+  if (t.length > kBeaconDescriptionMaxLength) {
+    throw const BeaconCreateException(description: 'Description is too long');
+  }
+  return t;
+}
+
 void _validateNeedSummaryLength(String? ns) {
   if (ns != null && ns.length > _kNeedSummaryHardMax) {
     throw const BeaconCreateException(
@@ -159,6 +170,7 @@ final class BeaconCase extends UseCaseBase {
     final normalizedIcon = _normalizeIconCode(iconCode);
     final ns = _trimOrNull(needSummary);
     final sc = _trimOrNull(successCriteria);
+    final desc = _normalizeBeaconDescription(description);
     _validateNeedSummaryLength(ns);
     _validateSuccessCriteriaLength(sc);
     if (!draft && (ns == null || ns.length < _kNeedSummaryPublishMin)) {
@@ -169,7 +181,7 @@ final class BeaconCase extends UseCaseBase {
       title: title,
       imageIds: imageIds.isEmpty ? null : imageIds,
       context: (context?.isEmpty ?? true) ? null : context,
-      description: description ?? '',
+      description: desc,
       latitude: coordinates?.lat,
       longitude: coordinates?.long,
       polling: effectivePolling == null
@@ -230,13 +242,14 @@ final class BeaconCase extends UseCaseBase {
     final normalizedIcon = _normalizeIconCode(iconCode);
     final ns = _trimOrNull(needSummary);
     final sc = _trimOrNull(successCriteria);
+    final desc = _normalizeBeaconDescription(description);
     _validateNeedSummaryLength(ns);
     _validateSuccessCriteriaLength(sc);
     final beacon = await _beaconRepository.updateDraftBeacon(
       beaconId: beaconId,
       userId: userId,
       title: title,
-      description: description ?? '',
+      description: desc,
       context: context,
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
       latitude: coordinates?.lat,
@@ -286,6 +299,7 @@ final class BeaconCase extends UseCaseBase {
     final normalizedIcon = _normalizeIconCode(iconCode);
     final ns = _trimOrNull(needSummary);
     final sc = _trimOrNull(successCriteria);
+    final desc = _normalizeBeaconDescription(description);
     _validateNeedSummaryLength(ns);
     _validateSuccessCriteriaLength(sc);
     if (ns != null &&
@@ -297,7 +311,7 @@ final class BeaconCase extends UseCaseBase {
       beaconId: beaconId,
       userId: userId,
       title: title,
-      description: description ?? '',
+      description: desc,
       context: context,
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
       latitude: coordinates?.lat,

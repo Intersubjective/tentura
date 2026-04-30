@@ -2262,7 +2262,11 @@
   "beaconNeedSummaryTooLongError": "Краткое описание потребности — не больше 280 символов.",
   "beaconSuccessCriteriaTooLongError": "Критерии готовности — не больше 240 символов.",
   "beaconSuccessCriteriaFieldLabel": "Что считать выполненным? (необязательно)",
-  "beaconAddContextHint": "Добавьте контекст (необязательно)",
+  "beaconAddContextHint": "Добавьте описание",
+  "beaconDescriptionRequired": "Описание обязательно",
+  "@beaconDescriptionRequired": {},
+  "beaconDescriptionTooLong": "Описание должно быть не длиннее 16 символов",
+  "@beaconDescriptionTooLong": {},
   "beaconShowWithdrawn": "Показать снятые ({count})",
   "@beaconShowWithdrawn": {
     "placeholders": {

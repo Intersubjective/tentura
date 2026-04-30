@@ -42,4 +42,15 @@ mixin StringInputValidator {
     }
     return null;
   }
+
+  String? beaconDescriptionValidator(L10n l10n, String? description) {
+    final t = (description ?? '').trim();
+    if (t.isEmpty) {
+      return l10n.beaconDescriptionRequired;
+    }
+    if (t.length > kBeaconDescriptionMaxLength) {
+      return l10n.beaconDescriptionTooLong;
+    }
+    return null;
+  }
 }
