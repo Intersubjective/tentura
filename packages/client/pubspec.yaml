@@ -133,6 +133,7 @@ flutter:
         - asset: fonts/tentura-icons.ttf
   assets:
     - images/placeholder/
+    - images/tentura_commit_hand_check.svg
     - images/intro.svg.vec
 
 sentry:
