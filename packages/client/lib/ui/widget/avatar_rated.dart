@@ -80,6 +80,7 @@ class AvatarRated extends StatelessWidget {
             painter: _RatingPainter(
               color: Theme.of(context).colorScheme.primary,
               isSeeingMe: profile.isSeeingMe,
+              isMutualFriend: profile.isMutualFriend,
               score: profile.score,
             ),
             child: Padding(
@@ -108,11 +109,15 @@ class _RatingPainter extends CustomPainter {
     required this.color,
     required this.score,
     required this.isSeeingMe,
+    required this.isMutualFriend,
   });
 
   final Color color;
   final double score;
   final bool? isSeeingMe;
+
+  /// Reciprocal positive `vote_user` with viewer; replaces eye when true.
+  final bool isMutualFriend;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -139,8 +144,26 @@ class _RatingPainter extends CustomPainter {
       }
     }
 
-    // An eye
-    if (isSeeingMe != null) {
+    // Handshake replaces eye when reciprocal subscribe (strict friendship).
+    if (isMutualFriend) {
+      final handshakeStyle = TextStyle(
+        fontSize: size.height / 2,
+        fontFamily: Icons.handshake.fontFamily,
+        package: Icons.handshake.fontPackage,
+        color: color,
+      );
+      final handshakeTp = TextPainter(
+        text: TextSpan(
+          text: String.fromCharCode(Icons.handshake.codePoint),
+          style: handshakeStyle,
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      handshakeTp.paint(
+        canvas,
+        Offset(size.height / 8, size.width / 1.5),
+      );
+    } else if (isSeeingMe != null) {
       final eyeIcon = isSeeingMe!
           ? TenturaIcons.eyeOpen
           : TenturaIcons.eyeClosed;
@@ -165,7 +188,11 @@ class _RatingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _RatingPainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.score != score ||
+      oldDelegate.isSeeingMe != isSeeingMe ||
+      oldDelegate.isMutualFriend != isMutualFriend;
 
   static double _degreeToRadians(double degree) => (pi / 180) * degree;
 }

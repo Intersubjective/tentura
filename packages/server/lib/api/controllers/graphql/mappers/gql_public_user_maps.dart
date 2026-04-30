@@ -38,6 +38,7 @@ Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'title': u.title,
   'description': u.description,
   'my_vote': u.myVote,
+  'is_mutual_friend': u.isMutualFriend,
   'image': u.image == null ? null : imagePublicToGqlMap(u.image!),
   'scores': mutualScoresToGqlList(u.scores),
   'user_presence': userPresenceToGqlMap(u.userPresence),

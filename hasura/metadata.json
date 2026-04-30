@@ -900,6 +900,17 @@
                   },
                   "session_argument": "hasura_session"
                 }
+              },
+              {
+                "name": "is_mutual_friend",
+                "definition": {
+                  "function": {
+                    "name": "user_get_is_mutual_friend",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "user_row"
+                }
               }
             ],
             "select_permissions": [
@@ -916,7 +927,8 @@
                     "updated_at"
                   ],
                   "computed_fields": [
-                    "my_vote"
+                    "my_vote",
+                    "is_mutual_friend"
                   ],
                   "filter": {},
                   "limit": 10

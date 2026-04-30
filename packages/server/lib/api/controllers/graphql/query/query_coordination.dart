@@ -21,9 +21,10 @@ final class QueryCoordination extends GqlNodeBase {
         GraphQLListType(gqlTypeCommitmentWithCoordinationRow.nonNullable()),
         arguments: [InputFieldId.field],
         resolve: (_, args) async {
-          getCredentials(args);
+          final jwt = getCredentials(args);
           final rows = await _coordinationCase.commitmentsWithCoordination(
             beaconId: InputFieldId.fromArgsNonNullable(args),
+            viewerId: jwt.sub,
           );
           return rows.map(commitmentWithCoordinationToGqlMap).toList();
         },

@@ -3,7 +3,10 @@ import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
-UserPublicRecord userEntityToPublicRecord(UserEntity u) {
+UserPublicRecord userEntityToPublicRecord(
+  UserEntity u, {
+  bool isMutualFriend = false,
+}) {
   ImagePublicRecord? imageRecord;
   final img = u.image;
   if (img != null) {
@@ -20,6 +23,7 @@ UserPublicRecord userEntityToPublicRecord(UserEntity u) {
     id: u.id,
     title: u.title,
     description: u.description,
+    isMutualFriend: isMutualFriend,
     image: imageRecord,
   );
 }

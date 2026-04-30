@@ -5,6 +5,7 @@ fragment UserModel on user {
   title
   description
   my_vote
+  is_mutual_friend
   image {
     ...ImageModel
   }

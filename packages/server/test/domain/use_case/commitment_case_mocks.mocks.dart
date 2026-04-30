@@ -550,9 +550,13 @@ class MockCoordinationRepositoryPort extends _i1.Mock
 
   @override
   _i4.Future<List<_i8.CommitmentWithCoordinationRow>>
-  commitmentsWithCoordination(String? beaconId) =>
+  commitmentsWithCoordination(String? beaconId, {required String? viewerId}) =>
       (super.noSuchMethod(
-            Invocation.method(#commitmentsWithCoordination, [beaconId]),
+            Invocation.method(
+              #commitmentsWithCoordination,
+              [beaconId],
+              {#viewerId: viewerId},
+            ),
             returnValue:
                 _i4.Future<List<_i8.CommitmentWithCoordinationRow>>.value(
                   <_i8.CommitmentWithCoordinationRow>[],

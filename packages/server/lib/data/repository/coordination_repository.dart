@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'vote_user_friendship_lookup.dart';
 
 @Injectable(
   as: CoordinationRepositoryPort,
@@ -16,14 +17,17 @@ import '../database/tentura_db.dart';
   order: 1,
 )
 class CoordinationRepository implements CoordinationRepositoryPort {
-  const CoordinationRepository(
+  CoordinationRepository(
     this._database,
     this._userPresenceRepository,
+    this._voteUserFriendshipLookup,
   );
 
   final TenturaDb _database;
 
   final UserPresenceRepositoryPort _userPresenceRepository;
+
+  final VoteUserFriendshipLookup _voteUserFriendshipLookup;
 
   @override
   Future<void> deleteForCommit({
@@ -41,31 +45,35 @@ class CoordinationRepository implements CoordinationRepositoryPort {
     required String commitUserId,
     required String authorUserId,
     required int responseType,
-  }) => _database.into(_database.beaconCommitmentCoordinations).insert(
-    BeaconCommitmentCoordinationsCompanion.insert(
-      commitBeaconId: beaconId,
-      commitUserId: commitUserId,
-      authorUserId: authorUserId,
-      responseType: responseType,
-    ),
-    onConflict: DoUpdate(
-      (_) => BeaconCommitmentCoordinationsCompanion(
-        authorUserId: Value(authorUserId),
-        responseType: Value(responseType),
-        updatedAt: Value(PgDateTime(DateTime.timestamp())),
-      ),
-    ),
-  );
+  }) => _database
+      .into(_database.beaconCommitmentCoordinations)
+      .insert(
+        BeaconCommitmentCoordinationsCompanion.insert(
+          commitBeaconId: beaconId,
+          commitUserId: commitUserId,
+          authorUserId: authorUserId,
+          responseType: responseType,
+        ),
+        onConflict: DoUpdate(
+          (_) => BeaconCommitmentCoordinationsCompanion(
+            authorUserId: Value(authorUserId),
+            responseType: Value(responseType),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        ),
+      );
 
   /// Per active commitment user: author response type + when it last changed + author id.
   Future<
-      Map<
-          String,
-          ({
-            int responseType,
-            DateTime responseUpdatedAt,
-            String authorUserId,
-          })>>
+    Map<
+      String,
+      ({
+        int responseType,
+        DateTime responseUpdatedAt,
+        String authorUserId,
+      })
+    >
+  >
   _coordinationByCommitUserId(String beaconId) async {
     final rows = await _database.managers.beaconCommitmentCoordinations
         .filter((e) => e.commitBeaconId.id(beaconId))
@@ -160,14 +168,20 @@ class CoordinationRepository implements CoordinationRepositoryPort {
 
   @override
   Future<List<CommitmentWithCoordinationRow>> commitmentsWithCoordination(
-    String beaconId,
-  ) async {
+    String beaconId, {
+    required String viewerId,
+  }) async {
     final rows = await _database.managers.beaconCommitments
         .filter((e) => e.beaconId.id(beaconId))
         .orderBy((e) => e.updatedAt.desc())
         .get();
 
     final coords = await _coordinationByCommitUserId(beaconId);
+    final reciprocal = await _voteUserFriendshipLookup
+        .reciprocalPositivePeerIds(
+          viewerId: viewerId,
+          peerIds: rows.map((r) => r.userId),
+        );
 
     final out = <CommitmentWithCoordinationRow>[];
     for (final row in rows) {
@@ -204,6 +218,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
         id: user.id,
         title: user.title,
         description: user.description,
+        isMutualFriend: reciprocal.contains(user.id),
         image: imageRecord,
         userPresence: userPresence,
       );
@@ -219,8 +234,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
           helpType: row.helpType,
           uncommitReason: row.uncommitReason,
           responseType: coord?.responseType,
-          responseUpdatedAt:
-              coord?.responseUpdatedAt.toUtc(),
+          responseUpdatedAt: coord?.responseUpdatedAt.toUtc(),
           responseAuthorUserId: coord?.authorUserId,
         ),
       );

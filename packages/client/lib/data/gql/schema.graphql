@@ -5837,6 +5837,11 @@ type user {
   A computed field, executes function "user_get_my_vote"
   """
   my_vote: Int
+
+  """
+  A computed field, executes function "user_get_is_mutual_friend"
+  """
+  is_mutual_friend: Boolean
   public_key: String!
 
   """
@@ -6483,6 +6488,7 @@ type v2_user {
   id: String!
   image: v2_image
   my_vote: Int
+  is_mutual_friend: Boolean!
   scores: [v2_mutual_score!]
   title: String!
   user_presence: user_presence
