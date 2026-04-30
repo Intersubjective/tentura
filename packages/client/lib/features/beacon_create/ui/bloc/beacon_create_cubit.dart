@@ -331,7 +331,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     if (t.length < kTitleMinLength || t.length > kBeaconTitleMaxLength) {
       return false;
     }
-    if (state.description.length > kDescriptionMaxLength) {
+    final d = state.description.trim();
+    if (d.isEmpty || d.length > kBeaconDescriptionMaxLength) {
       return false;
     }
     if (state.needSummary.length > kNeedSummaryHardMax) {
@@ -409,7 +410,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       tags: state.tags,
       title: _draftSafeTitle(state.title),
       coordinates: state.coordinates,
-      description: state.description,
+      description: state.description.trim(),
       needSummary: ns.isEmpty ? null : ns,
       successCriteria: sc.isEmpty ? null : sc,
       startAt: state.startAt,

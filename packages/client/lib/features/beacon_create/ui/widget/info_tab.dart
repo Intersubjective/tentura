@@ -131,12 +131,16 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 hintText: _l10n.beaconAddContextHint,
               ),
               keyboardType: TextInputType.multiline,
-              maxLength: kDescriptionMaxLength,
+              maxLength: kBeaconDescriptionMaxLength,
               maxLines: null,
               initialValue: _cubit.state.description,
-              onChanged: _cubit.setDescription,
+              onChanged: (v) {
+                _cubit
+                  ..setDescription(v)
+                  ..validate();
+              },
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) => descriptionValidator(_l10n, text),
+              validator: (text) => beaconDescriptionValidator(_l10n, text),
             ),
 
             // Context
