@@ -36,9 +36,26 @@ abstract final class BeaconRoomSemanticMarker {
   static const done = 7;
 }
 
-/// Default emoji for room message reactions (toggle via `RoomMessageReactionToggle`).
+/// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).
 abstract final class BeaconRoomMessageReaction {
-  static const defaultEmoji = '👍';
+  static const quickPickerEmojis = <String>[
+    '\u2764\uFE0F',
+    '\u{1F64F}',
+    '\u{1F91D}',
+    '\u{1F4AA}',
+    '\u{1F64C}',
+    '\u{1F60A}',
+    '\u{1F60C}',
+    '\u{1F604}',
+    '\u{1F62E}',
+    '\u{1F914}',
+    '\u{1F615}',
+    '\u{1F61F}',
+    '\u{1F622}',
+    '\u{1F620}',
+    '\u{1F62C}',
+    '\u{1F614}',
+  ];
 }
 
 /// Mirrors server [BeaconRoomMessageAttachmentKind].

@@ -4,15 +4,15 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_message_reaction_local.dart';
 
 void main() {
-  const thumb = BeaconRoomMessageReaction.defaultEmoji;
+  final thumb = BeaconRoomMessageReaction.quickPickerEmojis.first;
 
   RoomMessage baseMessage() => RoomMessage(
-        id: 'm1',
-        beaconId: 'b1',
-        authorId: 'u1',
-        body: 'hi',
-        createdAt: DateTime.utc(2026),
-      );
+    id: 'm1',
+    beaconId: 'b1',
+    authorId: 'u1',
+    body: 'hi',
+    createdAt: DateTime.utc(2026),
+  );
 
   test('add reaction: increments count and sets myReaction', () {
     final m = baseMessage();
@@ -42,13 +42,14 @@ void main() {
   });
 
   test('second emoji: myReaction comma-sorted', () {
-    const other = '❤️';
+    final other = BeaconRoomMessageReaction.quickPickerEmojis[3];
     final m = baseMessage().copyWith(
       reactionCounts: {thumb: 1},
       myReaction: thumb,
     );
     final next = toggleRoomMessageReactionLocally(m, other);
-    expect(next.myReaction, '$other,$thumb');
+    final expected = <String>[thumb, other]..sort();
+    expect(next.myReaction, expected.join(','));
     expect(next.reactionCounts[thumb], 1);
     expect(next.reactionCounts[other], 1);
   });

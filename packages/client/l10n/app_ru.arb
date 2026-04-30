@@ -2478,6 +2478,8 @@
   "beaconActivityDoneMarked": "Отмечено выполнено",
   "beaconActivityCoordinationFallback": "Обновление комнаты",
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
+  "beaconRoomReactionAddTooltip": "Добавить реакцию",
+  "beaconRoomReactionPickerSemantic": "Выбор реакции",
   "beaconRoomActionUpdatePlan": "Обновить план…",
   "beaconRoomActionPinFact": "Закрепить как факт",
   "beaconRoomActionMarkBlocker": "Пометить блокер…",

@@ -2478,6 +2478,14 @@
   "beaconActivityDoneMarked": "Marked done",
   "beaconActivityCoordinationFallback": "Room update",
   "beaconRoomMessageActionsTitle": "Message actions",
+  "beaconRoomReactionAddTooltip": "Add reaction",
+  "@beaconRoomReactionAddTooltip": {
+    "description": "Icon button tooltip to open emoji reaction picker for a room message"
+  },
+  "beaconRoomReactionPickerSemantic": "Reaction picker",
+  "@beaconRoomReactionPickerSemantic": {
+    "description": "Accessibility label for the floating emoji reaction popup"
+  },
   "beaconRoomActionUpdatePlan": "Update plan…",
   "beaconRoomActionPinFact": "Pin as fact",
   "beaconRoomActionMarkBlocker": "Mark blocker…",
