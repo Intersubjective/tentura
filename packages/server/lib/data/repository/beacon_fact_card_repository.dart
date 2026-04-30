@@ -5,6 +5,7 @@ import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
@@ -17,6 +18,23 @@ class BeaconFactCardRepository {
   final TenturaDb _db;
 
   final BeaconRoomRepository _room;
+
+  /// Fact still shown in room (active or corrected).
+  Future<BeaconFactCardEntity?> findNonRemovedBySourceMessage({
+    required String beaconId,
+    required String sourceMessageId,
+  }) async {
+    final rows = await _db.managers.beaconFactCards.filter(
+      (r) =>
+          r.beaconId.id(beaconId) &
+          r.sourceMessageId.equals(sourceMessageId) &
+          (r.status.equals(BeaconFactCardStatusBits.active) |
+              r.status.equals(BeaconFactCardStatusBits.corrected)),
+    ).get();
+    if (rows.isEmpty) return null;
+    rows.sort((a, b) => b.createdAt.dateTime.compareTo(a.createdAt.dateTime));
+    return _toEntity(rows.first);
+  }
 
   BeaconFactCardEntity _toEntity(BeaconFactCard row) => BeaconFactCardEntity(
         id: row.id,
@@ -77,6 +95,15 @@ class BeaconFactCardRepository {
         if (trimmed.isEmpty) {
           throw ArgumentError('factText');
         }
+        if (sourceMessageId != null) {
+          final smid = sourceMessageId;
+          final msg = await _db.managers.beaconRoomMessages
+              .filter((m) => m.id.equals(smid))
+              .getSingleOrNull();
+          if (msg == null || msg.beaconId != beaconId) {
+            throw ArgumentError('sourceMessageId');
+          }
+        }
         final id = generateId('F');
         final row = await _db.managers.beaconFactCards.createReturning(
           (o) => o(
@@ -127,8 +154,58 @@ class BeaconFactCardRepository {
         return _toEntity(row);
       });
 
+  Future<void> setVisibility({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required int visibility,
+  }) =>
+      _db.withMutatingUser(actorUserId, () async {
+        if (visibility != BeaconFactCardVisibilityBits.public &&
+            visibility != BeaconFactCardVisibilityBits.room) {
+          throw ArgumentError('visibility');
+        }
+        final rows = await _db.managers.beaconFactCards.filter(
+          (e) =>
+              e.id.equals(factCardId) &
+              e.beaconId.id(beaconId),
+        ).get();
+        final row = rows.singleOrNull;
+        if (row == null) {
+          throw IdNotFoundException(description: 'Fact card [$factCardId]');
+        }
+        final prevVis = row.visibility;
+        await _db.managers.beaconFactCards
+            .filter(
+              (e) =>
+                  e.id.equals(factCardId) &
+                  e.beaconId.id(beaconId),
+            )
+            .update(
+              (u) => u(
+                    visibility: Value(visibility),
+                    updatedAt: Value(PgDateTime(DateTime.timestamp())),
+                  ),
+            );
+        await _room.insertActivityEvent(
+          beaconId: beaconId,
+          visibility: visibility == BeaconFactCardVisibilityBits.public
+              ? BeaconActivityEventVisibilityBits.public
+              : BeaconActivityEventVisibilityBits.room,
+          type: BeaconActivityEventTypeBits.factVisibilityChanged,
+          actorId: actorUserId,
+          sourceMessageId: row.sourceMessageId,
+          diff: <String, Object?>{
+            'factCardId': row.id,
+            'previousVisibility': prevVis,
+            'visibility': visibility,
+          },
+        );
+      });
+
   Future<void> correct({
     required String factCardId,
+    required String beaconId,
     required String actorUserId,
     required String newText,
   }) =>
@@ -138,7 +215,11 @@ class BeaconFactCardRepository {
           throw ArgumentError('newText');
         }
         await _db.managers.beaconFactCards
-            .filter((e) => e.id.equals(factCardId))
+            .filter(
+              (e) =>
+                  e.id.equals(factCardId) &
+                  e.beaconId.id(beaconId),
+            )
             .update(
               (u) => u(
                 factText: Value(t),
@@ -150,11 +231,21 @@ class BeaconFactCardRepository {
 
   Future<void> remove({
     required String factCardId,
+    required String beaconId,
     required String actorUserId,
   }) =>
       _db.withMutatingUser(actorUserId, () async {
-        await _db.managers.beaconFactCards.filter((e) => e.id.equals(factCardId)).update(
-              (u) => u(
+        await _db.managers.beaconRoomMessages
+            .filter((m) => m.linkedFactCardId.equals(factCardId))
+            .update(
+              (u) => u(linkedFactCardId: const Value.absent()),
+            );
+        await _db.managers.beaconFactCards.filter(
+          (e) =>
+              e.id.equals(factCardId) &
+              e.beaconId.id(beaconId),
+        ).update(
+          (u) => u(
                 status: const Value(BeaconFactCardStatusBits.removed),
                 updatedAt: Value(PgDateTime(DateTime.timestamp())),
               ),

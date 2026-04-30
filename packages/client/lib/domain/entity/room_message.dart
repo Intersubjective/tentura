@@ -18,6 +18,7 @@ abstract class RoomMessage with _$RoomMessage {
     String? myReaction,
     int? semanticMarker,
     String? linkedBlockerId,
+    String? linkedFactCardId,
     String? systemPayloadJson,
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
   }) = _RoomMessage;

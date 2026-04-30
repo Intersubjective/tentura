@@ -9,6 +9,7 @@ import 'package:gql_dedupe_link/gql_dedupe_link.dart';
 import 'package:tentura_root/consts.dart';
 
 import 'auth_link.dart';
+import 'graphql_v2_exceptions.dart';
 
 typedef ClientParams = ({
   String apiEndpointUrl,
@@ -46,6 +47,21 @@ Future<Client> buildClient({
         },
         onGraphQLError: (request, forward, response) {
           log(response.errors.toString());
+          final errs = response.errors;
+          if (errs != null && errs.isNotEmpty) {
+            final ext = errs.first.extensions;
+            if (ext != null) {
+              final code = int.tryParse(ext['code']?.toString() ?? '');
+              final factId = ext['factCardId'] as String?;
+              if (code == BeaconFactAlreadyPinnedRemoteException.codeNumber &&
+                  factId != null &&
+                  factId.isNotEmpty) {
+                throw BeaconFactAlreadyPinnedRemoteException(
+                  factCardId: factId,
+                );
+              }
+            }
+          }
           throw Exception(response.errors.toString());
         },
       ),
@@ -153,6 +169,7 @@ class _V2RoutingLink extends Link {
     'BeaconFactCardPin',
     'BeaconFactCardCorrect',
     'BeaconFactCardRemove',
+    'BeaconFactCardSetVisibility',
   };
 
   @override

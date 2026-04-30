@@ -77,11 +77,15 @@ class AvatarRated extends StatelessWidget {
     dimension: size,
     child: withRating
         ? CustomPaint(
-            painter: _RatingPainter(
+            painter: _RatingArcsPainter(
               color: Theme.of(context).colorScheme.primary,
+              score: profile.score,
+            ),
+            foregroundPainter: _AvatarBadgePainter(
+              color: Theme.of(context).colorScheme.primary,
+              badgeFill: Theme.of(context).colorScheme.surface,
               isSeeingMe: profile.isSeeingMe,
               isMutualFriend: profile.isMutualFriend,
-              score: profile.score,
             ),
             child: Padding(
               padding: EdgeInsets.all(size / 8),
@@ -104,20 +108,15 @@ class AvatarRated extends StatelessWidget {
   );
 }
 
-class _RatingPainter extends CustomPainter {
-  _RatingPainter({
+class _RatingArcsPainter extends CustomPainter {
+  _RatingArcsPainter({
     required this.color,
     required this.score,
-    required this.isSeeingMe,
-    required this.isMutualFriend,
   });
 
   final Color color;
-  final double score;
-  final bool? isSeeingMe;
 
-  /// Reciprocal positive `vote_user` with viewer; replaces eye when true.
-  final bool isMutualFriend;
+  final double score;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -129,7 +128,6 @@ class _RatingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    // Rating arcs
     for (var i = 0; i < 3; i++) {
       if (score > kRatingSector * (i + 1)) {
         canvas.drawArc(
@@ -143,14 +141,90 @@ class _RatingPainter extends CustomPainter {
         break;
       }
     }
+  }
 
-    // Handshake replaces eye when reciprocal subscribe (strict friendship).
-    final statusGlyph =
-        isMutualFriend ? Icons.handshake : _eyeGlyph(isSeeingMe);
+  @override
+  bool shouldRepaint(covariant _RatingArcsPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.score != score;
 
-    if (statusGlyph != null) {
-      _paintBottomRightIconGlyph(canvas, size, color, statusGlyph);
+  static double _degreeToRadians(double degree) => (pi / 180) * degree;
+}
+
+/// Bottom-right MeritRank eye or mutual-contact badge — painted above the avatar
+/// ([CustomPaint.foregroundPainter]) so overlays are not clipped under the oval.
+class _AvatarBadgePainter extends CustomPainter {
+  _AvatarBadgePainter({
+    required this.color,
+    required this.badgeFill,
+    required this.isSeeingMe,
+    required this.isMutualFriend,
+  });
+
+  final Color color;
+
+  /// Filled disc behind mutual-contact link (matches SVG `--badge-bg`; theme surface).
+  final Color badgeFill;
+
+  final bool? isSeeingMe;
+
+  /// Reciprocal positive `vote_user` with viewer; replaces eye when true.
+  final bool isMutualFriend;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (isMutualFriend) {
+      _paintMutualContactBadge(canvas, size, color, badgeFill);
+    } else {
+      final eye = _eyeGlyph(isSeeingMe);
+      if (eye != null) {
+        _paintBottomRightIconGlyph(canvas, size, color, eye);
+      }
     }
+  }
+
+  /// Same geometry as `images/mutual_contact_badge.svg` (viewBox 0 0 24 24).
+  /// Horizontally right-aligned like [_paintBottomRightIconGlyph] (paragraph width + right align).
+  static void _paintMutualContactBadge(
+    Canvas canvas,
+    Size box,
+    Color primary,
+    Color discFill,
+  ) {
+    final slotLeft = box.height / 8;
+    final slotTop = box.width / 1.5;
+    final scale = box.height / 2 / 24;
+    final iconSize = 24 * scale;
+
+    final disc = Paint()
+      ..isAntiAlias = true
+      ..style = PaintingStyle.fill
+      ..color = discFill;
+
+    final ring = Paint()
+      ..isAntiAlias = true
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = primary.withValues(alpha: 0.16);
+
+    final link = Paint()
+      ..isAntiAlias = true
+      ..style = PaintingStyle.fill
+      ..color = primary;
+    final bar = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(7, 10.9, 10, 2.2),
+      const Radius.circular(1.1),
+    );
+
+    canvas
+      ..save()
+      ..translate(slotLeft + box.width - iconSize, slotTop)
+      ..scale(scale)
+      ..drawCircle(const Offset(12, 12), 10, disc)
+      ..drawCircle(const Offset(12, 12), 9.25, ring)
+      ..drawRRect(bar, link)
+      ..drawCircle(const Offset(7, 12), 3, link)
+      ..drawCircle(const Offset(17, 12), 3, link)
+      ..restore();
   }
 
   /// Same layout path as the original eye overlay so glyphs share one position.
@@ -186,11 +260,9 @@ class _RatingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RatingPainter oldDelegate) =>
+  bool shouldRepaint(covariant _AvatarBadgePainter oldDelegate) =>
       oldDelegate.color != color ||
-      oldDelegate.score != score ||
+      oldDelegate.badgeFill != badgeFill ||
       oldDelegate.isSeeingMe != isSeeingMe ||
       oldDelegate.isMutualFriend != isMutualFriend;
-
-  static double _degreeToRadians(double degree) => (pi / 180) * degree;
 }

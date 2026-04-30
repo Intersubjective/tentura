@@ -15,6 +15,8 @@ abstract class RoomState extends StateBase with _$RoomState {
     @Default(<BeaconFactCard>[]) List<BeaconFactCard> factCards,
     BeaconRoomState? roomState,
     @Default(StateIsSuccess()) StateStatus status,
+    String? scrollToMessageId,
+    String? pendingFactsFocusFactId,
   }) = _RoomState;
 
   const RoomState._();

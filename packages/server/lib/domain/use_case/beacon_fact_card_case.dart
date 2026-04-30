@@ -42,14 +42,16 @@ final class BeaconFactCardCase extends UseCaseBase {
     return p?.roomAccess == RoomAccessBits.admitted;
   }
 
-  Future<bool> _isAuthorOrSteward({
+  Future<void> _ensureRoomAccess({
     required String beaconId,
     required String userId,
   }) async {
-    if (await _room.isBeaconAuthor(beaconId: beaconId, userId: userId)) {
-      return true;
+    final ok = await _canUseRoom(beaconId: beaconId, userId: userId);
+    if (!ok) {
+      throw const UnauthorizedException(
+        description: 'Room access required',
+      );
     }
-    return _room.isBeaconSteward(beaconId: beaconId, userId: userId);
   }
 
   Future<Map<String, Object?>> pin({
@@ -59,20 +61,15 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String userId,
     String? sourceMessageId,
   }) async {
-    final isPub = visibility == BeaconFactCardVisibilityBits.public;
-    if (isPub) {
-      final ok =
-          await _isAuthorOrSteward(beaconId: beaconId, userId: userId);
-      if (!ok) {
-        throw const UnauthorizedException(
-          description: 'Author or steward only for public facts',
-        );
-      }
-    } else {
-      final ok = await _canUseRoom(beaconId: beaconId, userId: userId);
-      if (!ok) {
-        throw const UnauthorizedException(
-          description: 'Room access required to pin private fact',
+    await _ensureRoomAccess(beaconId: beaconId, userId: userId);
+    if (sourceMessageId != null) {
+      final dup = await _facts.findNonRemovedBySourceMessage(
+        beaconId: beaconId,
+        sourceMessageId: sourceMessageId,
+      );
+      if (dup != null) {
+        throw BeaconFactCardAlreadyPinnedException(
+          existingFactCardId: dup.id,
         );
       }
     }
@@ -83,6 +80,7 @@ final class BeaconFactCardCase extends UseCaseBase {
       pinnedBy: userId,
       sourceMessageId: sourceMessageId,
     );
+    final isPub = visibility == BeaconFactCardVisibilityBits.public;
     final recipients = isPub
         ? await _room.listAllParticipantUserIds(beaconId)
         : await _room.listAdmittedUserIds(beaconId);
@@ -103,11 +101,10 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String actorUserId,
     required String newText,
   }) async {
-    if (!await _isAuthorOrSteward(beaconId: beaconId, userId: actorUserId)) {
-      throw const UnauthorizedException(description: 'Author or steward only');
-    }
+    await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
     await _facts.correct(
       factCardId: factCardId,
+      beaconId: beaconId,
       actorUserId: actorUserId,
       newText: newText,
     );
@@ -119,10 +116,28 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String beaconId,
     required String actorUserId,
   }) async {
-    if (!await _isAuthorOrSteward(beaconId: beaconId, userId: actorUserId)) {
-      throw const UnauthorizedException(description: 'Author or steward only');
-    }
-    await _facts.remove(factCardId: factCardId, actorUserId: actorUserId);
+    await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
+    await _facts.remove(
+      factCardId: factCardId,
+      beaconId: beaconId,
+      actorUserId: actorUserId,
+    );
+    return true;
+  }
+
+  Future<bool> setVisibility({
+    required String factCardId,
+    required String beaconId,
+    required String actorUserId,
+    required int visibility,
+  }) async {
+    await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
+    await _facts.setVisibility(
+      factCardId: factCardId,
+      beaconId: beaconId,
+      actorUserId: actorUserId,
+      visibility: visibility,
+    );
     return true;
   }
 

@@ -8,6 +8,7 @@ import '../gql/_g/beacon_fact_card_list.data.gql.dart';
 import '../gql/_g/beacon_fact_card_list.req.gql.dart';
 import '../gql/_g/beacon_fact_card_pin.req.gql.dart';
 import '../gql/_g/beacon_fact_card_remove.req.gql.dart';
+import '../gql/_g/beacon_fact_card_set_visibility.req.gql.dart';
 
 @lazySingleton
 class BeaconFactCardRepository {
@@ -91,5 +92,23 @@ class BeaconFactCardRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).BeaconFactCardRemove);
+  }
+
+  Future<void> setVisibility({
+    required String beaconId,
+    required String factCardId,
+    required int visibility,
+  }) async {
+    await _remoteApiService
+        .request(
+          GBeaconFactCardSetVisibilityReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..factCardId = factCardId
+              ..visibility = visibility,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).BeaconFactCardSetVisibility);
   }
 }

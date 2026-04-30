@@ -12,4 +12,5 @@ abstract final class BeaconActivityEventTypeBits {
   static const blockerResolved = 11;
   static const needInfoOpened = 12;
   static const doneMarked = 13;
+  static const factVisibilityChanged = 14;
 }

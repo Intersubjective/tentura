@@ -2601,6 +2601,7 @@ type mutation_root {
   ): Boolean!
   BeaconFactCardCorrect(beaconId: String!, factCardId: String!, newText: String!): Boolean!
   BeaconFactCardRemove(beaconId: String!, factCardId: String!): Boolean!
+  BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
   BeaconRoomMessageMarkBlocker(
     beaconId: String!
     messageId: String!
@@ -6231,6 +6232,7 @@ type RoomMessageRow {
   createdAt: String!
   semanticMarker: Int
   linkedBlockerId: String
+  linkedFactCardId: String
   systemPayloadJson: String
   authorTitle: String!
   authorHasPicture: Boolean!

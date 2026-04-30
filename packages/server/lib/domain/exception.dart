@@ -139,6 +139,31 @@ final class BeaconNeedSummaryTooShortException extends ExceptionBase {
       );
 }
 
+/// Source message already has a non-removed fact card (race-safe guard).
+final class BeaconFactCardAlreadyPinnedException extends ExceptionBase {
+  const BeaconFactCardAlreadyPinnedException({
+    required this.existingFactCardId,
+    String? description,
+  }) : super(
+          code: const BeaconExceptionCodes(
+            BeaconExceptionCode.beaconFactCardAlreadyPinned,
+          ),
+          description: description ?? 'Fact already pinned for this message',
+        );
+
+  final String existingFactCardId;
+
+  @override
+  Map<String, Object> get toMap => {
+        'message': description,
+        'extensions': {
+          'code': '${code.codeNumber}',
+          'path': path,
+          'factCardId': existingFactCardId,
+        },
+      };
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode evaluationCode,

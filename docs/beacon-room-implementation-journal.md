@@ -72,3 +72,13 @@ Plan: see workspace plan `beacon_room_implementation_54f2f85e.plan.md` (do not e
 
 **Files touched (this slice):** `beacon_room_repository.dart` (notify-target helpers), `beacon_room_push_service.dart`, `beacon_room_case.dart`, `beacon_fact_card_case.dart`, `forward_beacon_page_test.dart`, this journal.
 
+## 2026-04-30 — Pin-as-fact overhaul + shared fact-card permissions
+
+**Decision:** Relax fact-card mutations so any **admitted Room member** can pin (public + room-only), correct, remove, and change visibility (`BeaconFactCardSetVisibility`). Duplicate pins for the same `source_message_id` are blocked in `BeaconFactCardCase` with a partial unique index in migration **`m0047`**. Client adds facts sheet filters/actions, scroll-to-message, `linked_fact_card_id` on room messages from `RoomMessageList`, and localized chips.
+
+**Rationale:** Steward/Author privilege is admission/kick/coordination—not extra fact-card powers vs other members.
+
+**Files touched:** Server `beacon_fact_card_*`, `beacon_room_repository.dart`, GraphQL mutations/types, `m0047.dart`, exception codes and client V2 error parsing. Client `beacon_room/**`, `schema.graphql`, `build_client.dart`, activity/l10n, pubspec minor bumps (`tentura` 1.23.0, `tentura_server` 0.19.0). `docs/features/beacon_room.md`.
+
+**Follow-up:** Optional QA pass on acceptance checklist; pushes for visibility-only edits if desired later.
+

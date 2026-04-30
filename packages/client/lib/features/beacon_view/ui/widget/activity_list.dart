@@ -384,6 +384,8 @@ String _coordinationTitle(BuildContext context, BeaconActivityEvent e) {
   return switch (e.type) {
     BeaconActivityEventTypeBits.planUpdated => l10n.beaconActivityPlanUpdated,
     BeaconActivityEventTypeBits.factPinned => l10n.beaconActivityFactPinned,
+    BeaconActivityEventTypeBits.factVisibilityChanged =>
+      l10n.beaconActivityFactVisibilityChanged,
     BeaconActivityEventTypeBits.blockerOpened =>
       l10n.beaconActivityBlockerOpened,
     BeaconActivityEventTypeBits.blockerResolved =>

@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/use_case/beacon_room_case.dart';
+import '../message/beacon_room_fact_messages.dart';
 import 'room_message_reaction_local.dart';
 import 'room_state.dart';
 
@@ -33,6 +36,40 @@ class RoomCubit extends Cubit<RoomState> {
     if (id == state.beaconId) {
       unawaited(load());
     }
+  }
+
+  /// Active or corrected fact originating from [message].
+  BeaconFactCard? factForRoomMessage(RoomMessage message) {
+    final lid = message.linkedFactCardId;
+    if (lid != null && lid.isNotEmpty) {
+      for (final f in state.factCards) {
+        if (f.id == lid) {
+          return f;
+        }
+      }
+    }
+    for (final f in state.factCards) {
+      if (f.sourceMessageId == message.id) {
+        return f;
+      }
+    }
+    return null;
+  }
+
+  void clearScrollToMessageTarget() {
+    if (state.scrollToMessageId != null) {
+      emit(state.copyWith(scrollToMessageId: null));
+    }
+  }
+
+  void clearPendingFactsFocus() {
+    if (state.pendingFactsFocusFactId != null) {
+      emit(state.copyWith(pendingFactsFocusFactId: null));
+    }
+  }
+
+  void requestScrollToMessage(String messageId) {
+    emit(state.copyWith(scrollToMessageId: messageId));
   }
 
   Future<void> load() async {
@@ -76,6 +113,27 @@ class RoomCubit extends Cubit<RoomState> {
     required String factText,
     required int visibility,
   }) async {
+    final existing = state.factCards.where(
+      (f) => f.sourceMessageId == sourceMessageId,
+    ).firstOrNull;
+    if (existing != null) {
+      emit(
+        state.copyWith(
+          status: StateIsMessaging(
+            BeaconFactAlreadyPinnedSnackMessage(
+              onOpenFacts: () => emit(
+                state.copyWith(
+                  pendingFactsFocusFactId: existing.id,
+                  status: const StateIsSuccess(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.pinFact(
@@ -85,6 +143,88 @@ class RoomCubit extends Cubit<RoomState> {
         sourceMessageId: sourceMessageId,
       );
       await load();
+      emit(
+        state.copyWith(
+          status: StateIsMessaging(const BeaconFactPinSuccessMessage()),
+        ),
+      );
+    } on BeaconFactAlreadyPinnedRemoteException catch (e) {
+      emit(
+        state.copyWith(
+          status: StateIsMessaging(
+            BeaconFactAlreadyPinnedSnackMessage(
+              onOpenFacts: () => emit(
+                state.copyWith(
+                  pendingFactsFocusFactId: e.factCardId,
+                  status: const StateIsSuccess(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> correctFact({
+    required String factCardId,
+    required String newText,
+  }) async {
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      await _case.correctFact(
+        beaconId: state.beaconId,
+        factCardId: factCardId,
+        newText: newText,
+      );
+      await load();
+      emit(
+        state.copyWith(
+          status: StateIsMessaging(const BeaconFactEditSuccessMessage()),
+        ),
+      );
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> removeFact({required String factCardId}) async {
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      await _case.removeFact(
+        beaconId: state.beaconId,
+        factCardId: factCardId,
+      );
+      await load();
+      emit(
+        state.copyWith(
+          status: StateIsMessaging(const BeaconFactRemoveSuccessMessage()),
+        ),
+      );
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> setFactVisibility({
+    required String factCardId,
+    required int visibility,
+  }) async {
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      await _case.setFactVisibility(
+        beaconId: state.beaconId,
+        factCardId: factCardId,
+        visibility: visibility,
+      );
+      await load();
+      emit(
+        state.copyWith(
+          status: StateIsMessaging(const BeaconFactVisibilitySuccessMessage()),
+        ),
+      );
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

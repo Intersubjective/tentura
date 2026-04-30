@@ -10,10 +10,10 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
@@ -58,12 +58,16 @@ class RoomMessageTile extends StatelessWidget {
     required this.message,
     required this.myProfile,
     required this.onToggleReaction,
+    this.onPinnedFactManage,
     this.onActionsPressed,
     this.onOpenFileAttachment,
     super.key,
   });
 
   final RoomMessage message;
+
+  /// When non-null (message already has a pinned fact), filled pin beside overflow opens fact actions.
+  final Future<void> Function()? onPinnedFactManage;
 
   /// Current user (for aligning / styling mine vs others').
   final Profile myProfile;
@@ -77,15 +81,16 @@ class RoomMessageTile extends StatelessWidget {
 
   final Future<void> Function(String messageId, String emoji) onToggleReaction;
 
-  static String _semanticShortLabel(int? marker) => switch (marker) {
-        BeaconRoomSemanticMarker.updatePlan => 'Plan',
-        BeaconRoomSemanticMarker.pinFactPublic => 'Public fact',
-        BeaconRoomSemanticMarker.pinFactPrivate => 'Room fact',
-        BeaconRoomSemanticMarker.participantStatusChanged => 'Status',
-        BeaconRoomSemanticMarker.blocker => 'Blocker',
-        BeaconRoomSemanticMarker.needInfo => 'Need info',
-        BeaconRoomSemanticMarker.done => 'Done',
-        _ => marker == null ? '' : 'System',
+  String _semanticShortLabel(L10n l10n, int? marker) => switch (marker) {
+        BeaconRoomSemanticMarker.updatePlan => l10n.beaconRoomSemanticPlan,
+        BeaconRoomSemanticMarker.pinFactPublic => l10n.beaconRoomSemanticPublicFact,
+        BeaconRoomSemanticMarker.pinFactPrivate => l10n.beaconRoomSemanticRoomFact,
+        BeaconRoomSemanticMarker.participantStatusChanged =>
+          l10n.beaconRoomSemanticParticipantStatus,
+        BeaconRoomSemanticMarker.blocker => l10n.beaconRoomSemanticBlocker,
+        BeaconRoomSemanticMarker.needInfo => l10n.beaconRoomSemanticNeedInfo,
+        BeaconRoomSemanticMarker.done => l10n.beaconRoomSemanticDone,
+        _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
       };
 
   static String _bodyForDisplay(RoomMessage message) {
@@ -165,7 +170,7 @@ class RoomMessageTile extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final isMine = message.authorId == myProfile.id;
-    final semantic = _semanticShortLabel(message.semanticMarker);
+    final semantic = _semanticShortLabel(l10n, message.semanticMarker);
     final display = _bodyForDisplay(message);
     final isStateCard = message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
         message.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
@@ -217,7 +222,7 @@ class RoomMessageTile extends StatelessWidget {
                                 ),
                         child: Padding(
                           padding: const EdgeInsets.only(right: kSpacingMedium),
-                          child: SelfAwareAvatar.small(profile: message.author),
+                          child: SelfAwarePlainMiniAvatar(profile: message.author),
                         ),
                       ),
                       Expanded(
@@ -252,6 +257,19 @@ class RoomMessageTile extends StatelessWidget {
                                     },
                                   ),
                                 ),
+                                if (onPinnedFactManage != null)
+                                  IconButton(
+                                    tooltip: l10n.beaconRoomFactManageTooltip,
+                                    icon: Icon(
+                                      Icons.push_pin,
+                                      size: 22,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: () => unawaited(
+                                      onPinnedFactManage!(),
+                                    ),
+                                  ),
                                 IconButton(
                                   tooltip:
                                       l10n.beaconRoomMessageActionsTitle,

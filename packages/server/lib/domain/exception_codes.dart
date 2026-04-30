@@ -65,6 +65,7 @@ enum BeaconExceptionCode {
   unspecifiedException,
   beaconCreateException,
   beaconNeedSummaryTooShort,
+  beaconFactCardAlreadyPinned,
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
