@@ -2569,6 +2569,12 @@ type mutation_root {
     beaconId: String!
     body: String!
     replyToMessageId: String
+    file: v2_Upload = {}
+  ): RoomMessageCreatePayload!
+  RoomMessageAttachmentAdd(
+    beaconId: String!
+    messageId: String!
+    file: v2_Upload!
   ): Boolean!
   BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
   BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
@@ -6208,6 +6214,10 @@ input uuid_comparison_exp {
   _nin: [uuid!]
 }
 
+type RoomMessageCreatePayload {
+  id: String!
+}
+
 type RoomMessageRow {
   id: String!
   beaconId: String!
@@ -6225,6 +6235,7 @@ type RoomMessageRow {
   authorImageId: String!
   reactionsJson: String
   myReaction: String
+  attachmentsJson: String!
 }
 
 type BeaconRoomStateRow {

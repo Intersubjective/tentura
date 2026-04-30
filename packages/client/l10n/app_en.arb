@@ -2507,5 +2507,23 @@
   },
   "forwardIncludePublicNote": "Include public status note in message",
   "forwardAttachFacts": "Attach public facts to message",
-  "forwardFactChipAttach": "Attach"
+  "forwardFactChipAttach": "Attach",
+  "beaconRoomAttachMenuTooltip": "Attach",
+  "beaconRoomAttachPickImages": "Photos",
+  "beaconRoomAttachPickFiles": "Files",
+  "beaconRoomAttachmentsTooMany": "You can attach up to {max} files.",
+  "@beaconRoomAttachmentsTooMany": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
+  "beaconRoomAttachmentTooLarge": "Each file must be {maxMb} MB or smaller.",
+  "@beaconRoomAttachmentTooLarge": {
+    "placeholders": {
+      "maxMb": { "type": "int" }
+    }
+  },
+  "beaconRoomAttachmentUntitled": "File",
+  "beaconRoomAttachmentOpenFailed": "Could not open attachment.",
+  "beaconRoomAttachmentOpenShare": "Share file"
 }

@@ -16,5 +16,6 @@ query RoomMessageList($beaconId: String!, $beforeIso: String) {
     authorImageId
     reactionsJson
     myReaction
+    attachmentsJson
   }
 }

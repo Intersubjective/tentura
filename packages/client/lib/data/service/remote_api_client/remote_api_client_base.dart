@@ -1,6 +1,13 @@
 import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:meta/meta.dart';
 import 'package:ferry/ferry.dart' show OperationRequest, OperationResponse;
+import 'package:http/http.dart' as http;
+
+import 'package:tentura_root/consts.dart';
+
+import 'package:tentura/domain/exception/server_exception.dart';
 
 import 'auth_box.dart';
 import 'credentials.dart';
@@ -108,6 +115,25 @@ abstract base class RemoteApiClientBase {
         _tokenLocked = false;
       }
     }
+  }
+
+  /// Authenticated GET (e.g. private room attachment binary download).
+  Future<Uint8List> fetchAuthenticatedBytes(Uri uri) async {
+    final token = (await getAuthToken()).accessToken;
+    final response = await http
+        .get(
+          uri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            kHeaderUserAgent: userAgent,
+            kHeaderAccept: '*/*',
+          },
+        )
+        .timeout(requestTimeout);
+    if (response.statusCode != 200) {
+      throw const ServerUnknownException();
+    }
+    return response.bodyBytes;
   }
 
   //

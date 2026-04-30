@@ -26,6 +26,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeEvaluationSummary,
   gqlTypeCoordinationStatusResult,
   gqlTypeCommitmentWithCoordinationRow,
+  gqlTypeRoomMessageCreatePayload,
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
   gqlTypeBeaconParticipantRow,
@@ -33,6 +34,13 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconActivityEventRow,
   gqlTypeInboxRoomContextRow,
 ];
+
+/// Payload returned by `RoomMessageCreate`.
+final gqlTypeRoomMessageCreatePayload =
+    GraphQLObjectType('RoomMessageCreatePayload', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+      ]);
 
 /// V2 room chat message row (minimal projection).
 final gqlTypeRoomMessageRow =
@@ -54,6 +62,7 @@ final gqlTypeRoomMessageRow =
         field('authorImageId', graphQLString.nonNullable()),
         field('reactionsJson', graphQLString),
         field('myReaction', graphQLString),
+        field('attachmentsJson', graphQLString.nonNullable()),
       ]);
 
 /// `beacon_room_state` row — one per beacon.

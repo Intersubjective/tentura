@@ -16,6 +16,8 @@ class BeaconRoomMessageAttachments extends Table {
 
   late final fileUrl = text().nullable()();
 
+  late final fileName = text().withDefault(const Constant(''))();
+
   late final mime = text().withDefault(const Constant('application/octet-stream'))();
 
   late final sizeBytes = integer().withDefault(const Constant(0))();

@@ -135,6 +135,74 @@ class BeaconRoomRepository {
       return jsonEncode(raw);
     }
 
+    final attachmentRows = await (_db.select(_db.beaconRoomMessageAttachments)
+          ..where((a) => a.messageId.isIn(ids))
+          ..orderBy([
+            (a) => OrderingTerm(expression: a.position),
+          ]))
+        .get();
+
+    final attachmentsByMessageId =
+        <String, List<BeaconRoomMessageAttachment>>{};
+    for (final row in attachmentRows) {
+      attachmentsByMessageId.putIfAbsent(row.messageId, () => []).add(row);
+    }
+
+    final attachmentImageUuidList = <UuidValue>[
+      for (final row in attachmentRows)
+        if (row.kind == BeaconRoomMessageAttachmentKind.image &&
+            row.imageId != null)
+          row.imageId!,
+    ];
+
+    final attachmentImageByUuid = <UuidValue, Image>{};
+    if (attachmentImageUuidList.isNotEmpty) {
+      final aimgs =
+          await _db.managers.images
+              .filter((i) => i.id.isIn(attachmentImageUuidList))
+              .get();
+      for (final img in aimgs) {
+        attachmentImageByUuid[img.id] = img;
+      }
+    }
+
+    String attachmentsJsonFor(String messageId) {
+      final rows = attachmentsByMessageId[messageId];
+      if (rows == null || rows.isEmpty) {
+        return '[]';
+      }
+      final items = <Map<String, Object?>>[];
+      for (final row in rows) {
+        if (row.kind == BeaconRoomMessageAttachmentKind.image &&
+            row.imageId != null) {
+          final img = attachmentImageByUuid[row.imageId!];
+          items.add({
+            'id': row.id,
+            'kind': row.kind,
+            'position': row.position,
+            'mime': row.mime,
+            'sizeBytes': row.sizeBytes,
+            'fileName': row.fileName,
+            'imageId': img?.id.uuid ?? '',
+            'imageAuthorId': img?.authorId ?? '',
+            'blurHash': img?.hash ?? '',
+            'width': img?.width ?? 0,
+            'height': img?.height ?? 0,
+          });
+        } else {
+          items.add({
+            'id': row.id,
+            'kind': row.kind,
+            'position': row.position,
+            'mime': row.mime,
+            'sizeBytes': row.sizeBytes,
+            'fileName': row.fileName,
+          });
+        }
+      }
+      return jsonEncode(items);
+    }
+
     return msgs.map((m) {
       final id = m.id;
       final userRow = userById[m.authorId];
@@ -164,6 +232,7 @@ class BeaconRoomRepository {
         'authorImageId': authorImageId,
         'reactionsJson': reactionsJsonFor(id),
         'myReaction': myReactionFor(id),
+        'attachmentsJson': attachmentsJsonFor(id),
       };
     }).toList();
   }
@@ -790,4 +859,68 @@ class BeaconRoomRepository {
         .get();
     return rows.length;
   }
+
+  Future<int> countAttachmentsForMessage(String messageId) async {
+    final rows = await (_db.select(_db.beaconRoomMessageAttachments)
+          ..where((a) => a.messageId.equals(messageId)))
+        .get();
+    return rows.length;
+  }
+
+  Future<BeaconRoomMessageAttachment?> getRoomMessageAttachmentById(
+    String attachmentId,
+  ) =>
+      (_db.select(_db.beaconRoomMessageAttachments)
+            ..where((a) => a.id.equals(attachmentId)))
+          .getSingleOrNull();
+
+  Future<void> insertRoomMessageAttachmentImage({
+    required String attachmentId,
+    required String messageId,
+    required int position,
+    required String imageId,
+    required String mime,
+    required int sizeBytes,
+    required String displayName,
+    required String mutatingUserId,
+  }) =>
+      _db.withMutatingUser(mutatingUserId, () async {
+        await _db.into(_db.beaconRoomMessageAttachments).insert(
+              BeaconRoomMessageAttachmentsCompanion.insert(
+                id: attachmentId,
+                messageId: messageId,
+                kind: BeaconRoomMessageAttachmentKind.image,
+                imageId: Value(UuidValue.fromString(imageId)),
+                fileName: Value(displayName),
+                mime: Value(mime),
+                sizeBytes: Value(sizeBytes),
+                position: Value(position),
+              ),
+            );
+      });
+
+  Future<void> insertRoomMessageAttachmentFile({
+    required String attachmentId,
+    required String messageId,
+    required int position,
+    required String storagePath,
+    required String mime,
+    required int sizeBytes,
+    required String displayName,
+    required String mutatingUserId,
+  }) =>
+      _db.withMutatingUser(mutatingUserId, () async {
+        await _db.into(_db.beaconRoomMessageAttachments).insert(
+              BeaconRoomMessageAttachmentsCompanion.insert(
+                id: attachmentId,
+                messageId: messageId,
+                kind: BeaconRoomMessageAttachmentKind.file,
+                fileUrl: Value(storagePath),
+                fileName: Value(displayName),
+                mime: Value(mime),
+                sizeBytes: Value(sizeBytes),
+                position: Value(position),
+              ),
+            );
+      });
 }

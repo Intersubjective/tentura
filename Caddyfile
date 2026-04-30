@@ -10,7 +10,7 @@
 	tls {$ACME_EMAIL}
 
 	request_body {
-		max_size {$CLIENT_MAX_BODY_SIZE:1MB}
+		max_size {$CLIENT_MAX_BODY_SIZE:12MB}
 	}
 
 	encode gzip
@@ -36,6 +36,16 @@
 		}
 	}
 	handle /api/v2/ws {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	# Tentura: authenticated room attachment downloads (not Hasura)
+	handle /api/v2/room-attachments/* {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
 			transport http {
 				read_timeout 1h

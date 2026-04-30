@@ -41,6 +41,18 @@ abstract final class BeaconRoomMessageReaction {
   static const defaultEmoji = '👍';
 }
 
+/// Mirrors server [BeaconRoomMessageAttachmentKind].
+abstract final class BeaconRoomMessageAttachmentKind {
+  static const image = 1;
+  static const file = 2;
+}
+
+/// Mirrors server [kMaxRoomMessageAttachments].
+const kMaxRoomMessageAttachments = 10;
+
+/// Mirrors server [kMaxRoomMessageAttachmentBytes] (10 MiB).
+const kMaxRoomMessageAttachmentBytes = 10 * 1024 * 1024;
+
 abstract final class BeaconParticipantStatusBits {
   static const watching = 0;
   static const offeredHelp = 1;

@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/use_case/beacon_room_case.dart';
@@ -110,20 +112,29 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> sendMessage(String body) async {
+  Future<void> sendMessage({
+    required String body,
+    List<RoomPendingUpload> uploads = const [],
+  }) async {
     final trimmed = body.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty && uploads.isEmpty) {
+      return;
+    }
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.createMessage(
         beaconId: state.beaconId,
         body: trimmed,
+        uploads: uploads,
       );
       await load();
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
+
+  Future<Uint8List> downloadRoomAttachment(String attachmentId) =>
+      _case.downloadRoomAttachment(attachmentId);
 
   Future<void> toggleReaction({
     required String messageId,

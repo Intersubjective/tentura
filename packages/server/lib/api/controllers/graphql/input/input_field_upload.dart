@@ -7,6 +7,12 @@ abstract class InputFieldUpload {
     defaultValue: <String, dynamic>{},
   );
 
+  static final fieldNullable = GraphQLFieldInput(
+    _fieldKey,
+    type,
+    defaultsToNull: true,
+  );
+
   static final fieldImage = GraphQLFieldInput(
     _fieldImageKey,
     type,
@@ -23,6 +29,17 @@ abstract class InputFieldUpload {
 
   static Stream<Uint8List>? fromArgs(Map<String, dynamic> args) =>
       args[kGlobalInputQueryFile] as Stream<Uint8List>?;
+
+  /// Variable map entry for the multipart `file` input (`filename`, `type`).
+  static Map<String, dynamic>? uploadVariablesFromArgs(
+    Map<String, dynamic> args,
+  ) {
+    final v = args[_fieldKey];
+    if (v is Map<String, dynamic>) {
+      return v;
+    }
+    return null;
+  }
 
   static const _fieldKey = 'file';
 

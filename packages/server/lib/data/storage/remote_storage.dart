@@ -33,18 +33,22 @@ class RemoteStorage {
     return buffer.takeBytes();
   }
 
-  Future<String> putObject(String path, Stream<Uint8List> bytes) =>
+  Future<String> putObject(
+    String path,
+    Stream<Uint8List> bytes, {
+    Map<String, String>? metadata,
+  }) =>
       _remoteStorage.putObject(
         env.kS3Bucket,
         path,
         bytes,
-        metadata: _putObjectMetadata,
+        metadata: metadata ?? _jpegPutObjectMetadata,
       );
 
   Future<void> removeObject(String path) =>
       _remoteStorage.removeObject(env.kS3Bucket, path);
 
-  Map<String, String> get _putObjectMetadata => {
+  Map<String, String> get _jpegPutObjectMetadata => {
     kHeaderContentType: kContentTypeJpeg,
     if (env.kS3PutObjectAclValue != null)
       'x-amz-acl': env.kS3PutObjectAclValue!,

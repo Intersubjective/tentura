@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:http/http.dart' show MultipartFile;
+import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -10,6 +14,8 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
 import '../gql/_g/beacon_participant_room_seen.req.gql.dart';
@@ -19,6 +25,7 @@ import '../gql/_g/beacon_room_admit.req.gql.dart';
 import '../gql/_g/beacon_room_state_get.req.gql.dart';
 import '../gql/_g/beacon_room_state_plan_update.req.gql.dart';
 import '../gql/_g/beacon_steward_promote.req.gql.dart';
+import '../gql/_g/room_message_attachment_add.req.gql.dart';
 import '../gql/_g/room_message_create.req.gql.dart';
 import '../gql/_g/room_message_list.req.gql.dart';
 import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
@@ -111,6 +118,7 @@ class BeaconRoomRepository {
               semanticMarker: m.semanticMarker,
               linkedBlockerId: m.linkedBlockerId,
               systemPayloadJson: m.systemPayloadJson,
+              attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
             );
           },
         )
@@ -206,22 +214,62 @@ class BeaconRoomRepository {
         .toList();
   }
 
-  Future<bool> createMessage({
+  Future<String> createMessage({
     required String beaconId,
     required String body,
     String? replyToMessageId,
-  }) async =>
-      _remoteApiService
-          .request(
-            GRoomMessageCreateReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..body = body
-                ..replyToMessageId = replyToMessageId,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).RoomMessageCreate);
+    RoomPendingUpload? firstAttachment,
+  }) async {
+    final multipart = firstAttachment == null
+        ? null
+        : MultipartFile.fromBytes(
+            'file',
+            firstAttachment.bytes,
+            contentType: MediaType.parse(firstAttachment.mimeType),
+            filename: firstAttachment.fileName,
+          );
+    final r = await _remoteApiService
+        .request(
+          GRoomMessageCreateReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..body = body
+              ..replyToMessageId = replyToMessageId
+              ..file = multipart,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    return r.dataOrThrow(label: _label).RoomMessageCreate.id;
+  }
+
+  Future<void> addMessageAttachment({
+    required String beaconId,
+    required String messageId,
+    required RoomPendingUpload upload,
+  }) async {
+    final file = MultipartFile.fromBytes(
+      'file',
+      upload.bytes,
+      contentType: MediaType.parse(upload.mimeType),
+      filename: upload.fileName,
+    );
+    await _remoteApiService
+        .request(
+          GRoomMessageAttachmentAddReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..messageId = messageId
+              ..file = file,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).RoomMessageAttachmentAdd);
+  }
+
+  Future<Uint8List> downloadRoomAttachmentBytes(String attachmentId) =>
+      _remoteApiService.fetchAuthenticatedBytes(
+        Uri.parse('$kServerName$kPathRoomAttachmentDownload/$attachmentId'),
+      );
 
   Future<bool> participantOfferHelp({
     required String beaconId,

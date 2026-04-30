@@ -44,6 +44,10 @@ targets:
               name: MultipartFile
               import: 'package:http/http.dart'
 
+            v2_Upload:
+              name: MultipartFile
+              import: 'package:http/http.dart'
+
             smallint:
               name: int
 
@@ -67,6 +71,10 @@ targets:
               name: DateTime
 
             Upload:
+              name: MultipartFile
+              import: 'package:http/http.dart'
+
+            v2_Upload:
               name: MultipartFile
               import: 'package:http/http.dart'
 
