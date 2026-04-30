@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -66,7 +67,14 @@ class CardTriageActionRow extends StatelessWidget {
       onPressed: () async {
         await onCommit?.call();
       },
-      icon: const Icon(Icons.handshake, size: 20),
+      icon: SvgPicture.asset(
+        'images/tentura_commit_hand_check.svg',
+        width: 20,
+        height: 20,
+        theme: SvgTheme(currentColor: scheme.onPrimary),
+        colorMapper: _CommitIconColorMapper(scheme.primary),
+        excludeFromSemantics: true,
+      ),
       label: Text(
         l10n.labelCommit,
         maxLines: 1,
@@ -159,4 +167,20 @@ class CardTriageActionRow extends StatelessWidget {
       ],
     );
   }
+}
+
+class _CommitIconColorMapper extends ColorMapper {
+  const _CommitIconColorMapper(this.badgeForeground);
+
+  static const _badgeForegroundMarker = Color(0xFF000001);
+
+  final Color badgeForeground;
+
+  @override
+  Color substitute(
+    String? id,
+    String elementName,
+    String attributeName,
+    Color color,
+  ) => color == _badgeForegroundMarker ? badgeForeground : color;
 }
