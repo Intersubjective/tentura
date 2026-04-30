@@ -118,6 +118,7 @@ class InboxItemTile extends StatelessWidget {
     };
 
     return BeaconCardShell(
+      onTap: onOpenBeacon,
       footer: showCtaRow
           ? InboxCardActionRow(
               onCommit: onCommit,
@@ -134,7 +135,6 @@ class InboxItemTile extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: beacon,
-            onTitleBlockTap: onOpenBeacon,
             menu: BeaconOverflowMenu(
               beacon: beacon,
               onOpenBeacon: onOpenBeacon,
