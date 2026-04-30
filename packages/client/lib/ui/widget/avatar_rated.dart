@@ -152,17 +152,18 @@ class _RatingPainter extends CustomPainter {
         package: Icons.handshake.fontPackage,
         color: color,
       );
-      final handshakeTp = TextPainter(
+      TextPainter(
         text: TextSpan(
           text: String.fromCharCode(Icons.handshake.codePoint),
           style: handshakeStyle,
         ),
         textDirection: TextDirection.ltr,
-      )..layout();
-      handshakeTp.paint(
-        canvas,
-        Offset(size.height / 8, size.width / 1.5),
-      );
+      )
+        ..layout()
+        ..paint(
+          canvas,
+          Offset(size.height / 8, size.width / 1.5),
+        );
     } else if (isSeeingMe != null) {
       final eyeIcon = isSeeingMe!
           ? TenturaIcons.eyeOpen

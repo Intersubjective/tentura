@@ -62,8 +62,6 @@ void main() {
   test('non-author without commitment cannot open room', () {
     final notCommitted = BeaconViewState(
       beacon: beacon,
-      commitments: const [],
-      isCommitted: false,
       myProfile: me,
     );
     expect(notCommitted.canNavigateBeaconRoom, isFalse);

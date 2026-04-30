@@ -21,25 +21,25 @@ class VoteUserFriendshipLookup {
     if (candidates.isEmpty) {
       return {};
     }
-    final forward = await _database.managers.voteUsers
-        .filter(
-          (v) =>
-              v.subject.equals(viewerId) &
-              v.amount.isBiggerThanValue(0) &
-              v.object.isIn(candidates),
-        )
+    final forward = await (_database.select(_database.voteUsers)
+          ..where(
+            (v) =>
+                v.subject.equals(viewerId) &
+                v.amount.isBiggerThanValue(0) &
+                v.object.isIn(candidates),
+          ))
         .get();
     if (forward.isEmpty) {
       return {};
     }
     final forwardPeers = forward.map((r) => r.object).toSet();
-    final reverse = await _database.managers.voteUsers
-        .filter(
-          (v) =>
-              v.subject.isIn(forwardPeers) &
-              v.object.equals(viewerId) &
-              v.amount.isBiggerThanValue(0),
-        )
+    final reverse = await (_database.select(_database.voteUsers)
+          ..where(
+            (v) =>
+                v.subject.isIn(forwardPeers) &
+                v.object.equals(viewerId) &
+                v.amount.isBiggerThanValue(0),
+          ))
         .get();
     return reverse.map((r) => r.subject).toSet();
   }

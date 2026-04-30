@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:tentura/consts.dart';
@@ -154,9 +152,8 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                                 messageId: messageId,
                                 emoji: emoji,
                               ),
-                          onOpenFileAttachment: (a) => unawaited(
-                            _openRoomFileAttachment(context, cubit, l10n, a),
-                          ),
+                          onOpenFileAttachment: (a) =>
+                              _openRoomFileAttachment(context, cubit, l10n, a),
                         ),
                       ),
               ),
@@ -571,13 +568,17 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
       final name = attachment.fileName.trim().isEmpty
           ? 'file'
           : attachment.fileName.trim();
-      await Share.shareXFiles([
-        XFile.fromData(
-          bytes,
-          name: name,
-          mimeType: attachment.mime,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              bytes,
+              name: name,
+              mimeType: attachment.mime,
+            ),
+          ],
         ),
-      ]);
+      );
     } on Object catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -698,7 +699,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     if (bytes.length <= kMaxRoomMessageAttachmentBytes) {
       return true;
     }
-    final mb = kMaxRoomMessageAttachmentBytes ~/ (1024 * 1024);
+    const mb = kMaxRoomMessageAttachmentBytes ~/ (1024 * 1024);
     _snack(L10n.of(context)!.beaconRoomAttachmentTooLarge(mb));
     return false;
   }
@@ -812,7 +813,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         return;
       }
       _text.clear();
-      setState(() => _pending.clear());
+      setState(_pending.clear);
     } on Object catch (_) {}
   }
 

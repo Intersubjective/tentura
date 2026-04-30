@@ -29,7 +29,7 @@ abstract class RoomMessageAttachment with _$RoomMessageAttachment {
   bool get isFile => kind == BeaconRoomMessageAttachmentKind.file;
 }
 
-/// Parses [RoomMessageRow.attachmentsJson] from the server (ordered list).
+/// Parses attachments JSON from the server (ordered list).
 List<RoomMessageAttachment> parseRoomMessageAttachmentsJson(String raw) {
   if (raw.trim().isEmpty) {
     return const [];
