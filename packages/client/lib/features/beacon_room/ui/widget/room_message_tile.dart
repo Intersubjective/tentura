@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_reaction_picker.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -40,21 +41,21 @@ class RoomMessageTile extends StatelessWidget {
 
   /// Member-only file attachments (download + share flow).
   final Future<void> Function(RoomMessageAttachment attachment)?
-      onOpenFileAttachment;
+  onOpenFileAttachment;
 
   final Future<void> Function(String messageId, String emoji) onToggleReaction;
 
   String _semanticShortLabel(L10n l10n, int? marker) => switch (marker) {
-        BeaconRoomSemanticMarker.updatePlan => l10n.beaconRoomSemanticPlan,
-        BeaconRoomSemanticMarker.pinFactPublic => l10n.beaconRoomSemanticPublicFact,
-        BeaconRoomSemanticMarker.pinFactPrivate => l10n.beaconRoomSemanticRoomFact,
-        BeaconRoomSemanticMarker.participantStatusChanged =>
-          l10n.beaconRoomSemanticParticipantStatus,
-        BeaconRoomSemanticMarker.blocker => l10n.beaconRoomSemanticBlocker,
-        BeaconRoomSemanticMarker.needInfo => l10n.beaconRoomSemanticNeedInfo,
-        BeaconRoomSemanticMarker.done => l10n.beaconRoomSemanticDone,
-        _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
-      };
+    BeaconRoomSemanticMarker.updatePlan => l10n.beaconRoomSemanticPlan,
+    BeaconRoomSemanticMarker.pinFactPublic => l10n.beaconRoomSemanticPublicFact,
+    BeaconRoomSemanticMarker.pinFactPrivate => l10n.beaconRoomSemanticRoomFact,
+    BeaconRoomSemanticMarker.participantStatusChanged =>
+      l10n.beaconRoomSemanticParticipantStatus,
+    BeaconRoomSemanticMarker.blocker => l10n.beaconRoomSemanticBlocker,
+    BeaconRoomSemanticMarker.needInfo => l10n.beaconRoomSemanticNeedInfo,
+    BeaconRoomSemanticMarker.done => l10n.beaconRoomSemanticDone,
+    _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
+  };
 
   static String _bodyForDisplay(RoomMessage message) {
     final raw = message.body.trim();
@@ -74,14 +75,25 @@ class RoomMessageTile extends StatelessWidget {
     return '';
   }
 
-  static bool _viewerReactedWith(RoomMessage m, String emoji) {
+  static Set<String> _viewerReactionEmojiSet(RoomMessage m) {
     final raw = m.myReaction;
-    if (raw == null || raw.isEmpty) return false;
-    return raw.split(',').map((s) => s.trim()).contains(emoji);
+    if (raw == null || raw.trim().isEmpty) return {};
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet();
   }
 
-  static int _emojiCount(RoomMessage m, String emoji) =>
-      m.reactionCounts[emoji] ?? 0;
+  static List<MapEntry<String, int>> _sortedReactionEntries(RoomMessage m) {
+    final entries = m.reactionCounts.entries.toList()
+      ..sort((a, b) {
+        final countCmp = -a.value.compareTo(b.value);
+        if (countCmp != 0) return countCmp;
+        return a.key.compareTo(b.key);
+      });
+    return entries;
+  }
 
   static String _formatAttachmentSize(int bytes) =>
       formatRoomAttachmentSize(bytes);
@@ -93,16 +105,12 @@ class RoomMessageTile extends StatelessWidget {
     final isMine = message.authorId == myProfile.id;
     final semantic = _semanticShortLabel(l10n, message.semanticMarker);
     final display = _bodyForDisplay(message);
-    final isStateCard = message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
+    final isStateCard =
+        message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
         message.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
         message.semanticMarker == BeaconRoomSemanticMarker.done;
 
-    final reacted = _viewerReactedWith(
-      message,
-      BeaconRoomMessageReaction.defaultEmoji,
-    );
-    final thumbCount =
-        _emojiCount(message, BeaconRoomMessageReaction.defaultEmoji);
+    final viewerReactions = _viewerReactionEmojiSet(message);
 
     final imageAttachments = message.attachments
         .where((a) => a.isImage && a.imageId.isNotEmpty)
@@ -139,11 +147,13 @@ class RoomMessageTile extends StatelessWidget {
                         onTap: isMine
                             ? null
                             : () => context.read<ScreenCubit>().showProfile(
-                                  message.author.id,
-                                ),
+                                message.author.id,
+                              ),
                         child: Padding(
                           padding: const EdgeInsets.only(right: kSpacingMedium),
-                          child: SelfAwarePlainMiniAvatar(profile: message.author),
+                          child: SelfAwarePlainMiniAvatar(
+                            profile: message.author,
+                          ),
                         ),
                       ),
                       Expanded(
@@ -154,29 +164,30 @@ class RoomMessageTile extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
-                                  child: BlocBuilder<ProfileCubit, ProfileState>(
-                                    buildWhen: (p, c) =>
-                                        p.profile.id != c.profile.id,
-                                    builder: (context, state) {
-                                      final isSelf =
-                                          SelfUserHighlight.profileIsSelf(
-                                        message.author,
-                                        state.profile.id,
-                                      );
-                                      return Text(
-                                        SelfUserHighlight.displayName(
-                                          l10n,
-                                          message.author,
-                                          state.profile.id,
-                                        ),
-                                        style: SelfUserHighlight.nameStyle(
-                                          theme,
-                                          theme.textTheme.headlineMedium,
-                                          isSelf,
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                  child:
+                                      BlocBuilder<ProfileCubit, ProfileState>(
+                                        buildWhen: (p, c) =>
+                                            p.profile.id != c.profile.id,
+                                        builder: (context, state) {
+                                          final isSelf =
+                                              SelfUserHighlight.profileIsSelf(
+                                                message.author,
+                                                state.profile.id,
+                                              );
+                                          return Text(
+                                            SelfUserHighlight.displayName(
+                                              l10n,
+                                              message.author,
+                                              state.profile.id,
+                                            ),
+                                            style: SelfUserHighlight.nameStyle(
+                                              theme,
+                                              theme.textTheme.headlineMedium,
+                                              isSelf,
+                                            ),
+                                          );
+                                        },
+                                      ),
                                 ),
                                 if (onPinnedFactManage != null)
                                   IconButton(
@@ -192,8 +203,7 @@ class RoomMessageTile extends StatelessWidget {
                                     ),
                                   ),
                                 IconButton(
-                                  tooltip:
-                                      l10n.beaconRoomMessageActionsTitle,
+                                  tooltip: l10n.beaconRoomMessageActionsTitle,
                                   icon: const Icon(Icons.more_vert),
                                   onPressed: onActionsPressed == null
                                       ? null
@@ -245,22 +255,17 @@ class RoomMessageTile extends StatelessWidget {
                                         ),
                                         label: Text(
                                           [
-                                            if (a.fileName
-                                                .trim()
-                                                .isNotEmpty)
+                                            if (a.fileName.trim().isNotEmpty)
                                               a.fileName
                                             else
-                                              l10n
-                                                  .beaconRoomAttachmentUntitled,
+                                              l10n.beaconRoomAttachmentUntitled,
                                             if (_formatAttachmentSize(
-                                                  a.sizeBytes,
-                                                )
-                                                .isNotEmpty)
+                                              a.sizeBytes,
+                                            ).isNotEmpty)
                                               ' · ${_formatAttachmentSize(a.sizeBytes)}',
                                           ].join(),
                                         ),
-                                        onPressed:
-                                            onOpenFileAttachment == null
+                                        onPressed: onOpenFileAttachment == null
                                             ? null
                                             : () => unawaited(
                                                 onOpenFileAttachment!(a),
@@ -277,43 +282,135 @@ class RoomMessageTile extends StatelessWidget {
                   Padding(
                     padding: kPaddingSmallV,
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _formatTime(message.createdAt),
-                          style: theme.textTheme.labelSmall,
-                        ),
-                        const Spacer(),
-                        InkWell(
-                          onTap: () => unawaited(
-                            onToggleReaction(
-                              message.id,
-                              BeaconRoomMessageReaction.defaultEmoji,
-                            ),
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Padding(
-                            padding: kPaddingSmallH,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Wrap(
+                              spacing: kSpacingSmall,
+                              runSpacing: kSpacingSmall / 2,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                Text(
-                                  BeaconRoomMessageReaction.defaultEmoji,
-                                  style:
-                                      theme.textTheme.titleMedium?.copyWith(
-                                    color: reacted
-                                        ? theme.colorScheme.primary
-                                        : null,
+                                for (final entry in _sortedReactionEntries(
+                                  message,
+                                ))
+                                  InkWell(
+                                    key: ValueKey(
+                                      '${message.id}-re-${entry.key}',
+                                    ),
+                                    onTap: () => unawaited(
+                                      onToggleReaction(
+                                        message.id,
+                                        entry.key,
+                                      ),
+                                    ),
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: Padding(
+                                      padding: kPaddingSmallH.add(
+                                        const EdgeInsets.symmetric(
+                                          vertical: 6,
+                                        ),
+                                      ),
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color:
+                                              viewerReactions.contains(
+                                                entry.key,
+                                              )
+                                              ? theme
+                                                    .colorScheme
+                                                    .primaryContainer
+                                              : theme
+                                                    .colorScheme
+                                                    .surfaceContainerHighest
+                                                    .withValues(alpha: 0.75),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          border:
+                                              viewerReactions.contains(
+                                                entry.key,
+                                              )
+                                              ? Border.all(
+                                                  color:
+                                                      theme.colorScheme.primary,
+                                                )
+                                              : null,
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: kSpacingSmall,
+                                            vertical: 2,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                entry.key,
+                                                style:
+                                                    theme.textTheme.titleMedium,
+                                              ),
+                                              const SizedBox(
+                                                width: kSpacingSmall / 2,
+                                              ),
+                                              Text(
+                                                '${entry.value}',
+                                                style:
+                                                    theme.textTheme.labelMedium,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
+                                Builder(
+                                  builder: (anchorCtx) {
+                                    return IconButton(
+                                      padding: EdgeInsets.zero,
+                                      visualDensity: VisualDensity.compact,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 44,
+                                        minHeight: 44,
+                                      ),
+                                      iconSize: 22,
+                                      tooltip:
+                                          l10n.beaconRoomReactionAddTooltip,
+                                      icon: Icon(
+                                        Icons.add_reaction_outlined,
+                                        color:
+                                            theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      onPressed: () => unawaited(
+                                        showRoomReactionPicker(
+                                          anchorContext: anchorCtx,
+                                          selected: viewerReactions,
+                                          semanticLabel: l10n
+                                              .beaconRoomReactionPickerSemantic,
+                                          onPick: (emoji) => unawaited(
+                                            onToggleReaction(
+                                              message.id,
+                                              emoji,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
-                                if (thumbCount > 0) ...[
-                                  const SizedBox(width: kSpacingSmall),
-                                  Text(
-                                    '$thumbCount',
-                                    style: theme.textTheme.labelMedium,
-                                  ),
-                                ],
                               ],
                             ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: kSpacingSmall,
+                            top: 2,
+                          ),
+                          child: Text(
+                            _formatTime(message.createdAt),
+                            style: theme.textTheme.labelSmall,
                           ),
                         ),
                       ],
