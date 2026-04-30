@@ -41,7 +41,11 @@ final class CoordinationCase extends UseCaseBase {
 
   Future<List<CommitmentWithCoordinationRow>> commitmentsWithCoordination({
     required String beaconId,
-  }) => _coordinationRepository.commitmentsWithCoordination(beaconId);
+    required String viewerId,
+  }) => _coordinationRepository.commitmentsWithCoordination(
+        beaconId,
+        viewerId: viewerId,
+      );
 
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
   // ignore: no_map_dynamic_in_use_case_api

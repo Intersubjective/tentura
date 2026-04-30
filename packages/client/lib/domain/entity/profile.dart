@@ -19,6 +19,7 @@ abstract class Profile with _$Profile implements Likable, Scorable {
     @Default(0) double rScore,
     @Default(0) double score,
     @Default(0) int myVote,
+    @Default(false) bool isMutualFriend,
     ImageEntity? image,
     UserPresenceStatus? presenceStatus,
     DateTime? presenceLastSeenAt,

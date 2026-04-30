@@ -41,6 +41,7 @@ abstract class InvitationEntity with _$InvitationEntity {
       'title': issuer.title,
       'description': issuer.description,
       'my_vote': null,
+      'is_mutual_friend': false,
       // gqlTypeImagePublic: `created_at` is graphQLDate — use DateTime, not ISO string.
       'image': issuer.image == null
           ? null

@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/mutual_friends_repository_port.dart';
 import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
 import '../database/tentura_db.dart';
+import 'vote_user_friendship_lookup.dart';
 
 @Injectable(
   as: MutualFriendsRepositoryPort,
@@ -19,14 +20,17 @@ import '../database/tentura_db.dart';
   order: 1,
 )
 class MutualFriendsRepository implements MutualFriendsRepositoryPort {
-  const MutualFriendsRepository(
+  MutualFriendsRepository(
     this._database,
     this._userPresenceRepository,
+    this._voteUserFriendshipLookup,
   );
 
   final TenturaDb _database;
 
   final UserPresenceRepositoryPort _userPresenceRepository;
+
+  final VoteUserFriendshipLookup _voteUserFriendshipLookup;
 
   /// Mutual friends of [aliceId] and [bobId] in [context], as domain records
   /// (same fields as `gqlTypeUserPublic`).
@@ -46,6 +50,12 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
           ],
         )
         .get();
+
+    final reciprocal = await _voteUserFriendshipLookup
+        .reciprocalPositivePeerIds(
+          viewerId: aliceId,
+          peerIds: rows.map((r) => r.data['id']! as String),
+        );
 
     final peerScores = await _fetchPeerScoresForViewer(
       viewerId: aliceId,
@@ -102,6 +112,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
           id: id,
           title: title,
           description: description,
+          isMutualFriend: reciprocal.contains(id),
           image: imageRecord,
           scores: scores,
           userPresence: userPresence,

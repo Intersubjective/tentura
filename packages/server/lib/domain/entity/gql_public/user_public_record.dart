@@ -13,6 +13,7 @@ class UserPublicRecord {
     required this.title,
     required this.description,
     this.myVote,
+    this.isMutualFriend = false,
     this.image,
     this.scores = const [],
     this.userPresence,
@@ -22,6 +23,10 @@ class UserPublicRecord {
   final String title;
   final String description;
   final int? myVote;
+
+  /// Reciprocal positive `vote_user` with the viewing user (matches Hasura
+  /// `user.is_mutual_friend`).
+  final bool isMutualFriend;
   final ImagePublicRecord? image;
   final List<MutualScoreRecord> scores;
   final UserPresenceRecord? userPresence;

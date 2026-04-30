@@ -133,6 +133,7 @@ Profile _profileFromCommitmentUser(
     description: user.description,
     myVote: user.my_vote ?? 0,
     image: user.image == null ? null : ImageModel(user.image!).asEntity,
+    isMutualFriend: user.is_mutual_friend,
     presenceStatus: presenceStatus,
     presenceLastSeenAt: presenceLastSeenAt,
   );

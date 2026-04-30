@@ -50,6 +50,7 @@ class MutualFriendsRepository {
                     ),
               score: firstScore?.dst_score ?? 0,
               rScore: firstScore?.src_score ?? 0,
+              isMutualFriend: e.is_mutual_friend ?? false,
               presenceStatus: presenceStatus,
               presenceLastSeenAt: presenceLastSeenAt,
             );

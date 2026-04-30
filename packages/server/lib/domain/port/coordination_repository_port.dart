@@ -24,6 +24,7 @@ abstract class CoordinationRepositoryPort {
   Future<void> recomputeAndPersistBeaconCoordinationStatus(String beaconId);
 
   Future<List<CommitmentWithCoordinationRow>> commitmentsWithCoordination(
-    String beaconId,
-  );
+    String beaconId, {
+    required String viewerId,
+  });
 }

@@ -272,6 +272,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
     field('title', graphQLString.nonNullable()),
     field('description', graphQLString.nonNullable()),
     field('my_vote', graphQLInt),
+    field('is_mutual_friend', graphQLBoolean.nonNullable()),
     field('image', gqlTypeImagePublic),
     field(
       'scores',
