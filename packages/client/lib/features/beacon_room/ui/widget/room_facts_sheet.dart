@@ -1,28 +1,36 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
-import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 enum _FactsFilter { all, active, corrected }
 
 String _shortUserId(String id) =>
     id.length <= 12 ? id : '${id.substring(0, 10)}…';
 
-String _pinnedByName(List<BeaconParticipant> participants, String userId) {
-  for (final p in participants) {
-    if (p.userId == userId) {
-      return _shortUserId(userId);
-    }
+String _pinnedByDisplayLabel(
+  L10n l10n, {
+  required String viewerUserId,
+  required BeaconFactCard fact,
+}) {
+  final profile = Profile(id: fact.pinnedBy, title: fact.pinnedByTitle);
+  var name = SelfUserHighlight.displayName(l10n, profile, viewerUserId);
+  if (name.trim().isEmpty) {
+    name = _shortUserId(fact.pinnedBy);
   }
-  return _shortUserId(userId);
+  return name;
 }
 
 List<BeaconFactCard> _filterFacts(List<BeaconFactCard> raw, _FactsFilter f) {
@@ -46,7 +54,7 @@ List<BeaconFactCard> _filterFacts(List<BeaconFactCard> raw, _FactsFilter f) {
 Future<void> showRoomFactsSheet(
   BuildContext context, {
   required RoomCubit cubit,
-  required List<BeaconParticipant> participants,
+  required String viewerUserId,
   String? initialFocusFactId,
 }) {
   final l10n = L10n.of(context)!;
@@ -64,7 +72,7 @@ Future<void> showRoomFactsSheet(
         builder: (context, state) => _RoomFactsBody(
           cubit: cubit,
           facts: state.factCards,
-          participants: participants,
+          viewerUserId: viewerUserId,
           l10n: l10n,
           scrollController: scrollController,
           initialFocusFactId: initialFocusFactId,
@@ -78,7 +86,7 @@ class _RoomFactsBody extends StatefulWidget {
   const _RoomFactsBody({
     required this.cubit,
     required this.facts,
-    required this.participants,
+    required this.viewerUserId,
     required this.l10n,
     required this.scrollController,
     this.initialFocusFactId,
@@ -88,7 +96,7 @@ class _RoomFactsBody extends StatefulWidget {
 
   final List<BeaconFactCard> facts;
 
-  final List<BeaconParticipant> participants;
+  final String viewerUserId;
 
   final L10n l10n;
 
@@ -124,6 +132,29 @@ class _RoomFactsBodyState extends State<_RoomFactsBody> {
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOut,
         alignment: 0.08,
+      );
+    }
+  }
+
+  Future<void> _openFactAttachmentFile(RoomMessageAttachment a) async {
+    try {
+      final bytes = await widget.cubit.downloadRoomAttachment(a.id);
+      final name = a.fileName.trim().isEmpty ? 'file' : a.fileName.trim();
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              bytes,
+              name: name,
+              mimeType: a.mime,
+            ),
+          ],
+        ),
+      );
+    } on Object catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.l10n.beaconRoomAttachmentOpenFailed)),
       );
     }
   }
@@ -199,7 +230,11 @@ class _RoomFactsBodyState extends State<_RoomFactsBody> {
                     final when =
                         '${dateFormatYMD(f.createdAt)} · ${timeFormatHm(f.createdAt)}';
                     final pinner = widget.l10n.beaconRoomFactCardPinnedByLabel(
-                      _pinnedByName(widget.participants, f.pinnedBy),
+                      _pinnedByDisplayLabel(
+                        widget.l10n,
+                        viewerUserId: widget.viewerUserId,
+                        fact: f,
+                      ),
                     );
                     return Card(
                       key: _keyForRow(f.id),
@@ -266,6 +301,14 @@ class _RoomFactsBodyState extends State<_RoomFactsBody> {
                                 f.factText,
                                 style: TenturaText.body(tt.text),
                               ),
+                              if (f.attachments.isNotEmpty) ...[
+                                SizedBox(height: tt.rowGap / 2),
+                                RoomPinnedStyleAttachments(
+                                  attachments: f.attachments,
+                                  l10n: widget.l10n,
+                                  onOpenFileAttachment: _openFactAttachmentFile,
+                                ),
+                              ],
                               SizedBox(height: tt.rowGap / 2),
                               Text(
                                 pinner,

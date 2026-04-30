@@ -147,21 +147,44 @@ final class BeaconFactCardCase extends UseCaseBase {
   }) async {
     final admitted = await _canUseRoom(beaconId: beaconId, userId: userId);
     final rows = await _facts.listForBeacon(beaconId);
+    final sourceIdsForAttachments = <String>[
+      for (final e in rows)
+        if (e.sourceMessageId != null && e.sourceMessageId!.isNotEmpty)
+          if (!(e.visibility == BeaconFactCardVisibilityBits.room && !admitted))
+            e.sourceMessageId!,
+    ];
+    final attachmentsBySourceId =
+        sourceIdsForAttachments.isEmpty
+            ? <String, String>{}
+            : await _room.attachmentsJsonByMessageIds(sourceIdsForAttachments);
+    final pinnerIds = <String>{
+      for (final e in rows)
+        if (e.pinnedBy.isNotEmpty) e.pinnedBy,
+    };
+    final pinnedByTitles = pinnerIds.isEmpty
+        ? <String, String>{}
+        : await _room.userTitlesByIds(pinnerIds);
     final out = <Map<String, Object?>>[];
     for (final e in rows) {
       if (e.visibility == BeaconFactCardVisibilityBits.room && !admitted) {
         continue;
       }
+      final smid = e.sourceMessageId;
+      final attachmentsJson = smid != null && smid.isNotEmpty
+          ? attachmentsBySourceId[smid] ?? '[]'
+          : '[]';
       out.add(<String, Object?>{
         'id': e.id,
         'beaconId': e.beaconId,
         'factText': e.factText,
         'visibility': e.visibility,
         'pinnedBy': e.pinnedBy,
+        'pinnedByTitle': pinnedByTitles[e.pinnedBy] ?? '',
         'sourceMessageId': e.sourceMessageId,
         'status': e.status,
         'createdAt': e.createdAt.toIso8601String(),
         'updatedAt': e.updatedAt?.toIso8601String(),
+        'attachmentsJson': attachmentsJson,
       });
     }
     return out;

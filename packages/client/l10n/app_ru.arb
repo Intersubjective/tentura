@@ -2397,7 +2397,8 @@
   "beaconRoomPinFactTitle": "Закрепить как факт",
   "beaconRoomPinFactPublic": "Публично — видно за пределами комнаты",
   "beaconRoomPinFactRoomOnly": "Только комната",
-  "beaconRoomPinFactDisabledEmpty": "Сначала введите текст сообщения.",
+  "beaconRoomPinFactDisabledEmpty": "Добавьте текст или вложение перед закреплением.",
+  "beaconRoomPinFactAttachmentBodyFallback": "Вложение",
   "beaconRoomActionViewPinnedFact": "Открыть закреплённый факт",
   "beaconRoomSemanticPlan": "План",
   "beaconRoomSemanticPublicFact": "Публичный факт",
@@ -2442,7 +2443,23 @@
   "beaconOverviewRoomCueCardTitle": "В комнате",
   "beaconRoomStripNowTitle": "Сейчас",
   "beaconRoomStripPlanLabel": "План",
-  "beaconRoomStripLastPrivateFactLabel": "Последний факт (комната)",
+  "beaconRoomStripLastPrivateFactLabel": "Закреплённые факты",
+  "beaconPinnedFactCarouselSemanticLabel": "Карусель закреплённых фактов",
+  "beaconPinnedFactCarouselPreviousTooltip": "Предыдущий факт",
+  "beaconPinnedFactCarouselNextTooltip": "Следующий факт",
+  "beaconPinnedFactCarouselPositionLabel": "{current} из {total}",
+  "@beaconPinnedFactCarouselPositionLabel": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "beaconPinnedFactCarouselDotSemanticLabel": "Перейти к факту {index}",
+  "@beaconPinnedFactCarouselDotSemanticLabel": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
   "beaconRoomStripMeaningfulChangeLabel": "Последнее изменение",
   "beaconRoomStripOpenBlockerHint": "Открыт блокер (подробности в чате комнаты).",
   "beaconRoomYouStripTitle": "Вы",

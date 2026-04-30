@@ -48,6 +48,89 @@ class BeaconRoomRepository {
         .get();
   }
 
+  /// Same shape as the `attachmentsJson` field returned by
+  /// [BeaconRoomRepository.listMessagesEnriched]: one JSON array per requested
+  /// message id (keyed by message id).
+  Future<Map<String, String>> attachmentsJsonByMessageIds(
+    Iterable<String> messageIds,
+  ) async {
+    final ids = messageIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) {
+      return {};
+    }
+
+    final attachmentRows = await (_db.select(_db.beaconRoomMessageAttachments)
+          ..where((a) => a.messageId.isIn(ids))
+          ..orderBy([
+            (a) => OrderingTerm(expression: a.position),
+          ]))
+        .get();
+
+    final attachmentsByMessageId =
+        <String, List<BeaconRoomMessageAttachment>>{};
+    for (final row in attachmentRows) {
+      attachmentsByMessageId.putIfAbsent(row.messageId, () => []).add(row);
+    }
+
+    final attachmentImageUuidList = <UuidValue>[
+      for (final row in attachmentRows)
+        if (row.kind == BeaconRoomMessageAttachmentKind.image &&
+            row.imageId != null)
+          row.imageId!,
+    ];
+
+    final attachmentImageByUuid = <UuidValue, Image>{};
+    if (attachmentImageUuidList.isNotEmpty) {
+      final aimgs =
+          await _db.managers.images
+              .filter((i) => i.id.isIn(attachmentImageUuidList))
+              .get();
+      for (final img in aimgs) {
+        attachmentImageByUuid[img.id] = img;
+      }
+    }
+
+    final out = <String, String>{};
+    for (final messageId in ids) {
+      final rows = attachmentsByMessageId[messageId];
+      if (rows == null || rows.isEmpty) {
+        out[messageId] = '[]';
+        continue;
+      }
+      final items = <Map<String, Object?>>[];
+      for (final row in rows) {
+        if (row.kind == BeaconRoomMessageAttachmentKind.image &&
+            row.imageId != null) {
+          final img = attachmentImageByUuid[row.imageId!];
+          items.add({
+            'id': row.id,
+            'kind': row.kind,
+            'position': row.position,
+            'mime': row.mime,
+            'sizeBytes': row.sizeBytes,
+            'fileName': row.fileName,
+            'imageId': img?.id.uuid ?? '',
+            'imageAuthorId': img?.authorId ?? '',
+            'blurHash': img?.hash ?? '',
+            'width': img?.width ?? 0,
+            'height': img?.height ?? 0,
+          });
+        } else {
+          items.add({
+            'id': row.id,
+            'kind': row.kind,
+            'position': row.position,
+            'mime': row.mime,
+            'sizeBytes': row.sizeBytes,
+            'fileName': row.fileName,
+          });
+        }
+      }
+      out[messageId] = jsonEncode(items);
+    }
+    return out;
+  }
+
   /// Room messages with author profile projection + reaction aggregates for V2
   /// `RoomMessageList`.
   ///
@@ -135,73 +218,8 @@ class BeaconRoomRepository {
       return jsonEncode(raw);
     }
 
-    final attachmentRows = await (_db.select(_db.beaconRoomMessageAttachments)
-          ..where((a) => a.messageId.isIn(ids))
-          ..orderBy([
-            (a) => OrderingTerm(expression: a.position),
-          ]))
-        .get();
-
-    final attachmentsByMessageId =
-        <String, List<BeaconRoomMessageAttachment>>{};
-    for (final row in attachmentRows) {
-      attachmentsByMessageId.putIfAbsent(row.messageId, () => []).add(row);
-    }
-
-    final attachmentImageUuidList = <UuidValue>[
-      for (final row in attachmentRows)
-        if (row.kind == BeaconRoomMessageAttachmentKind.image &&
-            row.imageId != null)
-          row.imageId!,
-    ];
-
-    final attachmentImageByUuid = <UuidValue, Image>{};
-    if (attachmentImageUuidList.isNotEmpty) {
-      final aimgs =
-          await _db.managers.images
-              .filter((i) => i.id.isIn(attachmentImageUuidList))
-              .get();
-      for (final img in aimgs) {
-        attachmentImageByUuid[img.id] = img;
-      }
-    }
-
-    String attachmentsJsonFor(String messageId) {
-      final rows = attachmentsByMessageId[messageId];
-      if (rows == null || rows.isEmpty) {
-        return '[]';
-      }
-      final items = <Map<String, Object?>>[];
-      for (final row in rows) {
-        if (row.kind == BeaconRoomMessageAttachmentKind.image &&
-            row.imageId != null) {
-          final img = attachmentImageByUuid[row.imageId!];
-          items.add({
-            'id': row.id,
-            'kind': row.kind,
-            'position': row.position,
-            'mime': row.mime,
-            'sizeBytes': row.sizeBytes,
-            'fileName': row.fileName,
-            'imageId': img?.id.uuid ?? '',
-            'imageAuthorId': img?.authorId ?? '',
-            'blurHash': img?.hash ?? '',
-            'width': img?.width ?? 0,
-            'height': img?.height ?? 0,
-          });
-        } else {
-          items.add({
-            'id': row.id,
-            'kind': row.kind,
-            'position': row.position,
-            'mime': row.mime,
-            'sizeBytes': row.sizeBytes,
-            'fileName': row.fileName,
-          });
-        }
-      }
-      return jsonEncode(items);
-    }
+    final attachmentsJsonByMid =
+        await attachmentsJsonByMessageIds(ids);
 
     return msgs.map((m) {
       final id = m.id;
@@ -233,7 +251,8 @@ class BeaconRoomRepository {
         'authorImageId': authorImageId,
         'reactionsJson': reactionsJsonFor(id),
         'myReaction': myReactionFor(id),
-        'attachmentsJson': attachmentsJsonFor(id),
+        'attachmentsJson':
+            attachmentsJsonByMid[id] ?? '[]',
       };
     }).toList();
   }
@@ -296,6 +315,16 @@ class BeaconRoomRepository {
       _db.managers.beaconParticipants
           .filter((r) => r.beaconId.id(beaconId))
           .get();
+
+  /// `user.title` for V2 row projections (missing users yield no map entry).
+  Future<Map<String, String>> userTitlesByIds(Iterable<String> userIds) async {
+    final ids = userIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) {
+      return {};
+    }
+    final users = await _db.managers.users.filter((u) => u.id.isIn(ids)).get();
+    return {for (final u in users) u.id: u.title};
+  }
 
   Future<void> participantOfferHelp({
     required String beaconId,

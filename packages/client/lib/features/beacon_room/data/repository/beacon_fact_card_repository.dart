@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
 
 import '../gql/_g/beacon_fact_card_correct.req.gql.dart';
 import '../gql/_g/beacon_fact_card_list.data.gql.dart';
@@ -30,6 +31,8 @@ class BeaconFactCardRepository {
         sourceMessageId: row.sourceMessageId,
         updatedAt:
             row.updatedAt != null ? DateTime.parse(row.updatedAt!) : null,
+        pinnedByTitle: row.pinnedByTitle,
+        attachments: parseRoomMessageAttachmentsJson(row.attachmentsJson),
       );
 
   Future<List<BeaconFactCard>> list({required String beaconId}) async {

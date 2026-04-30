@@ -5,9 +5,11 @@ query BeaconFactCardList($beaconId: String!) {
     factText
     visibility
     pinnedBy
+    pinnedByTitle
     sourceMessageId
     status
     createdAt
     updatedAt
+    attachmentsJson
   }
 }

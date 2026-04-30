@@ -14,6 +14,7 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../bloc/beacon_view_state.dart';
@@ -266,7 +267,14 @@ class BeaconOverviewTab extends StatelessWidget {
               f.visibility == BeaconFactCardVisibilityBits.public &&
               f.status != BeaconFactCardStatusBits.removed,
         )
-        .toList();
+        .toList()
+      ..sort(
+        (a, b) {
+          final ta = a.updatedAt ?? a.createdAt;
+          final tb = b.updatedAt ?? b.createdAt;
+          return tb.compareTo(ta);
+        },
+      );
 
     final factsCard = publicFacts.isEmpty
         ? null
@@ -275,18 +283,9 @@ class BeaconOverviewTab extends StatelessWidget {
             title: l10n.beaconOverviewPublicFactsTitle,
             summary: l10n.beaconOverviewPublicFactsCount(publicFacts.length),
             icon: Icons.fact_check_outlined,
-            expanded: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final f in publicFacts)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: kSpacingSmall),
-                    child: SelectableText(
-                      f.factText,
-                      style: TenturaText.body(scheme.onSurfaceVariant),
-                    ),
-                  ),
-              ],
+            expanded: BeaconPinnedFactCarousel(
+              facts: publicFacts,
+              factTextStyle: TenturaText.body(scheme.onSurfaceVariant),
             ),
           );
 

@@ -6282,6 +6282,7 @@ type BeaconParticipantRow {
   id: String!
   beaconId: String!
   userId: String!
+  userTitle: String!
   role: Int!
   status: Int!
   roomAccess: Int!
@@ -6300,10 +6301,12 @@ type BeaconFactCardRow {
   factText: String!
   visibility: Int!
   pinnedBy: String!
+  pinnedByTitle: String!
   sourceMessageId: String
   status: Int!
   createdAt: String!
   updatedAt: String
+  attachmentsJson: String!
 }
 
 type v2_AuthResponse {

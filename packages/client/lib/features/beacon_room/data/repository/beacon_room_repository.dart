@@ -203,13 +203,14 @@ class BeaconRoomRepository {
             role: p.role,
             status: p.status,
             roomAccess: p.roomAccess,
+            createdAt: DateTime.parse(p.createdAt),
+            updatedAt: DateTime.parse(p.updatedAt),
+            userTitle: p.userTitle,
             offerNote: p.offerNote ?? '',
             nextMoveText: p.nextMoveText,
             nextMoveStatus: p.nextMoveStatus,
             nextMoveSource: p.nextMoveSource,
             linkedMessageId: p.linkedMessageId,
-            createdAt: DateTime.parse(p.createdAt),
-            updatedAt: DateTime.parse(p.updatedAt),
           ),
         )
         .toList();
