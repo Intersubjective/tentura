@@ -12,6 +12,7 @@ query BeaconParticipantList($beaconId: String!) {
     nextMoveStatus
     nextMoveSource
     linkedMessageId
+    lastSeenRoomAt
     createdAt
     updatedAt
   }

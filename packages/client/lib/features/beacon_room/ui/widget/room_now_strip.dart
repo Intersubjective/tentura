@@ -15,6 +15,8 @@ class RoomNowStrip extends StatelessWidget {
   const RoomNowStrip({
     required this.roomState,
     required this.factCards,
+    required this.collapsed,
+    required this.onToggleCollapse,
     this.onOpenFact,
     this.onOpenFileAttachment,
     super.key,
@@ -22,6 +24,8 @@ class RoomNowStrip extends StatelessWidget {
 
   final BeaconRoomState roomState;
   final List<BeaconFactCard> factCards;
+  final bool collapsed;
+  final VoidCallback onToggleCollapse;
 
   /// Opens fact actions (room only).
   final Future<void> Function(BeaconFactCard fact)? onOpenFact;
@@ -53,11 +57,93 @@ class RoomNowStrip extends StatelessWidget {
         roomState.openBlockerId!.isNotEmpty;
     final blockerTitle = roomState.openBlockerTitle?.trim() ?? '';
 
-    if (plan.isEmpty &&
-        pinnedFacts.isEmpty &&
-        change.isEmpty &&
-        !hasBlocker) {
+    final hasContent = plan.isNotEmpty ||
+        pinnedFacts.isNotEmpty ||
+        change.isNotEmpty ||
+        hasBlocker;
+    if (!hasContent) {
       return const SizedBox.shrink();
+    }
+
+    String summaryLine() {
+      if (plan.isNotEmpty) {
+        final line = plan.split('\n').first.trim();
+        if (line.isNotEmpty) return line;
+      }
+      if (blockerTitle.isNotEmpty) return blockerTitle;
+      if (change.isNotEmpty) {
+        final line = change.split('\n').first.trim();
+        if (line.isNotEmpty) return line;
+      }
+      if (pinnedFacts.isNotEmpty) {
+        return l10n.beaconRoomStripLastPrivateFactLabel;
+      }
+      return '—';
+    }
+
+    Widget titleRow(TextStyle titleStyle, {required bool trailingChevronDown}) =>
+        Row(
+          children: [
+            Expanded(
+              child: Text(l10n.beaconRoomStripNowTitle, style: titleStyle),
+            ),
+            Tooltip(
+              message: collapsed
+                  ? l10n.beaconRoomNowExpandTooltip
+                  : l10n.beaconRoomNowCollapseTooltip,
+              child: IconButton(
+                onPressed: onToggleCollapse,
+                iconSize: 22,
+                visualDensity: VisualDensity.compact,
+                tooltip: collapsed
+                    ? l10n.beaconRoomNowExpandTooltip
+                    : l10n.beaconRoomNowCollapseTooltip,
+                icon: Icon(
+                  trailingChevronDown
+                      ? Icons.expand_more_rounded
+                      : Icons.expand_less_rounded,
+                ),
+              ),
+            ),
+          ],
+        );
+
+    if (collapsed) {
+      final summary = summaryLine();
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        child: TenturaTechCard(
+          padding: EdgeInsets.zero,
+          child: InkWell(
+            onTap: onToggleCollapse,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.article_outlined, color: scheme.primary),
+                  const SizedBox(width: kSpacingSmall),
+                  Expanded(
+                    child: Text(
+                      '${l10n.beaconRoomStripNowTitle}: $summary',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TenturaText.body(scheme.onSurface),
+                    ),
+                  ),
+                  Tooltip(
+                    message: l10n.beaconRoomNowExpandTooltip,
+                    child: Icon(
+                      Icons.expand_more_rounded,
+                      color: onV,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     return Padding(
@@ -66,10 +152,10 @@ class RoomNowStrip extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-                l10n.beaconRoomStripNowTitle,
-                style: TenturaText.typeLabel(scheme.onSurface),
-              ),
+            titleRow(
+              TenturaText.typeLabel(scheme.onSurface),
+              trailingChevronDown: false,
+            ),
             if (plan.isNotEmpty) ...[
               const SizedBox(height: kSpacingSmall),
               Text(

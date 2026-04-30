@@ -27,6 +27,7 @@ import '../widget/fact_actions_sheet.dart';
 import '../widget/room_facts_sheet.dart';
 import '../widget/room_message_tile.dart';
 import '../widget/room_now_strip.dart';
+import '../widget/room_unread_divider.dart';
 
 @RoutePage()
 class BeaconRoomScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -65,9 +66,117 @@ class BeaconRoomScreen extends StatefulWidget implements AutoRouteWrapper {
 
 class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
   final Map<String, GlobalKey> _messageKeys = {};
+  final ScrollController _scrollController = ScrollController();
+
+  bool _showJumpFab = false;
+  bool _viewportScrollDone = false;
 
   GlobalKey _messageKey(String id) =>
       _messageKeys.putIfAbsent(id, GlobalKey.new);
+
+  void _onMessageListScroll() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final cubit = context.read<RoomCubit>();
+    final pos = _scrollController.position;
+    final fromBottom = pos.maxScrollExtent - pos.pixels;
+    final showJump = fromBottom > 56;
+    if (showJump != _showJumpFab) {
+      setState(() => _showJumpFab = showJump);
+    }
+    if (fromBottom <= 12) {
+      unawaited(cubit.markSeenNowIfNeeded());
+    }
+  }
+
+  void _viewportListener(BuildContext context, RoomCubit cubit) {
+    if (_viewportScrollDone) return;
+    if (cubit.state.status != const StateIsSuccess()) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await _viewportScrollAttempt(context, cubit, 0);
+    });
+  }
+
+  Future<void> _viewportScrollAttempt(
+    BuildContext context,
+    RoomCubit cubit,
+    int pass,
+  ) async {
+    if (!context.mounted || _viewportScrollDone) return;
+
+    final s = cubit.state;
+    final fid = s.firstUnreadMessageId;
+
+    if (fid != null) {
+      final target = _messageKeys[fid]?.currentContext;
+      if (target != null) {
+        await Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOut,
+          alignment: 0.12,
+        );
+        _onMessageListScroll();
+        if (context.mounted) {
+          setState(() => _viewportScrollDone = true);
+        }
+        return;
+      }
+      if (pass < 24) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          await _viewportScrollAttempt(context, cubit, pass + 1);
+        });
+      }
+      return;
+    }
+
+    if (s.messages.isEmpty) {
+      setState(() => _viewportScrollDone = true);
+      return;
+    }
+
+    final scrollPos =
+        _scrollController.hasClients ? _scrollController.position : null;
+    if (scrollPos != null && scrollPos.maxScrollExtent >= 0) {
+      _scrollController.jumpTo(scrollPos.maxScrollExtent);
+      _onMessageListScroll();
+      setState(() => _viewportScrollDone = true);
+      return;
+    }
+
+    if (pass < 24) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await _viewportScrollAttempt(context, cubit, pass + 1);
+      });
+    }
+  }
+
+  Future<void> _jumpToLatest() async {
+    if (!_scrollController.hasClients) return;
+    await _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+    _onMessageListScroll();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onMessageListScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onMessageListScroll());
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_onMessageListScroll)
+      ..dispose();
+    super.dispose();
+  }
 
   bool _roomMessageIsCoordinationStateCard(RoomMessage message) =>
       message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
@@ -157,6 +266,15 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
             }
           },
         ),
+        BlocListener<RoomCubit, RoomState>(
+          listenWhen: (p, c) =>
+              !_viewportScrollDone &&
+              c.status == const StateIsSuccess() &&
+              (p.messages != c.messages || p.status != c.status),
+          listener: (ctx, s) {
+            _viewportListener(ctx, ctx.read<RoomCubit>());
+          },
+        ),
       ],
       child: BlocBuilder<RoomCubit, RoomState>(
         buildWhen: (p, c) =>
@@ -180,11 +298,21 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
             p.roomState?.openBlockerTitle != c.roomState?.openBlockerTitle ||
             p.participants.length != c.participants.length ||
             p.participants
-                    .map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}')
+                    .map(
+                      (e) =>
+                          '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.lastSeenRoomAt?.toIso8601String() ?? ''}',
+                    )
                     .join() !=
                 c.participants
-                    .map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}')
+                    .map(
+                      (e) =>
+                          '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.lastSeenRoomAt?.toIso8601String() ?? ''}',
+                    )
                     .join() ||
+            p.nowCollapsed != c.nowCollapsed ||
+            p.youCollapsed != c.youCollapsed ||
+            p.unreadAnchorAt != c.unreadAnchorAt ||
+            p.pendingMarkSeen != c.pendingMarkSeen ||
             p.status != c.status ||
             p.hasError != c.hasError,
         builder: (context, state) {
@@ -238,6 +366,8 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                   RoomNowStrip(
                     roomState: state.roomState!,
                     factCards: state.factCards,
+                    collapsed: state.nowCollapsed,
+                    onToggleCollapse: cubit.toggleNowCollapsed,
                     onOpenFact: (f) => showFactActionsSheet(
                       context,
                       cubit: cubit,
@@ -252,6 +382,8 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                   ),
                 BeaconRoomYouStrip(
                   myParticipant: myRow,
+                  collapsed: state.youCollapsed,
+                  onToggleCollapse: cubit.toggleYouCollapsed,
                   onEditNextMove: () => unawaited(
                     _showNextMoveSheet(
                       context,
@@ -264,47 +396,104 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                 Expanded(
                   child: state.hasError && state.messages.isEmpty
                       ? Center(child: Text(err))
-                      : ListView.builder(
-                          itemCount: state.messages.length,
-                          itemBuilder: (context, i) {
-                            final m = state.messages[i];
-                            final pf = cubit.factForRoomMessage(m);
-                            final isCoord = _roomMessageIsCoordinationStateCard(
-                              m,
-                            );
-                            return RoomMessageTile(
-                              key: _messageKey(m.id),
-                              message: m,
-                              myProfile: myProfile,
-                              onPinnedFactManage: (!isCoord && pf != null)
-                                  ? () => showFactActionsSheet(
-                                      context,
-                                      cubit: cubit,
-                                      fact: pf,
-                                    )
-                                  : null,
-                              onActionsPressed: (msg) =>
-                                  _onMessageActionsPressed(
-                                    context,
-                                    cubit,
-                                    l10n,
-                                    myProfile,
-                                    msg,
+                      : Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.only(bottom: 72),
+                              itemCount: state.messages.length,
+                              itemBuilder: (context, i) {
+                                final m = state.messages[i];
+                                final pf = cubit.factForRoomMessage(m);
+                                final isCoord =
+                                    _roomMessageIsCoordinationStateCard(m);
+                                final idxUnread = state.firstUnreadIndex;
+                                final unreads = state.unreadCount;
+                                final showUnreadBand = unreads > 0 &&
+                                    idxUnread >= 0 &&
+                                    i == idxUnread;
+
+                                final messageTile = RoomMessageTile(
+                                  key: _messageKey(m.id),
+                                  message: m,
+                                  myProfile: myProfile,
+                                  onPinnedFactManage: (!isCoord && pf != null)
+                                      ? () => showFactActionsSheet(
+                                            context,
+                                            cubit: cubit,
+                                            fact: pf,
+                                          )
+                                      : null,
+                                  onActionsPressed: (msg) =>
+                                      _onMessageActionsPressed(
+                                        context,
+                                        cubit,
+                                        l10n,
+                                        myProfile,
+                                        msg,
+                                      ),
+                                  onToggleReaction: (messageId, emoji) =>
+                                      cubit.toggleReaction(
+                                        messageId: messageId,
+                                        emoji: emoji,
+                                      ),
+                                  onOpenFileAttachment: (a) =>
+                                      _openRoomFileAttachment(
+                                        context,
+                                        cubit,
+                                        l10n,
+                                        a,
+                                      ),
+                                );
+
+                                if (!showUnreadBand) {
+                                  return Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(horizontal: 4),
+                                    child: messageTile,
+                                  );
+                                }
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                      ),
+                                      child:
+                                          RoomUnreadDivider(unreadCount: unreads),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      child: messageTile,
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            if (_showJumpFab)
+                              Positioned(
+                                right: 12,
+                                bottom: 8,
+                                child: Badge(
+                                  isLabelVisible: state.unreadCount > 0,
+                                  label: Text('${state.unreadCount}'),
+                                  child: FloatingActionButton.small(
+                                    heroTag: 'beacon_room_jump_latest',
+                                    tooltip: l10n.beaconRoomScrollToLatestTooltip,
+                                    onPressed: () => unawaited(_jumpToLatest()),
+                                    child: const Icon(
+                                      Icons.arrow_downward_rounded,
+                                    ),
                                   ),
-                              onToggleReaction: (messageId, emoji) =>
-                                  cubit.toggleReaction(
-                                    messageId: messageId,
-                                    emoji: emoji,
-                                  ),
-                              onOpenFileAttachment: (a) =>
-                                  _openRoomFileAttachment(
-                                    context,
-                                    cubit,
-                                    l10n,
-                                    a,
-                                  ),
-                            );
-                          },
+                                ),
+                              ),
+                          ],
                         ),
                 ),
                 if (state.isLoading && state.messages.isEmpty)

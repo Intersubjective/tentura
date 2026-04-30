@@ -211,6 +211,10 @@ class BeaconRoomRepository {
             nextMoveStatus: p.nextMoveStatus,
             nextMoveSource: p.nextMoveSource,
             linkedMessageId: p.linkedMessageId,
+            lastSeenRoomAt: p.lastSeenRoomAt == null ||
+                    p.lastSeenRoomAt!.isEmpty
+                ? null
+                : DateTime.parse(p.lastSeenRoomAt!),
           ),
         )
         .toList();

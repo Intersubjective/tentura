@@ -19,5 +19,8 @@ abstract class BeaconParticipant with _$BeaconParticipant {
     int? nextMoveStatus,
     int? nextMoveSource,
     String? linkedMessageId,
+
+    /// When this user last read the beacon room (`beacon_participant.last_seen_room_at`).
+    DateTime? lastSeenRoomAt,
   }) = _BeaconParticipant;
 }
