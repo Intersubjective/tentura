@@ -15,6 +15,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -38,25 +39,25 @@ class BeaconRoomScreen extends StatefulWidget implements AutoRouteWrapper {
 
   @override
   Widget wrappedRoute(_) => MultiBlocProvider(
-        providers: [
-          BlocProvider(create: (_) => ScreenCubit()),
-          BlocProvider(
-            create: (_) => RoomCubit(beaconId: beaconId),
-          ),
-        ],
-        child: MultiBlocListener(
-          listeners: [
-            const BlocListener<ScreenCubit, ScreenState>(
-              listener: commonScreenBlocListener,
-            ),
-            BlocListener<RoomCubit, RoomState>(
-              listenWhen: (p, c) => c.status != p.status,
-              listener: commonScreenBlocListener,
-            ),
-          ],
-          child: this,
+    providers: [
+      BlocProvider(create: (_) => ScreenCubit()),
+      BlocProvider(
+        create: (_) => RoomCubit(beaconId: beaconId),
+      ),
+    ],
+    child: MultiBlocListener(
+      listeners: [
+        const BlocListener<ScreenCubit, ScreenState>(
+          listener: commonScreenBlocListener,
         ),
-      );
+        BlocListener<RoomCubit, RoomState>(
+          listenWhen: (p, c) => c.status != p.status,
+          listener: commonScreenBlocListener,
+        ),
+      ],
+      child: this,
+    ),
+  );
 
   @override
   State<BeaconRoomScreen> createState() => _BeaconRoomScreenState();
@@ -72,6 +73,32 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
       message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
       message.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
       message.semanticMarker == BeaconRoomSemanticMarker.done;
+
+  /// Non-empty text for [BeaconFactCard]; attachments use names or [L10n.beaconRoomPinFactAttachmentBodyFallback].
+  String _pinFactTextForMessage(RoomMessage message, L10n l10n) {
+    final body = message.body.trim();
+    if (body.isNotEmpty) {
+      return body;
+    }
+    if (message.attachments.isEmpty) {
+      return '';
+    }
+    final names = <String>[];
+    for (final a in message.attachments) {
+      final n = a.fileName.trim();
+      if (n.isNotEmpty) {
+        names.add(n);
+      }
+    }
+    if (names.isNotEmpty) {
+      const maxNames = 3;
+      if (names.length <= maxNames) {
+        return names.join(', ');
+      }
+      return '${names.take(maxNames).join(', ')}…';
+    }
+    return l10n.beaconRoomPinFactAttachmentBodyFallback;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,142 +161,177 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
       child: BlocBuilder<RoomCubit, RoomState>(
         buildWhen: (p, c) =>
             p.messages != c.messages ||
-            p.factCards.length != c.factCards.length ||
+            p.factCards
+                    .map(
+                      (e) =>
+                          '${e.id}|${e.pinnedBy}|${e.pinnedByTitle}|${e.status}|${e.factText}',
+                    )
+                    .join() !=
+                c.factCards
+                    .map(
+                      (e) =>
+                          '${e.id}|${e.pinnedBy}|${e.pinnedByTitle}|${e.status}|${e.factText}',
+                    )
+                    .join() ||
             p.roomState?.currentPlan != c.roomState?.currentPlan ||
             p.roomState?.lastRoomMeaningfulChange !=
                 c.roomState?.lastRoomMeaningfulChange ||
             p.roomState?.openBlockerId != c.roomState?.openBlockerId ||
             p.roomState?.openBlockerTitle != c.roomState?.openBlockerTitle ||
             p.participants.length != c.participants.length ||
-            p.participants.map((e) => '${e.userId}|${e.nextMoveText}').join() !=
-                c.participants.map((e) => '${e.userId}|${e.nextMoveText}').join() ||
+            p.participants
+                    .map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}')
+                    .join() !=
+                c.participants
+                    .map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}')
+                    .join() ||
             p.status != c.status ||
             p.hasError != c.hasError,
         builder: (context, state) {
-        final cubit = context.read<RoomCubit>();
-        final err = state.status is StateHasError
-            ? (state.status as StateHasError).error.toString()
-            : '';
-        BeaconParticipant? myRow;
-        for (final pr in state.participants) {
-          if (pr.userId == myProfile.id) {
-            myRow = pr;
-            break;
+          final cubit = context.read<RoomCubit>();
+          final err = state.status is StateHasError
+              ? (state.status as StateHasError).error.toString()
+              : '';
+          BeaconParticipant? myRow;
+          for (final pr in state.participants) {
+            if (pr.userId == myProfile.id) {
+              myRow = pr;
+              break;
+            }
           }
-        }
 
-        return Scaffold(
-          appBar: AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () {
-                final router = context.router;
-                if (router.canPop()) {
-                  unawaited(router.maybePop());
-                } else {
-                  unawaited(
-                    router.navigatePath(
-                      '$kPathBeaconView/${widget.beaconId}',
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () {
+                  final router = context.router;
+                  if (router.canPop()) {
+                    unawaited(router.maybePop());
+                  } else {
+                    unawaited(
+                      router.navigatePath(
+                        '$kPathBeaconView/${widget.beaconId}',
+                      ),
+                    );
+                  }
+                },
+              ),
+              title: Text(l10n.beaconRoomTitle),
+              actions: [
+                IconButton(
+                  tooltip: l10n.beaconRoomFactsBrowseTooltip,
+                  icon: const Icon(Icons.manage_search_outlined),
+                  onPressed: () => unawaited(
+                    showRoomFactsSheet(
+                      context,
+                      cubit: cubit,
+                      viewerUserId: myProfile.id,
                     ),
-                  );
-                }
-              },
+                  ),
+                ),
+              ],
             ),
-            title: Text(l10n.beaconRoomTitle),
-            actions: [
-              IconButton(
-                tooltip: l10n.beaconRoomFactsBrowseTooltip,
-                icon: const Icon(Icons.manage_search_outlined),
-                onPressed: () => unawaited(
-                  showRoomFactsSheet(
-                    context,
-                    cubit: cubit,
-                    participants: state.participants,
+            body: Column(
+              children: [
+                if (state.roomState != null)
+                  RoomNowStrip(
+                    roomState: state.roomState!,
+                    factCards: state.factCards,
+                    onOpenFact: (f) => showFactActionsSheet(
+                      context,
+                      cubit: cubit,
+                      fact: f,
+                    ),
+                    onOpenFileAttachment: (a) => _openRoomFileAttachment(
+                      context,
+                      cubit,
+                      l10n,
+                      a,
+                    ),
+                  ),
+                BeaconRoomYouStrip(
+                  myParticipant: myRow,
+                  onEditNextMove: () => unawaited(
+                    _showNextMoveSheet(
+                      context,
+                      cubit,
+                      l10n,
+                      targetUserId: myProfile.id,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          body: Column(
-            children: [
-              if (state.roomState != null)
-                RoomNowStrip(
-                  roomState: state.roomState!,
-                  factCards: state.factCards,
-                ),
-              BeaconRoomYouStrip(
-                myParticipant: myRow,
-                onEditNextMove: () => unawaited(
-                  _showNextMoveSheet(
-                    context,
-                    cubit,
-                    l10n,
-                    targetUserId: myProfile.id,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: state.hasError && state.messages.isEmpty
-                    ? Center(child: Text(err))
-                    : ListView.builder(
-                        itemCount: state.messages.length,
-                        itemBuilder: (context, i) {
-                          final m = state.messages[i];
-                          final pf = cubit.factForRoomMessage(m);
-                          final isCoord = _roomMessageIsCoordinationStateCard(m);
-                          return RoomMessageTile(
-                            key: _messageKey(m.id),
-                            message: m,
-                            myProfile: myProfile,
-                            onPinnedFactManage: (!isCoord && pf != null)
-                                ? () => showFactActionsSheet(
+                Expanded(
+                  child: state.hasError && state.messages.isEmpty
+                      ? Center(child: Text(err))
+                      : ListView.builder(
+                          itemCount: state.messages.length,
+                          itemBuilder: (context, i) {
+                            final m = state.messages[i];
+                            final pf = cubit.factForRoomMessage(m);
+                            final isCoord = _roomMessageIsCoordinationStateCard(
+                              m,
+                            );
+                            return RoomMessageTile(
+                              key: _messageKey(m.id),
+                              message: m,
+                              myProfile: myProfile,
+                              onPinnedFactManage: (!isCoord && pf != null)
+                                  ? () => showFactActionsSheet(
                                       context,
                                       cubit: cubit,
                                       fact: pf,
                                     )
-                                : null,
-                            onActionsPressed: (msg) => _onMessageActionsPressed(
-                              context,
-                              cubit,
-                              l10n,
-                              msg,
-                            ),
-                            onToggleReaction: (messageId, emoji) =>
-                                cubit.toggleReaction(
-                                  messageId: messageId,
-                                  emoji: emoji,
-                                ),
-                            onOpenFileAttachment: (a) =>
-                                _openRoomFileAttachment(context, cubit, l10n, a),
-                          );
-                        },
-                      ),
-              ),
-              if (state.isLoading && state.messages.isEmpty)
-                const Padding(
-                  padding: kPaddingV,
-                  child: CircularProgressIndicator(),
+                                  : null,
+                              onActionsPressed: (msg) =>
+                                  _onMessageActionsPressed(
+                                    context,
+                                    cubit,
+                                    l10n,
+                                    myProfile,
+                                    msg,
+                                  ),
+                              onToggleReaction: (messageId, emoji) =>
+                                  cubit.toggleReaction(
+                                    messageId: messageId,
+                                    emoji: emoji,
+                                  ),
+                              onOpenFileAttachment: (a) =>
+                                  _openRoomFileAttachment(
+                                    context,
+                                    cubit,
+                                    l10n,
+                                    a,
+                                  ),
+                            );
+                          },
+                        ),
                 ),
-              SafeArea(
-                child: Material(
-                  child: Padding(
-                    padding: kPaddingH.add(kPaddingSmallT).add(kPaddingV),
-                    child: BeaconRoomComposer(
-                      imageRepository: GetIt.I<ImageRepository>(),
-                      isSending: state.isLoading,
-                      onSend: (body, uploads) => cubit.sendMessage(
-                        body: body,
-                        uploads: uploads,
+                if (state.isLoading && state.messages.isEmpty)
+                  const Padding(
+                    padding: kPaddingV,
+                    child: CircularProgressIndicator(),
+                  ),
+                SafeArea(
+                  child: Material(
+                    child: Padding(
+                      padding: kPaddingH.add(kPaddingSmallT).add(kPaddingV),
+                      child: BeaconRoomComposer(
+                        imageRepository: GetIt.I<ImageRepository>(),
+                        isSending: state.isLoading,
+                        onSend: (body, uploads) => cubit.sendMessage(
+                          body: body,
+                          uploads: uploads,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
-    ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -288,7 +350,7 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
       );
       return;
     }
-    final text = message.body.trim();
+    final text = _pinFactTextForMessage(message, l10n);
     if (text.isEmpty) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -303,6 +365,7 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
     BuildContext context,
     RoomCubit cubit,
     L10n l10n,
+    Profile viewer,
     RoomMessage message,
   ) {
     final pf = cubit.factForRoomMessage(message);
@@ -312,73 +375,134 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
         context: context,
         showDragHandle: true,
         builder: (ctx) {
+          final theme = Theme.of(ctx);
           return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: kPaddingH.add(kPaddingSmallT),
-                child: Text(
-                  l10n.beaconRoomMessageActionsTitle,
-                  style: Theme.of(ctx).textTheme.titleMedium,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: kPaddingH.add(kPaddingSmallT),
+                  child: Text(
+                    l10n.beaconRoomMessageActionsTitle,
+                    style: Theme.of(ctx).textTheme.titleMedium,
+                  ),
                 ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit_note_outlined),
-                title: Text(l10n.beaconRoomActionUpdatePlan),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  unawaited(_showPlanUpdateSheet(context, cubit, l10n));
-                },
-              ),
-              if (showFactInMenu && pf == null)
                 ListTile(
-                  leading: const Icon(Icons.fact_check_outlined),
-                  title: Text(l10n.beaconRoomActionPinFact),
+                  leading: const Icon(Icons.edit_note_outlined),
+                  title: Text(l10n.beaconRoomActionUpdatePlan),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(_showPlanUpdateSheet(context, cubit, l10n));
+                  },
+                ),
+                if (showFactInMenu && pf == null)
+                  ListTile(
+                    leading: const Icon(Icons.fact_check_outlined),
+                    title: Text(l10n.beaconRoomActionPinFact),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      unawaited(
+                        _pinOrManageFactForMessage(
+                          context,
+                          cubit,
+                          l10n,
+                          message,
+                          null,
+                        ),
+                      );
+                    },
+                  ),
+                if (showFactInMenu && pf != null)
+                  ListTile(
+                    leading: Icon(
+                      Icons.push_pin_outlined,
+                      color: theme.colorScheme.error,
+                    ),
+                    title: Text(
+                      l10n.beaconRoomFactCardActionRemove,
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      unawaited(
+                        _confirmUnpinFactFromMessage(context, cubit, l10n, pf),
+                      );
+                    },
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.report_problem_outlined),
+                  title: Text(l10n.beaconRoomActionMarkBlocker),
                   onTap: () {
                     Navigator.pop(ctx);
                     unawaited(
-                      _pinOrManageFactForMessage(
+                      _showMarkBlockerSheet(context, cubit, l10n, message),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.help_outline),
+                  title: Text(l10n.beaconRoomActionNeedInfo),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _showNeedInfoSheet(
                         context,
                         cubit,
                         l10n,
+                        viewer,
                         message,
-                        null,
                       ),
                     );
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.report_problem_outlined),
-                title: Text(l10n.beaconRoomActionMarkBlocker),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  unawaited(_showMarkBlockerSheet(context, cubit, l10n, message));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.help_outline),
-                title: Text(l10n.beaconRoomActionNeedInfo),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  unawaited(_showNeedInfoSheet(context, cubit, l10n, message));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.task_alt_outlined),
-                title: Text(l10n.beaconRoomActionMarkDone),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  unawaited(_showMarkDoneSheet(context, cubit, l10n, message));
-                },
-              ),
-            ],
-          ),
-        );
+                ListTile(
+                  leading: const Icon(Icons.task_alt_outlined),
+                  title: Text(l10n.beaconRoomActionMarkDone),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      _showMarkDoneSheet(context, cubit, l10n, message),
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
         },
       ),
     );
+  }
+
+  Future<void> _confirmUnpinFactFromMessage(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    BeaconFactCard fact,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.beaconRoomFactCardRemoveConfirmTitle),
+        content: Text(l10n.beaconRoomFactCardRemoveConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.beaconRoomFactCardRemoveConfirmAction),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) {
+      await cubit.removeFact(factCardId: fact.id);
+    }
   }
 
   Future<void> _showPlanUpdateSheet(
@@ -416,7 +540,9 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                   controller: controller,
                   maxLines: 6,
                   minLines: 3,
-                  decoration: InputDecoration(hintText: l10n.beaconRoomStripPlanLabel),
+                  decoration: InputDecoration(
+                    hintText: l10n.beaconRoomStripPlanLabel,
+                  ),
                 ),
                 const SizedBox(height: kSpacingMedium),
                 FilledButton(
@@ -505,7 +631,9 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
           title: Text(l10n.beaconRoomActionMarkBlocker),
           content: TextField(
             controller: controller,
-            decoration: InputDecoration(hintText: l10n.beaconRoomBlockerTitleHint),
+            decoration: InputDecoration(
+              hintText: l10n.beaconRoomBlockerTitleHint,
+            ),
             autofocus: true,
           ),
           actions: [
@@ -534,6 +662,7 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
     BuildContext context,
     RoomCubit cubit,
     L10n l10n,
+    Profile viewer,
     RoomMessage message,
   ) async {
     final admitted = cubit.state.participants
@@ -562,13 +691,16 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                       DropdownMenuItem(
                         value: p.userId,
                         child: Text(
-                          p.userId.length <= 16
-                              ? p.userId
-                              : '${p.userId.substring(0, 14)}…',
+                          _needInfoTargetLabel(
+                            l10n,
+                            viewer,
+                            p,
+                          ),
                         ),
                       ),
                   ],
-                  onChanged: (v) => setState(() => targetUserId = v ?? targetUserId),
+                  onChanged: (v) =>
+                      setState(() => targetUserId = v ?? targetUserId),
                 ),
                 TextField(
                   controller: requestController,
@@ -606,6 +738,17 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
     }
   }
 
+  String _needInfoTargetLabel(L10n l10n, Profile viewer, BeaconParticipant p) {
+    if (p.userId == viewer.id) {
+      return l10n.labelYou;
+    }
+    final t = p.userTitle.trim();
+    if (t.isNotEmpty) {
+      return t;
+    }
+    return p.userId.length <= 16 ? p.userId : '${p.userId.substring(0, 14)}…';
+  }
+
   Future<void> _showMarkDoneSheet(
     BuildContext context,
     RoomCubit cubit,
@@ -635,8 +778,7 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
               ),
               ListTile(
                 title: Text(
-                  onlyBlocker &&
-                          (rs.openBlockerTitle ?? '').trim().isNotEmpty
+                  onlyBlocker && (rs.openBlockerTitle ?? '').trim().isNotEmpty
                       ? l10n.beaconRoomMarkDoneConfirmSingleBlocker(
                           rs.openBlockerTitle!.trim(),
                         )
@@ -784,7 +926,7 @@ class BeaconRoomComposer extends StatefulWidget {
   final bool isSending;
 
   final Future<void> Function(String body, List<RoomPendingUpload> uploads)
-      onSend;
+  onSend;
 
   @override
   State<BeaconRoomComposer> createState() => _BeaconRoomComposerState();
@@ -984,11 +1126,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
             right: 0,
             child: IconButton(
               padding: EdgeInsets.zero,
-              constraints:
-                  const BoxConstraints.tightFor(width: 36, height: 36),
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
               style: IconButton.styleFrom(
-                backgroundColor:
-                    theme.colorScheme.surface.withValues(alpha: 0.92),
+                backgroundColor: theme.colorScheme.surface.withValues(
+                  alpha: 0.92,
+                ),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               tooltip: loc.deleteButtonTooltip,

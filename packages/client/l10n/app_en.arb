@@ -2397,7 +2397,8 @@
   "beaconRoomPinFactTitle": "Pin as fact",
   "beaconRoomPinFactPublic": "Public — visible beyond the room",
   "beaconRoomPinFactRoomOnly": "Room only",
-  "beaconRoomPinFactDisabledEmpty": "Add message text before pinning.",
+  "beaconRoomPinFactDisabledEmpty": "Add text or an attachment before pinning.",
+  "beaconRoomPinFactAttachmentBodyFallback": "Attachment",
   "beaconRoomActionViewPinnedFact": "View pinned fact",
   "beaconRoomSemanticPlan": "Plan",
   "beaconRoomSemanticPublicFact": "Public fact",
@@ -2442,7 +2443,23 @@
   "beaconOverviewRoomCueCardTitle": "Room coordination",
   "beaconRoomStripNowTitle": "Now",
   "beaconRoomStripPlanLabel": "Plan",
-  "beaconRoomStripLastPrivateFactLabel": "Last room fact",
+  "beaconRoomStripLastPrivateFactLabel": "Pinned facts",
+  "beaconPinnedFactCarouselSemanticLabel": "Pinned facts carousel",
+  "beaconPinnedFactCarouselPreviousTooltip": "Previous fact",
+  "beaconPinnedFactCarouselNextTooltip": "Next fact",
+  "beaconPinnedFactCarouselPositionLabel": "{current} of {total}",
+  "@beaconPinnedFactCarouselPositionLabel": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "beaconPinnedFactCarouselDotSemanticLabel": "Go to fact {index}",
+  "@beaconPinnedFactCarouselDotSemanticLabel": {
+    "placeholders": {
+      "index": {"type": "int"}
+    }
+  },
   "beaconRoomStripMeaningfulChangeLabel": "Latest change",
   "beaconRoomStripOpenBlockerHint": "A blocker is open in the room (details in chat).",
   "beaconRoomYouStripTitle": "You",

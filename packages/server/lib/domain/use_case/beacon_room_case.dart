@@ -527,12 +527,16 @@ final class BeaconRoomCase extends UseCaseBase {
       );
     }
     final rows = await _room.listParticipants(beaconId);
+    final userIds = rows.map((r) => r.userId).toSet().toList();
+    final titlesByUserId =
+        userIds.isEmpty ? <String, String>{} : await _room.userTitlesByIds(userIds);
     return rows
         .map(
           (r) => <String, Object?>{
             'id': r.id,
             'beaconId': r.beaconId,
             'userId': r.userId,
+            'userTitle': titlesByUserId[r.userId] ?? '',
             'role': r.role,
             'status': r.status,
             'roomAccess': r.roomAccess,

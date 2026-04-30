@@ -13,6 +13,7 @@ abstract class BeaconParticipant with _$BeaconParticipant {
     required int roomAccess,
     required DateTime createdAt,
     required DateTime updatedAt,
+    @Default('') String userTitle,
     @Default('') String offerNote,
     String? nextMoveText,
     int? nextMoveStatus,

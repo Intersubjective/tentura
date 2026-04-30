@@ -86,6 +86,7 @@ final gqlTypeBeaconParticipantRow =
         field('id', graphQLString.nonNullable()),
         field('beaconId', graphQLString.nonNullable()),
         field('userId', graphQLString.nonNullable()),
+        field('userTitle', graphQLString.nonNullable()),
         field('role', graphQLInt.nonNullable()),
         field('status', graphQLInt.nonNullable()),
         field('roomAccess', graphQLInt.nonNullable()),
@@ -107,10 +108,12 @@ final gqlTypeBeaconFactCardRow =
         field('factText', graphQLString.nonNullable()),
         field('visibility', graphQLInt.nonNullable()),
         field('pinnedBy', graphQLString.nonNullable()),
+        field('pinnedByTitle', graphQLString.nonNullable()),
         field('sourceMessageId', graphQLString),
         field('status', graphQLInt.nonNullable()),
         field('createdAt', graphQLString.nonNullable()),
         field('updatedAt', graphQLString),
+        field('attachmentsJson', graphQLString.nonNullable()),
       ]);
 
 /// `beacon_activity_event` projection for BeaconActivityEventList (V2).

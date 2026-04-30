@@ -441,8 +441,8 @@ class _BeaconOperationalScrollViewState
           p.viewerForwardEdges != c.viewerForwardEdges ||
           p.factCards != c.factCards ||
           p.roomParticipants.length != c.roomParticipants.length ||
-          (p.roomParticipants.map((e) => '${e.userId}|${e.nextMoveText}').join() !=
-              c.roomParticipants.map((e) => '${e.userId}|${e.nextMoveText}').join()) ||
+          (p.roomParticipants.map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}').join() !=
+              c.roomParticipants.map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}').join()) ||
           p.beaconRoomCue?.lastRoomMeaningfulChange !=
               c.beaconRoomCue?.lastRoomMeaningfulChange ||
           p.beaconRoomCue?.currentPlan != c.beaconRoomCue?.currentPlan,

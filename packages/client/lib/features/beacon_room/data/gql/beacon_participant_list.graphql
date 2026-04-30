@@ -3,6 +3,7 @@ query BeaconParticipantList($beaconId: String!) {
     id
     beaconId
     userId
+    userTitle
     role
     status
     roomAccess

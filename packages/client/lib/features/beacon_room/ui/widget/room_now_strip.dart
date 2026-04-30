@@ -2,21 +2,33 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
+import 'package:tentura/domain/entity/beacon_fact_card_consts.dart'
+    show BeaconFactCardStatusBits;
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
 
-/// Current plan, key private facts, last meaningful change (Phase 4).
+/// Current plan, pinned facts, last meaningful change (Phase 4).
 class RoomNowStrip extends StatelessWidget {
   const RoomNowStrip({
     required this.roomState,
     required this.factCards,
+    this.onOpenFact,
+    this.onOpenFileAttachment,
     super.key,
   });
 
   final BeaconRoomState roomState;
   final List<BeaconFactCard> factCards;
+
+  /// Opens fact actions (room only).
+  final Future<void> Function(BeaconFactCard fact)? onOpenFact;
+
+  /// Download/share file attachments (room).
+  final Future<void> Function(RoomMessageAttachment attachment)?
+      onOpenFileAttachment;
 
   @override
   Widget build(BuildContext context) {
@@ -24,12 +36,8 @@ class RoomNowStrip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final onV = scheme.onSurfaceVariant;
 
-    final privateFacts = factCards
-        .where(
-          (f) =>
-              f.visibility == BeaconFactCardVisibilityBits.room &&
-              f.status != BeaconFactCardStatusBits.removed,
-        )
+    final pinnedFacts = factCards
+        .where((f) => f.status != BeaconFactCardStatusBits.removed)
         .toList(growable: false)
       ..sort(
         (a, b) {
@@ -38,7 +46,6 @@ class RoomNowStrip extends StatelessWidget {
           return tb.compareTo(ta);
         },
       );
-    final lastFacts = privateFacts.take(2).toList(growable: false);
 
     final plan = roomState.currentPlan.trim();
     final change = roomState.lastRoomMeaningfulChange?.trim() ?? '';
@@ -47,7 +54,7 @@ class RoomNowStrip extends StatelessWidget {
     final blockerTitle = roomState.openBlockerTitle?.trim() ?? '';
 
     if (plan.isEmpty &&
-        lastFacts.isEmpty &&
+        pinnedFacts.isEmpty &&
         change.isEmpty &&
         !hasBlocker) {
       return const SizedBox.shrink();
@@ -84,21 +91,19 @@ class RoomNowStrip extends StatelessWidget {
                 style: TenturaText.status(scheme.tertiary),
               ),
             ],
-            if (lastFacts.isNotEmpty) ...[
+            if (pinnedFacts.isNotEmpty) ...[
               const SizedBox(height: kSpacingSmall),
               Text(
                 l10n.beaconRoomStripLastPrivateFactLabel,
                 style: TenturaText.status(onV),
               ),
               const SizedBox(height: kSpacingSmall / 2),
-              for (final f in lastFacts)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: kSpacingSmall / 2),
-                  child: SelectableText(
-                    f.factText,
-                    style: TenturaText.body(scheme.onSurface),
-                  ),
-                ),
+              BeaconPinnedFactCarousel(
+                facts: pinnedFacts,
+                factTextStyle: TenturaText.body(scheme.onSurface),
+                onManageOverflow: onOpenFact,
+                onOpenFileAttachment: onOpenFileAttachment,
+              ),
             ],
             if (change.isNotEmpty) ...[
               const SizedBox(height: kSpacingSmall),
