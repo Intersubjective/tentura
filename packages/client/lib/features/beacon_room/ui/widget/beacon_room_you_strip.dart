@@ -116,9 +116,12 @@ class BeaconRoomYouStrip extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            titleRow(
-              TenturaText.typeLabel(scheme.onSurface),
-              trailingChevronDown: false,
+            InkWell(
+              onTap: onToggleCollapse,
+              child: titleRow(
+                TenturaText.typeLabel(scheme.onSurface),
+                trailingChevronDown: false,
+              ),
             ),
             const SizedBox(height: kSpacingSmall),
             Text(

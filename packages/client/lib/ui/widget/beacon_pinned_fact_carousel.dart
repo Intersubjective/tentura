@@ -250,58 +250,8 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (widget.onManageOverflow != null)
-                Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: IconButton(
-                    tooltip: l10n.beaconRoomFactOverflowTooltip,
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () => unawaited(_onOverflowPressed()),
-                  ),
-                ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeInOut,
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: viewportH,
-                  child: PageView.builder(
-                    controller: _pageController,
-                    itemCount: items.length,
-                    onPageChanged: (i) => setState(() => _currentPage = i),
-                    itemBuilder: (ctx, index) {
-                      final f = items[index];
-                      final raw = _rawFactBlockHeight(
-                        context,
-                        f,
-                        contentW,
-                        widget.factTextStyle,
-                        badgeStyle,
-                        correctedLabel,
-                      );
-                      final needsScroll = raw > viewportH + 0.5;
-                      final inner = Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: _kCarouselHorizontalPadding,
-                        ),
-                        child: _factColumn(f, scheme, l10n),
-                      );
-                      if (needsScroll) {
-                        return SingleChildScrollView(
-                          child: inner,
-                        );
-                      }
-                      return Align(
-                        alignment: Alignment.topCenter,
-                        child: inner,
-                      );
-                    },
-                  ),
-                ),
-              ),
               Padding(
-                padding: const EdgeInsets.only(top: kSpacingSmall),
+                padding: const EdgeInsets.only(bottom: kSpacingSmall),
                 child: Row(
                   children: [
                     if (items.length > 1) ...[
@@ -381,7 +331,55 @@ class _BeaconPinnedFactCarouselState extends State<BeaconPinnedFactCarousel> {
                       ),
                     ] else
                       const SizedBox(width: 4),
+                    if (widget.onManageOverflow != null)
+                      IconButton(
+                        tooltip: l10n.beaconRoomFactOverflowTooltip,
+                        icon: const Icon(Icons.more_vert),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => unawaited(_onOverflowPressed()),
+                      ),
                   ],
+                ),
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeInOut,
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: viewportH,
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: items.length,
+                    onPageChanged: (i) => setState(() => _currentPage = i),
+                    itemBuilder: (ctx, index) {
+                      final f = items[index];
+                      final raw = _rawFactBlockHeight(
+                        context,
+                        f,
+                        contentW,
+                        widget.factTextStyle,
+                        badgeStyle,
+                        correctedLabel,
+                      );
+                      final needsScroll = raw > viewportH + 0.5;
+                      final inner = Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: _kCarouselHorizontalPadding,
+                        ),
+                        child: _factColumn(f, scheme, l10n),
+                      );
+                      if (needsScroll) {
+                        return SingleChildScrollView(
+                          child: inner,
+                        );
+                      }
+                      return Align(
+                        alignment: Alignment.topCenter,
+                        child: inner,
+                      );
+                    },
+                  ),
                 ),
               ),
             ],
