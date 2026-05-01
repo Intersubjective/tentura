@@ -205,10 +205,12 @@ Widget _beaconViewAppBarOverflow({
       context.router.pushPath('$kPathBeaconForwards/$beaconId'),
     ),
     onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
-    onWatch: state.inboxStatus == InboxItemStatus.needsMe
+    onWatch: !state.isCommitted &&
+        state.inboxStatus == InboxItemStatus.needsMe
         ? () => unawaited(cubit.moveToWatching())
         : null,
-    onStopWatching: state.inboxStatus == InboxItemStatus.watching
+    onStopWatching: !state.isCommitted &&
+        state.inboxStatus == InboxItemStatus.watching
         ? () => unawaited(cubit.stopWatching())
         : null,
     onCantHelp:
@@ -537,10 +539,14 @@ class _BeaconOperationalScrollViewState
                   onForward: () => unawaited(
                         context.router.pushPath('$kPathForwardBeacon/$beaconId'),
                       ),
-                  onWatch: state.inboxStatus == InboxItemStatus.needsMe
+                  onWatch: !state.isBeaconMine &&
+                      !state.isCommitted &&
+                      state.inboxStatus == InboxItemStatus.needsMe
                       ? () => unawaited(widget.beaconViewCubit.moveToWatching())
                       : null,
-                  onStopWatching: state.inboxStatus == InboxItemStatus.watching
+                  onStopWatching: !state.isBeaconMine &&
+                      !state.isCommitted &&
+                      state.inboxStatus == InboxItemStatus.watching
                       ? () =>
                             unawaited(widget.beaconViewCubit.stopWatching())
                       : null,
