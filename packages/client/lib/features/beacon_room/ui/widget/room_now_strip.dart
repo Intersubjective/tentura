@@ -152,9 +152,12 @@ class RoomNowStrip extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            titleRow(
-              TenturaText.typeLabel(scheme.onSurface),
-              trailingChevronDown: false,
+            InkWell(
+              onTap: onToggleCollapse,
+              child: titleRow(
+                TenturaText.typeLabel(scheme.onSurface),
+                trailingChevronDown: false,
+              ),
             ),
             if (plan.isNotEmpty) ...[
               const SizedBox(height: kSpacingSmall),
