@@ -1,5 +1,4 @@
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/candidate_involvement.dart';
@@ -61,10 +60,6 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default(<String, List<String>>{}) Map<String, List<String>> recipientReasons,
     @Default(ForwardFilter.unseen) ForwardFilter activeFilter,
     Beacon? beacon,
-    @Default([]) List<BeaconFactCard> publicFactCards,
-    @Default({}) Set<String> selectedFactIdsForForward,
-    @Default(false) bool includePublicStatusNote,
-    @Default(false) bool viewerIsRoomMember,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ForwardState;
 

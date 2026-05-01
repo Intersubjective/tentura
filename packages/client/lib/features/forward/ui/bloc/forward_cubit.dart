@@ -2,10 +2,7 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 
 import '../../data/repository/forward_repository.dart'
     show BeaconInvolvementData;
@@ -24,11 +21,9 @@ class ForwardCubit extends Cubit<ForwardState> {
     required String beaconId,
     String context = '',
     ForwardCase? forwardCase,
-    BeaconRoomHintsRepository? roomHints,
     @visibleForTesting bool debugSkipInitialLoad = false,
   }) : _forwardCase = forwardCase ??
            (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
-       _roomHints = roomHints,
        super(ForwardState(beaconId: beaconId, context: context)) {
     if (!debugSkipInitialLoad) {
       unawaited(_loadCandidates());
@@ -37,8 +32,6 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   final ForwardCase? _forwardCase;
 
-  final BeaconRoomHintsRepository? _roomHints;
-
   Future<void> _loadCandidates() async {
     final forwardCase = _forwardCase;
     if (forwardCase == null) {
@@ -46,19 +39,13 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final hintsRepo = _roomHints ?? GetIt.I<BeaconRoomHintsRepository>();
       final results = await Future.wait([
         forwardCase.fetchForwardCandidates(context: state.context),
         forwardCase.fetchBeaconInvolvement(beaconId: state.beaconId),
-        forwardCase.fetchPublicFactCards(state.beaconId),
-        hintsRepo.fetchByBeaconIds([state.beaconId]),
       ]);
       final profiles = results[0] as Iterable<Profile>;
       final involvement = results[1] as BeaconInvolvementData;
-      final publicFactCards = results[2] as List<BeaconFactCard>;
-      final hintMap = results[3] as Map<String, InboxRoomCardHints>;
       final myId = await forwardCase.getCurrentAccountId();
-      final roomHint = hintMap[state.beaconId];
 
       final candidates = profiles
           .where((p) => p.id != myId)
@@ -77,8 +64,6 @@ class ForwardCubit extends Cubit<ForwardState> {
         state.copyWith(
           beacon: involvement.beacon,
           candidates: candidates,
-          publicFactCards: publicFactCards,
-          viewerIsRoomMember: roomHint?.isRoomMember ?? false,
           status: const StateIsSuccess(),
         ),
       );
@@ -158,20 +143,6 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(state.copyWith(note: note));
   }
 
-  void toggleFactForForward(String factId) {
-    final next = Set<String>.from(state.selectedFactIdsForForward);
-    if (next.contains(factId)) {
-      next.remove(factId);
-    } else {
-      next.add(factId);
-    }
-    emit(state.copyWith(selectedFactIdsForForward: next));
-  }
-
-  void setIncludePublicStatusNote(bool value) {
-    emit(state.copyWith(includePublicStatusNote: value));
-  }
-
   void setRecipientNote(String userId, String note) {
     final next = Map<String, String>.from(state.perRecipientNotes);
     if (note.trim().isEmpty) {
@@ -215,31 +186,7 @@ class ForwardCubit extends Cubit<ForwardState> {
           perNotes[id] = personal.trim();
         }
       }
-      var composedNote = state.note.trim();
-      if (state.includePublicStatusNote && state.beacon != null) {
-        final lp = state.beacon!.lastPublicMeaningfulChange?.trim();
-        if (lp != null && lp.isNotEmpty) {
-          composedNote =
-              composedNote.isEmpty ? lp : '$composedNote\n\n$lp';
-        }
-      }
-      if (state.selectedFactIdsForForward.isNotEmpty) {
-        final blocks = <String>[];
-        for (final f in state.publicFactCards) {
-          if (state.selectedFactIdsForForward.contains(f.id)) {
-            final t = f.factText.trim();
-            if (t.isNotEmpty) {
-              blocks.add(t);
-            }
-          }
-        }
-        if (blocks.isNotEmpty) {
-          final factsBlock = blocks.map((t) => '• $t').join('\n');
-          composedNote = composedNote.isEmpty
-              ? factsBlock
-              : '$composedNote\n\n$factsBlock';
-        }
-      }
+      final composedNote = state.note.trim();
       await forwardCase.forwardBeacon(
         beaconId: state.beaconId,
         recipientIds: state.selectedIds.toList(),

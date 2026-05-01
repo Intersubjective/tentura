@@ -50,10 +50,7 @@ class PersonCapabilityEventRepository
         INSERT INTO public.person_capability_event
           (id, subject_user_id, observer_user_id, tag_slug, source_type, visibility)
         VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT (observer_user_id, subject_user_id, tag_slug)
-          WHERE source_type = ${CapabilityEventSource.privateLabel.dbValue}
-            AND deleted_at IS NULL
-        DO NOTHING
+        ON CONFLICT DO NOTHING
         ''',
         [
           generateId('CE'),
