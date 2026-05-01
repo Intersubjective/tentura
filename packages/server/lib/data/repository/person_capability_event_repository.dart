@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/capability/capability_event_source.dart';
 import 'package:tentura_server/domain/capability/capability_event_visibility.dart';
@@ -26,30 +27,30 @@ class PersonCapabilityEventRepository
   }) => _database.withMutatingUser(observerId, () async {
     // Soft-delete slugs no longer in the set
     await _database.customStatement(
-      '''
+      r'''
       UPDATE public.person_capability_event
       SET deleted_at = now()
-      WHERE observer_user_id = ?
-        AND subject_user_id  = ?
-        AND source_type = ?
+      WHERE observer_user_id = $1
+        AND subject_user_id  = $2
+        AND source_type = $3
         AND deleted_at IS NULL
-        AND NOT (tag_slug = ANY(?))
+        AND NOT (tag_slug = ANY($4::text[]))
       ''',
       [
         observerId,
         subjectId,
         CapabilityEventSource.privateLabel.dbValue,
-        slugs,
+        TypedValue(Type.textArray, slugs),
       ],
     );
 
     // Insert new slugs (conflict on pce_private_label_uq → ignore)
     for (final slug in slugs) {
       await _database.customStatement(
-        '''
+        r'''
         INSERT INTO public.person_capability_event
           (id, subject_user_id, observer_user_id, tag_slug, source_type, visibility)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT DO NOTHING
         ''',
         [
@@ -97,11 +98,11 @@ class PersonCapabilityEventRepository
   }) => _database.withMutatingUser(observerId, () async {
     for (final slug in slugs) {
       await _database.customStatement(
-        '''
+        r'''
         INSERT INTO public.person_capability_event
           (id, subject_user_id, observer_user_id, tag_slug, source_type,
            beacon_id, visibility, note)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         ''',
         [
           generateId('CE'),
@@ -125,11 +126,11 @@ class PersonCapabilityEventRepository
     required String slug,
   }) => _database.withMutatingUser(observerId, () async {
     await _database.customStatement(
-      '''
+      r'''
       INSERT INTO public.person_capability_event
         (id, subject_user_id, observer_user_id, tag_slug, source_type,
          beacon_id, visibility)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT DO NOTHING
       ''',
       [
@@ -153,11 +154,11 @@ class PersonCapabilityEventRepository
   }) => _database.withMutatingUser(observerId, () async {
     for (final slug in slugs) {
       await _database.customStatement(
-        '''
+        r'''
         INSERT INTO public.person_capability_event
           (id, subject_user_id, observer_user_id, tag_slug, source_type,
            beacon_id, visibility)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ''',
         [
           generateId('CE'),
