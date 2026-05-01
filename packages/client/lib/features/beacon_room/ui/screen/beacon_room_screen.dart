@@ -1053,42 +1053,45 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
         isScrollControlled: true,
         builder: (ctx) {
           final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-          return Padding(
-            padding: EdgeInsets.only(
-              left: kSpacingSmall,
-              right: kSpacingSmall,
-              top: kSpacingMedium,
-              bottom: bottom + kSpacingMedium,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  l10n.beaconRoomYouStripEditNextMove,
-                  style: Theme.of(ctx).textTheme.titleMedium,
+          return StatefulBuilder(
+            builder: (ctx, setState) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  left: kSpacingSmall,
+                  right: kSpacingSmall,
+                  top: kSpacingMedium,
+                  bottom: bottom + kSpacingMedium,
                 ),
-                const SizedBox(height: kSpacingSmall),
-                TextField(
-                  controller: controller,
-                  maxLines: 4,
-                  minLines: 2,
-                  decoration: InputDecoration(
-                    hintText: l10n.beaconRoomYouStripNextMoveLabel,
-                  ),
-                  textInputAction: TextInputAction.done,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.beaconRoomYouStripEditNextMove,
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: kSpacingSmall),
+                    TextField(
+                      controller: controller,
+                      onChanged: (_) => setState(() {}),
+                      maxLines: 4,
+                      minLines: 2,
+                      decoration: InputDecoration(
+                        hintText: l10n.beaconRoomYouStripNextMoveLabel,
+                      ),
+                      textInputAction: TextInputAction.done,
+                    ),
+                    const SizedBox(height: kSpacingMedium),
+                    FilledButton(
+                      onPressed: controller.text.trim().isEmpty
+                          ? null
+                          : () => Navigator.of(ctx).pop(true),
+                      child: Text(MaterialLocalizations.of(ctx).saveButtonLabel),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: kSpacingMedium),
-                FilledButton(
-                  onPressed: () {
-                    final t = controller.text.trim();
-                    if (t.isEmpty) return;
-                    Navigator.of(ctx).pop(true);
-                  },
-                  child: Text(MaterialLocalizations.of(ctx).saveButtonLabel),
-                ),
-              ],
-            ),
+              );
+            },
           );
         },
       );
