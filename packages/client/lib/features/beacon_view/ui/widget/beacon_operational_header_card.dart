@@ -256,18 +256,18 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: Row(
                   children: [
+                    Icon(
+                      Icons.edit_outlined,
+                      size: 14,
+                      color: _anchorToneColor(anchorTone, tt),
+                    ),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: TenturaStatusText(
                         _anchorLine(l10n, beacon, activeCommitCount),
                         tone: anchorTone,
                         maxLines: 2,
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.edit_outlined,
-                      size: 14,
-                      color: _anchorToneColor(anchorTone, tt),
                     ),
                   ],
                 ),

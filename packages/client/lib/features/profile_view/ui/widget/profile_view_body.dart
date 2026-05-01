@@ -90,12 +90,22 @@ class ProfileViewBody extends StatelessWidget {
                     Padding(
                       padding: kPaddingSmallT,
                       child: OutlinedButton.icon(
-                        onPressed: () => unawaited(
-                          EditPrivateLabelsDialog.show(
-                            context,
-                            subjectId: profile.id,
-                          ),
-                        ),
+                        onPressed: () {
+                          unawaited(
+                            EditPrivateLabelsDialog.show(
+                              context,
+                              subjectId: profile.id,
+                            ).catchError((e) {
+                              if (context.mounted) {
+                                showSnackBar(
+                                  context,
+                                  text: e.toString(),
+                                  isError: true,
+                                );
+                              }
+                            }),
+                          );
+                        },
                         icon: const Icon(Icons.label_outline),
                         label: Text(l10n.capabilityEditPrivateLabels),
                       ),

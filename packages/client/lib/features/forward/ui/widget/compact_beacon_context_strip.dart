@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -14,14 +13,10 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 class CompactBeaconContextStrip extends StatelessWidget {
   const CompactBeaconContextStrip({
     required this.beacon,
-    this.publicFacts = const [],
     super.key,
   });
 
   final Beacon beacon;
-
-  /// Public fact cards (room-only facts must not appear here).
-  final List<BeaconFactCard> publicFacts;
 
   static String _authorLabel(L10n l10n, Profile author, String viewerId) {
     final name = SelfUserHighlight.displayName(l10n, author, viewerId);
@@ -100,22 +95,6 @@ class CompactBeaconContextStrip extends StatelessWidget {
                   ),
                 ],
               ),
-              if (publicFacts.isNotEmpty) ...[
-                SizedBox(height: tt.iconTextGap),
-                for (final f in publicFacts.take(4))
-                  Padding(
-                    padding: EdgeInsets.only(bottom: tt.iconTextGap / 2),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '· ${f.factText}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TenturaText.bodySmall(tt.textMuted),
-                      ),
-                    ),
-                  ),
-              ],
             ],
           );
         },
