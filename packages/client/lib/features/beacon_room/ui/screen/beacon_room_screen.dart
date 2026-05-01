@@ -330,19 +330,22 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
 
           return Scaffold(
             appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () {
-                  final router = context.router;
-                  if (router.canPop()) {
-                    unawaited(router.maybePop());
-                  } else {
-                    unawaited(
-                      router.navigatePath(
-                        '$kPathBeaconView/${widget.beaconId}',
-                      ),
-                    );
-                  }
+              leading: Builder(
+                builder: (ctx) {
+                  final router = ctx.router;
+                  final canPop = router.canPop();
+                  return IconButton(
+                    icon: canPop
+                        ? const Icon(Icons.arrow_back_rounded)
+                        : const Icon(Icons.close_rounded),
+                    onPressed: () {
+                      if (canPop) {
+                        unawaited(router.maybePop());
+                      } else {
+                        unawaited(router.navigatePath(kPathHome));
+                      }
+                    },
+                  );
                 },
               ),
               title: Text(l10n.beaconRoomTitle),
