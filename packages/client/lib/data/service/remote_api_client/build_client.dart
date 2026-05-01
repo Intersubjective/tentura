@@ -170,6 +170,9 @@ class _V2RoutingLink extends Link {
     'BeaconFactCardCorrect',
     'BeaconFactCardRemove',
     'BeaconFactCardSetVisibility',
+    'CapabilityPrivateLabelSet',
+    'MyPrivateLabelsForUser',
+    'PersonCapabilityCues',
   };
 
   @override

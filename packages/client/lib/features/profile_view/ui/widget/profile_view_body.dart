@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -9,7 +11,11 @@ import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
+import 'package:tentura/features/capability/ui/widget/capability_cue_strip.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+
 import '../bloc/profile_view_cubit.dart';
+import '../dialog/edit_private_labels_dialog.dart';
 import 'mutual_friends_button.dart';
 
 class ProfileViewBody extends StatelessWidget {
@@ -60,6 +66,68 @@ class ProfileViewBody extends StatelessWidget {
                     ),
                   ),
                 );
+              },
+            ),
+
+            // Private-label cue strip + Edit action (viewer ≠ subject, viewer is friend)
+            BlocSelector<ProfileViewCubit, ProfileViewState,
+                (PersonCapabilityCues, bool)>(
+              selector: (s) => (s.cues, s.profile.isFriend),
+              builder: (context, rec) {
+                final (cues, isFriend) = rec;
+                final myId =
+                    context.read<ProfileCubit>().state.profile.id;
+                final isSelf = profile.id == myId;
+                if (isSelf || !isFriend) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (cues.privateLabels.isNotEmpty)
+                      Padding(
+                        padding: kPaddingSmallT,
+                        child: CapabilityCueStrip(slugs: cues.privateLabels),
+                      ),
+                    Padding(
+                      padding: kPaddingSmallT,
+                      child: OutlinedButton.icon(
+                        onPressed: () => unawaited(
+                          EditPrivateLabelsDialog.show(
+                            context,
+                            subjectId: profile.id,
+                          ),
+                        ),
+                        icon: const Icon(Icons.label_outline),
+                        label: Text(l10n.capabilityEditPrivateLabels),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+
+            // Capability cues in signal-strength order: closeAck > commitRole
+            BlocSelector<ProfileViewCubit, ProfileViewState,
+                (List<TagBeaconRef>, List<TagBeaconRef>)>(
+              selector: (s) => (s.cues.closeAckAboutMe, s.cues.commitRoles),
+              builder: (context, rec) {
+                final (closeAcks, commitRoles) = rec;
+                if (closeAcks.isNotEmpty) {
+                  return Padding(
+                    padding: kPaddingSmallT,
+                    child: CapabilityCueStrip(
+                      slugs: closeAcks.map((r) => r.slug).toSet().toList(),
+                    ),
+                  );
+                }
+                if (commitRoles.isNotEmpty) {
+                  return Padding(
+                    padding: kPaddingSmallT,
+                    child: CapabilityCueStrip(
+                      slugs: commitRoles.map((r) => r.slug).toList(),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
               },
             ),
 

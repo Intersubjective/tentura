@@ -1,3 +1,6 @@
+// DISABLED: capability-rework — this widget is no longer used by the
+// Network/Friends surface. Retained for the chat list; do not delete or
+// repurpose without lifting the // DISABLED marker first.
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';

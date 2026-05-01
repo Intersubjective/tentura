@@ -15,6 +15,7 @@ class ScreenCubit extends Cubit<ScreenState> {
 
   void back() => emit(state.navigateBack());
 
+  // Used by deep-link /chat/:id and the chat list; not reachable from Network tab.
   void showChatWith(String id) => emit(state.navigateTo('$kPathChat/$id'));
 
   void showGraphFor(String id) => emit(state.navigateTo('$kPathGraph/$id'));

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
@@ -5,6 +6,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -103,6 +105,67 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     _recipientNoteControllers.clear();
     _sharedNoteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _editReasons(
+    BuildContext context,
+    ForwardCubit cubit,
+    String recipientId,
+    List<String> currentSlugs,
+  ) async {
+    final l10n = L10n.of(context)!;
+    var selected = Set<String>.from(currentSlugs);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setModalState) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          builder: (_, scrollController) => Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.forwardReasonPrompt,
+                        style: Theme.of(ctx).textTheme.titleMedium,
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        cubit.setRecipientReasons(
+                          recipientId,
+                          selected.toList(),
+                        );
+                        Navigator.of(ctx).pop();
+                      },
+                      child: Text(l10n.buttonSave),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  children: [
+                    CapabilityChipSet(
+                      selectedSlugs: selected,
+                      onChanged: (s) => setModalState(() => selected = s),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   String _lifecycleLabel(L10n l10n, Beacon beacon) => switch (beacon.lifecycle) {
@@ -279,6 +342,18 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                                         _togglePersonalizedNoteEditor(
                                       visible[i].id,
                                     ),
+                                    reasonSlugs: state.recipientReasons[
+                                            visible[i].id] ??
+                                        const [],
+                                    onEditReasons: () =>
+                                        unawaited(_editReasons(
+                                          context,
+                                          cubit,
+                                          visible[i].id,
+                                          state.recipientReasons[
+                                                  visible[i].id] ??
+                                              const [],
+                                        )),
                                   ),
                                   if (state.selectedIds
                                           .contains(visible[i].id) &&

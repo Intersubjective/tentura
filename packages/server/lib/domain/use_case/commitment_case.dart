@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/coordination/uncommit_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
+import 'capability_case.dart';
 import '_use_case_base.dart';
 
 @Singleton(order: 2)
@@ -16,7 +17,8 @@ final class CommitmentCase extends UseCaseBase {
     this._commitmentRepository,
     this._beaconRepository,
     this._coordinationRepository,
-    this._inboxRepository, {
+    this._inboxRepository,
+    this._capabilityCase, {
     required super.env,
     required super.logger,
   });
@@ -25,6 +27,7 @@ final class CommitmentCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationRepositoryPort _coordinationRepository;
   final InboxRepositoryPort _inboxRepository;
+  final CapabilityCase _capabilityCase;
 
   Future<void> commit({
     required String beaconId,
@@ -56,6 +59,18 @@ final class CommitmentCase extends UseCaseBase {
         message: message,
         helpType: helpType,
       );
+      if (helpType != null && helpType.isNotEmpty) {
+        try {
+          await _capabilityCase.recordCommitRole(
+            observerId: userId,
+            subjectId: userId,
+            beaconId: beaconId,
+            slug: helpType,
+          );
+        } catch (e, st) {
+          logger.warning('recordCommitRole failed', e, st);
+        }
+      }
       await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
         beaconId,
       );
@@ -72,6 +87,18 @@ final class CommitmentCase extends UseCaseBase {
       message: message,
       helpType: helpType,
     );
+    if (helpType != null && helpType.isNotEmpty) {
+      try {
+        await _capabilityCase.recordCommitRole(
+          observerId: userId,
+          subjectId: userId,
+          beaconId: beaconId,
+          slug: helpType,
+        );
+      } catch (e, st) {
+        logger.warning('recordCommitRole failed', e, st);
+      }
+    }
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,
     );

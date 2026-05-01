@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert' show jsonEncode;
 
+import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/user_model.dart';
@@ -17,6 +18,8 @@ import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
 import '../gql/_g/beacon_forward_graph.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
+import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
+    show GForwardRecipientReasonInput;
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
 import '../gql/_g/beacon_commit.req.gql.dart';
@@ -87,20 +90,36 @@ class ForwardRepository {
     required List<String> recipientIds,
     String? note,
     Map<String, String>? perRecipientNotes,
+    Map<String, List<String>>? recipientReasons,
     String? context,
     String? parentEdgeId,
   }) => _remoteApiService
       .request(
         GForwardBeaconReq(
-          (r) => r..vars.beaconId = beaconId
-            ..vars.recipientIds.addAll(recipientIds)
-            ..vars.note = note
-            ..vars.context = context
-            ..vars.parentEdgeId = parentEdgeId
-            ..vars.perRecipientNotes = perRecipientNotes == null ||
-                    perRecipientNotes.isEmpty
-                ? null
-                : jsonEncode(perRecipientNotes),
+          (r) {
+            r
+              ..vars.beaconId = beaconId
+              ..vars.recipientIds.addAll(recipientIds)
+              ..vars.note = note
+              ..vars.context = context
+              ..vars.parentEdgeId = parentEdgeId
+              ..vars.perRecipientNotes = perRecipientNotes == null ||
+                      perRecipientNotes.isEmpty
+                  ? null
+                  : jsonEncode(perRecipientNotes);
+            if (recipientReasons != null && recipientReasons.isNotEmpty) {
+              r.vars.recipientReasons.addAll(
+                recipientReasons.entries
+                    .where((e) => e.value.isNotEmpty)
+                    .map(
+                      (e) => GForwardRecipientReasonInput.create(
+                        recipientId: e.key,
+                        slugs: BuiltList<String>.from(e.value),
+                      ),
+                    ),
+              );
+            }
+          },
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)

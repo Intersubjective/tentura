@@ -9,16 +9,72 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 
 import 'evaluation_graph_test_repos.dart';
+
+/// No-op stub for [PersonCapabilityEventRepositoryPort] used only to construct
+/// a [CapabilityCase] in evaluation unit tests.
+class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
+  @override
+  Future<void> upsertPrivateLabels({
+    required String observerId,
+    required String subjectId,
+    required List<String> slugs,
+  }) async {}
+
+  @override
+  Future<List<String>> fetchPrivateLabels({
+    required String observerId,
+    required String subjectId,
+  }) async => [];
+
+  @override
+  Future<void> insertForwardReasons({
+    required String observerId,
+    required String subjectId,
+    required String beaconId,
+    required List<String> slugs,
+    String note = '',
+  }) async {}
+
+  @override
+  Future<void> insertCommitRole({
+    required String observerId,
+    required String subjectId,
+    required String beaconId,
+    required String slug,
+  }) async {}
+
+  @override
+  Future<void> insertCloseAcknowledgements({
+    required String observerId,
+    required String subjectId,
+    required String beaconId,
+    required List<String> slugs,
+  }) async {}
+
+  @override
+  Future<PersonCapabilityCuesRow> fetchCues({
+    required String viewerId,
+    required String subjectId,
+  }) async => const PersonCapabilityCuesRow(
+    privateLabels: [],
+    forwardReasonsByMe: [],
+    commitRoles: [],
+    closeAckByMe: [],
+    closeAckAboutMe: [],
+  );
+}
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
 
@@ -227,6 +283,12 @@ void main() {
     );
     final draftPurger = EvaluationDraftPurger(evalRepo);
 
+    final noopCapabilityCase = CapabilityCase(
+      _NoopCapabilityEventRepo(),
+      env: Env(environment: Environment.test),
+      logger: Logger('EvaluationCaseTest'),
+    );
+
     evaluationCase = EvaluationCase(
       MockBeaconRepository(),
       forwardRepo,
@@ -236,6 +298,7 @@ void main() {
       MockFcmTokenRepository(),
       graphBuilder,
       draftPurger,
+      noopCapabilityCase,
       env: Env(environment: Environment.test),
       logger: Logger('EvaluationCaseTest'),
     );

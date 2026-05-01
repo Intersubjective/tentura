@@ -49,6 +49,7 @@ final class ForwardCase extends UseCaseBase {
     required List<String> recipientIds,
     String? note,
     Map<String, String>? perRecipientNotes,
+    Map<String, List<String>>? recipientReasons,
     String? context,
     String? parentEdgeId,
   }) =>
@@ -57,6 +58,7 @@ final class ForwardCase extends UseCaseBase {
         recipientIds: recipientIds,
         note: note,
         perRecipientNotes: perRecipientNotes,
+        recipientReasons: recipientReasons,
         context: context,
         parentEdgeId: parentEdgeId,
       );

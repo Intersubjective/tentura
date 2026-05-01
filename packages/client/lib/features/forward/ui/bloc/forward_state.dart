@@ -58,6 +58,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default([]) List<ForwardCandidate> candidates,
     @Default({}) Set<String> selectedIds,
     @Default(<String, String>{}) Map<String, String> perRecipientNotes,
+    @Default(<String, List<String>>{}) Map<String, List<String>> recipientReasons,
     @Default(ForwardFilter.unseen) ForwardFilter activeFilter,
     Beacon? beacon,
     @Default([]) List<BeaconFactCard> publicFactCards,

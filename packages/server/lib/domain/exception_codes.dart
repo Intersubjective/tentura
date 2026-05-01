@@ -128,3 +128,21 @@ class CommitmentCoordinationExceptionCodes extends ExceptionCodes {
   @override
   int get codeNumber => codeSpace + exceptionCode.index;
 }
+
+// Capability
+
+enum CapabilityExceptionCode {
+  invalidSlug,
+  selfLabelForbidden,
+}
+
+class CapabilityExceptionCodes extends ExceptionCodes {
+  static const codeSpace = 1600;
+
+  const CapabilityExceptionCodes(this.exceptionCode);
+
+  final CapabilityExceptionCode exceptionCode;
+
+  @override
+  int get codeNumber => codeSpace + exceptionCode.index;
+}

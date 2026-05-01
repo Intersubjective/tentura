@@ -1,0 +1,3 @@
+query MyPrivateLabelsForUser($subjectUserId: String!) {
+  myPrivateLabelsForUser(subjectUserId: $subjectUserId)
+}

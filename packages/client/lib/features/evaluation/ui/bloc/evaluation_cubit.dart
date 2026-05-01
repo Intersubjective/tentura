@@ -98,6 +98,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     required EvaluationValue value,
     required List<String> reasonTags,
     String note = '',
+    List<String>? acknowledgedHelpTags,
   }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
@@ -125,6 +126,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         value: value.wire,
         reasonTags: reasonTags,
         note: note,
+        acknowledgedHelpTags: acknowledgedHelpTags,
       );
       final participants = await _evaluationCase.fetchParticipants(state.beaconId);
       final window = await _evaluationCase.fetchReviewWindowStatus(state.beaconId);

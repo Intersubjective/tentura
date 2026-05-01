@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_case.dart';
 
 import 'commitment_case_mocks.mocks.dart';
@@ -17,6 +18,8 @@ void main() {
   late MockCommitmentRepositoryPort commitmentRepo;
   late MockCoordinationRepositoryPort coordinationRepo;
   late MockInboxRepositoryPort inboxRepo;
+  late MockPersonCapabilityEventRepositoryPort capabilityRepo;
+  late CapabilityCase capabilityCase;
   late CommitmentCase case_;
 
   final now = DateTime.utc(2025);
@@ -45,11 +48,18 @@ void main() {
     commitmentRepo = MockCommitmentRepositoryPort();
     coordinationRepo = MockCoordinationRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
+    capabilityRepo = MockPersonCapabilityEventRepositoryPort();
+    capabilityCase = CapabilityCase(
+      capabilityRepo,
+      env: Env(environment: Environment.test),
+      logger: Logger('CapabilityCaseTest'),
+    );
     case_ = CommitmentCase(
       commitmentRepo,
       beaconRepo,
       coordinationRepo,
       inboxRepo,
+      capabilityCase,
       env: Env(environment: Environment.test),
       logger: Logger('CommitmentCaseTest'),
     );

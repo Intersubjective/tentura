@@ -130,8 +130,28 @@ class ForwardCubit extends Cubit<ForwardState> {
       selected.add(userId);
     }
     final notes = Map<String, String>.from(state.perRecipientNotes);
-    state.selectedIds.difference(selected).forEach(notes.remove);
-    emit(state.copyWith(selectedIds: selected, perRecipientNotes: notes));
+    final reasons = Map<String, List<String>>.from(state.recipientReasons);
+    state.selectedIds.difference(selected).forEach((id) {
+      notes.remove(id);
+      reasons.remove(id);
+    });
+    emit(
+      state.copyWith(
+        selectedIds: selected,
+        perRecipientNotes: notes,
+        recipientReasons: reasons,
+      ),
+    );
+  }
+
+  void setRecipientReasons(String userId, List<String> slugs) {
+    final next = Map<String, List<String>>.from(state.recipientReasons);
+    if (slugs.isEmpty) {
+      next.remove(userId);
+    } else {
+      next[userId] = slugs;
+    }
+    emit(state.copyWith(recipientReasons: next));
   }
 
   void setNote(String note) {
@@ -226,6 +246,9 @@ class ForwardCubit extends Cubit<ForwardState> {
         note: composedNote.isEmpty ? null : composedNote,
         perRecipientNotes: perNotes.isEmpty ? null : perNotes,
         context: state.context.isEmpty ? null : state.context,
+        recipientReasons: state.recipientReasons.isEmpty
+            ? null
+            : state.recipientReasons,
       );
       emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {

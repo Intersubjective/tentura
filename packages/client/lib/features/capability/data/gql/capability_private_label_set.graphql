@@ -1,0 +1,3 @@
+mutation CapabilityPrivateLabelSet($subjectUserId: String!, $slugs: [String!]!) {
+  capabilityPrivateLabelSet(subjectUserId: $subjectUserId, slugs: $slugs)
+}

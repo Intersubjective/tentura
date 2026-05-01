@@ -4,6 +4,7 @@ import 'input/_input_types.dart';
 
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
   InputFieldCoordinates.type,
+  InputFieldForwardRecipientReasons.type,
   InputFieldPolling.type,
   InputFieldUpload.type,
   gqlTypeAuthResponse,
@@ -33,6 +34,9 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconFactCardRow,
   gqlTypeBeaconActivityEventRow,
   gqlTypeInboxRoomContextRow,
+  gqlTypeTagCount,
+  gqlTypeTagBeaconRef,
+  gqlTypePersonCapabilityCuesPayload,
 ];
 
 /// Payload returned by `RoomMessageCreate`.
@@ -419,3 +423,46 @@ final gqlTypeCommitmentWithCoordinationRow = GraphQLObjectType(
     field('responseAuthorUserId', graphQLString),
     field('user', gqlTypeUserPublic.nonNullable()),
   ]);
+
+/// Slug + aggregated count for forward-reason cues.
+final gqlTypeTagCount = GraphQLObjectType('v2_TagCount', null)
+  ..fields.addAll([
+    field('slug', graphQLString.nonNullable()),
+    field('count', graphQLInt.nonNullable()),
+    field('lastSeenAt', graphQLString.nonNullable()),
+  ]);
+
+/// Slug + beacon reference for commit-role or close-ack cues.
+final gqlTypeTagBeaconRef = GraphQLObjectType('v2_TagBeaconRef', null)
+  ..fields.addAll([
+    field('slug', graphQLString.nonNullable()),
+    field('beaconId', graphQLString.nonNullable()),
+    field('beaconTitle', graphQLString.nonNullable()),
+    field('createdAt', graphQLString.nonNullable()),
+  ]);
+
+/// Aggregated capability cues payload returned by `personCapabilityCues`.
+final gqlTypePersonCapabilityCuesPayload =
+    GraphQLObjectType('v2_PersonCapabilityCuesPayload', null)
+      ..fields.addAll([
+        field(
+          'privateLabels',
+          GraphQLListType(graphQLString.nonNullable()),
+        ),
+        field(
+          'forwardReasonsByMe',
+          GraphQLListType(gqlTypeTagCount.nonNullable()),
+        ),
+        field(
+          'commitRoles',
+          GraphQLListType(gqlTypeTagBeaconRef.nonNullable()),
+        ),
+        field(
+          'closeAckByMe',
+          GraphQLListType(gqlTypeTagBeaconRef.nonNullable()),
+        ),
+        field(
+          'closeAckAboutMe',
+          GraphQLListType(gqlTypeTagBeaconRef.nonNullable()),
+        ),
+      ]);
