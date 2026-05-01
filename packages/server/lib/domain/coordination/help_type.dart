@@ -7,6 +7,12 @@ const kAllowedHelpTypeKeys = <String>{
   'contact',
   'transport',
   'other',
+  'documents',
+  'physical_help',
+  'tools',
+  'housing',
+  'workspace',
+  'introductions',
 };
 
 bool isAllowedHelpType(String? helpType) =>

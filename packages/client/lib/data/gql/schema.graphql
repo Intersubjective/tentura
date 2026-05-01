@@ -2563,7 +2563,7 @@ type mutation_root {
   beaconReorderImages(beaconId: String!, imageIds: [String!]!): Boolean!
   beaconUpdatePost(beaconId: String!, content: String!): BeaconAuthorUpdate!
   beaconUpdateEdit(id: String!, content: String!): BeaconAuthorUpdate!
-  beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!]): String!
+  beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!], reasons: [String!], recipientReasons: [ForwardRecipientReasonInput!]): String!
   beaconWithdraw(id: String!, message: String, uncommitReason: String!): Boolean!
   RoomMessageCreate(
     beaconId: String!
@@ -2618,6 +2618,7 @@ type mutation_root {
   ): Boolean!
   RoomMessageMarkDone(beaconId: String!, messageId: String!, resolveBlocker: Boolean!): Boolean!
   BeaconParticipantRoomSeen(beaconId: String!): Boolean!
+  capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
 
   """
@@ -4170,6 +4171,8 @@ type query_root {
   BeaconActivityEventList(beaconId: String!): [BeaconActivityEventRow!]!
   InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
   BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
+  myPrivateLabelsForUser(subjectUserId: String!): [String!]!
+  personCapabilityCues(subjectUserId: String!): v2_PersonCapabilityCuesPayload!
 
   """
   execute function "graph" which returns "mutual_score"
@@ -7281,5 +7284,31 @@ order by variance() on columns of table "vote_user"
 """
 input vote_user_variance_order_by {
   amount: order_by
+}
+
+input ForwardRecipientReasonInput {
+  recipientId: String!
+  slugs: [String!]
+}
+
+type v2_TagCount {
+  slug: String!
+  count: Int!
+  lastSeenAt: String!
+}
+
+type v2_TagBeaconRef {
+  slug: String!
+  beaconId: String!
+  beaconTitle: String!
+  createdAt: String!
+}
+
+type v2_PersonCapabilityCuesPayload {
+  privateLabels: [String!]
+  forwardReasonsByMe: [v2_TagCount!]
+  commitRoles: [v2_TagBeaconRef!]
+  closeAckByMe: [v2_TagBeaconRef!]
+  closeAckAboutMe: [v2_TagBeaconRef!]
 }
 

@@ -1,0 +1,28 @@
+query PersonCapabilityCues($subjectUserId: String!) {
+  personCapabilityCues(subjectUserId: $subjectUserId) {
+    privateLabels
+    forwardReasonsByMe {
+      slug
+      count
+      lastSeenAt
+    }
+    commitRoles {
+      slug
+      beaconId
+      beaconTitle
+      createdAt
+    }
+    closeAckByMe {
+      slug
+      beaconId
+      beaconTitle
+      createdAt
+    }
+    closeAckAboutMe {
+      slug
+      beaconId
+      beaconTitle
+      createdAt
+    }
+  }
+}

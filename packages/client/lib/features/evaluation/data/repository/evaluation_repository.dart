@@ -186,6 +186,7 @@ class EvaluationRepository {
     required int value,
     List<String> reasonTags = const [],
     String note = '',
+    List<String>? acknowledgedHelpTags,
   }) async {
     await _remoteApiService
         .request(
@@ -195,7 +196,11 @@ class EvaluationRepository {
               ..evaluatedUserId = evaluatedUserId
               ..value = value
               ..reasonTags = ListBuilder<String>(reasonTags)
-              ..note = note.isEmpty ? null : note,
+              ..note = note.isEmpty ? null : note
+              ..acknowledgedHelpTags = acknowledgedHelpTags == null ||
+                      acknowledgedHelpTags.isEmpty
+                  ? null
+                  : ListBuilder<String>(acknowledgedHelpTags),
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)

@@ -4,6 +4,7 @@ mutation EvaluationSubmit(
   $value: Int!
   $reasonTags: [String!]
   $note: String
+  $acknowledgedHelpTags: [String!]
 ) {
   evaluationSubmit(
     id: $id
@@ -11,5 +12,6 @@ mutation EvaluationSubmit(
     value: $value
     reasonTags: $reasonTags
     note: $note
+    acknowledgedHelpTags: $acknowledgedHelpTags
   )
 }

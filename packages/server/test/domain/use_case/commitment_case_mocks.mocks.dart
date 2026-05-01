@@ -17,6 +17,8 @@ import 'package:tentura_server/domain/port/commitment_repository_port.dart'
 import 'package:tentura_server/domain/port/coordination_repository_port.dart'
     as _i7;
 import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i9;
+import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart'
+    as _i11;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -32,6 +34,12 @@ import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i9;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 // ignore_for_file: invalid_use_of_internal_member
+
+class _FakePersonCapabilityCuesRow_0 extends _i1.SmartFake
+    implements _i11.PersonCapabilityCuesRow {
+  _FakePersonCapabilityCuesRow_0(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
 
 class _FakeBeaconEntity_0 extends _i1.SmartFake implements _i2.BeaconEntity {
   _FakeBeaconEntity_0(Object parent, Invocation parentInvocation)
@@ -661,4 +669,126 @@ class MockInboxRepositoryPort extends _i1.Mock
             returnValueForMissingStub: _i4.Future<void>.value(),
           )
           as _i4.Future<void>);
+}
+
+/// A class which mocks [PersonCapabilityEventRepositoryPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
+    implements _i11.PersonCapabilityEventRepositoryPort {
+  MockPersonCapabilityEventRepositoryPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i4.Future<void> upsertPrivateLabels({
+    required String? observerId,
+    required String? subjectId,
+    required List<String>? slugs,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#upsertPrivateLabels, [], {
+              #observerId: observerId,
+              #subjectId: subjectId,
+              #slugs: slugs,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<List<String>> fetchPrivateLabels({
+    required String? observerId,
+    required String? subjectId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchPrivateLabels, [], {
+              #observerId: observerId,
+              #subjectId: subjectId,
+            }),
+            returnValue: _i4.Future<List<String>>.value(<String>[]),
+          )
+          as _i4.Future<List<String>>);
+
+  @override
+  _i4.Future<void> insertForwardReasons({
+    required String? observerId,
+    required String? subjectId,
+    required String? beaconId,
+    required List<String>? slugs,
+    String? note = '',
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertForwardReasons, [], {
+              #observerId: observerId,
+              #subjectId: subjectId,
+              #beaconId: beaconId,
+              #slugs: slugs,
+              #note: note,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> insertCommitRole({
+    required String? observerId,
+    required String? subjectId,
+    required String? beaconId,
+    required String? slug,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertCommitRole, [], {
+              #observerId: observerId,
+              #subjectId: subjectId,
+              #beaconId: beaconId,
+              #slug: slug,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> insertCloseAcknowledgements({
+    required String? observerId,
+    required String? subjectId,
+    required String? beaconId,
+    required List<String>? slugs,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertCloseAcknowledgements, [], {
+              #observerId: observerId,
+              #subjectId: subjectId,
+              #beaconId: beaconId,
+              #slugs: slugs,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<_i11.PersonCapabilityCuesRow> fetchCues({
+    required String? viewerId,
+    required String? subjectId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchCues, [], {
+              #viewerId: viewerId,
+              #subjectId: subjectId,
+            }),
+            returnValue: _i4.Future<_i11.PersonCapabilityCuesRow>.value(
+              _FakePersonCapabilityCuesRow_0(
+                this,
+                Invocation.method(#fetchCues, [], {
+                  #viewerId: viewerId,
+                  #subjectId: subjectId,
+                }),
+              ),
+            ),
+          )
+          as _i4.Future<_i11.PersonCapabilityCuesRow>);
 }

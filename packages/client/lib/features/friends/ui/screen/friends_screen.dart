@@ -12,7 +12,7 @@ import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
-import 'package:tentura/features/chat/ui/widget/chat_peer_list_tile.dart';
+import 'package:tentura/features/capability/ui/widget/network_person_card.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
@@ -211,7 +211,7 @@ class _FriendsTabBody extends StatelessWidget {
                   itemCount: friends.length,
                   itemBuilder: (_, i) {
                     final profile = friends[i];
-                    return ChatPeerListTile(
+                    return NetworkPersonCard(
                       key: ValueKey(profile),
                       profile: profile,
                     );

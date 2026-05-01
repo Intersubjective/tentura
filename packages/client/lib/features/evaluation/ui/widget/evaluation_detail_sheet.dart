@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -12,11 +13,13 @@ Future<void> showEvaluationDetailSheet({
     EvaluationValue value,
     List<String> tags,
     String note,
+    List<String> acknowledgedHelpTags,
   ) onSave,
 }) async {
   final l10n = L10n.of(context)!;
   var value = participant.currentValue ?? EvaluationValue.noBasis;
   final tags = List<String>.from(participant.reasonTags);
+  final ackTags = <String>{};
   final noteController = TextEditingController(text: participant.note);
 
   List<String> allowedTags(EvaluationValue v) {
@@ -118,6 +121,20 @@ Future<void> showEvaluationDetailSheet({
                       ],
                     ),
                   ],
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.closeAckPrompt,
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 6),
+                  CapabilityChipSet(
+                    selectedSlugs: ackTags,
+                    onChanged: (slugs) => setState(() {
+                      ackTags
+                        ..clear()
+                        ..addAll(slugs);
+                    }),
+                  ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: noteController,
@@ -138,7 +155,12 @@ Future<void> showEvaluationDetailSheet({
                       if (needs && tags.isEmpty) {
                         return;
                       }
-                      await onSave(value, tags, noteController.text);
+                      await onSave(
+                        value,
+                        tags,
+                        noteController.text,
+                        ackTags.toList(),
+                      );
                       if (context.mounted) {
                         Navigator.of(context).pop();
                       }

@@ -54,6 +54,7 @@ final class EvaluationCase extends UseCaseBase {
     required int value,
     List<String> reasonTags = const [],
     String note = '',
+    List<String>? acknowledgedHelpTags,
   }) =>
       _repository.submit(
         beaconId: beaconId,
@@ -61,6 +62,7 @@ final class EvaluationCase extends UseCaseBase {
         value: value,
         reasonTags: reasonTags,
         note: note,
+        acknowledgedHelpTags: acknowledgedHelpTags,
       );
 
   Future<void> finalize(String beaconId) => _repository.finalize(beaconId);

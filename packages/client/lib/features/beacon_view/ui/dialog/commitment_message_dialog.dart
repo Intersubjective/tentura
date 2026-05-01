@@ -100,7 +100,7 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
           children: [
             if (widget.showHelpTypeChips) ...[
               Text(
-                l10n.labelHelpTypeOptional,
+                l10n.commitRolePrompt,
                 style: theme.textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
@@ -172,10 +172,15 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
   static String _helpTypeLabel(L10n l10n, CommitHelpType t) => switch (t) {
         CommitHelpType.money => l10n.helpTypeMoney,
         CommitHelpType.time => l10n.helpTypeTime,
-        CommitHelpType.skill => l10n.helpTypeSkill,
         CommitHelpType.verification => l10n.helpTypeVerification,
         CommitHelpType.contact => l10n.helpTypeContact,
         CommitHelpType.transport => l10n.helpTypeTransport,
+        CommitHelpType.documents => l10n.capabilityTagDocuments,
+        CommitHelpType.physicalHelp => l10n.capabilityTagPhysicalHelp,
+        CommitHelpType.tools => l10n.capabilityTagTools,
+        CommitHelpType.housing => l10n.capabilityTagHousing,
+        CommitHelpType.workspace => l10n.capabilityTagWorkspace,
+        CommitHelpType.introductions => l10n.capabilityTagIntroductions,
         CommitHelpType.other => l10n.helpTypeOther,
       };
 

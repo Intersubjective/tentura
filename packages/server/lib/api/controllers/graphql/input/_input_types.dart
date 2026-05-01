@@ -17,6 +17,7 @@ part 'input_field_title.dart';
 part 'input_field_beacon_title.dart';
 part 'input_field_id.dart';
 part 'input_field_recipient_ids.dart';
+part 'input_field_forward_recipient_reason.dart';
 
 const kGlobalInputQueryContext = 'queryContext';
 const kGlobalInputQueryFile = 'queryFile';

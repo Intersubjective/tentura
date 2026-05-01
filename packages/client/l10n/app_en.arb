@@ -2601,5 +2601,78 @@
   },
   "beaconRoomAttachmentUntitled": "File",
   "beaconRoomAttachmentOpenFailed": "Could not open attachment.",
-  "beaconRoomAttachmentOpenShare": "Share file"
+  "beaconRoomAttachmentOpenShare": "Share file",
+
+  "capabilityEditPrivateLabels": "Edit my labels",
+  "capabilityCueMyLabels": "My labels: {tags}",
+  "@capabilityCueMyLabels": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  },
+
+  "capabilityGroupLogistics": "Logistics",
+  "capabilityGroupCommunication": "Communication",
+  "capabilityGroupKnowledge": "Knowledge",
+  "capabilityGroupCare": "Care & support",
+  "capabilityGroupResources": "Resources",
+  "capabilityGroupTechnical": "Technical",
+  "capabilityGroupSpecial": "Other",
+
+  "capabilityTagTransport": "Transport",
+  "capabilityTagStorage": "Storage",
+  "capabilityTagPickupDelivery": "Pickup / delivery",
+  "capabilityTagTools": "Tools",
+  "capabilityTagPhysicalHelp": "Physical help",
+  "capabilityTagCalls": "Calls",
+  "capabilityTagTranslation": "Translation",
+  "capabilityTagWriting": "Writing",
+  "capabilityTagNegotiation": "Negotiation",
+  "capabilityTagIntroductions": "Introductions",
+  "capabilityTagLocalKnowledge": "Local knowledge",
+  "capabilityTagLegalNavigation": "Legal navigation",
+  "capabilityTagMedicalNavigation": "Medical navigation",
+  "capabilityTagDocuments": "Documents",
+  "capabilityTagVerification": "Verification",
+  "capabilityTagPets": "Pets",
+  "capabilityTagChildcare": "Childcare",
+  "capabilityTagEldercare": "Eldercare",
+  "capabilityTagEmotionalSupport": "Emotional support",
+  "capabilityTagHosting": "Hosting",
+  "capabilityTagMoney": "Money",
+  "capabilityTagFood": "Food",
+  "capabilityTagHousing": "Housing",
+  "capabilityTagEquipment": "Equipment",
+  "capabilityTagWorkspace": "Workspace",
+  "capabilityTagTechHelp": "Tech help",
+  "capabilityTagRepair": "Repair",
+  "capabilityTagSoftware": "Software",
+  "capabilityTagDesign": "Design",
+  "capabilityTagAdminPaperwork": "Admin / paperwork",
+  "capabilityTagTime": "Time",
+  "capabilityTagContact": "Contact",
+  "capabilityTagOther": "Other",
+
+  "forwardReasonPrompt": "Why are you forwarding to this person?",
+  "forwardReasonApplyToAll": "Apply same reasons to all",
+  "capabilityCueForwardedFor": "Often forwarded for: {tags}",
+  "@capabilityCueForwardedFor": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  },
+  "commitRolePrompt": "How are you helping?",
+  "capabilityCueCommitted": "Committed: {tags}",
+  "@capabilityCueCommitted": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  },
+  "closeAckPrompt": "What did this person actually help with?",
+  "capabilityCueAcknowledged": "Helped with: {tags}",
+  "@capabilityCueAcknowledged": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  }
 }

@@ -142,6 +142,72 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
   });
 
+  testWidgets('reason chip selection persists after list scroll', (
+    tester,
+  ) async {
+    final cubit = ForwardCubit(
+      beaconId: 'b1',
+      debugSkipInitialLoad: true,
+    );
+    addTearDown(cubit.close);
+
+    final beacon = Beacon.empty.copyWith(id: 'b1', title: 'Test');
+
+    final candidates = List.generate(
+      8,
+      (i) => ForwardCandidate(
+        profile: Profile(id: 'u$i', title: 'User $i', rScore: 1, score: 50),
+      ),
+    );
+
+    cubit.emit(
+      ForwardState(
+        beaconId: 'b1',
+        beacon: beacon,
+        candidates: candidates,
+        selectedIds: {'u0'},
+        recipientReasons: {
+          'u0': ['transport'],
+        },
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(360, 600)),
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const ForwardBeaconPage(beaconId: 'b1'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Label icon for u0 is visible and reasons are set (u0 is selected + has reasons).
+    expect(find.byIcon(Icons.label_outline), findsOneWidget);
+
+    // Scroll down past u0.
+    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    // Scroll back up.
+    await tester.drag(find.byType(ListView), const Offset(0, 400));
+    await tester.pumpAndSettle();
+
+    // u0's label icon still present — cubit state preserved the reasons.
+    expect(find.byIcon(Icons.label_outline), findsOneWidget);
+    expect(cubit.state.recipientReasons['u0'], equals(['transport']));
+  });
+
   testWidgets('add shared note expands textarea', (tester) async {
     final cubit = ForwardCubit(
       beaconId: 'b1',

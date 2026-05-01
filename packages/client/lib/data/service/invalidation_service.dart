@@ -32,6 +32,7 @@ class InvalidationService {
   final _commitmentChanges = StreamController<String>.broadcast();
   final _forwardChanges = StreamController<String>.broadcast();
   final _beaconRoomChanges = StreamController<String>.broadcast();
+  final _capabilityChanges = StreamController<String>.broadcast();
 
   /// Beacon ID that was changed by another user or session (debounced).
   late final Stream<String> beaconInvalidations = _beaconChanges.stream
@@ -64,6 +65,14 @@ class InvalidationService {
           .expand((batch) => batch.toSet())
           .asBroadcastStream();
 
+  /// Subject user ID whose capability cues changed (`person_capability_event` NOTIFY branch).
+  late final Stream<String> capabilityInvalidations =
+      _capabilityChanges.stream
+          .bufferTime(_debounceWindow)
+          .where((batch) => batch.isNotEmpty)
+          .expand((batch) => batch.toSet())
+          .asBroadcastStream();
+
   void _onInvalidation(Map<String, dynamic> msg) {
     final payload = msg['payload'];
     if (payload is! Map<String, dynamic>) return;
@@ -83,6 +92,8 @@ class InvalidationService {
       case 'blocker':
       case 'activity_event':
         _beaconRoomChanges.add(id);
+      case 'person_capability_event':
+        _capabilityChanges.add(id);
     }
   }
 
@@ -93,5 +104,6 @@ class InvalidationService {
     await _commitmentChanges.close();
     await _forwardChanges.close();
     await _beaconRoomChanges.close();
+    await _capabilityChanges.close();
   }
 }

@@ -4,7 +4,9 @@ mutation ForwardBeacon(
   $note: String,
   $perRecipientNotes: String,
   $context: String,
-  $parentEdgeId: String
+  $parentEdgeId: String,
+  $reasons: [String!],
+  $recipientReasons: [ForwardRecipientReasonInput!]
 ) {
   beaconForward(
     id: $beaconId,
@@ -12,6 +14,8 @@ mutation ForwardBeacon(
     note: $note,
     perRecipientNotes: $perRecipientNotes,
     context: $context,
-    parentEdgeId: $parentEdgeId
+    parentEdgeId: $parentEdgeId,
+    reasons: $reasons,
+    recipientReasons: $recipientReasons
   )
 }

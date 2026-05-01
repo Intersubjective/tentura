@@ -4,6 +4,7 @@ import 'mutation_auth.dart';
 import 'mutation_beacon_room.dart';
 import 'mutation_beacon.dart';
 import 'mutation_beacon_update.dart';
+import 'mutation_capability.dart';
 import 'mutation_commitment.dart';
 import 'mutation_coordination.dart';
 import 'mutation_complaint.dart';
@@ -21,6 +22,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get mutationsAll => [
   ...MutationBeacon().all,
   ...MutationBeaconRoom().all,
   ...MutationBeaconUpdate().all,
+  ...MutationCapability().all,
   ...MutationCommitment().all,
   ...MutationCoordination().all,
   ...MutationComplaint().all,

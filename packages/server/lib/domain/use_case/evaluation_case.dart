@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/evaluation/evaluation_summary_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
+import 'capability_case.dart';
 import 'evaluation/evaluation_draft_purger.dart';
 import 'evaluation/evaluation_participant_graph_builder.dart';
 import 'evaluation/evaluation_prompt_variant.dart';
@@ -32,7 +33,8 @@ final class EvaluationCase extends UseCaseBase {
     this._fcmRemoteRepository,
     this._fcmTokenRepository,
     this._participantGraphBuilder,
-    this._draftPurger, {
+    this._draftPurger,
+    this._capabilityCase, {
     required super.env,
     required super.logger,
   });
@@ -45,6 +47,7 @@ final class EvaluationCase extends UseCaseBase {
   final FcmTokenRepositoryPort _fcmTokenRepository;
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
+  final CapabilityCase _capabilityCase;
 
   static const Duration _reviewWindowDuration = Duration(days: 7);
 
@@ -537,6 +540,7 @@ final class EvaluationCase extends UseCaseBase {
     required int value,
     required List<String> reasonTags,
     required String note,
+    List<String>? acknowledgedHelpTags,
   }) async {
     await _ensureExpiredClosed();
     final w = await _evaluationRepository.getReviewWindow(beaconId);
@@ -598,6 +602,20 @@ final class EvaluationCase extends UseCaseBase {
         userId: evaluatorId,
         status: 1,
       );
+    }
+
+    if (acknowledgedHelpTags != null && acknowledgedHelpTags.isNotEmpty) {
+      try {
+        await _capabilityCase.recordCloseAcknowledgement(
+          beaconId: beaconId,
+          observerId: evaluatorId,
+          subjectId: evaluatedUserId,
+          slugs: acknowledgedHelpTags,
+        );
+      } catch (e, st) {
+        logger.warning('recordCloseAcknowledgement failed', e, st);
+        // non-fatal: capability event failure must not block evaluation submission
+      }
     }
 
     return true;

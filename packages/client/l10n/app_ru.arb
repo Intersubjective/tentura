@@ -2595,5 +2595,78 @@
   },
   "beaconRoomAttachmentUntitled": "Файл",
   "beaconRoomAttachmentOpenFailed": "Не удалось открыть вложение.",
-  "beaconRoomAttachmentOpenShare": "Поделиться файлом"
+  "beaconRoomAttachmentOpenShare": "Поделиться файлом",
+
+  "capabilityEditPrivateLabels": "Мои метки",
+  "capabilityCueMyLabels": "Мои метки: {tags}",
+  "@capabilityCueMyLabels": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  },
+
+  "capabilityGroupLogistics": "Логистика",
+  "capabilityGroupCommunication": "Коммуникация",
+  "capabilityGroupKnowledge": "Знания",
+  "capabilityGroupCare": "Уход и поддержка",
+  "capabilityGroupResources": "Ресурсы",
+  "capabilityGroupTechnical": "Техническое",
+  "capabilityGroupSpecial": "Другое",
+
+  "capabilityTagTransport": "Транспорт",
+  "capabilityTagStorage": "Хранение",
+  "capabilityTagPickupDelivery": "Доставка",
+  "capabilityTagTools": "Инструменты",
+  "capabilityTagPhysicalHelp": "Физическая помощь",
+  "capabilityTagCalls": "Звонки",
+  "capabilityTagTranslation": "Перевод",
+  "capabilityTagWriting": "Письменная помощь",
+  "capabilityTagNegotiation": "Переговоры",
+  "capabilityTagIntroductions": "Знакомства",
+  "capabilityTagLocalKnowledge": "Местные знания",
+  "capabilityTagLegalNavigation": "Юридическая навигация",
+  "capabilityTagMedicalNavigation": "Медицинская навигация",
+  "capabilityTagDocuments": "Документы",
+  "capabilityTagVerification": "Проверка",
+  "capabilityTagPets": "Животные",
+  "capabilityTagChildcare": "Уход за детьми",
+  "capabilityTagEldercare": "Уход за пожилыми",
+  "capabilityTagEmotionalSupport": "Эмоциональная поддержка",
+  "capabilityTagHosting": "Размещение",
+  "capabilityTagMoney": "Деньги",
+  "capabilityTagFood": "Еда",
+  "capabilityTagHousing": "Жильё",
+  "capabilityTagEquipment": "Оборудование",
+  "capabilityTagWorkspace": "Рабочее место",
+  "capabilityTagTechHelp": "Техпомощь",
+  "capabilityTagRepair": "Ремонт",
+  "capabilityTagSoftware": "Программное обеспечение",
+  "capabilityTagDesign": "Дизайн",
+  "capabilityTagAdminPaperwork": "Административные вопросы",
+  "capabilityTagTime": "Время",
+  "capabilityTagContact": "Контакт",
+  "capabilityTagOther": "Другое",
+
+  "forwardReasonPrompt": "Почему вы пересылаете этому человеку?",
+  "forwardReasonApplyToAll": "Применить те же причины ко всем",
+  "capabilityCueForwardedFor": "Часто пересылаю для: {tags}",
+  "@capabilityCueForwardedFor": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  },
+  "commitRolePrompt": "Как вы помогаете?",
+  "capabilityCueCommitted": "Участвовал: {tags}",
+  "@capabilityCueCommitted": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  },
+  "closeAckPrompt": "Чем реально помог этот человек?",
+  "capabilityCueAcknowledged": "Помог с: {tags}",
+  "@capabilityCueAcknowledged": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  }
 }

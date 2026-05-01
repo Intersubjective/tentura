@@ -161,13 +161,15 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
                         await showEvaluationDetailSheet(
                           context: context,
                           participant: p,
-                          onSave: (v, tags, note) => context
+                          onSave: (v, tags, note, ackTags) => context
                               .read<EvaluationCubit>()
                               .submitOne(
                                 evaluatedUserId: p.userId,
                                 value: v,
                                 reasonTags: tags,
                                 note: note,
+                                acknowledgedHelpTags:
+                                    ackTags.isEmpty ? null : ackTags,
                               ),
                         );
                       },

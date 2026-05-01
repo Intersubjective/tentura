@@ -18,6 +18,8 @@ class ForwardRecipientRow extends StatelessWidget {
     required this.onToggle,
     this.personalizedNoteEditorOpen = false,
     this.onTogglePersonalizedNoteEditor,
+    this.reasonSlugs = const [],
+    this.onEditReasons,
     super.key,
   });
 
@@ -26,6 +28,10 @@ class ForwardRecipientRow extends StatelessWidget {
   final VoidCallback? onToggle;
   final bool personalizedNoteEditorOpen;
   final VoidCallback? onTogglePersonalizedNoteEditor;
+  /// Capability reason slugs currently selected for this recipient.
+  final List<String> reasonSlugs;
+  /// Called when the user taps the Why? button; opens reason picker.
+  final VoidCallback? onEditReasons;
 
   /// Involvement / forward path line (independent of scope tab filter).
   String _relationLabel(L10n l10n) {
@@ -171,6 +177,20 @@ class ForwardRecipientRow extends StatelessWidget {
               ),
             ),
             SizedBox(width: tt.rowGap),
+            if (isSelected && canSelect && onEditReasons != null) ...[
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                tooltip: l10n.forwardReasonPrompt,
+                icon: Icon(
+                  Icons.label_outline,
+                  size: tt.iconSize,
+                  color: reasonSlugs.isNotEmpty ? tt.info : tt.textMuted,
+                ),
+                onPressed: onEditReasons,
+              ),
+              SizedBox(width: tt.iconTextGap),
+            ],
             if (isSelected &&
                 canSelect &&
                 onTogglePersonalizedNoteEditor != null) ...[

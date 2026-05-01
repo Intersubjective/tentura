@@ -25,6 +25,16 @@ final class MutationEvaluation extends GqlNodeBase {
     graphQLInt.nonNullable(),
   );
 
+  /// Optional list of capability slugs the evaluator acknowledges for the
+  /// evaluated person (close-acknowledgement source). Nullable outer list;
+  /// non-null inner elements — per WORKAROUNDS.md §2 (do NOT add .nonNullable()
+  /// on the list itself).
+  final GraphQLFieldInput<List<String>, List<String>>
+  _acknowledgedHelpTagsField = GraphQLFieldInput(
+    'acknowledgedHelpTags',
+    GraphQLListType(graphQLString.nonNullable()),
+  );
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     beaconCloseWithReview,
     evaluationSubmit,
@@ -58,6 +68,7 @@ final class MutationEvaluation extends GqlNodeBase {
           _valueField,
           _reasonTagsField,
           _note.fieldNullable,
+          _acknowledgedHelpTagsField,
         ],
         resolve: (_, args) {
           final jwt = getCredentials(args);
@@ -65,6 +76,10 @@ final class MutationEvaluation extends GqlNodeBase {
           final list = tags == null
               ? <String>[]
               : List<String>.from(tags as List);
+          final rawAck = args[_acknowledgedHelpTagsField.name];
+          final acknowledgedHelpTags = rawAck == null
+              ? null
+              : List<String>.from(rawAck as List);
           return _evaluationCase.evaluationSubmit(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             evaluatorId: jwt.sub,
@@ -72,6 +87,7 @@ final class MutationEvaluation extends GqlNodeBase {
             value: args[_valueField.name]! as int,
             reasonTags: list,
             note: _note.fromArgs(args) ?? '',
+            acknowledgedHelpTags: acknowledgedHelpTags,
           );
         },
       );
