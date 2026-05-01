@@ -82,14 +82,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     var primaryFilledForwardOnly = false;
 
     Widget primaryBlock = const SizedBox.shrink();
-    if (open && state.isBeaconMine && onUpdateStatus != null) {
-      primaryBlock = _PrimaryCtaSlot(
-        child: FilledButton(
-          onPressed: onUpdateStatus,
-          child: Text(l10n.beaconCtaUpdateStatus),
-        ),
-      );
-    } else if (!state.isBeaconMine && open) {
+    if (!state.isBeaconMine && open) {
       if (canCommit) {
         primaryBlock = _PrimaryCtaSlot(
           child: FilledButton(
@@ -225,11 +218,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
     final showPrimaryGap =
         open &&
-            (state.isBeaconMine
-                ? onUpdateStatus != null
-                : canCommit ||
-                    updateCommitment ||
-                    primaryFilledForwardOnly);
+            !state.isBeaconMine &&
+            (canCommit || updateCommitment || primaryFilledForwardOnly);
 
     return Padding(
       padding: outerPadding,
@@ -260,11 +250,34 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               ),
             ],
             SizedBox(height: tt.rowGap / 2),
-            TenturaStatusText(
-              _anchorLine(l10n, beacon, activeCommitCount),
-              tone: anchorTone,
-              maxLines: 2,
-            ),
+            if (open && state.isBeaconMine && onUpdateStatus != null)
+              InkWell(
+                onTap: onUpdateStatus,
+                borderRadius: BorderRadius.circular(4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TenturaStatusText(
+                        _anchorLine(l10n, beacon, activeCommitCount),
+                        tone: anchorTone,
+                        maxLines: 2,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.edit_outlined,
+                      size: 14,
+                      color: _anchorToneColor(anchorTone, tt),
+                    ),
+                  ],
+                ),
+              )
+            else
+              TenturaStatusText(
+                _anchorLine(l10n, beacon, activeCommitCount),
+                tone: anchorTone,
+                maxLines: 2,
+              ),
             if (showPrimaryGap) ...[
               SizedBox(height: tt.sectionGap / 2),
               primaryBlock,
@@ -276,6 +289,15 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       ),
     );
   }
+
+  static Color _anchorToneColor(TenturaTone tone, TenturaTokens tt) =>
+      switch (tone) {
+        TenturaTone.neutral => tt.textMuted,
+        TenturaTone.info => tt.info,
+        TenturaTone.good => tt.good,
+        TenturaTone.warn => tt.warn,
+        TenturaTone.danger => tt.danger,
+      };
 
   static TenturaTone _anchorTone(BeaconCoordinationStatus s) =>
       switch (s) {
