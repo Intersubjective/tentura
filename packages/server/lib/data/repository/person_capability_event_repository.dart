@@ -71,11 +71,11 @@ class PersonCapabilityEventRepository
     required String subjectId,
   }) => _database
       .customSelect(
-        '''
+        r'''
         SELECT tag_slug FROM public.person_capability_event
-        WHERE observer_user_id = ?
-          AND subject_user_id  = ?
-          AND source_type = ?
+        WHERE observer_user_id = $1
+          AND subject_user_id  = $2
+          AND source_type = $3
           AND deleted_at IS NULL
         ORDER BY tag_slug
         ''',
@@ -181,11 +181,11 @@ class PersonCapabilityEventRepository
     // Private labels: only rows where viewer is the observer (never self-label)
     final privateLabelRows = await _database
         .customSelect(
-          '''
+          r'''
           SELECT tag_slug FROM public.person_capability_event
-          WHERE observer_user_id = ?
-            AND subject_user_id  = ?
-            AND source_type = ?
+          WHERE observer_user_id = $1
+            AND subject_user_id  = $2
+            AND source_type = $3
             AND deleted_at IS NULL
           ORDER BY tag_slug
           ''',
@@ -202,14 +202,14 @@ class PersonCapabilityEventRepository
     // Forward reasons by viewer about subject
     final forwardRows = await _database
         .customSelect(
-          '''
+          r'''
           SELECT tag_slug,
                  COUNT(*)::int AS cnt,
                  MAX(created_at)::text AS last_seen
           FROM public.person_capability_event
-          WHERE observer_user_id = ?
-            AND subject_user_id  = ?
-            AND source_type = ?
+          WHERE observer_user_id = $1
+            AND subject_user_id  = $2
+            AND source_type = $3
             AND deleted_at IS NULL
           GROUP BY tag_slug
           ORDER BY cnt DESC, tag_slug
@@ -234,12 +234,12 @@ class PersonCapabilityEventRepository
     // Commit roles (beacon-scoped — readable by any viewer)
     final commitRows = await _database
         .customSelect(
-          '''
+          r'''
           SELECT pce.tag_slug, pce.beacon_id, b.title, pce.created_at::text AS ts
           FROM public.person_capability_event pce
           JOIN public.beacon b ON b.id = pce.beacon_id
-          WHERE pce.subject_user_id = ?
-            AND pce.source_type = ?
+          WHERE pce.subject_user_id = $1
+            AND pce.source_type = $2
             AND pce.deleted_at IS NULL
           ORDER BY pce.created_at DESC
           ''',
@@ -263,13 +263,13 @@ class PersonCapabilityEventRepository
     // Close acks written by viewer about subject
     final closeByMeRows = await _database
         .customSelect(
-          '''
+          r'''
           SELECT pce.tag_slug, pce.beacon_id, b.title, pce.created_at::text AS ts
           FROM public.person_capability_event pce
           JOIN public.beacon b ON b.id = pce.beacon_id
-          WHERE pce.observer_user_id = ?
-            AND pce.subject_user_id  = ?
-            AND pce.source_type = ?
+          WHERE pce.observer_user_id = $1
+            AND pce.subject_user_id  = $2
+            AND pce.source_type = $3
             AND pce.deleted_at IS NULL
           ORDER BY pce.created_at DESC
           ''',
@@ -298,12 +298,12 @@ class PersonCapabilityEventRepository
     if (viewerId == subjectId) {
       final rows = await _database
           .customSelect(
-            '''
+            r'''
             SELECT pce.tag_slug, pce.beacon_id, b.title, pce.created_at::text AS ts
             FROM public.person_capability_event pce
             JOIN public.beacon b ON b.id = pce.beacon_id
-            WHERE pce.subject_user_id = ?
-              AND pce.source_type = ?
+            WHERE pce.subject_user_id = $1
+              AND pce.source_type = $2
               AND pce.deleted_at IS NULL
             ORDER BY pce.created_at DESC
             ''',
