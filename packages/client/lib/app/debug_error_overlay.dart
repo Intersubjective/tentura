@@ -31,7 +31,7 @@ class DebugErrorStore extends ChangeNotifier {
 }
 
 void installDebugErrorHandlers() {
-  FlutterError.onError = (FlutterErrorDetails details) {
+  FlutterError.onError = (details) {
     FlutterError.presentError(details);
 
     DebugErrorStore.instance.report(
@@ -41,12 +41,12 @@ void installDebugErrorHandlers() {
     );
   };
 
-  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+  PlatformDispatcher.instance.onError = (error, stack) {
     DebugErrorStore.instance.report(error, stack);
     return true;
   };
 
-  ErrorWidget.builder = (FlutterErrorDetails details) {
+  ErrorWidget.builder = (details) {
     DebugErrorStore.instance.report(
       details.exception,
       details.stack ?? StackTrace.current,
@@ -62,8 +62,8 @@ void installDebugErrorHandlers() {
 
 class DebugErrorOverlay extends StatelessWidget {
   const DebugErrorOverlay({
-    super.key,
     required this.child,
+    super.key,
   });
 
   final Widget child;
@@ -104,9 +104,9 @@ class DebugErrorOverlay extends StatelessWidget {
 
 class DebugErrorPanel extends StatelessWidget {
   const DebugErrorPanel({
-    super.key,
     required this.errorText,
     required this.embedded,
+    super.key,
   });
 
   final String errorText;
@@ -134,7 +134,7 @@ class DebugErrorPanel extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () {
-                  Clipboard.setData(ClipboardData(text: errorText));
+                  unawaited(Clipboard.setData(ClipboardData(text: errorText)));
                 },
                 child: const Text('Copy'),
               ),
@@ -178,8 +178,6 @@ Future<void> runAppWithDebugErrors(Widget app) async {
     () => runApp(
       kDebugMode ? DebugErrorOverlay(child: app) : app,
     ),
-    (Object error, StackTrace stack) {
-      DebugErrorStore.instance.report(error, stack);
-    },
+    DebugErrorStore.instance.report,
   );
 }
