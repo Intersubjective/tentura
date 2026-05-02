@@ -15,14 +15,17 @@ class EditPrivateLabelsDialog extends StatefulWidget {
   const EditPrivateLabelsDialog._({
     required this.subjectId,
     required this.initialSlugs,
+    required this.onPrivateLabelsSaved,
   });
 
   final String subjectId;
   final Set<String> initialSlugs;
+  final void Function(List<String> slugs) onPrivateLabelsSaved;
 
   static Future<void> show(
     BuildContext context, {
     required String subjectId,
+    required void Function(List<String> slugs) onPrivateLabelsSaved,
   }) async {
     final repo = GetIt.I<CapabilityRepositoryPort>();
     final existing = await repo.fetchMyPrivateLabelsForUser(subjectId);
@@ -33,6 +36,7 @@ class EditPrivateLabelsDialog extends StatefulWidget {
       builder: (_) => EditPrivateLabelsDialog._(
         subjectId: subjectId,
         initialSlugs: existing.toSet(),
+        onPrivateLabelsSaved: onPrivateLabelsSaved,
       ),
     );
   }
@@ -59,7 +63,14 @@ class _EditPrivateLabelsDialogState extends State<EditPrivateLabelsDialog> {
         subjectId: widget.subjectId,
         slugs: _selected.toList(),
       );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        widget.onPrivateLabelsSaved(_selected.toList());
+        unawaited(
+          Future.delayed(Duration.zero, () {
+            if (mounted) Navigator.of(context).pop();
+          }),
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);

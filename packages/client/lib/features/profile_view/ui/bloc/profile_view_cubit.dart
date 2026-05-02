@@ -127,4 +127,12 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
+
+  void updatePrivateLabels(List<String> slugs) {
+    emit(
+      state.copyWith(
+        cues: state.cues.copyWith(privateLabels: slugs),
+      ),
+    );
+  }
 }

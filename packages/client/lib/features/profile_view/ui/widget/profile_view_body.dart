@@ -91,11 +91,13 @@ class ProfileViewBody extends StatelessWidget {
                       padding: kPaddingSmallT,
                       child: OutlinedButton.icon(
                         onPressed: () {
+                          final cubit = context.read<ProfileViewCubit>();
                           unawaited(
                             EditPrivateLabelsDialog.show(
                               context,
                               subjectId: profile.id,
-                            ).catchError((e) {
+                              onPrivateLabelsSaved: cubit.updatePrivateLabels,
+                            ).catchError((Object e) {
                               if (context.mounted) {
                                 showSnackBar(
                                   context,
