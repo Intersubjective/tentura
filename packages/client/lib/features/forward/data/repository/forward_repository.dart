@@ -22,6 +22,7 @@ import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
     show GForwardRecipientReasonInput;
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
+import '../gql/_g/forward_reasons_fetch.req.gql.dart';
 import '../gql/_g/beacon_commit.req.gql.dart';
 import '../gql/_g/beacon_withdraw.req.gql.dart';
 import '../gql/_g/commitments_fetch.req.gql.dart';
@@ -206,6 +207,24 @@ class ForwardRepository {
     required String myUserId,
   }) => fetchEdges(beaconId: beaconId)
       .then((edges) => edges.where((e) => e.sender.id == myUserId).toList());
+
+  /// Returns capability tags keyed by `'${senderId}__${recipientId}'` for all
+  /// forward-reason events on [beaconId] involving the current viewer.
+  Future<Map<String, List<String>>> fetchReasonsByBeacon({
+    required String beaconId,
+  }) =>
+      _remoteApiService
+          .request(
+            GForwardReasonsFetchReq((r) => r..vars.beaconId = beaconId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) => {
+              for (final row
+                  in r.dataOrThrow(label: _label).forwardReasonsByBeacon)
+                '${row.senderId}__${row.recipientId}': row.slugs.toList(),
+            },
+          );
 
   /// Fetches the forwards-graph payload for a beacon (V2 `beaconForwardGraph`).
   ///

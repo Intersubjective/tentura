@@ -1,0 +1,8 @@
+# V2: capability tags assigned per forward edge on a beacon.
+query ForwardReasonsFetch($beaconId: String!) {
+  forwardReasonsByBeacon(id: $beaconId) {
+    senderId
+    recipientId
+    slugs
+  }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
@@ -14,6 +15,7 @@ const _kBarColumnWidth = 18.0;
 class UnifiedForwardRow extends StatelessWidget {
   const UnifiedForwardRow._({
     required this.viewerUserId,
+    required this.reasonSlugs,
     this.inboundSender,
     this.inboundNote,
     this.outboundEdge,
@@ -36,10 +38,12 @@ class UnifiedForwardRow extends StatelessWidget {
     required Profile sender,
     required String note,
     required String viewerUserId,
+    List<String> reasonSlugs = const [],
     Key? key,
   }) =>
       UnifiedForwardRow._(
         viewerUserId: viewerUserId,
+        reasonSlugs: reasonSlugs,
         inboundSender: sender,
         inboundNote: note,
         key: key,
@@ -51,10 +55,12 @@ class UnifiedForwardRow extends StatelessWidget {
     required Set<String> committed,
     required Set<String> watching,
     required Set<String> onward,
+    List<String> reasonSlugs = const [],
     Key? key,
   }) =>
       UnifiedForwardRow._(
         viewerUserId: viewerUserId,
+        reasonSlugs: reasonSlugs,
         outboundEdge: edge,
         involvementCommittedIds: committed,
         involvementWatchingIds: watching,
@@ -63,6 +69,7 @@ class UnifiedForwardRow extends StatelessWidget {
       );
 
   final String viewerUserId;
+  final List<String> reasonSlugs;
 
   final Profile? inboundSender;
   final String? inboundNote;
@@ -126,6 +133,7 @@ class UnifiedForwardRow extends StatelessWidget {
       scheme: scheme,
       header: header,
       note: note,
+      reasonSlugs: reasonSlugs,
       reactionRows: const [],
     );
   }
@@ -210,6 +218,7 @@ class UnifiedForwardRow extends StatelessWidget {
       scheme: scheme,
       header: header,
       note: edge.note.trim(),
+      reasonSlugs: reasonSlugs,
       reactionRows: reactionRows,
       barTrailing: false,
     );
@@ -356,6 +365,7 @@ class _NoteColumnWithBar extends StatelessWidget {
     required this.header,
     required this.note,
     required this.reactionRows,
+    this.reasonSlugs = const [],
     this.barTrailing = true,
   });
 
@@ -363,6 +373,7 @@ class _NoteColumnWithBar extends StatelessWidget {
   final ColorScheme scheme;
   final Widget header;
   final String note;
+  final List<String> reasonSlugs;
   final List<Widget> reactionRows;
 
   /// When `true` (inbound), bar is on the right and content is end-aligned.
@@ -374,8 +385,9 @@ class _NoteColumnWithBar extends StatelessWidget {
     final noteTrim = note.trim();
     final hasNote = noteTrim.isNotEmpty;
     final hasReactions = reactionRows.isNotEmpty;
+    final hasChips = reasonSlugs.isNotEmpty;
 
-    if (!hasNote && !hasReactions) {
+    if (!hasNote && !hasReactions && !hasChips) {
       return Align(
         alignment: barTrailing ? Alignment.centerRight : Alignment.centerLeft,
         child: header,
@@ -399,8 +411,17 @@ class _NoteColumnWithBar extends StatelessWidget {
         ),
       );
     }
+    if (hasChips) {
+      if (hasNote) lowerChildren.add(const SizedBox(height: 4));
+      lowerChildren.add(
+        Align(
+          alignment: barTrailing ? Alignment.centerRight : Alignment.centerLeft,
+          child: ForwardCapabilityChips(slugs: reasonSlugs),
+        ),
+      );
+    }
     if (hasReactions) {
-      if (hasNote) {
+      if (hasNote || hasChips) {
         lowerChildren.add(const SizedBox(height: 8));
       }
       for (var i = 0; i < reactionRows.length; i++) {

@@ -38,6 +38,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeTagBeaconRef,
   gqlTypeCapabilityForViewer,
   gqlTypePersonCapabilityCuesPayload,
+  gqlTypeForwardReasonRow,
 ];
 
 /// Payload returned by `RoomMessageCreate`.
@@ -424,6 +425,18 @@ final gqlTypeCommitmentWithCoordinationRow = GraphQLObjectType(
     field('responseAuthorUserId', graphQLString),
     field('user', gqlTypeUserPublic.nonNullable()),
   ]);
+
+/// Forward-reason slugs for one (sender, recipient) pair on a beacon.
+final gqlTypeForwardReasonRow =
+    GraphQLObjectType('v2_ForwardReasonRow', null)
+      ..fields.addAll([
+        field('senderId', graphQLString.nonNullable()),
+        field('recipientId', graphQLString.nonNullable()),
+        field(
+          'slugs',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+      ]);
 
 /// One capability visible to a specific viewer, with source metadata.
 final gqlTypeCapabilityForViewer =

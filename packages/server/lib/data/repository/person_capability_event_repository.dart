@@ -479,4 +479,41 @@ class PersonCapabilityEventRepository
         )
         .toList();
   }
+
+  @override
+  Future<List<ForwardReasonRow>> fetchForwardReasonsByBeaconId({
+    required String beaconId,
+    required String viewerId,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+          SELECT observer_user_id, subject_user_id,
+                 array_agg(DISTINCT tag_slug ORDER BY tag_slug) AS slugs
+          FROM public.person_capability_event
+          WHERE beacon_id    = $1
+            AND source_type  = $2
+            AND deleted_at  IS NULL
+            AND is_negative  = false
+            AND (observer_user_id = $3 OR subject_user_id = $3)
+          GROUP BY observer_user_id, subject_user_id
+          ''',
+          variables: [
+            Variable.withString(beaconId),
+            Variable.withInt(CapabilityEventSource.forwardReason.dbValue),
+            Variable.withString(viewerId),
+          ],
+        )
+        .get();
+
+    return rows
+        .map(
+          (r) => ForwardReasonRow(
+            observerId: r.read<String>('observer_user_id'),
+            subjectId: r.read<String>('subject_user_id'),
+            slugs: (r.read<List<dynamic>>('slugs')).cast<String>(),
+          ),
+        )
+        .toList();
+  }
 }
