@@ -639,6 +639,14 @@
   "@showBeacons": {
     "context": "Profile"
   },
+  "profileSharedBeaconsForwardedSection": "Отправлено этому пользователю",
+  "@profileSharedBeaconsForwardedSection": {
+    "context": "Profile — shared beacons section header"
+  },
+  "profileSharedBeaconsCoCommittedSection": "Совместная работа",
+  "@profileSharedBeaconsCoCommittedSection": {
+    "context": "Profile — co-committed beacons section header"
+  },
   "showMutualFriends": "Общие друзья",
   "@showMutualFriends": {
     "context": "Profile"

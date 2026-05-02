@@ -12,8 +12,10 @@ import 'package:tentura/features/opinion/ui/bloc/opinion_cubit.dart';
 import 'package:tentura/features/opinion/ui/widget/opinion_list.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
+import '../bloc/profile_shared_beacons_cubit.dart';
 import '../bloc/profile_view_cubit.dart';
 import '../dialog/opinion_publish_dialog.dart';
+import '../widget/profile_shared_beacons_sliver.dart';
 import '../widget/profile_view_app_bar.dart';
 import '../widget/profile_view_body.dart';
 
@@ -37,6 +39,12 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
       ),
       BlocProvider(
         create: (_) => ProfileViewCubit(id: id),
+      ),
+      BlocProvider(
+        create: (_) => ProfileSharedBeaconsCubit(
+          meId: GetIt.I<ProfileCubit>().state.profile.id,
+          targetId: id,
+        ),
       ),
       BlocProvider(
         create: (_) => OpinionCubit.resolveId(
@@ -69,6 +77,7 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
       body: RefreshIndicator.adaptive(
         onRefresh: () => Future.wait([
           context.read<ProfileViewCubit>().fetch(),
+          context.read<ProfileSharedBeaconsCubit>().fetch(),
           opinionCubit.fetch(preserve: false),
         ]),
         child: CustomScrollView(
@@ -83,6 +92,9 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
               padding: kPaddingAll,
               sliver: ProfileViewBody(),
             ),
+
+            // Shared beacons (forwarded + co-committed)
+            const ProfileSharedBeaconsSliver(),
 
             // Opinions
             SliverPadding(
