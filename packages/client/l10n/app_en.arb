@@ -639,6 +639,14 @@
   "@showBeacons": {
     "context": "Profile"
   },
+  "profileSharedBeaconsForwardedSection": "Forwarded to them",
+  "@profileSharedBeaconsForwardedSection": {
+    "context": "Profile — shared beacons section header"
+  },
+  "profileSharedBeaconsCoCommittedSection": "Working on together",
+  "@profileSharedBeaconsCoCommittedSection": {
+    "context": "Profile — co-committed beacons section header"
+  },
   "showMutualFriends": "Show mutual friends",
   "@showMutualFriends": {
     "context": "Profile"
