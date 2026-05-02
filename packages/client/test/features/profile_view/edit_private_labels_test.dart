@@ -100,7 +100,11 @@ void main() {
         child: Builder(
           builder: (context) => ElevatedButton(
             onPressed: () => unawaited(
-              EditPrivateLabelsDialog.show(context, subjectId: 'U-subject'),
+              EditPrivateLabelsDialog.show(
+                context,
+                subjectId: 'U-subject',
+                onPrivateLabelsSaved: (_) {},
+              ),
             ),
             child: const Text('open'),
           ),
@@ -128,7 +132,11 @@ void main() {
           child: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () => unawaited(
-                EditPrivateLabelsDialog.show(context, subjectId: 'U-subject'),
+                EditPrivateLabelsDialog.show(
+                context,
+                subjectId: 'U-subject',
+                onPrivateLabelsSaved: (_) {},
+              ),
               ),
               child: const Text('open'),
             ),
