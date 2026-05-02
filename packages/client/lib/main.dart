@@ -6,7 +6,7 @@ import 'app/app.dart';
 
 Future<void> main() async {
   kDebugMode
-      ? await App.runner()
+      ? await App.runner(debugErrors: true)
       : await SentryFlutter.init(
           (options) => options
             ..debug = kDebugMode
