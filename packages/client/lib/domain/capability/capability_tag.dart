@@ -1,3 +1,5 @@
+import 'package:tentura/ui/l10n/l10n.dart';
+
 import 'capability_group.dart';
 
 enum CapabilityTag {
@@ -63,4 +65,40 @@ enum CapabilityTag {
   };
 
   static CapabilityTag? fromSlug(String slug) => _bySlug[slug];
+
+  String labelOf(L10n l10n) => switch (this) {
+    CapabilityTag.transport => l10n.capabilityTagTransport,
+    CapabilityTag.storage => l10n.capabilityTagStorage,
+    CapabilityTag.pickupDelivery => l10n.capabilityTagPickupDelivery,
+    CapabilityTag.tools => l10n.capabilityTagTools,
+    CapabilityTag.physicalHelp => l10n.capabilityTagPhysicalHelp,
+    CapabilityTag.calls => l10n.capabilityTagCalls,
+    CapabilityTag.translation => l10n.capabilityTagTranslation,
+    CapabilityTag.writing => l10n.capabilityTagWriting,
+    CapabilityTag.negotiation => l10n.capabilityTagNegotiation,
+    CapabilityTag.introductions => l10n.capabilityTagIntroductions,
+    CapabilityTag.localKnowledge => l10n.capabilityTagLocalKnowledge,
+    CapabilityTag.legalNavigation => l10n.capabilityTagLegalNavigation,
+    CapabilityTag.medicalNavigation => l10n.capabilityTagMedicalNavigation,
+    CapabilityTag.documents => l10n.capabilityTagDocuments,
+    CapabilityTag.verification => l10n.capabilityTagVerification,
+    CapabilityTag.pets => l10n.capabilityTagPets,
+    CapabilityTag.childcare => l10n.capabilityTagChildcare,
+    CapabilityTag.eldercare => l10n.capabilityTagEldercare,
+    CapabilityTag.emotionalSupport => l10n.capabilityTagEmotionalSupport,
+    CapabilityTag.hosting => l10n.capabilityTagHosting,
+    CapabilityTag.money => l10n.capabilityTagMoney,
+    CapabilityTag.food => l10n.capabilityTagFood,
+    CapabilityTag.housing => l10n.capabilityTagHousing,
+    CapabilityTag.equipment => l10n.capabilityTagEquipment,
+    CapabilityTag.workspace => l10n.capabilityTagWorkspace,
+    CapabilityTag.techHelp => l10n.capabilityTagTechHelp,
+    CapabilityTag.repair => l10n.capabilityTagRepair,
+    CapabilityTag.software => l10n.capabilityTagSoftware,
+    CapabilityTag.design => l10n.capabilityTagDesign,
+    CapabilityTag.adminPaperwork => l10n.capabilityTagAdminPaperwork,
+    CapabilityTag.time => l10n.capabilityTagTime,
+    CapabilityTag.contact => l10n.capabilityTagContact,
+    CapabilityTag.other => l10n.capabilityTagOther,
+  };
 }

@@ -242,6 +242,10 @@ final class BeaconViewCase extends UseCaseBase {
   }) =>
       _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);
 
+  Future<Map<String, List<String>>> fetchForwardReasonsByBeacon(
+    String beaconId,
+  ) => _forwardRepository.fetchReasonsByBeacon(beaconId: beaconId);
+
   Future<bool> currentUserHasForwardedBeacon(String beaconId) =>
       _forwardRepository.currentUserHasForwardedBeacon(beaconId);
 

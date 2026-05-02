@@ -285,6 +285,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchRoomParticipants(beaconId),
         _case.fetchRoomStateIfAllowed(beaconId),
         _case.fetchRoomActivityEvents(beaconId),
+        _case.fetchForwardReasonsByBeacon(beaconId),
       ]);
 
       final beacon = results[0]! as Beacon;
@@ -331,6 +332,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final beaconRoomCue = results[8] as BeaconRoomState?;
       final roomActivityEvents =
           results[9]! as List<BeaconActivityEvent>;
+      final forwardReasonSlugs =
+          results[10]! as Map<String, List<String>>;
 
       final myForwards = allForwardEdges
           .where((e) => e.sender.id == myUserId)
@@ -403,6 +406,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
           myForwards: myForwards,
           viewerForwardEdges: viewerForwardEdges,
+          forwardReasonSlugs: forwardReasonSlugs,
           involvementCommittedIds: involvement.committedIds,
           involvementWatchingIds: involvement.watchingIds,
           involvementOnwardForwarderIds: involvement.onwardForwarderIds,

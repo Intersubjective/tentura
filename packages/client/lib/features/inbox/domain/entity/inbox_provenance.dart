@@ -31,6 +31,10 @@ class InboxProvenance {
           final id = e['id'] as String? ?? '';
           if (id.isEmpty) continue;
           final mr = e['mr'];
+          final rawSlugs = e['reasonSlugs'];
+          final reasonSlugs = rawSlugs is List
+              ? rawSlugs.whereType<String>().toList()
+              : const <String>[];
           senders.add(
             InboxForwardSender(
               id: id,
@@ -38,6 +42,7 @@ class InboxProvenance {
               mr: mr is num ? mr.toDouble() : double.tryParse('$mr') ?? 0,
               imageId: e['imageId'] as String?,
               notePreview: e['notePreview'] as String? ?? '',
+              reasonSlugs: reasonSlugs,
             ),
           );
         }
@@ -64,6 +69,7 @@ class InboxForwardSender {
     required this.mr,
     this.imageId,
     this.notePreview = '',
+    this.reasonSlugs = const [],
   });
 
   final String id;
@@ -73,4 +79,7 @@ class InboxForwardSender {
 
   /// Latest forward note from this sender to the viewer (trimmed server-side).
   final String notePreview;
+
+  /// Capability slugs the sender assigned when forwarding to the viewer.
+  final List<String> reasonSlugs;
 }

@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -204,7 +206,8 @@ bool _provenanceEquivalent(InboxProvenance a, InboxProvenance b) {
     if (x.id != y.id ||
         x.title != y.title ||
         x.notePreview != y.notePreview ||
-        x.imageId != y.imageId) {
+        x.imageId != y.imageId ||
+        !listEquals(x.reasonSlugs, y.reasonSlugs)) {
       return false;
     }
   }
@@ -257,12 +260,32 @@ class _SenderNoteBlock extends StatelessWidget {
       ],
     );
 
-    if (note.isEmpty) {
+    final chips = ForwardCapabilityChips(slugs: sender.reasonSlugs);
+    final hasChips = sender.reasonSlugs.isNotEmpty;
+
+    if (note.isEmpty && !hasChips) {
       return Align(
         alignment: Alignment.centerRight,
         child: header,
       );
     }
+
+    final lowerChildren = <Widget>[
+      if (note.isNotEmpty)
+        Text(
+          note,
+          textAlign: TextAlign.end,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+            fontStyle: FontStyle.italic,
+            height: 1.35,
+          ),
+        ),
+      if (hasChips) ...[
+        if (note.isNotEmpty) const SizedBox(height: 4),
+        Align(alignment: Alignment.centerRight, child: chips),
+      ],
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -274,14 +297,10 @@ class _SenderNoteBlock extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: Text(
-                  note,
-                  textAlign: TextAlign.end,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
-                    height: 1.35,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: lowerChildren,
                 ),
               ),
               SizedBox(

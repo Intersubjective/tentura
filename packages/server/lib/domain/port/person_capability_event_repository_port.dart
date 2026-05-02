@@ -67,6 +67,14 @@ abstract class PersonCapabilityEventRepositoryPort {
     required String viewerId,
     required String subjectId,
   });
+
+  /// Returns forward-reason slugs grouped by (observerId, subjectId) for all
+  /// active forward-reason events on [beaconId] where [viewerId] is the sender
+  /// or recipient.
+  Future<List<ForwardReasonRow>> fetchForwardReasonsByBeaconId({
+    required String beaconId,
+    required String viewerId,
+  });
 }
 
 class PersonCapabilityCuesRow {
@@ -119,4 +127,16 @@ class TagBeaconRefRow {
   final String beaconId;
   final String beaconTitle;
   final String createdAt;
+}
+
+class ForwardReasonRow {
+  const ForwardReasonRow({
+    required this.observerId,
+    required this.subjectId,
+    required this.slugs,
+  });
+
+  final String observerId;
+  final String subjectId;
+  final List<String> slugs;
 }

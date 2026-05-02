@@ -3949,6 +3949,7 @@ type query_root {
   ): [beacon!]!
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
+  forwardReasonsByBeacon(id: String!): [v2_ForwardReasonRow!]!
 
   """fetch data from the table: "beacon" using primary key columns"""
   beacon_by_pk(id: String!): beacon
@@ -7317,5 +7318,11 @@ type v2_PersonCapabilityCuesPayload {
   closeAckByMe: [v2_TagBeaconRef!]
   closeAckAboutMe: [v2_TagBeaconRef!]
   viewerVisible: [v2_CapabilityForViewer!]
+}
+
+type v2_ForwardReasonRow {
+  senderId: String!
+  recipientId: String!
+  slugs: [String!]!
 }
 

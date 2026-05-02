@@ -109,7 +109,7 @@ class _GroupSection extends StatelessWidget {
           children: [
             for (final tag in tags)
               FilterChip(
-                label: Text(_tagLabel(l10n, tag)),
+                label: Text(tag.labelOf(l10n)),
                 selected: selectedSlugs.contains(tag.slug),
                 onSelected: (v) => onToggle(tag.slug, v),
                 selectedColor: automaticSlugs.contains(tag.slug)
@@ -125,39 +125,4 @@ class _GroupSection extends StatelessWidget {
     );
   }
 
-  static String _tagLabel(L10n l10n, CapabilityTag tag) => switch (tag) {
-    CapabilityTag.transport => l10n.capabilityTagTransport,
-    CapabilityTag.storage => l10n.capabilityTagStorage,
-    CapabilityTag.pickupDelivery => l10n.capabilityTagPickupDelivery,
-    CapabilityTag.tools => l10n.capabilityTagTools,
-    CapabilityTag.physicalHelp => l10n.capabilityTagPhysicalHelp,
-    CapabilityTag.calls => l10n.capabilityTagCalls,
-    CapabilityTag.translation => l10n.capabilityTagTranslation,
-    CapabilityTag.writing => l10n.capabilityTagWriting,
-    CapabilityTag.negotiation => l10n.capabilityTagNegotiation,
-    CapabilityTag.introductions => l10n.capabilityTagIntroductions,
-    CapabilityTag.localKnowledge => l10n.capabilityTagLocalKnowledge,
-    CapabilityTag.legalNavigation => l10n.capabilityTagLegalNavigation,
-    CapabilityTag.medicalNavigation => l10n.capabilityTagMedicalNavigation,
-    CapabilityTag.documents => l10n.capabilityTagDocuments,
-    CapabilityTag.verification => l10n.capabilityTagVerification,
-    CapabilityTag.pets => l10n.capabilityTagPets,
-    CapabilityTag.childcare => l10n.capabilityTagChildcare,
-    CapabilityTag.eldercare => l10n.capabilityTagEldercare,
-    CapabilityTag.emotionalSupport => l10n.capabilityTagEmotionalSupport,
-    CapabilityTag.hosting => l10n.capabilityTagHosting,
-    CapabilityTag.money => l10n.capabilityTagMoney,
-    CapabilityTag.food => l10n.capabilityTagFood,
-    CapabilityTag.housing => l10n.capabilityTagHousing,
-    CapabilityTag.equipment => l10n.capabilityTagEquipment,
-    CapabilityTag.workspace => l10n.capabilityTagWorkspace,
-    CapabilityTag.techHelp => l10n.capabilityTagTechHelp,
-    CapabilityTag.repair => l10n.capabilityTagRepair,
-    CapabilityTag.software => l10n.capabilityTagSoftware,
-    CapabilityTag.design => l10n.capabilityTagDesign,
-    CapabilityTag.adminPaperwork => l10n.capabilityTagAdminPaperwork,
-    CapabilityTag.time => l10n.capabilityTagTime,
-    CapabilityTag.contact => l10n.capabilityTagContact,
-    CapabilityTag.other => l10n.capabilityTagOther,
-  };
 }
