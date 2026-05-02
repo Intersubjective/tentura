@@ -22,9 +22,10 @@ import 'di/di.dart';
 import 'di/globals.dart';
 import 'platform/lifecycle_handler.dart';
 import 'router/root_router.dart';
+import 'debug_error_overlay.dart';
 
 class App extends StatelessWidget {
-  static Future<void> runner() async {
+  static Future<void> runner({bool debugErrors = false}) async {
     FlutterNativeSplash.preserve(
       widgetsBinding: WidgetsFlutterBinding.ensureInitialized(),
     );
@@ -43,12 +44,28 @@ class App extends StatelessWidget {
         });
       });
     }
-    runApp(
-      const Globals(
-        child: LifecycleHandler(
-          child: App(),
-        ),
+
+    if (debugErrors) {
+      installDebugErrorHandlers();
+    }
+
+    const appWidget = Globals(
+      child: LifecycleHandler(
+        child: App(),
       ),
+    );
+
+    _runAppWithErrorHandling(
+      debugErrors ? const DebugErrorOverlay(child: appWidget) : appWidget,
+    );
+  }
+
+  static void _runAppWithErrorHandling(Widget app) {
+    runZonedGuarded(
+      () => runApp(app),
+      (Object error, StackTrace stack) {
+        DebugErrorStore.instance.report(error, stack);
+      },
     );
   }
 
