@@ -171,6 +171,7 @@ class _V2RoutingLink extends Link {
     'BeaconFactCardRemove',
     'BeaconFactCardSetVisibility',
     'CapabilityPrivateLabelSet',
+    'CapabilitySetViewerVisible',
     'MyPrivateLabelsForUser',
     'PersonCapabilityCues',
   };

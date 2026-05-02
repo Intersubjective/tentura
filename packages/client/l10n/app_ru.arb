@@ -2598,6 +2598,7 @@
   "beaconRoomAttachmentOpenShare": "Поделиться файлом",
 
   "capabilityEditPrivateLabels": "Мои метки",
+  "capabilityEditCapabilities": "Редактировать способности",
   "capabilityCueMyLabels": "Мои метки: {tags}",
   "@capabilityCueMyLabels": {
     "placeholders": {

@@ -150,4 +150,55 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<_i2.PersonCapabilityCuesRow>);
+
+  @override
+  _i3.Future<void> insertTombstone({
+    required String? observerId,
+    required String? subjectId,
+    required String? slug,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertTombstone, [], {
+              #observerId: observerId,
+              #subjectId: subjectId,
+              #slug: slug,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> deleteTombstone({
+    required String? observerId,
+    required String? subjectId,
+    required String? slug,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteTombstone, [], {
+              #observerId: observerId,
+              #subjectId: subjectId,
+              #slug: slug,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<_i2.ViewerVisibleCapabilityRow>>
+  fetchDeduplicatedCapabilities({
+    required String? viewerId,
+    required String? subjectId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchDeduplicatedCapabilities, [], {
+              #viewerId: viewerId,
+              #subjectId: subjectId,
+            }),
+            returnValue: _i3.Future<List<_i2.ViewerVisibleCapabilityRow>>.value(
+              <_i2.ViewerVisibleCapabilityRow>[],
+            ),
+          )
+          as _i3.Future<List<_i2.ViewerVisibleCapabilityRow>>);
 }

@@ -1,0 +1,3 @@
+mutation CapabilitySetViewerVisible($subjectUserId: String!, $slugs: [String!]!) {
+  capabilitySetViewerVisible(subjectUserId: $subjectUserId, slugs: $slugs)
+}

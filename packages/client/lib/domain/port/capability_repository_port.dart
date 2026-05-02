@@ -13,4 +13,9 @@ abstract class CapabilityRepositoryPort {
   });
 
   Future<PersonCapabilityCues> fetchCues(String subjectId);
+
+  Future<void> setViewerVisible({
+    required String subjectId,
+    required List<String> slugs,
+  });
 }

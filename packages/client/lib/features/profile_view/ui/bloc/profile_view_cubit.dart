@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -134,5 +135,9 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
         cues: state.cues.copyWith(privateLabels: slugs),
       ),
     );
+  }
+
+  void updateViewerVisible(List<CapabilityWithSource> viewerVisible) {
+    emit(state.copyWith(cues: state.cues.copyWith(viewerVisible: viewerVisible)));
   }
 }

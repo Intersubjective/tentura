@@ -38,9 +38,14 @@ final class QueryCapability extends GqlNodeBase {
         arguments: [_subjectUserId.field],
         resolve: (_, args) async {
           final jwt = getCredentials(args);
+          final subjectId = _subjectUserId.fromArgsNonNullable(args);
           final cues = await _capabilityCase.getCapabilityCues(
             viewerId: jwt.sub,
-            subjectId: _subjectUserId.fromArgsNonNullable(args),
+            subjectId: subjectId,
+          );
+          final viewerVisible = await _capabilityCase.fetchViewerVisible(
+            viewerId: jwt.sub,
+            subjectId: subjectId,
           );
           return {
             'privateLabels': cues.privateLabels,
@@ -82,6 +87,9 @@ final class QueryCapability extends GqlNodeBase {
                     'createdAt': e.createdAt,
                   },
                 )
+                .toList(),
+            'viewerVisible': viewerVisible
+                .map((e) => {'slug': e.slug, 'hasManualLabel': e.hasManualLabel})
                 .toList(),
           };
         },

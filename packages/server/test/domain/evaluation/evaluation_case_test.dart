@@ -74,6 +74,26 @@ class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
     closeAckByMe: [],
     closeAckAboutMe: [],
   );
+
+  @override
+  Future<void> insertTombstone({
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  }) async {}
+
+  @override
+  Future<void> deleteTombstone({
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  }) async {}
+
+  @override
+  Future<List<ViewerVisibleCapabilityRow>> fetchDeduplicatedCapabilities({
+    required String viewerId,
+    required String subjectId,
+  }) async => [];
 }
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}

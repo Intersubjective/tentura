@@ -8,6 +8,7 @@ import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 
 import '../gql/_g/capability_private_label_set.req.gql.dart';
+import '../gql/_g/capability_set_viewer_visible.req.gql.dart';
 import '../gql/_g/my_private_labels_for_user.req.gql.dart';
 import '../gql/_g/person_capability_cues_fetch.req.gql.dart';
 
@@ -128,8 +129,32 @@ class CapabilityRepository implements CapabilityRepositoryPort {
                   )
                   .toList() ??
               [],
+          viewerVisible: p.viewerVisible
+                  ?.map(
+                    (e) => CapabilityWithSource(
+                      slug: e.slug,
+                      hasManualLabel: e.hasManualLabel,
+                    ),
+                  )
+                  .toList() ??
+              [],
         );
       });
+
+  @override
+  Future<void> setViewerVisible({
+    required String subjectId,
+    required List<String> slugs,
+  }) => _remoteApiService
+      .request(
+        GCapabilitySetViewerVisibleReq(
+          (r) => r
+            ..vars.subjectUserId = subjectId
+            ..vars.slugs.addAll(slugs),
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label));
 
   static const _label = 'Capability';
 }
