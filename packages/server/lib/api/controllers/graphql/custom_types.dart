@@ -36,6 +36,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeInboxRoomContextRow,
   gqlTypeTagCount,
   gqlTypeTagBeaconRef,
+  gqlTypeCapabilityForViewer,
   gqlTypePersonCapabilityCuesPayload,
 ];
 
@@ -424,6 +425,14 @@ final gqlTypeCommitmentWithCoordinationRow = GraphQLObjectType(
     field('user', gqlTypeUserPublic.nonNullable()),
   ]);
 
+/// One capability visible to a specific viewer, with source metadata.
+final gqlTypeCapabilityForViewer =
+    GraphQLObjectType('v2_CapabilityForViewer', null)
+      ..fields.addAll([
+        field('slug', graphQLString.nonNullable()),
+        field('hasManualLabel', graphQLBoolean.nonNullable()),
+      ]);
+
 /// Slug + aggregated count for forward-reason cues.
 final gqlTypeTagCount = GraphQLObjectType('v2_TagCount', null)
   ..fields.addAll([
@@ -464,5 +473,9 @@ final gqlTypePersonCapabilityCuesPayload =
         field(
           'closeAckAboutMe',
           GraphQLListType(gqlTypeTagBeaconRef.nonNullable()),
+        ),
+        field(
+          'viewerVisible',
+          GraphQLListType(gqlTypeCapabilityForViewer.nonNullable()),
         ),
       ]);

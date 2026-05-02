@@ -30,6 +30,8 @@ class PersonCapabilityEvents extends Table {
 
   late final deletedAt = customType(PgTypes.timestampWithTimezone).nullable()();
 
+  late final isNegative = boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

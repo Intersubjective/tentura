@@ -115,6 +115,20 @@ class PersonCapabilityEventRepository
           note,
         ],
       );
+      // A new positive forward signal lifts any tombstone the observer placed
+      // on this slug for this subject.
+      await _database.customStatement(
+        r'''
+        UPDATE public.person_capability_event
+        SET deleted_at = now()
+        WHERE observer_user_id = $1
+          AND subject_user_id  = $2
+          AND tag_slug         = $3
+          AND is_negative      = true
+          AND deleted_at IS NULL
+        ''',
+        [observerId, subjectId, slug],
+      );
     }
   });
 
@@ -334,5 +348,135 @@ class PersonCapabilityEventRepository
       closeAckByMe: closeAckByMe,
       closeAckAboutMe: closeAckAboutMe,
     );
+  }
+
+  @override
+  Future<void> insertTombstone({
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  }) => _database.withMutatingUser(observerId, () async {
+    await _database.customStatement(
+      r'''
+      INSERT INTO public.person_capability_event
+        (id, subject_user_id, observer_user_id, tag_slug, source_type, visibility, is_negative)
+      VALUES ($1, $2, $3, $4, 0, 0, true)
+      ON CONFLICT DO NOTHING
+      ''',
+      [generateId('CE'), subjectId, observerId, slug],
+    );
+  });
+
+  @override
+  Future<void> deleteTombstone({
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  }) => _database.withMutatingUser(observerId, () async {
+    await _database.customStatement(
+      r'''
+      UPDATE public.person_capability_event
+      SET deleted_at = now()
+      WHERE observer_user_id = $1
+        AND subject_user_id  = $2
+        AND tag_slug         = $3
+        AND is_negative      = true
+        AND deleted_at IS NULL
+      ''',
+      [observerId, subjectId, slug],
+    );
+  });
+
+  @override
+  Future<List<ViewerVisibleCapabilityRow>> fetchDeduplicatedCapabilities({
+    required String viewerId,
+    required String subjectId,
+  }) async {
+    // Build the self-view close-ack branch only when viewer == subject.
+    final selfViewBranch = viewerId == subjectId
+        ? r'''
+          UNION ALL
+          -- close-acks about subject by anyone (self-view only)
+          SELECT tag_slug, false AS has_manual_label
+          FROM public.person_capability_event
+          WHERE subject_user_id = $2
+            AND source_type     = 3
+            AND is_negative     = false
+            AND deleted_at IS NULL
+        '''
+        : '';
+
+    final rows = await _database
+        .customSelect(
+          '''
+          WITH positive_slugs AS (
+            SELECT tag_slug, true  AS has_manual_label
+            FROM public.person_capability_event
+            WHERE observer_user_id = \$1
+              AND subject_user_id  = \$2
+              AND source_type      = 0
+              AND is_negative      = false
+              AND deleted_at IS NULL
+
+            UNION ALL
+
+            SELECT tag_slug, false AS has_manual_label
+            FROM public.person_capability_event
+            WHERE observer_user_id = \$1
+              AND subject_user_id  = \$2
+              AND source_type      = 1
+              AND is_negative      = false
+              AND deleted_at IS NULL
+
+            UNION ALL
+
+            SELECT tag_slug, false AS has_manual_label
+            FROM public.person_capability_event
+            WHERE subject_user_id = \$2
+              AND source_type     = 2
+              AND is_negative     = false
+              AND deleted_at IS NULL
+
+            UNION ALL
+
+            SELECT tag_slug, false AS has_manual_label
+            FROM public.person_capability_event
+            WHERE observer_user_id = \$1
+              AND subject_user_id  = \$2
+              AND source_type      = 3
+              AND is_negative      = false
+              AND deleted_at IS NULL
+            $selfViewBranch
+          ),
+          tombstoned AS (
+            SELECT tag_slug
+            FROM public.person_capability_event
+            WHERE observer_user_id = \$1
+              AND subject_user_id  = \$2
+              AND is_negative      = true
+              AND deleted_at IS NULL
+          )
+          SELECT tag_slug,
+                 bool_or(has_manual_label) AS has_manual_label
+          FROM positive_slugs
+          WHERE tag_slug NOT IN (SELECT tag_slug FROM tombstoned)
+          GROUP BY tag_slug
+          ORDER BY tag_slug
+          ''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable.withString(subjectId),
+          ],
+        )
+        .get();
+
+    return rows
+        .map(
+          (r) => ViewerVisibleCapabilityRow(
+            slug: r.read<String>('tag_slug'),
+            hasManualLabel: r.read<bool>('has_manual_label'),
+          ),
+        )
+        .toList();
   }
 }

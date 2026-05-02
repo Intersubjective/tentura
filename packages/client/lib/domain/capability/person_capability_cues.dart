@@ -19,6 +19,9 @@ abstract class PersonCapabilityCues with _$PersonCapabilityCues {
 
     /// Close-ack events written by others about viewer (only when viewer == subject).
     @Default([]) List<TagBeaconRef> closeAckAboutMe,
+
+    /// Deduplicated, tombstone-filtered list of capabilities visible to the viewer.
+    @Default([]) List<CapabilityWithSource> viewerVisible,
   }) = _PersonCapabilityCues;
 
   const PersonCapabilityCues._();
@@ -31,6 +34,15 @@ abstract class PersonCapabilityCues with _$PersonCapabilityCues {
       closeAckAboutMe.isEmpty;
 
   static const empty = PersonCapabilityCues();
+}
+
+@freezed
+abstract class CapabilityWithSource with _$CapabilityWithSource {
+  const factory CapabilityWithSource({
+    required String slug,
+    /// True when the viewer explicitly added this slug as a private label.
+    required bool hasManualLabel,
+  }) = _CapabilityWithSource;
 }
 
 @freezed

@@ -21,6 +21,7 @@ final class MutationCapability extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     capabilityPrivateLabelSet,
+    capabilitySetViewerVisible,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get capabilityPrivateLabelSet =>
@@ -31,6 +32,22 @@ final class MutationCapability extends GqlNodeBase {
         resolve: (_, args) async {
           final jwt = getCredentials(args);
           await _capabilityCase.upsertPrivateLabel(
+            observerId: jwt.sub,
+            subjectId: _subjectUserId.fromArgsNonNullable(args),
+            slugs: _slugsFromArgs(args),
+          );
+          return true;
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get capabilitySetViewerVisible =>
+      GraphQLObjectField(
+        'capabilitySetViewerVisible',
+        graphQLBoolean.nonNullable(),
+        arguments: [_subjectUserId.field, _slugs],
+        resolve: (_, args) async {
+          final jwt = getCredentials(args);
+          await _capabilityCase.setViewerVisible(
             observerId: jwt.sub,
             subjectId: _subjectUserId.fromArgsNonNullable(args),
             slugs: _slugsFromArgs(args),

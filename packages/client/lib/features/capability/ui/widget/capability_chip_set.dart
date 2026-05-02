@@ -11,10 +11,17 @@ class CapabilityChipSet extends StatelessWidget {
   const CapabilityChipSet({
     required this.selectedSlugs,
     required this.onChanged,
+    this.automaticSlugs = const {},
     super.key,
   });
 
   final Set<String> selectedSlugs;
+
+  /// Slugs that were added automatically (via forward/commit/close-ack).
+  /// These chips are shown in a secondary color to distinguish them from
+  /// manually-added ones.
+  final Set<String> automaticSlugs;
+
   final void Function(Set<String> slugs) onChanged;
 
   @override
@@ -34,6 +41,7 @@ class CapabilityChipSet extends StatelessWidget {
                 .where((t) => t.group == group)
                 .toList(),
             selectedSlugs: selectedSlugs,
+            automaticSlugs: automaticSlugs,
             onToggle: (slug, selected) {
               final next = Set<String>.from(selectedSlugs);
               selected ? next.add(slug) : next.remove(slug);
@@ -64,6 +72,7 @@ class _GroupSection extends StatelessWidget {
     required this.groupLabel,
     required this.tags,
     required this.selectedSlugs,
+    required this.automaticSlugs,
     required this.onToggle,
     required this.theme,
     required this.l10n,
@@ -73,6 +82,7 @@ class _GroupSection extends StatelessWidget {
   final String groupLabel;
   final List<CapabilityTag> tags;
   final Set<String> selectedSlugs;
+  final Set<String> automaticSlugs;
   final void Function(String slug, bool selected) onToggle;
   final ThemeData theme;
   final L10n l10n;
@@ -102,6 +112,12 @@ class _GroupSection extends StatelessWidget {
                 label: Text(_tagLabel(l10n, tag)),
                 selected: selectedSlugs.contains(tag.slug),
                 onSelected: (v) => onToggle(tag.slug, v),
+                selectedColor: automaticSlugs.contains(tag.slug)
+                    ? theme.colorScheme.secondaryContainer
+                    : null,
+                backgroundColor: automaticSlugs.contains(tag.slug)
+                    ? theme.colorScheme.secondaryContainer.withValues(alpha: 0.4)
+                    : null,
               ),
           ],
         ),

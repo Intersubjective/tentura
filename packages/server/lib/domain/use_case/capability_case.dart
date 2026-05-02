@@ -110,4 +110,75 @@ final class CapabilityCase extends UseCaseBase {
       slugs: slugs,
     );
   }
+
+  Future<List<ViewerVisibleCapabilityRow>> fetchViewerVisible({
+    required String viewerId,
+    required String subjectId,
+  }) => _repository.fetchDeduplicatedCapabilities(
+    viewerId: viewerId,
+    subjectId: subjectId,
+  );
+
+  /// Atomically reconciles the full set of capabilities that [observerId] wants
+  /// to see on [subjectId]'s profile.
+  ///
+  /// - Added slugs (in [slugs] but not in current private-label set): remove
+  ///   tombstone + upsert private label.
+  /// - Removed slugs (in current private-label set but not in [slugs]): soft-
+  ///   delete private label + insert tombstone.
+  /// - Slugs only visible through automatic sources (forward/commit/closeAck):
+  ///   removing them creates a tombstone even if there was no private label.
+  Future<void> setViewerVisible({
+    required String observerId,
+    required String subjectId,
+    required List<String> slugs,
+  }) async {
+    if (observerId == subjectId) {
+      throw const ExceptionBase(
+        code: CapabilityExceptionCodes(
+          CapabilityExceptionCode.selfLabelForbidden,
+        ),
+        description: 'Cannot label yourself',
+      );
+    }
+    _validateSlugs(slugs);
+
+    final targetSet = slugs.toSet();
+
+    // Delete tombstones for every slug the viewer wants visible (re-enables them).
+    for (final slug in targetSet) {
+      await _repository.deleteTombstone(
+        observerId: observerId,
+        subjectId: subjectId,
+        slug: slug,
+      );
+    }
+
+    // Update private labels: upserts new positives, soft-deletes removed ones.
+    await _repository.upsertPrivateLabels(
+      observerId: observerId,
+      subjectId: subjectId,
+      slugs: slugs,
+    );
+
+    // Fetch effective visible set (after tombstone-deletes and private-label upsert).
+    // Anything still visible that the viewer didn't include in targetSet needs
+    // a tombstone — this covers automatic slugs (commits, forwards, close-acks)
+    // that the viewer is explicitly opting out of.
+    final currentVisible = await _repository.fetchDeduplicatedCapabilities(
+      viewerId: observerId,
+      subjectId: subjectId,
+    );
+    final removed = currentVisible
+        .map((r) => r.slug)
+        .toSet()
+        .difference(targetSet);
+    for (final slug in removed) {
+      await _repository.insertTombstone(
+        observerId: observerId,
+        subjectId: subjectId,
+        slug: slug,
+      );
+    }
+  }
 }

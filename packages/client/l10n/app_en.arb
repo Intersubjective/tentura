@@ -2604,6 +2604,7 @@
   "beaconRoomAttachmentOpenShare": "Share file",
 
   "capabilityEditPrivateLabels": "Edit my labels",
+  "capabilityEditCapabilities": "Edit capabilities",
   "capabilityCueMyLabels": "My labels: {tags}",
   "@capabilityCueMyLabels": {
     "placeholders": {

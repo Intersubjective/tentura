@@ -43,6 +43,30 @@ abstract class PersonCapabilityEventRepositoryPort {
     required String viewerId,
     required String subjectId,
   });
+
+  /// Inserts a tombstone (is_negative=true) for [observerId]+[subjectId]+[slug].
+  /// No-op if an active tombstone already exists.
+  Future<void> insertTombstone({
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  });
+
+  /// Soft-deletes the active tombstone for [observerId]+[subjectId]+[slug].
+  /// No-op if no active tombstone exists.
+  Future<void> deleteTombstone({
+    required String observerId,
+    required String subjectId,
+    required String slug,
+  });
+
+  /// Returns deduplicated capability slugs visible to [viewerId] on [subjectId]'s
+  /// profile after applying tombstone filtering. Each row carries a hasManualLabel
+  /// flag indicating whether the viewer explicitly added the slug as a private label.
+  Future<List<ViewerVisibleCapabilityRow>> fetchDeduplicatedCapabilities({
+    required String viewerId,
+    required String subjectId,
+  });
 }
 
 class PersonCapabilityCuesRow {
@@ -71,6 +95,16 @@ class TagCountRow {
   final String slug;
   final int count;
   final String lastSeenAt;
+}
+
+class ViewerVisibleCapabilityRow {
+  const ViewerVisibleCapabilityRow({
+    required this.slug,
+    required this.hasManualLabel,
+  });
+
+  final String slug;
+  final bool hasManualLabel;
 }
 
 class TagBeaconRefRow {

@@ -15,7 +15,7 @@ import 'package:tentura/features/capability/ui/widget/capability_cue_strip.dart'
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/profile_view_cubit.dart';
-import '../dialog/edit_private_labels_dialog.dart';
+import '../dialog/edit_capabilities_dialog.dart';
 import 'mutual_friends_button.dart';
 
 class ProfileViewBody extends StatelessWidget {
@@ -69,12 +69,12 @@ class ProfileViewBody extends StatelessWidget {
               },
             ),
 
-            // Private-label cue strip + Edit action (viewer ≠ subject, viewer is friend)
+            // Deduplicated capability strip + edit button (viewer ≠ subject, viewer is friend)
             BlocSelector<ProfileViewCubit, ProfileViewState,
-                (PersonCapabilityCues, bool)>(
-              selector: (s) => (s.cues, s.profile.isFriend),
+                (List<CapabilityWithSource>, bool)>(
+              selector: (s) => (s.cues.viewerVisible, s.profile.isFriend),
               builder: (context, rec) {
-                final (cues, isFriend) = rec;
+                final (viewerVisible, isFriend) = rec;
                 final myId =
                     context.read<ProfileCubit>().state.profile.id;
                 final isSelf = profile.id == myId;
@@ -82,10 +82,12 @@ class ProfileViewBody extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    if (cues.privateLabels.isNotEmpty)
+                    if (viewerVisible.isNotEmpty)
                       Padding(
                         padding: kPaddingSmallT,
-                        child: CapabilityCueStrip(slugs: cues.privateLabels),
+                        child: CapabilityCueStrip(
+                          slugs: viewerVisible.map((c) => c.slug).toList(),
+                        ),
                       ),
                     Padding(
                       padding: kPaddingSmallT,
@@ -93,10 +95,22 @@ class ProfileViewBody extends StatelessWidget {
                         onPressed: () {
                           final cubit = context.read<ProfileViewCubit>();
                           unawaited(
-                            EditPrivateLabelsDialog.show(
+                            EditCapabilitiesDialog.show(
                               context,
                               subjectId: profile.id,
-                              onPrivateLabelsSaved: cubit.updatePrivateLabels,
+                              currentVisible: viewerVisible,
+                              onSaved: (slugs, automaticSlugs) =>
+                                  cubit.updateViewerVisible(
+                                    slugs
+                                        .map(
+                                          (s) => CapabilityWithSource(
+                                            slug: s,
+                                            hasManualLabel:
+                                                !automaticSlugs.contains(s),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
                             ).catchError((Object e) {
                               if (context.mounted) {
                                 showSnackBar(
@@ -108,38 +122,12 @@ class ProfileViewBody extends StatelessWidget {
                             }),
                           );
                         },
-                        icon: const Icon(Icons.label_outline),
-                        label: Text(l10n.capabilityEditPrivateLabels),
+                        icon: const Icon(Icons.tune),
+                        label: Text(l10n.capabilityEditCapabilities),
                       ),
                     ),
                   ],
                 );
-              },
-            ),
-
-            // Capability cues in signal-strength order: closeAck > commitRole
-            BlocSelector<ProfileViewCubit, ProfileViewState,
-                (List<TagBeaconRef>, List<TagBeaconRef>)>(
-              selector: (s) => (s.cues.closeAckAboutMe, s.cues.commitRoles),
-              builder: (context, rec) {
-                final (closeAcks, commitRoles) = rec;
-                if (closeAcks.isNotEmpty) {
-                  return Padding(
-                    padding: kPaddingSmallT,
-                    child: CapabilityCueStrip(
-                      slugs: closeAcks.map((r) => r.slug).toSet().toList(),
-                    ),
-                  );
-                }
-                if (commitRoles.isNotEmpty) {
-                  return Padding(
-                    padding: kPaddingSmallT,
-                    child: CapabilityCueStrip(
-                      slugs: commitRoles.map((r) => r.slug).toList(),
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
               },
             ),
 
