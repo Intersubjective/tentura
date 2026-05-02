@@ -5,17 +5,19 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'app/app.dart';
 
 Future<void> main() async {
-  kDebugMode
-      ? await App.runner(debugErrors: true)
-      : await SentryFlutter.init(
-          (options) => options
-            ..debug = kDebugMode
-            ..denyUrls = []
-            ..dsn = const String.fromEnvironment('SENTRY_URL')
-            ..ignoreErrors = [
-              'SocketException',
-            ]
-            ..tracesSampleRate = 1.0,
-          appRunner: App.runner,
-        );
+  if (kDebugMode) {
+    await App.runner(debugErrors: true);
+  } else {
+    await SentryFlutter.init(
+      (options) => options
+        ..debug = kDebugMode
+        ..denyUrls = []
+        ..dsn = const String.fromEnvironment('SENTRY_URL')
+        ..ignoreErrors = [
+          'SocketException',
+        ]
+        ..tracesSampleRate = 1.0,
+      appRunner: App.runner,
+    );
+  }
 }

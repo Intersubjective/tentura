@@ -72,29 +72,32 @@ class DebugErrorOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!kDebugMode) return child;
 
-    return Stack(
-      children: [
-        child,
-        AnimatedBuilder(
-          animation: DebugErrorStore.instance,
-          builder: (context, _) {
-            final errorText = DebugErrorStore.instance.lastError;
-            if (errorText == null) return const SizedBox.shrink();
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          child,
+          AnimatedBuilder(
+            animation: DebugErrorStore.instance,
+            builder: (context, _) {
+              final errorText = DebugErrorStore.instance.lastError;
+              if (errorText == null) return const SizedBox.shrink();
 
-            return Positioned.fill(
-              child: Material(
-                color: Colors.black.withValues(alpha: 0.88),
-                child: SafeArea(
-                  child: DebugErrorPanel(
-                    errorText: errorText,
-                    embedded: false,
+              return Positioned.fill(
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.88),
+                  child: SafeArea(
+                    child: DebugErrorPanel(
+                      errorText: errorText,
+                      embedded: false,
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
-      ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

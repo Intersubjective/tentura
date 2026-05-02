@@ -49,24 +49,21 @@ class App extends StatelessWidget {
       installDebugErrorHandlers();
     }
 
-    const appWidget = Globals(
+    Widget appWidget = const Globals(
       child: LifecycleHandler(
         child: App(),
       ),
     );
 
-    _runAppWithErrorHandling(
-      debugErrors ? const DebugErrorOverlay(child: appWidget) : appWidget,
-    );
+    if (debugErrors) {
+      appWidget = DebugErrorOverlay(child: appWidget);
+    }
+
+    _runAppWithErrorHandling(appWidget);
   }
 
   static void _runAppWithErrorHandling(Widget app) {
-    runZonedGuarded(
-      () => runApp(app),
-      (Object error, StackTrace stack) {
-        DebugErrorStore.instance.report(error, stack);
-      },
-    );
+    runApp(app);
   }
 
   const App({super.key});
