@@ -144,10 +144,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             ),
 
             // Context
-            const Padding(
-              padding: kPaddingSmallV,
-              child: ContextDropDown(),
-            ),
+            // const Padding(
+            //   padding: kPaddingSmallV,
+            //   child: ContextDropDown(),
+            // ),
 
             // Date Range
             Padding(
@@ -185,42 +185,42 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             ),
 
             // Tags
-            Padding(
-              padding: kPaddingSmallV,
-              child: Text(_l10n.tagsText),
-            ),
-            BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
-              selector: (state) => state.tags,
-              builder: (_, tags) => Wrap(
-                runSpacing: kSpacingSmall,
-                spacing: kSpacingSmall,
-                children: [
-                  // Add Tag
-                  ActionChip(
-                    label: Text(
-                      _l10n.addTagText,
-                      style: _theme.chipTheme.labelStyle,
-                    ),
-                    onPressed: tags.length < 5
-                        ? () async {
-                            final tag = await BeaconAddTagDialog.show(context);
-                            if (tag != null) {
-                              _cubit.addTag(tag);
-                            }
-                          }
-                        : null,
-                  ),
-
-                  // Added Tags
-                  for (final tag in tags)
-                    Chip(
-                      label: Text(tag),
-                      deleteIconColor: _theme.colorScheme.onPrimary,
-                      onDeleted: () => _cubit.removeTag(tag),
-                    ),
-                ],
-              ),
-            ),
+            // Padding(
+            //   padding: kPaddingSmallV,
+            //   child: Text(_l10n.tagsText),
+            // ),
+            // BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
+            //   selector: (state) => state.tags,
+            //   builder: (_, tags) => Wrap(
+            //     runSpacing: kSpacingSmall,
+            //     spacing: kSpacingSmall,
+            //     children: [
+            //       // Add Tag
+            //       ActionChip(
+            //         label: Text(
+            //           _l10n.addTagText,
+            //           style: _theme.chipTheme.labelStyle,
+            //         ),
+            //         onPressed: tags.length < 5
+            //             ? () async {
+            //                 final tag = await BeaconAddTagDialog.show(context);
+            //                 if (tag != null) {
+            //                   _cubit.addTag(tag);
+            //                 }
+            //               }
+            //             : null,
+            //       ),
+            //
+            //       // Added Tags
+            //       for (final tag in tags)
+            //         Chip(
+            //           label: Text(tag),
+            //           deleteIconColor: _theme.colorScheme.onPrimary,
+            //           onDeleted: () => _cubit.removeTag(tag),
+            //         ),
+            //     ],
+            //   ),
+            // ),
 
             // Beacon symbol (optional identity tile)
             Padding(
