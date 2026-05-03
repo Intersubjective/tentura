@@ -49,7 +49,7 @@ mixin StringInputValidator {
       return l10n.beaconDescriptionRequired;
     }
     if (t.length > kBeaconDescriptionMaxLength) {
-      return l10n.beaconDescriptionTooLong;
+      return l10n.beaconDescriptionTooLong(kBeaconDescriptionMaxLength);
     }
     return null;
   }

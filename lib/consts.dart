@@ -15,10 +15,10 @@ const kTitleMaxLength = 32;
 /// Beacon `title` only (user/profile [kTitleMaxLength] remains shorter).
 const kBeaconTitleMaxLength = 60;
 
-/// Beacon `description` (short subtitle) — legacy limit.
-const kBeaconDescriptionMaxLength = 16;
-
 const kDescriptionMaxLength = 2_048;
+
+/// Beacon `description` — same cap as [kDescriptionMaxLength] (matches DB `beacon.description` check).
+const kBeaconDescriptionMaxLength = kDescriptionMaxLength;
 
 const int kRatingSector = 100 ~/ 4;
 

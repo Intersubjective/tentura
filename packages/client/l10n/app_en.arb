@@ -2266,8 +2266,12 @@
   "beaconAddContextHint": "Add description",
   "beaconDescriptionRequired": "Description is required",
   "@beaconDescriptionRequired": {},
-  "beaconDescriptionTooLong": "Description must be 16 characters or fewer",
-  "@beaconDescriptionTooLong": {},
+  "beaconDescriptionTooLong": "Description must be {max} characters or fewer",
+  "@beaconDescriptionTooLong": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
   "beaconShowWithdrawn": "Show {count} withdrawn",
   "@beaconShowWithdrawn": {
     "placeholders": {
@@ -2440,7 +2444,7 @@
   "beaconRoomFactManageSheetTitle": "Manage fact",
   "beaconRoomFactManageTooltip": "Manage pinned fact",
   "beaconRoomFactOverflowTooltip": "Manage this fact",
-  "labelBeaconTabPeople": "People",
+  "labelBeaconTabPeople": "My people",
   "beaconOverviewRoomCueCardTitle": "Room coordination",
   "beaconRoomStripNowTitle": "Now",
   "beaconRoomStripPlanLabel": "Plan",

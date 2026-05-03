@@ -2266,8 +2266,12 @@
   "beaconAddContextHint": "Добавьте описание",
   "beaconDescriptionRequired": "Описание обязательно",
   "@beaconDescriptionRequired": {},
-  "beaconDescriptionTooLong": "Описание должно быть не длиннее 16 символов",
-  "@beaconDescriptionTooLong": {},
+  "beaconDescriptionTooLong": "Описание должно быть не длиннее {max} символов",
+  "@beaconDescriptionTooLong": {
+    "placeholders": {
+      "max": { "type": "int" }
+    }
+  },
   "beaconShowWithdrawn": "Показать снятые ({count})",
   "@beaconShowWithdrawn": {
     "placeholders": {
@@ -2440,7 +2444,7 @@
   "beaconRoomFactManageSheetTitle": "Управление фактом",
   "beaconRoomFactManageTooltip": "Управлять закреплённым фактом",
   "beaconRoomFactOverflowTooltip": "Действия с фактом",
-  "labelBeaconTabPeople": "Люди",
+  "labelBeaconTabPeople": "Мои люди",
   "beaconOverviewRoomCueCardTitle": "В комнате",
   "beaconRoomStripNowTitle": "Сейчас",
   "beaconRoomStripPlanLabel": "План",
