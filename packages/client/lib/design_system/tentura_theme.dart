@@ -73,6 +73,11 @@ abstract final class TenturaTheme {
         ? colorScheme.onSecondaryContainer
         : colorScheme.onPrimary;
 
+    // In dark M3, [ColorScheme.primary] is often a dark tone; default [Icon]s
+    // (no explicit color) would inherit [iconTheme] and disappear on dark surfaces.
+    final defaultIconColor =
+        isDark ? colorScheme.onSurfaceVariant : colorScheme.primary;
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
@@ -105,7 +110,7 @@ abstract final class TenturaTheme {
         collapsedShape: expansionTileShape,
         shape: expansionTileShape,
       ),
-      iconTheme: IconThemeData(color: colorScheme.primary),
+      iconTheme: IconThemeData(color: defaultIconColor),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colorScheme.primary,
         contentTextStyle: TextStyle(color: colorScheme.onPrimary),

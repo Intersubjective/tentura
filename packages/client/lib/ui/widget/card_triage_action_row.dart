@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -35,6 +36,7 @@ class CardTriageActionRow extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tt = context.tt;
     final actionLabelStyle = theme.textTheme.labelLarge!;
     final hasCommit = onCommit != null;
     final hasSecondary =
@@ -46,7 +48,7 @@ class CardTriageActionRow extends StatelessWidget {
 
     final forwardBtn = OutlinedButton.icon(
       onPressed: onForward,
-      icon: const Icon(Icons.send, size: 18),
+      icon: Icon(Icons.send, size: 18, color: tt.info),
       label: Text(
         l10n.labelForward,
         maxLines: 1,
@@ -54,8 +56,8 @@ class CardTriageActionRow extends StatelessWidget {
         softWrap: false,
       ),
       style: OutlinedButton.styleFrom(
-        foregroundColor: scheme.primary,
-        textStyle: actionLabelStyle.copyWith(color: scheme.primary),
+        foregroundColor: tt.info,
+        textStyle: actionLabelStyle.copyWith(color: tt.info),
         visualDensity: VisualDensity.compact,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

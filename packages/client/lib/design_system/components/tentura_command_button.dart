@@ -40,7 +40,7 @@ class TenturaCommandButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconTheme(
-                  data: const IconThemeData(size: 14),
+                  data: IconThemeData(size: 14, color: color),
                   child: icon!,
                 ),
                 const SizedBox(width: 6),
