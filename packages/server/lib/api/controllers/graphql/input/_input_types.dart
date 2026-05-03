@@ -63,6 +63,33 @@ class InputFieldString {
       args[field.name]! as String;
 }
 
+/// `[String!]` list; outer argument nullable when using [fieldNullable].
+class InputFieldStringList {
+  InputFieldStringList({required String fieldName})
+    : field = GraphQLFieldInput(
+        fieldName,
+        GraphQLListType(graphQLString.nonNullable()),
+      ),
+      fieldNullable = GraphQLFieldInput(
+        fieldName,
+        GraphQLListType(graphQLString.nonNullable()),
+        defaultsToNull: true,
+      );
+
+  final GraphQLFieldInput<List<String>, List<String>> field;
+
+  final GraphQLFieldInput<List<String>?, List<String>?> fieldNullable;
+
+  List<String>? fromArgs(Map<String, dynamic> args) {
+    final raw = args[field.name];
+    if (raw == null) return null;
+    return List<String>.from(raw as List);
+  }
+
+  List<String> fromArgsNonNullable(Map<String, dynamic> args) =>
+      List<String>.from(args[field.name]! as List);
+}
+
 class InputFieldDatetime {
   InputFieldDatetime({required String fieldName})
     : field = GraphQLFieldInput(fieldName, graphQLString.nonNullable()),
