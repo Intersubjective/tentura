@@ -6,7 +6,7 @@ import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 
-/// FCM helpers for beacon room events (admission, need-info, etc.).
+/// FCM helpers for beacon-related push events.
 @lazySingleton
 class BeaconRoomPushService {
   BeaconRoomPushService(
@@ -21,6 +21,42 @@ class BeaconRoomPushService {
 
   final UserRepositoryPort _users;
 
+  Future<void> notifyForwardReceived({
+    required String beaconId,
+    required String senderId,
+    required String beaconAuthorId,
+    required List<String> recipientIds,
+  }) async {
+    if (recipientIds.isEmpty) return;
+    final sender = await _users.getById(senderId);
+    final title = sender.title.isEmpty ? 'Someone' : sender.title;
+    for (final receiverId in recipientIds.toSet()) {
+      if (receiverId.isEmpty || receiverId == senderId || receiverId == beaconAuthorId) continue;
+      await _send(
+        receiverId: receiverId,
+        title: title,
+        body: 'Forwarded a beacon to you',
+        beaconId: beaconId,
+      );
+    }
+  }
+
+  Future<void> notifyCommitToAuthor({
+    required String beaconId,
+    required String committerId,
+    required String authorId,
+  }) async {
+    if (authorId.isEmpty || authorId == committerId) return;
+    final committer = await _users.getById(committerId);
+    final title = committer.title.isEmpty ? 'Someone' : committer.title;
+    await _send(
+      receiverId: authorId,
+      title: title,
+      body: 'Committed to your beacon',
+      beaconId: beaconId,
+    );
+  }
+
   Future<void> notifyRoomAdmitted({
     required String receiverId,
     required String beaconId,
@@ -30,6 +66,7 @@ class BeaconRoomPushService {
         title: 'Room access',
         body: 'You were admitted to the beacon room',
         beaconId: beaconId,
+        dest: 'room',
       );
 
   Future<void> notifyNeedInfoRequested({
@@ -43,6 +80,7 @@ class BeaconRoomPushService {
       title: actor.title,
       body: 'Information was requested in the beacon room',
       beaconId: beaconId,
+      dest: 'room',
     );
   }
 
@@ -65,6 +103,7 @@ class BeaconRoomPushService {
         title: title,
         body: 'Offered help on your beacon',
         beaconId: beaconId,
+        dest: 'room',
       );
     }
   }
@@ -85,6 +124,7 @@ class BeaconRoomPushService {
         title: title,
         body: 'Updated the coordinated plan',
         beaconId: beaconId,
+        dest: 'room',
       );
     }
   }
@@ -109,6 +149,7 @@ class BeaconRoomPushService {
         title: title,
         body: body,
         beaconId: beaconId,
+        dest: 'room',
       );
     }
   }
@@ -128,6 +169,7 @@ class BeaconRoomPushService {
       title: title,
       body: 'Your next step in the beacon room was updated',
       beaconId: beaconId,
+      dest: 'room',
     );
   }
 
@@ -154,6 +196,7 @@ class BeaconRoomPushService {
         title: title,
         body: body,
         beaconId: beaconId,
+        dest: 'room',
       );
     }
   }
@@ -163,17 +206,19 @@ class BeaconRoomPushService {
     required String title,
     required String body,
     required String beaconId,
+    String? dest,
   }) async {
     if (receiverId.isEmpty) return;
     final tokens = await _fcmTokens.getTokensByUserId(receiverId);
     if (tokens.isEmpty) return;
+    final destParam = dest != null ? '&dest=$dest' : '';
     _fcmBatch.enqueue(
       receiverId: receiverId,
       fcmTokens: tokens.map((e) => e.token).toSet(),
       message: FcmNotificationEntity(
         title: title,
         body: body,
-        actionUrl: '/#$kPathAppLinkView?id=$beaconId&dest=room',
+        actionUrl: '/#$kPathAppLinkView?id=$beaconId$destParam',
       ),
     );
   }

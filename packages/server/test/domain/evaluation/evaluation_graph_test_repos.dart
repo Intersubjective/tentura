@@ -12,7 +12,7 @@ final class EmptyGraphCommitmentRepository implements CommitmentRepositoryPort {
     required String beaconId,
     required String userId,
     String message = '',
-    String? helpType,
+    List<String>? helpTypes,
     int status = 0,
   }) =>
       throw UnimplementedError();

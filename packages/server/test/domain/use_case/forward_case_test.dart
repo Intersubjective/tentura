@@ -4,6 +4,8 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
@@ -14,14 +16,20 @@ void main() {
   late MockCommitmentRepositoryPort commitmentRepo;
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
+  late MockBeaconRepositoryPort beaconRepo;
+  late MockBeaconRoomPushService roomPush;
   late CapabilityCase capabilityCase;
   late ForwardCase case_;
+
+  final now = DateTime.utc(2025);
 
   setUp(() {
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
     commitmentRepo = MockCommitmentRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
+    beaconRepo = MockBeaconRepositoryPort();
+    roomPush = MockBeaconRoomPushService();
 
     capabilityCase = CapabilityCase(
       capabilityRepo,
@@ -33,9 +41,32 @@ void main() {
       commitmentRepo,
       inboxRepo,
       capabilityCase,
+      beaconRepo,
+      roomPush,
       env: Env(environment: Environment.test),
       logger: Logger('ForwardCaseTest'),
     );
+
+    when(
+      beaconRepo.getBeaconById(beaconId: anyNamed('beaconId')),
+    ).thenAnswer(
+      (_) async => BeaconEntity(
+        id: 'B1',
+        title: 'Test beacon',
+        author: UserEntity(id: 'Uauthor'),
+        createdAt: now,
+        updatedAt: now,
+        state: 0,
+      ),
+    );
+    when(
+      roomPush.notifyForwardReceived(
+        beaconId: anyNamed('beaconId'),
+        senderId: anyNamed('senderId'),
+        beaconAuthorId: anyNamed('beaconAuthorId'),
+        recipientIds: anyNamed('recipientIds'),
+      ),
+    ).thenAnswer((_) async {});
 
     when(
       forwardEdgeRepo.createBatch(
@@ -149,6 +180,45 @@ void main() {
         ),
       ).called(1);
       verifyNoMoreInteractions(capabilityRepo);
+    });
+  });
+
+  group('forward — push notifications', () {
+    test('notifyForwardReceived is called after successful forward', () async {
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['R1', 'R2'],
+      );
+
+      verify(
+        roomPush.notifyForwardReceived(
+          beaconId: 'B1',
+          senderId: 'U1',
+          beaconAuthorId: 'Uauthor',
+          recipientIds: ['R1', 'R2'],
+        ),
+      ).called(1);
+    });
+
+    test('beacon fetch failure does not throw (non-fatal notification)',
+        () async {
+      when(
+        beaconRepo.getBeaconById(beaconId: 'B1'),
+      ).thenThrow(Exception('DB error'));
+
+      await expectLater(
+        case_.forward(senderId: 'U1', beaconId: 'B1', recipientIds: ['R1']),
+        completes,
+      );
+      verifyNever(
+        roomPush.notifyForwardReceived(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          beaconAuthorId: anyNamed('beaconAuthorId'),
+          recipientIds: anyNamed('recipientIds'),
+        ),
+      );
     });
   });
 }

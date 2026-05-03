@@ -127,6 +127,15 @@ final class CommitmentCase extends UseCaseBase {
       beacon: beacon,
       committantId: userId,
     );
+    unawaited(
+      _roomPush.notifyCommitToAuthor(
+        beaconId: beaconId,
+        committerId: userId,
+        authorId: beacon.author.id,
+      ).catchError((Object e) {
+        logger.warning('CommitmentCase: failed to enqueue commit notification: $e');
+      }),
+    );
   }
 
   /// If the beacon author has a positive trust edge toward [committantId]

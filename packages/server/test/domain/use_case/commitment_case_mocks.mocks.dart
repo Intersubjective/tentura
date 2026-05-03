@@ -399,7 +399,7 @@ class MockCommitmentRepositoryPort extends _i1.Mock
     required String? beaconId,
     required String? userId,
     String? message = '',
-    String? helpType,
+    List<String>? helpTypes,
     int? status = 0,
   }) =>
       (super.noSuchMethod(
@@ -407,7 +407,7 @@ class MockCommitmentRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #userId: userId,
               #message: message,
-              #helpType: helpType,
+              #helpTypes: helpTypes,
               #status: status,
             }),
             returnValue: _i6.Future<void>.value(),
@@ -1559,6 +1559,42 @@ class MockBeaconRoomPushService extends _i1.Mock
   MockBeaconRoomPushService() {
     _i1.throwOnMissingStub(this);
   }
+
+  @override
+  _i6.Future<void> notifyForwardReceived({
+    required String? beaconId,
+    required String? senderId,
+    required String? beaconAuthorId,
+    required List<String>? recipientIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyForwardReceived, [], {
+              #beaconId: beaconId,
+              #senderId: senderId,
+              #beaconAuthorId: beaconAuthorId,
+              #recipientIds: recipientIds,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> notifyCommitToAuthor({
+    required String? beaconId,
+    required String? committerId,
+    required String? authorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyCommitToAuthor, [], {
+              #beaconId: beaconId,
+              #committerId: committerId,
+              #authorId: authorId,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
 
   @override
   _i6.Future<void> notifyRoomAdmitted({

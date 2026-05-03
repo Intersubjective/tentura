@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 
 import 'capability_case.dart';
 import '_use_case_base.dart';
@@ -13,7 +17,9 @@ final class ForwardCase extends UseCaseBase {
     this._forwardEdgeRepository,
     this._commitmentRepository,
     this._inboxRepository,
-    this._capabilityCase, {
+    this._capabilityCase,
+    this._beaconRepository,
+    this._roomPush, {
     required super.env,
     required super.logger,
   });
@@ -22,6 +28,8 @@ final class ForwardCase extends UseCaseBase {
   final CommitmentRepositoryPort _commitmentRepository;
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
+  final BeaconRepositoryPort _beaconRepository;
+  final BeaconRoomPushService _roomPush;
 
   /// Forward a beacon to one or more recipients atomically.
   ///
@@ -86,6 +94,20 @@ final class ForwardCase extends UseCaseBase {
           'ForwardCase: failed to record forward reasons for $recipientId: $e',
         );
       }
+    }
+
+    try {
+      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+      unawaited(
+        _roomPush.notifyForwardReceived(
+          beaconId: beaconId,
+          senderId: senderId,
+          beaconAuthorId: beacon.author.id,
+          recipientIds: recipientIds,
+        ),
+      );
+    } catch (e) {
+      logger.warning('ForwardCase: failed to enqueue forward notification: $e');
     }
 
     return batchId;
