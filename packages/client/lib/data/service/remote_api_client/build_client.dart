@@ -163,6 +163,7 @@ class _V2RoutingLink extends Link {
     'BeaconRoomMessageMarkBlocker',
     'BeaconRoomMessageNeedInfo',
     'RoomMessageMarkDone',
+    'RoomMessageEdit',
     'BeaconParticipantRoomSeen',
     'BeaconPublicStatusUpdate',
     'BeaconFactCardList',
