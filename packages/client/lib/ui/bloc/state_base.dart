@@ -50,6 +50,14 @@ class StateIsNavigating extends StateStatus {
   const StateIsNavigating(this.path);
 
   final String path;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StateIsNavigating && other.path == path);
+
+  @override
+  int get hashCode => path.hashCode;
 }
 
 class StateHasError extends StateStatus {

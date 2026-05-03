@@ -39,26 +39,26 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
        super(_idToState(id, myProfile)) {
     _forwardCompletedSub = _case.forwardCompleted.listen(
       (beaconId) {
-        if (!isClosed && beaconId == state.beacon.id) {
-          unawaited(_fetchBeaconByIdWithTimeline());
-        }
+        if (isClosed || beaconId != state.beacon.id) return;
+        if (_fetchInProgress) { _fetchPending = true; return; }
+        unawaited(_runFetchWithGate());
       },
       cancelOnError: false,
     );
     _commitmentChangesSub = _case.commitmentChanges.listen(
       (event) {
-        if (!isClosed && event.beaconId == state.beacon.id) {
-          unawaited(_fetchBeaconByIdWithTimeline());
-        }
+        if (isClosed || event.beaconId != state.beacon.id) return;
+        if (_fetchInProgress) { _fetchPending = true; return; }
+        unawaited(_runFetchWithGate());
       },
       cancelOnError: false,
     );
     _beaconRoomRefreshSub =
         GetIt.I<InvalidationService>().beaconRoomInvalidations.listen(
       (bid) {
-        if (!isClosed && bid == state.beacon.id) {
-          unawaited(_fetchBeaconByIdWithTimeline());
-        }
+        if (isClosed || bid != state.beacon.id) return;
+        if (_fetchInProgress) { _fetchPending = true; return; }
+        unawaited(_runFetchWithGate());
       },
       cancelOnError: false,
     );
@@ -72,6 +72,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   late final StreamSubscription<CommitmentEvent> _commitmentChangesSub;
 
   late final StreamSubscription<String> _beaconRoomRefreshSub;
+
+  bool _fetchInProgress = false;
+  bool _fetchPending = false;
 
   @override
   Future<void> close() async {
@@ -264,6 +267,26 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  /// Run one stream-triggered refresh under the concurrency gate.
+  ///
+  /// At most one gate-guarded fetch runs at a time. If a second invalidation
+  /// arrives while one is in flight, the flag is set and a follow-up fetch
+  /// starts once the current one finishes. Explicit callers (commit, withdraw,
+  /// etc.) call [_fetchBeaconByIdWithTimeline] directly — they already hold
+  /// the "source of truth" guarantee because they run after the mutation.
+  Future<void> _runFetchWithGate() async {
+    _fetchInProgress = true;
+    _fetchPending = false;
+    try {
+      await _fetchBeaconByIdWithTimeline();
+    } finally {
+      _fetchInProgress = false;
+      if (!isClosed && _fetchPending) {
+        unawaited(_runFetchWithGate());
+      }
     }
   }
 
