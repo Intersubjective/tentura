@@ -354,7 +354,7 @@ class ForwardRepository {
   Future<bool> commit({
     required String beaconId,
     String? message,
-    String? helpType,
+    List<String>? helpTypes,
     bool notifyCommitmentListeners = true,
   }) async {
     final ok = await _remoteApiService
@@ -363,7 +363,9 @@ class ForwardRepository {
             (r) => r
               ..vars.beaconId = beaconId
               ..vars.message = message
-              ..vars.helpType = helpType,
+              ..vars.helpTypes = helpTypes != null
+                  ? BuiltList<String>(helpTypes).toBuilder()
+                  : null,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)

@@ -1,3 +1,5 @@
+import 'dart:convert' show jsonEncode;
+
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
@@ -21,21 +23,24 @@ class CommitmentRepository implements CommitmentRepositoryPort {
     required String beaconId,
     required String userId,
     String message = '',
-    String? helpType,
+    List<String>? helpTypes,
     int status = 0,
   }) => _database.withMutatingUser(userId, () async {
+    final helpTypesJson = helpTypes?.isEmpty ?? true
+        ? null
+        : jsonEncode(helpTypes);
     await _database.into(_database.beaconCommitments).insert(
       BeaconCommitmentsCompanion.insert(
         beaconId: beaconId,
         userId: userId,
         message: Value(message),
-        helpType: Value(helpType),
+        helpType: Value(helpTypesJson),
         status: Value(status),
       ),
       onConflict: DoUpdate(
         (_) => BeaconCommitmentsCompanion(
           message: Value(message),
-          helpType: Value(helpType),
+          helpType: Value(helpTypesJson),
           uncommitReason: status == 0
               ? const Value(null)
               : const Value.absent(),
