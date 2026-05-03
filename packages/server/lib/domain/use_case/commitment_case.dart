@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
@@ -7,6 +10,10 @@ import 'package:tentura_server/domain/coordination/help_type.dart';
 import 'package:tentura_server/domain/coordination/uncommit_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 
 import 'capability_case.dart';
 import '_use_case_base.dart';
@@ -18,7 +25,10 @@ final class CommitmentCase extends UseCaseBase {
     this._beaconRepository,
     this._coordinationRepository,
     this._inboxRepository,
-    this._capabilityCase, {
+    this._capabilityCase,
+    this._beaconRoomRepository,
+    this._friendshipLookup,
+    this._roomPush, {
     required super.env,
     required super.logger,
   });
@@ -28,6 +38,9 @@ final class CommitmentCase extends UseCaseBase {
   final CoordinationRepositoryPort _coordinationRepository;
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
+  final BeaconRoomRepository _beaconRoomRepository;
+  final VoteUserFriendshipLookup _friendshipLookup;
+  final BeaconRoomPushService _roomPush;
 
   Future<void> commit({
     required String beaconId,
@@ -101,6 +114,44 @@ final class CommitmentCase extends UseCaseBase {
     }
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,
+    );
+    await _autoAdmitIfDirectFriend(
+      beacon: beacon,
+      committantId: userId,
+    );
+  }
+
+  /// If the beacon author has a positive trust edge toward [committantId]
+  /// (one-way subscription covers mutual friendship too), immediately admit
+  /// them to the room without waiting for explicit author approval.
+  /// Skipped when the author previously revoked room access for this user.
+  Future<void> _autoAdmitIfDirectFriend({
+    required BeaconEntity beacon,
+    required String committantId,
+  }) async {
+    final isDirectFriend = await _friendshipLookup.isSubscribedTo(
+      viewerId: beacon.author.id,
+      peerId: committantId,
+    );
+    if (!isDirectFriend) return;
+
+    final existing = await _beaconRoomRepository.findParticipant(
+      beaconId: beacon.id,
+      userId: committantId,
+    );
+    // Honour explicit author revocation — roomAccess=none means author said no.
+    if (existing != null && existing.roomAccess == RoomAccessBits.none) return;
+
+    await _beaconRoomRepository.inviteCommitUserToBeaconRoom(
+      beaconId: beacon.id,
+      commitUserId: committantId,
+      authorUserId: beacon.author.id,
+    );
+    unawaited(
+      _roomPush.notifyRoomAdmitted(
+        receiverId: committantId,
+        beaconId: beacon.id,
+      ),
     );
   }
 

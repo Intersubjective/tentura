@@ -498,4 +498,20 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
             ),
           )
           as _i4.Future<List<_i2.ViewerVisibleCapabilityRow>>);
+
+  @override
+  _i4.Future<List<_i2.ForwardReasonRow>> fetchForwardReasonsByBeaconId({
+    required String? beaconId,
+    required String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchForwardReasonsByBeaconId, [], {
+              #beaconId: beaconId,
+              #viewerId: viewerId,
+            }),
+            returnValue: _i4.Future<List<_i2.ForwardReasonRow>>.value(
+              <_i2.ForwardReasonRow>[],
+            ),
+          )
+          as _i4.Future<List<_i2.ForwardReasonRow>>);
 }
