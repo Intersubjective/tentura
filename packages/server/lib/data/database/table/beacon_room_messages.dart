@@ -33,6 +33,10 @@ class BeaconRoomMessages extends Table {
     PgTypes.timestampWithTimezone,
   ).clientDefault(() => PgDateTime(DateTime.timestamp()))();
 
+  late final editedAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

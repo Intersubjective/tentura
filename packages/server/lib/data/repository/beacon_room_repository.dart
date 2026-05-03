@@ -303,6 +303,20 @@ class BeaconRoomRepository {
             );
       });
 
+  Future<void> updateMessage({
+    required String messageId,
+    required String newBody,
+  }) async {
+    await _db.managers.beaconRoomMessages
+        .filter((m) => m.id.equals(messageId))
+        .update(
+          (o) => o(
+            body: Value(newBody),
+            editedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+  }
+
   Future<BeaconParticipant?> findParticipant({
     required String beaconId,
     required String userId,

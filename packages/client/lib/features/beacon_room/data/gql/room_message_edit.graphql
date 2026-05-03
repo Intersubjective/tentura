@@ -1,0 +1,3 @@
+mutation RoomMessageEdit($beaconId: String!, $messageId: String!, $body: String!) {
+  RoomMessageEdit(beaconId: $beaconId, messageId: $messageId, body: $body)
+}

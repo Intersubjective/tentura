@@ -13,6 +13,7 @@ abstract class RoomMessage with _$RoomMessage {
     required String authorId,
     required String body,
     required DateTime createdAt,
+    DateTime? editedAt,
     @Default(Profile()) Profile author,
     @Default(<String, int>{}) Map<String, int> reactionCounts,
     String? myReaction,

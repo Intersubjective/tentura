@@ -27,6 +27,7 @@ import '../gql/_g/beacon_room_state_plan_update.req.gql.dart';
 import '../gql/_g/beacon_steward_promote.req.gql.dart';
 import '../gql/_g/room_message_attachment_add.req.gql.dart';
 import '../gql/_g/room_message_create.req.gql.dart';
+import '../gql/_g/room_message_edit.req.gql.dart';
 import '../gql/_g/room_message_list.req.gql.dart';
 import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
 
@@ -112,6 +113,7 @@ class BeaconRoomRepository {
               authorId: m.authorId,
               body: m.body,
               createdAt: DateTime.parse(m.createdAt),
+              editedAt: m.editedAt != null ? DateTime.parse(m.editedAt!) : null,
               author: author,
               reactionCounts: reactionCounts,
               myReaction: m.myReaction,
@@ -270,6 +272,24 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageAttachmentAdd);
+  }
+
+  Future<void> editMessage({
+    required String beaconId,
+    required String messageId,
+    required String body,
+  }) async {
+    await _remoteApiService
+        .request(
+          GRoomMessageEditReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..messageId = messageId
+              ..body = body,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).RoomMessageEdit);
   }
 
   Future<Uint8List> downloadRoomAttachmentBytes(String attachmentId) =>

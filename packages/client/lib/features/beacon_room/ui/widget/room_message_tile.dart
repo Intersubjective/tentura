@@ -409,7 +409,11 @@ class RoomMessageTile extends StatelessWidget {
                             top: 2,
                           ),
                           child: Text(
-                            _formatTime(message.createdAt),
+                            [
+                              _formatTime(message.createdAt),
+                              if (message.editedAt != null)
+                                l10n.beaconRoomMessageEdited,
+                            ].join(' · '),
                             style: theme.textTheme.labelSmall,
                           ),
                         ),

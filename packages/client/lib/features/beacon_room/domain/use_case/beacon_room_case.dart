@@ -67,6 +67,17 @@ final class BeaconRoomCase extends UseCaseBase {
     }
   }
 
+  Future<void> editMessage({
+    required String beaconId,
+    required String messageId,
+    required String body,
+  }) =>
+      _room.editMessage(
+        beaconId: beaconId,
+        messageId: messageId,
+        body: body,
+      );
+
   Future<Uint8List> downloadRoomAttachment(String attachmentId) =>
       _room.downloadRoomAttachmentBytes(attachmentId);
 
