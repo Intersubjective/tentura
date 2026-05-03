@@ -244,12 +244,18 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilterChip, 'Physical help'));
+      final physicalHelpChip = find.widgetWithText(FilterChip, 'Physical help');
+      // TextField autofocus scrolls content to the field; early chips can sit
+      // above the viewport until we explicitly scroll them into view.
+      await tester.ensureVisible(physicalHelpChip);
+      await tester.pumpAndSettle();
+      await tester.tap(physicalHelpChip);
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Ok'));
       await tester.pumpAndSettle();
 
+      expect(outcome, isNotNull);
       expect(outcome!.helpTypeWire, equals('physical_help'));
     },
   );
