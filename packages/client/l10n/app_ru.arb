@@ -579,7 +579,7 @@
   "@myWork": {
     "context": "HomeScreen"
   },
-  "network": "Сеть",
+  "network": "Люди",
   "@network": {
     "context": "HomeScreen"
   },
@@ -2160,13 +2160,6 @@
   "coordinationRemoveFromRoom": "Убрать из комнаты",
   "beaconRoomWaitingForApproval": "Ожидает решения",
   "beaconRoomNoAdmission": "Комната недоступна",
-  "helpTypeMoney": "Деньги",
-  "helpTypeTime": "Время",
-  "helpTypeSkill": "Навык",
-  "helpTypeVerification": "Проверка",
-  "helpTypeContact": "Контакт / знакомство",
-  "helpTypeTransport": "Транспорт",
-  "helpTypeOther": "Другое",
   "uncommitCantDoIt": "Больше не могу",
   "uncommitTimingChanged": "Не сходится по времени",
   "uncommitWrongFit": "Не мой формат",

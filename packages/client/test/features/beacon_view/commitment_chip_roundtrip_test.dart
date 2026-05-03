@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
-import 'package:tentura/domain/entity/help_type.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -40,14 +40,14 @@ Future<void> _pumpDialog(WidgetTester tester) async {
 
 void main() {
   testWidgets(
-    'dialog renders a FilterChip for every CommitHelpType value',
+    'dialog renders a FilterChip for every CapabilityTag value',
     (tester) async {
       await _pumpDialog(tester);
 
-      // Every CommitHelpType must have exactly one chip in the dialog.
+      // Every CapabilityTag must have exactly one chip in the dialog.
       expect(
         find.byType(FilterChip),
-        findsNWidgets(CommitHelpType.values.length),
+        findsNWidgets(CapabilityTag.values.length),
       );
     },
   );
@@ -57,8 +57,7 @@ void main() {
     (tester) async {
       await _pumpDialog(tester);
 
-      // A sample of the label-to-wireKey mapping verified via the dialog's
-      // static _helpTypeLabel helper.  We check a few representative ones.
+      // A sample of representative labels.
       expect(find.text('Money'), findsOneWidget);
       expect(find.text('Time'), findsOneWidget);
       expect(find.text('Other'), findsOneWidget);
@@ -149,7 +148,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(outcome, isNotNull);
-      expect(outcome!.helpTypeWire, equals(CommitHelpType.time.wireKey));
       expect(outcome!.helpTypeWire, equals('time'));
     },
   );
@@ -198,18 +196,17 @@ void main() {
   );
 
   testWidgets(
-    'wireKey round-trip: every CommitHelpType.wireKey is non-empty and unique',
+    'slug round-trip: every CapabilityTag.slug is non-empty and unique',
     (tester) async {
-      final wireKeys =
-          CommitHelpType.values.map((t) => t.wireKey).toList();
+      final slugs = CapabilityTag.values.map((t) => t.slug).toList();
 
-      // No empty keys.
-      for (final key in wireKeys) {
-        expect(key, isNotEmpty);
+      // No empty slugs.
+      for (final slug in slugs) {
+        expect(slug, isNotEmpty);
       }
 
-      // All keys are distinct.
-      expect(wireKeys.toSet().length, equals(CommitHelpType.values.length));
+      // All slugs are distinct.
+      expect(slugs.toSet().length, equals(CapabilityTag.values.length));
     },
   );
 
