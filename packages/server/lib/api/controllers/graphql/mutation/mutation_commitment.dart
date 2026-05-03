@@ -11,7 +11,7 @@ final class MutationCommitment extends GqlNodeBase {
 
   final _message = InputFieldString(fieldName: 'message');
 
-  final _helpType = InputFieldString(fieldName: 'helpType');
+  final _helpTypes = InputFieldStringList(fieldName: 'helpTypes');
 
   final _uncommitReason = InputFieldString(fieldName: 'uncommitReason');
 
@@ -23,14 +23,14 @@ final class MutationCommitment extends GqlNodeBase {
     arguments: [
       InputFieldId.field,
       _message.fieldNullable,
-      _helpType.fieldNullable,
+      _helpTypes.fieldNullable,
     ],
     resolve: (_, args) => _commitmentCase
         .commit(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           message: _message.fromArgs(args) ?? '',
-          helpType: _helpType.fromArgs(args),
+          helpTypes: _helpTypes.fromArgs(args),
         )
         .then((_) => true),
   );

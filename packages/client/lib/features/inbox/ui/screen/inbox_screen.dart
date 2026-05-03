@@ -718,6 +718,6 @@ Future<void> _inboxCommit(BuildContext context, Beacon beacon) async {
   await GetIt.I<ForwardRepository>().commit(
     beaconId: beacon.id,
     message: outcome.message,
-    helpType: outcome.helpTypeWire,
+    helpTypes: outcome.helpTypesWire,
   );
 }

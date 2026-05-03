@@ -148,7 +148,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(outcome, isNotNull);
-      expect(outcome!.helpTypeWire, equals('time'));
+      expect(outcome!.helpTypesWire, equals(['time']));
     },
   );
 
@@ -191,7 +191,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(outcome, isNotNull);
-      expect(outcome!.helpTypeWire, isNull);
+      expect(outcome!.helpTypesWire, isNull);
     },
   );
 
@@ -256,7 +256,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(outcome, isNotNull);
-      expect(outcome!.helpTypeWire, equals('physical_help'));
+      expect(outcome!.helpTypesWire, equals(['physical_help']));
     },
   );
 }

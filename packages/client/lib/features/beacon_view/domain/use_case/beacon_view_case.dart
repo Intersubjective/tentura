@@ -88,13 +88,13 @@ final class BeaconViewCase extends UseCaseBase {
   Future<bool> forwardCommit({
     required String beaconId,
     String? message,
-    String? helpType,
+    List<String>? helpTypes,
     bool notifyCommitmentListeners = true,
   }) =>
       _forwardRepository.commit(
         beaconId: beaconId,
         message: message,
-        helpType: helpType,
+        helpTypes: helpTypes,
         notifyCommitmentListeners: notifyCommitmentListeners,
       );
 

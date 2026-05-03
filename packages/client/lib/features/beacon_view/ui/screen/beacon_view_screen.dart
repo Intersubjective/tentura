@@ -170,7 +170,7 @@ Widget _beaconViewAppBarOverflow({
             if (outcome != null && context.mounted) {
               await cubit.commit(
                 message: outcome.message,
-                helpType: outcome.helpTypeWire,
+                helpTypes: outcome.helpTypesWire,
               );
             }
           }
@@ -393,7 +393,7 @@ class _BeaconOperationalScrollViewState
     if (outcome != null && context.mounted) {
       await widget.beaconViewCubit.commit(
         message: outcome.message,
-        helpType: outcome.helpTypeWire,
+        helpTypes: outcome.helpTypesWire,
       );
     }
   }
@@ -419,7 +419,7 @@ class _BeaconOperationalScrollViewState
     if (outcome != null && context.mounted) {
       await cubit.commit(
         message: outcome.message,
-        helpType: outcome.helpTypeWire,
+        helpTypes: outcome.helpTypesWire,
       );
     }
   }

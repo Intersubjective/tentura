@@ -165,7 +165,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   Future<void> commit({
     required String message,
-    String? helpType,
+    List<String>? helpTypes,
   }) async {
     final wasAlreadyCommitted = state.isCommitted;
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -173,7 +173,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _case.forwardCommit(
         beaconId: state.beacon.id,
         message: message,
-        helpType: helpType,
+        helpTypes: helpTypes,
         notifyCommitmentListeners: !wasAlreadyCommitted,
       );
       await _fetchBeaconByIdWithTimeline();

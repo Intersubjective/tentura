@@ -7,7 +7,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// Result of [CommitmentMessageDialog.show].
 typedef CommitmentDialogOutcome = ({
   String message,
-  String? helpTypeWire,
+  List<String>? helpTypesWire,
   String? uncommitReasonWire,
 });
 
@@ -57,7 +57,7 @@ class CommitmentMessageDialog extends StatefulWidget {
 
 class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
   late final TextEditingController _controller;
-  CapabilityTag? _helpType;
+  Set<CapabilityTag> _helpTypes = {};
   UncommitReason? _uncommitReason;
 
   @override
@@ -82,7 +82,7 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
     }
     Navigator.of(context).pop((
       message: text,
-      helpTypeWire: _helpType?.slug,
+      helpTypesWire: _helpTypes.isEmpty ? null : _helpTypes.map((t) => t.slug).toList(),
       uncommitReasonWire: _uncommitReason?.wireKey,
     ));
   }
@@ -111,10 +111,12 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
                   for (final t in CapabilityTag.values)
                     FilterChip(
                       label: Text(t.labelOf(l10n)),
-                      selected: _helpType == t,
+                      selected: _helpTypes.contains(t),
                       onSelected: (_) {
                         setState(() {
-                          _helpType = _helpType == t ? null : t;
+                          _helpTypes.contains(t)
+                              ? _helpTypes.remove(t)
+                              : _helpTypes.add(t);
                         });
                       },
                     ),

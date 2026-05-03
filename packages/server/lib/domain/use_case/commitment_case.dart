@@ -46,12 +46,16 @@ final class CommitmentCase extends UseCaseBase {
     required String beaconId,
     required String userId,
     String message = '',
-    String? helpType,
+    List<String>? helpTypes,
   }) async {
-    if (!isAllowedHelpType(helpType)) {
-      throw CommitmentCoordinationException(
-        coordinationCode: CommitmentCoordinationExceptionCode.invalidHelpType,
-      );
+    if (helpTypes != null) {
+      for (final type in helpTypes) {
+        if (!isAllowedHelpType(type)) {
+          throw CommitmentCoordinationException(
+            coordinationCode: CommitmentCoordinationExceptionCode.invalidHelpType,
+          );
+        }
+      }
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (beacon.state != 0) {
@@ -70,18 +74,20 @@ final class CommitmentCase extends UseCaseBase {
         beaconId: beaconId,
         userId: userId,
         message: message,
-        helpType: helpType,
+        helpTypes: helpTypes,
       );
-      if (helpType != null && helpType.isNotEmpty) {
-        try {
-          await _capabilityCase.recordCommitRole(
-            observerId: userId,
-            subjectId: userId,
-            beaconId: beaconId,
-            slug: helpType,
-          );
-        } catch (e, st) {
-          logger.warning('recordCommitRole failed', e, st);
+      if (helpTypes != null && helpTypes.isNotEmpty) {
+        for (final type in helpTypes) {
+          try {
+            await _capabilityCase.recordCommitRole(
+              observerId: userId,
+              subjectId: userId,
+              beaconId: beaconId,
+              slug: type,
+            );
+          } catch (e, st) {
+            logger.warning('recordCommitRole failed', e, st);
+          }
         }
       }
       await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
@@ -98,18 +104,20 @@ final class CommitmentCase extends UseCaseBase {
       beaconId: beaconId,
       userId: userId,
       message: message,
-      helpType: helpType,
+      helpTypes: helpTypes,
     );
-    if (helpType != null && helpType.isNotEmpty) {
-      try {
-        await _capabilityCase.recordCommitRole(
-          observerId: userId,
-          subjectId: userId,
-          beaconId: beaconId,
-          slug: helpType,
-        );
-      } catch (e, st) {
-        logger.warning('recordCommitRole failed', e, st);
+    if (helpTypes != null && helpTypes.isNotEmpty) {
+      for (final type in helpTypes) {
+        try {
+          await _capabilityCase.recordCommitRole(
+            observerId: userId,
+            subjectId: userId,
+            beaconId: beaconId,
+            slug: type,
+          );
+        } catch (e, st) {
+          logger.warning('recordCommitRole failed', e, st);
+        }
       }
     }
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
