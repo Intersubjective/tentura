@@ -30,13 +30,9 @@ Future<void> showRoomReactionPicker({
     barrierColor: Colors.transparent,
     builder: (dialogContext) {
       final mq = MediaQuery.of(dialogContext);
-      final screenSize = mq.size;
 
       return CustomSingleChildLayout(
-        delegate: _ReactionPickerLayoutDelegate(
-          anchorRect: anchorRect,
-          screenSize: screenSize,
-        ),
+        delegate: _ReactionPickerLayoutDelegate(anchorRect: anchorRect),
         child: _RoomReactionPopupContent(
           selected: selected,
           semanticLabel: semanticLabel,
@@ -52,14 +48,9 @@ Future<void> showRoomReactionPicker({
 }
 
 class _ReactionPickerLayoutDelegate extends SingleChildLayoutDelegate {
-  _ReactionPickerLayoutDelegate({
-    required this.anchorRect,
-    required this.screenSize,
-  });
+  _ReactionPickerLayoutDelegate({required this.anchorRect});
 
   final Rect anchorRect;
-
-  final Size screenSize;
 
   static const double _edge = kSpacingSmall;
 
@@ -69,12 +60,14 @@ class _ReactionPickerLayoutDelegate extends SingleChildLayoutDelegate {
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
-    final openAbove = anchorRect.center.dy > screenSize.height * 0.6;
+    // Use [size] from layout, not MediaQuery.size: on web (e.g. Firefox) they can
+    // diverge, which breaks horizontal clamping and clips the strip off-screen.
+    final openAbove = anchorRect.center.dy > size.height * 0.6;
 
     var left = anchorRect.center.dx - childSize.width / 2;
     left = left.clamp(
       _edge,
-      screenSize.width - childSize.width - _edge,
+      size.width - childSize.width - _edge,
     );
 
     final topRaw = openAbove
@@ -83,7 +76,7 @@ class _ReactionPickerLayoutDelegate extends SingleChildLayoutDelegate {
 
     final top = topRaw.clamp(
       _edge,
-      screenSize.height - childSize.height - _edge,
+      size.height - childSize.height - _edge,
     );
 
     return Offset(left, top);
@@ -91,8 +84,7 @@ class _ReactionPickerLayoutDelegate extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(covariant _ReactionPickerLayoutDelegate oldDelegate) =>
-      anchorRect != oldDelegate.anchorRect ||
-      screenSize != oldDelegate.screenSize;
+      anchorRect != oldDelegate.anchorRect;
 }
 
 class _RoomReactionPopupContent extends StatelessWidget {
