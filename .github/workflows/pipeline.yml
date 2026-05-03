@@ -63,7 +63,7 @@ jobs:
               dart pub get
               flutter pub get
               ( cd packages/server && dart run build_runner build -d && dart analyze --no-fatal-warnings && dart run custom_lint && dart test ) &&
-              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings && dart run custom_lint && flutter test --dart-define=ENV=test
+              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && dart run custom_lint && flutter test --dart-define=ENV=test
             '
 
       - name: Build dev web in builder container

@@ -57,7 +57,7 @@ class CommitmentMessageDialog extends StatefulWidget {
 
 class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
   late final TextEditingController _controller;
-  Set<CapabilityTag> _helpTypes = {};
+  final Set<CapabilityTag> _helpTypes = {};
   UncommitReason? _uncommitReason;
 
   @override
