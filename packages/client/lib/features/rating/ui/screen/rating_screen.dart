@@ -134,15 +134,15 @@ class _RatingScreenState extends State<RatingScreen> {
                       height: 4,
                       child: LinearProgressIndicator(),
                     ),
-                  const Padding(
-                    padding: kPaddingH,
-                    child: SizedBox(
-                      height: 48,
-                      child: ContextDropDown(
-                        key: Key('RatingContextSelector'),
-                      ),
-                    ),
-                  ),
+                  // const Padding(
+                  //   padding: kPaddingH,
+                  //   child: SizedBox(
+                  //     height: 48,
+                  //     child: ContextDropDown(
+                  //       key: Key('RatingContextSelector'),
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),

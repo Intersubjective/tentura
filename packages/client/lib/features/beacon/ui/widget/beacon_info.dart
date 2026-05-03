@@ -170,21 +170,22 @@ class BeaconInfo extends StatelessWidget {
           )
         : const SizedBox.shrink();
 
-    final tagsBlock = beacon.tags.isNotEmpty
-        ? Wrap(
-            children: [
-              for (final tag in beacon.tags)
-                TextButton(
-                  onPressed: () => onClickTag?.call(tag),
-                  style: TextButton.styleFrom(
-                    padding: kPaddingSmallH,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  child: Text('#$tag'),
-                ),
-            ],
-          )
-        : const SizedBox.shrink();
+    final tagsBlock = const SizedBox.shrink();
+    // final tagsBlock = beacon.tags.isNotEmpty
+    //     ? Wrap(
+    //         children: [
+    //           for (final tag in beacon.tags)
+    //             TextButton(
+    //               onPressed: () => onClickTag?.call(tag),
+    //               style: TextButton.styleFrom(
+    //                 padding: kPaddingSmallH,
+    //                 visualDensity: VisualDensity.compact,
+    //               ),
+    //               child: Text('#$tag'),
+    //             ),
+    //         ],
+    //       )
+    //     : const SizedBox.shrink();
 
     final coreColumn = descriptionBeforeMedia
         ? <Widget>[
