@@ -256,18 +256,6 @@ class InboxItemTile extends StatelessWidget {
   ) {
     final theme = Theme.of(context);
     final out = <Widget>[];
-    if (h.publicFactSnippet.isNotEmpty) {
-      out.add(
-        Text(
-          l10n.inboxCardPublicFactLine(h.publicFactSnippet),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
-    }
     if (h.isRoomMember) {
       out.add(
         Text(

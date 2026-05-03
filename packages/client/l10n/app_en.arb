@@ -579,7 +579,7 @@
   "@myWork": {
     "context": "HomeScreen"
   },
-  "network": "Network",
+  "network": "People",
   "@network": {
     "context": "HomeScreen"
   },
@@ -2160,13 +2160,6 @@
   "coordinationRemoveFromRoom": "Remove from Room",
   "beaconRoomWaitingForApproval": "Waiting for approval",
   "beaconRoomNoAdmission": "No room admission",
-  "helpTypeMoney": "Money",
-  "helpTypeTime": "Time",
-  "helpTypeSkill": "Skill",
-  "helpTypeVerification": "Verification",
-  "helpTypeContact": "Contact / intro",
-  "helpTypeTransport": "Transport",
-  "helpTypeOther": "Other",
   "uncommitCantDoIt": "Cannot do it anymore",
   "uncommitTimingChanged": "Timing no longer works",
   "uncommitWrongFit": "Wrong fit",

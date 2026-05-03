@@ -4,25 +4,25 @@ import 'capability_group.dart';
 
 enum CapabilityTag {
   // Logistics
-  transport(slug: 'transport', group: CapabilityGroup.logistics, isCommitRoleEligible: true),
+  transport(slug: 'transport', group: CapabilityGroup.logistics),
   storage(slug: 'storage', group: CapabilityGroup.logistics),
   pickupDelivery(slug: 'pickup_delivery', group: CapabilityGroup.logistics),
-  tools(slug: 'tools', group: CapabilityGroup.logistics, isCommitRoleEligible: true),
-  physicalHelp(slug: 'physical_help', group: CapabilityGroup.logistics, isCommitRoleEligible: true),
+  tools(slug: 'tools', group: CapabilityGroup.logistics),
+  physicalHelp(slug: 'physical_help', group: CapabilityGroup.logistics),
 
   // Communication
   calls(slug: 'calls', group: CapabilityGroup.communication),
   translation(slug: 'translation', group: CapabilityGroup.communication),
   writing(slug: 'writing', group: CapabilityGroup.communication),
   negotiation(slug: 'negotiation', group: CapabilityGroup.communication),
-  introductions(slug: 'introductions', group: CapabilityGroup.communication, isCommitRoleEligible: true),
+  introductions(slug: 'introductions', group: CapabilityGroup.communication),
 
   // Knowledge
   localKnowledge(slug: 'local_knowledge', group: CapabilityGroup.knowledge),
   legalNavigation(slug: 'legal_navigation', group: CapabilityGroup.knowledge),
   medicalNavigation(slug: 'medical_navigation', group: CapabilityGroup.knowledge),
-  documents(slug: 'documents', group: CapabilityGroup.knowledge, isCommitRoleEligible: true),
-  verification(slug: 'verification', group: CapabilityGroup.knowledge, isCommitRoleEligible: true),
+  documents(slug: 'documents', group: CapabilityGroup.knowledge),
+  verification(slug: 'verification', group: CapabilityGroup.knowledge),
 
   // Care
   pets(slug: 'pets', group: CapabilityGroup.care),
@@ -32,11 +32,11 @@ enum CapabilityTag {
   hosting(slug: 'hosting', group: CapabilityGroup.care),
 
   // Resources
-  money(slug: 'money', group: CapabilityGroup.resources, isCommitRoleEligible: true),
+  money(slug: 'money', group: CapabilityGroup.resources),
   food(slug: 'food', group: CapabilityGroup.resources),
-  housing(slug: 'housing', group: CapabilityGroup.resources, isCommitRoleEligible: true),
+  housing(slug: 'housing', group: CapabilityGroup.resources),
   equipment(slug: 'equipment', group: CapabilityGroup.resources),
-  workspace(slug: 'workspace', group: CapabilityGroup.resources, isCommitRoleEligible: true),
+  workspace(slug: 'workspace', group: CapabilityGroup.resources),
 
   // Technical
   techHelp(slug: 'tech_help', group: CapabilityGroup.technical),
@@ -46,19 +46,17 @@ enum CapabilityTag {
   adminPaperwork(slug: 'admin_paperwork', group: CapabilityGroup.technical),
 
   // Special / legacy aliases
-  time(slug: 'time', group: CapabilityGroup.resources, isCommitRoleEligible: true),
-  contact(slug: 'contact', group: CapabilityGroup.communication, isCommitRoleEligible: true),
-  other(slug: 'other', group: CapabilityGroup.special, isCommitRoleEligible: true);
+  time(slug: 'time', group: CapabilityGroup.resources),
+  contact(slug: 'contact', group: CapabilityGroup.communication),
+  other(slug: 'other', group: CapabilityGroup.special);
 
   const CapabilityTag({
     required this.slug,
     required this.group,
-    this.isCommitRoleEligible = false,
   });
 
   final String slug;
   final CapabilityGroup group;
-  final bool isCommitRoleEligible;
 
   static final _bySlug = {
     for (final t in values) t.slug: t,

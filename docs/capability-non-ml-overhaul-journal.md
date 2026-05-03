@@ -256,3 +256,38 @@ Client:
 - Signal ordering: closeAck > commitRole > forwardReason > privateLabel — enforced in both `NetworkPersonCard` and `ProfileViewBody`. ✅
 
 **Status:** Phase 4 complete. All four phases of the non-ML capability overhaul are done.
+
+---
+
+## Phase 5 — Taxonomy unification — 2026-05-03
+
+**What changed:**
+
+Client:
+- `packages/client/lib/domain/entity/help_type.dart`: **deleted**. `CommitHelpType` enum was a redundant subset of `CapabilityTag`; its 12 values mapped 1:1 to the `isCommitRoleEligible: true` subset.
+- `packages/client/lib/domain/capability/capability_tag.dart`: removed `isCommitRoleEligible` field and all `isCommitRoleEligible: true` annotations. All 33 tags are now valid commit roles.
+- `packages/client/lib/features/beacon_view/ui/dialog/commitment_message_dialog.dart`: replaced `CommitHelpType` with `CapabilityTag`. Chip loop now iterates all 33 `CapabilityTag.values`; labels via `tag.labelOf(l10n)`; wire key via `tag.slug`. Removed `_helpTypeLabel` static switch.
+- `packages/client/lib/features/beacon/ui/widget/coordination_ui.dart`: replaced stale 7-case `helpTypeLabel()` switch with `CapabilityTag.fromSlug(wireKey)?.labelOf(l10n) ?? wireKey`. This also fixes the Phase 3 bug where `documents`, `physical_help`, `tools`, `housing`, `workspace`, `introductions` fell through to raw wire-key display.
+- `packages/client/l10n/app_en.arb` + `app_ru.arb`: removed 7 `helpType*` keys (`helpTypeMoney`, `helpTypeTime`, `helpTypeSkill`, `helpTypeVerification`, `helpTypeContact`, `helpTypeTransport`, `helpTypeOther`). All labels now use `capabilityTag*` keys. `'skill'` (migrated to `other` by m0049) falls through to raw key via `fromSlug` null fallback — acceptable since no live data has this slug.
+- `packages/client/test/features/beacon_view/commitment_chip_roundtrip_test.dart`: updated to use `CapabilityTag.values.length`, `CapabilityTag.slug` round-trip test.
+
+Server:
+- `packages/server/lib/domain/coordination/help_type.dart`: replaced `kAllowedHelpTypeKeys` constant with a thin `isAllowedHelpType` wrapper delegating to `kAllowedCapabilitySlugs`. Server now accepts all 33 capability slugs as valid help types (previously only 13).
+
+**Why:**
+- `CommitHelpType` was a historical artifact (Phase 1 had 7 types; Phase 3 added 6 more). The two parallel enum/label systems caused: (a) a display bug for Phase 3 additions in `helpTypeLabel()`, (b) mixed l10n usage in `_helpTypeLabel()`, (c) artificial restriction forcing contributors (e.g. offering childcare, food, translation) into `other`.
+- Social design rationale: commitment vocabulary should match capability vocabulary. The repair loop (NEED → RELAY → COMMIT → VERIFY → CLOSE) needs a shared lexicon across all steps.
+
+**Verified:**
+- `dart analyze --fatal-infos`: no issues (client). Pre-existing `unnecessary_parenthesis` info in server unrelated to these changes.
+- `flutter analyze --fatal-infos`: no issues.
+- `dart run custom_lint`: no issues.
+- `dart test commitment_case_test.dart capability_case_test.dart`: all 21 tests passed.
+- No remaining references to `CommitHelpType`, `kAllowedHelpTypeKeys`, `isCommitRoleEligible`, or `helpType*` l10n keys.
+
+**Confirmed untouched:**
+- `ProfileEditScreen` — intentionally not modified.
+- `CapabilityEventSource` — still 4 values; no self-declared.
+- `UncommitReason` — separate taxonomy, unrelated.
+
+**Status:** Phase 5 complete.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/domain/entity/help_type.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/uncommit_reason.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -57,7 +57,7 @@ class CommitmentMessageDialog extends StatefulWidget {
 
 class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
   late final TextEditingController _controller;
-  CommitHelpType? _helpType;
+  CapabilityTag? _helpType;
   UncommitReason? _uncommitReason;
 
   @override
@@ -82,7 +82,7 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
     }
     Navigator.of(context).pop((
       message: text,
-      helpTypeWire: _helpType?.wireKey,
+      helpTypeWire: _helpType?.slug,
       uncommitReasonWire: _uncommitReason?.wireKey,
     ));
   }
@@ -108,9 +108,9 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final t in CommitHelpType.values)
+                  for (final t in CapabilityTag.values)
                     FilterChip(
-                      label: Text(_helpTypeLabel(l10n, t)),
+                      label: Text(t.labelOf(l10n)),
                       selected: _helpType == t,
                       onSelected: (_) {
                         setState(() {
@@ -168,21 +168,6 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
       ],
     );
   }
-
-  static String _helpTypeLabel(L10n l10n, CommitHelpType t) => switch (t) {
-        CommitHelpType.money => l10n.helpTypeMoney,
-        CommitHelpType.time => l10n.helpTypeTime,
-        CommitHelpType.verification => l10n.helpTypeVerification,
-        CommitHelpType.contact => l10n.helpTypeContact,
-        CommitHelpType.transport => l10n.helpTypeTransport,
-        CommitHelpType.documents => l10n.capabilityTagDocuments,
-        CommitHelpType.physicalHelp => l10n.capabilityTagPhysicalHelp,
-        CommitHelpType.tools => l10n.capabilityTagTools,
-        CommitHelpType.housing => l10n.capabilityTagHousing,
-        CommitHelpType.workspace => l10n.capabilityTagWorkspace,
-        CommitHelpType.introductions => l10n.capabilityTagIntroductions,
-        CommitHelpType.other => l10n.helpTypeOther,
-      };
 
   static String _uncommitReasonLabel(L10n l10n, UncommitReason r) =>
       switch (r) {
