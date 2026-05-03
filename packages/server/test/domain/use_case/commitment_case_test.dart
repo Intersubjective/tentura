@@ -83,6 +83,13 @@ void main() {
         peerId: anyNamed('peerId'),
       ),
     ).thenAnswer((_) async => false);
+    when(
+      roomPush.notifyCommitToAuthor(
+        beaconId: anyNamed('beaconId'),
+        committerId: anyNamed('committerId'),
+        authorId: anyNamed('authorId'),
+      ),
+    ).thenAnswer((_) async {});
   });
 
   group('withdraw lifecycle', () {
@@ -462,6 +469,58 @@ void main() {
           authorUserId: 'Uauth',
         ),
       ).called(1);
+    });
+  });
+
+  group('commit — author notification', () {
+    void stubNewCommit() {
+      stubBeacon(beacon(id: 'B1', state: 0));
+      when(
+        commitmentRepo.hasActiveCommitment(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => false);
+      when(
+        commitmentRepo.upsert(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) => Future.value());
+      when(
+        coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
+      ).thenAnswer((_) => Future.value());
+    }
+
+    test('notifies author on initial commit', () async {
+      stubNewCommit();
+
+      await case_.commit(beaconId: 'B1', userId: 'U1');
+
+      verify(
+        roomPush.notifyCommitToAuthor(
+          beaconId: 'B1',
+          committerId: 'U1',
+          authorId: 'Uauth',
+        ),
+      ).called(1);
+    });
+
+    test('does NOT notify author on commit update (hasActive=true)', () async {
+      stubBeacon(beacon(id: 'B1', state: 0));
+      when(
+        commitmentRepo.hasActiveCommitment(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => true);
+      when(
+        commitmentRepo.upsert(beaconId: 'B1', userId: 'U1', message: ''),
+      ).thenAnswer((_) => Future.value());
+      when(
+        coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
+      ).thenAnswer((_) => Future.value());
+
+      await case_.commit(beaconId: 'B1', userId: 'U1');
+
+      verifyNever(
+        roomPush.notifyCommitToAuthor(
+          beaconId: anyNamed('beaconId'),
+          committerId: anyNamed('committerId'),
+          authorId: anyNamed('authorId'),
+        ),
+      );
     });
   });
 }
