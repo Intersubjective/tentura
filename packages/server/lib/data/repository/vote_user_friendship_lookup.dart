@@ -57,4 +57,24 @@ class VoteUserFriendshipLookup {
     );
     return s.contains(peerId);
   }
+
+  /// Returns true when [viewerId] has a positive trust edge toward [peerId]
+  /// (one-way subscription; mutual subscribe is a strict subset).
+  Future<bool> isSubscribedTo({
+    required String viewerId,
+    required String peerId,
+  }) async {
+    if (viewerId == peerId || peerId.isEmpty) {
+      return false;
+    }
+    final rows = await (_database.select(_database.voteUsers)
+          ..where(
+            (v) =>
+                v.subject.equals(viewerId) &
+                v.object.equals(peerId) &
+                v.amount.isBiggerThanValue(0),
+          ))
+        .get();
+    return rows.isNotEmpty;
+  }
 }
