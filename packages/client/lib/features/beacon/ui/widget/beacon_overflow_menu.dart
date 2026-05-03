@@ -7,10 +7,11 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
-Widget _beaconOverflowMenuRow(IconData icon, String label) {
+Widget _beaconOverflowMenuRow(BuildContext context, IconData icon, String label) {
+  final scheme = Theme.of(context).colorScheme;
   return Row(
     children: [
-      Icon(icon, size: 22),
+      Icon(icon, size: 22, color: scheme.onSurface),
       const SizedBox(width: 12),
       Expanded(child: Text(label)),
     ],
@@ -92,7 +93,7 @@ class BeaconOverflowMenu extends StatelessWidget {
       entries.add(
         PopupMenuItem<String>(
           value: value,
-          child: _beaconOverflowMenuRow(icon, label),
+          child: _beaconOverflowMenuRow(context, icon, label),
         ),
       );
     }

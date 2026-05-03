@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -76,6 +77,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tt = context.tt;
     final p = widget.provenance;
     if (p.senders.isEmpty) {
       return const SizedBox.shrink();
@@ -162,7 +164,7 @@ class _InboxForwardProvenancePanelState extends State<InboxForwardProvenancePane
                                         minimumSize: Size.zero,
                                         tapTargetSize:
                                             MaterialTapTargetSize.shrinkWrap,
-                                        foregroundColor: scheme.primary,
+                                        foregroundColor: tt.info,
                                       ),
                                       onPressed: () =>
                                           setState(() => _expanded = false),
@@ -243,6 +245,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tt = context.tt;
     final l10n = L10n.of(context)!;
 
     final hasRest = restProfiles.isNotEmpty || overflowCount > 0;
@@ -405,7 +408,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              foregroundColor: scheme.primary,
+              foregroundColor: tt.info,
             ),
             onPressed: onExpand,
             child: Row(
