@@ -5,6 +5,7 @@ query RoomMessageList($beaconId: String!, $beforeIso: String) {
     authorId
     body
     createdAt
+    editedAt
     semanticMarker
     linkedBlockerId
     linkedFactCardId

@@ -562,6 +562,7 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
   ) {
     final pf = cubit.factForRoomMessage(message);
     final showFactInMenu = !_roomMessageIsCoordinationStateCard(message);
+    final isOwnMessage = message.authorId == viewer.id;
     unawaited(
       showModalBottomSheet<void>(
         context: context,
@@ -580,6 +581,15 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                     style: Theme.of(ctx).textTheme.titleMedium,
                   ),
                 ),
+                if (isOwnMessage && showFactInMenu)
+                  ListTile(
+                    leading: const Icon(Icons.edit_outlined),
+                    title: Text(l10n.beaconRoomActionEditMessage),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      unawaited(_showEditMessageSheet(context, cubit, l10n, message));
+                    },
+                  ),
                 ListTile(
                   leading: const Icon(Icons.edit_note_outlined),
                   title: Text(l10n.beaconRoomActionUpdatePlan),
@@ -749,6 +759,68 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
       if (ok == true && context.mounted) {
         final t = controller.text.trim();
         await cubit.updatePlan(t);
+      }
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _showEditMessageSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    RoomMessage message,
+  ) async {
+    final controller = TextEditingController(text: message.body);
+    try {
+      final ok = await showModalBottomSheet<bool>(
+        context: context,
+        showDragHandle: true,
+        isScrollControlled: true,
+        builder: (ctx) {
+          final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
+          return Padding(
+            padding: EdgeInsets.only(
+              left: kSpacingSmall,
+              right: kSpacingSmall,
+              top: kSpacingMedium,
+              bottom: bottom + kSpacingMedium,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  l10n.beaconRoomActionEditMessage,
+                  style: Theme.of(ctx).textTheme.titleMedium,
+                ),
+                const SizedBox(height: kSpacingSmall),
+                TextField(
+                  controller: controller,
+                  maxLines: 6,
+                  minLines: 3,
+                  decoration: InputDecoration(
+                    hintText: l10n.beaconRoomMessageHint,
+                  ),
+                ),
+                const SizedBox(height: kSpacingMedium),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: Text(MaterialLocalizations.of(ctx).saveButtonLabel),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      if (ok == true && context.mounted) {
+        final newBody = controller.text.trim();
+        if (newBody.isEmpty) return;
+        if (newBody == message.body) return;
+        await cubit.editMessage(
+          messageId: message.id,
+          newBody: newBody,
+        );
       }
     } finally {
       controller.dispose();

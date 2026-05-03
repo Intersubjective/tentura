@@ -347,6 +347,23 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  Future<void> editMessage({
+    required String messageId,
+    required String newBody,
+  }) async {
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      await _case.editMessage(
+        beaconId: state.beaconId,
+        messageId: messageId,
+        body: newBody,
+      );
+      await load();
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> markBlockerFromMessage({
     required String messageId,
     required String title,

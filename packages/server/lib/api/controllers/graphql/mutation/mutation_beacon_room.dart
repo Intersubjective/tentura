@@ -54,6 +54,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
         roomMessageCreate,
         roomMessageAttachmentAdd,
+        roomMessageEdit,
         participantOfferHelp,
         beaconRoomAdmit,
         beaconStewardPromote,
@@ -136,6 +137,25 @@ final class MutationBeaconRoom extends GqlNodeBase {
               )
               .then((_) => true);
         },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get roomMessageEdit =>
+      GraphQLObjectField(
+        'RoomMessageEdit',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _messageId.field,
+          _body.field,
+        ],
+        resolve: (_, args) => _case
+            .editMessage(
+              beaconId: _beaconIdStr.fromArgsNonNullable(args),
+              messageId: _messageId.fromArgsNonNullable(args),
+              userId: getCredentials(args).sub,
+              newBody: _body.fromArgsNonNullable(args),
+            )
+            .then((_) => true),
       );
 
   GraphQLObjectField<dynamic, dynamic> get participantOfferHelp =>

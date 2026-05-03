@@ -771,6 +771,41 @@ final class BeaconRoomCase extends UseCaseBase {
     return true;
   }
 
+  Future<bool> editMessage({
+    required String beaconId,
+    required String messageId,
+    required String userId,
+    required String newBody,
+  }) async {
+    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+    if (!allowed) {
+      throw const UnauthorizedException(description: 'Room access required');
+    }
+    final msg = await _room.getRoomMessageById(messageId);
+    if (msg == null || msg.beaconId != beaconId) {
+      throw IdNotFoundException(
+        id: messageId,
+        description: 'Room message not found',
+      );
+    }
+    if (msg.authorId != userId) {
+      throw const UnauthorizedException(
+        description: 'Only the message author can edit messages',
+      );
+    }
+    final trimmed = newBody.trim();
+    if (trimmed.isEmpty) {
+      throw const BeaconCreateException(
+        description: 'Message body cannot be empty',
+      );
+    }
+    await _room.updateMessage(
+      messageId: messageId,
+      newBody: trimmed,
+    );
+    return true;
+  }
+
   Future<({Uint8List bytes, String mime, String fileName})> downloadAttachment({
     required String userId,
     required String attachmentId,
