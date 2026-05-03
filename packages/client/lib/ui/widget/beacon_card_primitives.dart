@@ -37,7 +37,7 @@ TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
   final scheme = theme.colorScheme;
   return theme.textTheme.bodySmall!.copyWith(
     height: 1.15,
-    color: scheme.onSurfaceVariant,
+    color: scheme.outline,
     fontWeight: FontWeight.w400,
   );
 }
