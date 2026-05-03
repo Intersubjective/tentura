@@ -2501,6 +2501,8 @@
   "beaconRoomActionMarkBlocker": "Пометить блокер…",
   "beaconRoomActionNeedInfo": "Нужна информация…",
   "beaconRoomActionMarkDone": "Отметить выполнено…",
+  "beaconRoomActionEditMessage": "Изменить сообщение",
+  "beaconRoomMessageEdited": "Изменено",
   "beaconRoomBlockerTitleHint": "Заголовок блокера",
   "beaconRoomNeedInfoPickTarget": "Кому адресовано?",
   "beaconRoomNeedInfoRequestHint": "Что нужно уточнить?",

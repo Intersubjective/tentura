@@ -2507,6 +2507,14 @@
   "beaconRoomActionMarkBlocker": "Mark blocker…",
   "beaconRoomActionNeedInfo": "Need info…",
   "beaconRoomActionMarkDone": "Mark done…",
+  "beaconRoomActionEditMessage": "Edit message",
+  "@beaconRoomActionEditMessage": {
+    "description": "Menu action to edit an existing beacon room message"
+  },
+  "beaconRoomMessageEdited": "Edited",
+  "@beaconRoomMessageEdited": {
+    "description": "Shown next to the message time when the message text was edited"
+  },
   "beaconRoomBlockerTitleHint": "Blocker title",
   "beaconRoomNeedInfoPickTarget": "Who is this for?",
   "beaconRoomNeedInfoRequestHint": "What do you need?",
