@@ -37,7 +37,8 @@ TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
   final scheme = theme.colorScheme;
   return theme.textTheme.bodySmall!.copyWith(
     height: 1.15,
-    color: scheme.outline,
+    // [outline] is for borders; on light surfaces it reads as illegible "ghost" text.
+    color: scheme.onSurfaceVariant,
     fontWeight: FontWeight.w400,
   );
 }
@@ -198,7 +199,6 @@ class BeaconCardMetadataBlock extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SelfAwareAvatar(
               profile: author,
