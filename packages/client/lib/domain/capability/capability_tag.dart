@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'capability_group.dart';
@@ -98,5 +99,41 @@ enum CapabilityTag {
     CapabilityTag.time => l10n.capabilityTagTime,
     CapabilityTag.contact => l10n.capabilityTagContact,
     CapabilityTag.other => l10n.capabilityTagOther,
+  };
+
+  IconData get icon => switch (this) {
+    CapabilityTag.transport => Icons.directions_car_rounded,
+    CapabilityTag.storage => Icons.warehouse_rounded,
+    CapabilityTag.pickupDelivery => Icons.local_shipping_rounded,
+    CapabilityTag.tools => Icons.build_rounded,
+    CapabilityTag.physicalHelp => Icons.fitness_center_rounded,
+    CapabilityTag.calls => Icons.call_rounded,
+    CapabilityTag.translation => Icons.translate_rounded,
+    CapabilityTag.writing => Icons.drive_file_rename_outline_rounded,
+    CapabilityTag.negotiation => Icons.gavel_rounded,
+    CapabilityTag.introductions => Icons.group_add_rounded,
+    CapabilityTag.localKnowledge => Icons.map_rounded,
+    CapabilityTag.legalNavigation => Icons.balance_rounded,
+    CapabilityTag.medicalNavigation => Icons.medical_services_rounded,
+    CapabilityTag.documents => Icons.description_rounded,
+    CapabilityTag.verification => Icons.verified_rounded,
+    CapabilityTag.pets => Icons.pets_rounded,
+    CapabilityTag.childcare => Icons.child_care_rounded,
+    CapabilityTag.eldercare => Icons.elderly_rounded,
+    CapabilityTag.emotionalSupport => Icons.psychology_rounded,
+    CapabilityTag.hosting => Icons.home_rounded,
+    CapabilityTag.money => Icons.payments_rounded,
+    CapabilityTag.food => Icons.restaurant_rounded,
+    CapabilityTag.housing => Icons.apartment_rounded,
+    CapabilityTag.equipment => Icons.inventory_2_rounded,
+    CapabilityTag.workspace => Icons.desk_rounded,
+    CapabilityTag.techHelp => Icons.support_rounded,
+    CapabilityTag.repair => Icons.handyman_rounded,
+    CapabilityTag.software => Icons.code_rounded,
+    CapabilityTag.design => Icons.design_services_rounded,
+    CapabilityTag.adminPaperwork => Icons.admin_panel_settings_rounded,
+    CapabilityTag.time => Icons.schedule_rounded,
+    CapabilityTag.contact => Icons.contact_page_rounded,
+    CapabilityTag.other => Icons.more_horiz_rounded,
   };
 }

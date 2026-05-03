@@ -110,6 +110,8 @@ class _GroupSection extends StatelessWidget {
             for (final tag in tags)
               FilterChip(
                 label: Text(tag.labelOf(l10n)),
+                avatar: Icon(tag.icon, size: 18),
+                showCheckmark: false,
                 selected: selectedSlugs.contains(tag.slug),
                 onSelected: (v) => onToggle(tag.slug, v),
                 selectedColor: automaticSlugs.contains(tag.slug)
