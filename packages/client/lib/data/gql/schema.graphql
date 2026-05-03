@@ -2617,6 +2617,7 @@ type mutation_root {
     requestText: String!
   ): Boolean!
   RoomMessageMarkDone(beaconId: String!, messageId: String!, resolveBlocker: Boolean!): Boolean!
+  RoomMessageEdit(beaconId: String!, messageId: String!, body: String!): Boolean!
   BeaconParticipantRoomSeen(beaconId: String!): Boolean!
   capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
   capabilitySetViewerVisible(subjectUserId: String!, slugs: [String!]!): Boolean!
@@ -6235,6 +6236,7 @@ type RoomMessageRow {
   authorId: String!
   body: String!
   createdAt: String!
+  editedAt: String
   semanticMarker: Int
   linkedBlockerId: String
   linkedFactCardId: String

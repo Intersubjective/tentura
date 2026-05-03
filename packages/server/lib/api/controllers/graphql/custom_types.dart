@@ -57,6 +57,7 @@ final gqlTypeRoomMessageRow =
         field('authorId', graphQLString.nonNullable()),
         field('body', graphQLString.nonNullable()),
         field('createdAt', graphQLString.nonNullable()),
+        field('editedAt', graphQLString),
         field('semanticMarker', graphQLInt),
         field('linkedBlockerId', graphQLString),
         field('linkedFactCardId', graphQLString),

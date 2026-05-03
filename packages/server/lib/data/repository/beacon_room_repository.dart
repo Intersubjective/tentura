@@ -239,6 +239,7 @@ class BeaconRoomRepository {
         'authorId': m.authorId,
         'body': m.body,
         'createdAt': m.createdAt.dateTime.toUtc().toIso8601String(),
+        'editedAt': m.editedAt?.dateTime.toUtc().toIso8601String(),
         'semanticMarker': m.semanticMarker,
         'linkedBlockerId': m.linkedBlockerId,
         'linkedFactCardId': m.linkedFactCardId,
