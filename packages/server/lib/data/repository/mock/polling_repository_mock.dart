@@ -15,4 +15,13 @@ class PollingRepositoryMock implements PollingRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<String> createWithVariants({
+    required String authorId,
+    required String question,
+    required List<String> variants,
+  }) {
+    throw UnimplementedError();
+  }
 }
