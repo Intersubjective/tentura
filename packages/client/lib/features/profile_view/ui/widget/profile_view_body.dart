@@ -166,15 +166,6 @@ class ProfileViewBody extends StatelessWidget {
                   label: Text(l10n.addToMyField),
                 ),
               ),
-
-            // Opinions
-            Padding(
-              padding: kPaddingV,
-              child: Text(
-                l10n.communityFeedback,
-                style: theme.textTheme.headlineMedium,
-              ),
-            ),
           ],
         ),
       ),

@@ -72,15 +72,6 @@ class ProfileBody extends StatelessWidget {
               onPressed: screenCubit.showSettings,
             ),
           ),
-
-          // Opinions
-          Padding(
-            padding: kPaddingT,
-            child: Text(
-              l10n.communityFeedback,
-              style: textTheme.headlineMedium,
-            ),
-          ),
         ],
       ),
     );
