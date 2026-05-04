@@ -1,0 +1,14 @@
+# Dart build_runner generated
+**/*.g.dart
+**/*.freezed.dart
+**/*.gr.dart
+
+# Ferry/GraphQL generated (in _g/ directories)
+**/_g/
+
+# Build outputs
+**/build/
+**/.dart_tool/
+
+# Pub cache
+.pub-cache/
