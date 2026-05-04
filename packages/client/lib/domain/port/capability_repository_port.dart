@@ -18,4 +18,9 @@ abstract class CapabilityRepositoryPort {
     required String subjectId,
     required List<String> slugs,
   });
+
+  Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
+    required List<String> subjectIds,
+    int limit = 2,
+  });
 }

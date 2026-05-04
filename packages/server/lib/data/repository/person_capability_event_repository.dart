@@ -481,6 +481,90 @@ class PersonCapabilityEventRepository
   }
 
   @override
+  Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
+    required String viewerId,
+    required List<String> subjectIds,
+    int limit = 2,
+  }) async {
+    if (subjectIds.isEmpty) return {};
+
+    // Build IN-list placeholders: $2, $3, ... for subject IDs; limit is last.
+    // Paired with fetchDeduplicatedCapabilities source-type semantics:
+    //   source 0,1,3: observer-scoped; source 2: subject-only (commit roles).
+    final sp = List.generate(subjectIds.length, (i) => '\$${i + 2}').join(', ');
+    final lp = '\$${subjectIds.length + 2}';
+
+    final rows = await _database
+        .customSelect(
+          '''
+          WITH positive_slugs AS (
+            SELECT subject_user_id, tag_slug
+            FROM public.person_capability_event
+            WHERE observer_user_id = \$1
+              AND subject_user_id IN ($sp)
+              AND source_type = 0 AND is_negative = false AND deleted_at IS NULL
+            UNION ALL
+            SELECT subject_user_id, tag_slug
+            FROM public.person_capability_event
+            WHERE observer_user_id = \$1
+              AND subject_user_id IN ($sp)
+              AND source_type = 1 AND is_negative = false AND deleted_at IS NULL
+            UNION ALL
+            SELECT subject_user_id, tag_slug
+            FROM public.person_capability_event
+            WHERE subject_user_id IN ($sp)
+              AND source_type = 2 AND is_negative = false AND deleted_at IS NULL
+            UNION ALL
+            SELECT subject_user_id, tag_slug
+            FROM public.person_capability_event
+            WHERE observer_user_id = \$1
+              AND subject_user_id IN ($sp)
+              AND source_type = 3 AND is_negative = false AND deleted_at IS NULL
+          ),
+          tombstoned AS (
+            SELECT subject_user_id, tag_slug
+            FROM public.person_capability_event
+            WHERE observer_user_id = \$1
+              AND subject_user_id IN ($sp)
+              AND is_negative = true AND deleted_at IS NULL
+          ),
+          counted AS (
+            SELECT ps.subject_user_id, ps.tag_slug, COUNT(*) AS cnt
+            FROM positive_slugs ps
+            LEFT JOIN tombstoned t USING (subject_user_id, tag_slug)
+            WHERE t.tag_slug IS NULL
+            GROUP BY ps.subject_user_id, ps.tag_slug
+          ),
+          ranked AS (
+            SELECT subject_user_id, tag_slug,
+                   ROW_NUMBER() OVER (
+                     PARTITION BY subject_user_id ORDER BY cnt DESC, tag_slug ASC
+                   ) AS rn
+            FROM counted
+          )
+          SELECT subject_user_id, tag_slug
+          FROM ranked
+          WHERE rn <= $lp
+          ORDER BY subject_user_id, rn
+          ''',
+          variables: [
+            Variable.withString(viewerId),
+            ...subjectIds.map(Variable.withString),
+            Variable.withInt(limit),
+          ],
+        )
+        .get();
+
+    final result = <String, List<String>>{};
+    for (final row in rows) {
+      result
+          .putIfAbsent(row.read<String>('subject_user_id'), () => [])
+          .add(row.read<String>('tag_slug'));
+    }
+    return result;
+  }
+
+  @override
   Future<List<ForwardReasonRow>> fetchForwardReasonsByBeaconId({
     required String beaconId,
     required String viewerId,

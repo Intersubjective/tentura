@@ -4177,6 +4177,7 @@ type query_root {
   BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
   myPrivateLabelsForUser(subjectUserId: String!): [String!]!
   personCapabilityCues(subjectUserId: String!): v2_PersonCapabilityCuesPayload!
+  personTopCapabilitiesBatch(subjectUserIds: [String!]!, limit: Int): [v2_PersonTopCapabilities!]!
 
   """
   execute function "graph" which returns "mutual_score"
@@ -7322,6 +7323,11 @@ type v2_PersonCapabilityCuesPayload {
 type v2_ForwardReasonRow {
   senderId: String!
   recipientId: String!
+  slugs: [String!]!
+}
+
+type v2_PersonTopCapabilities {
+  subjectId: String!
   slugs: [String!]!
 }
 

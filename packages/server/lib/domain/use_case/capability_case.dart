@@ -119,6 +119,16 @@ final class CapabilityCase extends UseCaseBase {
     subjectId: subjectId,
   );
 
+  Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
+    required String viewerId,
+    required List<String> subjectIds,
+    int limit = 2,
+  }) => _repository.fetchTopCapabilitiesBatch(
+    viewerId: viewerId,
+    subjectIds: subjectIds,
+    limit: limit,
+  );
+
   /// Atomically reconciles the full set of capabilities that [observerId] wants
   /// to see on [subjectId]'s profile.
   ///

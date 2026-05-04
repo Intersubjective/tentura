@@ -1,0 +1,6 @@
+query PersonTopCapabilitiesBatch($subjectUserIds: [String!]!, $limit: Int) {
+  personTopCapabilitiesBatch(subjectUserIds: $subjectUserIds, limit: $limit) {
+    subjectId
+    slugs
+  }
+}

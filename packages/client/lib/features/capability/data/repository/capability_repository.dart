@@ -11,6 +11,7 @@ import '../gql/_g/capability_private_label_set.req.gql.dart';
 import '../gql/_g/capability_set_viewer_visible.req.gql.dart';
 import '../gql/_g/my_private_labels_for_user.req.gql.dart';
 import '../gql/_g/person_capability_cues_fetch.req.gql.dart';
+import '../gql/_g/person_top_capabilities_batch_fetch.req.gql.dart';
 
 @LazySingleton(
   as: CapabilityRepositoryPort,
@@ -155,6 +156,29 @@ class CapabilityRepository implements CapabilityRepositoryPort {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label));
+
+  @override
+  Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
+    required List<String> subjectIds,
+    int limit = 2,
+  }) => _remoteApiService
+      .request(
+        GPersonTopCapabilitiesBatchReq(
+          (r) => r
+            ..vars.subjectUserIds.addAll(subjectIds)
+            ..vars.limit = limit,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        final entries = r
+            .dataOrThrow(label: _label)
+            .personTopCapabilitiesBatch;
+        return {
+          for (final e in entries)
+            e.subjectId: e.slugs.toList(),
+        };
+      });
 
   static const _label = 'Capability';
 }
