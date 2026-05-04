@@ -112,8 +112,8 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
       .filter(
         (e) =>
             e.beaconId.id(beaconId) &
-            e.senderId.equals(authorId) &
-            e.recipientId.equals(userId),
+            e.senderId.id(authorId) &
+            e.recipientId.id(userId),
       )
       .exists();
 
