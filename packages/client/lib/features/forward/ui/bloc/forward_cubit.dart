@@ -47,7 +47,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       final involvement = results[1] as BeaconInvolvementData;
       final myId = await forwardCase.getCurrentAccountId();
 
-      final candidates = profiles
+      var candidates = profiles
           .where((p) => p.id != myId)
           .map(
             (p) => ForwardCandidate(
@@ -59,6 +59,21 @@ class ForwardCubit extends Cubit<ForwardState> {
           )
           .toList()
         ..sort((a, b) => b.mrScore.compareTo(a.mrScore));
+
+      final ids = candidates.map((c) => c.id).toList();
+      if (ids.isNotEmpty) {
+        try {
+          final topCaps =
+              await forwardCase.fetchTopCapabilitiesForCandidates(ids);
+          candidates = candidates
+              .map((c) => c.copyWith(
+                    topCapabilities: topCaps[c.id] ?? [],
+                  ))
+              .toList();
+        } catch (_) {
+          // Non-critical: capability hints are best-effort.
+        }
+      }
 
       emit(
         state.copyWith(

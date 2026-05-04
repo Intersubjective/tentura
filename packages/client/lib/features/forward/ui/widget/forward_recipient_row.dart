@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
@@ -32,6 +33,7 @@ class ForwardRecipientRow extends StatelessWidget {
   final List<String> reasonSlugs;
   /// Called when the user taps the Why? button; opens reason picker.
   final VoidCallback? onEditReasons;
+
 
   /// Involvement / forward path line (independent of scope tab filter).
   String _relationLabel(L10n l10n) {
@@ -173,6 +175,23 @@ class ForwardRecipientRow extends StatelessWidget {
                         ),
                     ],
                   ),
+                  if (candidate.topCapabilities.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      children: [
+                        for (final slug
+                            in candidate.topCapabilities.take(2))
+                          if (CapabilityTag.fromSlug(slug) case final tag?)
+                            _CapabilityHintChip(
+                              label: tag.labelOf(l10n),
+                              icon: tag.icon,
+                              color: tt.textMuted,
+                            ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -222,6 +241,30 @@ class ForwardRecipientRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CapabilityHintChip extends StatelessWidget {
+  const _CapabilityHintChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 2),
+        Text(label, style: TenturaText.bodySmall(color).copyWith(fontSize: 11)),
+      ],
     );
   }
 }

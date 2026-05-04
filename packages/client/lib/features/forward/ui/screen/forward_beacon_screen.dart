@@ -6,6 +6,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -115,6 +116,20 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
   ) async {
     final l10n = L10n.of(context)!;
     var selected = Set<String>.from(currentSlugs);
+
+    // Fetch existing subjective capabilities for this recipient so we can
+    // show them as tinted hints in the selector (automaticSlugs).
+    var existingSlugs = <String>{};
+    try {
+      final cues = await GetIt.I<CapabilityRepositoryPort>()
+          .fetchCues(recipientId);
+      existingSlugs = cues.viewerVisible.map((c) => c.slug).toSet();
+    } catch (_) {
+      // Best-effort: proceed without hints if fetch fails.
+    }
+
+    if (!context.mounted) return;
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -156,6 +171,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                   children: [
                     CapabilityChipSet(
                       selectedSlugs: selected,
+                      automaticSlugs: existingSlugs,
                       onChanged: (s) => setModalState(() => selected = s),
                     ),
                   ],
