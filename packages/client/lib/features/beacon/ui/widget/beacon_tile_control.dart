@@ -9,7 +9,6 @@ import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
 import 'package:tentura/features/favorites/ui/widget/beacon_pin_icon_button.dart';
 import 'package:tentura/features/like/ui/widget/like_control.dart';
-import 'package:tentura/features/polling/ui/widget/poll_button.dart';
 
 class BeaconTileControl extends StatelessWidget {
   const BeaconTileControl({
@@ -38,9 +37,6 @@ class BeaconTileControl extends StatelessWidget {
         key: ValueKey(beacon.author),
         beacon: beacon,
       ),
-
-      // Poll button
-      if (beacon.hasPolling) PollButton(polling: beacon.polling),
 
       const Spacer(),
 

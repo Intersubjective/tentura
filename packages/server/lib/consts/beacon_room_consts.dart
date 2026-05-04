@@ -30,6 +30,9 @@ abstract final class BeaconRoomSemanticMarker {
 
   /// Explicit "mark done" on a message (no inference from chat text).
   static const done = 7;
+
+  /// Inline poll message — body is empty; poll data is in `linkedPollingId`.
+  static const poll = 8;
 }
 
 /// `beacon_participant.next_move_status` (sparse UX enum).

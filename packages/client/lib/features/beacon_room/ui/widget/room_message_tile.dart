@@ -7,8 +7,10 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_reaction_picker.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -25,6 +27,7 @@ class RoomMessageTile extends StatelessWidget {
     this.onPinnedFactManage,
     this.onActionsPressed,
     this.onOpenFileAttachment,
+    this.onVotePoll,
     super.key,
   });
 
@@ -45,6 +48,8 @@ class RoomMessageTile extends StatelessWidget {
 
   final Future<void> Function(String messageId, String emoji) onToggleReaction;
 
+  final Future<void> Function(String pollingId, String variantId)? onVotePoll;
+
   String _semanticShortLabel(L10n l10n, int? marker) => switch (marker) {
     BeaconRoomSemanticMarker.updatePlan => l10n.beaconRoomSemanticPlan,
     BeaconRoomSemanticMarker.pinFactPublic => l10n.beaconRoomSemanticPublicFact,
@@ -54,6 +59,7 @@ class RoomMessageTile extends StatelessWidget {
     BeaconRoomSemanticMarker.blocker => l10n.beaconRoomSemanticBlocker,
     BeaconRoomSemanticMarker.needInfo => l10n.beaconRoomSemanticNeedInfo,
     BeaconRoomSemanticMarker.done => l10n.beaconRoomSemanticDone,
+    BeaconRoomSemanticMarker.poll => l10n.beaconRoomSemanticPoll,
     _ => marker == null ? '' : l10n.beaconRoomSemanticSystem,
   };
 
@@ -272,6 +278,29 @@ class RoomMessageTile extends StatelessWidget {
                                               ),
                                       ),
                                   ],
+                                ),
+                              ),
+                            if (message.linkedPollingId != null)
+                              Padding(
+                                padding: kPaddingSmallT,
+                                child: RoomPollCard(
+                                  poll: RoomPollData.tryParse(
+                                    message.pollDataJson,
+                                  ) ??
+                                      RoomPollData(
+                                        id: message.linkedPollingId!,
+                                        question: '',
+                                        variants: const [],
+                                        totalVotes: 0,
+                                      ),
+                                  onVote: onVotePoll == null
+                                      ? null
+                                      : (variantId) => unawaited(
+                                            onVotePoll!(
+                                              message.linkedPollingId!,
+                                              variantId,
+                                            ),
+                                          ),
                                 ),
                               ),
                           ],

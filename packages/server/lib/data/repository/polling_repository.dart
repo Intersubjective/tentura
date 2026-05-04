@@ -29,4 +29,22 @@ class PollingRepository {
     );
     return polling.id;
   }
+
+  Future<String> createWithVariants({
+    required String authorId,
+    required String question,
+    required List<String> variants,
+  }) => _database.transaction(() async {
+    final polling = await _database.managers.pollings.createReturning(
+      (o) => o(
+        id: Value(PollingEntity.newId),
+        authorId: authorId,
+        question: question,
+      ),
+    );
+    await _database.managers.pollingVariants.bulkCreate(
+      (o) => variants.map((d) => o(pollingId: polling.id, description: d)),
+    );
+    return polling.id;
+  });
 }

@@ -8,7 +8,6 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/polling.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 
@@ -33,8 +32,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
        _imageRepository = imageRepository ?? GetIt.I<ImageRepository>(),
        super(
          BeaconCreateState(
-           variants: ['', ''],
-           variantsKeys: [UniqueKey(), UniqueKey()],
            status:
                (draftBeaconIdToLoad != null && draftBeaconIdToLoad.isNotEmpty) ||
                        (editBeaconIdToLoad != null &&
@@ -83,25 +80,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         return;
       }
 
-      final p = beacon.polling;
-      var variants = <String>['', ''];
-      var variantKeys = <Key>[UniqueKey(), UniqueKey()];
-      var question = '';
-      if (p != null && p.hasVariants) {
-        question = p.question;
-        final sorted = p.variants.entries.toList()
-          ..sort((a, b) {
-            final ai = int.tryParse(a.key) ?? 0;
-            final bi = int.tryParse(b.key) ?? 0;
-            return ai.compareTo(bi);
-          });
-        variants = sorted.map((e) => e.value).toList();
-        if (variants.length < 2) {
-          variants = [...variants, ...List.filled(2 - variants.length, '')];
-        }
-        variantKeys = List.generate(variants.length, (_) => UniqueKey());
-      }
-
       final coords = beacon.coordinates;
       final coordinates =
           coords != null && coords.isNotEmpty ? coords : null;
@@ -122,9 +100,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           endAt: beacon.endAt,
           iconCode: beacon.iconCode,
           iconBackground: beacon.iconBackground,
-          question: question,
-          variants: variants,
-          variantsKeys: variantKeys,
           images: [...beacon.images],
           initialServerImageIds: {
             for (final img in beacon.images)
@@ -278,39 +253,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   ///
   ///
-  void setQuestion(String value) => emit(
-    state.copyWith(
-      question: value,
-    ),
-  );
-
-  ///
-  ///
-  void addVariant() => emit(
-    state.copyWith(
-      variants: [...state.variants, ''],
-      variantsKeys: [...state.variantsKeys, UniqueKey()],
-    ),
-  );
-
-  ///
-  ///
-  void removeVariant(int index) {
-    emit(
-      state.copyWith(
-        variants: [...state.variants]..removeAt(index),
-        variantsKeys: [...state.variantsKeys]..removeAt(index),
-      ),
-    );
-    validate();
-  }
-
-  ///
-  ///
-  void setVariant(int index, String value) => state.variants[index] = value;
-
-  ///
-  ///
   void addTag(String value) => emit(
     state.copyWith(
       tags: {...state.tags, value.toLowerCase()},
@@ -347,20 +289,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   ///
   ///
   void validate([bool formValid = false]) {
-    var canPublish = formValid || _stateMeetsBaseFormRequirements();
-
-    if (canPublish && state.hasPolling) {
-      try {
-        if (state.variants.where((e) => e.isNotEmpty).length < 2) {
-          throw const PollingTooFewVariantsException();
-        }
-        Polling.questionValidator(state.question);
-        state.variants.forEach(Polling.variantValidator);
-      } catch (_) {
-        canPublish = false;
-      }
-    }
-
+    final canPublish = formValid || _stateMeetsBaseFormRequirements();
     if (state.canTryToPublish != canPublish) {
       emit(state.copyWith(canTryToPublish: canPublish));
     }
@@ -394,8 +323,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Beacon _beaconPayload({
     required String context,
     required DateTime now,
-    required bool hasPolling,
-    required List<String> variants,
   }) {
     final iconCode = state.iconCode?.trim();
     final hasIcon = iconCode != null && iconCode.isNotEmpty;
@@ -418,17 +345,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       images: state.images,
       iconCode: hasIcon ? iconCode : null,
       iconBackground: hasIcon ? state.iconBackground : null,
-      polling: hasPolling
-          ? Polling(
-              createdAt: now,
-              updatedAt: now,
-              question: state.question,
-              variants: {
-                for (var i = 0; i < variants.length; i++)
-                  i.toString(): variants[i],
-              },
-            )
-          : null,
     );
   }
 
@@ -438,14 +354,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final now = DateTime.timestamp();
-      final variants = state.variants.where((e) => e.isNotEmpty).toList();
-      final hasPolling = state.question.isNotEmpty && variants.isNotEmpty;
-      final beaconPayload = _beaconPayload(
-        context: context,
-        now: now,
-        hasPolling: hasPolling,
-        variants: variants,
-      );
+      final beaconPayload = _beaconPayload(context: context, now: now);
 
       if (state.draftId == null) {
         final created = await _beaconRepository.create(
@@ -565,41 +474,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         ),
       );
     }
-    final variants = state.variants.where((e) => e.isNotEmpty).toList();
-    final hasPolling = state.question.isNotEmpty && variants.isNotEmpty;
-    if (hasPolling) {
-      if (state.question.length < Polling.questionMinLength) {
-        return emit(
-          state.copyWith(
-            status: StateHasError(const PollingQuestionTooShortException()),
-          ),
-        );
-      }
-      if (variants.length < 2) {
-        return emit(
-          state.copyWith(
-            status: StateHasError(const PollingTooFewVariantsException()),
-          ),
-        );
-      }
-      if (variants.toSet().length != variants.length) {
-        return emit(
-          state.copyWith(
-            status: StateHasError(const PollingVariantsNotUniqueException()),
-          ),
-        );
-      }
-    }
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final now = DateTime.timestamp();
-      final beaconPayload = _beaconPayload(
-        context: context,
-        now: now,
-        hasPolling: hasPolling,
-        variants: variants,
-      );
+      final beaconPayload = _beaconPayload(context: context, now: now);
 
       if (state.draftId != null) {
         final id = state.draftId!;
@@ -637,17 +516,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             images: state.images,
             iconCode: hasIcon ? iconCode : null,
             iconBackground: hasIcon ? state.iconBackground : null,
-            polling: hasPolling
-                ? Polling(
-                    createdAt: now,
-                    updatedAt: now,
-                    question: state.question,
-                    variants: {
-                      for (var i = 0; i < variants.length; i++)
-                        i.toString(): variants[i],
-                    },
-                  )
-                : null,
           ),
         );
         emit(

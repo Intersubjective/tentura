@@ -80,7 +80,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
     double? longitude,
     DateTime? startAt,
     DateTime? endAt,
-    ({String question, List<String> variants})? polling,
     Set<String>? tags,
     int? ticker = 0,
     String? iconCode,
@@ -100,7 +99,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #longitude: longitude,
               #startAt: startAt,
               #endAt: endAt,
-              #polling: polling,
               #tags: tags,
               #ticker: ticker,
               #iconCode: iconCode,
@@ -122,7 +120,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #longitude: longitude,
                   #startAt: startAt,
                   #endAt: endAt,
-                  #polling: polling,
                   #tags: tags,
                   #ticker: ticker,
                   #iconCode: iconCode,
@@ -172,7 +169,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
     double? longitude,
     String? iconCode,
     int? iconBackground,
-    ({String question, List<String> variants})? polling,
     String? needSummary,
     String? successCriteria,
   }) =>
@@ -190,7 +186,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #longitude: longitude,
               #iconCode: iconCode,
               #iconBackground: iconBackground,
-              #polling: polling,
               #needSummary: needSummary,
               #successCriteria: successCriteria,
             }),
@@ -210,7 +205,6 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #longitude: longitude,
                   #iconCode: iconCode,
                   #iconBackground: iconBackground,
-                  #polling: polling,
                   #needSummary: needSummary,
                   #successCriteria: successCriteria,
                 }),
@@ -940,6 +934,7 @@ class MockBeaconRoomRepository extends _i1.Mock
     required String? body,
     String? replyToMessageId,
     String? linkedParticipantId,
+    String? linkedPollingId,
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
   }) =>
@@ -950,6 +945,7 @@ class MockBeaconRoomRepository extends _i1.Mock
               #body: body,
               #replyToMessageId: replyToMessageId,
               #linkedParticipantId: linkedParticipantId,
+              #linkedPollingId: linkedPollingId,
               #semanticMarker: semanticMarker,
               #systemPayload: systemPayload,
             }),
@@ -962,6 +958,7 @@ class MockBeaconRoomRepository extends _i1.Mock
                   #body: body,
                   #replyToMessageId: replyToMessageId,
                   #linkedParticipantId: linkedParticipantId,
+                  #linkedPollingId: linkedPollingId,
                   #semanticMarker: semanticMarker,
                   #systemPayload: systemPayload,
                 }),
@@ -969,6 +966,26 @@ class MockBeaconRoomRepository extends _i1.Mock
             ),
           )
           as _i6.Future<_i4.BeaconRoomMessage>);
+
+  @override
+  _i6.Future<Map<String, Object?>> insertAndEnrichPollMessage({
+    required String? beaconId,
+    required String? authorId,
+    required String? linkedPollingId,
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertAndEnrichPollMessage, [], {
+              #beaconId: beaconId,
+              #authorId: authorId,
+              #linkedPollingId: linkedPollingId,
+              #viewerUserId: viewerUserId,
+            }),
+            returnValue: _i6.Future<Map<String, Object?>>.value(
+              <String, Object?>{},
+            ),
+          )
+          as _i6.Future<Map<String, Object?>>);
 
   @override
   _i6.Future<void> updateParticipantNextMoveFields({

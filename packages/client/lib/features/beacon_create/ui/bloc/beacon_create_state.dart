@@ -12,9 +12,6 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     @Default('') String successCriteria,
     @Default('') String description,
     @Default('') String location,
-    @Default('') String question,
-    @Default([]) List<String> variants,
-    @Default([]) List<Key> variantsKeys,
     @Default({}) Set<String> tags,
     @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
@@ -32,9 +29,6 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
   }) = _BeaconCreateState;
 
   const BeaconCreateState._();
-
-  bool get hasPolling =>
-      question.isNotEmpty || variants.where((e) => e.isNotEmpty).isNotEmpty;
 
   bool get isEditMode => editId != null;
 }

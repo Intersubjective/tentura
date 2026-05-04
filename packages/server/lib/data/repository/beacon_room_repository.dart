@@ -221,6 +221,11 @@ class BeaconRoomRepository {
     final attachmentsJsonByMid =
         await attachmentsJsonByMessageIds(ids);
 
+    final pollDataJsonByMid = await _pollDataJsonByMessageIds(
+      msgs: msgs,
+      viewerUserId: viewerUserId,
+    );
+
     return msgs.map((m) {
       final id = m.id;
       final userRow = userById[m.authorId];
@@ -243,6 +248,8 @@ class BeaconRoomRepository {
         'semanticMarker': m.semanticMarker,
         'linkedBlockerId': m.linkedBlockerId,
         'linkedFactCardId': m.linkedFactCardId,
+        'linkedPollingId': m.linkedPollingId,
+        'pollDataJson': pollDataJsonByMid[id],
         'systemPayloadJson': encodeSystemPayload(m.systemPayload),
         'authorTitle': title,
         'authorHasPicture': authorHasPicture,
@@ -258,12 +265,87 @@ class BeaconRoomRepository {
     }).toList();
   }
 
+  Future<Map<String, String?>> _pollDataJsonByMessageIds({
+    required List<BeaconRoomMessage> msgs,
+    required String viewerUserId,
+  }) async {
+    final pollingByMessageId = <String, String>{};
+    for (final m in msgs) {
+      final pid = m.linkedPollingId;
+      if (pid != null) pollingByMessageId[m.id] = pid;
+    }
+    if (pollingByMessageId.isEmpty) return {};
+
+    final pollingIds = pollingByMessageId.values.toSet().toList();
+
+    final pollings = await _db.managers.pollings
+        .filter((p) => p.id.isIn(pollingIds))
+        .get();
+
+    final variants = await _db.managers.pollingVariants
+        .filter((v) => v.pollingId.id.isIn(pollingIds))
+        .get();
+
+    final acts = await (_db.select(_db.pollingActs)
+          ..where((a) => a.pollingId.isIn(pollingIds)))
+        .get();
+
+    final viewerVoteByPollingId = <String, String>{};
+    for (final a in acts) {
+      if (a.authorId == viewerUserId) {
+        viewerVoteByPollingId[a.pollingId] = a.pollingVariantId;
+      }
+    }
+
+    final countByVariantId = <String, int>{};
+    for (final a in acts) {
+      countByVariantId[a.pollingVariantId] =
+          (countByVariantId[a.pollingVariantId] ?? 0) + 1;
+    }
+
+    final variantsByPollingId = <String, List<PollingVariant>>{};
+    for (final v in variants) {
+      variantsByPollingId.putIfAbsent(v.pollingId, () => []).add(v);
+    }
+
+    final pollingById = {for (final p in pollings) p.id: p};
+
+    final out = <String, String?>{};
+    for (final entry in pollingByMessageId.entries) {
+      final msgId = entry.key;
+      final pollId = entry.value;
+      final polling = pollingById[pollId];
+      if (polling == null) continue;
+
+      final pvList = variantsByPollingId[pollId] ?? [];
+      final totalVotes = acts.where((a) => a.pollingId == pollId).length;
+      final myVariantId = viewerVoteByPollingId[pollId];
+
+      out[msgId] = jsonEncode({
+        'id': pollId,
+        'question': polling.question,
+        'myVariantId': myVariantId,
+        'totalVotes': totalVotes,
+        'variants': [
+          for (final v in pvList)
+            {
+              'id': v.id,
+              'description': v.description,
+              'votesCount': countByVariantId[v.id] ?? 0,
+            },
+        ],
+      });
+    }
+    return out;
+  }
+
   Future<BeaconRoomMessage> insertRoomMessage({
     required String beaconId,
     required String authorId,
     required String body,
     String? replyToMessageId,
     String? linkedParticipantId,
+    String? linkedPollingId,
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
   }) =>
@@ -278,11 +360,33 @@ class BeaconRoomRepository {
               linkedBlockerId: const Value.absent(),
               linkedNextMoveId: Value(linkedParticipantId),
               linkedFactCardId: const Value.absent(),
+              linkedPollingId: Value(linkedPollingId),
               semanticMarker: Value(semanticMarker),
               systemPayload: Value(systemPayload),
               createdAt: const Value.absent(),
             ));
       });
+
+  /// Creates a poll room message and returns the enriched row map for the GraphQL response.
+  Future<Map<String, Object?>> insertAndEnrichPollMessage({
+    required String beaconId,
+    required String authorId,
+    required String linkedPollingId,
+    required String viewerUserId,
+  }) async {
+    final msg = await insertRoomMessage(
+      beaconId: beaconId,
+      authorId: authorId,
+      body: '',
+      linkedPollingId: linkedPollingId,
+      semanticMarker: BeaconRoomSemanticMarker.poll,
+    );
+    final enriched = await listMessagesEnriched(
+      beaconId: beaconId,
+      viewerUserId: viewerUserId,
+    );
+    return enriched.firstWhere((m) => m['id'] == msg.id);
+  }
 
   Future<void> updateParticipantNextMoveFields({
     required String actorUserId,

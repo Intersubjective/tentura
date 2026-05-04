@@ -5,7 +5,6 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import '../gql/_g/beacon_model.data.gql.dart';
 import 'image_model.dart';
-import 'polling_model.dart';
 import 'user_model.dart';
 
 extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
@@ -33,7 +32,6 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
             ),
       rScore: i.scores?.firstOrNull?.src_score ?? 0,
       score: i.scores?.firstOrNull?.dst_score ?? 0,
-      polling: (i.polling as PollingModel?)?.toEntity(author: author),
       images: [
         for (final bi in i.beacon_images)
           (bi.image as ImageModel).asEntity,

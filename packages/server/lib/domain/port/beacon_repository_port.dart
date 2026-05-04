@@ -11,7 +11,6 @@ abstract class BeaconRepositoryPort {
     double? longitude,
     DateTime? startAt,
     DateTime? endAt,
-    ({String question, List<String> variants})? polling,
     Set<String>? tags,
     int ticker = 0,
     String? iconCode,
@@ -39,7 +38,6 @@ abstract class BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
-    ({String question, List<String> variants})? polling,
     String? needSummary,
     String? successCriteria,
   });

@@ -4,6 +4,7 @@ import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dar
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -416,6 +417,66 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         messageId: messageId,
         resolveBlocker: resolveBlocker,
+      );
+      await load();
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> votePoll({
+    required String messageId,
+    required String pollingId,
+    required String variantId,
+  }) async {
+    // Optimistic update: bump vote count + set myVariantId
+    final idx = state.messages.indexWhere((m) => m.id == messageId);
+    List<RoomMessage>? previousMessages;
+    if (idx >= 0) {
+      final msg = state.messages[idx];
+      final poll = RoomPollData.tryParse(msg.pollDataJson);
+      if (poll != null) {
+        previousMessages = List<RoomMessage>.from(state.messages);
+        final updated = msg.copyWith(
+          pollDataJson: _encodePollOptimisticVote(poll, variantId),
+        );
+        final optimistic = List<RoomMessage>.from(state.messages)..[idx] = updated;
+        emit(state.copyWith(messages: optimistic));
+      }
+    }
+
+    try {
+      await _case.votePoll(pollingId: pollingId, variantId: variantId);
+      await load();
+    } on Object catch (e) {
+      emit(
+        state.copyWith(
+          messages: previousMessages ?? state.messages,
+          status: StateHasError(e),
+        ),
+      );
+    }
+  }
+
+  static String _encodePollOptimisticVote(RoomPollData poll, String variantId) {
+    final updated = poll.withOptimisticVote(variantId);
+    return '{"id":"${updated.id}","question":${_jsonQuote(updated.question)},"myVariantId":"$variantId","totalVotes":${updated.totalVotes},"variants":[${updated.variants.map((v) => '{"id":"${v.id}","description":${_jsonQuote(v.description)},"votesCount":${v.votesCount}}').join(',')}]}';
+  }
+
+  static String _jsonQuote(String s) {
+    return '"${s.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
+  }
+
+  Future<void> createPoll({
+    required String question,
+    required List<String> variants,
+  }) async {
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      await _case.createPoll(
+        beaconId: state.beaconId,
+        question: question,
+        variants: variants,
       );
       await load();
     } on Object catch (e) {

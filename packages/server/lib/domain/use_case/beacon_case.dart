@@ -8,7 +8,6 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
-import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 
 import '../entity/beacon_entity.dart';
@@ -82,12 +81,10 @@ final class BeaconCase extends UseCaseBase {
     BeaconRepositoryPort beaconRepository,
     ImageRepositoryPort imageRepository,
     TaskRepositoryPort tasksRepository,
-    MeritrankRepositoryPort meritrankRepository,
   ) async => BeaconCase(
     beaconRepository,
     imageRepository,
     tasksRepository,
-    meritrankRepository,
     env: env,
     logger: logger,
   );
@@ -95,13 +92,10 @@ final class BeaconCase extends UseCaseBase {
   BeaconCase(
     this._beaconRepository,
     this._imageRepository,
-    this._tasksRepository,
-    this._meritrankRepository, {
+    this._tasksRepository, {
     required super.env,
     required super.logger,
   });
-
-  final MeritrankRepositoryPort _meritrankRepository;
 
   final BeaconRepositoryPort _beaconRepository;
 
@@ -120,38 +114,12 @@ final class BeaconCase extends UseCaseBase {
     DateTime? startAt,
     Coordinates? coordinates,
     Stream<Uint8List>? imageBytes,
-    ({String? question, List<String>? variants})? polling,
     String? iconCode,
     int? iconBackground,
     bool draft = false,
     String? needSummary,
     String? successCriteria,
   }) async {
-    var effectivePolling = polling;
-    if (draft) {
-      if (effectivePolling != null) {
-        final q = effectivePolling.question;
-        final v = effectivePolling.variants;
-        if (q == null ||
-            q.trim().isEmpty ||
-            v == null ||
-            v.length < 2 ||
-            v.where((e) => e.trim().isNotEmpty).length < 2) {
-          effectivePolling = null;
-        }
-      }
-    } else if (effectivePolling != null) {
-      if (effectivePolling.question == null) {
-        throw const BeaconCreateException(description: 'Question is required');
-      }
-      if (effectivePolling.variants == null) {
-        throw const BeaconCreateException(description: 'Variants are required');
-      }
-      if (effectivePolling.variants!.length < 2) {
-        throw const BeaconCreateException(description: 'Too few variants');
-      }
-    }
-
     final imageIds = <String>[];
 
     if (imageBytes != null) {
@@ -184,9 +152,6 @@ final class BeaconCase extends UseCaseBase {
       description: desc,
       latitude: coordinates?.lat,
       longitude: coordinates?.long,
-      polling: effectivePolling == null
-          ? null
-          : (question: effectivePolling.question!, variants: effectivePolling.variants!),
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
       startAt: startAt,
       endAt: endAt,
@@ -197,19 +162,10 @@ final class BeaconCase extends UseCaseBase {
       successCriteria: sc,
     );
 
-    if (beacon.polling?.variants != null) {
-      final polling = beacon.polling!;
-      for (final variant in polling.variants) {
-        await _meritrankRepository.putEdge(
-          nodeA: variant.id,
-          nodeB: polling.id,
-        );
-      }
-    }
     return beacon;
   }
 
-  /// Persists edits to a draft beacon (state 3). Optional [polling] replaces poll when non-null.
+  /// Persists edits to a draft beacon (state 3).
   Future<BeaconEntity> updateDraft({
     required String userId,
     required String beaconId,
@@ -220,24 +176,11 @@ final class BeaconCase extends UseCaseBase {
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
-    ({String? question, List<String>? variants})? polling,
     String? iconCode,
     int? iconBackground,
     String? needSummary,
     String? successCriteria,
   }) async {
-    var effectivePolling = polling;
-    if (effectivePolling != null) {
-      final q = effectivePolling.question;
-      final v = effectivePolling.variants;
-      if (q == null ||
-          q.trim().isEmpty ||
-          v == null ||
-          v.length < 2 ||
-          v.where((e) => e.trim().isNotEmpty).length < 2) {
-        effectivePolling = null;
-      }
-    }
 
     final normalizedIcon = _normalizeIconCode(iconCode);
     final ns = _trimOrNull(needSummary);
@@ -258,29 +201,13 @@ final class BeaconCase extends UseCaseBase {
       endAt: endAt,
       iconCode: normalizedIcon,
       iconBackground: normalizedIcon == null ? null : iconBackground,
-      polling: effectivePolling == null
-          ? null
-          : (
-              question: effectivePolling.question!,
-              variants: effectivePolling.variants!,
-            ),
       needSummary: ns,
       successCriteria: sc,
     );
-
-    if (beacon.polling?.variants != null) {
-      final pollingEntity = beacon.polling!;
-      for (final variant in pollingEntity.variants) {
-        await _meritrankRepository.putEdge(
-          nodeA: variant.id,
-          nodeB: pollingEntity.id,
-        );
-      }
-    }
     return beacon;
   }
 
-  /// Updates an open (published) beacon. Polling is not changed.
+  /// Updates an open (published) beacon.
   Future<BeaconEntity> update({
     required String userId,
     required String beaconId,

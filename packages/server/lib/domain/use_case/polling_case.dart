@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
 
 import '_use_case_base.dart';
@@ -7,13 +6,10 @@ import '_use_case_base.dart';
 @Singleton(order: 2)
 final class PollingCase extends UseCaseBase {
   PollingCase(
-    this._meritrankRepository,
     this._pollingActRepository, {
     required super.env,
     required super.logger,
   });
-
-  final MeritrankRepositoryPort _meritrankRepository;
 
   final PollingActRepositoryPort _pollingActRepository;
 
@@ -27,7 +23,6 @@ final class PollingCase extends UseCaseBase {
       pollingId: pollingId,
       variantId: variantId,
     );
-    await _meritrankRepository.putEdge(nodeA: authorId, nodeB: variantId);
     return true;
   }
 }

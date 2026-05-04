@@ -34,6 +34,9 @@ abstract final class BeaconRoomSemanticMarker {
   static const blocker = 5;
   static const needInfo = 6;
   static const done = 7;
+
+  /// Inline poll message — body is empty; poll data arrives in `pollDataJson`.
+  static const poll = 8;
 }
 
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).

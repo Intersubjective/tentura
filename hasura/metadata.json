@@ -20,12 +20,6 @@
                 }
               },
               {
-                "name": "polling",
-                "using": {
-                  "foreign_key_constraint_on": "polling_id"
-                }
-              },
-              {
                 "name": "beacon_review_window",
                 "using": {
                   "foreign_key_constraint_on": {
@@ -558,29 +552,6 @@
                   "columns": [
                     "dst_score",
                     "src_score",
-                    "dst",
-                    "src"
-                  ],
-                  "filter": {}
-                },
-                "comment": ""
-              }
-            ]
-          },
-          {
-            "table": {
-              "name": "neighbors_score",
-              "schema": "public"
-            },
-            "select_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "dst_score",
-                    "src_score",
-                    "dst_cluster_score",
-                    "src_cluster_score",
                     "dst",
                     "src"
                   ],
@@ -1252,8 +1223,16 @@
                   ],
                   "filter": {
                     "_or": [
-                      { "sender_id": { "_eq": "X-Hasura-User-Id" } },
-                      { "recipient_id": { "_eq": "X-Hasura-User-Id" } }
+                      {
+                        "sender_id": {
+                          "_eq": "X-Hasura-User-Id"
+                        }
+                      },
+                      {
+                        "recipient_id": {
+                          "_eq": "X-Hasura-User-Id"
+                        }
+                      }
                     ]
                   }
                 }
@@ -1844,21 +1823,6 @@
           {
             "function": {
               "name": "opinions",
-              "schema": "public"
-            },
-            "configuration": {
-              "custom_root_fields": {},
-              "session_argument": "hasura_session"
-            },
-            "permissions": [
-              {
-                "role": "user"
-              }
-            ]
-          },
-          {
-            "function": {
-              "name": "polling_results",
               "schema": "public"
             },
             "configuration": {

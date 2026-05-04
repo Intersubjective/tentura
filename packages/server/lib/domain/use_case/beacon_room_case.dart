@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/data/repository/polling_repository.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/data/storage/remote_storage.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
@@ -35,7 +36,8 @@ final class BeaconRoomCase extends UseCaseBase {
     this._push,
     this._imageRepository,
     this._tasksRepository,
-    this._remoteStorage, {
+    this._remoteStorage,
+    this._pollingRepository, {
     required super.env,
     required super.logger,
   });
@@ -51,6 +53,8 @@ final class BeaconRoomCase extends UseCaseBase {
   final TaskRepositoryPort _tasksRepository;
 
   final RemoteStorage _remoteStorage;
+
+  final PollingRepository _pollingRepository;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -946,5 +950,37 @@ final class BeaconRoomCase extends UseCaseBase {
       return 'image/jpeg';
     }
     return 'application/octet-stream';
+  }
+
+  Future<Map<String, Object?>> createPoll({
+    required String beaconId,
+    required String userId,
+    required String question,
+    required List<String> variants,
+  }) async {
+    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+    if (!allowed) {
+      throw const UnauthorizedException(description: 'Room access required');
+    }
+    final trimmedQuestion = question.trim();
+    if (trimmedQuestion.isEmpty) {
+      throw const BeaconCreateException(description: 'Poll question is required');
+    }
+    final validVariants =
+        variants.map((v) => v.trim()).where((v) => v.isNotEmpty).toList();
+    if (validVariants.length < 2) {
+      throw const BeaconCreateException(description: 'At least 2 poll variants required');
+    }
+    final pollingId = await _pollingRepository.createWithVariants(
+      authorId: userId,
+      question: trimmedQuestion,
+      variants: validVariants,
+    );
+    return _room.insertAndEnrichPollMessage(
+      beaconId: beaconId,
+      authorId: userId,
+      linkedPollingId: pollingId,
+      viewerUserId: userId,
+    );
   }
 }

@@ -12,7 +12,6 @@ import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
-import 'package:tentura/features/polling/ui/widget/poll_button.dart';
 
 import '../../data/repository/beacon_repository.dart';
 import '../dialog/beacon_close_confirm_dialog.dart';
@@ -28,80 +27,74 @@ class BeaconMineControl extends StatelessWidget {
   Widget build(BuildContext context) {
     final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        BeaconOverflowMenu(
-          beacon: beacon,
-          onGraph: beacon.myVote < 0
-              ? null
-              : () => context.read<ScreenCubit>().showGraphFor(beacon.id),
-          onShare: () => unawaited(
-            ShareCodeDialog.show(
-              context,
-              link: Uri.parse(kServerName).replace(
-                queryParameters: {'id': beacon.id},
-                path: kPathAppLinkView,
-              ),
-              header: beacon.id,
-            ),
+    return BeaconOverflowMenu(
+      beacon: beacon,
+      onGraph: beacon.myVote < 0
+          ? null
+          : () => context.read<ScreenCubit>().showGraphFor(beacon.id),
+      onShare: () => unawaited(
+        ShareCodeDialog.show(
+          context,
+          link: Uri.parse(kServerName).replace(
+            queryParameters: {'id': beacon.id},
+            path: kPathAppLinkView,
           ),
-          onEdit: beacon.lifecycle == BeaconLifecycle.open
-              ? () => unawaited(
-                    context.router.pushPath(
-                      '$kPathBeaconNew?$kQueryBeaconEditId=${beacon.id}',
-                    ),
-                  )
-              : null,
-          onToggleLifecycle: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            if (beacon.isListed) {
-              if (await BeaconCloseConfirmDialog.show(context) != true) {
-                return;
-              }
-              if (!context.mounted) return;
-            }
-            try {
-              final next = beacon.isListed
-                  ? BeaconLifecycle.closed
-                  : BeaconLifecycle.open;
-              if (next == BeaconLifecycle.closed &&
-                  beacon.lifecycle == BeaconLifecycle.open) {
-                await evaluationRepo.beaconCloseWithReview(beacon.id);
-              } else {
-                await repo.setBeaconLifecycle(next, id: beacon.id);
-              }
-            } catch (e) {
-              if (context.mounted) {
-                showSnackBar(context, isError: true, text: e.toString());
-              }
-            }
-          },
-          onForward: () => unawaited(
-            context.router.pushPath('$kPathForwardBeacon/${beacon.id}'),
-          ),
-          onViewForwards: () => unawaited(
-            context.router.pushPath('$kPathBeaconForwards/${beacon.id}'),
-          ),
-          onForwardsGraph: () =>
-              context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
-          onDelete: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            if (await BeaconDeleteDialog.show(context) ?? false) {
-              try {
-                await repo.delete(beacon.id);
-              } catch (e) {
-                if (context.mounted) {
-                  showSnackBar(context, isError: true, text: e.toString());
-                }
-              }
-            }
-          },
+          header: beacon.id,
         ),
-        PollButton(polling: beacon.polling),
-      ],
+      ),
+      onEdit: beacon.lifecycle == BeaconLifecycle.open
+          ? () => unawaited(
+                context.router.pushPath(
+                  '$kPathBeaconNew?$kQueryBeaconEditId=${beacon.id}',
+                ),
+              )
+          : null,
+      onToggleLifecycle: () async {
+        await Future<void>.delayed(Duration.zero);
+        if (!context.mounted) return;
+        if (beacon.isListed) {
+          if (await BeaconCloseConfirmDialog.show(context) != true) {
+            return;
+          }
+          if (!context.mounted) return;
+        }
+        try {
+          final next = beacon.isListed
+              ? BeaconLifecycle.closed
+              : BeaconLifecycle.open;
+          if (next == BeaconLifecycle.closed &&
+              beacon.lifecycle == BeaconLifecycle.open) {
+            await evaluationRepo.beaconCloseWithReview(beacon.id);
+          } else {
+            await repo.setBeaconLifecycle(next, id: beacon.id);
+          }
+        } catch (e) {
+          if (context.mounted) {
+            showSnackBar(context, isError: true, text: e.toString());
+          }
+        }
+      },
+      onForward: () => unawaited(
+        context.router.pushPath('$kPathForwardBeacon/${beacon.id}'),
+      ),
+      onViewForwards: () => unawaited(
+        context.router.pushPath('$kPathBeaconForwards/${beacon.id}'),
+      ),
+      onForwardsGraph: () =>
+          context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
+      onDelete: () async {
+        await Future<void>.delayed(Duration.zero);
+        if (!context.mounted) return;
+        if (await BeaconDeleteDialog.show(context) ?? false) {
+          try {
+            await repo.delete(beacon.id);
+          } catch (e) {
+            if (context.mounted) {
+              showSnackBar(context, isError: true, text: e.toString());
+            }
+          }
+        }
+      },
     );
   }
 }

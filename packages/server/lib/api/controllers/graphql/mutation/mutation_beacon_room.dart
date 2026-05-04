@@ -48,6 +48,10 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _requestText = InputFieldString(fieldName: 'requestText');
 
+  final _questionInput = InputFieldString(fieldName: 'question');
+
+  final _variantsInput = InputFieldStringList(fieldName: 'variants');
+
   final InputFieldBool _resolveBlockerFlag =
       InputFieldBool(fieldName: 'resolveBlocker');
 
@@ -65,6 +69,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
         beaconRoomMessageNeedInfo,
         roomMessageMarkDone,
         beaconParticipantRoomSeen,
+        roomPollCreate,
       ];
 
   GraphQLObjectField<dynamic, dynamic> get roomMessageCreate =>
@@ -337,5 +342,22 @@ final class MutationBeaconRoom extends GqlNodeBase {
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
             ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get roomPollCreate =>
+      GraphQLObjectField(
+        'RoomPollCreate',
+        gqlTypeRoomMessageRow.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _questionInput.field,
+          _variantsInput.field,
+        ],
+        resolve: (_, args) => _case.createPoll(
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+          question: _questionInput.fromArgsNonNullable(args),
+          variants: _variantsInput.fromArgsNonNullable(args),
+        ),
       );
 }
