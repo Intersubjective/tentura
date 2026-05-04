@@ -461,6 +461,22 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
             returnValue: _i5.Future<List<String>>.value(<String>[]),
           )
           as _i5.Future<List<String>>);
+
+  @override
+  _i5.Future<bool> isDirectAuthorForward({
+    required String? beaconId,
+    required String? authorId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#isDirectAuthorForward, [], {
+              #beaconId: beaconId,
+              #authorId: authorId,
+              #userId: userId,
+            }),
+            returnValue: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
 }
 
 /// A class which mocks [CommitmentRepositoryPort].
