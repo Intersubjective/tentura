@@ -4,8 +4,6 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/image_entity.dart';
-import 'package:tentura_server/domain/entity/polling_entity.dart';
-import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/consts/beacon_public_status.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -103,25 +101,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       );
     }
     final now = DateTime.timestamp();
-    var pollingEntity = existing.polling;
-    if (polling != null) {
-      final pid = PollingEntity.newId;
-      pollingEntity = PollingEntity(
-        id: pid,
-        question: polling.question,
-        author: existing.author,
-        createdAt: now,
-        updatedAt: now,
-        variants: [
-          for (var i = 0; i < polling.variants.length; i++)
-            PollingVariantEntity(
-              id: PollingVariantEntity.newId,
-              pollingId: pid,
-              description: polling.variants[i],
-            ),
-        ],
-      );
-    }
     final updated = existing.copyWith(
       title: title,
       description: description,
@@ -134,7 +113,6 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
           : null,
       iconCode: iconCode,
       iconBackground: iconBackground,
-      polling: pollingEntity,
       updatedAt: now,
       needSummary: needSummary,
       successCriteria: successCriteria,
