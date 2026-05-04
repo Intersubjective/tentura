@@ -103,6 +103,20 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
       .get()
       .then((rows) => rows.map(_toEntity).toList());
 
+  @override
+  Future<bool> isDirectAuthorForward({
+    required String beaconId,
+    required String authorId,
+    required String userId,
+  }) => _database.managers.beaconForwardEdges
+      .filter(
+        (e) =>
+            e.beaconId.id(beaconId) &
+            e.senderId.equals(authorId) &
+            e.recipientId.equals(userId),
+      )
+      .exists();
+
   static ForwardEdgeEntity _toEntity(BeaconForwardEdge row) =>
       ForwardEdgeEntity(
         id: row.id,

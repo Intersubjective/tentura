@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/coordination/help_type.dart';
 import 'package:tentura_server/domain/coordination/uncommit_reason.dart';
@@ -28,6 +29,7 @@ final class CommitmentCase extends UseCaseBase {
     this._capabilityCase,
     this._beaconRoomRepository,
     this._friendshipLookup,
+    this._forwardEdgeRepository,
     this._roomPush, {
     required super.env,
     required super.logger,
@@ -40,6 +42,7 @@ final class CommitmentCase extends UseCaseBase {
   final CapabilityCase _capabilityCase;
   final BeaconRoomRepository _beaconRoomRepository;
   final VoteUserFriendshipLookup _friendshipLookup;
+  final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final BeaconRoomPushService _roomPush;
 
   Future<void> commit({
@@ -123,7 +126,7 @@ final class CommitmentCase extends UseCaseBase {
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,
     );
-    await _autoAdmitIfDirectFriend(
+    await _autoAdmitIfTrusted(
       beacon: beacon,
       committantId: userId,
     );
@@ -138,19 +141,26 @@ final class CommitmentCase extends UseCaseBase {
     );
   }
 
-  /// If the beacon author has a positive trust edge toward [committantId]
-  /// (one-way subscription covers mutual friendship too), immediately admit
-  /// them to the room without waiting for explicit author approval.
+  /// Auto-admits [committantId] to the beacon room without waiting for explicit
+  /// author approval when the committing user is "trusted":
+  ///   1. the author directly forwarded this beacon to them, OR
+  ///   2. they share a mutual (reciprocal) explicit subscription with the author.
   /// Skipped when the author previously revoked room access for this user.
-  Future<void> _autoAdmitIfDirectFriend({
+  Future<void> _autoAdmitIfTrusted({
     required BeaconEntity beacon,
     required String committantId,
   }) async {
-    final isDirectFriend = await _friendshipLookup.isSubscribedTo(
-      viewerId: beacon.author.id,
-      peerId: committantId,
-    );
-    if (!isDirectFriend) return;
+    final isTrusted =
+        await _forwardEdgeRepository.isDirectAuthorForward(
+          beaconId: beacon.id,
+          authorId: beacon.author.id,
+          userId: committantId,
+        ) ||
+        await _friendshipLookup.isReciprocalSubscribe(
+          viewerId: beacon.author.id,
+          peerId: committantId,
+        );
+    if (!isTrusted) return;
 
     final existing = await _beaconRoomRepository.findParticipant(
       beaconId: beacon.id,

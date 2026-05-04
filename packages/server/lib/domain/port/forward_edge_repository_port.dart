@@ -30,4 +30,11 @@ abstract class ForwardEdgeRepositoryPort {
   });
 
   Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId);
+
+  /// Returns true when [authorId] has forwarded [beaconId] directly to [userId].
+  Future<bool> isDirectAuthorForward({
+    required String beaconId,
+    required String authorId,
+    required String userId,
+  });
 }

@@ -25,6 +25,7 @@ void main() {
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRoomRepository roomRepo;
   late MockVoteUserFriendshipLookup friendshipLookup;
+  late MockForwardEdgeRepositoryPort forwardEdgeRepo;
   late MockBeaconRoomPushService roomPush;
   late CapabilityCase capabilityCase;
   late CommitmentCase case_;
@@ -58,6 +59,7 @@ void main() {
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     roomRepo = MockBeaconRoomRepository();
     friendshipLookup = MockVoteUserFriendshipLookup();
+    forwardEdgeRepo = MockForwardEdgeRepositoryPort();
     roomPush = MockBeaconRoomPushService();
     capabilityCase = CapabilityCase(
       capabilityRepo,
@@ -72,13 +74,21 @@ void main() {
       capabilityCase,
       roomRepo,
       friendshipLookup,
+      forwardEdgeRepo,
       roomPush,
       env: Env(environment: Environment.test),
       logger: Logger('CommitmentCaseTest'),
     );
-    // Default: no friendship, so auto-admit never fires unless overridden.
+    // Default: not trusted — no direct forward, no mutual friendship.
     when(
-      friendshipLookup.isSubscribedTo(
+      forwardEdgeRepo.isDirectAuthorForward(
+        beaconId: anyNamed('beaconId'),
+        authorId: anyNamed('authorId'),
+        userId: anyNamed('userId'),
+      ),
+    ).thenAnswer((_) async => false);
+    when(
+      friendshipLookup.isReciprocalSubscribe(
         viewerId: anyNamed('viewerId'),
         peerId: anyNamed('peerId'),
       ),
@@ -323,7 +333,14 @@ void main() {
       ).called(1);
       // Auto-admit must NOT run on the update path.
       verifyNever(
-        friendshipLookup.isSubscribedTo(
+        forwardEdgeRepo.isDirectAuthorForward(
+          beaconId: anyNamed('beaconId'),
+          authorId: anyNamed('authorId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+      verifyNever(
+        friendshipLookup.isReciprocalSubscribe(
           viewerId: anyNamed('viewerId'),
           peerId: anyNamed('peerId'),
         ),
@@ -359,15 +376,7 @@ void main() {
       ).thenAnswer((_) => Future.value());
     }
 
-    test('admits when author subscribed to committant (no existing participant)',
-        () async {
-      stubNewCommit();
-      when(
-        friendshipLookup.isSubscribedTo(
-          viewerId: 'Uauth',
-          peerId: 'U1',
-        ),
-      ).thenAnswer((_) async => true);
+    void stubAdmitCalls() {
       when(
         roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => null);
@@ -381,6 +390,18 @@ void main() {
       when(
         roomPush.notifyRoomAdmitted(receiverId: 'U1', beaconId: 'B1'),
       ).thenAnswer((_) => Future.value());
+    }
+
+    test('admits when author directly forwarded beacon to committant', () async {
+      stubNewCommit();
+      when(
+        forwardEdgeRepo.isDirectAuthorForward(
+          beaconId: 'B1',
+          authorId: 'Uauth',
+          userId: 'U1',
+        ),
+      ).thenAnswer((_) async => true);
+      stubAdmitCalls();
 
       await case_.commit(beaconId: 'B1', userId: 'U1');
 
@@ -396,9 +417,33 @@ void main() {
       ).called(1);
     });
 
-    test('skips admit when not a direct friend', () async {
+    test('admits when committant is a mutual (reciprocal) friend of author',
+        () async {
       stubNewCommit();
-      // friendshipLookup returns false by default (set in setUp).
+      // No direct forward — forward check returns false (default from setUp).
+      when(
+        friendshipLookup.isReciprocalSubscribe(
+          viewerId: 'Uauth',
+          peerId: 'U1',
+        ),
+      ).thenAnswer((_) async => true);
+      stubAdmitCalls();
+
+      await case_.commit(beaconId: 'B1', userId: 'U1');
+
+      verify(
+        roomRepo.inviteCommitUserToBeaconRoom(
+          beaconId: 'B1',
+          commitUserId: 'U1',
+          authorUserId: 'Uauth',
+        ),
+      ).called(1);
+    });
+
+    test('skips admit when only one-way author trust (not mutual, no direct forward)',
+        () async {
+      stubNewCommit();
+      // Both checks return false (defaults from setUp).
 
       await case_.commit(beaconId: 'B1', userId: 'U1');
 
@@ -415,9 +460,10 @@ void main() {
         () async {
       stubNewCommit();
       when(
-        friendshipLookup.isSubscribedTo(
-          viewerId: 'Uauth',
-          peerId: 'U1',
+        forwardEdgeRepo.isDirectAuthorForward(
+          beaconId: 'B1',
+          authorId: 'Uauth',
+          userId: 'U1',
         ),
       ).thenAnswer((_) async => true);
       when(
@@ -435,13 +481,14 @@ void main() {
       );
     });
 
-    test('re-admits when friend and participant exists with non-none access',
+    test('re-admits trusted user when participant exists with non-none access',
         () async {
       stubNewCommit();
       when(
-        friendshipLookup.isSubscribedTo(
-          viewerId: 'Uauth',
-          peerId: 'U1',
+        forwardEdgeRepo.isDirectAuthorForward(
+          beaconId: 'B1',
+          authorId: 'Uauth',
+          userId: 'U1',
         ),
       ).thenAnswer((_) async => true);
       when(
