@@ -2412,6 +2412,7 @@
   "beaconRoomSemanticBlocker": "Блокер",
   "beaconRoomSemanticNeedInfo": "Нужна информация",
   "beaconRoomSemanticDone": "Готово",
+  "beaconRoomSemanticPoll": "Опрос",
   "beaconRoomSemanticSystem": "Системное",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",
   "beaconRoomMessagePinnedFactChipPrivate": "Закреплено · факт комнаты",
@@ -2675,6 +2676,14 @@
   "@capabilityCueAcknowledged": {
     "placeholders": {
       "tags": { "type": "String" }
+    }
+  },
+  "beaconRoomCreatePoll": "Создать опрос",
+  "beaconRoomSendPollButton": "Отправить опрос",
+  "beaconRoomPollVotesCount": "{count, plural, =0{Нет голосов} =1{1 голос} few{{count} голоса} other{{count} голосов}}",
+  "@beaconRoomPollVotesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
     }
   }
 }

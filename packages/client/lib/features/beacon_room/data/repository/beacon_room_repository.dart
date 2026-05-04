@@ -30,6 +30,7 @@ import '../gql/_g/room_message_create.req.gql.dart';
 import '../gql/_g/room_message_edit.req.gql.dart';
 import '../gql/_g/room_message_list.req.gql.dart';
 import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
+import '../gql/_g/room_poll_create.req.gql.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class BeaconRoomRepository {
@@ -120,6 +121,8 @@ class BeaconRoomRepository {
               semanticMarker: m.semanticMarker,
               linkedBlockerId: m.linkedBlockerId,
               linkedFactCardId: m.linkedFactCardId,
+              linkedPollingId: m.linkedPollingId,
+              pollDataJson: m.pollDataJson,
               systemPayloadJson: m.systemPayloadJson,
               attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
             );
@@ -358,6 +361,23 @@ class BeaconRoomRepository {
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then((r) => r.dataOrThrow(label: _label).RoomMessageReactionToggle);
+
+  Future<void> createPoll({
+    required String beaconId,
+    required String question,
+    required List<String> variants,
+  }) =>
+      _remoteApiService
+          .request(
+            GRoomPollCreateReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..question = question
+                ..variants.replace(variants),
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r.dataOrThrow(label: _label).RoomPollCreate);
 
   @disposeMethod
   Future<void> dispose() async {

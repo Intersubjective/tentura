@@ -3,6 +3,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 
 import 'beacon_blockers.dart';
 import 'beacons.dart';
+import 'pollings.dart';
 import 'users.dart';
 
 class BeaconRoomMessages extends Table {
@@ -22,6 +23,9 @@ class BeaconRoomMessages extends Table {
   late final linkedNextMoveId = text().nullable()();
 
   late final linkedFactCardId = text().nullable()();
+
+  late final linkedPollingId =
+      text().nullable().references(Pollings, #id)();
 
   late final semanticMarker = integer().nullable()();
 

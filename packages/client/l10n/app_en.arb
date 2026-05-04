@@ -2412,6 +2412,7 @@
   "beaconRoomSemanticBlocker": "Blocker",
   "beaconRoomSemanticNeedInfo": "Need info",
   "beaconRoomSemanticDone": "Done",
+  "beaconRoomSemanticPoll": "Poll",
   "beaconRoomSemanticSystem": "System",
   "beaconRoomMessagePinnedFactChipPublic": "Pinned · public fact",
   "beaconRoomMessagePinnedFactChipPrivate": "Pinned · room fact",
@@ -2687,6 +2688,14 @@
   "@capabilityCueAcknowledged": {
     "placeholders": {
       "tags": { "type": "String" }
+    }
+  },
+  "beaconRoomCreatePoll": "Create poll",
+  "beaconRoomSendPollButton": "Send Poll",
+  "beaconRoomPollVotesCount": "{count, plural, =0{No votes} =1{1 vote} other{{count} votes}}",
+  "@beaconRoomPollVotesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
     }
   }
 }

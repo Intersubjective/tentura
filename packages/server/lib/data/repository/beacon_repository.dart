@@ -3,7 +3,6 @@ import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
 
 import 'package:tentura_server/consts.dart' show kTitleMaxLength, kTitleMinLength;
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/consts/beacon_public_status.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -49,7 +48,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     DateTime? startAt,
     DateTime? endAt,
-    ({String question, List<String> variants})? polling,
     Set<String>? tags,
     int ticker = 0,
     String? iconCode,
@@ -59,25 +57,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? needSummary,
     String? successCriteria,
   }) => _database.withMutatingUser(authorId, () async {
-    final pollingModel = polling == null
-        ? null
-        : await _database.transaction<Polling>(() async {
-            final pollingModel = await _database.managers.pollings
-                .createReturning(
-                  (o) => o(
-                    id: Value(PollingEntity.newId),
-                    authorId: authorId,
-                    question: polling.question,
-                  ),
-                );
-            await _database.managers.pollingVariants.bulkCreate(
-              (o) => polling.variants.map(
-                (e) => o(pollingId: pollingModel.id, description: e),
-              ),
-            );
-            return pollingModel;
-          });
-
     final beacon = await _database.managers.beacons.createReturning(
       (o) => o(
         userId: authorId,
@@ -89,7 +68,6 @@ class BeaconRepository implements BeaconRepositoryPort {
         long: Value(longitude),
         startAt: Value(startAt == null ? null : PgDateTime(startAt)),
         endAt: Value(endAt == null ? null : PgDateTime(endAt)),
-        pollingId: Value(pollingModel?.id),
         tags: Value.absentIfNull(tags?.join(',')),
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
@@ -116,20 +94,12 @@ class BeaconRepository implements BeaconRepositoryPort {
         .filter((e) => e.id.equals(authorId))
         .getSingle();
 
-    final pollingVariants = pollingModel == null
-        ? null
-        : await _database.managers.pollingVariants
-              .filter((e) => e.pollingId.id(pollingModel.id))
-              .get();
-
     final images = await _getBeaconImages(beacon.id);
 
     return beaconModelToEntity(
       beacon,
       author: author,
       images: images,
-      polling: pollingModel,
-      variants: pollingVariants,
     );
   });
 
@@ -154,26 +124,10 @@ class BeaconRepository implements BeaconRepositoryPort {
     final images = await _getBeaconImages(beaconId);
     final authorRow = await author.userId.getSingle();
 
-    Polling? pollingModel;
-    List<PollingVariant>? pollingVariants;
-    final pollingId = beacon.pollingId;
-    if (pollingId != null) {
-      pollingModel = await _database.managers.pollings
-          .filter((e) => e.id.equals(pollingId))
-          .getSingleOrNull();
-      if (pollingModel != null) {
-        pollingVariants = await _database.managers.pollingVariants
-            .filter((e) => e.pollingId.id(pollingModel!.id))
-            .get();
-      }
-    }
-
     return beaconModelToEntity(
       beacon,
       author: authorRow,
       images: images,
-      polling: pollingModel,
-      variants: pollingVariants,
     );
   }
 
@@ -192,7 +146,6 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     String? iconCode,
     int? iconBackground,
-    ({String question, List<String> variants})? polling,
     String? needSummary,
     String? successCriteria,
   }) => _database.withMutatingUser(userId, () async {
@@ -216,59 +169,24 @@ class BeaconRepository implements BeaconRepositoryPort {
       );
     }
 
-    await _database.transaction(() async {
-      Polling? newPollingModel;
-      final poll = polling;
-      if (poll != null) {
-        final oldPollingId = existing.pollingId;
-        if (oldPollingId != null) {
-          await _database.managers.beacons
-              .filter((e) => e.id.equals(beaconId))
-              .update((o) => o(pollingId: const Value(null)));
-          await _database.managers.pollings
-              .filter((e) => e.id.equals(oldPollingId))
-              .delete();
-        }
-
-        newPollingModel = await _database.managers.pollings.createReturning(
-          (o) => o(
-            id: Value(PollingEntity.newId),
-            authorId: userId,
-            question: poll.question,
-          ),
-        );
-        await _database.managers.pollingVariants.bulkCreate(
-          (o) => poll.variants.map(
-            (desc) => o(
-              pollingId: newPollingModel!.id,
-              description: desc,
-            ),
-          ),
-        );
-      }
-
-      await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
-        (o) => o(
-          title: Value(title),
-          description: Value(description),
-          context: Value(_beaconContextForDb(context)),
-          tags: Value(
-            tags == null || tags.isEmpty ? '' : tags.join(','),
-          ),
-          lat: Value(latitude),
-          long: Value(longitude),
-          startAt: Value(startAt == null ? null : PgDateTime(startAt)),
-          endAt: Value(endAt == null ? null : PgDateTime(endAt)),
-          iconCode: Value(iconCode),
-          iconBackground: Value(iconBackground),
-          pollingId: poll != null
-              ? Value(newPollingModel!.id)
-              : Value(existing.pollingId),
-          needSummary: Value(needSummary),
-          successCriteria: Value(successCriteria),
+    await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
+      (o) => o(
+        title: Value(title),
+        description: Value(description),
+        context: Value(_beaconContextForDb(context)),
+        tags: Value(
+          tags == null || tags.isEmpty ? '' : tags.join(','),
         ),
-      );
-    });
+        lat: Value(latitude),
+        long: Value(longitude),
+        startAt: Value(startAt == null ? null : PgDateTime(startAt)),
+        endAt: Value(endAt == null ? null : PgDateTime(endAt)),
+        iconCode: Value(iconCode),
+        iconBackground: Value(iconBackground),
+        needSummary: Value(needSummary),
+        successCriteria: Value(successCriteria),
+      ),
+    );
 
     return getBeaconById(beaconId: beaconId, filterByUserId: userId);
   });

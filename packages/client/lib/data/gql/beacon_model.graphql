@@ -1,4 +1,3 @@
-# import '/data/gql/polling_model.graphql'
 # import '/data/gql/image_model.graphql'
 # import '/data/gql/user_model.graphql'
 
@@ -29,9 +28,6 @@ fragment BeaconModel on beacon {
     image {
       ...ImageModel
     }
-  }
-  polling {
-    ...PollingModel
   }
   author {
     ...UserModel

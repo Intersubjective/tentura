@@ -21,6 +21,9 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+import 'package:tentura/features/polling/ui/widget/polling_question_input.dart';
+import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
+
 import '../bloc/room_cubit.dart';
 import '../widget/beacon_room_you_strip.dart';
 import '../widget/fact_actions_sheet.dart';
@@ -448,6 +451,12 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                                         l10n,
                                         a,
                                       ),
+                                  onVotePoll: (pollingId, variantId) =>
+                                      cubit.votePoll(
+                                        messageId: m.id,
+                                        pollingId: pollingId,
+                                        variantId: variantId,
+                                      ),
                                 );
 
                                 if (!showUnreadBand) {
@@ -508,13 +517,27 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                   child: Material(
                     child: Padding(
                       padding: kPaddingH.add(kPaddingSmallT).add(kPaddingV),
-                      child: BeaconRoomComposer(
-                        imageRepository: GetIt.I<ImageRepository>(),
-                        isSending: state.isLoading,
-                        onSend: (body, uploads) => cubit.sendMessage(
-                          body: body,
-                          uploads: uploads,
-                        ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: BeaconRoomComposer(
+                              imageRepository: GetIt.I<ImageRepository>(),
+                              isSending: state.isLoading,
+                              onSend: (body, uploads) => cubit.sendMessage(
+                                body: body,
+                                uploads: uploads,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: L10n.of(context)!.beaconRoomCreatePoll,
+                            icon: const Icon(Icons.poll_outlined),
+                            onPressed: state.isLoading
+                                ? null
+                                : () => _showCreatePollSheet(context, cubit),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -524,6 +547,17 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
           );
         },
       ),
+    );
+  }
+
+  Future<void> _showCreatePollSheet(
+    BuildContext context,
+    RoomCubit cubit,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _PollCreateSheet(cubit: cubit),
     );
   }
 
@@ -1489,6 +1523,99 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _PollCreateSheet extends StatefulWidget {
+  const _PollCreateSheet({required this.cubit});
+  final RoomCubit cubit;
+
+  @override
+  State<_PollCreateSheet> createState() => _PollCreateSheetState();
+}
+
+class _PollCreateSheetState extends State<_PollCreateSheet> {
+  final _formKey = GlobalKey<FormState>();
+  String _question = '';
+  final List<String> _variants = ['', ''];
+  bool _sending = false;
+
+  Future<void> _send() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final q = _question.trim();
+    final vs = _variants.map((v) => v.trim()).where((v) => v.isNotEmpty).toList();
+    if (q.isEmpty || vs.length < 2) return;
+
+    setState(() => _sending = true);
+    try {
+      await widget.cubit.createPoll(question: q, variants: vs);
+      if (mounted) Navigator.of(context).pop();
+    } on Object catch (e) {
+      if (mounted) {
+        showSnackBar(context, isError: true, text: e.toString());
+        setState(() => _sending = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: kSpacingMedium,
+        right: kSpacingMedium,
+        top: kSpacingMedium,
+        bottom: MediaQuery.of(context).viewInsets.bottom + kSpacingMedium,
+      ),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.beaconRoomCreatePoll,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: kSpacingMedium),
+              PollingQuestionInput(
+                onChanged: (v) => _question = v,
+              ),
+              const SizedBox(height: kSpacingSmall),
+              ..._variants.asMap().entries.map(
+                (entry) {
+                  final idx = entry.key;
+                  return Padding(
+                    key: ValueKey(idx),
+                    padding: const EdgeInsets.only(bottom: kSpacingSmall),
+                    child: PollingVariantInput(
+                      onChanged: (v) => _variants[idx] = v,
+                      onRemove: _variants.length > 2
+                          ? () => setState(() => _variants.removeAt(idx))
+                          : () {},
+                    ),
+                  );
+                },
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.add),
+                label: Text(l10n.addOptionButton),
+                onPressed: _variants.length < 10
+                    ? () => setState(() => _variants.add(''))
+                    : null,
+              ),
+              const SizedBox(height: kSpacingMedium),
+              FilledButton(
+                onPressed: _sending ? null : _send,
+                child: Text(l10n.beaconRoomSendPollButton),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

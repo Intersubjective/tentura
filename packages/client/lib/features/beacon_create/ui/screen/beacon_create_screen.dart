@@ -12,7 +12,6 @@ import '../bloc/beacon_create_cubit.dart';
 import '../dialog/beacon_publish_dialog.dart';
 import '../widget/image_tab.dart';
 import '../widget/info_tab.dart';
-import '../widget/polling_tab.dart';
 
 @RoutePage()
 class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -62,7 +61,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
-  late final _tabController = TabController(length: 3, vsync: this);
+  late final _tabController = TabController(length: 2, vsync: this);
 
   late final _beaconCreateCubit = context.read<BeaconCreateCubit>();
 
@@ -191,7 +190,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                 tabs: [
                   Tab(text: l10n.beaconInfo),
                   Tab(text: l10n.beaconImage),
-                  Tab(text: l10n.pollSectionTitle),
                 ],
               ),
             ],
@@ -231,7 +229,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                     children: const [
                       InfoTab(),
                       ImageTab(),
-                      PollingTab(),
                     ],
                   ),
                 ),

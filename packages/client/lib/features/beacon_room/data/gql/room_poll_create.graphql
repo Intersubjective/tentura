@@ -1,5 +1,13 @@
-query RoomMessageList($beaconId: String!, $beforeIso: String) {
-  RoomMessageList(beaconId: $beaconId, beforeIso: $beforeIso) {
+mutation RoomPollCreate(
+  $beaconId: String!,
+  $question: String!,
+  $variants: [String!]!
+) {
+  RoomPollCreate(
+    beaconId: $beaconId,
+    question: $question,
+    variants: $variants
+  ) {
     id
     beaconId
     authorId

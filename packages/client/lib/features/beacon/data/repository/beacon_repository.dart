@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:http/http.dart' show MultipartFile;
 import 'package:http_parser/http_parser.dart' show MediaType;
-import 'package:built_collection/built_collection.dart' show ListBuilder;
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
@@ -102,11 +101,6 @@ class BeaconRepository {
             : (GCoordinatesBuilder()
                   ..lat = beacon.coordinates!.lat
                   ..long = beacon.coordinates!.long)
-        ..polling = beacon.polling == null
-            ? null
-            : (GPollingInputBuilder()
-                  ..question = beacon.polling!.question
-                  ..variants = ListBuilder(beacon.polling!.variants.values))
         ..image = firstImage?.imageBytes == null
             ? null
             : MultipartFile.fromBytes(
@@ -159,11 +153,6 @@ class BeaconRepository {
             : (GCoordinatesBuilder()
                   ..lat = beacon.coordinates!.lat
                   ..long = beacon.coordinates!.long)
-        ..polling = beacon.polling == null
-            ? null
-            : (GPollingInputBuilder()
-                  ..question = beacon.polling!.question
-                  ..variants = ListBuilder(beacon.polling!.variants.values))
         ..iconCode = beacon.iconCode
         ..iconBackground = beacon.iconBackground == null
             ? null

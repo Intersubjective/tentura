@@ -5,7 +5,6 @@ import 'input/_input_types.dart';
 List<GraphQLType<dynamic, dynamic>> get customTypes => [
   InputFieldCoordinates.type,
   InputFieldForwardRecipientReasons.type,
-  InputFieldPolling.type,
   InputFieldUpload.type,
   gqlTypeAuthResponse,
   gqlTypeInvitation,
@@ -61,6 +60,8 @@ final gqlTypeRoomMessageRow =
         field('semanticMarker', graphQLInt),
         field('linkedBlockerId', graphQLString),
         field('linkedFactCardId', graphQLString),
+        field('linkedPollingId', graphQLString),
+        field('pollDataJson', graphQLString),
         field('systemPayloadJson', graphQLString),
         field('authorTitle', graphQLString.nonNullable()),
         field('authorHasPicture', graphQLBoolean.nonNullable()),

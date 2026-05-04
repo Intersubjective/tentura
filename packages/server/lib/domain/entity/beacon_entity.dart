@@ -6,7 +6,6 @@ import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import 'image_entity.dart';
-import 'polling_entity.dart';
 import 'user_entity.dart';
 
 part 'beacon_entity.freezed.dart';
@@ -25,7 +24,6 @@ abstract class BeaconEntity with _$BeaconEntity {
     @Default('') String description,
     @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
-    PollingEntity? polling,
     DateTime? startAt,
     DateTime? endAt,
     String? context,

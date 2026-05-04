@@ -8,7 +8,6 @@ import 'coordination_status.dart';
 import 'coordinates.dart';
 import 'image_entity.dart';
 import 'likable.dart';
-import 'polling.dart';
 import 'profile.dart';
 import 'scorable.dart';
 
@@ -34,7 +33,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     @Default({}) Set<String> tags,
     @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
-    Polling? polling,
     DateTime? startAt,
     DateTime? endAt,
 
@@ -88,9 +86,6 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
   bool get hasPicture => images.isNotEmpty;
   bool get hasNoPicture => images.isEmpty;
-
-  bool get hasPolling => polling != null;
-  bool get hasNoPolling => polling == null;
 
   /// Author chose a curated icon key for the identity tile.
   bool get hasIdentityTile => iconCode != null && iconCode!.isNotEmpty;
