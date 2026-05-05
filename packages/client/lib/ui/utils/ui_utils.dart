@@ -52,7 +52,9 @@ class ClearSnackBarsOnPushObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     if (previousRoute != null) {
-      snackbarKey.currentState?.clearSnackBars();
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => snackbarKey.currentState?.clearSnackBars(),
+      );
     }
   }
 }
