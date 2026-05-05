@@ -38,41 +38,22 @@ DECLARE
   _edge_count integer;
 BEGIN
   WITH all_edges AS (
-    -- Edges User -> User (vote)
-    SELECT subject AS src, object AS dst, amount::float8 AS weight, ticker::bigint AS magnitude, ''::text AS context
-    FROM vote_user
+    SELECT subject AS src, object AS dst, amount::float8 AS weight, ticker::bigint AS magnitude, ''::text AS context FROM vote_user
     UNION ALL
-    -- Edges Beacon -> Author
     SELECT id, user_id, 1.0::float8, 0::bigint, coalesce(context, ''::text) FROM "beacon"
     UNION ALL
-    -- Edges Author -> Beacon
     SELECT user_id, id, 1.0::float8, ticker::bigint, coalesce(context, ''::text) FROM "beacon"
     UNION ALL
-    -- Edges User -> Beacon (vote)
-    SELECT vb.subject, vb.object, vb.amount::float8, vb.ticker::bigint, coalesce(b.context, ''::text)
-    FROM vote_beacon vb JOIN "beacon" b ON b.id = vb.object
+    SELECT vb.subject, vb.object, vb.amount::float8, vb.ticker::bigint, coalesce(b.context, ''::text) FROM vote_beacon vb JOIN "beacon" b ON b.id = vb.object
     UNION ALL
-    -- Edges Comment -> Author
-    SELECT c.id, c.user_id, 1.0::float8, 0::bigint, coalesce(b.context, ''::text)
-    FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
+    SELECT m.id, m.author_id, 1.0::float8, 0::bigint, coalesce(b.context, ''::text) FROM public.beacon_room_message m JOIN "beacon" b ON m.beacon_id = b.id
     UNION ALL
-    -- Edges Author -> Comment
-    SELECT c.user_id, c.id, 1.0::float8, c.ticker::bigint, coalesce(b.context, ''::text)
-    FROM "comment" c JOIN "beacon" b ON c.beacon_id = b.id
+    SELECT m.author_id, m.id, 1.0::float8, 0::bigint, coalesce(b.context, ''::text) FROM public.beacon_room_message m JOIN "beacon" b ON m.beacon_id = b.id
     UNION ALL
-    -- Edges User -> Comment (vote)
-    SELECT vc.subject, vc.object, vc.amount::float8, vc.ticker::bigint, coalesce(b.context, ''::text)
-    FROM vote_comment vc
-    JOIN "comment" c ON c.id = vc.object
-    JOIN "beacon" b ON b.id = c.beacon_id
-    UNION ALL
-    -- Edges Author -> Opinion
     SELECT subject, id, (abs(amount))::float8, ticker::bigint, ''::text FROM "opinion"
     UNION ALL
-    -- Edges Opinion -> Author
     SELECT id, subject, 1.0::float8, ticker::bigint, ''::text FROM "opinion"
     UNION ALL
-    -- Edges Opinion -> User
     SELECT id, object, (sign(amount))::float8, ticker::bigint, ''::text FROM "opinion"
   ),
   agg AS (
@@ -90,10 +71,8 @@ BEGIN
   FROM agg;
 
   _total := _total + _edge_count;
-
   PERFORM mr_bulk_load_edges(_src, _dst, _weight, _magnitude, _context, 120000::bigint);
 
-  -- Read Updates Filters
   SELECT _total + count(*)::int INTO _total
   FROM (SELECT mr_set_new_edges_filter(user_id, filter) FROM user_updates) AS _;
 
