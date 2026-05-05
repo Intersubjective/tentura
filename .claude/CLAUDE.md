@@ -1,3 +1,20 @@
+## Generated Files — Do Not Read or Edit
+
+The following Dart file patterns are **code-generated** (by freezed, build_runner, auto_route, injectable, etc.).
+**Never read, edit, or reference them** — always work with the source files instead.
+
+| Pattern | Generator |
+|---|---|
+| `**.g.dart` | build_runner / freezed |
+| `**.freezed.dart` | freezed |
+| `**.gr.dart` | auto_route |
+| `**.config.dart` | injectable |
+| `**.schema.dart` | schema generator |
+
+If you need to understand a type or class, find the non-generated source (e.g. `foo.dart`, not `foo.g.dart`).
+
+---
+
 ### MANDATORY: RAG-First Codebase Search
 
 For semantic questions about the codebase ("how does X work", "where is Y implemented"):
