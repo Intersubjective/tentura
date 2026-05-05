@@ -957,6 +957,9 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String question,
     required List<String> variants,
+    String? pollType,
+    bool? isAnonymous,
+    bool? allowRevote,
   }) async {
     final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
     if (!allowed) {
@@ -971,10 +974,17 @@ final class BeaconRoomCase extends UseCaseBase {
     if (validVariants.length < 2) {
       throw const BeaconCreateException(description: 'At least 2 poll variants required');
     }
+    final resolvedPollType = pollType ?? 'single';
+    if (!const {'single', 'multiple', 'range'}.contains(resolvedPollType)) {
+      throw const BeaconCreateException(description: 'Invalid poll type');
+    }
     final pollingId = await _pollingRepository.createWithVariants(
       authorId: userId,
       question: trimmedQuestion,
       variants: validVariants,
+      pollType: resolvedPollType,
+      isAnonymous: isAnonymous ?? true,
+      allowRevote: allowRevote ?? true,
     );
     return _room.insertAndEnrichPollMessage(
       beaconId: beaconId,

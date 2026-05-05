@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
@@ -28,6 +29,7 @@ class RoomMessageTile extends StatelessWidget {
     this.onActionsPressed,
     this.onOpenFileAttachment,
     this.onVotePoll,
+    this.participants = const [],
     super.key,
   });
 
@@ -48,7 +50,13 @@ class RoomMessageTile extends StatelessWidget {
 
   final Future<void> Function(String messageId, String emoji) onToggleReaction;
 
-  final Future<void> Function(String pollingId, String variantId)? onVotePoll;
+  final Future<void> Function(
+    String pollingId,
+    List<String> variantIds, {
+    int? score,
+  })? onVotePoll;
+
+  final List<BeaconParticipant> participants;
 
   String _semanticShortLabel(L10n l10n, int? marker) => switch (marker) {
     BeaconRoomSemanticMarker.updatePlan => l10n.beaconRoomSemanticPlan,
@@ -156,7 +164,7 @@ class RoomMessageTile extends StatelessWidget {
                                 message.author.id,
                               ),
                         child: Padding(
-                          padding: const EdgeInsets.only(right: kSpacingMedium),
+                          padding: const EdgeInsets.only(right: kSpacingSmall),
                           child: SelfAwarePlainMiniAvatar(
                             profile: message.author,
                           ),
@@ -285,20 +293,23 @@ class RoomMessageTile extends StatelessWidget {
                                 padding: kPaddingSmallT,
                                 child: RoomPollCard(
                                   poll: RoomPollData.tryParse(
-                                    message.pollDataJson,
-                                  ) ??
+                                        message.pollDataJson,
+                                      ) ??
                                       RoomPollData(
                                         id: message.linkedPollingId!,
                                         question: '',
                                         variants: const [],
                                         totalVotes: 0,
+                                        myVariantIds: const [],
                                       ),
+                                  participants: participants,
                                   onVote: onVotePoll == null
                                       ? null
-                                      : (variantId) => unawaited(
+                                      : (variantIds, {int? score}) => unawaited(
                                             onVotePoll!(
                                               message.linkedPollingId!,
-                                              variantId,
+                                              variantIds,
+                                              score: score,
                                             ),
                                           ),
                                 ),

@@ -14,15 +14,18 @@ class PollingRepository {
 
   Future<void> vote({
     required String pollingId,
-    required String variantId,
-  }) => _remoteApiService
-      .request(
-        GPollingActReq(
-          (b) => b.vars
-            ..pollingId = pollingId
-            ..variantId = variantId,
-        ),
-      )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).pollingAct);
+    required List<String> variantIds,
+    int? score,
+  }) =>
+      _remoteApiService
+          .request(
+            GPollingActReq(
+              (b) => b.vars
+                ..pollingId = pollingId
+                ..variantIds.replace(variantIds)
+                ..score = score,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r.dataOrThrow(label: _label).pollingAct);
 }

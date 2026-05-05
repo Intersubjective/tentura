@@ -237,18 +237,25 @@ final class BeaconRoomCase extends UseCaseBase {
 
   Future<void> votePoll({
     required String pollingId,
-    required String variantId,
+    required List<String> variantIds,
+    int? score,
   }) =>
-      _polling.vote(pollingId: pollingId, variantId: variantId);
+      _polling.vote(pollingId: pollingId, variantIds: variantIds, score: score);
 
   Future<void> createPoll({
     required String beaconId,
     required String question,
     required List<String> variants,
+    String pollType = 'single',
+    bool isAnonymous = true,
+    bool allowRevote = true,
   }) =>
       _room.createPoll(
         beaconId: beaconId,
         question: question,
         variants: variants,
+        pollType: pollType,
+        isAnonymous: isAnonymous,
+        allowRevote: allowRevote,
       );
 }

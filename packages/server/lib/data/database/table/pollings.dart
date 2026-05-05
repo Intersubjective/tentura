@@ -16,6 +16,18 @@ class Pollings extends Table with TimestampsFields {
       .named('enabled')
       .withDefault(const Constant(true))();
 
+  late final pollType = text()
+      .named('poll_type')
+      .withDefault(const Constant('single'))();
+
+  late final isAnonymous = boolean()
+      .named('is_anonymous')
+      .withDefault(const Constant(true))();
+
+  late final allowRevote = boolean()
+      .named('allow_revote')
+      .withDefault(const Constant(true))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

@@ -366,6 +366,9 @@ class BeaconRoomRepository {
     required String beaconId,
     required String question,
     required List<String> variants,
+    String pollType = 'single',
+    bool isAnonymous = true,
+    bool allowRevote = true,
   }) =>
       _remoteApiService
           .request(
@@ -373,7 +376,10 @@ class BeaconRoomRepository {
               (b) => b.vars
                 ..beaconId = beaconId
                 ..question = question
-                ..variants.replace(variants),
+                ..variants.replace(variants)
+                ..pollType = pollType
+                ..isAnonymous = isAnonymous
+                ..allowRevote = allowRevote,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)

@@ -9,10 +9,13 @@ import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
 )
 class PollingActRepositoryMock implements PollingActRepositoryPort {
   @override
-  Future<void> create({
+  Future<void> upsert({
     required String authorId,
     required String pollingId,
-    required String variantId,
+    required List<String> variantIds,
+    required String pollType,
+    required bool allowRevote,
+    int? score,
   }) {
     throw UnimplementedError();
   }

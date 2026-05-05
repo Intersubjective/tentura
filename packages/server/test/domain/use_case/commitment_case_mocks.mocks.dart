@@ -968,6 +968,24 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
           as _i6.Future<List<_i3.ViewerVisibleCapabilityRow>>);
 
   @override
+  _i6.Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
+    required String? viewerId,
+    required List<String>? subjectIds,
+    int? limit = 2,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchTopCapabilitiesBatch, [], {
+              #viewerId: viewerId,
+              #subjectIds: subjectIds,
+              #limit: limit,
+            }),
+            returnValue: _i6.Future<Map<String, List<String>>>.value(
+              <String, List<String>>{},
+            ),
+          )
+          as _i6.Future<Map<String, List<String>>>);
+
+  @override
   _i6.Future<List<_i3.ForwardReasonRow>> fetchForwardReasonsByBeaconId({
     required String? beaconId,
     required String? viewerId,

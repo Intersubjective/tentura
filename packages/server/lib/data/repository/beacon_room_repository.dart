@@ -290,17 +290,44 @@ class BeaconRoomRepository {
           ..where((a) => a.pollingId.isIn(pollingIds)))
         .get();
 
-    final viewerVoteByPollingId = <String, String>{};
+    // Viewer's voted variant IDs per poll (supports multiple/range)
+    final myVariantIdsByPollingId = <String, List<String>>{};
     for (final a in acts) {
       if (a.authorId == viewerUserId) {
-        viewerVoteByPollingId[a.pollingId] = a.pollingVariantId;
+        myVariantIdsByPollingId.putIfAbsent(a.pollingId, () => []).add(a.pollingVariantId);
       }
     }
 
+    // Vote counts per variant
     final countByVariantId = <String, int>{};
     for (final a in acts) {
       countByVariantId[a.pollingVariantId] =
           (countByVariantId[a.pollingVariantId] ?? 0) + 1;
+    }
+
+    // Distinct voter count per poll
+    final votersByPollingId = <String, Set<String>>{};
+    for (final a in acts) {
+      votersByPollingId.putIfAbsent(a.pollingId, () => {}).add(a.authorId);
+    }
+
+    // Voter IDs per variant (for open polls)
+    final voterIdsByVariantId = <String, List<String>>{};
+    for (final a in acts) {
+      voterIdsByVariantId.putIfAbsent(a.pollingVariantId, () => []).add(a.authorId);
+    }
+
+    // Sum and count of scores per variant (for range polls)
+    final scoreSumByVariantId = <String, int>{};
+    final scoreCountByVariantId = <String, int>{};
+    for (final a in acts) {
+      final s = a.score;
+      if (s != null) {
+        scoreSumByVariantId[a.pollingVariantId] =
+            (scoreSumByVariantId[a.pollingVariantId] ?? 0) + s;
+        scoreCountByVariantId[a.pollingVariantId] =
+            (scoreCountByVariantId[a.pollingVariantId] ?? 0) + 1;
+      }
     }
 
     final variantsByPollingId = <String, List<PollingVariant>>{};
@@ -318,13 +345,20 @@ class BeaconRoomRepository {
       if (polling == null) continue;
 
       final pvList = variantsByPollingId[pollId] ?? [];
-      final totalVotes = acts.where((a) => a.pollingId == pollId).length;
-      final myVariantId = viewerVoteByPollingId[pollId];
+      final myVariantIds = myVariantIdsByPollingId[pollId] ?? [];
+      final totalVotes = votersByPollingId[pollId]?.length ?? 0;
+      final viewerHasVoted = myVariantIds.isNotEmpty;
+      final isRange = polling.pollType == 'range';
+      // Only expose who voted when poll is open AND viewer has already voted
+      final exposeVoters = !polling.isAnonymous && viewerHasVoted;
 
       out[msgId] = jsonEncode({
         'id': pollId,
         'question': polling.question,
-        'myVariantId': myVariantId,
+        'pollType': polling.pollType,
+        'isAnonymous': polling.isAnonymous,
+        'allowRevote': polling.allowRevote,
+        'myVariantIds': myVariantIds,
         'totalVotes': totalVotes,
         'variants': [
           for (final v in pvList)
@@ -332,11 +366,22 @@ class BeaconRoomRepository {
               'id': v.id,
               'description': v.description,
               'votesCount': countByVariantId[v.id] ?? 0,
+              if (isRange)
+                'avgScore': _avgScore(
+                  scoreSumByVariantId[v.id],
+                  scoreCountByVariantId[v.id],
+                ),
+              if (exposeVoters) 'voterIds': voterIdsByVariantId[v.id] ?? [],
             },
         ],
       });
     }
     return out;
+  }
+
+  double? _avgScore(int? sum, int? count) {
+    if (sum == null || count == null || count == 0) return null;
+    return sum / count;
   }
 
   Future<BeaconRoomMessage> insertRoomMessage({

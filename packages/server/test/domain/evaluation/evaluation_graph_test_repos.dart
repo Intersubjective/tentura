@@ -84,6 +84,13 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
   @override
   Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId) =>
       throw UnimplementedError();
+
+  @override
+  Future<bool> isDirectAuthorForward({
+    required String beaconId,
+    required String authorId,
+    required String userId,
+  }) async => false;
 }
 
 final class StubUserRepository implements UserRepositoryPort {

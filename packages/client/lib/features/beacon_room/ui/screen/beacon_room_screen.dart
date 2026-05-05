@@ -451,11 +451,14 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                                         l10n,
                                         a,
                                       ),
-                                  onVotePoll: (pollingId, variantId) =>
+                                  participants: state.participants,
+                                  onVotePoll: (pollingId, variantIds,
+                                          {int? score}) =>
                                       cubit.votePoll(
                                         messageId: m.id,
                                         pollingId: pollingId,
-                                        variantId: variantId,
+                                        variantIds: variantIds,
+                                        score: score,
                                       ),
                                 );
 
@@ -533,6 +536,8 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                           IconButton(
                             tooltip: L10n.of(context)!.beaconRoomCreatePoll,
                             icon: const Icon(Icons.poll_outlined),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
                             onPressed: state.isLoading
                                 ? null
                                 : () => _showCreatePollSheet(context, cubit),
@@ -1539,6 +1544,9 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
   final _formKey = GlobalKey<FormState>();
   String _question = '';
   final List<String> _variants = ['', ''];
+  String _pollType = 'single';
+  bool _isAnonymous = true;
+  bool _allowRevote = true;
   bool _sending = false;
 
   Future<void> _send() async {
@@ -1549,7 +1557,13 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
 
     setState(() => _sending = true);
     try {
-      await widget.cubit.createPoll(question: q, variants: vs);
+      await widget.cubit.createPoll(
+        question: q,
+        variants: vs,
+        pollType: _pollType,
+        isAnonymous: _isAnonymous,
+        allowRevote: _allowRevote,
+      );
       if (mounted) Navigator.of(context).pop();
     } on Object catch (e) {
       if (mounted) {
@@ -1562,6 +1576,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
     return Padding(
       padding: EdgeInsets.only(
         left: kSpacingMedium,
@@ -1578,7 +1593,7 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
             children: [
               Text(
                 l10n.beaconRoomCreatePoll,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: kSpacingMedium),
               PollingQuestionInput(
@@ -1608,6 +1623,43 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
                     : null,
               ),
               const SizedBox(height: kSpacingMedium),
+
+              // Poll type selector
+              Align(
+                alignment: Alignment.center,
+                child: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'single', label: Text('Single')),
+                    ButtonSegment(value: 'multiple', label: Text('Multiple')),
+                    ButtonSegment(value: 'range', label: Text('Range 1–5')),
+                  ],
+                  selected: {_pollType},
+                  onSelectionChanged: (s) => setState(() => _pollType = s.first),
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+              const SizedBox(height: kSpacingSmall),
+
+              // Anonymous / open toggle
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Anonymous'),
+                subtitle: const Text('Hide who voted for what'),
+                value: _isAnonymous,
+                onChanged: (v) => setState(() => _isAnonymous = v),
+              ),
+
+              // Allow revote toggle
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Allow changing answer'),
+                value: _allowRevote,
+                onChanged: (v) => setState(() => _allowRevote = v),
+              ),
+
+              const SizedBox(height: kSpacingSmall),
               FilledButton(
                 onPressed: _sending ? null : _send,
                 child: Text(l10n.beaconRoomSendPollButton),

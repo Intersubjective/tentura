@@ -100,6 +100,13 @@ class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
     required String beaconId,
     required String viewerId,
   }) async => [];
+
+  @override
+  Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
+    required String viewerId,
+    required List<String> subjectIds,
+    int limit = 2,
+  }) async => {};
 }
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
