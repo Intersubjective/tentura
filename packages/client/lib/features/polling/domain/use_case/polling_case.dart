@@ -16,10 +16,12 @@ final class PollingCase extends UseCaseBase {
 
   Future<void> vote({
     required String pollingId,
-    required String variantId,
+    required List<String> variantIds,
+    int? score,
   }) =>
       _repository.vote(
         pollingId: pollingId,
-        variantId: variantId,
+        variantIds: variantIds,
+        score: score,
       );
 }

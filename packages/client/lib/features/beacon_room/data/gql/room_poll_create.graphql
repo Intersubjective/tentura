@@ -1,12 +1,18 @@
 mutation RoomPollCreate(
   $beaconId: String!,
   $question: String!,
-  $variants: [String!]!
+  $variants: [String!]!,
+  $pollType: String,
+  $isAnonymous: Boolean,
+  $allowRevote: Boolean
 ) {
   RoomPollCreate(
     beaconId: $beaconId,
     question: $question,
-    variants: $variants
+    variants: $variants,
+    pollType: $pollType,
+    isAnonymous: $isAnonymous,
+    allowRevote: $allowRevote
   ) {
     id
     beaconId

@@ -85,8 +85,8 @@ class BeaconRoomYouStrip extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.person_outline_rounded, color: scheme.primary),
-                  const SizedBox(width: kSpacingSmall),
+                  Icon(Icons.person_outline_rounded, color: scheme.primary, size: 18),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       '${l10n.beaconRoomYouStripTitle}: $summary',
@@ -100,6 +100,7 @@ class BeaconRoomYouStrip extends StatelessWidget {
                     child: Icon(
                       Icons.expand_more_rounded,
                       color: onV,
+                      size: 18,
                     ),
                   ),
                 ],

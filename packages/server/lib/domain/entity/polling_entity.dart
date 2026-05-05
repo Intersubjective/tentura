@@ -18,6 +18,9 @@ abstract class PollingEntity with _$PollingEntity {
     required DateTime createdAt,
     required DateTime updatedAt,
     @Default(true) bool isEnabled,
+    @Default('single') String pollType,
+    @Default(true) bool isAnonymous,
+    @Default(true) bool allowRevote,
     @Default([]) List<PollingVariantEntity> variants,
   }) = _PollingEntity;
 

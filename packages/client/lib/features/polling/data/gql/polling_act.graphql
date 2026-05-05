@@ -1,9 +1,11 @@
 mutation PollingAct(
   $pollingId: String!,
-  $variantId: String!
+  $variantIds: [String!]!,
+  $score: Int
 ) {
   pollingAct(
     pollingId: $pollingId,
-    variantId: $variantId
+    variantIds: $variantIds,
+    score: $score
   )
 }

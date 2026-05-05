@@ -16,16 +16,20 @@ final class MutationPolling extends GqlNodeBase {
     graphQLBoolean.nonNullable(),
     arguments: [
       _pollingIdInput.field,
-      _variantIdInput.field,
+      _variantIdsInput.field,
+      _scoreInput.fieldNullable,
     ],
     resolve: (_, args) => _pollingCase.create(
       authorId: getCredentials(args).sub,
       pollingId: _pollingIdInput.fromArgsNonNullable(args),
-      variantId: _variantIdInput.fromArgsNonNullable(args),
+      variantIds: _variantIdsInput.fromArgsNonNullable(args),
+      score: _scoreInput.fromArgs(args),
     ),
   );
 
   static final _pollingIdInput = InputFieldString(fieldName: 'pollingId');
 
-  static final _variantIdInput = InputFieldString(fieldName: 'variantId');
+  static final _variantIdsInput = InputFieldStringList(fieldName: 'variantIds');
+
+  static final _scoreInput = InputFieldInt(fieldName: 'score');
 }

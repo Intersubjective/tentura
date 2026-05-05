@@ -121,8 +121,8 @@ class RoomNowStrip extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.article_outlined, color: scheme.primary),
-                  const SizedBox(width: kSpacingSmall),
+                  Icon(Icons.article_outlined, color: scheme.primary, size: 18),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       '${l10n.beaconRoomStripNowTitle}: $summary',
@@ -136,6 +136,7 @@ class RoomNowStrip extends StatelessWidget {
                     child: Icon(
                       Icons.expand_more_rounded,
                       color: onV,
+                      size: 18,
                     ),
                   ),
                 ],

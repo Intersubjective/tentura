@@ -52,6 +52,12 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _variantsInput = InputFieldStringList(fieldName: 'variants');
 
+  final _pollTypeInput = InputFieldString(fieldName: 'pollType');
+
+  final _isAnonymousInput = InputFieldBool(fieldName: 'isAnonymous');
+
+  final _allowRevoteInput = InputFieldBool(fieldName: 'allowRevote');
+
   final InputFieldBool _resolveBlockerFlag =
       InputFieldBool(fieldName: 'resolveBlocker');
 
@@ -352,12 +358,18 @@ final class MutationBeaconRoom extends GqlNodeBase {
           _beaconIdStr.field,
           _questionInput.field,
           _variantsInput.field,
+          _pollTypeInput.fieldNullable,
+          _isAnonymousInput.fieldNullable,
+          _allowRevoteInput.fieldNullable,
         ],
         resolve: (_, args) => _case.createPoll(
           beaconId: _beaconIdStr.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           question: _questionInput.fromArgsNonNullable(args),
           variants: _variantsInput.fromArgsNonNullable(args),
+          pollType: _pollTypeInput.fromArgs(args),
+          isAnonymous: _isAnonymousInput.fromArgs(args),
+          allowRevote: _allowRevoteInput.fromArgs(args),
         ),
       );
 }

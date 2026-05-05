@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../exception/user_input_exception.dart';
 import 'identifiable.dart';
 import 'profile.dart';
+import 'room_poll_data.dart';
 
 part 'polling.freezed.dart';
 
@@ -35,6 +36,9 @@ abstract class Polling extends Identifiable with _$Polling {
     @Default('') String id,
     @Default('') String question,
     @Default(true) bool isEnabled,
+    @Default(PollType.single) PollType pollType,
+    @Default(true) bool isAnonymous,
+    @Default(true) bool allowRevote,
     @Default(Profile()) Profile author,
     @Default({}) Set<String> selection,
     @Default({}) Map<String, String> variants,

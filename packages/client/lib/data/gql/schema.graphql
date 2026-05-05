@@ -2619,7 +2619,7 @@ type mutation_root {
   RoomMessageMarkDone(beaconId: String!, messageId: String!, resolveBlocker: Boolean!): Boolean!
   RoomMessageEdit(beaconId: String!, messageId: String!, body: String!): Boolean!
   BeaconParticipantRoomSeen(beaconId: String!): Boolean!
-  RoomPollCreate(beaconId: String!, question: String!, variants: [String!]!): RoomMessageRow!
+  RoomPollCreate(beaconId: String!, question: String!, variants: [String!]!, pollType: String, isAnonymous: Boolean, allowRevote: Boolean): RoomMessageRow!
   capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
   capabilitySetViewerVisible(subjectUserId: String!, slugs: [String!]!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
@@ -2939,7 +2939,7 @@ type mutation_root {
   invitationAccept(id: String!): Boolean!
   invitationDelete(id: String!): Boolean!
   meritrankInit(forceCalculate: Boolean): Int!
-  pollingAct(pollingId: String!, variantId: String!): Boolean!
+  pollingAct(pollingId: String!, variantIds: [String!]!, score: Int): Boolean!
   setBeaconCoordinationStatus(coordinationStatus: Int!, id: String!): Boolean!
   setCoordinationResponse(commitUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_CoordinationStatusResult!
   signIn(authRequestToken: String!): v2_AuthResponse!
@@ -3675,6 +3675,7 @@ type polling_act {
   created_at: timestamptz!
   polling_id: String!
   polling_variant_id: String!
+  score: Int
 }
 
 """

@@ -12,6 +12,8 @@ class PollingActs extends Table {
 
   late final pollingVariantId = text().references(PollingVariants, #id)();
 
+  late final score = integer().nullable()();
+
   late final createdAt = customType(
     PgTypes.timestampWithTimezone,
   ).clientDefault(() => PgDateTime(DateTime.timestamp()))();
