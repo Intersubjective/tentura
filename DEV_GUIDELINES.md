@@ -300,3 +300,33 @@ upload” or “crop did nothing.”
 code paths, and implement them with `dart:js_interop` + `package:web` (not
 `dart:html`). Example: `packages/client/lib/data/repository/image_repository.dart`
 and `read_blob_url_web.dart` / `read_blob_url_stub.dart`.
+
+## Local RAG codebase search
+
+A local semantic search index lets you ask questions like "how does X work" or "where is Y implemented" without reading whole files.
+
+### Setup (once per machine)
+
+```bash
+python3 -m venv rag_env
+source rag_env/bin/activate
+pip install -r rag_requirements.txt
+python3 rag_index.py        # builds chroma_db/ locally (~1–2 min with CUDA)
+```
+
+`chroma_db/` and `rag_env/` are gitignored — each developer keeps their own local index.
+
+### Querying
+
+```bash
+source rag_env/bin/activate
+python3 rag_query.py "your question here"
+```
+
+Results are ranked by semantic distance. Distance < 1.0 is a strong hit; > 1.2 is likely noise — fall back to grep.
+
+### Keeping the index current
+
+The index is rebuilt from scratch with `python3 rag_index.py`. The indexer respects `.gitignore` at every directory level, so generated files are excluded automatically.
+
+When using Claude Code, the index is updated automatically after any file edit via a PostToolUse hook in `.claude/settings.json`.
