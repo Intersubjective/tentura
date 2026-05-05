@@ -1,3 +1,7 @@
+# RAG indexer
+chroma_db/
+rag_env/
+
 # Miscellaneous
 *.class
 *.log
