@@ -56,8 +56,11 @@ Only use Read when you need exact raw content to edit a specific line.
 - `index_status` — indexing status and health check
 - `expand_vexp_ref` — expand V-REF hash placeholders in v2 compact output
 
+### Skip vexp when location is already known
+If an error stack trace, test failure, or other output already names the exact file and line, go straight to `Read`/`Edit`. Calling `run_pipeline` when you already know where to look wastes daily quota with no benefit.
+
 ### Workflow
-1. `run_pipeline("your task")` — ALWAYS FIRST. Returns pivots + impact + memories in 1 call
+1. `run_pipeline("your task")` — ALWAYS FIRST (unless location is already known — see above). Returns pivots + impact + memories in 1 call
 2. Need more detail on a file? Use `get_skeleton({ files: [...], detail: "detailed" })` — avoid Read unless editing
 3. Make targeted changes based on the context returned
 4. `run_pipeline` again ONLY if you need more context during implementation
