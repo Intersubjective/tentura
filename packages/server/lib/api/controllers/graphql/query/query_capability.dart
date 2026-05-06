@@ -13,7 +13,7 @@ final class QueryCapability extends GqlNodeBase {
   static final _subjectUserId = InputFieldString(fieldName: 'subjectUserId');
   static final _subjectUserIds = GraphQLFieldInput(
     'subjectUserIds',
-    GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+    GraphQLListType(graphQLString.nonNullable()),
   );
   static final _limit = GraphQLFieldInput('limit', graphQLInt);
 
