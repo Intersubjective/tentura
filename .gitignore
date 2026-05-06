@@ -43,3 +43,4 @@ packages/server/bin/tentura
 temp/
 /compose.override.yaml
 .env
+.enable-ollama-compress

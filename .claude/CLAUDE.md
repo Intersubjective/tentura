@@ -1,3 +1,26 @@
+## Search & Exploration Precedence
+
+Follow this order exactly — skip ahead only if the earlier step is inapplicable:
+
+1. **Location already known** (stack trace or error names exact file+line) → `Read`/`Edit` directly. Skip all search tools.
+
+2. **Semantic exploration** ("how does X work", "where is Y", "what handles Z") → Ollama+RAG:
+   ```bash
+   python3 ~/.claude/commands/ollama_explore.py "your question"
+   # More results for broad topics:
+   python3 ~/.claude/commands/ollama_explore.py "your question" --results 8
+   ```
+   Returns a ~400-word summary with file paths. Claude only receives the summary, not raw file contents — major token savings.
+   If output begins with `[ollama_explore: RAG returned no results...]`, go to step 3.
+
+3. **vexp `run_pipeline`** → for impact analysis, refactoring, debugging, or when Ollama is unavailable. One call covers context + impact + memory.
+
+4. **Grep/Glob fallback** → only when vexp reports `status: "degraded"` or index is empty.
+
+> `ollama_explore.py` shells out to RAG and file I/O internally — the vexp-guard PreToolUse hook does **not** intercept these calls.
+
+---
+
 ## Generated Files — Do Not Read or Edit
 
 The following Dart file patterns are **code-generated** (by freezed, build_runner, auto_route, injectable, etc.).
@@ -15,19 +38,14 @@ If you need to understand a type or class, find the non-generated source (e.g. `
 
 ---
 
-## RAG-First codebase search
+## RAG (via ollama_explore.py)
 
-### MANDATORY: RAG-First Codebase Search
+RAG is now called automatically by `ollama_explore.py` (step 2 in Search Precedence above). You do **not** need to invoke `rag_query.py` directly — `ollama_explore.py` runs it, reads the matched files, and returns a synthesized summary.
 
-For semantic questions about the codebase ("how does X work", "where is Y implemented"):
-Use this capability extensively yourself when creating a plan, especially if you are an agent
-whose task is to gather information about the codebase during a plan.
-
-1. **Try RAG first**: `source $CLAUDE_PROJECT_DIR/rag_env/bin/activate && cd $CLAUDE_PROJECT_DIR && python3 rag_query.py "your question"`
-2. **If RAG returns good results** (distance < 1.0): use those file paths and line ranges
-3. **If RAG misses** (distance > 1.2): fall back to Grep/Glob
-
-RAG saves 7-10x tokens vs reading entire files. Use Grep for exact symbol searches.
+Direct RAG invocation is only needed for debugging the RAG index itself:
+```bash
+source $CLAUDE_PROJECT_DIR/rag_env/bin/activate && python3 rag_query.py "your question"
+```
 
 
 
