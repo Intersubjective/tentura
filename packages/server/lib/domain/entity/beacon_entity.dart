@@ -28,6 +28,7 @@ abstract class BeaconEntity with _$BeaconEntity {
     DateTime? endAt,
     String? context,
     Set<String>? tags,
+    @Default(<String>{}) Set<String> needs,
     String? iconCode,
     int? iconBackground,
     String? needSummary,

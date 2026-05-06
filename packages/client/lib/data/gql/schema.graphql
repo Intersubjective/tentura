@@ -104,6 +104,7 @@ type beacon {
   created_at: timestamptz!
   description: String!
   need_summary: String
+  needs: String!
   """Outward Beacon Room / Forward strip status."""
   public_status: smallint!
 
@@ -2556,9 +2557,9 @@ type mutation_root {
   beaconCloseWithReview(id: String!): v2_BeaconCloseReviewResult!
   beaconCommit(helpType: String, id: String!, message: String): Boolean!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_Beacon!
-  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, needSummary: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
-  beaconUpdate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
-  beaconUpdateDraft(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
+  beaconCreate(context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdate(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
+  beaconUpdateDraft(context: String, coordinates: Coordinates = {}, description: String, endAt: String, iconCode: String, iconBackground: Int, id: String!, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
   beaconDeleteById(id: String!): Boolean!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReorderImages(beaconId: String!, imageIds: [String!]!): Boolean!

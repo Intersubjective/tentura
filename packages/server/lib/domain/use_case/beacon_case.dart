@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/domain/capability/capability_tag.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
@@ -56,6 +57,17 @@ void _validateSuccessCriteriaLength(String? sc) {
       description: 'Success criteria must be 240 characters or fewer',
     );
   }
+}
+
+Set<String>? _normalizeNeeds(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  final slugs = raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toSet();
+  for (final slug in slugs) {
+    if (!kAllowedCapabilitySlugs.contains(slug)) {
+      throw BeaconCreateException(description: 'Unknown capability slug: $slug');
+    }
+  }
+  return slugs.isEmpty ? null : slugs;
 }
 
 bool _isValidIconCodeKey(String s) =>
@@ -110,6 +122,7 @@ final class BeaconCase extends UseCaseBase {
     String? description,
     String? context,
     String? tags,
+    String? needs,
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
@@ -153,6 +166,7 @@ final class BeaconCase extends UseCaseBase {
       latitude: coordinates?.lat,
       longitude: coordinates?.long,
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
+      needs: _normalizeNeeds(needs),
       startAt: startAt,
       endAt: endAt,
       iconCode: normalizedIcon,
@@ -173,6 +187,7 @@ final class BeaconCase extends UseCaseBase {
     String? description,
     String? context,
     String? tags,
+    String? needs,
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
@@ -195,6 +210,7 @@ final class BeaconCase extends UseCaseBase {
       description: desc,
       context: context,
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
+      needs: _normalizeNeeds(needs),
       latitude: coordinates?.lat,
       longitude: coordinates?.long,
       startAt: startAt,
@@ -215,6 +231,7 @@ final class BeaconCase extends UseCaseBase {
     String? description,
     String? context,
     String? tags,
+    String? needs,
     DateTime? endAt,
     DateTime? startAt,
     Coordinates? coordinates,
@@ -241,6 +258,7 @@ final class BeaconCase extends UseCaseBase {
       description: desc,
       context: context,
       tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
+      needs: _normalizeNeeds(needs),
       latitude: coordinates?.lat,
       longitude: coordinates?.long,
       startAt: startAt,

@@ -49,6 +49,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     DateTime? startAt,
     DateTime? endAt,
     Set<String>? tags,
+    Set<String>? needs,
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
@@ -69,6 +70,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         startAt: Value(startAt == null ? null : PgDateTime(startAt)),
         endAt: Value(endAt == null ? null : PgDateTime(endAt)),
         tags: Value.absentIfNull(tags?.join(',')),
+        needs: Value(needs == null || needs.isEmpty ? '' : needs.join(',')),
         iconCode: Value(iconCode),
         iconBackground: Value(iconBackground),
         state: Value(state ?? 0),
@@ -140,6 +142,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     required String description,
     String? context,
     Set<String>? tags,
+    Set<String>? needs,
     DateTime? startAt,
     DateTime? endAt,
     double? latitude,
@@ -177,6 +180,9 @@ class BeaconRepository implements BeaconRepositoryPort {
         tags: Value(
           tags == null || tags.isEmpty ? '' : tags.join(','),
         ),
+        needs: Value(
+          needs == null || needs.isEmpty ? '' : needs.join(','),
+        ),
         lat: Value(latitude),
         long: Value(longitude),
         startAt: Value(startAt == null ? null : PgDateTime(startAt)),
@@ -200,6 +206,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     required String description,
     String? context,
     Set<String>? tags,
+    Set<String>? needs,
     DateTime? startAt,
     DateTime? endAt,
     double? latitude,
@@ -234,6 +241,9 @@ class BeaconRepository implements BeaconRepositoryPort {
         context: Value(_beaconContextForDb(context)),
         tags: Value(
           tags == null || tags.isEmpty ? '' : tags.join(','),
+        ),
+        needs: Value(
+          needs == null || needs.isEmpty ? '' : needs.join(','),
         ),
         lat: Value(latitude),
         long: Value(longitude),

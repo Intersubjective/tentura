@@ -9,6 +9,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
+import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
@@ -122,6 +123,37 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 }
                 return null;
               },
+            ),
+
+            // Required capabilities (needs)
+            Padding(
+              padding: kPaddingSmallV,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _l10n.beaconNeedsTitle,
+                    style: _theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    _l10n.beaconNeedsHelper,
+                    style: _theme.textTheme.bodySmall?.copyWith(
+                      color: _theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
+                    bloc: _cubit,
+                    selector: (s) => s.needs,
+                    builder: (_, needs) => CapabilityChipSet(
+                      selectedSlugs: needs,
+                      onChanged: _cubit.setNeeds,
+                    ),
+                  ),
+                ],
+              ),
             ),
 
             // Description (longer context)

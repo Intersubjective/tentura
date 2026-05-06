@@ -8,6 +8,7 @@ fragment BeaconModel on beacon {
   title
   description
   need_summary
+  needs
   public_status
   last_public_meaningful_change
   success_criteria

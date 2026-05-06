@@ -34,6 +34,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     DateTime? endAt,
     ({String question, List<String> variants})? polling,
     Set<String>? tags,
+    Set<String>? needs,
     int ticker = 0,
     String? iconCode,
     int? iconBackground,
@@ -66,6 +67,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
             ),
       ],
       tags: tags,
+      needs: needs ?? const <String>{},
       iconCode: iconCode,
       iconBackground: iconBackground,
       needSummary: needSummary,
@@ -89,6 +91,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     String? iconCode,
     int? iconBackground,
     ({String question, List<String> variants})? polling,
+    Set<String>? needs,
     String? needSummary,
     String? successCriteria,
   }) async {
@@ -106,6 +109,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       description: description,
       context: context,
       tags: tags,
+      needs: needs ?? const <String>{},
       startAt: startAt,
       endAt: endAt,
       coordinates: latitude != null && longitude != null
@@ -128,6 +132,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     required String description,
     String? context,
     Set<String>? tags,
+    Set<String>? needs,
     DateTime? startAt,
     DateTime? endAt,
     double? latitude,
@@ -150,6 +155,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       description: description,
       context: context,
       tags: tags,
+      needs: needs ?? const <String>{},
       startAt: startAt,
       endAt: endAt,
       coordinates: latitude != null && longitude != null

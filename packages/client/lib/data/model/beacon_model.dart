@@ -39,6 +39,9 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       tags: {
         if (i.tags.isNotEmpty) ...i.tags.split(','),
       },
+      needs: {
+        if (i.needs.isNotEmpty) ...i.needs.split(','),
+      },
       startAt: i.start_at,
       endAt: i.end_at,
       reviewClosesAt: reviewWindow?.closes_at,
