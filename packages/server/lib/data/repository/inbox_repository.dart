@@ -132,6 +132,24 @@ class InboxRepository implements InboxRepositoryPort {
         ),
       );
 
+  @override
+  Future<void> markForwardCancelledForRecipient({
+    required String beaconId,
+    required String recipientId,
+  }) => _database.managers.inboxItems
+      .filter(
+        (e) =>
+            e.userId.id(recipientId) &
+            e.beaconId.id(beaconId) &
+            e.status.equals(0),
+      )
+      .update(
+        (o) => o(
+          status: const Value(3),
+          beforeResponseTerminalAt: Value(PgDateTime(DateTime.timestamp())),
+        ),
+      );
+
   static InboxItemEntity _toEntity(InboxItem row) =>
       InboxItemEntity(
         userId: row.userId,

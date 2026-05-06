@@ -28,7 +28,38 @@ final class MutationForward extends GqlNodeBase {
     return List<String>.from(raw as List);
   }
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [forward];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    forward,
+    forwardCancel,
+    forwardUpdate,
+  ];
+
+  GraphQLObjectField<dynamic, dynamic> get forwardCancel =>
+      GraphQLObjectField(
+        'beaconForwardCancel',
+        graphQLBoolean.nonNullable(),
+        arguments: [InputFieldId.field],
+        resolve: (_, args) => _forwardCase.cancelForward(
+          edgeId: InputFieldId.fromArgsNonNullable(args),
+          senderId: getCredentials(args).sub,
+        ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get forwardUpdate => GraphQLObjectField(
+    'beaconForwardUpdate',
+    graphQLBoolean.nonNullable(),
+    arguments: [
+      InputFieldId.field,
+      _note.fieldNullable,
+      _reasons,
+    ],
+    resolve: (_, args) => _forwardCase.updateForward(
+      edgeId: InputFieldId.fromArgsNonNullable(args),
+      senderId: getCredentials(args).sub,
+      note: _note.fromArgs(args) ?? '',
+      reasonSlugs: _reasonsFromArgs(args),
+    ),
+  );
 
   GraphQLObjectField<dynamic, dynamic> get forward => GraphQLObjectField(
     'beaconForward',

@@ -188,6 +188,7 @@ final gqlTypeBeacon = GraphQLObjectType('Beacon', null)
 final gqlTypeMyForwardRecipient =
     GraphQLObjectType('MyForwardRecipient', null)
       ..fields.addAll([
+        field('edgeId', graphQLString.nonNullable()),
         field('recipientId', graphQLString.nonNullable()),
         field('note', graphQLString.nonNullable()),
       ]);

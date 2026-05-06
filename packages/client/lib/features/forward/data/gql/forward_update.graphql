@@ -1,0 +1,3 @@
+mutation ForwardUpdate($id: String!, $note: String, $reasons: [String!]) {
+  beaconForwardUpdate(id: $id, note: $note, reasons: $reasons)
+}

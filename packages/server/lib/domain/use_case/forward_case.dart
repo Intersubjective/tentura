@@ -31,6 +31,72 @@ final class ForwardCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final BeaconRoomPushService _roomPush;
 
+  /// Cancel a forward edge (soft-delete).
+  ///
+  /// Returns false if the edge does not exist, does not belong to [senderId],
+  /// has already been cancelled, has been read by the recipient, has been
+  /// forwarded onward, or if the recipient has an active commitment.
+  Future<bool> cancelForward({
+    required String edgeId,
+    required String senderId,
+  }) async {
+    final edge = await _forwardEdgeRepository.fetchById(edgeId);
+    if (edge == null || edge.senderId != senderId) return false;
+    if (edge.cancelledAt != null) return false;
+    if (edge.recipientReadAt != null) return false;
+
+    final hasChain = await _forwardEdgeRepository.existsWithParent(edgeId);
+    if (hasChain) return false;
+
+    final hasCommit = await _commitmentRepository.hasActiveCommitment(
+      beaconId: edge.beaconId,
+      userId: edge.recipientId,
+    );
+    if (hasCommit) return false;
+
+    await _forwardEdgeRepository.cancel(edgeId, senderId);
+    await _inboxRepository.markForwardCancelledForRecipient(
+      beaconId: edge.beaconId,
+      recipientId: edge.recipientId,
+    );
+    return true;
+  }
+
+  /// Update the note on an existing forward edge.
+  ///
+  /// If [reasonSlugs] is non-empty the forward-reason capability events are
+  /// re-recorded (appended — capability events are immutable log entries).
+  /// Returns false when the edge is not found, not owned by [senderId], or
+  /// has already been cancelled.
+  Future<bool> updateForward({
+    required String edgeId,
+    required String senderId,
+    required String note,
+    List<String>? reasonSlugs,
+  }) async {
+    final edge = await _forwardEdgeRepository.fetchById(edgeId);
+    if (edge == null || edge.senderId != senderId) return false;
+    if (edge.cancelledAt != null) return false;
+
+    await _forwardEdgeRepository.updateNote(edgeId, senderId, note);
+
+    if (reasonSlugs != null && reasonSlugs.isNotEmpty) {
+      try {
+        await _capabilityCase.recordForwardReasons(
+          observerId: senderId,
+          subjectId: edge.recipientId,
+          beaconId: edge.beaconId,
+          slugs: reasonSlugs,
+        );
+      } catch (e) {
+        logger.warning(
+          'ForwardCase.updateForward: failed to record reasons for ${edge.recipientId}: $e',
+        );
+      }
+    }
+    return true;
+  }
+
   /// Forward a beacon to one or more recipients atomically.
   ///
   /// [sharedReasonSlugs] applies the same reason slugs to every recipient.

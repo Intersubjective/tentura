@@ -53,8 +53,8 @@ class ForwardCubit extends Cubit<ForwardState> {
             (p) => ForwardCandidate(
               profile: p,
               involvement: _computeInvolvement(p.id, involvement),
-              myForwardNote:
-                  involvement.myForwardedRecipientNotes[p.id],
+              myForwardNote: involvement.myForwardedRecipientNotes[p.id],
+              forwardEdgeId: involvement.myForwardedRecipientEdgeIds[p.id],
             ),
           )
           .toList()
@@ -178,6 +178,76 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (!state.perRecipientNotes.containsKey(userId)) return;
     final next = Map<String, String>.from(state.perRecipientNotes)..remove(userId);
     emit(state.copyWith(perRecipientNotes: next));
+  }
+
+  void startEditForward(String recipientId) {
+    final candidate = state.candidates.firstWhere((c) => c.id == recipientId);
+    emit(state.copyWith(
+      editingRecipientId: recipientId,
+      editNote: candidate.myForwardNote ?? '',
+      editReasons: const [],
+    ));
+  }
+
+  void setEditNote(String note) => emit(state.copyWith(editNote: note));
+
+  void setEditReasons(List<String> slugs) =>
+      emit(state.copyWith(editReasons: slugs));
+
+  void cancelEditForward() => emit(state.copyWith(editingRecipientId: null));
+
+  Future<void> saveForwardEdit() async {
+    final forwardCase = _forwardCase;
+    if (forwardCase == null) return;
+    final recipientId = state.editingRecipientId;
+    if (recipientId == null) return;
+    final edgeId = state.candidates
+        .where((c) => c.id == recipientId)
+        .firstOrNull
+        ?.forwardEdgeId;
+    if (edgeId == null) return;
+
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await forwardCase.updateForward(
+        edgeId: edgeId,
+        note: state.editNote.trim().isEmpty ? null : state.editNote.trim(),
+        reasonSlugs: state.editReasons.isEmpty ? null : state.editReasons,
+      );
+      emit(state.copyWith(editingRecipientId: null));
+      await _loadCandidates();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> cancelForward(String recipientId) async {
+    final forwardCase = _forwardCase;
+    if (forwardCase == null) return;
+    final edgeId = state.candidates
+        .where((c) => c.id == recipientId)
+        .firstOrNull
+        ?.forwardEdgeId;
+    if (edgeId == null) return;
+
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final ok = await forwardCase.cancelForward(edgeId);
+      if (!ok) {
+        emit(
+          state.copyWith(
+            status: StateHasError(
+              Exception('Forward cannot be cancelled: already read or forwarded onward'),
+            ),
+          ),
+        );
+        emit(state.copyWith(status: const StateIsSuccess()));
+        return;
+      }
+      await _loadCandidates();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
   }
 
   Future<void> forward() async {

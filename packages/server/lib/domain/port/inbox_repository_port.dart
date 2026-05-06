@@ -30,4 +30,11 @@ abstract class InboxRepositoryPort {
     required int status,
     required String rejectionMessage,
   });
+
+  /// Set recipient inbox status to closedBeforeResponse (3) when a forward is
+  /// cancelled by the sender, but only if the item is still in needsMe (0).
+  Future<void> markForwardCancelledForRecipient({
+    required String beaconId,
+    required String recipientId,
+  });
 }

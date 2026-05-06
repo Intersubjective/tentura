@@ -65,6 +65,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
   final _recipientNoteControllers = <String, TextEditingController>{};
   final _personalizedNoteEditorOpenIds = <String>{};
   final _invitationCubit = InvitationCubit();
+  final _editNoteController = TextEditingController();
 
   bool _noteExpanded = false;
   bool _searchOverlayOpen = false;
@@ -107,6 +108,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     }
     _recipientNoteControllers.clear();
     _sharedNoteController.dispose();
+    _editNoteController.dispose();
     unawaited(_invitationCubit.close());
     super.dispose();
   }
@@ -329,7 +331,34 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                                                   visible[i].id] ??
                                               const [],
                                         )),
+                                    onEditForward: visible[i].forwardEdgeId !=
+                                            null
+                                        ? () {
+                                            _editNoteController.text =
+                                                visible[i].myForwardNote ?? '';
+                                            cubit.startEditForward(
+                                              visible[i].id,
+                                            );
+                                          }
+                                        : null,
+                                    onCancelForward:
+                                        visible[i].forwardEdgeId != null
+                                            ? () => unawaited(
+                                                  cubit.cancelForward(
+                                                    visible[i].id,
+                                                  ),
+                                                )
+                                            : null,
                                   ),
+                                  if (state.editingRecipientId ==
+                                      visible[i].id)
+                                    _ForwardEditPanel(
+                                      controller: _editNoteController,
+                                      onNoteChanged: cubit.setEditNote,
+                                      onSave: () =>
+                                          unawaited(cubit.saveForwardEdit()),
+                                      onCancel: cubit.cancelEditForward,
+                                    ),
                                   if (state.selectedIds
                                           .contains(visible[i].id) &&
                                       _personalizedNoteEditorOpenIds
@@ -385,6 +414,59 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _ForwardEditPanel extends StatelessWidget {
+  const _ForwardEditPanel({
+    required this.controller,
+    required this.onNoteChanged,
+    required this.onSave,
+    required this.onCancel,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onNoteChanged;
+  final VoidCallback onSave;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final l10n = L10n.of(context)!;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding)
+          .copyWith(bottom: tt.rowGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: controller,
+            onChanged: onNoteChanged,
+            minLines: 2,
+            maxLines: 5,
+            decoration: InputDecoration(
+              hintText: l10n.forwardNotePlaceholder,
+            ),
+          ),
+          SizedBox(height: tt.rowGap),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: onCancel,
+                child: Text(l10n.buttonCancel),
+              ),
+              SizedBox(width: tt.iconTextGap),
+              FilledButton(
+                onPressed: onSave,
+                child: Text(l10n.buttonSave),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -22,6 +22,8 @@ abstract class ForwardEdgeEntity with _$ForwardEdgeEntity {
     String? batchId,
     @Default(false) bool recipientRejected,
     @Default('') String recipientRejectionMessage,
+    DateTime? cancelledAt,
+    DateTime? recipientReadAt,
     UserEntity? sender,
     UserEntity? recipient,
   }) = _ForwardEdgeEntity;

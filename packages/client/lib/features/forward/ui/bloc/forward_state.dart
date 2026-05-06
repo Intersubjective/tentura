@@ -61,6 +61,9 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default(ForwardFilter.unseen) ForwardFilter activeFilter,
     Beacon? beacon,
     @Default(StateIsSuccess()) StateStatus status,
+    String? editingRecipientId,
+    @Default('') String editNote,
+    @Default(<String>[]) List<String> editReasons,
   }) = _ForwardState;
 
   const ForwardState._();

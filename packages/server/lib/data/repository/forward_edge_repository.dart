@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart';
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
@@ -14,6 +16,58 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   const ForwardEdgeRepository(this._database);
 
   final TenturaDb _database;
+
+  @override
+  Future<ForwardEdgeEntity?> fetchById(String edgeId) =>
+      _database.managers.beaconForwardEdges
+          .filter((e) => e.id.equals(edgeId))
+          .getSingleOrNull()
+          .then((row) => row == null ? null : _toEntity(row));
+
+  @override
+  Future<bool> existsWithParent(String parentEdgeId) =>
+      _database.managers.beaconForwardEdges
+          .filter((e) => e.parentEdgeId.id(parentEdgeId))
+          .exists();
+
+  @override
+  Future<void> cancel(String edgeId, String senderId) =>
+      _database.managers.beaconForwardEdges
+          .filter(
+            (e) =>
+                e.id.equals(edgeId) &
+                e.senderId.id(senderId) &
+                e.cancelledAt.isNull(),
+          )
+          .update(
+            (o) => o(cancelledAt: Value(PgDateTime(DateTime.timestamp()))),
+          );
+
+  @override
+  Future<void> updateNote(String edgeId, String senderId, String note) =>
+      _database.managers.beaconForwardEdges
+          .filter(
+            (e) =>
+                e.id.equals(edgeId) &
+                e.senderId.id(senderId) &
+                e.cancelledAt.isNull(),
+          )
+          .update((o) => o(note: Value(note)));
+
+  @override
+  Future<void> markAsRead(String edgeId, String recipientId) =>
+      _database.managers.beaconForwardEdges
+          .filter(
+            (e) =>
+                e.id.equals(edgeId) &
+                e.recipientId.id(recipientId) &
+                e.recipientReadAt.isNull(),
+          )
+          .update(
+            (o) => o(
+              recipientReadAt: Value(PgDateTime(DateTime.timestamp())),
+            ),
+          );
 
   @override
   Future<void> create({
@@ -72,7 +126,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   @override
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) =>
       _database.managers.beaconForwardEdges
-          .filter((e) => e.beaconId.id(beaconId))
+          .filter((e) => e.beaconId.id(beaconId) & e.cancelledAt.isNull())
           .orderBy((e) => e.createdAt.desc())
           .get()
           .then((rows) => rows.map(_toEntity).toList());
@@ -81,7 +135,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   @override
   Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId) =>
       _database.managers.beaconForwardEdges
-          .filter((e) => e.beaconId.id(beaconId))
+          .filter((e) => e.beaconId.id(beaconId) & e.cancelledAt.isNull())
           .get()
           .then(
             (rows) => rows.map((r) => r.senderId).toSet().toList(),
@@ -94,10 +148,11 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   }) => _database.managers.beaconForwardEdges
       .filter(
         context == null
-            ? (e) => e.recipientId.id(recipientId)
+            ? (e) => e.recipientId.id(recipientId) & e.cancelledAt.isNull()
             : (e) =>
                   e.recipientId.id(recipientId) &
-                  e.context.equals(context),
+                  e.context.equals(context) &
+                  e.cancelledAt.isNull(),
       )
       .orderBy((e) => e.createdAt.desc())
       .get()
@@ -113,7 +168,8 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
         (e) =>
             e.beaconId.id(beaconId) &
             e.senderId.id(authorId) &
-            e.recipientId.id(userId),
+            e.recipientId.id(userId) &
+            e.cancelledAt.isNull(),
       )
       .exists();
 
@@ -130,5 +186,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
         createdAt: row.createdAt.dateTime,
         recipientRejected: row.recipientRejected,
         recipientRejectionMessage: row.recipientRejectionMessage,
+        cancelledAt: row.cancelledAt?.dateTime,
+        recipientReadAt: row.recipientReadAt?.dateTime,
       );
 }

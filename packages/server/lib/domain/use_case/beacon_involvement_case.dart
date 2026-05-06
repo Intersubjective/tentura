@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -63,13 +65,23 @@ final class BeaconInvolvementCase extends UseCaseBase {
         .toList();
 
     final myForwardedRecipients = <Map<String, String>>[];
+    final edgesToMarkRead = <ForwardEdgeEntity>[];
     for (final edge in edges) {
       if (edge.senderId == currentUserId) {
         myForwardedRecipients.add({
+          'edgeId': edge.id,
           'recipientId': edge.recipientId,
           'note': edge.note,
         });
       }
+      if (edge.recipientId == currentUserId && edge.recipientReadAt == null) {
+        edgesToMarkRead.add(edge);
+      }
+    }
+    for (final edge in edgesToMarkRead) {
+      unawaited(
+        _forwardEdgeRepository.markAsRead(edge.id, currentUserId),
+      );
     }
 
     return {

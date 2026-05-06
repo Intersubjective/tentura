@@ -1,0 +1,3 @@
+mutation ForwardCancel($id: String!) {
+  beaconForwardCancel(id: $id)
+}
