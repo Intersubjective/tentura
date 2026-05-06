@@ -57,10 +57,10 @@ class InvitationCubit extends Cubit<InvitationState> {
     }
   }
 
-  Future<InvitationEntity?> createInvitation() async {
+  Future<InvitationEntity?> createInvitation({String? beaconId}) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final invitation = await _invitationRepository.create();
+      final invitation = await _invitationRepository.create(beaconId: beaconId);
       state.invitations.add(invitation);
       emit(state.copyWith(status: StateStatus.isSuccess));
       return invitation;

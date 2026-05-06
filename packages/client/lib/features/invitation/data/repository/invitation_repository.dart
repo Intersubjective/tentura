@@ -64,6 +64,7 @@ class InvitationRepository {
         .map(
           (e) => InvitationEntity(
             id: e.id,
+            beaconId: e.beacon_id,
             invitedId: e.invited_id,
             createdAt: e.created_at,
             updatedAt: e.updated_at,
@@ -72,16 +73,18 @@ class InvitationRepository {
         .toList();
   }
 
-  Future<InvitationEntity> create() async {
+  Future<InvitationEntity> create({String? beaconId}) async {
     final result = await _remoteApiService
-        .request(GInvitationCreateReq())
+        .request(
+          GInvitationCreateReq(
+            (b) => b.vars.beaconId = beaconId,
+          ),
+        )
         .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).insert_invitation_one);
-    if (result == null) {
-      throw const InvitationCreateException();
-    }
+        .then((r) => r.dataOrThrow(label: _label).invitationCreate);
     return InvitationEntity(
       id: result.id,
+      beaconId: result.beacon_id,
       invitedId: result.invited_id,
       createdAt: result.created_at,
       updatedAt: result.updated_at,

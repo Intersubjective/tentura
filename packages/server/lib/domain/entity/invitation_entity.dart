@@ -17,6 +17,7 @@ abstract class InvitationEntity with _$InvitationEntity {
     required DateTime createdAt,
     required DateTime updatedAt,
     UserEntity? invited,
+    String? beaconId,
   }) = _InvitationEntity;
 
   const InvitationEntity._();
@@ -29,6 +30,7 @@ abstract class InvitationEntity with _$InvitationEntity {
     'id': id,
     'issuer_id': issuer.id,
     'invited_id': invited?.id,
+    'beacon_id': beaconId,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
   };

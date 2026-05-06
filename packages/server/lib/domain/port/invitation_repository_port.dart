@@ -5,6 +5,11 @@ abstract class InvitationRepositoryPort {
     required String invitationId,
   });
 
+  Future<InvitationEntity> create({
+    required String issuerId,
+    String? beaconId,
+  });
+
   Future<bool> deleteById({
     required String invitationId,
     required String userId,

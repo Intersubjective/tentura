@@ -96,6 +96,21 @@ class UserRepository implements UserRepositoryPort {
       ],
     );
 
+    if (invitation.beaconId != null) {
+      await _database.into(_database.inboxItems).insert(
+        InboxItemsCompanion.insert(
+          userId: user.id,
+          beaconId: invitation.beaconId!,
+          status: const Value(0),
+          forwardCount: const Value(1),
+          latestForwardAt: Value(PgDateTime(DateTime.timestamp())),
+          latestNotePreview: const Value(''),
+          rejectionMessage: const Value(''),
+        ),
+        onConflict: DoNothing(),
+      );
+    }
+
     return userModelToEntity(user);
   });
 
@@ -185,6 +200,21 @@ class UserRepository implements UserRepositoryPort {
       mode: InsertMode.insertOrIgnore,
       onConflict: DoNothing(),
     );
+
+    if (invitation.beaconId != null) {
+      await _database.into(_database.inboxItems).insert(
+        InboxItemsCompanion.insert(
+          userId: userId,
+          beaconId: invitation.beaconId!,
+          status: const Value(0),
+          forwardCount: const Value(1),
+          latestForwardAt: Value(PgDateTime(DateTime.timestamp())),
+          latestNotePreview: const Value(''),
+          rejectionMessage: const Value(''),
+        ),
+        onConflict: DoNothing(),
+      );
+    }
 
     return invitationsDeletedCount == 1;
   });

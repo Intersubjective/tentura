@@ -13,6 +13,7 @@ InvitationEntity invitationModelToEntity(
   id: model.id,
   issuer: userModelToEntity(issuer, image: issuerImage),
   invited: invited == null ? null : userModelToEntity(invited, image: invitedImage),
+  beaconId: model.beaconId,
   createdAt: model.createdAt.dateTime,
   updatedAt: model.updatedAt.dateTime,
 );

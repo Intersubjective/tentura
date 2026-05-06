@@ -1401,6 +1401,10 @@
   "@forwardOverlaySearchHint": {
     "context": "ForwardBeaconScreen full-screen search"
   },
+  "forwardInviteNewPerson": "invite new person",
+  "@forwardInviteNewPerson": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardAddSharedNoteCommand": "add shared note",
   "@forwardAddSharedNoteCommand": {
     "context": "ForwardBeaconScreen"

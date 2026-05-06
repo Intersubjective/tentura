@@ -15,6 +15,7 @@ query InvitationsFetchByUserId(
     limit: $limit
   ) {
     id
+    beacon_id
     invited_id
     created_at
     updated_at
