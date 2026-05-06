@@ -6295,6 +6295,11 @@ type BeaconParticipantRow {
   beaconId: String!
   userId: String!
   userTitle: String!
+  userHasPicture: Boolean!
+  userPicHeight: Int!
+  userPicWidth: Int!
+  userBlurHash: String!
+  userImageId: String!
   role: Int!
   status: Int!
   roomAccess: Int!

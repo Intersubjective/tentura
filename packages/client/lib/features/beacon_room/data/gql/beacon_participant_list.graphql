@@ -4,6 +4,11 @@ query BeaconParticipantList($beaconId: String!) {
     beaconId
     userId
     userTitle
+    userHasPicture
+    userPicHeight
+    userPicWidth
+    userBlurHash
+    userImageId
     role
     status
     roomAccess
