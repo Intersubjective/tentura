@@ -876,6 +876,22 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
             ),
           )
           as _i5.Future<List<_i3.ForwardReasonRow>>);
+
+  @override
+  _i5.Future<List<_i3.FriendContextRow>> fetchFriendContextsBatch({
+    required String? viewerId,
+    required List<String>? friendIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchFriendContextsBatch, [], {
+              #viewerId: viewerId,
+              #friendIds: friendIds,
+            }),
+            returnValue: _i5.Future<List<_i3.FriendContextRow>>.value(
+              <_i3.FriendContextRow>[],
+            ),
+          )
+          as _i5.Future<List<_i3.FriendContextRow>>);
 }
 
 /// A class which mocks [BeaconRoomPushService].

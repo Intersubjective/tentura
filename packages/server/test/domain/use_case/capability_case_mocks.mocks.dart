@@ -235,4 +235,20 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<List<_i2.ForwardReasonRow>>);
+
+  @override
+  _i3.Future<List<_i2.FriendContextRow>> fetchFriendContextsBatch({
+    required String? viewerId,
+    required List<String>? friendIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchFriendContextsBatch, [], {
+              #viewerId: viewerId,
+              #friendIds: friendIds,
+            }),
+            returnValue: _i3.Future<List<_i2.FriendContextRow>>.value(
+              <_i2.FriendContextRow>[],
+            ),
+          )
+          as _i3.Future<List<_i2.FriendContextRow>>);
 }

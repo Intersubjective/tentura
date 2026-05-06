@@ -1000,6 +1000,22 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
             ),
           )
           as _i6.Future<List<_i3.ForwardReasonRow>>);
+
+  @override
+  _i6.Future<List<_i3.FriendContextRow>> fetchFriendContextsBatch({
+    required String? viewerId,
+    required List<String>? friendIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchFriendContextsBatch, [], {
+              #viewerId: viewerId,
+              #friendIds: friendIds,
+            }),
+            returnValue: _i6.Future<List<_i3.FriendContextRow>>.value(
+              <_i3.FriendContextRow>[],
+            ),
+          )
+          as _i6.Future<List<_i3.FriendContextRow>>);
 }
 
 /// A class which mocks [BeaconRoomRepository].
@@ -1190,6 +1206,60 @@ class MockBeaconRoomRepository extends _i1.Mock
             ),
           )
           as _i6.Future<Map<String, String>>);
+
+  @override
+  _i6.Future<
+    Map<
+      String,
+      ({
+        String blurHash,
+        bool hasPicture,
+        String imageId,
+        int picHeight,
+        int picWidth,
+      })
+    >
+  >
+  userPicMetaByIds(Iterable<String>? userIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#userPicMetaByIds, [userIds]),
+            returnValue:
+                _i6.Future<
+                  Map<
+                    String,
+                    ({
+                      String blurHash,
+                      bool hasPicture,
+                      String imageId,
+                      int picHeight,
+                      int picWidth,
+                    })
+                  >
+                >.value(
+                  <
+                    String,
+                    ({
+                      String blurHash,
+                      bool hasPicture,
+                      String imageId,
+                      int picHeight,
+                      int picWidth,
+                    })
+                  >{},
+                ),
+          )
+          as _i6.Future<
+            Map<
+              String,
+              ({
+                String blurHash,
+                bool hasPicture,
+                String imageId,
+                int picHeight,
+                int picWidth,
+              })
+            >
+          >);
 
   @override
   _i6.Future<void> participantOfferHelp({
