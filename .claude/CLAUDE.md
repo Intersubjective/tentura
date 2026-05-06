@@ -15,9 +15,13 @@ If you need to understand a type or class, find the non-generated source (e.g. `
 
 ---
 
+## RAG-First codebase search
+
 ### MANDATORY: RAG-First Codebase Search
 
 For semantic questions about the codebase ("how does X work", "where is Y implemented"):
+Use this capability extensively yourself when creating a plan, especially if you are an agent
+whose task is to gather information about the codebase during a plan.
 
 1. **Try RAG first**: `source $CLAUDE_PROJECT_DIR/rag_env/bin/activate && cd $CLAUDE_PROJECT_DIR && python3 rag_query.py "your question"`
 2. **If RAG returns good results** (distance < 1.0): use those file paths and line ranges
