@@ -385,6 +385,49 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
   }
 
   @override
+  _i5.Future<_i7.ForwardEdgeEntity?> fetchById(String? edgeId) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchById, [edgeId]),
+            returnValue: _i5.Future<_i7.ForwardEdgeEntity?>.value(),
+          )
+          as _i5.Future<_i7.ForwardEdgeEntity?>);
+
+  @override
+  _i5.Future<bool> existsWithParent(String? parentEdgeId) =>
+      (super.noSuchMethod(
+            Invocation.method(#existsWithParent, [parentEdgeId]),
+            returnValue: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
+
+  @override
+  _i5.Future<void> cancel(String? edgeId, String? senderId) =>
+      (super.noSuchMethod(
+            Invocation.method(#cancel, [edgeId, senderId]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> updateNote(String? edgeId, String? senderId, String? note) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateNote, [edgeId, senderId, note]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> markAsRead(String? edgeId, String? recipientId) =>
+      (super.noSuchMethod(
+            Invocation.method(#markAsRead, [edgeId, recipientId]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
   _i5.Future<void> create({
     required String? beaconId,
     required String? senderId,
@@ -673,6 +716,21 @@ class MockInboxRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #status: status,
               #rejectionMessage: rejectionMessage,
+            }),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> markForwardCancelledForRecipient({
+    required String? beaconId,
+    required String? recipientId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#markForwardCancelledForRecipient, [], {
+              #beaconId: beaconId,
+              #recipientId: recipientId,
             }),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),

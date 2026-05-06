@@ -21,6 +21,8 @@ class ForwardRecipientRow extends StatelessWidget {
     this.onTogglePersonalizedNoteEditor,
     this.reasonSlugs = const [],
     this.onEditReasons,
+    this.onEditForward,
+    this.onCancelForward,
     super.key,
   });
 
@@ -33,6 +35,10 @@ class ForwardRecipientRow extends StatelessWidget {
   final List<String> reasonSlugs;
   /// Called when the user taps the Why? button; opens reason picker.
   final VoidCallback? onEditReasons;
+  /// Called when the user wants to edit an existing forward (note / reasons).
+  final VoidCallback? onEditForward;
+  /// Called when the user wants to cancel an existing forward.
+  final VoidCallback? onCancelForward;
 
 
   /// Involvement / forward path line (independent of scope tab filter).
@@ -196,6 +202,38 @@ class ForwardRecipientRow extends StatelessWidget {
               ),
             ),
             SizedBox(width: tt.rowGap),
+            if (candidate.involvement ==
+                    CandidateInvolvement.forwardedByMe &&
+                onEditForward != null) ...[
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                tooltip: l10n.forwardEditAction,
+                icon: Icon(
+                  Icons.edit_outlined,
+                  size: tt.iconSize,
+                  color: tt.textMuted,
+                ),
+                onPressed: onEditForward,
+              ),
+              SizedBox(width: tt.iconTextGap),
+            ],
+            if (candidate.involvement ==
+                    CandidateInvolvement.forwardedByMe &&
+                onCancelForward != null) ...[
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                tooltip: l10n.forwardCancelAction,
+                icon: Icon(
+                  Icons.cancel_outlined,
+                  size: tt.iconSize,
+                  color: tt.warn,
+                ),
+                onPressed: onCancelForward,
+              ),
+              SizedBox(width: tt.iconTextGap),
+            ],
             if (isSelected && canSelect && onEditReasons != null) ...[
               IconButton(
                 padding: EdgeInsets.zero,

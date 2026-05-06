@@ -1,6 +1,16 @@
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 
 abstract class ForwardEdgeRepositoryPort {
+  Future<ForwardEdgeEntity?> fetchById(String edgeId);
+
+  Future<bool> existsWithParent(String parentEdgeId);
+
+  Future<void> cancel(String edgeId, String senderId);
+
+  Future<void> updateNote(String edgeId, String senderId, String note);
+
+  Future<void> markAsRead(String edgeId, String recipientId);
+
   Future<void> create({
     required String beaconId,
     required String senderId,

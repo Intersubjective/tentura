@@ -2566,6 +2566,8 @@ type mutation_root {
   beaconUpdatePost(beaconId: String!, content: String!): BeaconAuthorUpdate!
   beaconUpdateEdit(id: String!, content: String!): BeaconAuthorUpdate!
   beaconForward(context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, recipientIds: [String!], reasons: [String!], recipientReasons: [ForwardRecipientReasonInput!]): String!
+  beaconForwardCancel(id: String!): Boolean!
+  beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
   beaconWithdraw(id: String!, message: String, uncommitReason: String!): Boolean!
   RoomMessageCreate(
     beaconId: String!
@@ -6376,6 +6378,7 @@ type v2_BeaconInvolvement {
 }
 
 type v2_MyForwardRecipient {
+  edgeId: String!
   recipientId: String!
   note: String!
 }

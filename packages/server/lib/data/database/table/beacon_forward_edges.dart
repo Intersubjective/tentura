@@ -41,6 +41,14 @@ class BeaconForwardEdges extends Table {
   late final recipientRejectionMessage = text()
       .withDefault(const Constant(''))();
 
+  late final cancelledAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
+
+  late final recipientReadAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

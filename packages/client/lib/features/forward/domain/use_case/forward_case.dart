@@ -72,4 +72,18 @@ final class ForwardCase extends UseCaseBase {
         context: context,
         parentEdgeId: parentEdgeId,
       );
+
+  Future<bool> cancelForward(String edgeId) =>
+      _forwardRepository.cancelForward(edgeId);
+
+  Future<bool> updateForward({
+    required String edgeId,
+    String? note,
+    List<String>? reasonSlugs,
+  }) =>
+      _forwardRepository.updateForward(
+        edgeId: edgeId,
+        note: note,
+        reasonSlugs: reasonSlugs,
+      );
 }

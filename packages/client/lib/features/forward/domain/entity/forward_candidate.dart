@@ -12,6 +12,7 @@ abstract class ForwardCandidate with _$ForwardCandidate {
     required Profile profile,
     @Default(CandidateInvolvement.unseen) CandidateInvolvement involvement,
     String? myForwardNote,
+    String? forwardEdgeId,
     @Default([]) List<String> topCapabilities,
   }) = _ForwardCandidate;
 

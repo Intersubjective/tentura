@@ -20,6 +20,8 @@ import '../gql/_g/beacon_forward_graph.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
     show GForwardRecipientReasonInput;
+import '../gql/_g/forward_cancel.req.gql.dart';
+import '../gql/_g/forward_update.req.gql.dart';
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
 import '../gql/_g/forward_reasons_fetch.req.gql.dart';
@@ -37,6 +39,7 @@ typedef BeaconInvolvementData = ({
   Set<String> watchingIds,
   Set<String> onwardForwarderIds,
   Map<String, String> myForwardedRecipientNotes,
+  Map<String, String> myForwardedRecipientEdgeIds,
 });
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -171,9 +174,13 @@ class ForwardRepository {
     final inv = results[1] as GBeaconInvolvementDataData_beaconInvolvement;
 
     final myForwardedRecipientNotes = <String, String>{};
+    final myForwardedRecipientEdgeIds = <String, String>{};
     if (inv.myForwardedRecipients != null) {
       for (final r in inv.myForwardedRecipients!) {
         myForwardedRecipientNotes[r.recipientId] = r.note;
+        if (r.edgeId != null) {
+          myForwardedRecipientEdgeIds[r.recipientId] = r.edgeId!;
+        }
       }
     }
 
@@ -186,6 +193,7 @@ class ForwardRepository {
       watchingIds: inv.watchingIds?.toSet() ?? {},
       onwardForwarderIds: inv.onwardForwarderIds?.toSet() ?? {},
       myForwardedRecipientNotes: myForwardedRecipientNotes,
+      myForwardedRecipientEdgeIds: myForwardedRecipientEdgeIds,
     );
   }
 
@@ -350,6 +358,29 @@ class ForwardRepository {
                 )
                 .toList(),
           );
+
+  Future<bool> cancelForward(String edgeId) => _remoteApiService
+      .request(GForwardCancelReq((r) => r..vars.id = edgeId))
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).beaconForwardCancel);
+
+  Future<bool> updateForward({
+    required String edgeId,
+    String? note,
+    List<String>? reasonSlugs,
+  }) => _remoteApiService
+      .request(
+        GForwardUpdateReq(
+          (r) => r
+            ..vars.id = edgeId
+            ..vars.note = note
+            ..vars.reasons = reasonSlugs != null
+                ? BuiltList<String>.from(reasonSlugs).toBuilder()
+                : null,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).beaconForwardUpdate);
 
   Future<bool> commit({
     required String beaconId,
