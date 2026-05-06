@@ -39,6 +39,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonCapabilityCuesPayload,
   gqlTypeForwardReasonRow,
   gqlTypePersonTopCapabilities,
+  gqlTypePersonFriendContext,
 ];
 
 /// Payload returned by `RoomMessageCreate`.
@@ -443,6 +444,14 @@ final gqlTypePersonTopCapabilities =
           'slugs',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
+      ]);
+
+final gqlTypePersonFriendContext =
+    GraphQLObjectType('v2_PersonFriendContext', null)
+      ..fields.addAll([
+        field('subjectId', graphQLString.nonNullable()),
+        field('activeForwardsToCount', graphQLInt.nonNullable()),
+        field('coInvolvedBeaconsCount', graphQLInt.nonNullable()),
       ]);
 
 /// Forward-reason slugs for one (sender, recipient) pair on a beacon.

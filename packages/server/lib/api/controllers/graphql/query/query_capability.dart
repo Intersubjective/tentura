@@ -21,6 +21,7 @@ final class QueryCapability extends GqlNodeBase {
     myPrivateLabelsForUser,
     personCapabilityCues,
     personTopCapabilitiesBatch,
+    personFriendContextBatch,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get myPrivateLabelsForUser =>
@@ -118,6 +119,31 @@ final class QueryCapability extends GqlNodeBase {
           );
           return result.entries
               .map((e) => {'subjectId': e.key, 'slugs': e.value})
+              .toList();
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get personFriendContextBatch =>
+      GraphQLObjectField(
+        'personFriendContextBatch',
+        GraphQLListType(gqlTypePersonFriendContext.nonNullable()).nonNullable(),
+        arguments: [_subjectUserIds],
+        resolve: (_, args) async {
+          final jwt = getCredentials(args);
+          final friendIds =
+              (args['subjectUserIds'] as List<dynamic>).cast<String>();
+          final rows = await _capabilityCase.fetchFriendContextsBatch(
+            viewerId: jwt.sub,
+            friendIds: friendIds,
+          );
+          return rows
+              .map(
+                (r) => {
+                  'subjectId': r.friendId,
+                  'activeForwardsToCount': r.activeForwardsToCount,
+                  'coInvolvedBeaconsCount': r.coInvolvedBeaconsCount,
+                },
+              )
               .toList();
         },
       );

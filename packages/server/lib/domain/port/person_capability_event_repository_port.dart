@@ -84,6 +84,11 @@ abstract class PersonCapabilityEventRepositoryPort {
     required String beaconId,
     required String viewerId,
   });
+
+  Future<List<FriendContextRow>> fetchFriendContextsBatch({
+    required String viewerId,
+    required List<String> friendIds,
+  });
 }
 
 class PersonCapabilityCuesRow {
@@ -148,4 +153,16 @@ class ForwardReasonRow {
   final String observerId;
   final String subjectId;
   final List<String> slugs;
+}
+
+class FriendContextRow {
+  const FriendContextRow({
+    required this.friendId,
+    required this.activeForwardsToCount,
+    required this.coInvolvedBeaconsCount,
+  });
+
+  final String friendId;
+  final int activeForwardsToCount;
+  final int coInvolvedBeaconsCount;
 }

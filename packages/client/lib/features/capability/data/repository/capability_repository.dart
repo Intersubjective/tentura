@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 
@@ -11,6 +12,7 @@ import '../gql/_g/capability_private_label_set.req.gql.dart';
 import '../gql/_g/capability_set_viewer_visible.req.gql.dart';
 import '../gql/_g/my_private_labels_for_user.req.gql.dart';
 import '../gql/_g/person_capability_cues_fetch.req.gql.dart';
+import '../gql/_g/person_friend_context_batch_fetch.req.gql.dart';
 import '../gql/_g/person_top_capabilities_batch_fetch.req.gql.dart';
 
 @LazySingleton(
@@ -179,6 +181,31 @@ class CapabilityRepository implements CapabilityRepositoryPort {
             e.subjectId: e.slugs.toList(),
         };
       });
+
+  @override
+  Future<Map<String, FriendContext>> fetchFriendContextsBatch({
+    required List<String> subjectIds,
+  }) {
+    if (subjectIds.isEmpty) return Future.value({});
+
+    return _remoteApiService
+        .request(
+          GPersonFriendContextBatchReq(
+            (r) => r..vars.subjectUserIds.addAll(subjectIds),
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).personFriendContextBatch)
+        .then(
+          (rows) => {
+            for (final row in rows)
+              row.subjectId: FriendContext(
+                activeForwardsToCount: row.activeForwardsToCount,
+                coInvolvedBeaconsCount: row.coInvolvedBeaconsCount,
+              ),
+          },
+        );
+  }
 
   static const _label = 'Capability';
 }

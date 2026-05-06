@@ -595,7 +595,120 @@ class PersonCapabilityEventRepository
           (r) => ForwardReasonRow(
             observerId: r.read<String>('observer_user_id'),
             subjectId: r.read<String>('subject_user_id'),
-            slugs: (r.read<List<dynamic>>('slugs')).cast<String>(),
+            slugs: r.read<List<dynamic>>('slugs').cast<String>(),
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<List<FriendContextRow>> fetchFriendContextsBatch({
+    required String viewerId,
+    required List<String> friendIds,
+  }) async {
+    if (friendIds.isEmpty) return [];
+
+    // Active beacon states: OPEN(0), PENDING_REVIEW(4), CLOSED_REVIEW_OPEN(5).
+    // DRAFT(3) is excluded by product definition.
+    const activeStates = [0, 4, 5];
+
+    final rows = await _database
+        .customSelect(
+          r'''
+          WITH friends AS (
+            SELECT unnest($2::text[]) AS friend_id
+          ),
+          active_beacons AS (
+            SELECT id
+            FROM public.beacon
+            WHERE state = ANY($3::int[])
+          ),
+          viewer_involved AS (
+            SELECT b.id AS beacon_id
+            FROM public.beacon b
+            JOIN active_beacons ab ON ab.id = b.id
+            WHERE b.user_id = $1
+
+            UNION
+
+            SELECT bfe.beacon_id
+            FROM public.beacon_forward_edge bfe
+            JOIN active_beacons ab ON ab.id = bfe.beacon_id
+            WHERE bfe.sender_id = $1 OR bfe.recipient_id = $1
+
+            UNION
+
+            SELECT bc.beacon_id
+            FROM public.beacon_commitment bc
+            JOIN active_beacons ab ON ab.id = bc.beacon_id
+            WHERE bc.user_id = $1 AND bc.status = 0
+          ),
+          friend_involved AS (
+            SELECT f.friend_id, b.id AS beacon_id
+            FROM friends f
+            JOIN public.beacon b ON b.user_id = f.friend_id
+            JOIN active_beacons ab ON ab.id = b.id
+
+            UNION
+
+            SELECT f.friend_id, bfe.beacon_id
+            FROM friends f
+            JOIN public.beacon_forward_edge bfe
+              ON (bfe.sender_id = f.friend_id OR bfe.recipient_id = f.friend_id)
+            JOIN active_beacons ab ON ab.id = bfe.beacon_id
+
+            UNION
+
+            SELECT f.friend_id, bc.beacon_id
+            FROM friends f
+            JOIN public.beacon_commitment bc ON bc.user_id = f.friend_id
+            JOIN active_beacons ab ON ab.id = bc.beacon_id
+            WHERE bc.status = 0
+          ),
+          co_involved AS (
+            SELECT fi.friend_id, fi.beacon_id
+            FROM friend_involved fi
+            JOIN viewer_involved vi ON vi.beacon_id = fi.beacon_id
+            GROUP BY fi.friend_id, fi.beacon_id
+          ),
+          forwarded_to_friend AS (
+            SELECT f.friend_id, bfe.beacon_id
+            FROM friends f
+            JOIN public.beacon_forward_edge bfe ON bfe.recipient_id = f.friend_id
+            JOIN active_beacons ab ON ab.id = bfe.beacon_id
+            WHERE bfe.recipient_rejected = false
+            GROUP BY f.friend_id, bfe.beacon_id
+          )
+          SELECT
+            f.friend_id AS friend_id,
+            COALESCE((
+              SELECT COUNT(*)::int
+              FROM forwarded_to_friend ftf
+              JOIN viewer_involved vi ON vi.beacon_id = ftf.beacon_id
+              WHERE ftf.friend_id = f.friend_id
+            ), 0) AS active_forwards_to_count,
+            COALESCE((
+              SELECT COUNT(*)::int
+              FROM co_involved ci
+              WHERE ci.friend_id = f.friend_id
+            ), 0) AS co_involved_beacons_count
+          FROM friends f
+          ORDER BY f.friend_id
+          ''',
+          variables: [
+            Variable.withString(viewerId),
+            Variable(TypedValue(Type.textArray, friendIds)),
+            Variable(TypedValue(Type.integerArray, activeStates)),
+          ],
+        )
+        .get();
+
+    return rows
+        .map(
+          (r) => FriendContextRow(
+            friendId: r.read<String>('friend_id'),
+            activeForwardsToCount: r.read<int>('active_forwards_to_count'),
+            coInvolvedBeaconsCount: r.read<int>('co_involved_beacons_count'),
           ),
         )
         .toList();

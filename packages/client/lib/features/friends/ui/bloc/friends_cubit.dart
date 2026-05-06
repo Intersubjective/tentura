@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
@@ -16,6 +17,7 @@ export 'friends_state.dart';
 @singleton
 class FriendsCubit extends Cubit<FriendsState> {
   FriendsCubit(
+    this._capabilityRepository,
     this._invitationRepository,
     this._likeRemoteRepository,
     this._friendsRemoteRepository,
@@ -32,6 +34,8 @@ class FriendsCubit extends Cubit<FriendsState> {
   }
 
   final FriendsRemoteRepository _friendsRemoteRepository;
+
+  final CapabilityRepositoryPort _capabilityRepository;
 
   final InvitationRepository _invitationRepository;
 
@@ -53,9 +57,14 @@ class FriendsCubit extends Cubit<FriendsState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final friends = await _friendsRemoteRepository.fetch();
+      final friendsById = {for (final e in friends) e.id: e};
+      final friendContexts = await _capabilityRepository.fetchFriendContextsBatch(
+        subjectIds: friendsById.keys.toList(),
+      );
       emit(
         FriendsState(
-          friends: {for (final e in friends) e.id: e},
+          friends: friendsById,
+          friendContexts: friendContexts,
         ),
       );
     } catch (e) {
@@ -86,6 +95,6 @@ class FriendsCubit extends Cubit<FriendsState> {
     } else {
       state.friends.remove(profile.id);
     }
-    emit(FriendsState(friends: state.friends));
+    unawaited(fetch());
   }
 }

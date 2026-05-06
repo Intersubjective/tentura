@@ -175,6 +175,7 @@ class _V2RoutingLink extends Link {
     'CapabilitySetViewerVisible',
     'MyPrivateLabelsForUser',
     'PersonCapabilityCues',
+    'PersonFriendContextBatch',
     'PersonTopCapabilitiesBatch',
   };
 
