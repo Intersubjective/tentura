@@ -15,6 +15,8 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   const factory Profile({
     @Default('') String id,
     @Default('') String title,
+    /// Public @mention handle (5–30 `[a-z0-9_]`, optional).
+    @Default('') String handle,
     @Default('') String description,
     @Default(0) double rScore,
     @Default(0) double score,

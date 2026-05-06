@@ -20,12 +20,14 @@ class UserRepositoryMock implements UserRepositoryPort {
   Future<UserEntity> create({
     required String publicKey,
     required String title,
+    String? handle,
   }) async => storageByPublicKey.containsKey(publicKey)
       ? throw Exception('Key already exists [$publicKey]')
       : storageByPublicKey[publicKey] = UserEntity(
           id: UserEntity.newId,
           publicKey: publicKey,
           title: title,
+          handle: (handle ?? '').trim(),
         );
 
   @override
@@ -33,6 +35,7 @@ class UserRepositoryMock implements UserRepositoryPort {
     required String invitationId,
     required String publicKey,
     required String title,
+    String? handle,
   }) {
     throw UnimplementedError();
   }
@@ -54,11 +57,16 @@ class UserRepositoryMock implements UserRepositoryPort {
     String? description,
     String? imageId,
     bool dropImage = false,
+    bool setHandle = false,
+    String? handle,
   }) async {
     final user = await getById(id);
     storageByPublicKey[user.publicKey] = user.copyWith(
       title: title ?? user.title,
       description: description ?? user.description,
+      handle: setHandle
+          ? ((handle == null || handle.trim().isEmpty) ? '' : handle.trim())
+          : user.handle,
     );
   }
 

@@ -4,6 +4,7 @@ query BeaconParticipantList($beaconId: String!) {
     beaconId
     userId
     userTitle
+    userHandle
     userHasPicture
     userPicHeight
     userPicWidth

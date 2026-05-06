@@ -35,8 +35,17 @@ class UserRepository implements UserRepositoryPort {
   Future<UserEntity> create({
     required String publicKey,
     required String title,
+    String? handle,
   }) => _database.managers.users
-      .createReturning((o) => o(title: title, publicKey: publicKey))
+      .createReturning(
+        (o) => o(
+          title: title,
+          publicKey: publicKey,
+          handle: handle == null || handle.trim().isEmpty
+              ? const Value.absent()
+              : Value(handle.trim().toLowerCase()),
+        ),
+      )
       .then(userModelToEntity);
 
   // TBD: move to SQL
@@ -46,6 +55,7 @@ class UserRepository implements UserRepositoryPort {
     required String invitationId,
     required String publicKey,
     required String title,
+    String? handle,
   }) => _database.transaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -62,7 +72,13 @@ class UserRepository implements UserRepositoryPort {
     }
 
     final user = await _database.managers.users.createReturning(
-      (o) => o(title: title, publicKey: publicKey),
+      (o) => o(
+        title: title,
+        publicKey: publicKey,
+        handle: handle == null || handle.trim().isEmpty
+            ? const Value.absent()
+            : Value(handle.trim().toLowerCase()),
+      ),
     );
     final changedRowCount = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -110,6 +126,8 @@ class UserRepository implements UserRepositoryPort {
     String? description,
     String? imageId,
     bool dropImage = false,
+    bool setHandle = false,
+    String? handle,
   }) => _database.managers.users
       .filter((e) => e.id(id))
       .update(
@@ -121,6 +139,11 @@ class UserRepository implements UserRepositoryPort {
               : imageId == null
               ? const Value.absent()
               : Value(UuidValue.fromString(imageId)),
+          handle: !setHandle
+              ? const Value.absent()
+              : (handle == null || handle.trim().isEmpty)
+              ? const Value(null)
+              : Value(handle.trim().toLowerCase()),
         ),
       );
 

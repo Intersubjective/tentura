@@ -55,6 +55,8 @@ class ProfileRepository implements ProfileRepositoryPort {
     String? description,
     bool dropImage = false,
     ImageEntity? image,
+    bool updateHandle = false,
+    String? handle,
   }) async {
     final request = GProfileUpdateReq((b) {
       b.fetchPolicy = FetchPolicy.NoCache;
@@ -70,6 +72,9 @@ class ProfileRepository implements ProfileRepositoryPort {
                 contentType: MediaType.parse(image.mimeType),
                 filename: image.fileName,
               );
+      if (updateHandle) {
+        b.vars.handle = handle;
+      }
     });
 
     await _remoteApiService

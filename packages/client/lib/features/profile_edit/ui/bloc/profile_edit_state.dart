@@ -9,6 +9,7 @@ abstract class ProfileEditState extends StateBase with _$ProfileEditState {
   const factory ProfileEditState({
     required Profile original,
     required String title,
+    required String handle,
     required String description,
     @Default(false) bool canDropImage,
     @Default(false) bool willDropImage,
@@ -26,5 +27,6 @@ abstract class ProfileEditState extends StateBase with _$ProfileEditState {
       hasImage ||
       willDropImage ||
       original.title != title ||
+      original.handle != handle ||
       original.description != description;
 }

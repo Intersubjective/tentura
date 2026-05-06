@@ -12,6 +12,7 @@ class UserPublicRecord {
     required this.id,
     required this.title,
     required this.description,
+    this.handle,
     this.myVote,
     this.isMutualFriend = false,
     this.image,
@@ -21,6 +22,10 @@ class UserPublicRecord {
 
   final String id;
   final String title;
+
+  /// Nullable public handle for display / @mentions (mirrors `user.handle`).
+  final String? handle;
+
   final String description;
   final int? myVote;
 

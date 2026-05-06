@@ -6,6 +6,7 @@ abstract class AuthRemoteRepositoryPort {
     required String seed,
     required String title,
     required String invitationCode,
+    String? handle,
   });
 
   Future<String> signIn(String seed);

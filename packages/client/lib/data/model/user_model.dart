@@ -16,6 +16,7 @@ extension type const UserModel(GUserModel i) implements GUserModel {
     return Profile(
       id: i.id,
       title: i.title,
+      handle: i.handle ?? '',
       description: i.description,
       myVote: i.my_vote ?? 0,
       isMutualFriend: i.is_mutual_friend ?? false,

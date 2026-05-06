@@ -19,6 +19,8 @@ abstract class ProfileRepositoryPort {
     String? description,
     bool dropImage = false,
     ImageEntity? image,
+    bool updateHandle = false,
+    String? handle,
   });
 
   Future<void> delete(String id);

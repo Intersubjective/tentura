@@ -12,6 +12,19 @@
   "@labelDescription": {
     "context": "Utils"
   },
+  "labelUserHandle": "Хэндл",
+  "@labelUserHandle": {
+    "context": "Utils",
+    "description": "Optional public @mention handle for the user profile"
+  },
+  "userHandleHint": "5–30 символов: строчные буквы, цифры или подчёркивание (необязательно)",
+  "@userHandleHint": {
+    "context": "Utils"
+  },
+  "userHandleInvalidFormat": "Только 5–30 символов: строчные буквы, цифры, подчёркивание",
+  "@userHandleInvalidFormat": {
+    "context": "Utils"
+  },
   "labelMe": "Я",
   "@labelMe": {
     "context": "Utils"

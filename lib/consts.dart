@@ -12,13 +12,24 @@ const kTitleMinLength = 3;
 
 const kTitleMaxLength = 32;
 
+/// Public @mention handle (`user.handle`): 5–30 chars, `[a-z0-9_]`, optional.
+const kUserHandleMinLength = 5;
+
+const kUserHandleMaxLength = 30;
+
+/// Normalized (lowercase) pattern for validation after trim.
+final RegExp kUserHandleRegExp = RegExp(r'^[a-z0-9_]{5,30}$');
+
+bool isValidUserHandleFormat(String trimmedLowercase) =>
+    kUserHandleRegExp.hasMatch(trimmedLowercase);
+
 /// Beacon `title` only (user/profile [kTitleMaxLength] remains shorter).
 const kBeaconTitleMaxLength = 60;
 
 const kDescriptionMaxLength = 2_048;
 
 /// Beacon `description` — same cap as [kDescriptionMaxLength] (matches DB `beacon.description` check).
-const kBeaconDescriptionMaxLength = kDescriptionMaxLength;
+const int kBeaconDescriptionMaxLength = kDescriptionMaxLength;
 
 const int kRatingSector = 100 ~/ 4;
 

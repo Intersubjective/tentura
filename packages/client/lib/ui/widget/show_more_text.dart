@@ -19,6 +19,7 @@ class ShowMoreText extends ReadMoreText {
     super.key,
     super.style,
     super.colorClickableText,
+    super.annotations,
     super.trimCollapsedText,
     super.trimExpandedText,
     super.trimLines = kMaxLines,

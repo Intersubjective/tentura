@@ -24,5 +24,6 @@ abstract class RoomMessage with _$RoomMessage {
     String? pollDataJson,
     String? systemPayloadJson,
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
+    @Default(<String>[]) List<String> mentions,
   }) = _RoomMessage;
 }

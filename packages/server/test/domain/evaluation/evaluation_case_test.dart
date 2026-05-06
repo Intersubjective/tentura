@@ -107,6 +107,12 @@ class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
     required List<String> subjectIds,
     int limit = 2,
   }) async => {};
+
+  @override
+  Future<List<FriendContextRow>> fetchFriendContextsBatch({
+    required String viewerId,
+    required List<String> friendIds,
+  }) async => [];
 }
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}

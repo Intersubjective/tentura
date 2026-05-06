@@ -160,6 +160,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> signUp({
     required String title,
     required String invitationCode,
+    String? handle,
   }) async {
     if (_env.needInviteCode && invitationCode.length < kIdLength) {
       return emit(
@@ -182,6 +183,7 @@ class AuthCubit extends Cubit<AuthState> {
         id: await _authCase.signUp(
           invitationCode: invitationCode,
           title: title,
+          handle: handle,
         ),
         title: title,
       );

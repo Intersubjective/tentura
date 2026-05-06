@@ -12,6 +12,19 @@
   "@labelDescription": {
     "context": "Utils"
   },
+  "labelUserHandle": "Handle",
+  "@labelUserHandle": {
+    "context": "Utils",
+    "description": "Optional public @mention handle for the user profile"
+  },
+  "userHandleHint": "5–30 letters, numbers, or underscore (optional)",
+  "@userHandleHint": {
+    "context": "Utils"
+  },
+  "userHandleInvalidFormat": "Use 5–30 characters: lowercase letters, numbers, underscore",
+  "@userHandleInvalidFormat": {
+    "context": "Utils"
+  },
   "labelMe": "Me",
   "@labelMe": {
     "context": "Utils"

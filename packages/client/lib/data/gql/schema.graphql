@@ -2944,7 +2944,7 @@ type mutation_root {
   setCoordinationResponse(commitUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_CoordinationStatusResult!
   signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
-  signUp(authRequestToken: String!, title: String!): v2_AuthResponse!
+  signUp(authRequestToken: String!, title: String!, handle: String): v2_AuthResponse!
 
   """
   update data of the table: "beacon"
@@ -3150,7 +3150,7 @@ type mutation_root {
     updates: [vote_user_updates!]!
   ): [vote_user_mutation_response]
   userDelete: Boolean!
-  userUpdate(description: String, dropImage: Boolean, image: v2_Upload = {}, title: String): v2_User!
+  userUpdate(description: String, dropImage: Boolean, handle: String, image: v2_Upload = {}, title: String): v2_User!
 }
 
 """
@@ -5838,6 +5838,7 @@ type user {
   ): [comment!]!
   created_at: timestamptz!
   description: String!
+  handle: String
   id: String!
 
   """An object relationship"""
@@ -6256,6 +6257,7 @@ type RoomMessageRow {
   reactionsJson: String
   myReaction: String
   attachmentsJson: String!
+  mentions: [String!]!
 }
 
 type BeaconRoomStateRow {
@@ -6296,6 +6298,7 @@ type BeaconParticipantRow {
   beaconId: String!
   userId: String!
   userTitle: String!
+  userHandle: String
   userHasPicture: Boolean!
   userPicHeight: Int!
   userPicWidth: Int!
@@ -6503,6 +6506,7 @@ input v2_Upload {
 
 type v2_user {
   description: String!
+  handle: String
   id: String!
   image: v2_image
   my_vote: Int
@@ -6514,6 +6518,7 @@ type v2_user {
 
 type v2_User {
   id: String!
+  handle: String
 }
 
 """

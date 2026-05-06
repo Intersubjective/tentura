@@ -19,6 +19,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:readmore/readmore.dart';
 
 class RoomMessageTile extends StatelessWidget {
   const RoomMessageTile({
@@ -130,6 +131,41 @@ class RoomMessageTile extends StatelessWidget {
         .where((a) => a.isImage && a.imageId.isNotEmpty)
         .toList();
     final fileAttachments = message.attachments.where((a) => a.isFile).toList();
+
+    final handleToUserId = <String, String>{};
+    for (final p in participants) {
+      final h = p.handle.trim().toLowerCase();
+      if (h.isNotEmpty) {
+        handleToUserId[h] = p.userId;
+      }
+    }
+    final mentionedIds = message.mentions.toSet();
+    final mentionAnnotations = <Annotation>[
+      Annotation(
+        regExp: RegExp(r'@[a-zA-Z0-9_]{5,30}'),
+        spanBuilder: ({required String text, TextStyle? textStyle}) {
+          final handle = text.substring(1).toLowerCase();
+          final userId = handleToUserId[handle];
+          final isMentioned =
+              userId != null && mentionedIds.contains(userId);
+          if (!isMentioned) {
+            return TextSpan(text: text, style: textStyle);
+          }
+          final isSelfMention = userId == myProfile.id;
+          return TextSpan(
+            text: text,
+            style: textStyle?.copyWith(
+              color:
+                  isSelfMention ? null : theme.colorScheme.primary,
+              backgroundColor: isSelfMention
+                  ? theme.colorScheme.tertiaryContainer.withValues(alpha: 0.8)
+                  : null,
+              fontWeight: isSelfMention ? FontWeight.w600 : FontWeight.w700,
+            ),
+          );
+        },
+      ),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -245,6 +281,7 @@ class RoomMessageTile extends StatelessWidget {
                                   display,
                                   style: ShowMoreText.buildTextStyle(context),
                                   colorClickableText: theme.colorScheme.primary,
+                                  annotations: mentionAnnotations,
                                 ),
                               ),
                             if (imageAttachments.isNotEmpty)
@@ -305,7 +342,7 @@ class RoomMessageTile extends StatelessWidget {
                                   participants: participants,
                                   onVote: onVotePoll == null
                                       ? null
-                                      : (variantIds, {int? score}) => unawaited(
+                                      : (variantIds, {score}) => unawaited(
                                             onVotePoll!(
                                               message.linkedPollingId!,
                                               variantIds,

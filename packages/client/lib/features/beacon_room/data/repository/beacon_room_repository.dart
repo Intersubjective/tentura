@@ -125,6 +125,7 @@ class BeaconRoomRepository {
               pollDataJson: m.pollDataJson,
               systemPayloadJson: m.systemPayloadJson,
               attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
+              mentions: m.mentions.toList(),
             );
           },
         )
@@ -211,6 +212,7 @@ class BeaconRoomRepository {
             createdAt: DateTime.parse(p.createdAt),
             updatedAt: DateTime.parse(p.updatedAt),
             userTitle: p.userTitle,
+            handle: p.userHandle ?? '',
             userHasPicture: p.userHasPicture,
             userPicHeight: p.userPicHeight,
             userPicWidth: p.userPicWidth,

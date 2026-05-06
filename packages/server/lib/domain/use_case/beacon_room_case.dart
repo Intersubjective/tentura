@@ -102,11 +102,18 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Message text or attachment required',
       );
     }
+    final mentionIds = trimmed.isEmpty
+        ? const <String>[]
+        : await _room.resolveMentionUserIdsForBeacon(
+            beaconId: beaconId,
+            body: trimmed,
+          );
     final row = await _room.insertRoomMessage(
       beaconId: beaconId,
       authorId: userId,
       body: trimmed,
       replyToMessageId: replyToMessageId,
+      mentions: mentionIds,
     );
     if (payload != null) {
       await _addAttachmentBytesToMessage(
@@ -535,6 +542,9 @@ final class BeaconRoomCase extends UseCaseBase {
     final titlesByUserId =
         userIds.isEmpty ? <String, String>{} : await _room.userTitlesByIds(userIds);
 
+    final handlesByUserId =
+        userIds.isEmpty ? <String, String>{} : await _room.userHandlesByIds(userIds);
+
     final picMetaByUserId =
         userIds.isEmpty ? const <String, ({bool hasPicture, int picHeight, int picWidth, String blurHash, String imageId})>{} : await _room.userPicMetaByIds(userIds);
     return rows
@@ -544,6 +554,7 @@ final class BeaconRoomCase extends UseCaseBase {
             'beaconId': r.beaconId,
             'userId': r.userId,
             'userTitle': titlesByUserId[r.userId] ?? '',
+            'userHandle': handlesByUserId[r.userId] ?? '',
             'userHasPicture': picMetaByUserId[r.userId]?.hasPicture ?? false,
             'userPicHeight': picMetaByUserId[r.userId]?.picHeight ?? 0,
             'userPicWidth': picMetaByUserId[r.userId]?.picWidth ?? 0,
@@ -811,9 +822,14 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Message body cannot be empty',
       );
     }
+    final mentionIds = await _room.resolveMentionUserIdsForBeacon(
+      beaconId: beaconId,
+      body: trimmed,
+    );
     await _room.updateMessage(
       messageId: messageId,
       newBody: trimmed,
+      mentions: mentionIds,
     );
     return true;
   }

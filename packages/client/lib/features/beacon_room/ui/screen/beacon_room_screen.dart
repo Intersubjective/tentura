@@ -28,6 +28,8 @@ import '../bloc/room_cubit.dart';
 import '../widget/beacon_room_you_strip.dart';
 import '../widget/fact_actions_sheet.dart';
 import '../widget/room_facts_sheet.dart';
+import '../widget/mention_suggestions_overlay.dart';
+import '../widget/mention_text_controller.dart';
 import '../widget/room_message_tile.dart';
 import '../widget/room_now_strip.dart';
 import '../widget/room_unread_divider.dart';
@@ -453,7 +455,7 @@ class _BeaconRoomScreenState extends State<BeaconRoomScreen> {
                                       ),
                                   participants: state.participants,
                                   onVotePoll: (pollingId, variantIds,
-                                          {int? score}) =>
+                                          {score}) =>
                                       cubit.votePoll(
                                         messageId: m.id,
                                         pollingId: pollingId,
@@ -1239,14 +1241,65 @@ class BeaconRoomComposer extends StatefulWidget {
 }
 
 class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
-  final _text = TextEditingController();
+  final _text = MentionTextController();
+  final _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
 
   final List<RoomPendingUpload> _pending = [];
 
   @override
+  void initState() {
+    super.initState();
+    _text.addListener(_onTextChanged);
+  }
+
+  @override
   void dispose() {
+    _text.removeListener(_onTextChanged);
+    _removeOverlay();
     _text.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged() {
+    if (!mounted) return;
+    final query = _text.activeMentionQuery;
+    if (query == null) {
+      _removeOverlay();
+      return;
+    }
+    final cubit = context.read<RoomCubit>();
+    final suggestions = cubit
+        .participantsMatchingQuery(query)
+        .where((p) => p.handle.isNotEmpty)
+        .take(5)
+        .toList(growable: false);
+    if (suggestions.isEmpty) {
+      _removeOverlay();
+      return;
+    }
+    _showOverlay(suggestions);
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  void _showOverlay(List<BeaconParticipant> suggestions) {
+    _overlayEntry?.remove();
+    _overlayEntry = OverlayEntry(
+      builder: (_) => MentionSuggestionsOverlay(
+        suggestions: suggestions,
+        layerLink: _layerLink,
+        onDismiss: _removeOverlay,
+        onSelect: (p) {
+          _text.insertMention(p.handle.toLowerCase());
+          _removeOverlay();
+        },
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_overlayEntry!);
   }
 
   int get _remainingSlots => kMaxRoomMessageAttachments - _pending.length;
@@ -1381,6 +1434,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       if (!mounted) {
         return;
       }
+      _removeOverlay();
       _text.clear();
       setState(_pending.clear);
     } on Object catch (_) {}
@@ -1509,16 +1563,20 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
               icon: const Icon(Icons.attach_file_rounded),
             ),
             Expanded(
-              child: TextField(
-                controller: _text,
-                decoration: InputDecoration(
-                  hintText: l10n.beaconRoomMessageHint,
+              child: CompositedTransformTarget(
+                link: _layerLink,
+                child: TextField(
+                  controller: _text,
+                  decoration: InputDecoration(
+                    hintText: l10n.beaconRoomMessageHint,
+                  ),
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  enabled: !busy,
+                  onSubmitted: (_) => unawaited(_submit()),
+                  onTapOutside: (_) => _removeOverlay(),
                 ),
-                minLines: 1,
-                maxLines: 4,
-                textInputAction: TextInputAction.send,
-                enabled: !busy,
-                onSubmitted: (_) => unawaited(_submit()),
               ),
             ),
             IconButton(
@@ -1626,7 +1684,6 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
 
               // Poll type selector
               Align(
-                alignment: Alignment.center,
                 child: SegmentedButton<String>(
                   segments: const [
                     ButtonSegment(value: 'single', label: Text('Single')),

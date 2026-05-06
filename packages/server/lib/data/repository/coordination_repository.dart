@@ -218,6 +218,9 @@ class CoordinationRepository implements CoordinationRepositoryPort {
         id: user.id,
         title: user.title,
         description: user.description,
+        handle: (user.handle ?? '').trim().isEmpty
+            ? null
+            : user.handle!.trim(),
         isMutualFriend: reciprocal.contains(user.id),
         image: imageRecord,
         userPresence: userPresence,

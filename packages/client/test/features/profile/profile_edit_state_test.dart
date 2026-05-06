@@ -11,6 +11,7 @@ void main() {
     final stateA = ProfileEditState(
       original: const Profile(),
       title: 'title',
+      handle: '',
       description: 'description',
       image: ImageEntity(imageBytes: Uint8List(0)),
     );
