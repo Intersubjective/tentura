@@ -12,13 +12,15 @@ const kTitleMinLength = 3;
 
 const kTitleMaxLength = 32;
 
-/// Public @mention handle (`user.handle`): 5–30 chars, `[a-z0-9_]`, optional.
-const kUserHandleMinLength = 5;
+/// Public @mention handle (`user.handle`): 3–30 chars, `[a-z0-9_]`, optional.
+const kUserHandleMinLength = 3;
 
 const kUserHandleMaxLength = 30;
 
 /// Normalized (lowercase) pattern for validation after trim.
-final RegExp kUserHandleRegExp = RegExp(r'^[a-z0-9_]{5,30}$');
+final RegExp kUserHandleRegExp = RegExp(
+  '^[a-z0-9_]{$kUserHandleMinLength,$kUserHandleMaxLength}\$',
+);
 
 bool isValidUserHandleFormat(String trimmedLowercase) =>
     kUserHandleRegExp.hasMatch(trimmedLowercase);

@@ -1,11 +1,11 @@
-/// Room @mention handle: 5–30 chars, lowercase letters, digits, underscore.
-const kUserHandleMinLength = 5;
+/// Room @mention handle: 3–30 chars, lowercase letters, digits, underscore.
+const kUserHandleMinLength = 3;
 
 const kUserHandleMaxLength = 30;
 
 /// Normalized (lowercase) pattern for validation after trim.
 final RegExp kUserHandleRegExp = RegExp(
-  r'^[a-z0-9_]{5,30}$',
+  '^[a-z0-9_]{$kUserHandleMinLength,$kUserHandleMaxLength}\$',
 );
 
 bool isValidUserHandleFormat(String trimmedLowercase) =>

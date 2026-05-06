@@ -17,11 +17,11 @@
     "context": "Utils",
     "description": "Optional public @mention handle for the user profile"
   },
-  "userHandleHint": "5–30 символов: строчные буквы, цифры или подчёркивание (необязательно)",
+  "userHandleHint": "3–30 символов: строчные буквы, цифры или подчёркивание (необязательно)",
   "@userHandleHint": {
     "context": "Utils"
   },
-  "userHandleInvalidFormat": "Только 5–30 символов: строчные буквы, цифры, подчёркивание",
+  "userHandleInvalidFormat": "Только 3–30 символов: строчные буквы, цифры, подчёркивание",
   "@userHandleInvalidFormat": {
     "context": "Utils"
   },
@@ -296,6 +296,14 @@
   },
   "beaconTitleRequired": "Название маяка (обязательно)",
   "@beaconTitleRequired": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconNeedsTitle": "Требуемые компетенции",
+  "@beaconNeedsTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconNeedsHelper": "Необязательно. Отметьте, что нужно для маяка — так проще подобрать получателей при пересылке.",
+  "@beaconNeedsHelper": {
     "context": "BeaconCreateScreen"
   },
   "buttonPublish": "Опубликовать",
@@ -1415,6 +1423,18 @@
   },
   "forwardHidePersonalizedNote": "скрыть заметку",
   "@forwardHidePersonalizedNote": {
+    "context": "ForwardBeaconScreen recipient row"
+  },
+  "forwardNotePlaceholder": "Добавьте заметку (необязательно)",
+  "@forwardNotePlaceholder": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardEditAction": "Изменить пересылку",
+  "@forwardEditAction": {
+    "context": "ForwardBeaconScreen recipient row"
+  },
+  "forwardCancelAction": "Отменить пересылку",
+  "@forwardCancelAction": {
     "context": "ForwardBeaconScreen recipient row"
   },
   "forwardMrSortShort": "MR сорт.",

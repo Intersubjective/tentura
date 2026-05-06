@@ -17,11 +17,11 @@
     "context": "Utils",
     "description": "Optional public @mention handle for the user profile"
   },
-  "userHandleHint": "5–30 letters, numbers, or underscore (optional)",
+  "userHandleHint": "3–30 letters, numbers, or underscore (optional)",
   "@userHandleHint": {
     "context": "Utils"
   },
-  "userHandleInvalidFormat": "Use 5–30 characters: lowercase letters, numbers, underscore",
+  "userHandleInvalidFormat": "Use 3–30 characters: lowercase letters, numbers, underscore",
   "@userHandleInvalidFormat": {
     "context": "Utils"
   },
@@ -296,6 +296,14 @@
   },
   "beaconTitleRequired": "Beacon Title (required)",
   "@beaconTitleRequired": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconNeedsTitle": "Required capabilities",
+  "@beaconNeedsTitle": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconNeedsHelper": "Optional. Tag what this beacon needs so forwarders can match recipients.",
+  "@beaconNeedsHelper": {
     "context": "BeaconCreateScreen"
   },
   "buttonPublish": "Publish",
@@ -1415,6 +1423,18 @@
   },
   "forwardHidePersonalizedNote": "hide personalized note",
   "@forwardHidePersonalizedNote": {
+    "context": "ForwardBeaconScreen recipient row"
+  },
+  "forwardNotePlaceholder": "Add an optional note",
+  "@forwardNotePlaceholder": {
+    "context": "ForwardBeaconScreen"
+  },
+  "forwardEditAction": "Edit forward",
+  "@forwardEditAction": {
+    "context": "ForwardBeaconScreen recipient row"
+  },
+  "forwardCancelAction": "Cancel forward",
+  "@forwardCancelAction": {
     "context": "ForwardBeaconScreen recipient row"
   },
   "forwardMrSortShort": "MR sort",
