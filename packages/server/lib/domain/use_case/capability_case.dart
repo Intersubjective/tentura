@@ -129,6 +129,14 @@ final class CapabilityCase extends UseCaseBase {
     limit: limit,
   );
 
+  Future<List<FriendContextRow>> fetchFriendContextsBatch({
+    required String viewerId,
+    required List<String> friendIds,
+  }) => _repository.fetchFriendContextsBatch(
+    viewerId: viewerId,
+    friendIds: friendIds,
+  );
+
   /// Atomically reconciles the full set of capabilities that [observerId] wants
   /// to see on [subjectId]'s profile.
   ///

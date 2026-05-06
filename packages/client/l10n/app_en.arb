@@ -2697,5 +2697,19 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+  "friendContextInboxCount": "{count} active beacons forwarded to them",
+  "@friendContextInboxCount": {
+    "context": "FriendsScreen / NetworkPersonCard tooltip",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "friendContextSharedCount": "{count} active beacons you both see",
+  "@friendContextSharedCount": {
+    "context": "FriendsScreen / NetworkPersonCard tooltip",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
   }
 }

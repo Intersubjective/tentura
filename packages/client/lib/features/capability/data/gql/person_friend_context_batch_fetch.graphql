@@ -1,0 +1,10 @@
+# V2: context counts per friend row (Network tab).
+
+query PersonFriendContextBatch($subjectUserIds: [String!]!) {
+  personFriendContextBatch(subjectUserIds: $subjectUserIds) {
+    subjectId
+    activeForwardsToCount
+    coInvolvedBeaconsCount
+  }
+}
+

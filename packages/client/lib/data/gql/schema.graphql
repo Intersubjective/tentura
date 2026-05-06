@@ -4179,6 +4179,7 @@ type query_root {
   myPrivateLabelsForUser(subjectUserId: String!): [String!]!
   personCapabilityCues(subjectUserId: String!): v2_PersonCapabilityCuesPayload!
   personTopCapabilitiesBatch(subjectUserIds: [String!]!, limit: Int): [v2_PersonTopCapabilities!]!
+  personFriendContextBatch(subjectUserIds: [String!]!): [v2_PersonFriendContext!]!
 
   """
   execute function "graph" which returns "mutual_score"
@@ -7335,5 +7336,11 @@ type v2_ForwardReasonRow {
 type v2_PersonTopCapabilities {
   subjectId: String!
   slugs: [String!]!
+}
+
+type v2_PersonFriendContext {
+  subjectId: String!
+  activeForwardsToCount: Int!
+  coInvolvedBeaconsCount: Int!
 }
 

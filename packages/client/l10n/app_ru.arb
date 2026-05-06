@@ -2685,5 +2685,19 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+  "friendContextInboxCount": "{count} активных маяков переслано ему/ей",
+  "@friendContextInboxCount": {
+    "context": "FriendsScreen / NetworkPersonCard tooltip",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "friendContextSharedCount": "{count} активных маяков видите оба",
+  "@friendContextSharedCount": {
+    "context": "FriendsScreen / NetworkPersonCard tooltip",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
   }
 }

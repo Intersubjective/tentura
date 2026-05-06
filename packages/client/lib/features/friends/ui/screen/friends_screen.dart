@@ -16,6 +16,7 @@ import 'package:tentura/features/capability/ui/widget/network_person_card.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
+import 'package:tentura/domain/capability/friend_context.dart';
 
 import '../bloc/friends_cubit.dart';
 
@@ -214,6 +215,9 @@ class _FriendsTabBody extends StatelessWidget {
                     return NetworkPersonCard(
                       key: ValueKey(profile),
                       profile: profile,
+                      friendContext:
+                          state.friendContexts[profile.id] ??
+                          FriendContext.empty,
                     );
                   },
                   separatorBuilder: separatorBuilder,

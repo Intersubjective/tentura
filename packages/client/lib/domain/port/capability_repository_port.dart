@@ -1,4 +1,5 @@
 import 'package:tentura/domain/capability/person_capability_cues.dart';
+import 'package:tentura/domain/capability/friend_context.dart';
 
 abstract class CapabilityRepositoryPort {
   Stream<void> get changes;
@@ -22,5 +23,9 @@ abstract class CapabilityRepositoryPort {
   Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
     required List<String> subjectIds,
     int limit = 2,
+  });
+
+  Future<Map<String, FriendContext>> fetchFriendContextsBatch({
+    required List<String> subjectIds,
   });
 }
