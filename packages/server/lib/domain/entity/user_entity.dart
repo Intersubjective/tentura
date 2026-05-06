@@ -16,6 +16,8 @@ abstract class UserEntity with _$UserEntity {
     required String id,
     @Default('') String publicKey,
     @Default('') String title,
+    /// Optional @mention handle (5–30 `[a-z0-9_]`, not globally unique).
+    @Default('') String handle,
     @Default('') String description,
     Set<UserPrivileges>? privileges,
     ImageEntity? image,
@@ -25,7 +27,10 @@ abstract class UserEntity with _$UserEntity {
 
   bool get hasImage => image != null;
 
-  Map<String, Object> get asJson => {'id': id};
+  Map<String, Object?> get asJson => {
+    'id': id,
+    'handle': handle.trim().isEmpty ? null : handle.trim(),
+  };
 
   String get imageUrl => hasImage
       ? '$kImageServer/$kImagesPath/$id/${image!.id}.$kImageExt'

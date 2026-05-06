@@ -14,6 +14,7 @@ abstract class BeaconParticipant with _$BeaconParticipant {
     required DateTime createdAt,
     required DateTime updatedAt,
     @Default('') String userTitle,
+    @Default('') String handle,
     @Default(false) bool userHasPicture,
     @Default(0) int userPicHeight,
     @Default(0) int userPicWidth,

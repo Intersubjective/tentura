@@ -45,6 +45,8 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
 
   final _titleController = TextEditingController();
 
+  final _handleController = TextEditingController();
+
   late final _textTheme = Theme.of(context).textTheme;
 
   late final _l10n = L10n.of(context)!;
@@ -64,6 +66,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
   void dispose() {
     _codeController.dispose();
     _titleController.dispose();
+    _handleController.dispose();
     super.dispose();
   }
 
@@ -141,6 +144,33 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
           ),
         ),
 
+        // Handle (optional)
+        Padding(
+          padding: kPaddingAll,
+          child: TextFormField(
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            controller: _handleController,
+            decoration: InputDecoration(
+              hintText: _l10n.userHandleHint,
+              labelText: _l10n.labelUserHandle,
+            ),
+            maxLength: kUserHandleMaxLength,
+            keyboardType: TextInputType.text,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9_]')),
+            ],
+            validator: (text) {
+              final t = (text ?? '').trim().toLowerCase();
+              if (t.isEmpty) return null;
+              if (!isValidUserHandleFormat(t)) {
+                return _l10n.userHandleInvalidFormat;
+              }
+              return null;
+            },
+            onTapOutside: (_) => FocusScope.of(context).unfocus(),
+          ),
+        ),
+
         // Register
         Padding(
           padding: kPaddingAll,
@@ -148,6 +178,9 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
             onPressed: () => _authCubit.signUp(
               invitationCode: _codeController.text,
               title: _titleController.text,
+              handle: _handleController.text.trim().toLowerCase().isEmpty
+                  ? null
+                  : _handleController.text.trim().toLowerCase(),
             ),
             child: Text(_l10n.buttonCreate),
           ),

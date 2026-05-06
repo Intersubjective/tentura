@@ -20,6 +20,9 @@ class Users extends Table with TitleDescriptionFields, TimestampsFields {
     PgTypes.uuid,
   ).nullable().references(Images, #id)();
 
+  /// Optional room-local @mention handle (5–30 chars `[a-z0-9_]`, not globally unique).
+  late final handle = text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

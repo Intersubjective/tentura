@@ -105,6 +105,7 @@ final class StubUserRepository implements UserRepositoryPort {
   Future<UserEntity> create({
     required String publicKey,
     required String title,
+    String? handle,
   }) =>
       throw UnimplementedError();
 
@@ -113,6 +114,7 @@ final class StubUserRepository implements UserRepositoryPort {
     required String invitationId,
     required String publicKey,
     required String title,
+    String? handle,
   }) =>
       throw UnimplementedError();
 
@@ -127,6 +129,8 @@ final class StubUserRepository implements UserRepositoryPort {
     String? description,
     String? imageId,
     bool dropImage = false,
+    bool setHandle = false,
+    String? handle,
   }) =>
       throw UnimplementedError();
 

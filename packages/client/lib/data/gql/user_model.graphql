@@ -3,6 +3,7 @@
 fragment UserModel on user {
   id
   title
+  handle
   description
   my_vote
   is_mutual_friend

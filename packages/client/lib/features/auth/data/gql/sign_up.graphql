@@ -1,5 +1,5 @@
-mutation SignUp($authRequestToken: String!, $title: String!) {
-  signUp(authRequestToken: $authRequestToken, title: $title) {
+mutation SignUp($authRequestToken: String!, $title: String!, $handle: String) {
+  signUp(authRequestToken: $authRequestToken, title: $title, handle: $handle) {
     subject
   }
 }

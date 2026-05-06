@@ -1087,6 +1087,7 @@ class MockBeaconRoomRepository extends _i1.Mock
     String? linkedPollingId,
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
+    List<String>? mentions = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#insertRoomMessage, [], {
@@ -1098,6 +1099,7 @@ class MockBeaconRoomRepository extends _i1.Mock
               #linkedPollingId: linkedPollingId,
               #semanticMarker: semanticMarker,
               #systemPayload: systemPayload,
+              #mentions: mentions,
             }),
             returnValue: _i6.Future<_i4.BeaconRoomMessage>.value(
               _FakeBeaconRoomMessage_2(
@@ -1111,6 +1113,7 @@ class MockBeaconRoomRepository extends _i1.Mock
                   #linkedPollingId: linkedPollingId,
                   #semanticMarker: semanticMarker,
                   #systemPayload: systemPayload,
+                  #mentions: mentions,
                 }),
               ),
             ),
@@ -1162,11 +1165,13 @@ class MockBeaconRoomRepository extends _i1.Mock
   _i6.Future<void> updateMessage({
     required String? messageId,
     required String? newBody,
+    required List<String>? mentions,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#updateMessage, [], {
               #messageId: messageId,
               #newBody: newBody,
+              #mentions: mentions,
             }),
             returnValue: _i6.Future<void>.value(),
             returnValueForMissingStub: _i6.Future<void>.value(),
@@ -1196,6 +1201,30 @@ class MockBeaconRoomRepository extends _i1.Mock
             ),
           )
           as _i6.Future<List<_i4.BeaconParticipant>>);
+
+  @override
+  _i6.Future<Map<String, String>> userHandlesByIds(Iterable<String>? userIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#userHandlesByIds, [userIds]),
+            returnValue: _i6.Future<Map<String, String>>.value(
+              <String, String>{},
+            ),
+          )
+          as _i6.Future<Map<String, String>>);
+
+  @override
+  _i6.Future<List<String>> resolveMentionUserIdsForBeacon({
+    required String? beaconId,
+    required String? body,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#resolveMentionUserIdsForBeacon, [], {
+              #beaconId: beaconId,
+              #body: body,
+            }),
+            returnValue: _i6.Future<List<String>>.value(<String>[]),
+          )
+          as _i6.Future<List<String>>);
 
   @override
   _i6.Future<Map<String, String>> userTitlesByIds(Iterable<String>? userIds) =>

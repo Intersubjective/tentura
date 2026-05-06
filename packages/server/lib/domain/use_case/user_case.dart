@@ -4,6 +4,8 @@ import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/consts/user_handle_consts.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -50,7 +52,22 @@ final class UserCase extends UseCaseBase {
     String? description,
     Stream<Uint8List>? imageBytes,
     bool? dropImage,
+    bool setHandle = false,
+    String? handle,
   }) async {
+    if (setHandle &&
+        handle != null &&
+        handle.trim().isNotEmpty) {
+      final h = handle.trim().toLowerCase();
+      if (!isValidUserHandleFormat(h)) {
+        throw const IdWrongException(
+          description:
+              'Handle must be $kUserHandleMinLength–$kUserHandleMaxLength '
+              'characters: lowercase letters, digits, underscore',
+        );
+      }
+    }
+
     String? imageId;
     final needDropImage = dropImage ?? false;
 
@@ -76,6 +93,8 @@ final class UserCase extends UseCaseBase {
       description: description,
       dropImage: needDropImage,
       imageId: imageId,
+      setHandle: setHandle,
+      handle: handle,
     );
 
     return _userRepository.getById(id);

@@ -41,6 +41,11 @@ class BeaconRoomMessages extends Table {
     PgTypes.timestampWithTimezone,
   ).nullable()();
 
+  /// Mentioned user ids (server-resolved from @handle in body).
+  late final mentions = customType(PgTypes.textArray).withDefault(
+    const Constant(<String>[], PgTypes.textArray),
+  )();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

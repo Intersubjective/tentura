@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:image_cropper/image_cropper.dart';
 
@@ -164,6 +165,35 @@ class ProfileEditScreen extends StatelessWidget
               onChanged: cubit.setTitle,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               validator: (text) => titleValidator(l10n, text),
+            ),
+          ),
+
+          // Handle (optional)
+          Padding(
+            padding: kPaddingAll,
+            child: TextFormField(
+              autovalidateMode: AutovalidateMode.onUnfocus,
+              decoration: InputDecoration(
+                labelText: l10n.labelUserHandle,
+                hintText: l10n.userHandleHint,
+              ),
+              initialValue: cubit.state.handle,
+              maxLength: kUserHandleMaxLength,
+              keyboardType: TextInputType.text,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9_]')),
+              ],
+              style: textTheme.bodyLarge,
+              onChanged: cubit.setHandle,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              validator: (text) {
+                final t = (text ?? '').trim().toLowerCase();
+                if (t.isEmpty) return null;
+                if (!isValidUserHandleFormat(t)) {
+                  return l10n.userHandleInvalidFormat;
+                }
+                return null;
+              },
             ),
           ),
 

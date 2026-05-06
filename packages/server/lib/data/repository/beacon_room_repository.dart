@@ -6,6 +6,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_server/consts/beacon_blocker_consts.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_blocker_entity.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -261,6 +262,7 @@ class BeaconRoomRepository {
         'myReaction': myReactionFor(id),
         'attachmentsJson':
             attachmentsJsonByMid[id] ?? '[]',
+        'mentions': m.mentions,
       };
     }).toList();
   }
@@ -393,6 +395,7 @@ class BeaconRoomRepository {
     String? linkedPollingId,
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
+    List<String> mentions = const [],
   }) =>
       _db.withMutatingUser(authorId, () async {
         final id = generateId('R');
@@ -408,6 +411,7 @@ class BeaconRoomRepository {
               linkedPollingId: Value(linkedPollingId),
               semanticMarker: Value(semanticMarker),
               systemPayload: Value(systemPayload),
+              mentions: Value(mentions),
               createdAt: const Value.absent(),
             ));
       });
@@ -456,6 +460,7 @@ class BeaconRoomRepository {
   Future<void> updateMessage({
     required String messageId,
     required String newBody,
+    required List<String> mentions,
   }) async {
     await _db.managers.beaconRoomMessages
         .filter((m) => m.id.equals(messageId))
@@ -463,6 +468,7 @@ class BeaconRoomRepository {
           (o) => o(
             body: Value(newBody),
             editedAt: Value(PgDateTime(DateTime.timestamp())),
+            mentions: Value(mentions),
           ),
         );
   }
@@ -481,6 +487,51 @@ class BeaconRoomRepository {
           .get();
 
   /// `user.title` for V2 row projections (missing users yield no map entry).
+  /// Trims `user.handle` per id (empty string when unset).
+  Future<Map<String, String>> userHandlesByIds(Iterable<String> userIds) async {
+    final ids = userIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) {
+      return {};
+    }
+    final users =
+        await _db.managers.users.filter((u) => u.id.isIn(ids)).get();
+    return {for (final u in users) u.id: (u.handle ?? '').trim()};
+  }
+
+  /// Resolves `@handle` tokens in [body] to admitted participant user ids
+  /// (case-insensitive; duplicate handles → all matching user ids).
+  Future<List<String>> resolveMentionUserIdsForBeacon({
+    required String beaconId,
+    required String body,
+  }) async {
+    final tokens = extractMentionHandleTokens(body);
+    if (tokens.isEmpty) {
+      return const [];
+    }
+    final participants = await listParticipants(beaconId);
+    final admitted = participants
+        .where((p) => p.roomAccess == RoomAccessBits.admitted)
+        .toList();
+    if (admitted.isEmpty) {
+      return const [];
+    }
+    final handlesByUserId =
+        await userHandlesByIds(admitted.map((p) => p.userId));
+    final out = <String>[];
+    for (final t in tokens) {
+      for (final p in admitted) {
+        final h = handlesByUserId[p.userId] ?? '';
+        if (h.isEmpty) {
+          continue;
+        }
+        if (h.toLowerCase() == t) {
+          out.add(p.userId);
+        }
+      }
+    }
+    return out.toSet().toList();
+  }
+
   Future<Map<String, String>> userTitlesByIds(Iterable<String> userIds) async {
     final ids = userIds.where((id) => id.isNotEmpty).toSet().toList();
     if (ids.isEmpty) {

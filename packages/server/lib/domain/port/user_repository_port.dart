@@ -5,12 +5,14 @@ abstract class UserRepositoryPort {
   Future<UserEntity> create({
     required String publicKey,
     required String title,
+    String? handle,
   });
 
   Future<UserEntity> createInvited({
     required String invitationId,
     required String publicKey,
     required String title,
+    String? handle,
   });
 
   Future<UserEntity> getById(String id);
@@ -23,6 +25,8 @@ abstract class UserRepositoryPort {
     String? description,
     String? imageId,
     bool dropImage = false,
+    bool setHandle = false,
+    String? handle,
   });
 
   Future<void> deleteById({required String id});

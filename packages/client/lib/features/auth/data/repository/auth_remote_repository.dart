@@ -30,6 +30,7 @@ class AuthRemoteRepository extends RemoteRepository
     required String seed,
     required String title,
     required String invitationCode,
+    String? handle,
   }) async {
     final authRequestToken = await remoteApiService.setAuth(
       seed: seed,
@@ -42,7 +43,8 @@ class AuthRemoteRepository extends RemoteRepository
       b.context = const Context().withEntry(const HttpAuthHeaders.noAuth());
       b.vars
         ..title = title
-        ..authRequestToken = authRequestToken;
+        ..authRequestToken = authRequestToken
+        ..handle = handle;
     });
     final response = await remoteApiService
         .request(request)

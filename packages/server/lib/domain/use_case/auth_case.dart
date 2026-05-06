@@ -7,6 +7,7 @@ import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/consts/user_handle_consts.dart';
 
 import '../entity/jwt_entity.dart';
 import '../enum.dart';
@@ -62,16 +63,28 @@ final class AuthCase extends UseCaseBase {
   Future<JwtEntity> signUp({
     required String authRequestToken,
     required String title,
+    String? handle,
   }) async {
     final jwt = _verifyAuthRequest(authRequestToken);
     final payload = jwt.payload as Map<String, dynamic>;
     final publicKey = payload[AuthRequestIntent.keyPublicKey]! as String;
+    if (handle != null && handle.trim().isNotEmpty) {
+      final h = handle.trim().toLowerCase();
+      if (!isValidUserHandleFormat(h)) {
+        throw const IdWrongException(
+          description:
+              'Handle must be $kUserHandleMinLength–$kUserHandleMaxLength '
+              'characters: lowercase letters, digits, underscore',
+        );
+      }
+    }
     final newUser = env.isNeedInvite
         ? switch (payload[AuthRequestIntentSignUp.keyCode]) {
             final String invitationId => await _userRepository.createInvited(
               invitationId: invitationId,
               publicKey: publicKey,
               title: title,
+              handle: handle,
             ),
             _ => throw const IdWrongException(
               description: 'Invite attribute not found!',
@@ -80,6 +93,7 @@ final class AuthCase extends UseCaseBase {
         : await _userRepository.create(
             publicKey: publicKey,
             title: title,
+            handle: handle,
           );
     return _issueJwt(newUser.id);
   }

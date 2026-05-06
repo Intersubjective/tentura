@@ -67,6 +67,10 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
       final id = row.data['id']! as String;
       final title = row.data['title']! as String;
       final description = row.data['description']! as String;
+      final handleRaw = row.data['handle'];
+      final handle = handleRaw is String && handleRaw.trim().isNotEmpty
+          ? handleRaw.trim()
+          : null;
       final imageIdRaw = row.data['image_id'];
 
       ImagePublicRecord? imageRecord;
@@ -112,6 +116,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
           id: id,
           title: title,
           description: description,
+          handle: handle,
           isMutualFriend: reciprocal.contains(id),
           image: imageRecord,
           scores: scores,

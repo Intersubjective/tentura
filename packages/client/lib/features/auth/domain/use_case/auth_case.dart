@@ -44,6 +44,7 @@ final class AuthCase extends UseCaseBase {
   Future<String> signUp({
     required String title,
     required String invitationCode,
+    String? handle,
   }) async {
     final seed = base64UrlEncode(
       Uint8List.fromList(
@@ -58,6 +59,7 @@ final class AuthCase extends UseCaseBase {
       seed: seed,
       title: title,
       invitationCode: invitationCode,
+      handle: handle,
     );
     await _authLocalRepository.addAccount(
       userId,

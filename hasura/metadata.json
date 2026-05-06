@@ -890,6 +890,7 @@
                   "columns": [
                     "created_at",
                     "description",
+                    "handle",
                     "id",
                     "image_id",
                     "public_key",

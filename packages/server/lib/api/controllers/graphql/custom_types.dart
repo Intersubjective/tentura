@@ -74,6 +74,10 @@ final gqlTypeRoomMessageRow =
         field('reactionsJson', graphQLString),
         field('myReaction', graphQLString),
         field('attachmentsJson', graphQLString.nonNullable()),
+        field(
+          'mentions',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
       ]);
 
 /// `beacon_room_state` row — one per beacon.
@@ -102,6 +106,7 @@ final gqlTypeBeaconParticipantRow =
         field('userPicWidth', graphQLInt.nonNullable()),
         field('userBlurHash', graphQLString.nonNullable()),
         field('userImageId', graphQLString.nonNullable()),
+        field('userHandle', graphQLString),
         field('role', graphQLInt.nonNullable()),
         field('status', graphQLInt.nonNullable()),
         field('roomAccess', graphQLInt.nonNullable()),
@@ -253,6 +258,7 @@ final gqlTypeForwardGraphResult =
 final gqlTypeProfile = GraphQLObjectType('User', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
+    field('handle', graphQLString),
   ]);
 
 /// Matches Hasura `mutual_score` for `UserModel.scores { src_score, dst_score }`.
@@ -290,6 +296,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
     field('title', graphQLString.nonNullable()),
+    field('handle', graphQLString),
     field('description', graphQLString.nonNullable()),
     field('my_vote', graphQLInt),
     field('is_mutual_friend', graphQLBoolean.nonNullable()),

@@ -9,6 +9,8 @@ import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/domain/entity/beacon_participant.dart';
+
 import '../../domain/use_case/beacon_room_case.dart';
 import '../message/beacon_room_fact_messages.dart';
 import 'room_message_reaction_local.dart';
@@ -33,6 +35,26 @@ class RoomCubit extends Cubit<RoomState> {
   late final StreamSubscription<String> _refreshSub;
 
   bool _markSeenEmittedThisVisit = false;
+
+  List<BeaconParticipant> participantsMatchingQuery(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) {
+      return state.participants
+          .where(
+            (p) =>
+                p.roomAccess == RoomAccessBits.admitted && p.handle.isNotEmpty,
+          )
+          .toList(growable: false);
+    }
+    return state.participants
+        .where(
+          (p) =>
+              p.roomAccess == RoomAccessBits.admitted &&
+              p.handle.isNotEmpty &&
+              p.handle.toLowerCase().contains(q),
+        )
+        .toList(growable: false);
+  }
 
   void _onRemoteRefresh(String id) {
     if (id == state.beaconId) {

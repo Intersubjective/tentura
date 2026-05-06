@@ -23,6 +23,7 @@ UserPublicRecord userEntityToPublicRecord(
     id: u.id,
     title: u.title,
     description: u.description,
+    handle: u.handle.trim().isEmpty ? null : u.handle.trim(),
     isMutualFriend: isMutualFriend,
     image: imageRecord,
   );

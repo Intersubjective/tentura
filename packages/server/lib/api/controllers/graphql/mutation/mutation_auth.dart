@@ -14,6 +14,8 @@ final class MutationAuth extends GqlNodeBase {
     fieldName: 'authRequestToken',
   );
 
+  final _handleField = InputFieldString(fieldName: 'handle');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     signIn,
     signUp,
@@ -35,11 +37,16 @@ final class MutationAuth extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get signUp => GraphQLObjectField(
     'signUp',
     gqlTypeAuthResponse.nonNullable(),
-    arguments: [InputFieldTitle.fieldNonNullable, _authRequestTokenInput.field],
+    arguments: [
+      InputFieldTitle.fieldNonNullable,
+      _authRequestTokenInput.field,
+      _handleField.fieldNullable,
+    ],
     resolve: (_, args) async {
       final jwt = await _authCase.signUp(
         authRequestToken: _authRequestTokenInput.fromArgsNonNullable(args),
         title: InputFieldTitle.fromArgsNonNullable(args),
+        handle: _handleField.fromArgs(args),
       );
       return jwt.asOauth2Map;
     },

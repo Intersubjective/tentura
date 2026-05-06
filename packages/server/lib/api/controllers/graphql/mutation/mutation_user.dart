@@ -10,6 +10,8 @@ final class MutationUser extends GqlNodeBase {
 
   final UserCase _userCase;
 
+  final _handleField = InputFieldString(fieldName: 'handle');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [update, delete];
 
   GraphQLObjectField<dynamic, dynamic> get update => GraphQLObjectField(
@@ -20,6 +22,7 @@ final class MutationUser extends GqlNodeBase {
       InputFieldDropImage.field,
       InputFieldDescription.field,
       InputFieldUpload.fieldImage,
+      _handleField.fieldNullable,
     ],
     resolve:
         (_, args) => _userCase
@@ -29,6 +32,8 @@ final class MutationUser extends GqlNodeBase {
               description: InputFieldDescription.fromArgs(args),
               imageBytes: InputFieldUpload.fromArgs(args),
               dropImage: InputFieldDropImage.fromArgs(args),
+              setHandle: args.containsKey('handle'),
+              handle: _handleField.fromArgs(args),
             )
             .then((v) => v.asJson),
   );
