@@ -534,6 +534,9 @@ final class BeaconRoomCase extends UseCaseBase {
     final userIds = rows.map((r) => r.userId).toSet().toList();
     final titlesByUserId =
         userIds.isEmpty ? <String, String>{} : await _room.userTitlesByIds(userIds);
+
+    final picMetaByUserId =
+        userIds.isEmpty ? const <String, ({bool hasPicture, int picHeight, int picWidth, String blurHash, String imageId})>{} : await _room.userPicMetaByIds(userIds);
     return rows
         .map(
           (r) => <String, Object?>{
@@ -541,6 +544,11 @@ final class BeaconRoomCase extends UseCaseBase {
             'beaconId': r.beaconId,
             'userId': r.userId,
             'userTitle': titlesByUserId[r.userId] ?? '',
+            'userHasPicture': picMetaByUserId[r.userId]?.hasPicture ?? false,
+            'userPicHeight': picMetaByUserId[r.userId]?.picHeight ?? 0,
+            'userPicWidth': picMetaByUserId[r.userId]?.picWidth ?? 0,
+            'userBlurHash': picMetaByUserId[r.userId]?.blurHash ?? '',
+            'userImageId': picMetaByUserId[r.userId]?.imageId ?? '',
             'role': r.role,
             'status': r.status,
             'roomAccess': r.roomAccess,

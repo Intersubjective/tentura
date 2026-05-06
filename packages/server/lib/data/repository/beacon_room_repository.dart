@@ -490,6 +490,59 @@ class BeaconRoomRepository {
     return {for (final u in users) u.id: u.title};
   }
 
+  Future<Map<String, ({
+    bool hasPicture,
+    int picHeight,
+    int picWidth,
+    String blurHash,
+    String imageId,
+  })>> userPicMetaByIds(Iterable<String> userIds) async {
+    final ids = userIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (ids.isEmpty) {
+      return {};
+    }
+
+    final users = await _db.managers.users.filter((u) => u.id.isIn(ids)).get();
+    if (users.isEmpty) {
+      return {};
+    }
+
+    final imageUuidIds = {
+      for (final u in users)
+        if (u.imageId case final UuidValue id) id,
+    }.toList();
+
+    final imageByUuid = <UuidValue, Image>{};
+    if (imageUuidIds.isNotEmpty) {
+      final imgs =
+          await _db.managers.images.filter((i) => i.id.isIn(imageUuidIds)).get();
+      for (final img in imgs) {
+        imageByUuid[img.id] = img;
+      }
+    }
+
+    final out = <String, ({
+      bool hasPicture,
+      int picHeight,
+      int picWidth,
+      String blurHash,
+      String imageId,
+    })>{};
+
+    for (final u in users) {
+      final imgUuid = u.imageId;
+      final img = imgUuid != null ? imageByUuid[imgUuid] : null;
+      out[u.id] = (
+        hasPicture: imgUuid != null && img != null,
+        picHeight: img?.height ?? 0,
+        picWidth: img?.width ?? 0,
+        blurHash: img?.hash ?? '',
+        imageId: img?.id.toString() ?? '',
+      );
+    }
+    return out;
+  }
+
   Future<void> participantOfferHelp({
     required String beaconId,
     required String userId,

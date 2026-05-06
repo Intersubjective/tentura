@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
+import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -28,6 +31,9 @@ class RoomPollCard extends StatefulWidget {
 }
 
 class _RoomPollCardState extends State<RoomPollCard> {
+  static const _kVoterAvatarSize = 18.0;
+  static const _kMaxShownVoterAvatars = 8;
+
   // For multiple: currently selected variant IDs (pending submit)
   late Set<String> _pendingMultiple;
 
@@ -148,7 +154,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
     ThemeData theme,
     RoomPollVariant v,
     bool showVoters,
-    Map<String, String> voterNames,
+    Map<String, BeaconParticipant> participantsByUserId,
   ) {
     final cs = theme.colorScheme;
     final isMine = widget.poll.isMyVote(v.id);
@@ -230,25 +236,84 @@ class _RoomPollCardState extends State<RoomPollCard> {
           ),
           if (showVoters && v.voterIds != null && v.voterIds!.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Wrap(
-              spacing: 4,
-              runSpacing: 2,
-              children: [
-                for (final uid in v.voterIds!)
-                  Chip(
-                    label: Text(
-                      voterNames[uid] ?? uid.substring(0, 6),
-                      style: theme.textTheme.labelSmall,
-                    ),
-                    padding: EdgeInsets.zero,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
+            _buildVoterAvatarsWrap(
+              theme: theme,
+              voterIds: v.voterIds!,
+              participantsByUserId: participantsByUserId,
             ),
           ],
         ],
       ),
+    );
+  }
+
+  Profile _profileForParticipant(BeaconParticipant p) {
+    return Profile(
+      id: p.userId,
+      title: p.userTitle,
+      image: p.userHasPicture && p.userImageId.isNotEmpty
+          ? ImageEntity(
+              id: p.userImageId,
+              authorId: p.userId,
+              blurHash: p.userBlurHash,
+              height: p.userPicHeight,
+              width: p.userPicWidth,
+            )
+          : null,
+    );
+  }
+
+  Widget _buildVoterAvatarsWrap({
+    required ThemeData theme,
+    required List<String> voterIds,
+    required Map<String, BeaconParticipant> participantsByUserId,
+  }) {
+    final cs = theme.colorScheme;
+    final shown = voterIds.take(_kMaxShownVoterAvatars).toList();
+    final overflow = voterIds.length - shown.length;
+    return Wrap(
+      spacing: 4,
+      runSpacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final uid in shown)
+          Builder(
+            builder: (context) {
+              final p = participantsByUserId[uid];
+              final title = p?.userTitle.trim().isNotEmpty ?? false
+                  ? p!.userTitle
+                  : uid.substring(0, 6);
+              final profile = p == null
+                  ? Profile(id: uid, title: title)
+                  : _profileForParticipant(p);
+              return Tooltip(
+                message: title,
+                child: SelfAwarePlainMiniAvatar(
+                  profile: profile,
+                  size: _kVoterAvatarSize,
+                ),
+              );
+            },
+          ),
+        if (overflow > 0)
+          Container(
+            width: _kVoterAvatarSize,
+            height: _kVoterAvatarSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: cs.surfaceContainerHigh,
+              border: Border.all(color: cs.outlineVariant),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '+$overflow',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -261,8 +326,8 @@ class _RoomPollCardState extends State<RoomPollCard> {
     final voted = _isVoted;
     final showVoters = !poll.isAnonymous && poll.hasVoted;
 
-    final voterNames = <String, String>{
-      for (final p in widget.participants) p.userId: p.userTitle,
+    final participantsByUserId = <String, BeaconParticipant>{
+      for (final p in widget.participants) p.userId: p,
     };
 
     return Card.outlined(
@@ -296,7 +361,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
             ...poll.variants.map((v) => Padding(
               padding: const EdgeInsets.only(top: 6),
               child: voted
-                  ? _buildVotedRow(theme, v, showVoters, voterNames)
+                  ? _buildVotedRow(theme, v, showVoters, participantsByUserId)
                   : switch (poll.pollType) {
                       PollType.multiple => _buildMultipleUnvoted(theme, v.id, v.description),
                       PollType.range => _buildRangeUnvoted(theme, v.id, v.description),
