@@ -70,8 +70,14 @@ class ForwardCubit extends Cubit<ForwardState> {
                     topCapabilities: topCaps[c.id] ?? [],
                   ))
               .toList();
-        } catch (_) {
-          // Non-critical: capability hints are best-effort.
+        } catch (e, st) {
+          // Non-critical: capability hints are best-effort, but log so failures
+          // are visible during development.
+          assert(() {
+            // ignore: avoid_print
+            print('[ForwardCubit] fetchTopCapabilitiesForCandidates failed: $e\n$st');
+            return true;
+          }());
         }
       }
 
