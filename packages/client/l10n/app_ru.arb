@@ -1989,6 +1989,23 @@
     "context": "BeaconViewScreen",
     "description": "Label when a forward recipient forwarded the beacon to someone else"
   },
+  "forwardStatusSeen": "Просмотрено",
+  "@forwardStatusSeen": {
+    "description": "Read receipt label: recipient has seen the forward"
+  },
+  "forwardStatusNotYetSeen": "Ещё не просмотрено",
+  "@forwardStatusNotYetSeen": {
+    "description": "Read receipt label: recipient has not seen the forward yet"
+  },
+  "forwardStatusSeenAt": "Просмотрено {time}",
+  "@forwardStatusSeenAt": {
+    "description": "Read receipt tooltip: recipient saw the forward at a relative time",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "dialogCommitTitle": "Принять участие",
   "@dialogCommitTitle": {
     "context": "BeaconViewScreen",

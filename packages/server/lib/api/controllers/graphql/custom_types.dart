@@ -191,6 +191,7 @@ final gqlTypeMyForwardRecipient =
         field('edgeId', graphQLString.nonNullable()),
         field('recipientId', graphQLString.nonNullable()),
         field('note', graphQLString.nonNullable()),
+        field('readAt', graphQLString),
       ]);
 
 /// V2-only: forward-screen involvement id sets (see `beaconInvolvement` query).

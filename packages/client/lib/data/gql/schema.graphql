@@ -873,6 +873,7 @@ type beacon_forward_edge {
   """An object relationship"""
   recipient: user!
   recipient_id: String!
+  recipient_read_at: timestamptz
   recipient_rejected: Boolean!
   recipient_rejection_message: String!
 
@@ -6381,6 +6382,7 @@ type v2_MyForwardRecipient {
   edgeId: String!
   recipientId: String!
   note: String!
+  readAt: String
 }
 
 type v2_ForwardGraphEdge {

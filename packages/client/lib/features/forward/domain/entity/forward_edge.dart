@@ -19,6 +19,7 @@ abstract class ForwardEdge with _$ForwardEdge {
     String? batchId,
     @Default(false) bool recipientRejected,
     @Default('') String recipientRejectionMessage,
+    DateTime? recipientReadAt,
   }) = _ForwardEdge;
 
   const ForwardEdge._();

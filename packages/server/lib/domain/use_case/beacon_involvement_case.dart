@@ -64,7 +64,7 @@ final class BeaconInvolvementCase extends UseCaseBase {
         .toSet()
         .toList();
 
-    final myForwardedRecipients = <Map<String, String>>[];
+    final myForwardedRecipients = <Map<String, dynamic>>[];
     final edgesToMarkRead = <ForwardEdgeEntity>[];
     for (final edge in edges) {
       if (edge.senderId == currentUserId) {
@@ -72,6 +72,7 @@ final class BeaconInvolvementCase extends UseCaseBase {
           'edgeId': edge.id,
           'recipientId': edge.recipientId,
           'note': edge.note,
+          'readAt': edge.recipientReadAt?.toIso8601String(),
         });
       }
       if (edge.recipientId == currentUserId && edge.recipientReadAt == null) {

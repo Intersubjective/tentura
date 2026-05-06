@@ -13,6 +13,7 @@ query BeaconInvolvementData($id: String!) {
       edgeId
       recipientId
       note
+      readAt
     }
   }
 }

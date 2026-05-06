@@ -55,6 +55,7 @@ class ForwardCubit extends Cubit<ForwardState> {
               involvement: _computeInvolvement(p.id, involvement),
               myForwardNote: involvement.myForwardedRecipientNotes[p.id],
               forwardEdgeId: involvement.myForwardedRecipientEdgeIds[p.id],
+              recipientReadAt: involvement.myForwardedRecipientReadAts[p.id],
             ),
           )
           .toList()
