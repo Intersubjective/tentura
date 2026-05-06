@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -142,7 +143,9 @@ class RoomMessageTile extends StatelessWidget {
     final mentionedIds = message.mentions.toSet();
     final mentionAnnotations = <Annotation>[
       Annotation(
-        regExp: RegExp(r'@[a-zA-Z0-9_]{5,30}'),
+        regExp: RegExp(
+          '@[a-zA-Z0-9_]{$kUserHandleMinLength,$kUserHandleMaxLength}',
+        ),
         spanBuilder: ({required String text, TextStyle? textStyle}) {
           final handle = text.substring(1).toLowerCase();
           final userId = handleToUserId[handle];
