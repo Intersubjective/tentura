@@ -118,7 +118,13 @@ class _GroupSection extends StatelessWidget {
                     ? theme.colorScheme.secondaryContainer
                     : null,
                 backgroundColor: automaticSlugs.contains(tag.slug)
-                    ? theme.colorScheme.secondaryContainer.withValues(alpha: 0.4)
+                    ? theme.colorScheme.secondaryContainer.withValues(alpha: 0.55)
+                    : null,
+                side: automaticSlugs.contains(tag.slug)
+                    ? BorderSide(
+                        color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                        width: 1.5,
+                      )
                     : null,
               ),
           ],

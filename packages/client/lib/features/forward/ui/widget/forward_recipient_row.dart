@@ -187,7 +187,7 @@ class ForwardRecipientRow extends StatelessWidget {
                             _CapabilityHintChip(
                               label: tag.labelOf(l10n),
                               icon: tag.icon,
-                              color: tt.textMuted,
+                              color: tt.text,
                             ),
                       ],
                     ),
