@@ -13,6 +13,7 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     @Default('') String description,
     @Default('') String location,
     @Default({}) Set<String> tags,
+    @Default({}) Set<String> needs,
     @Default([]) List<ImageEntity> images,
     Coordinates? coordinates,
     DateTime? startAt,

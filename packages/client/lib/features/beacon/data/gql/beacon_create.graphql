@@ -11,6 +11,7 @@ mutation BeaconCreate(
   $iconBackground: Int,
   $needSummary: String,
   $successCriteria: String,
+  $needs: String,
   $draft: Boolean
 ) {
   beaconCreate(
@@ -26,6 +27,7 @@ mutation BeaconCreate(
     iconBackground: $iconBackground,
     needSummary: $needSummary,
     successCriteria: $successCriteria,
+    needs: $needs,
     draft: $draft
   ) {
     id

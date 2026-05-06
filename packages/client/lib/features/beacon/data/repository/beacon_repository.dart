@@ -115,6 +115,7 @@ class BeaconRepository {
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needSummary = beacon.needSummary
         ..successCriteria = beacon.successCriteria
+        ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..draft = draft;
     });
     final beaconId = await _remoteApiService
@@ -158,7 +159,8 @@ class BeaconRepository {
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needSummary = beacon.needSummary
-        ..successCriteria = beacon.successCriteria;
+        ..successCriteria = beacon.successCriteria
+        ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',');
     });
     await _remoteApiService
         .request(request)
@@ -192,7 +194,8 @@ class BeaconRepository {
             ? null
             : encodeBeaconIconBackgroundArgb(beacon.iconBackground!)
         ..needSummary = beacon.needSummary
-        ..successCriteria = beacon.successCriteria;
+        ..successCriteria = beacon.successCriteria
+        ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',');
     });
     await _remoteApiService
         .request(request)

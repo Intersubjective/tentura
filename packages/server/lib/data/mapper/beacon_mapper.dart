@@ -26,6 +26,9 @@ BeaconEntity beaconModelToEntity(
       : null,
   images: images?.map(imageModelToEntity).toList() ?? const [],
   tags: model.tags.split(',').toSet(),
+  needs: model.needs.isEmpty
+      ? const <String>{}
+      : model.needs.split(',').toSet(),
   iconCode: model.iconCode,
   iconBackground: model.iconBackground,
   needSummary: model.needSummary,

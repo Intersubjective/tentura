@@ -24,6 +24,8 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _successCriteria = InputFieldString(fieldName: 'successCriteria');
 
+  final _needs = InputFieldString(fieldName: 'needs');
+
   final _draft = InputFieldBool(fieldName: 'draft');
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
@@ -76,6 +78,7 @@ final class MutationBeacon extends GqlNodeBase {
       _iconBackground.fieldNullable,
       _needSummary.fieldNullable,
       _successCriteria.fieldNullable,
+      _needs.fieldNullable,
       _draft.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
@@ -89,6 +92,7 @@ final class MutationBeacon extends GqlNodeBase {
           startAt: _startAt.fromArgs(args),
           endAt: _endAt.fromArgs(args),
           tags: _tags.fromArgs(args),
+          needs: _needs.fromArgs(args),
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
           draft: _draft.fromArgs(args) ?? false,
@@ -114,6 +118,7 @@ final class MutationBeacon extends GqlNodeBase {
       _iconBackground.fieldNullable,
       _needSummary.fieldNullable,
       _successCriteria.fieldNullable,
+      _needs.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .update(
@@ -126,6 +131,7 @@ final class MutationBeacon extends GqlNodeBase {
           startAt: _startAt.fromArgs(args),
           endAt: _endAt.fromArgs(args),
           tags: _tags.fromArgs(args),
+          needs: _needs.fromArgs(args),
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
           needSummary: _needSummary.fromArgs(args),
@@ -150,6 +156,7 @@ final class MutationBeacon extends GqlNodeBase {
       _iconBackground.fieldNullable,
       _needSummary.fieldNullable,
       _successCriteria.fieldNullable,
+      _needs.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .updateDraft(
@@ -162,6 +169,7 @@ final class MutationBeacon extends GqlNodeBase {
           startAt: _startAt.fromArgs(args),
           endAt: _endAt.fromArgs(args),
           tags: _tags.fromArgs(args),
+          needs: _needs.fromArgs(args),
           iconCode: _iconCode.fromArgs(args),
           iconBackground: _iconBackground.fromArgs(args),
           needSummary: _needSummary.fromArgs(args),

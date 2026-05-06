@@ -94,6 +94,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           successCriteria: beacon.successCriteria ?? '',
           description: beacon.description,
           tags: beacon.tags,
+          needs: beacon.needs,
           coordinates: coordinates,
           location: locationLabel,
           startAt: beacon.startAt,
@@ -143,6 +144,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           successCriteria: beacon.successCriteria ?? '',
           description: beacon.description,
           tags: beacon.tags,
+          needs: beacon.needs,
           coordinates: coordinates,
           location: locationLabel,
           startAt: beacon.startAt,
@@ -175,6 +177,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   void setSuccessCriteria(String value) =>
       emit(state.copyWith(successCriteria: value));
+
+  void setNeeds(Set<String> value) => emit(state.copyWith(needs: value));
 
   ///
   ///
@@ -335,6 +339,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       updatedAt: now,
       context: context,
       tags: state.tags,
+      needs: state.needs,
       title: _draftSafeTitle(state.title),
       coordinates: state.coordinates,
       description: state.description.trim(),
@@ -418,6 +423,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         updatedAt: now,
         context: context,
         tags: state.tags,
+        needs: state.needs,
         title: state.title,
         coordinates: state.coordinates,
         description: state.description,
@@ -506,6 +512,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             updatedAt: now,
             context: context,
             tags: state.tags,
+            needs: state.needs,
             title: state.title,
             coordinates: state.coordinates,
             description: state.description,
