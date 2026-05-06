@@ -19,6 +19,14 @@ final class InvitationCase extends UseCaseBase {
 
   final UserRepositoryPort _userRepository;
 
+  Future<InvitationEntity> create({
+    required String userId,
+    String? beaconId,
+  }) => _invitationRepository.create(
+    issuerId: userId,
+    beaconId: beaconId,
+  );
+
   Future<InvitationEntity> fetchById({
     required String invitationId,
   }) async {

@@ -2424,6 +2424,7 @@ columns and relationships of "invitation"
 type invitation {
   created_at: timestamptz!
   id: String!
+  beacon_id: String
 
   """An object relationship"""
   invited: user
@@ -2936,6 +2937,7 @@ type mutation_root {
     """upsert condition"""
     on_conflict: vote_user_on_conflict
   ): vote_user
+  invitationCreate(beaconId: String): invitation!
   invitationAccept(id: String!): Boolean!
   invitationDelete(id: String!): Boolean!
   meritrankInit(forceCalculate: Boolean): Int!

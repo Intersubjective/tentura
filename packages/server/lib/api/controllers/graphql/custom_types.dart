@@ -324,6 +324,7 @@ final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
     field('id', graphQLString.nonNullable()),
     field('issuer_id', graphQLString.nonNullable()),
     field('invited_id', graphQLString),
+    field('beacon_id', graphQLString),
     field('created_at', graphQLString.nonNullable()),
     field('updated_at', graphQLString.nonNullable()),
     field('issuer', gqlTypeUserPublic.nonNullable()),

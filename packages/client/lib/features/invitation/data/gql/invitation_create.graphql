@@ -1,6 +1,7 @@
-mutation InvitationCreate {
-  insert_invitation_one(object: {}) {
+mutation InvitationCreate($beaconId: String) {
+  invitationCreate(beaconId: $beaconId) {
     id
+    beacon_id
     invited_id
     created_at
     updated_at

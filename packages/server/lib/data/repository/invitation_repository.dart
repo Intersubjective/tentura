@@ -20,6 +20,32 @@ class InvitationRepository implements InvitationRepositoryPort {
   final TenturaDb _database;
 
   @override
+  Future<InvitationEntity> create({
+    required String issuerId,
+    String? beaconId,
+  }) async {
+    final row = await _database.managers.invitations.createReturning(
+      (o) => o(
+        userId: issuerId,
+        beaconId: Value.absentIfNull(beaconId),
+      ),
+    );
+    final issuer = await _database.managers.users
+        .filter((e) => e.id(issuerId))
+        .getSingle();
+    final issuerImage = issuer.imageId == null
+        ? null
+        : await _database.managers.images
+            .filter((e) => e.id(issuer.imageId!))
+            .getSingleOrNull();
+    return invitationModelToEntity(
+      row,
+      issuer: issuer,
+      issuerImage: issuerImage,
+    );
+  }
+
+  @override
   Future<InvitationEntity?> getById({
     required String invitationId,
   }) async {

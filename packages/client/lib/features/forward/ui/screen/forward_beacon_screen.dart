@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
-
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -9,6 +8,8 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
+import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
+import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -63,6 +64,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
   final _sharedNoteController = TextEditingController();
   final _recipientNoteControllers = <String, TextEditingController>{};
   final _personalizedNoteEditorOpenIds = <String>{};
+  final _invitationCubit = InvitationCubit();
 
   bool _noteExpanded = false;
   bool _searchOverlayOpen = false;
@@ -105,6 +107,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     }
     _recipientNoteControllers.clear();
     _sharedNoteController.dispose();
+    unawaited(_invitationCubit.close());
     super.dispose();
   }
 
@@ -180,6 +183,22 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _inviteNewPerson(BuildContext context) async {
+    final l10n = L10n.of(context)!;
+    final invitation = await _invitationCubit.createInvitation(
+      beaconId: widget.beaconId.isNotEmpty ? widget.beaconId : null,
+    );
+    if (invitation == null || !context.mounted) return;
+    await ShareCodeDialog.show(
+      context,
+      header: l10n.labelInvitationCode,
+      link: Uri.parse(kServerName).replace(
+        path: kPathAppLinkView,
+        queryParameters: {'id': invitation.id},
       ),
     );
   }
@@ -342,6 +361,9 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                       onSharedNoteChanged: cubit.setNote,
                       onForward:
                           state.selectedCount > 0 ? cubit.forward : null,
+                      onInvite: widget.beaconId.isNotEmpty
+                          ? () => unawaited(_inviteNewPerson(context))
+                          : null,
                     ),
                   ],
                 ),

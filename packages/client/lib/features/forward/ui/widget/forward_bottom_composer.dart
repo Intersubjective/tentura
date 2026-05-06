@@ -13,6 +13,7 @@ class ForwardBottomComposer extends StatelessWidget {
     required this.sharedNoteController,
     required this.onSharedNoteChanged,
     required this.onForward,
+    this.onInvite,
     super.key,
   });
 
@@ -23,6 +24,7 @@ class ForwardBottomComposer extends StatelessWidget {
   final TextEditingController sharedNoteController;
   final ValueChanged<String> onSharedNoteChanged;
   final VoidCallback? onForward;
+  final VoidCallback? onInvite;
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +95,17 @@ class ForwardBottomComposer extends StatelessWidget {
                 ),
               ),
             ],
+            SizedBox(height: tt.rowGap),
+            if (onInvite != null)
+              TextButton.icon(
+                onPressed: onInvite,
+                icon: const Icon(Icons.person_add_alt_1_outlined, size: 16),
+                label: Text(l10n.forwardInviteNewPerson),
+                style: TextButton.styleFrom(
+                  foregroundColor: tt.textMuted,
+                  textStyle: TenturaText.command(tt.textMuted),
+                ),
+              ),
             SizedBox(height: tt.rowGap),
             SizedBox(
               height: tt.buttonHeight,
