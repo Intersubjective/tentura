@@ -40,6 +40,7 @@ typedef BeaconInvolvementData = ({
   Set<String> onwardForwarderIds,
   Map<String, String> myForwardedRecipientNotes,
   Map<String, String> myForwardedRecipientEdgeIds,
+  Map<String, DateTime?> myForwardedRecipientReadAts,
 });
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -175,12 +176,15 @@ class ForwardRepository {
 
     final myForwardedRecipientNotes = <String, String>{};
     final myForwardedRecipientEdgeIds = <String, String>{};
+    final myForwardedRecipientReadAts = <String, DateTime?>{};
     if (inv.myForwardedRecipients != null) {
       for (final r in inv.myForwardedRecipients!) {
         myForwardedRecipientNotes[r.recipientId] = r.note;
         if (r.edgeId != null) {
           myForwardedRecipientEdgeIds[r.recipientId] = r.edgeId!;
         }
+        myForwardedRecipientReadAts[r.recipientId] =
+            r.readAt != null ? DateTime.parse(r.readAt!) : null;
       }
     }
 
@@ -194,6 +198,7 @@ class ForwardRepository {
       onwardForwarderIds: inv.onwardForwarderIds?.toSet() ?? {},
       myForwardedRecipientNotes: myForwardedRecipientNotes,
       myForwardedRecipientEdgeIds: myForwardedRecipientEdgeIds,
+      myForwardedRecipientReadAts: myForwardedRecipientReadAts,
     );
   }
 
@@ -290,6 +295,7 @@ class ForwardRepository {
                     recipient: (e.recipient as UserModel).toEntity(),
                     recipientRejected: e.recipient_rejected,
                     recipientRejectionMessage: e.recipient_rejection_message,
+                    recipientReadAt: e.recipient_read_at,
                   ),
                 )
                 .toList(),

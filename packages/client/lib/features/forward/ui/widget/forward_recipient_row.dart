@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -179,6 +180,13 @@ class ForwardRecipientRow extends StatelessWidget {
                           relationLabel,
                           tone: _relationTone(),
                         ),
+                      if (candidate.involvement ==
+                          CandidateInvolvement.forwardedByMe)
+                        _ForwardReadReceipt(
+                          readAt: candidate.recipientReadAt,
+                          l10n: l10n,
+                          tt: tt,
+                        ),
                     ],
                   ),
                   if (candidate.topCapabilities.isNotEmpty) ...[
@@ -279,6 +287,42 @@ class ForwardRecipientRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ForwardReadReceipt extends StatelessWidget {
+  const _ForwardReadReceipt({
+    required this.readAt,
+    required this.l10n,
+    required this.tt,
+  });
+
+  final DateTime? readAt;
+  final L10n l10n;
+  final TenturaTokens tt;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final isRead = readAt != null;
+    final icon = Icon(
+      isRead ? Icons.done_all : Icons.done,
+      size: 14,
+      color: isRead ? primary : tt.textMuted,
+    );
+    if (!isRead) {
+      return Tooltip(
+        message: l10n.forwardStatusNotYetSeen,
+        child: icon,
+      );
+    }
+    final locale = Localizations.localeOf(context);
+    final formatted =
+        DateFormat.yMMMd(locale.toString()).add_jm().format(readAt!.toLocal());
+    return Tooltip(
+      message: l10n.forwardStatusSeenAt(formatted),
+      child: icon,
     );
   }
 }

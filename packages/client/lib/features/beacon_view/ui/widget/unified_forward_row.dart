@@ -275,7 +275,19 @@ class UnifiedForwardRow extends StatelessWidget {
         ),
       ];
     }
-    return const [];
+    // No stronger reaction — show read status as a soft delivery hint.
+    return [
+      _ReactionLine(
+        icon: edge.recipientReadAt != null
+            ? Icons.done_all
+            : Icons.schedule_outlined,
+        text: edge.recipientReadAt != null
+            ? l10n.forwardStatusSeen
+            : l10n.forwardStatusNotYetSeen,
+        iconColor: scheme.onSurfaceVariant,
+        alignEnd: false,
+      ),
+    ];
   }
 }
 

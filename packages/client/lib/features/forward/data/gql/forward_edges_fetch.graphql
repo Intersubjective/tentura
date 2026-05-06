@@ -14,6 +14,7 @@ query ForwardEdgesFetch($beaconId: String!) {
     created_at
     recipient_rejected
     recipient_rejection_message
+    recipient_read_at
     sender {
       ...UserModel
     }

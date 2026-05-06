@@ -14,6 +14,7 @@ abstract class ForwardCandidate with _$ForwardCandidate {
     String? myForwardNote,
     String? forwardEdgeId,
     @Default([]) List<String> topCapabilities,
+    DateTime? recipientReadAt,
   }) = _ForwardCandidate;
 
   const ForwardCandidate._();
