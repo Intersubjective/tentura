@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
@@ -7,13 +9,14 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
+import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
 import '../bloc/beacon_create_cubit.dart';
-import '../dialog/add_tag_dialog.dart';
 import '../screen/beacon_icon_picker_screen.dart';
 
 class InfoTab extends StatefulWidget {
@@ -38,21 +41,94 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     text: _cubit.state.location,
   );
 
+  late final _needSummaryController = TextEditingController(
+    text: _cubit.state.needSummary,
+  );
+
+  late final _successCriteriaController = TextEditingController(
+    text: _cubit.state.successCriteria,
+  );
+
   @override
   void dispose() {
     _dateRangeController.dispose();
     _locationController.dispose();
+    _needSummaryController.dispose();
+    _successCriteriaController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showRequirementsSheet(BuildContext context) async {
+    final l10n = L10n.of(context)!;
+    var selected = Set<String>.from(_cubit.state.needs);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setModalState) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          builder: (_, scrollController) => Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.beaconRequirementsTitle,
+                        style: Theme.of(ctx).textTheme.titleMedium,
+                      ),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        _cubit.setNeeds(selected);
+                        Navigator.of(ctx).pop();
+                      },
+                      child: Text(l10n.buttonSave),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  children: [
+                    CapabilityChipSet(
+                      selectedSlugs: selected,
+                      onChanged: (s) => setModalState(() => selected = s),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) =>
       BlocListener<BeaconCreateCubit, BeaconCreateState>(
         bloc: _cubit,
-        listenWhen: (prev, curr) => prev.location != curr.location,
+        listenWhen: (prev, curr) =>
+            prev.location != curr.location ||
+            prev.needSummary != curr.needSummary ||
+            prev.successCriteria != curr.successCriteria,
         listener: (context, state) {
           if (_locationController.text != state.location) {
             _locationController.text = state.location;
+          }
+          if (_needSummaryController.text != state.needSummary) {
+            _needSummaryController.text = state.needSummary;
+          }
+          if (_successCriteriaController.text != state.successCriteria) {
+            _successCriteriaController.text = state.successCriteria;
           }
         },
         child: ListView(
@@ -84,6 +160,131 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               onChanged: _cubit.setDescription,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               validator: (text) => descriptionValidator(_l10n, text),
+            ),
+
+            // Need summary & success criteria (need-first; publish enforces min length)
+            Padding(
+              padding: kPaddingSmallV,
+              child: Text(
+                _l10n.beaconNeedSummaryTitle,
+                style: _theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextFormField(
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              controller: _needSummaryController,
+              decoration: InputDecoration(
+                labelText: _l10n.beaconNeedSummaryFieldLabel,
+                helperText: _l10n.beaconNeedSummaryHelper,
+              ),
+              keyboardType: TextInputType.multiline,
+              maxLines: null,
+              maxLength: BeaconCreateCubit.kNeedSummaryHardMax,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              onChanged: _cubit.setNeedSummary,
+              validator: (text) {
+                final raw = text ?? '';
+                if (raw.length > BeaconCreateCubit.kNeedSummaryHardMax) {
+                  return _l10n.beaconNeedSummaryTooLongError;
+                }
+                final t = raw.trim();
+                if (t.isNotEmpty &&
+                    t.length < BeaconCreateCubit.kNeedSummaryPublishMin) {
+                  return _l10n.beaconNeedSummaryTooShortError;
+                }
+                return null;
+              },
+            ),
+            Padding(
+              padding: kPaddingSmallV,
+              child: TextFormField(
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                controller: _successCriteriaController,
+                decoration: InputDecoration(
+                  labelText: _l10n.beaconSuccessCriteriaFieldLabel,
+                ),
+                keyboardType: TextInputType.multiline,
+                maxLines: null,
+                maxLength: BeaconCreateCubit.kSuccessCriteriaHardMax,
+                onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                onChanged: _cubit.setSuccessCriteria,
+                validator: (text) {
+                  final raw = text ?? '';
+                  if (raw.length > BeaconCreateCubit.kSuccessCriteriaHardMax) {
+                    return _l10n.beaconSuccessCriteriaTooLongError;
+                  }
+                  return null;
+                },
+              ),
+            ),
+
+            // Requirements — same bottom sheet pattern as forward “Why?” picker
+            Padding(
+              padding: kPaddingSmallV,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => unawaited(_showRequirementsSheet(context)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _l10n.beaconRequirementsTitle,
+                                style: _theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              BlocSelector<
+                                BeaconCreateCubit,
+                                BeaconCreateState,
+                                Set<String>
+                              >(
+                                bloc: _cubit,
+                                selector: (state) => state.needs,
+                                builder: (context, needs) => Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _l10n.beaconRequirementsSelectedCount(
+                                        needs.length,
+                                      ),
+                                      style: _theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                        color: _theme
+                                            .colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    if (needs.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      BeaconRequirementsBar(
+                                        needs: needs,
+                                        maxIcons: 12,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: _theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
 
             // Context
@@ -124,44 +325,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                     );
                   }
                 },
-              ),
-            ),
-
-            // Tags
-            Padding(
-              padding: kPaddingSmallV,
-              child: Text(_l10n.tagsText),
-            ),
-            BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
-              selector: (state) => state.tags,
-              builder: (_, tags) => Wrap(
-                runSpacing: kSpacingSmall,
-                spacing: kSpacingSmall,
-                children: [
-                  // Add Tag
-                  ActionChip(
-                    label: Text(
-                      _l10n.addTagText,
-                      style: _theme.chipTheme.labelStyle,
-                    ),
-                    onPressed: tags.length < 5
-                        ? () async {
-                            final tag = await BeaconAddTagDialog.show(context);
-                            if (tag != null) {
-                              _cubit.addTag(tag);
-                            }
-                          }
-                        : null,
-                  ),
-
-                  // Added Tags
-                  for (final tag in tags)
-                    Chip(
-                      label: Text(tag),
-                      deleteIconColor: _theme.colorScheme.onPrimary,
-                      onDeleted: () => _cubit.removeTag(tag),
-                    ),
-                ],
               ),
             ),
 

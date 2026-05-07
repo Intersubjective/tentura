@@ -1,6 +1,7 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
@@ -46,16 +47,20 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
 
 void _registerInvitationRepository() {
   final getIt = GetIt.I;
-  if (getIt.isRegistered<InvitationRepository>()) {
-    getIt.unregister<InvitationRepository>();
-  }
+  unawaited((() async {
+    if (getIt.isRegistered<InvitationRepository>()) {
+      await getIt.unregister<InvitationRepository>();
+    }
+  })());
 
   getIt.registerSingleton<InvitationRepository>(_FakeInvitationRepository());
 
   addTearDown(() {
-    if (getIt.isRegistered<InvitationRepository>()) {
-      getIt.unregister<InvitationRepository>();
-    }
+    unawaited((() async {
+      if (getIt.isRegistered<InvitationRepository>()) {
+        await getIt.unregister<InvitationRepository>();
+      }
+    })());
   });
 }
 

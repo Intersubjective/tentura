@@ -114,10 +114,6 @@
   "@buttonScanQR": {
     "context": "Utils"
   },
-  "tagsText": "Tags",
-  "@tagsText": {
-    "context": "Utils"
-  },
   "invitationCodeTooShort": "Code too short",
   "@invitationCodeTooShort": {
     "context": "CommonErrors"
@@ -886,14 +882,6 @@
   "closeButton": "Close",
   "@closeButton": {
     "context": "PollDialog"
-  },
-  "addTagText": "Add tag",
-  "@addTagText": {
-    "context": "AddTagDialog"
-  },
-  "enterTagNameHint": "Enter tag name",
-  "@enterTagNameHint": {
-    "context": "AddTagDialog"
   },
   "newStuffBadge": "New",
   "@newStuffBadge": {
@@ -2767,6 +2755,15 @@
   "friendContextSharedCount": "{count} active beacons you both see",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconRequirementsTitle": "Requirements",
+  "beaconRequirementsSubheading": "Looking for:",
+  "beaconForwardRequirementsHint": "Needs:",
+  "beaconRequirementsSelectedCount": "{count, plural, =0{None selected} one{1 selected} other{{count} selected}}",
+  "@beaconRequirementsSelectedCount": {
     "placeholders": {
       "count": { "type": "int" }
     }

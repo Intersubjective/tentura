@@ -11,6 +11,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../../data/repository/beacon_blocker_repository.dart';
 import '../../data/repository/beacon_fact_card_repository.dart';
+import '../../data/repository/beacon_room_hints_repository.dart';
 import '../../data/repository/beacon_room_repository.dart';
 import '../../../polling/data/repository/polling_repository.dart';
 
@@ -20,7 +21,8 @@ final class BeaconRoomCase extends UseCaseBase {
     this._room,
     this._factCards,
     this._blockers,
-    this._polling, {
+    this._polling,
+    this._hints, {
     required super.env,
     required super.logger,
   });
@@ -32,6 +34,8 @@ final class BeaconRoomCase extends UseCaseBase {
   final BeaconBlockerRepository _blockers;
 
   final PollingRepository _polling;
+
+  final BeaconRoomHintsRepository _hints;
 
   Stream<String> get beaconRoomRefresh => _room.beaconRoomRefresh;
 
@@ -185,6 +189,7 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<void> markRoomSeenIfAllowed(String beaconId) async {
     try {
       await _room.markRoomSeen(beaconId: beaconId);
+      _hints.notifyRoomSeen(beaconId);
     } on Object catch (_) {}
   }
 

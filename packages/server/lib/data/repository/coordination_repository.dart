@@ -183,6 +183,13 @@ class CoordinationRepository implements CoordinationRepositoryPort {
           peerIds: rows.map((r) => r.userId),
         );
 
+    final participantRows = await _database.managers.beaconParticipants
+        .filter((p) => p.beaconId.id(beaconId))
+        .get();
+    final roomAccessByUserId = <String, int>{
+      for (final p in participantRows) p.userId: p.roomAccess,
+    };
+
     final out = <CommitmentWithCoordinationRow>[];
     for (final row in rows) {
       final user = await _database.managers.users
@@ -239,6 +246,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
           responseType: coord?.responseType,
           responseUpdatedAt: coord?.responseUpdatedAt.toUtc(),
           responseAuthorUserId: coord?.authorUserId,
+          roomAccess: roomAccessByUserId[row.userId],
         ),
       );
     }

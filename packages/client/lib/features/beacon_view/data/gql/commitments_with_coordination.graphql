@@ -13,6 +13,7 @@ query CommitmentsWithCoordination($beaconId: String!) {
     responseType
     responseUpdatedAt
     responseAuthorUserId
+    roomAccess
     user {
       id
       title

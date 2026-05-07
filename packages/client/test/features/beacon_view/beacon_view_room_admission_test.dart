@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -8,6 +9,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 TimelineCommitment _commitmentMe({
   required Profile me,
   CoordinationResponseType? coordinationResponse,
+  int? roomAccess,
 }) =>
     TimelineCommitment(
       user: me,
@@ -15,6 +17,7 @@ TimelineCommitment _commitmentMe({
       createdAt: DateTime(2025),
       updatedAt: DateTime(2025),
       coordinationResponse: coordinationResponse,
+      roomAccess: roomAccess,
     );
 
 void main() {
@@ -32,6 +35,20 @@ void main() {
     );
     expect(noSignal.hasRoomAdmission, isFalse);
     expect(noSignal.canNavigateBeaconRoom, isFalse);
+
+    final autoAdmitted = BeaconViewState(
+      beacon: beacon,
+      commitments: [
+        _commitmentMe(
+          me: me,
+          roomAccess: RoomAccessBits.admitted,
+        ),
+      ],
+      isCommitted: true,
+      myProfile: me,
+    );
+    expect(autoAdmitted.hasRoomAdmission, isTrue);
+    expect(autoAdmitted.canNavigateBeaconRoom, isTrue);
 
     final useful = BeaconViewState(
       beacon: beacon,

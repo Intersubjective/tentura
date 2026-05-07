@@ -65,7 +65,10 @@ Widget _myWorkFooterActivityBlock({
       Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (showNew) _myWorkNewStuffDot(context, highlight) else const SizedBox.shrink(),
+          if (showNew)
+            _myWorkNewStuffDot(context, highlight)
+          else
+            const SizedBox.shrink(),
           Expanded(
             child: reasonLabels.isEmpty
                 ? const SizedBox.shrink()
@@ -108,43 +111,45 @@ class MyWorkCardRouter extends StatelessWidget {
         final b = vm.beacon;
         final seen = context.read<NewStuffCubit>().state.myWorkLastSeenMs;
         final highlight = context.read<NewStuffCubit>().myWorkCardHighlight(
-              createdAt: b.createdAt,
-              activityEpochMs: vm.newStuffActivityEpochMs,
-            );
-        final reasonLabels =
-            l10nMyWorkNewStuffReasons(l10n, vm.newStuffReasons(seen));
+          createdAt: b.createdAt,
+          activityEpochMs: vm.newStuffActivityEpochMs,
+        );
+        final reasonLabels = l10nMyWorkNewStuffReasons(
+          l10n,
+          vm.newStuffReasons(seen),
+        );
         final activityWhenLine = _myWorkActivityWhenLine(l10n, vm, highlight);
         return switch (vm.kind) {
           MyWorkCardKind.authoredDraft => _DraftAuthoredCard(
-              vm: vm,
-              highlight: highlight,
-              newStuffReasonLabels: reasonLabels,
-              activityWhenLine: activityWhenLine,
-            ),
+            vm: vm,
+            highlight: highlight,
+            newStuffReasonLabels: reasonLabels,
+            activityWhenLine: activityWhenLine,
+          ),
           MyWorkCardKind.authoredActive => _AuthoredActiveCard(
-              vm: vm,
-              highlight: highlight,
-              newStuffReasonLabels: reasonLabels,
-              activityWhenLine: activityWhenLine,
-            ),
+            vm: vm,
+            highlight: highlight,
+            newStuffReasonLabels: reasonLabels,
+            activityWhenLine: activityWhenLine,
+          ),
           MyWorkCardKind.committedActive => _CommittedActiveCard(
-              vm: vm,
-              highlight: highlight,
-              newStuffReasonLabels: reasonLabels,
-              activityWhenLine: activityWhenLine,
-            ),
+            vm: vm,
+            highlight: highlight,
+            newStuffReasonLabels: reasonLabels,
+            activityWhenLine: activityWhenLine,
+          ),
           MyWorkCardKind.authoredClosed => _ClosedAuthoredCard(
-              vm: vm,
-              highlight: highlight,
-              newStuffReasonLabels: reasonLabels,
-              activityWhenLine: activityWhenLine,
-            ),
+            vm: vm,
+            highlight: highlight,
+            newStuffReasonLabels: reasonLabels,
+            activityWhenLine: activityWhenLine,
+          ),
           MyWorkCardKind.committedClosed => _ClosedCommittedCard(
-              vm: vm,
-              highlight: highlight,
-              newStuffReasonLabels: reasonLabels,
-              activityWhenLine: activityWhenLine,
-            ),
+            vm: vm,
+            highlight: highlight,
+            newStuffReasonLabels: reasonLabels,
+            activityWhenLine: activityWhenLine,
+          ),
         };
       },
     );
@@ -153,6 +158,14 @@ class MyWorkCardRouter extends StatelessWidget {
 
 void _openBeacon(BuildContext context, String id) {
   unawaited(context.router.pushPath('$kPathBeaconView/$id'));
+}
+
+void _openBeaconReviewCommitments(BuildContext context, String id) {
+  unawaited(
+    context.router.pushPath(
+      '$kPathBeaconView/$id?$kQueryBeaconViewTab=commitments&$kQueryBeaconPeopleTabAttention=1',
+    ),
+  );
 }
 
 void _openEditDraft(BuildContext context, String id) {
@@ -199,7 +212,8 @@ class _AuthoredActiveCard extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: TenturaCommandButton(
                     label: l10n.myWorkReviewCommitmentsCta,
-                    onPressed: () => _openBeacon(context, b.id),
+                    onPressed: () =>
+                        _openBeaconReviewCommitments(context, b.id),
                   ),
                 ),
               if (hasReviewCta && needsForwardCta)
@@ -269,10 +283,10 @@ class _AuthoredActiveCard extends StatelessWidget {
               },
               onEdit: b.lifecycle == BeaconLifecycle.open
                   ? () => unawaited(
-                        context.router.pushPath(
-                          '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
-                        ),
-                      )
+                      context.router.pushPath(
+                        '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
+                      ),
+                    )
                   : null,
               onForward: () => unawaited(
                 context.router.pushPath('$kPathForwardBeacon/${b.id}'),
@@ -305,8 +319,9 @@ class _AuthoredActiveCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
-            roomSubtitle:
-                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+            roomSubtitle: vm.roomInboxSubtitle.isEmpty
+                ? null
+                : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           _myWorkFooterActivityBlock(
@@ -377,8 +392,9 @@ class _CommittedActiveCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
-            roomSubtitle:
-                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+            roomSubtitle: vm.roomInboxSubtitle.isEmpty
+                ? null
+                : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           _myWorkFooterActivityBlock(
@@ -455,8 +471,9 @@ class _DraftAuthoredCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
-            roomSubtitle:
-                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+            roomSubtitle: vm.roomInboxSubtitle.isEmpty
+                ? null
+                : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
@@ -558,10 +575,10 @@ class _ClosedAuthoredCard extends StatelessWidget {
               },
               onEdit: b.lifecycle == BeaconLifecycle.open
                   ? () => unawaited(
-                        context.router.pushPath(
-                          '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
-                        ),
-                      )
+                      context.router.pushPath(
+                        '$kPathBeaconNew?$kQueryBeaconEditId=${b.id}',
+                      ),
+                    )
                   : null,
               onForward: () => unawaited(
                 context.router.pushPath('$kPathForwardBeacon/${b.id}'),
@@ -594,8 +611,9 @@ class _ClosedAuthoredCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
-            roomSubtitle:
-                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+            roomSubtitle: vm.roomInboxSubtitle.isEmpty
+                ? null
+                : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           Row(
@@ -675,8 +693,9 @@ class _ClosedCommittedCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
             data: statusLine,
-            roomSubtitle:
-                vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+            roomSubtitle: vm.roomInboxSubtitle.isEmpty
+                ? null
+                : vm.roomInboxSubtitle,
           ),
           const SizedBox(height: kSpacingSmall),
           Row(

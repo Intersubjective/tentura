@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 /// Thin metadata strip: `author · context · start—end` (hidden while search focused).
@@ -95,6 +96,13 @@ class CompactBeaconContextStrip extends StatelessWidget {
                   ),
                 ],
               ),
+              if (beacon.needs.isNotEmpty) ...[
+                SizedBox(height: tt.iconTextGap / 2),
+                BeaconRequirementsBar(
+                  needs: beacon.needs,
+                  leadingLabel: l10n.beaconForwardRequirementsHint,
+                ),
+              ],
             ],
           );
         },

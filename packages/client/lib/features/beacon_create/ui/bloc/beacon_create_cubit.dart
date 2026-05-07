@@ -255,22 +255,6 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(images: images));
   }
 
-  ///
-  ///
-  void addTag(String value) => emit(
-    state.copyWith(
-      tags: {...state.tags, value.toLowerCase()},
-    ),
-  );
-
-  ///
-  ///
-  void removeTag(String value) => emit(
-    state.copyWith(
-      tags: {...state.tags}..remove(value),
-    ),
-  );
-
   /// Same bounds as [StringInputValidator] title/description checks on the form.
   bool _stateMeetsBaseFormRequirements() {
     final t = state.title;

@@ -328,6 +328,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   int? responseType,
                   DateTime? responseUpdatedAt,
                   String? responseAuthorUserId,
+                  int? roomAccess,
                 })
               >;
       final updates =
@@ -384,6 +385,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
               c.responseType,
             ),
             uncommitReason: c.uncommitReason,
+            roomAccess: c.roomAccess,
           ),
       ];
 
@@ -526,6 +528,7 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
     int? responseType,
     DateTime? responseUpdatedAt,
     String? responseAuthorUserId,
+    int? roomAccess,
   }) row,
 }) {
   final author = beacon.author;

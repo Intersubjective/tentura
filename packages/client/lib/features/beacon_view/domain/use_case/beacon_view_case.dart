@@ -190,6 +190,7 @@ final class BeaconViewCase extends UseCaseBase {
             int? responseType,
             DateTime? responseUpdatedAt,
             String? responseAuthorUserId,
+            int? roomAccess,
           })>> fetchCommitmentsWithCoordination({
     required String beaconId,
   }) =>

@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart'
@@ -176,6 +177,10 @@ class InboxItemTile extends StatelessWidget {
               ),
             ),
           ),
+          if (beacon.needs.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            BeaconRequirementsBar(needs: beacon.needs),
+          ],
           if (item.roomHints != null) ...[
             const SizedBox(height: 6),
             ..._roomHintLines(context, l10n, item.roomHints!),

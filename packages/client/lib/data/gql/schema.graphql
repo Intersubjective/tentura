@@ -6412,6 +6412,7 @@ type v2_CommitmentWithCoordinationRow {
   responseAuthorUserId: String
   responseType: Int
   responseUpdatedAt: String
+  roomAccess: Int
   status: Int!
   uncommitReason: String
   updatedAt: String!

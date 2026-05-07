@@ -59,5 +59,6 @@ Map<String, dynamic> commitmentWithCoordinationToGqlMap(
   'responseType': row.responseType,
   'responseUpdatedAt': row.responseUpdatedAt?.toUtc().toIso8601String(),
   'responseAuthorUserId': row.responseAuthorUserId,
+  'roomAccess': row.roomAccess,
   'user': userPublicToGqlMap(row.user),
 };
