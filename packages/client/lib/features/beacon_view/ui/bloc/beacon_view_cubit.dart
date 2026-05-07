@@ -418,6 +418,16 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         TimelineCreation(author: beacon.author, createdAt: beacon.createdAt),
       ]..sort();
 
+      var showDraftEvaluationCta = false;
+      if (beacon.lifecycle == BeaconLifecycle.open) {
+        try {
+          showDraftEvaluationCta =
+              await _case.beaconHasDraftEvaluationTargets(beaconId);
+        } on Object catch (_) {
+          showDraftEvaluationCta = false;
+        }
+      }
+
       emit(
         state.copyWith(
           beacon: beacon,
@@ -439,6 +449,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           roomParticipants: roomParticipants,
           beaconRoomCue: beaconRoomCue,
           roomActivityEvents: roomActivityEvents,
+          showDraftEvaluationCta: showDraftEvaluationCta,
           status: StateStatus.isSuccess,
         ),
       );

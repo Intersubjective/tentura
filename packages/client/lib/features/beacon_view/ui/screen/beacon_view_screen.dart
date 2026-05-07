@@ -137,6 +137,13 @@ Widget _beaconViewAppBarOverflow({
         context.router.pushPath('$kPathBeaconForwards/$beaconId'),
       ),
       onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
+      onDraftReview: state.showDraftEvaluationCta
+          ? () => unawaited(
+              context.router.pushPath(
+                '$kPathReviewContributions/$beaconId?draft=true',
+              ),
+            )
+          : null,
       onDelete: () async {
         if (!context.mounted) return;
         if (await BeaconDeleteDialog.show(context) ?? false) {
@@ -205,6 +212,13 @@ Widget _beaconViewAppBarOverflow({
       context.router.pushPath('$kPathBeaconForwards/$beaconId'),
     ),
     onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
+    onDraftReview: state.showDraftEvaluationCta
+        ? () => unawaited(
+            context.router.pushPath(
+              '$kPathReviewContributions/$beaconId?draft=true',
+            ),
+          )
+        : null,
     onWatch: !state.isCommitted &&
         state.inboxStatus == InboxItemStatus.needsMe
         ? () => unawaited(cubit.moveToWatching())
@@ -447,7 +461,8 @@ class _BeaconOperationalScrollViewState
               c.roomParticipants.map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}').join()) ||
           p.beaconRoomCue?.lastRoomMeaningfulChange !=
               c.beaconRoomCue?.lastRoomMeaningfulChange ||
-          p.beaconRoomCue?.currentPlan != c.beaconRoomCue?.currentPlan,
+          p.beaconRoomCue?.currentPlan != c.beaconRoomCue?.currentPlan ||
+          p.showDraftEvaluationCta != c.showDraftEvaluationCta,
       builder: (context, state) {
         final beaconId = state.beacon.id;
         Future<void> editUpdate(TimelineUpdate u) => _showEditAuthorUpdateSheet(
