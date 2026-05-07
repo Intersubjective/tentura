@@ -38,7 +38,7 @@ class InvitationCubit extends Cubit<InvitationState> {
     if (clear) {
       emit(
         state.copyWith(
-          invitations: [],
+          invitations: <InvitationEntity>[],
           hasReachedMax: false,
           status: StateStatus.isLoading,
         ),
@@ -51,11 +51,13 @@ class InvitationCubit extends Cubit<InvitationState> {
       final invitations = await _invitationRepository.fetchMine(
         offset: state.invitations.length,
       );
-      state.invitations
-        ..addAll(invitations)
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final next = <InvitationEntity>[
+        ...state.invitations,
+        ...invitations,
+      ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
       emit(
         state.copyWith(
+          invitations: next,
           status: StateStatus.isSuccess,
           hasReachedMax: invitations.length < kFetchListOffset,
         ),
@@ -69,8 +71,11 @@ class InvitationCubit extends Cubit<InvitationState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final invitation = await _invitationRepository.create(beaconId: beaconId);
-      state.invitations.add(invitation);
-      emit(state.copyWith(status: StateStatus.isSuccess));
+      final next = <InvitationEntity>[
+        ...state.invitations,
+        invitation,
+      ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
       return invitation;
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
@@ -82,8 +87,8 @@ class InvitationCubit extends Cubit<InvitationState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _invitationRepository.deleteById(id);
-      state.invitations.removeWhere((e) => e.id == id);
-      emit(state.copyWith(status: StateStatus.isSuccess));
+      final next = state.invitations.where((e) => e.id != id).toList();
+      emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
