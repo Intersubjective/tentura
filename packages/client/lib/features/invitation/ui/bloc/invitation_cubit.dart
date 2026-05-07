@@ -1,5 +1,7 @@
 // TBD: move not void public methods into state
 // ignore_for_file: prefer_void_public_cubit_methods
+import 'dart:async';
+
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
@@ -15,9 +17,15 @@ class InvitationCubit extends Cubit<InvitationState> {
   InvitationCubit({InvitationRepository? invitationRepository})
     : _invitationRepository =
           invitationRepository ?? GetIt.I<InvitationRepository>(),
-      super(const InvitationState());
+      super(const InvitationState()) {
+    _repoChanges = _invitationRepository.changes.listen((_) {
+      unawaited(fetch());
+    });
+  }
 
   final InvitationRepository _invitationRepository;
+
+  StreamSubscription<void>? _repoChanges;
 
   Future<void> fetch({bool clear = true}) async {
     if (state.isLoading) {
@@ -79,5 +87,11 @@ class InvitationCubit extends Cubit<InvitationState> {
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
+  }
+
+  @override
+  Future<void> close() async {
+    await _repoChanges?.cancel();
+    return super.close();
   }
 }

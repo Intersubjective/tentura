@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
@@ -20,9 +22,25 @@ typedef InvitationFetchByIdResult = ({
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class InvitationRepository {
-  const InvitationRepository(this._remoteApiService);
+  InvitationRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
+
+  final _changesController = StreamController<void>.broadcast();
+
+  /// Emits after create/delete so other invitation cubits can refetch.
+  Stream<void> get changes => _changesController.stream;
+
+  void _notifyChanges() {
+    scheduleMicrotask(() {
+      if (!_changesController.isClosed) {
+        _changesController.add(null);
+      }
+    });
+  }
+
+  @disposeMethod
+  Future<void> dispose() => _changesController.close();
 
   Future<InvitationFetchByIdResult?> fetchById(String id) async {
     final invitation = await _remoteApiService
@@ -68,6 +86,7 @@ class InvitationRepository {
             invitedId: e.invited_id,
             createdAt: e.created_at,
             updatedAt: e.updated_at,
+            beaconTitle: e.beacon?.title,
           ),
         )
         .toList();
@@ -82,13 +101,16 @@ class InvitationRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).invitationCreate);
-    return InvitationEntity(
+    final entity = InvitationEntity(
       id: result.id,
       beaconId: result.beacon_id,
       invitedId: result.invited_id,
       createdAt: result.created_at,
       updatedAt: result.updated_at,
+      beaconTitle: result.beacon?.title,
     );
+    _notifyChanges();
+    return entity;
   }
 
   Future<void> deleteById(String id) async {
@@ -99,6 +121,7 @@ class InvitationRepository {
     if (!result) {
       throw InvitationDeleteException(id);
     }
+    _notifyChanges();
   }
 
   Future<void> accept(String id) async {

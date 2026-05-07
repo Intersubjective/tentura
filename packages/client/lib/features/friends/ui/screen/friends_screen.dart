@@ -116,8 +116,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                   tabs: [
                     Tab(text: l10n.friendsTitle),
                     Tab(
-                      text:
-                          '${l10n.invitationScreenTitle} ($inviteCount)',
+                      text: '${l10n.invitationScreenTitle} ($inviteCount)',
                     ),
                   ],
                 );
@@ -289,7 +288,11 @@ class _InvitesTabBody extends StatelessWidget {
                     final createdAt = invitation.createdAt.toLocal();
                     return ListTile(
                       key: ValueKey(invitation),
-                      title: Text(invitation.id),
+                      title: Text(
+                        invitation.beaconTitle != null
+                            ? '${invitation.beaconTitle} — ${invitation.id}'
+                            : invitation.id,
+                      ),
                       subtitle: Text(
                         '${dateFormatYMD(createdAt)}  ${timeFormatHm(createdAt)}',
                       ),
