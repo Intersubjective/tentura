@@ -47,6 +47,23 @@ final class EmptyGraphCommitmentRepository implements CommitmentRepositoryPort {
 
 final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort {
   @override
+  Future<ForwardEdgeEntity?> fetchById(String edgeId) => throw UnimplementedError();
+
+  @override
+  Future<bool> existsWithParent(String parentEdgeId) => throw UnimplementedError();
+
+  @override
+  Future<void> cancel(String edgeId, String senderId) => throw UnimplementedError();
+
+  @override
+  Future<void> updateNote(String edgeId, String senderId, String note) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> markAsRead(String edgeId, String recipientId) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> create({
     required String beaconId,
     required String senderId,

@@ -9,7 +9,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
-import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
@@ -65,121 +64,33 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 hintText: _l10n.beaconTitleRequired,
               ),
               keyboardType: TextInputType.text,
-              maxLength: kBeaconTitleMaxLength,
+              maxLength: kTitleMaxLength,
               initialValue: _cubit.state.title,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
               onChanged: _cubit.setTitle,
-              validator: (text) => beaconTitleValidator(_l10n, text),
+              validator: (text) => titleValidator(_l10n, text),
             ),
 
-            // Need summary (short canonical ask)
+            // Description
             TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
               decoration: InputDecoration(
-                labelText: _l10n.beaconNeedSummaryFieldLabel,
-                helperText: _l10n.beaconNeedSummaryHelper,
+                hintText: _l10n.labelDescription,
               ),
               keyboardType: TextInputType.multiline,
-              maxLength: BeaconCreateCubit.kNeedSummaryHardMax,
-              minLines: 2,
-              maxLines: 4,
-              initialValue: _cubit.state.needSummary,
-              onChanged: (v) {
-                _cubit
-                  ..setNeedSummary(v)
-                  ..validate();
-              },
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) {
-                final t = text ?? '';
-                if (t.length > BeaconCreateCubit.kNeedSummaryHardMax) {
-                  return _l10n.beaconNeedSummaryTooLongError;
-                }
-                return null;
-              },
-            ),
-
-            // Success criteria (optional)
-            TextFormField(
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              decoration: InputDecoration(
-                labelText: _l10n.beaconSuccessCriteriaFieldLabel,
-              ),
-              keyboardType: TextInputType.multiline,
-              maxLength: BeaconCreateCubit.kSuccessCriteriaHardMax,
-              minLines: 1,
-              maxLines: 3,
-              initialValue: _cubit.state.successCriteria,
-              onChanged: (v) {
-                _cubit
-                  ..setSuccessCriteria(v)
-                  ..validate();
-              },
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) {
-                final t = text ?? '';
-                if (t.length > BeaconCreateCubit.kSuccessCriteriaHardMax) {
-                  return _l10n.beaconSuccessCriteriaTooLongError;
-                }
-                return null;
-              },
-            ),
-
-            // Required capabilities (needs)
-            Padding(
-              padding: kPaddingSmallV,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _l10n.beaconNeedsTitle,
-                    style: _theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    _l10n.beaconNeedsHelper,
-                    style: _theme.textTheme.bodySmall?.copyWith(
-                      color: _theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
-                    bloc: _cubit,
-                    selector: (s) => s.needs,
-                    builder: (_, needs) => CapabilityChipSet(
-                      selectedSlugs: needs,
-                      onChanged: _cubit.setNeeds,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Description (longer context)
-            TextFormField(
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              decoration: InputDecoration(
-                hintText: _l10n.beaconAddContextHint,
-              ),
-              keyboardType: TextInputType.multiline,
-              maxLength: kBeaconDescriptionMaxLength,
+              maxLength: kDescriptionMaxLength,
               maxLines: null,
               initialValue: _cubit.state.description,
-              onChanged: (v) {
-                _cubit
-                  ..setDescription(v)
-                  ..validate();
-              },
+              onChanged: _cubit.setDescription,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) => beaconDescriptionValidator(_l10n, text),
+              validator: (text) => descriptionValidator(_l10n, text),
             ),
 
             // Context
-            // const Padding(
-            //   padding: kPaddingSmallV,
-            //   child: ContextDropDown(),
-            // ),
+            const Padding(
+              padding: kPaddingSmallV,
+              child: ContextDropDown(),
+            ),
 
             // Date Range
             Padding(
@@ -217,42 +128,42 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             ),
 
             // Tags
-            // Padding(
-            //   padding: kPaddingSmallV,
-            //   child: Text(_l10n.tagsText),
-            // ),
-            // BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
-            //   selector: (state) => state.tags,
-            //   builder: (_, tags) => Wrap(
-            //     runSpacing: kSpacingSmall,
-            //     spacing: kSpacingSmall,
-            //     children: [
-            //       // Add Tag
-            //       ActionChip(
-            //         label: Text(
-            //           _l10n.addTagText,
-            //           style: _theme.chipTheme.labelStyle,
-            //         ),
-            //         onPressed: tags.length < 5
-            //             ? () async {
-            //                 final tag = await BeaconAddTagDialog.show(context);
-            //                 if (tag != null) {
-            //                   _cubit.addTag(tag);
-            //                 }
-            //               }
-            //             : null,
-            //       ),
-            //
-            //       // Added Tags
-            //       for (final tag in tags)
-            //         Chip(
-            //           label: Text(tag),
-            //           deleteIconColor: _theme.colorScheme.onPrimary,
-            //           onDeleted: () => _cubit.removeTag(tag),
-            //         ),
-            //     ],
-            //   ),
-            // ),
+            Padding(
+              padding: kPaddingSmallV,
+              child: Text(_l10n.tagsText),
+            ),
+            BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
+              selector: (state) => state.tags,
+              builder: (_, tags) => Wrap(
+                runSpacing: kSpacingSmall,
+                spacing: kSpacingSmall,
+                children: [
+                  // Add Tag
+                  ActionChip(
+                    label: Text(
+                      _l10n.addTagText,
+                      style: _theme.chipTheme.labelStyle,
+                    ),
+                    onPressed: tags.length < 5
+                        ? () async {
+                            final tag = await BeaconAddTagDialog.show(context);
+                            if (tag != null) {
+                              _cubit.addTag(tag);
+                            }
+                          }
+                        : null,
+                  ),
+
+                  // Added Tags
+                  for (final tag in tags)
+                    Chip(
+                      label: Text(tag),
+                      deleteIconColor: _theme.colorScheme.onPrimary,
+                      onDeleted: () => _cubit.removeTag(tag),
+                    ),
+                ],
+              ),
+            ),
 
             // Beacon symbol (optional identity tile)
             Padding(

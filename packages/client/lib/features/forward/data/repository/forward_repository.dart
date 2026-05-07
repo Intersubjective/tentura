@@ -180,9 +180,7 @@ class ForwardRepository {
     if (inv.myForwardedRecipients != null) {
       for (final r in inv.myForwardedRecipients!) {
         myForwardedRecipientNotes[r.recipientId] = r.note;
-        if (r.edgeId != null) {
-          myForwardedRecipientEdgeIds[r.recipientId] = r.edgeId!;
-        }
+        myForwardedRecipientEdgeIds[r.recipientId] = r.edgeId;
         myForwardedRecipientReadAts[r.recipientId] =
             r.readAt != null ? DateTime.parse(r.readAt!) : null;
       }

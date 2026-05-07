@@ -146,7 +146,7 @@ class RoomMessageTile extends StatelessWidget {
         regExp: RegExp(
           '@[a-zA-Z0-9_]{$kUserHandleMinLength,$kUserHandleMaxLength}',
         ),
-        spanBuilder: ({required String text, TextStyle? textStyle}) {
+        spanBuilder: ({required text, textStyle}) {
           final handle = text.substring(1).toLowerCase();
           final userId = handleToUserId[handle];
           final isMentioned =

@@ -53,10 +53,9 @@ void main() {
       (_) async => BeaconEntity(
         id: 'B1',
         title: 'Test beacon',
-        author: UserEntity(id: 'Uauthor'),
+        author: const UserEntity(id: 'Uauthor'),
         createdAt: now,
         updatedAt: now,
-        state: 0,
       ),
     );
     when(

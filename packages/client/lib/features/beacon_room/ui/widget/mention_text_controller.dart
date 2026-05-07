@@ -77,5 +77,3 @@ final class MentionTextController extends TextEditingController {
     return true;
   }
 }
-
-

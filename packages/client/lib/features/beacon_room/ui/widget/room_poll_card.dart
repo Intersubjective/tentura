@@ -8,7 +8,6 @@ import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_ava
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-typedef _OnVote = void Function(List<String> variantIds, {int? score});
 
 class RoomPollCard extends StatefulWidget {
   const RoomPollCard({
@@ -21,7 +20,7 @@ class RoomPollCard extends StatefulWidget {
   final RoomPollData poll;
 
   /// Null when the viewer cannot vote (e.g. not a member).
-  final _OnVote? onVote;
+  final void Function(List<String> variantIds, {int? score})? onVote;
 
   /// Room participants used to resolve voter display names for open polls.
   final List<BeaconParticipant> participants;
@@ -138,9 +137,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
           ),
           Slider(
             value: (score ?? 0).toDouble(),
-            min: 0,
             max: 5,
-            divisions: 5,
             onChanged: (v) => setState(
               () => _pendingRange[variantId] = v.round(),
             ),
