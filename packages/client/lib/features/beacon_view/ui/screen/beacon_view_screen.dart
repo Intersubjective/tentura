@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:auto_route/auto_route.dart';
-
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -89,6 +88,62 @@ bool _hideCommitWithdrawFromOverflow(BeaconViewState state) {
 
 const _beaconAuthorUpdateEditWindow = Duration(hours: 1);
 
+/// Initial commit dialog + [BeaconViewCubit.commit] (not update-commitment).
+Future<void> _beaconViewRunInitialCommitDialog(
+  BuildContext context,
+  BeaconViewCubit cubit,
+  L10n l10n,
+) async {
+  if (!context.mounted) return;
+  final useCommitAnyway =
+      cubit.state.beacon.coordinationStatus ==
+      BeaconCoordinationStatus.enoughHelpCommitted;
+  final outcome = await CommitmentMessageDialog.show(
+    context,
+    title: useCommitAnyway
+        ? l10n.dialogCommitAnywayTitle
+        : l10n.dialogCommitTitle,
+    hintText: l10n.hintCommitMessage,
+    allowEmptyMessage: true,
+    showHelpTypeChips: true,
+  );
+  if (outcome != null && context.mounted) {
+    await cubit.commit(
+      message: outcome.message,
+      helpTypes: outcome.helpTypesWire,
+    );
+  }
+}
+
+Future<void> _beaconViewOpenForwardThenMaybeNudgeCommit(
+  BuildContext context,
+  BeaconViewCubit cubit,
+  L10n l10n,
+) async {
+  final id = cubit.state.beacon.id;
+  final didForward = await context.router.push<bool>(
+    ForwardBeaconRoute(beaconId: id),
+  );
+  if (!context.mounted || didForward != true) return;
+  final s = cubit.state;
+  if (s.isCommitted ||
+      s.isBeaconMine ||
+      !s.beacon.allowsNewCommitAsNonAuthor ||
+      s.beacon.lifecycle != BeaconLifecycle.open) {
+    return;
+  }
+  showSnackBar(
+    context,
+    text: l10n.nudgeCommitAfterForward,
+    action: SnackBarAction(
+      label: l10n.labelCommit,
+      onPressed: () => unawaited(
+        _beaconViewRunInitialCommitDialog(context, cubit, l10n),
+      ),
+    ),
+  );
+}
+
 bool _authorUpdateEditableNow(DateTime createdAt) =>
     DateTime.now().toUtc().difference(createdAt.toUtc()) <=
     _beaconAuthorUpdateEditWindow;
@@ -137,7 +192,7 @@ Widget _beaconViewAppBarOverflow({
             )
           : null,
       onForward: () => unawaited(
-        context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+        _beaconViewOpenForwardThenMaybeNudgeCommit(context, cubit, l10n),
       ),
       onViewForwards: () => unawaited(
         context.router.pushPath('$kPathBeaconForwards/$beaconId'),
@@ -167,25 +222,7 @@ Widget _beaconViewAppBarOverflow({
             !state.isCommitted &&
             b.allowsNewCommitAsNonAuthor
         ? () async {
-            if (!context.mounted) return;
-            final useCommitAnyway =
-                state.beacon.coordinationStatus ==
-                BeaconCoordinationStatus.enoughHelpCommitted;
-            final outcome = await CommitmentMessageDialog.show(
-              context,
-              title: useCommitAnyway
-                  ? l10n.dialogCommitAnywayTitle
-                  : l10n.dialogCommitTitle,
-              hintText: l10n.hintCommitMessage,
-              allowEmptyMessage: true,
-              showHelpTypeChips: true,
-            );
-            if (outcome != null && context.mounted) {
-              await cubit.commit(
-                message: outcome.message,
-                helpTypes: outcome.helpTypesWire,
-              );
-            }
+            await _beaconViewRunInitialCommitDialog(context, cubit, l10n);
           }
         : null,
     onWithdraw:
@@ -212,7 +249,7 @@ Widget _beaconViewAppBarOverflow({
     onForward: hideOverflowForward
         ? null
         : () => unawaited(
-            context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+            _beaconViewOpenForwardThenMaybeNudgeCommit(context, cubit, l10n),
           ),
     onViewForwards: () => unawaited(
       context.router.pushPath('$kPathBeaconForwards/$beaconId'),
@@ -426,25 +463,11 @@ class _BeaconOperationalScrollViewState
   }
 
   Future<void> _runCommitFlow(BuildContext context, L10n l10n) async {
-    if (!context.mounted) return;
-    final useCommitAnyway =
-        widget.beaconViewCubit.state.beacon.coordinationStatus ==
-        BeaconCoordinationStatus.enoughHelpCommitted;
-    final outcome = await CommitmentMessageDialog.show(
+    await _beaconViewRunInitialCommitDialog(
       context,
-      title: useCommitAnyway
-          ? l10n.dialogCommitAnywayTitle
-          : l10n.dialogCommitTitle,
-      hintText: l10n.hintCommitMessage,
-      allowEmptyMessage: true,
-      showHelpTypeChips: true,
+      widget.beaconViewCubit,
+      l10n,
     );
-    if (outcome != null && context.mounted) {
-      await widget.beaconViewCubit.commit(
-        message: outcome.message,
-        helpTypes: outcome.helpTypesWire,
-      );
-    }
   }
 
   Future<void> _runUpdateCommitFlow(BuildContext context, L10n l10n) async {
@@ -604,7 +627,11 @@ class _BeaconOperationalScrollViewState
                         ? () => unawaited(_runUpdateCommitFlow(context, l10n))
                         : null,
                     onForward: () => unawaited(
-                      context.router.pushPath('$kPathForwardBeacon/$beaconId'),
+                      _beaconViewOpenForwardThenMaybeNudgeCommit(
+                        context,
+                        widget.beaconViewCubit,
+                        l10n,
+                      ),
                     ),
                     onWatch:
                         !state.isBeaconMine &&

@@ -1821,6 +1821,10 @@
   "@labelCommit": {
     "context": "BeaconViewScreen"
   },
+  "nudgeCommitAfterForward": "Переслано! Закоммитишься тоже?",
+  "@nudgeCommitAfterForward": {
+    "context": "BeaconViewScreen"
+  },
   "labelCommitAnyway": "Всё равно помочь",
   "@labelCommitAnyway": {
     "context": "BeaconViewScreen",

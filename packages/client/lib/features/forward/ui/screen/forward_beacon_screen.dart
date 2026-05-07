@@ -38,7 +38,17 @@ class ForwardBeaconScreen extends StatelessWidget implements AutoRouteWrapper {
       context: context.read<ContextCubit>().state.selected,
     ),
     child: BlocListener<ForwardCubit, ForwardState>(
-      listener: commonScreenBlocListener,
+      listener: (context, state) {
+        if (state.isNavigating) {
+          unawaited(context.router.maybePop(true));
+          return;
+        }
+        commonScreenBlocListener(
+          context,
+          state,
+          listenNavigatingState: false,
+        );
+      },
       child: this,
     ),
   );

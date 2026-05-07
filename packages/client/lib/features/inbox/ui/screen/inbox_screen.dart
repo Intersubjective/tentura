@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/message/commitment_messages.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
@@ -583,9 +584,7 @@ Widget _needsMeTabBody(
                 onOpenBeacon: () => context.router.pushPath(
                   '$kPathBeaconView/${item.beaconId}',
                 ),
-                onTap: () => context.router.pushPath(
-                  '$kPathForwardBeacon/${item.beaconId}',
-                ),
+                onTap: () => unawaited(_onForwardItem(context, item)),
                 onWatch: () => inboxCubit.setWatching(item.beaconId),
                 onCantHelp: () async {
                   final msg = await showRejectionDialog(context);
@@ -664,9 +663,7 @@ Widget _watchingTabBody(
           onOpenBeacon: () => context.router.pushPath(
             '$kPathBeaconView/${item.beaconId}',
           ),
-          onTap: () => context.router.pushPath(
-            '$kPathForwardBeacon/${item.beaconId}',
-          ),
+          onTap: () => unawaited(_onForwardItem(context, item)),
           onStopWatching: () => inboxCubit.stopWatching(item.beaconId),
           onCantHelp: () async {
             final msg = await showRejectionDialog(context);
@@ -715,9 +712,37 @@ Future<void> _inboxCommit(BuildContext context, Beacon beacon) async {
     showHelpTypeChips: true,
   );
   if (outcome == null || !context.mounted) return;
-  await GetIt.I<ForwardRepository>().commit(
+  final ok = await GetIt.I<ForwardRepository>().commit(
     beaconId: beacon.id,
     message: outcome.message,
     helpTypes: outcome.helpTypesWire,
+  );
+  if (!context.mounted || !ok) return;
+  final msg = CommittedForwardNudgeMessage(beacon.id);
+  final locale = l10n.localeName;
+  showSnackBar(
+    context,
+    text: msg.toL10n(locale),
+    action: SnackBarAction(
+      label: msg.label.toL10n(locale),
+      onPressed: msg.onPressed,
+    ),
+  );
+}
+
+Future<void> _onForwardItem(BuildContext context, InboxItem item) async {
+  final didForward = await context.router.push<bool>(
+    ForwardBeaconRoute(beaconId: item.beaconId),
+  );
+  if (!context.mounted || didForward != true) return;
+  if (!_inboxCardAllowsCommit(item)) return;
+  final l10n = L10n.of(context)!;
+  showSnackBar(
+    context,
+    text: l10n.nudgeCommitAfterForward,
+    action: SnackBarAction(
+      label: l10n.labelCommit,
+      onPressed: () => unawaited(_inboxCommit(context, item.beacon!)),
+    ),
   );
 }
