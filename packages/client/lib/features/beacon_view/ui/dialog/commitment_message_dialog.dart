@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/uncommit_reason.dart';
+import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Result of [CommitmentMessageDialog.show].
@@ -57,7 +57,7 @@ class CommitmentMessageDialog extends StatefulWidget {
 
 class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
   late final TextEditingController _controller;
-  final Set<CapabilityTag> _helpTypes = {};
+  final Set<String> _helpTypeSlugs = {};
   UncommitReason? _uncommitReason;
 
   @override
@@ -82,7 +82,8 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
     }
     Navigator.of(context).pop((
       message: text,
-      helpTypesWire: _helpTypes.isEmpty ? null : _helpTypes.map((t) => t.slug).toList(),
+      helpTypesWire:
+          _helpTypeSlugs.isEmpty ? null : _helpTypeSlugs.toList(),
       uncommitReasonWire: _uncommitReason?.wireKey,
     ));
   }
@@ -104,23 +105,13 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
                 style: theme.textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final t in CapabilityTag.values)
-                    FilterChip(
-                      label: Text(t.labelOf(l10n)),
-                      selected: _helpTypes.contains(t),
-                      onSelected: (_) {
-                        setState(() {
-                          _helpTypes.contains(t)
-                              ? _helpTypes.remove(t)
-                              : _helpTypes.add(t);
-                        });
-                      },
-                    ),
-                ],
+              CapabilityChipSet(
+                selectedSlugs: _helpTypeSlugs,
+                onChanged: (s) => setState(() {
+                  _helpTypeSlugs
+                    ..clear()
+                    ..addAll(s);
+                }),
               ),
               const SizedBox(height: 16),
             ],
