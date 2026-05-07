@@ -9,12 +9,14 @@ class TenturaUnderlineTabs extends StatelessWidget {
     required this.tabs,
     required this.selectedIndex,
     required this.onChanged,
+    this.badges,
     super.key,
   });
 
   final List<String> tabs;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
+  final List<int?>? badges;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,7 @@ class TenturaUnderlineTabs extends StatelessWidget {
                 label: tabs[i],
                 selected: i == selectedIndex,
                 onTap: () => onChanged(i),
+                badge: badges != null && i < badges!.length ? badges![i] : null,
               ),
             ),
         ],
@@ -46,11 +49,13 @@ class _TabCell extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.badge,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final int? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -64,15 +69,26 @@ class _TabCell extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TenturaText.tabLabel(
-                selected ? active : inactive,
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TenturaText.tabLabel(
+                    selected ? active : inactive,
+                  ),
+                ),
+                if (badge != null && badge! > 0)
+                  Positioned(
+                    top: -6,
+                    right: -10,
+                    child: _BadgeBubble(count: badge!),
+                  ),
+              ],
             ),
             const SizedBox(height: 6),
             SizedBox(
@@ -87,6 +103,38 @@ class _TabCell extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgeBubble extends StatelessWidget {
+  const _BadgeBubble({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tt.info,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 5),
+          child: Center(
+            child: Text(
+              '$count',
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: TenturaText.labelSmall(Colors.white),
+            ),
+          ),
         ),
       ),
     );

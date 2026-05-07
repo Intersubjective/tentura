@@ -594,6 +594,15 @@ class _BeaconOperationalScrollViewState
                         ],
                         selectedIndex: _tabIndex,
                         onChanged: _setTab,
+                        badges: [
+                          null,
+                          state.isBeaconMine
+                              ? (state.unansweredCommitmentsCount > 0
+                                  ? state.unansweredCommitmentsCount
+                                  : null)
+                              : null,
+                          null,
+                        ],
                       ),
                     ),
                   ),
