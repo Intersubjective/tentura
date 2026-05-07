@@ -5,16 +5,6 @@
       "command": "dart mcp-server --experimental-mcp-server --force-roots-fallback",
       "env": {},
       "args": []
-    },
-    "vexp": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "/home/vader/.nvm/versions/node/v22.20.0/lib/node_modules/vexp-cli/mcp/mcp-server.cjs"
-      ],
-      "env": {
-        "VEXP_WORKSPACE": "/home/vader/MY_SRC/tentura"
-      }
     }
   }
 }

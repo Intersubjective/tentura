@@ -16,7 +16,7 @@ if [ -S "$SOCK" ] && [ -f "$HEALTHY" ] && [ -f "$PID_FILE" ] && kill -0 "$(cat "
   cat <<'JSON'
 {
   "permission": "ask",
-  "user_message": "vexp daemon is running for this repo. Prefer vexp MCP tools (run_pipeline/get_skeleton) instead of Grep/Glob to minimize tokens."
+  "user_message": "vexp daemon is running for this repo. Prefer vexp CLI (e.g. `vexp capsule`, `vexp skeleton`, `vexp impact`) instead of Grep/Glob to minimize tokens."
 }
 JSON
   exit 0
