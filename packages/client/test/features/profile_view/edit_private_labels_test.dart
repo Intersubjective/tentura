@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/profile_view/ui/dialog/edit_private_labels_dialog.dart';
@@ -147,10 +148,13 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      // Tap the first FilterChip (Transport) to select it.
-      final chips = find.byType(FilterChip);
-      expect(chips, findsWidgets);
-      await tester.tap(chips.first);
+      // Expand the Logistics group so its chips are built, then tap Transport.
+      await tester.tap(
+        find.byKey(const ValueKey<CapabilityGroup>(CapabilityGroup.logistics)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Transport').first);
       await tester.pumpAndSettle();
 
       // Tap Save.

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/screen/forward_beacon_screen.dart';
 import 'package:tentura/features/forward/ui/widget/compact_beacon_context_strip.dart';
+import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -20,10 +23,48 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
 
+class _FakeInvitationRepository extends Fake implements InvitationRepository {
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
+  @override
+  Future<List<InvitationEntity>> fetchMine({int offset = 0, int limit = 0}) async =>
+      <InvitationEntity>[];
+
+  @override
+  Future<InvitationFetchByIdResult?> fetchById(String id) async => null;
+
+  @override
+  Future<InvitationEntity> create({String? beaconId}) => throw UnimplementedError();
+
+  @override
+  Future<void> deleteById(String id) async {}
+
+  @override
+  Future<void> dispose() async {}
+}
+
+void _registerInvitationRepository() {
+  final getIt = GetIt.I;
+  if (getIt.isRegistered<InvitationRepository>()) {
+    getIt.unregister<InvitationRepository>();
+  }
+
+  getIt.registerSingleton<InvitationRepository>(_FakeInvitationRepository());
+
+  addTearDown(() {
+    if (getIt.isRegistered<InvitationRepository>()) {
+      getIt.unregister<InvitationRepository>();
+    }
+  });
+}
+
 void main() {
   testWidgets('compact forward page has no chip filters; shows scope row', (
     tester,
   ) async {
+    _registerInvitationRepository();
+
     final cubit = ForwardCubit(
       beaconId: 'b1',
       debugSkipInitialLoad: true,
@@ -95,6 +136,8 @@ void main() {
   testWidgets('search icon opens full-screen overlay with search field', (
     tester,
   ) async {
+    _registerInvitationRepository();
+
     final cubit = ForwardCubit(
       beaconId: 'b1',
       debugSkipInitialLoad: true,
@@ -145,6 +188,8 @@ void main() {
   testWidgets('reason chip selection persists after list scroll', (
     tester,
   ) async {
+    _registerInvitationRepository();
+
     final cubit = ForwardCubit(
       beaconId: 'b1',
       debugSkipInitialLoad: true,
@@ -209,6 +254,8 @@ void main() {
   });
 
   testWidgets('add shared note expands textarea', (tester) async {
+    _registerInvitationRepository();
+
     final cubit = ForwardCubit(
       beaconId: 'b1',
       debugSkipInitialLoad: true,
