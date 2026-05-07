@@ -10,6 +10,8 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -82,7 +84,14 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TenturaAvatar(profile: profile),
+          GestureDetector(
+            onTap: () {
+              final myId = context.read<ProfileCubit>().state.profile.id;
+              if (participant.userId == myId) return;
+              context.read<ScreenCubit>().showProfile(participant.userId);
+            },
+            child: TenturaAvatar(profile: profile),
+          ),
           const SizedBox(width: kSpacingSmall),
           Expanded(
             child: Column(
