@@ -183,7 +183,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       if (!state.hasError && !wasAlreadyCommitted) {
         emit(
           state.copyWith(
-            status: StateIsMessaging(const MovedToMyWorkMessage()),
+            status: StateIsMessaging(
+              CommittedForwardNudgeMessage(state.beacon.id),
+            ),
           ),
         );
       }
