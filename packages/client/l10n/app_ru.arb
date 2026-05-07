@@ -600,7 +600,7 @@
   "@myWork": {
     "context": "HomeScreen"
   },
-  "network": "Люди",
+  "network": "Мои люди",
   "@network": {
     "context": "HomeScreen"
   },
@@ -2503,7 +2503,7 @@
   "beaconRoomFactManageSheetTitle": "Управление фактом",
   "beaconRoomFactManageTooltip": "Управлять закреплённым фактом",
   "beaconRoomFactOverflowTooltip": "Действия с фактом",
-  "labelBeaconTabPeople": "Мои люди",
+  "labelBeaconTabPeople": "Люди",
   "beaconOverviewRoomCueCardTitle": "В комнате",
   "beaconRoomStripNowTitle": "Сейчас",
   "beaconRoomStripPlanLabel": "План",

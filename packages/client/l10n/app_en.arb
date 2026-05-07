@@ -600,7 +600,7 @@
   "@myWork": {
     "context": "HomeScreen"
   },
-  "network": "People",
+  "network": "My people",
   "@network": {
     "context": "HomeScreen"
   },
@@ -2503,7 +2503,7 @@
   "beaconRoomFactManageSheetTitle": "Manage fact",
   "beaconRoomFactManageTooltip": "Manage pinned fact",
   "beaconRoomFactOverflowTooltip": "Manage this fact",
-  "labelBeaconTabPeople": "My people",
+  "labelBeaconTabPeople": "People",
   "beaconOverviewRoomCueCardTitle": "Room coordination",
   "beaconRoomStripNowTitle": "Now",
   "beaconRoomStripPlanLabel": "Plan",
