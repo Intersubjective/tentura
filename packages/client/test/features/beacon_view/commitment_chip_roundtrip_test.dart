@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -38,11 +39,22 @@ Future<void> _pumpDialog(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _expandAllCapabilityGroups(WidgetTester tester) async {
+  for (final g in CapabilityGroup.values) {
+    final tile = find.byKey(ValueKey<CapabilityGroup>(g));
+    await tester.ensureVisible(tile);
+    await tester.pumpAndSettle();
+    await tester.tap(tile);
+    await tester.pumpAndSettle();
+  }
+}
+
 void main() {
   testWidgets(
     'dialog renders a FilterChip for every CapabilityTag value',
     (tester) async {
       await _pumpDialog(tester);
+      await _expandAllCapabilityGroups(tester);
 
       // Every CapabilityTag must have exactly one chip in the dialog.
       expect(
@@ -56,12 +68,13 @@ void main() {
     'all chip labels match expected l10n strings',
     (tester) async {
       await _pumpDialog(tester);
+      await _expandAllCapabilityGroups(tester);
 
       // A sample of representative labels.
-      expect(find.text('Money'), findsOneWidget);
-      expect(find.text('Time'), findsOneWidget);
-      expect(find.text('Other'), findsOneWidget);
-      expect(find.text('Transport'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'Money'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'Time'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'Other'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'Transport'), findsOneWidget);
     },
   );
 
@@ -69,6 +82,7 @@ void main() {
     'no chip is selected by default',
     (tester) async {
       await _pumpDialog(tester);
+      await _expandAllCapabilityGroups(tester);
 
       final chips = tester
           .widgetList<FilterChip>(find.byType(FilterChip))
@@ -83,9 +97,12 @@ void main() {
     'tapping a chip selects it and deselects it on second tap (toggle)',
     (tester) async {
       await _pumpDialog(tester);
+      await _expandAllCapabilityGroups(tester);
 
       // Tap the "Money" chip.
       final moneyChipFinder = find.widgetWithText(FilterChip, 'Money');
+      await tester.ensureVisible(moneyChipFinder);
+      await tester.pumpAndSettle();
       await tester.tap(moneyChipFinder);
       await tester.pumpAndSettle();
 
@@ -138,6 +155,8 @@ void main() {
 
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
+
+      await _expandAllCapabilityGroups(tester);
 
       // Select the "Time" chip.
       await tester.tap(find.widgetWithText(FilterChip, 'Time'));
@@ -243,6 +262,8 @@ void main() {
 
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
+
+      await _expandAllCapabilityGroups(tester);
 
       final physicalHelpChip = find.widgetWithText(FilterChip, 'Physical help');
       // TextField autofocus scrolls content to the field; early chips can sit
