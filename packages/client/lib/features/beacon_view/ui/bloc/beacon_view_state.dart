@@ -217,6 +217,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// Server-backed coordination events (Phase 5+); empty when no room API access.
     @Default([]) List<BeaconActivityEvent> roomActivityEvents,
 
+    /// Open beacon: viewer has draft evaluation targets (overflow → draft review).
+    @Default(false) bool showDraftEvaluationCta,
+
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconViewState;
 
@@ -255,5 +258,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get coordinationDeniesRoomAdmission =>
       myActiveCommitment?.coordinationResponse ==
       CoordinationResponseType.notSuitable;
+
+  int get unansweredCommitmentsCount => commitments
+      .where((c) => !c.isWithdrawn && c.coordinationResponse == null)
+      .length;
 
 }
