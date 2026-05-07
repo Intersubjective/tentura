@@ -12,6 +12,7 @@ abstract class InvitationEntity extends Identifiable with _$InvitationEntity {
     required DateTime updatedAt,
     String? invitedId,
     String? beaconId,
+    String? beaconTitle,
   }) = _InvitationEntity;
 
   const InvitationEntity._();

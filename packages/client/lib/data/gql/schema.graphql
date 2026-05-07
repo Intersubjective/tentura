@@ -2429,6 +2429,9 @@ type invitation {
   beacon_id: String
 
   """An object relationship"""
+  beacon: beacon
+
+  """An object relationship"""
   invited: user
   invited_id: String
 

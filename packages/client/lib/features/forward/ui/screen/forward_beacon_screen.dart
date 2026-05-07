@@ -23,8 +23,7 @@ import '../widget/forward_top_bar.dart';
 import '../widget/per_recipient_note_input.dart';
 
 @RoutePage()
-class ForwardBeaconScreen extends StatelessWidget
-    implements AutoRouteWrapper {
+class ForwardBeaconScreen extends StatelessWidget implements AutoRouteWrapper {
   const ForwardBeaconScreen({
     @PathParam('id') this.beaconId = '',
     super.key,
@@ -126,8 +125,9 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     // show them as tinted hints in the selector (automaticSlugs).
     var existingSlugs = <String>{};
     try {
-      final cues = await GetIt.I<CapabilityRepositoryPort>()
-          .fetchCues(recipientId);
+      final cues = await GetIt.I<CapabilityRepositoryPort>().fetchCues(
+        recipientId,
+      );
       existingSlugs = cues.viewerVisible.map((c) => c.slug).toSet();
     } catch (_) {
       // Best-effort: proceed without hints if fetch fails.
@@ -203,9 +203,14 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
         queryParameters: {'id': invitation.id},
       ),
     );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.forwardInviteCreatedHint)),
+    );
   }
 
-  String _lifecycleLabel(L10n l10n, Beacon beacon) => switch (beacon.lifecycle) {
+  String _lifecycleLabel(L10n l10n, Beacon beacon) =>
+      switch (beacon.lifecycle) {
         BeaconLifecycle.open => l10n.beaconLifecycleOpen,
         BeaconLifecycle.closed => l10n.beaconLifecycleClosed,
         BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
@@ -232,187 +237,208 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     final tt = context.tt;
     final cubit = context.read<ForwardCubit>();
 
-    return Scaffold(
-      backgroundColor: tt.bg,
-      body: SafeArea(
-        child: BlocBuilder<ForwardCubit, ForwardState>(
-          builder: (_, state) {
-            if (state.isLoading && state.candidates.isEmpty) {
-              return const Center(
-                child: CircularProgressIndicator.adaptive(),
-              );
-            }
+    return BlocProvider.value(
+      value: _invitationCubit,
+      child: BlocListener<InvitationCubit, InvitationState>(
+        listener: commonScreenBlocListener,
+        child: Scaffold(
+          backgroundColor: tt.bg,
+          body: SafeArea(
+            child: BlocBuilder<ForwardCubit, ForwardState>(
+              builder: (_, state) {
+                if (state.isLoading && state.candidates.isEmpty) {
+                  return const Center(
+                    child: CircularProgressIndicator.adaptive(),
+                  );
+                }
 
-            final beacon = state.beacon;
-            final visible = state.visibleRecipients;
-            final counts = state.scopeCounts;
+                final beacon = state.beacon;
+                final visible = state.visibleRecipients;
+                final counts = state.scopeCounts;
 
-            _syncRecipientNoteControllers(state);
-            _prunePersonalizedNoteEditors(state);
+                _syncRecipientNoteControllers(state);
+                _prunePersonalizedNoteEditors(state);
 
-            return Stack(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                return Stack(
                   children: [
-                    ForwardTopBar(
-                      titleLine: l10n.forwardBeaconTitle,
-                      closeFallbackPath: widget.beaconId.isNotEmpty
-                          ? '$kPathBeaconView/${widget.beaconId}'
-                          : null,
-                      subtitleLine: beacon != null && beacon.id.isNotEmpty
-                          ? forwardBeaconSubtitle(
-                              l10n: l10n,
-                              beaconTitle: beacon.title,
-                              lifecycleLabel: _lifecycleLabel(l10n, beacon),
-                            )
-                          : '',
-                      searchTooltip: l10n.forwardOverlaySearchHint,
-                      onSearchPressed: () {
-                        setState(() => _searchOverlayOpen = true);
-                      },
-                      onFilterPressed: () {
-                        // Advanced filters sheet (later).
-                      },
-                    ),
-                    const TenturaHairlineDivider(),
-                    if (beacon != null && beacon.id.isNotEmpty) ...[
-                      CompactBeaconContextStrip(
-                        beacon: beacon,
-                      ),
-                      SizedBox(height: tt.rowGap),
-                    ],
-                    ForwardScopeLinks(
-                      activeFilter: state.activeFilter,
-                      counts: counts,
-                      onScopeChanged: cubit.setFilter,
-                    ),
-                    Expanded(
-                      child: visible.isEmpty
-                          ? Center(
-                              child: Padding(
-                                padding: kPaddingH,
-                                child: Text(
-                                  state.candidates.isEmpty
-                                      ? l10n.noReachableContacts
-                                      : l10n.labelNothingHere,
-                                  textAlign: TextAlign.center,
-                                  style: TenturaText.bodySmall(tt.textMuted),
-                                ),
-                              ),
-                            )
-                          : ListView(
-                              padding: EdgeInsets.only(bottom: tt.rowGap),
-                              children: [
-                                for (var i = 0; i < visible.length; i++) ...[
-                                  if (i > 0) const TenturaHairlineDivider(),
-                                  ForwardRecipientRow(
-                                    candidate: visible[i],
-                                    isSelected: state.selectedIds
-                                        .contains(visible[i].id),
-                                    onToggle: () =>
-                                        cubit.toggleSelection(visible[i].id),
-                                    personalizedNoteEditorOpen:
-                                        _personalizedNoteEditorOpenIds
-                                            .contains(visible[i].id),
-                                    onTogglePersonalizedNoteEditor: () =>
-                                        _togglePersonalizedNoteEditor(
-                                      visible[i].id,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ForwardTopBar(
+                          titleLine: l10n.forwardBeaconTitle,
+                          closeFallbackPath: widget.beaconId.isNotEmpty
+                              ? '$kPathBeaconView/${widget.beaconId}'
+                              : null,
+                          subtitleLine: beacon != null && beacon.id.isNotEmpty
+                              ? forwardBeaconSubtitle(
+                                  l10n: l10n,
+                                  beaconTitle: beacon.title,
+                                  lifecycleLabel: _lifecycleLabel(l10n, beacon),
+                                )
+                              : '',
+                          searchTooltip: l10n.forwardOverlaySearchHint,
+                          onSearchPressed: () {
+                            setState(() => _searchOverlayOpen = true);
+                          },
+                          onFilterPressed: () {
+                            // Advanced filters sheet (later).
+                          },
+                        ),
+                        const TenturaHairlineDivider(),
+                        if (beacon != null && beacon.id.isNotEmpty) ...[
+                          CompactBeaconContextStrip(
+                            beacon: beacon,
+                          ),
+                          SizedBox(height: tt.rowGap),
+                        ],
+                        ForwardScopeLinks(
+                          activeFilter: state.activeFilter,
+                          counts: counts,
+                          onScopeChanged: cubit.setFilter,
+                        ),
+                        Expanded(
+                          child: visible.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: kPaddingH,
+                                    child: Text(
+                                      state.candidates.isEmpty
+                                          ? l10n.noReachableContacts
+                                          : l10n.labelNothingHere,
+                                      textAlign: TextAlign.center,
+                                      style: TenturaText.bodySmall(
+                                        tt.textMuted,
+                                      ),
                                     ),
-                                    reasonSlugs: state.recipientReasons[
-                                            visible[i].id] ??
-                                        const [],
-                                    onEditReasons: () =>
-                                        unawaited(_editReasons(
-                                          context,
-                                          cubit,
-                                          visible[i].id,
-                                          state.recipientReasons[
-                                                  visible[i].id] ??
-                                              const [],
-                                        )),
-                                    onEditForward: visible[i].forwardEdgeId !=
-                                            null
-                                        ? () {
-                                            _editNoteController.text =
-                                                visible[i].myForwardNote ?? '';
-                                            cubit.startEditForward(
-                                              visible[i].id,
-                                            );
-                                          }
-                                        : null,
-                                    onCancelForward:
-                                        visible[i].forwardEdgeId != null
-                                            ? () => unawaited(
-                                                  cubit.cancelForward(
-                                                    visible[i].id,
-                                                  ),
-                                                )
-                                            : null,
                                   ),
-                                  if (state.editingRecipientId ==
-                                      visible[i].id)
-                                    _ForwardEditPanel(
-                                      controller: _editNoteController,
-                                      onNoteChanged: cubit.setEditNote,
-                                      onSave: () =>
-                                          unawaited(cubit.saveForwardEdit()),
-                                      onCancel: cubit.cancelEditForward,
-                                    ),
-                                  if (state.selectedIds
-                                          .contains(visible[i].id) &&
-                                      _personalizedNoteEditorOpenIds
-                                          .contains(visible[i].id))
-                                    Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: tt.screenHPadding,
-                                      ),
-                                      child: PerRecipientNoteInput(
-                                        profile: visible[i].profile,
-                                        controller: _recipientNoteControllers[
-                                            visible[i].id]!,
-                                        onChanged: (text) => cubit
-                                            .setRecipientNote(
+                                )
+                              : ListView(
+                                  padding: EdgeInsets.only(bottom: tt.rowGap),
+                                  children: [
+                                    for (
+                                      var i = 0;
+                                      i < visible.length;
+                                      i++
+                                    ) ...[
+                                      if (i > 0) const TenturaHairlineDivider(),
+                                      ForwardRecipientRow(
+                                        candidate: visible[i],
+                                        isSelected: state.selectedIds.contains(
                                           visible[i].id,
-                                          text,
                                         ),
+                                        onToggle: () => cubit.toggleSelection(
+                                          visible[i].id,
+                                        ),
+                                        personalizedNoteEditorOpen:
+                                            _personalizedNoteEditorOpenIds
+                                                .contains(visible[i].id),
+                                        onTogglePersonalizedNoteEditor: () =>
+                                            _togglePersonalizedNoteEditor(
+                                              visible[i].id,
+                                            ),
+                                        reasonSlugs:
+                                            state.recipientReasons[visible[i]
+                                                .id] ??
+                                            const [],
+                                        onEditReasons: () => unawaited(
+                                          _editReasons(
+                                            context,
+                                            cubit,
+                                            visible[i].id,
+                                            state.recipientReasons[visible[i]
+                                                    .id] ??
+                                                const [],
+                                          ),
+                                        ),
+                                        onEditForward:
+                                            visible[i].forwardEdgeId != null
+                                            ? () {
+                                                _editNoteController.text =
+                                                    visible[i].myForwardNote ??
+                                                    '';
+                                                cubit.startEditForward(
+                                                  visible[i].id,
+                                                );
+                                              }
+                                            : null,
+                                        onCancelForward:
+                                            visible[i].forwardEdgeId != null
+                                            ? () => unawaited(
+                                                cubit.cancelForward(
+                                                  visible[i].id,
+                                                ),
+                                              )
+                                            : null,
                                       ),
-                                    ),
-                                ],
-                              ],
-                            ),
+                                      if (state.editingRecipientId ==
+                                          visible[i].id)
+                                        _ForwardEditPanel(
+                                          controller: _editNoteController,
+                                          onNoteChanged: cubit.setEditNote,
+                                          onSave: () => unawaited(
+                                            cubit.saveForwardEdit(),
+                                          ),
+                                          onCancel: cubit.cancelEditForward,
+                                        ),
+                                      if (state.selectedIds.contains(
+                                            visible[i].id,
+                                          ) &&
+                                          _personalizedNoteEditorOpenIds
+                                              .contains(visible[i].id))
+                                        Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: tt.screenHPadding,
+                                          ),
+                                          child: PerRecipientNoteInput(
+                                            profile: visible[i].profile,
+                                            controller:
+                                                _recipientNoteControllers[visible[i]
+                                                    .id]!,
+                                            onChanged: (text) =>
+                                                cubit.setRecipientNote(
+                                                  visible[i].id,
+                                                  text,
+                                                ),
+                                          ),
+                                        ),
+                                    ],
+                                  ],
+                                ),
+                        ),
+                        ForwardBottomComposer(
+                          selectedIds: state.selectedIds,
+                          noteExpanded: _noteExpanded,
+                          onToggleNoteExpanded: _toggleNote,
+                          sharedNoteController: _sharedNoteController,
+                          onSharedNoteChanged: cubit.setNote,
+                          onForward: state.selectedCount > 0
+                              ? cubit.forward
+                              : null,
+                          onInvite: widget.beaconId.isNotEmpty
+                              ? () => unawaited(_inviteNewPerson(context))
+                              : null,
+                        ),
+                      ],
                     ),
-                    ForwardBottomComposer(
-                      selectedIds: state.selectedIds,
-                      noteExpanded: _noteExpanded,
-                      onToggleNoteExpanded: _toggleNote,
-                      sharedNoteController: _sharedNoteController,
-                      onSharedNoteChanged: cubit.setNote,
-                      onForward:
-                          state.selectedCount > 0 ? cubit.forward : null,
-                      onInvite: widget.beaconId.isNotEmpty
-                          ? () => unawaited(_inviteNewPerson(context))
-                          : null,
-                    ),
+                    if (_searchOverlayOpen)
+                      Positioned.fill(
+                        child: ForwardSearchOverlay(
+                          onClose: () {
+                            setState(() => _searchOverlayOpen = false);
+                          },
+                          recipientNoteControllers: _recipientNoteControllers,
+                          onRecipientNoteChanged: cubit.setRecipientNote,
+                          personalizedNoteEditorOpenIds:
+                              _personalizedNoteEditorOpenIds,
+                          onTogglePersonalizedNoteEditor:
+                              _togglePersonalizedNoteEditor,
+                        ),
+                      ),
                   ],
-                ),
-                if (_searchOverlayOpen)
-                  Positioned.fill(
-                    child: ForwardSearchOverlay(
-                      onClose: () {
-                        setState(() => _searchOverlayOpen = false);
-                      },
-                      recipientNoteControllers: _recipientNoteControllers,
-                      onRecipientNoteChanged: cubit.setRecipientNote,
-                      personalizedNoteEditorOpenIds:
-                          _personalizedNoteEditorOpenIds,
-                      onTogglePersonalizedNoteEditor:
-                          _togglePersonalizedNoteEditor,
-                    ),
-                  ),
-              ],
-            );
-          },
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -437,8 +463,9 @@ class _ForwardEditPanel extends StatelessWidget {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding)
-          .copyWith(bottom: tt.rowGap),
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+      ).copyWith(bottom: tt.rowGap),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

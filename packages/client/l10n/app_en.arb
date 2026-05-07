@@ -1413,6 +1413,10 @@
   "@forwardInviteNewPerson": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardInviteCreatedHint": "Invite saved — find it in the Invitations tab",
+  "@forwardInviteCreatedHint": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardAddSharedNoteCommand": "add shared note",
   "@forwardAddSharedNoteCommand": {
     "context": "ForwardBeaconScreen"

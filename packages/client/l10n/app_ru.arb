@@ -1413,6 +1413,10 @@
   "@forwardInviteNewPerson": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardInviteCreatedHint": "Приглашение создано — найдёте его во вкладке «Приглашения»",
+  "@forwardInviteCreatedHint": {
+    "context": "ForwardBeaconScreen"
+  },
   "forwardAddSharedNoteCommand": "добавить общую заметку",
   "@forwardAddSharedNoteCommand": {
     "context": "ForwardBeaconScreen"
