@@ -7,6 +7,10 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// A grouped, selectable chip set for capability tags.
 ///
 /// [selectedSlugs] is the current selection; [onChanged] fires on every toggle.
+///
+/// Groups are collapsible [ExpansionTile]s, folded by default unless the group
+/// has a selected or pre-existing ([automaticSlugs]) tag. Collapsed headers show
+/// small count badges for selections and pre-existing hints.
 class CapabilityChipSet extends StatelessWidget {
   const CapabilityChipSet({
     required this.selectedSlugs,
@@ -66,6 +70,42 @@ class CapabilityChipSet extends StatelessWidget {
       };
 }
 
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({
+    required this.count,
+    required this.preExisting,
+  });
+
+  final int count;
+  final bool preExisting;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final bg = preExisting ? cs.secondaryContainer : cs.primaryContainer;
+    final fg = preExisting ? cs.onSecondaryContainer : cs.onPrimaryContainer;
+    final text = preExisting ? '★ $count' : '$count';
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          child: Text(
+            text,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: fg,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _GroupSection extends StatelessWidget {
   const _GroupSection({
     required this.group,
@@ -89,20 +129,34 @@ class _GroupSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-          child: Text(
-            groupLabel,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+    final groupSlugs = tags.map((t) => t.slug).toSet();
+    final selectedCount = selectedSlugs.intersection(groupSlugs).length;
+    final autoCount = automaticSlugs.intersection(groupSlugs).length;
+    final initiallyExpanded = selectedCount > 0 || autoCount > 0;
+
+    return ExpansionTile(
+      key: ValueKey<CapabilityGroup>(group),
+      tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+      initiallyExpanded: initiallyExpanded,
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(
+              groupLabel,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
+          if (selectedCount > 0)
+            _CountBadge(count: selectedCount, preExisting: false),
+          if (autoCount > 0)
+            _CountBadge(count: autoCount, preExisting: true),
+        ],
+      ),
+      childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+      children: [
         Wrap(
           spacing: 6,
           runSpacing: 4,
@@ -118,11 +172,13 @@ class _GroupSection extends StatelessWidget {
                     ? theme.colorScheme.secondaryContainer
                     : null,
                 backgroundColor: automaticSlugs.contains(tag.slug)
-                    ? theme.colorScheme.secondaryContainer.withValues(alpha: 0.55)
+                    ? theme.colorScheme.secondaryContainer
+                        .withValues(alpha: 0.55)
                     : null,
                 side: automaticSlugs.contains(tag.slug)
                     ? BorderSide(
-                        color: theme.colorScheme.secondary.withValues(alpha: 0.7),
+                        color: theme.colorScheme.secondary
+                            .withValues(alpha: 0.7),
                         width: 1.5,
                       )
                     : null,
@@ -132,5 +188,4 @@ class _GroupSection extends StatelessWidget {
       ],
     );
   }
-
 }
