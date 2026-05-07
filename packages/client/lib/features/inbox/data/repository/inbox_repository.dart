@@ -20,11 +20,22 @@ class InboxRepository {
   InboxRepository(
     this._remoteApiService,
     this._roomHints,
-  );
+  ) {
+    _roomSeenSub = _roomHints.roomSeenNotifications.listen(
+      (_) {
+        if (!_localMutationController.isClosed) {
+          _localMutationController.add(null);
+        }
+      },
+      cancelOnError: false,
+    );
+  }
 
   final RemoteApiService _remoteApiService;
 
   final BeaconRoomHintsRepository _roomHints;
+
+  late final StreamSubscription<String> _roomSeenSub;
 
   final _localMutationController = StreamController<void>.broadcast();
 
@@ -32,7 +43,10 @@ class InboxRepository {
   Stream<void> get localMutations => _localMutationController.stream;
 
   @disposeMethod
-  Future<void> dispose() => _localMutationController.close();
+  Future<void> dispose() async {
+    await _roomSeenSub.cancel();
+    await _localMutationController.close();
+  }
 
   Future<List<InboxItem>> fetch({required String userId}) async {
     final rows = await _remoteApiService

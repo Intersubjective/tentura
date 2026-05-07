@@ -18,6 +18,7 @@ class CommitmentWithCoordinationRow {
     this.responseType,
     this.responseUpdatedAt,
     this.responseAuthorUserId,
+    this.roomAccess,
   });
 
   final String beaconId;
@@ -31,5 +32,7 @@ class CommitmentWithCoordinationRow {
   final int? responseType;
   final DateTime? responseUpdatedAt;
   final String? responseAuthorUserId;
+  /// `beacon_participants.room_access` for this committer, if any row exists.
+  final int? roomAccess;
   final UserPublicRecord user;
 }

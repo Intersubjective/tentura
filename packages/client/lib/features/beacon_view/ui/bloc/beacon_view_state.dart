@@ -3,6 +3,7 @@ import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
@@ -33,6 +34,7 @@ class TimelineCommitment {
     this.helpType,
     this.coordinationResponse,
     this.uncommitReason,
+    this.roomAccess,
   });
   final Profile user;
   final String message;
@@ -42,6 +44,8 @@ class TimelineCommitment {
   final String? helpType;
   final CoordinationResponseType? coordinationResponse;
   final String? uncommitReason;
+  /// `beacon_participants.room_access` for this committer when known.
+  final int? roomAccess;
 
   bool get isEdited =>
       !isWithdrawn && updatedAt.difference(createdAt).inSeconds.abs() > 1;
@@ -239,8 +243,15 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   }
 
   /// Author signaled this commitment may use the beacon room (`notSuitable` counts as denial).
+  ///
+  /// Also true when the server auto-admitted the viewer (trusted forward / mutual
+  /// subscribe): [roomAccess] is [RoomAccessBits.admitted] before any coordination row.
   bool get hasRoomAdmission {
-    final r = myActiveCommitment?.coordinationResponse;
+    final c = myActiveCommitment;
+    if (c == null) return false;
+    final ra = c.roomAccess;
+    if (ra != null && ra == RoomAccessBits.admitted) return true;
+    final r = c.coordinationResponse;
     return r != null && r != CoordinationResponseType.notSuitable;
   }
 

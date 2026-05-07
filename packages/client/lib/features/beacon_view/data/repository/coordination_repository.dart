@@ -34,6 +34,7 @@ class CoordinationRepository {
         int? responseType,
         DateTime? responseUpdatedAt,
         String? responseAuthorUserId,
+        int? roomAccess,
       })
     >
   >
@@ -66,6 +67,7 @@ class CoordinationRepository {
                     ? null
                     : DateTime.parse(e.responseUpdatedAt!),
                 responseAuthorUserId: e.responseAuthorUserId,
+                roomAccess: e.roomAccess,
               ),
             )
             .toList();

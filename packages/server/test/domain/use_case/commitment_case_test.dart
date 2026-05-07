@@ -9,6 +9,8 @@ import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart' show BeaconParticipant;
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
@@ -516,6 +518,29 @@ void main() {
           authorUserId: 'Uauth',
         ),
       ).called(1);
+    });
+  });
+
+  group('commitmentsWithCoordination after auto-admit (contract)', () {
+    test('row may have admitted roomAccess before author coordination response', () {
+      const user = UserPublicRecord(
+        id: 'U1',
+        title: 't',
+        description: '',
+      );
+      final row = CommitmentWithCoordinationRow(
+        beaconId: 'B1',
+        userId: 'U1',
+        message: 'm',
+        status: 0,
+        createdAt: DateTime.utc(2025, 1, 1),
+        updatedAt: DateTime.utc(2025, 1, 1),
+        user: user,
+        responseType: null,
+        roomAccess: RoomAccessBits.admitted,
+      );
+      expect(row.responseType, isNull);
+      expect(row.roomAccess, RoomAccessBits.admitted);
     });
   });
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
@@ -431,6 +432,16 @@ class _NeedSectionBody extends StatelessWidget {
     );
     final ns = beacon.needSummary?.trim() ?? '';
     final sc = beacon.successCriteria?.trim();
+
+    final requirementTags = <CapabilityTag>[];
+    for (final slug in beacon.needs) {
+      final tag = CapabilityTag.fromSlug(slug);
+      if (tag != null) {
+        requirementTags.add(tag);
+      }
+    }
+    requirementTags.sort((a, b) => a.slug.compareTo(b.slug));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -445,6 +456,29 @@ class _NeedSectionBody extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(sc, style: bodyStyle),
+        ],
+        if (requirementTags.isNotEmpty) ...[
+          SizedBox(height: context.tt.rowGap),
+          Text(
+            l10n.beaconRequirementsSubheading,
+            style: theme.textTheme.titleSmall!.copyWith(
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              for (final tag in requirementTags)
+                Chip(
+                  avatar: Icon(tag.icon, size: 18),
+                  label: Text(tag.labelOf(l10n)),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
         ],
       ],
     );

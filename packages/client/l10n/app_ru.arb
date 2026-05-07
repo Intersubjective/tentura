@@ -114,10 +114,6 @@
   "@buttonScanQR": {
     "context": "Utils"
   },
-  "tagsText": "Тэги",
-  "@tagsText": {
-    "context": "Utils"
-  },
   "invitationCodeTooShort": "Код слишком короткий",
   "@invitationCodeTooShort": {
     "context": "CommonErrors"
@@ -886,14 +882,6 @@
   "closeButton": "Закрыть",
   "@closeButton": {
     "context": "PollDialog"
-  },
-  "addTagText": "Добавить тэг",
-  "@addTagText": {
-    "context": "AddTagDialog"
-  },
-  "enterTagNameHint": "Введите имя тэга",
-  "@enterTagNameHint": {
-    "context": "AddTagDialog"
   },
   "newStuffBadge": "Новое",
   "@newStuffBadge": {
@@ -2755,6 +2743,15 @@
   "friendContextSharedCount": "{count} активных маяков видите оба",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconRequirementsTitle": "Требования",
+  "beaconRequirementsSubheading": "Нужны:",
+  "beaconForwardRequirementsHint": "Нужно:",
+  "beaconRequirementsSelectedCount": "{count, plural, =0{Не выбрано} one{Выбран 1 тип} few{Выбрано {count} типа} many{Выбрано {count} типов} other{Выбрано {count} типов}}",
+  "@beaconRequirementsSelectedCount": {
     "placeholders": {
       "count": { "type": "int" }
     }

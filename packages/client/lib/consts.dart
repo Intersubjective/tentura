@@ -51,6 +51,9 @@ const kQueryBeaconEditId = 'edit_id';
 /// Optional initial tab on beacon detail: `timeline`, `commitments`, or `details`.
 const kQueryBeaconViewTab = 'tab';
 
+/// When truthy with [kQueryBeaconViewTab]=`commitments`, pulse/highlight the People tab until interaction.
+const kQueryBeaconPeopleTabAttention = 'people_tab_attention';
+
 /// First part of FQDN: `https://app.server.name`
 const kServerName = String.fromEnvironment(
   'SERVER_NAME',

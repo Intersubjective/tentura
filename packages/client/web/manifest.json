@@ -9,7 +9,7 @@
   "orientation": "portrait-primary",
   "prefer_related_applications": true,
   "manifest_version": 3,
-  "version": "1.29.0",
+  "version": "1.30.3",
   "icons": [
     {
       "src": "icons/Icon-192.png",
