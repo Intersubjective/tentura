@@ -70,12 +70,9 @@ class _TabCell extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
+            Row(
               children: [
-                Padding(
-                  // Reserve some space so the badge doesn't overlap the label.
-                  padding: EdgeInsets.only(right: hasBadge ? 14 : 0),
+                Expanded(
                   child: Text(
                     label,
                     maxLines: 1,
@@ -87,12 +84,13 @@ class _TabCell extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (hasBadge)
-                  Positioned(
-                    top: -6,
-                    right: -6,
+                if (hasBadge) ...[
+                  const SizedBox(width: 10),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
                     child: _BadgeBubble(count: badge!),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 6),
