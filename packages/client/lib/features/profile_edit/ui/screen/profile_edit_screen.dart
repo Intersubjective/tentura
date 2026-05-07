@@ -181,7 +181,7 @@ class ProfileEditScreen extends StatelessWidget
               maxLength: kUserHandleMaxLength,
               keyboardType: TextInputType.text,
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9_]')),
+                FilteringTextInputFormatter.allow(RegExp('[a-z0-9_]')),
               ],
               style: textTheme.bodyLarge,
               onChanged: cubit.setHandle,

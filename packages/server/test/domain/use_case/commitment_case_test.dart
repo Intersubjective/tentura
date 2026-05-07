@@ -370,7 +370,7 @@ void main() {
       ).thenAnswer((_) async => false);
       when(
         commitmentRepo.upsert(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) => Future.value());
+      ).thenAnswer((_) async {});
       when(
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
       ).thenAnswer((_) => Future.value());
@@ -553,7 +553,7 @@ void main() {
         commitmentRepo.hasActiveCommitment(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => true);
       when(
-        commitmentRepo.upsert(beaconId: 'B1', userId: 'U1', message: ''),
+        commitmentRepo.upsert(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) => Future.value());
       when(
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),

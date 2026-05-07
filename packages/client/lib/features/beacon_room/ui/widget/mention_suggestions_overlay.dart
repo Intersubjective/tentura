@@ -86,7 +86,6 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
     return CompositedTransformFollower(
       link: widget.layerLink,
       showWhenUnlinked: false,
-      targetAnchor: Alignment.topLeft,
       followerAnchor: Alignment.bottomLeft,
       offset: const Offset(0, -8),
       child: Focus(
@@ -169,5 +168,3 @@ extension on BeaconParticipant {
         title: userTitle,
       );
 }
-
-

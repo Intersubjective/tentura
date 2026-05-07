@@ -157,7 +157,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
             maxLength: kUserHandleMaxLength,
             keyboardType: TextInputType.text,
             inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9_]')),
+              FilteringTextInputFormatter.allow(RegExp('[a-z0-9_]')),
             ],
             validator: (text) {
               final t = (text ?? '').trim().toLowerCase();

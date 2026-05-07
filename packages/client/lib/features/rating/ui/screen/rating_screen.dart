@@ -6,7 +6,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
-import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 
 import '../bloc/rating_cubit.dart';
 import '../widget/rating_list_tile.dart';

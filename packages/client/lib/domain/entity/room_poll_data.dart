@@ -21,7 +21,7 @@ class RoomPollVariant {
   /// Voter user IDs (open polls, visible only after the viewer has voted).
   final List<String>? voterIds;
 
-  static RoomPollVariant fromJson(Map<String, dynamic> j) => RoomPollVariant(
+  factory RoomPollVariant.fromJson(Map<String, dynamic> j) => RoomPollVariant(
     id: j['id'] as String,
     description: j['description'] as String,
     votesCount: (j['votesCount'] as num).toInt(),
@@ -71,7 +71,7 @@ class RoomPollData {
     final newIds = variantIds.toSet();
 
     List<RoomPollVariant> updatedVariants;
-    int updatedTotal = totalVotes;
+    var updatedTotal = totalVotes;
 
     switch (pollType) {
       case PollType.single:

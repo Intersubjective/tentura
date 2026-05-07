@@ -107,7 +107,6 @@ class InvitationRepository {
       invitedId: result.invited_id,
       createdAt: result.created_at,
       updatedAt: result.updated_at,
-      beaconTitle: result.beacon?.title,
     );
     _notifyChanges();
     return entity;

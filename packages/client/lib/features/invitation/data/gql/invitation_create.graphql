@@ -5,8 +5,5 @@ mutation InvitationCreate($beaconId: String) {
     invited_id
     created_at
     updated_at
-    beacon {
-      title
-    }
   }
 }

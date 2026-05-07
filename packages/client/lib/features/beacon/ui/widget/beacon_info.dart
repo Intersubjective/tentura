@@ -170,7 +170,7 @@ class BeaconInfo extends StatelessWidget {
           )
         : const SizedBox.shrink();
 
-    final tagsBlock = const SizedBox.shrink();
+    const tagsBlock = SizedBox.shrink();
     // final tagsBlock = beacon.tags.isNotEmpty
     //     ? Wrap(
     //         children: [

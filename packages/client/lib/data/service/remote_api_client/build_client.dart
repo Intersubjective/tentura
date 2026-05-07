@@ -137,6 +137,7 @@ class _V2RoutingLink extends Link {
     'CreateComplaint',
     'FcmRegisterToken',
     'ForwardBeacon',
+    'InvitationCreate',
     'InvitationAccept',
     'InvitationById',
     'InvitationDeleteById',

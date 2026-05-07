@@ -36,7 +36,7 @@ class InvitationRepository implements InvitationRepositoryPort {
     final issuerImage = issuer.imageId == null
         ? null
         : await _database.managers.images
-            .filter((e) => e.id(issuer.imageId!))
+            .filter((e) => e.id(issuer.imageId))
             .getSingleOrNull();
     return invitationModelToEntity(
       row,
