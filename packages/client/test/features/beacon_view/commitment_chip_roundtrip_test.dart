@@ -72,6 +72,7 @@ void main() {
 
       // A sample of representative labels.
       expect(find.widgetWithText(FilterChip, 'Money'), findsOneWidget);
+      expect(find.widgetWithText(FilterChip, 'Orders'), findsOneWidget);
       expect(find.widgetWithText(FilterChip, 'Time'), findsOneWidget);
       expect(find.widgetWithText(FilterChip, 'Other'), findsOneWidget);
       expect(find.widgetWithText(FilterChip, 'Transport'), findsOneWidget);

@@ -26,6 +26,7 @@ const kAllowedCapabilitySlugs = {
   'hosting',
   // Resources
   'money',
+  'orders',
   'food',
   'housing',
   'equipment',
