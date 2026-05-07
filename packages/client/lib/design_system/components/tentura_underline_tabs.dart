@@ -62,6 +62,7 @@ class _TabCell extends StatelessWidget {
     final tt = context.tt;
     final active = tt.info;
     final inactive = tt.textMuted;
+    final hasBadge = badge != null && badge! > 0;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -72,20 +73,24 @@ class _TabCell extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TenturaText.tabLabel(
-                    selected ? active : inactive,
+                Padding(
+                  // Reserve some space so the badge doesn't overlap the label.
+                  padding: EdgeInsets.only(right: hasBadge ? 14 : 0),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TenturaText.tabLabel(
+                      selected ? active : inactive,
+                    ),
                   ),
                 ),
-                if (badge != null && badge! > 0)
+                if (hasBadge)
                   Positioned(
                     top: -6,
-                    right: -10,
+                    right: -6,
                     child: _BadgeBubble(count: badge!),
                   ),
               ],
