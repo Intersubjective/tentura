@@ -5,7 +5,7 @@ import 'package:postgres/postgres.dart' as pg;
 /// Postgres `text[]` for `beacon_room_message.mentions`.
 ///
 /// The `postgres` driver may decode arrays that contain SQL NULL elements as
-/// `List<String?>`. [PgTypes.textArray] reads with `fromSql as List<String>`,
+/// `List<String?>`. The stock `text[]` mapping reads with `fromSql as List<String>`,
 /// which throws at runtime (see migration `0060` comment).
 final class MentionsTextArrayType implements CustomSqlType<List<String>> {
   const MentionsTextArrayType();
@@ -38,3 +38,8 @@ final class MentionsTextArrayType implements CustomSqlType<List<String>> {
   @override
   String sqlTypeName(GenerationContext context) => 'text[]';
 }
+
+/// Drift-generated `tentura_db.g.dart` references this; it must be in scope for
+/// `package:tentura_server/data/database/tentura_db.dart` (import there), not
+/// only under `table/`.
+const kMentionsTextArrayType = MentionsTextArrayType();
