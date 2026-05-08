@@ -106,6 +106,7 @@ class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
     required String viewerId,
     required List<String> subjectIds,
     int limit = 2,
+    List<String> prioritizeSlugs = const [],
   }) async => {};
 
   @override

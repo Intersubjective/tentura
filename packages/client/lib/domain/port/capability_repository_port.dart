@@ -23,6 +23,7 @@ abstract class CapabilityRepositoryPort {
   Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
     required List<String> subjectIds,
     int limit = 2,
+    List<String> prioritizeSlugs = const [],
   });
 
   Future<Map<String, FriendContext>> fetchFriendContextsBatch({

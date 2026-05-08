@@ -1283,6 +1283,10 @@
   "@forwardBeaconTitle": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardRecipientCapabilityMatchesNeed": "Matches this beacon’s stated needs",
+  "@forwardRecipientCapabilityMatchesNeed": {
+    "context": "ForwardRecipientRow capability chip (tooltip / accessibility)"
+  },
   "searchContacts": "Search contacts...",
   "@searchContacts": {
     "context": "ForwardBeaconScreen"

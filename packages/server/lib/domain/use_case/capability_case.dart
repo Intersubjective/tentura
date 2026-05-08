@@ -123,11 +123,18 @@ final class CapabilityCase extends UseCaseBase {
     required String viewerId,
     required List<String> subjectIds,
     int limit = 2,
-  }) => _repository.fetchTopCapabilitiesBatch(
-    viewerId: viewerId,
-    subjectIds: subjectIds,
-    limit: limit,
-  );
+    List<String> prioritizeSlugs = const [],
+  }) async {
+    if (prioritizeSlugs.isNotEmpty) {
+      _validateSlugs(prioritizeSlugs);
+    }
+    return _repository.fetchTopCapabilitiesBatch(
+      viewerId: viewerId,
+      subjectIds: subjectIds,
+      limit: limit,
+      prioritizeSlugs: prioritizeSlugs,
+    );
+  }
 
   Future<List<FriendContextRow>> fetchFriendContextsBatch({
     required String viewerId,

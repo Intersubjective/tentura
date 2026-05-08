@@ -68,13 +68,17 @@ abstract class PersonCapabilityEventRepositoryPort {
     required String subjectId,
   });
 
-  /// Returns top-[limit] capability slugs for each of [subjectIds], ranked by
-  /// raw event count (tombstone-excluded, viewer-subjective). Result is keyed by
-  /// subjectId. Uses the same source-type semantics as fetchDeduplicatedCapabilities.
+  /// Returns capability slugs for each of [subjectIds], ranked by
+  /// raw event count (tombstone-excluded, viewer-subjective), with
+  /// [prioritizeSlugs] emitted first per subject when the subject has
+  /// positive evidence for that slug.
+  /// Result is keyed by subjectId. Uses the same source-type semantics as
+  /// fetchDeduplicatedCapabilities.
   Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
     required String viewerId,
     required List<String> subjectIds,
     int limit = 2,
+    List<String> prioritizeSlugs = const [],
   });
 
   /// Returns forward-reason slugs grouped by (observerId, subjectId) for all

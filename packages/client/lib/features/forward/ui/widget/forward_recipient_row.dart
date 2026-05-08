@@ -24,6 +24,7 @@ class ForwardRecipientRow extends StatelessWidget {
     this.onEditReasons,
     this.onEditForward,
     this.onCancelForward,
+    this.requiredCapabilitySlugs = const {},
     super.key,
   });
 
@@ -41,6 +42,8 @@ class ForwardRecipientRow extends StatelessWidget {
   /// Called when the user wants to cancel an existing forward.
   final VoidCallback? onCancelForward;
 
+  /// Beacon [`Beacon.needs`] slugs; chips that match are emphasized.
+  final Set<String> requiredCapabilitySlugs;
 
   /// Involvement / forward path line (independent of scope tab filter).
   String _relationLabel(L10n l10n) {
@@ -109,6 +112,10 @@ class ForwardRecipientRow extends StatelessWidget {
     final nameBaseStyle = TenturaText.titleSmall(
       canSelect ? tt.text : tt.textMuted,
     );
+    final requiredSet = {
+      for (final s in requiredCapabilitySlugs)
+        if (s.trim().isNotEmpty) s.trim(),
+    };
 
     return InkWell(
       onTap: canSelect ? onToggle : null,
@@ -195,13 +202,15 @@ class ForwardRecipientRow extends StatelessWidget {
                       spacing: 4,
                       runSpacing: 2,
                       children: [
-                        for (final slug
-                            in candidate.topCapabilities.take(2))
-                          if (CapabilityTag.fromSlug(slug) case final tag?)
+                        for (final slug in candidate.topCapabilities)
+                          if (CapabilityTag.fromSlug(slug.trim()) case final tag?)
                             _CapabilityHintChip(
                               label: tag.labelOf(l10n),
                               icon: tag.icon,
-                              color: tt.text,
+                              matchesNeed: requiredSet.contains(slug.trim()),
+                              matchSemanticsLabel:
+                                  l10n.forwardRecipientCapabilityMatchesNeed,
+                              tt: tt,
                             ),
                       ],
                     ),
@@ -331,23 +340,64 @@ class _CapabilityHintChip extends StatelessWidget {
   const _CapabilityHintChip({
     required this.label,
     required this.icon,
-    required this.color,
+    required this.matchesNeed,
+    required this.matchSemanticsLabel,
+    required this.tt,
   });
 
   final String label;
   final IconData icon;
-  final Color color;
+  final bool matchesNeed;
+  final String matchSemanticsLabel;
+  final TenturaTokens tt;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final fg = matchesNeed ? tt.good : tt.text;
+    final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 11, color: color),
-        const SizedBox(width: 2),
-        Text(label, style: TenturaText.bodySmall(color).copyWith(fontSize: 11)),
+        Icon(icon, size: 14, color: fg),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            matchesNeed ? '★ $label' : label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TenturaText.labelSmall(fg),
+          ),
+        ),
       ],
     );
+
+    Widget content = row;
+    if (matchesNeed) {
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: tt.good.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: tt.good.withValues(alpha: 0.45),
+          ),
+        ),
+        child: row,
+      );
+    }
+
+    content = Semantics(
+      container: true,
+      label: matchesNeed ? '$matchSemanticsLabel: $label' : label,
+      child: content,
+    );
+
+    if (matchesNeed) {
+      return Tooltip(
+        message: matchSemanticsLabel,
+        child: content,
+      );
+    }
+    return content;
   }
 }
 
