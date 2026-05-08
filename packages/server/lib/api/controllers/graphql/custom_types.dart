@@ -239,13 +239,17 @@ final gqlTypeForwardGraphEdge = GraphQLObjectType('ForwardGraphEdge', null)
     field('batchId', graphQLString),
   ]);
 
-/// Result of `beaconForwardGraph`: edge set (visible + ancestor closure +
-/// chains-to-committers) plus the committer ids the client should highlight.
+/// Result of `beaconForwardGraph` and `beaconCommitterForwardPath`: edge set
+/// plus the committer ids the client should highlight. `viewerId` is non-null
+/// only for `beaconCommitterForwardPath` (so the client can derive whether the
+/// viewer is the beacon author, the focused committer, or an "involved
+/// other"). Callers of the older `beaconForwardGraph` ignore the field.
 final gqlTypeForwardGraphResult =
     GraphQLObjectType('ForwardGraphResult', null)
       ..fields.addAll([
         field('beaconId', graphQLString.nonNullable()),
         field('authorId', graphQLString.nonNullable()),
+        field('viewerId', graphQLString),
         field(
           'committerIds',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),

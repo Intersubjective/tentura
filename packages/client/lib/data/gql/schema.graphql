@@ -3961,6 +3961,7 @@ type query_root {
   ): [beacon!]!
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
+  beaconCommitterForwardPath(id: String!, committerId: String!): v2_ForwardGraphResult!
   forwardReasonsByBeacon(id: String!): [v2_ForwardReasonRow!]!
 
   """fetch data from the table: "beacon" using primary key columns"""
@@ -6400,6 +6401,7 @@ type v2_ForwardGraphEdge {
 type v2_ForwardGraphResult {
   beaconId: String!
   authorId: String!
+  viewerId: String
   committerIds: [String!]!
   edges: [v2_ForwardGraphEdge!]!
 }

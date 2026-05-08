@@ -27,6 +27,21 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'graph_state.dart';
 
+/// Viewer's relationship to the focused chain in committer-path mode.
+enum ForwardsGraphViewerRole {
+  /// Viewer is the beacon author (root of the chain).
+  author,
+
+  /// Viewer is the focused committer themselves; the focus is rotated onto
+  /// the author so the chain reads "in reverse" from the viewer's PoV.
+  self,
+
+  /// Viewer is neither the author nor the committer but has at least one
+  /// forward edge for the beacon; their own sub-chain is overlaid on top
+  /// of the committer's chain so they see how they fit between the two.
+  involvedOther,
+}
+
 class GraphCubit extends Cubit<GraphState> {
   // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
   // ignore: cubit_requires_use_case_for_multi_repos
@@ -37,6 +52,12 @@ class GraphCubit extends Cubit<GraphState> {
     /// When set, [GraphCubit] always loads forwards for this beacon id and
     /// does not refetch on node focus changes (forwards graph is static).
     this.forwardsGraphBeaconId,
+
+    /// When set together with [forwardsGraphBeaconId], the cubit fetches the
+    /// per-committer forward path (V2 `beaconCommitterForwardPath`) instead
+    /// of the broader `beaconForwardGraph`. Focus auto-rotates onto the
+    /// committer (or the author when the viewer IS the committer — case 3).
+    this.committerFocusUserId,
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
   }) : _egoNode = UserNode(
@@ -61,9 +82,18 @@ class GraphCubit extends Cubit<GraphState> {
 
   final String? forwardsGraphBeaconId;
 
+  final String? committerFocusUserId;
+
   final BeaconRepository _beaconRepository;
 
   final ProfileRepositoryPort _profileRepository;
+
+  /// Resolved viewer role for the committer-path view; null when the cubit
+  /// is operating in any other mode (regular forwards graph or MeritRank).
+  /// Set during [_fetch] once `authorId`/`viewerId` are known.
+  ForwardsGraphViewerRole? _committerViewerRole;
+
+  ForwardsGraphViewerRole? get committerViewerRole => _committerViewerRole;
 
   final graphController =
       GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
@@ -139,7 +169,38 @@ class GraphCubit extends Cubit<GraphState> {
 
       Set<EdgeDirected> edges;
       final source = _graphSource;
-      if (forwardsGraphBeaconId != null && source is ForwardsGraphRepository) {
+      if (committerFocusUserId != null &&
+          forwardsGraphBeaconId != null &&
+          source is ForwardsGraphRepository) {
+        final payload = await source.fetchCommitterForwardsGraph(
+          beaconId: forwardsGraphBeaconId!,
+          committerId: committerFocusUserId!,
+        );
+        edges = payload.edges;
+        _committerIds = payload.committerIds;
+
+        // Focus rule for the three viewer-role cases (see plan):
+        //   case 1 (author):         focus = committer
+        //   case 2 (involved-other): focus = committer
+        //   case 3 (committer-self): focus = author (chain reads "in reverse")
+        // Ego node is always `me` (existing pattern); the role rotates onto
+        // whichever principal happens to be the viewer.
+        final viewerId = payload.viewerId ?? state.me.id;
+        final authorId = payload.authorId;
+        final committerId = committerFocusUserId!;
+        final isAuthor = viewerId == authorId;
+        final isSelf = viewerId == committerId;
+        _committerViewerRole = isAuthor
+            ? ForwardsGraphViewerRole.author
+            : isSelf
+                ? ForwardsGraphViewerRole.self
+                : ForwardsGraphViewerRole.involvedOther;
+        final derivedFocus = isSelf ? authorId : committerId;
+        if (state.focus != derivedFocus) {
+          emit(state.copyWith(focus: derivedFocus));
+        }
+      } else if (forwardsGraphBeaconId != null &&
+          source is ForwardsGraphRepository) {
         final payload =
             await source.fetchForwardsGraph(beaconId: forwardsGraphBeaconId!);
         edges = payload.edges;
@@ -198,6 +259,16 @@ class GraphCubit extends Cubit<GraphState> {
       emit(state.copyWith(status: StateStatus.isSuccess));
 
       _updateGraph(edges);
+
+      // Recenter on the derived focus node in committer-path mode so the
+      // viewer immediately lands on the relevant principal (committer for
+      // case 1/2, author for case 3) instead of the floating ego "Me".
+      if (committerFocusUserId != null && state.focus.isNotEmpty) {
+        final focusNode = _nodes[state.focus];
+        if (focusNode != null) {
+          await Future.value(graphController.jumpToNode(focusNode));
+        }
+      }
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

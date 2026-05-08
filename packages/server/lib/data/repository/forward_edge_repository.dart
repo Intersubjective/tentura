@@ -130,6 +130,51 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
           .get()
           .then((rows) => rows.map(_toEntity).toList());
 
+  @override
+  Future<List<ForwardEdgeEntity>> fetchCommitterPathChain({
+    required String beaconId,
+    required String committerId,
+    required String viewerId,
+  }) async {
+    // Recursive CTE returns just the edge ids that participate in either the
+    // committer's or the viewer's ancestor closure for this beacon. Reading
+    // the full row via [managers.beaconForwardEdges] keeps the timestamptz
+    // mapping consistent with [fetchByBeaconId] (PgDateTime -> DateTime).
+    final idRows = await _database
+        .customSelect(
+          r'''
+          WITH RECURSIVE chain AS (
+            SELECT e.id, e.parent_edge_id
+              FROM beacon_forward_edge e
+             WHERE e.beacon_id    = $1
+               AND e.cancelled_at IS NULL
+               AND ( e.recipient_id = $2
+                     OR e.recipient_id = $3
+                     OR e.sender_id    = $3 )
+            UNION
+            SELECT p.id, p.parent_edge_id
+              FROM beacon_forward_edge p
+              JOIN chain c ON p.id = c.parent_edge_id
+             WHERE p.cancelled_at IS NULL
+          )
+          SELECT id FROM chain
+          ''',
+          variables: [
+            Variable.withString(beaconId),
+            Variable.withString(committerId),
+            Variable.withString(viewerId),
+          ],
+        )
+        .get();
+    final ids = idRows.map((r) => r.read<String>('id')).toList();
+    if (ids.isEmpty) return const [];
+    return _database.managers.beaconForwardEdges
+        .filter((e) => e.id.isIn(ids))
+        .orderBy((e) => e.createdAt.asc())
+        .get()
+        .then((rows) => rows.map(_toEntity).toList());
+  }
+
   /// Distinct users who sent at least one forward edge for this beacon.
   @override
   Future<List<String>> fetchDistinctSenderIdsByBeaconId(String beaconId) =>

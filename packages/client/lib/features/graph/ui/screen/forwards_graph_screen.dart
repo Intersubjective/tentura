@@ -16,11 +16,21 @@ import '../widget/graph_body.dart';
 class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   const ForwardsGraphScreen({
     @PathParam('id') this.focus = '',
+    @QueryParam('committer') this.committerId,
+    @QueryParam('committerName') this.committerName,
     super.key,
   });
 
   /// Beacon id; graph centers on this beacon as focus.
   final String focus;
+
+  /// When non-null, switches the screen into committer-path mode and
+  /// fetches `beaconCommitterForwardPath(id: focus, committerId: ...)`.
+  final String? committerId;
+
+  /// Optional committer display title forwarded by the People tab so the
+  /// AppBar title can read e.g. "Forward path to {name}".
+  final String? committerName;
 
   @override
   Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
@@ -34,6 +44,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
               focus: focus,
               graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
               forwardsGraphBeaconId: focus,
+              committerFocusUserId: committerId,
             ),
           ),
         ],
@@ -57,7 +68,10 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
     return Scaffold(
       appBar: AppBar(
         leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
-        title: Text(l10n.forwardsGraphView),
+        title: BlocBuilder<GraphCubit, GraphState>(
+          buildWhen: (p, c) => p.status != c.status,
+          builder: (_, _) => Text(_titleFor(l10n, cubit.committerViewerRole)),
+        ),
         actions: [
           PopupMenuButton<void>(
             itemBuilder: (_) => <PopupMenuEntry<void>>[
@@ -71,5 +85,22 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
       ),
       body: const GraphBody(),
     );
+  }
+
+  String _titleFor(L10n l10n, ForwardsGraphViewerRole? role) {
+    if (committerId == null || role == null) {
+      return l10n.forwardsGraphView;
+    }
+    final name = committerName?.trim();
+    final hasName = name != null && name.isNotEmpty;
+    return switch (role) {
+      ForwardsGraphViewerRole.author => hasName
+          ? l10n.committerForwardPathTitleAuthor(name)
+          : l10n.forwardsGraphView,
+      ForwardsGraphViewerRole.involvedOther => hasName
+          ? l10n.committerForwardPathTitleViewer(name)
+          : l10n.forwardsGraphView,
+      ForwardsGraphViewerRole.self => l10n.committerForwardPathTitleSelf,
+    };
   }
 }
