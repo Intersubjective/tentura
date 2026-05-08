@@ -7,8 +7,6 @@ import 'beacons.dart';
 import 'pollings.dart';
 import 'users.dart';
 
-const _mentionsTextArrayType = MentionsTextArrayType();
-
 class BeaconRoomMessages extends Table {
   late final id = text()();
 
@@ -45,8 +43,8 @@ class BeaconRoomMessages extends Table {
   ).nullable()();
 
   /// Mentioned user ids (server-resolved from @handle in body).
-  late final mentions = customType(_mentionsTextArrayType).withDefault(
-    const Constant(<String>[], _mentionsTextArrayType),
+  late final mentions = customType(kMentionsTextArrayType).withDefault(
+    const Constant(<String>[], kMentionsTextArrayType),
   )();
 
   @override

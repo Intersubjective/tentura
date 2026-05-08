@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
+import 'custom_types/mentions_text_array_type.dart';
 import 'table/beacon_commitments.dart';
 import 'table/beacon_commitment_coordinations.dart';
 import 'table/beacon_evaluation_participants.dart';
