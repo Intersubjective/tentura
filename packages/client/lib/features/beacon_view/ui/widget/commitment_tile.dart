@@ -7,6 +7,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
+import 'package:tentura/ui/widget/tentura_icons.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../bloc/beacon_view_state.dart';
@@ -19,6 +20,8 @@ import '../bloc/beacon_view_state.dart';
 class CommitmentTile extends StatelessWidget {
   const CommitmentTile({
     required this.commitment,
+    required this.beaconId,
+    required this.beaconAuthorId,
     this.isMine = false,
     this.onEdit,
     this.onWithdraw,
@@ -28,6 +31,8 @@ class CommitmentTile extends StatelessWidget {
   });
 
   final TimelineCommitment commitment;
+  final String beaconId;
+  final String beaconAuthorId;
   final bool isMine;
   final VoidCallback? onEdit;
   final VoidCallback? onWithdraw;
@@ -63,6 +68,8 @@ class CommitmentTile extends StatelessWidget {
     // Active / Withdrawn only (spec allows more states later).
     final stateCaption =
         isWithdrawn ? l10n.labelWithdrawn : l10n.beaconsFilterActive;
+    final showForwardPathButton =
+        !isWithdrawn && commitment.user.id != beaconAuthorId;
 
     return Opacity(
       opacity: opacity,
@@ -133,6 +140,18 @@ class CommitmentTile extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (showForwardPathButton)
+                  IconButton(
+                    icon: const Icon(TenturaIcons.graph),
+                    tooltip: l10n.committerForwardPathTooltip,
+                    onPressed: () => context
+                        .read<ScreenCubit>()
+                        .showCommitterForwardPathFor(
+                          beaconId: beaconId,
+                          committerId: commitment.user.id,
+                          committerName: commitment.user.title,
+                        ),
+                  ),
               ],
             ),
             if (offerLabel != null) ...[

@@ -76,7 +76,7 @@ final gqlTypeRoomMessageRow =
         field('attachmentsJson', graphQLString.nonNullable()),
         field(
           'mentions',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+          GraphQLListType(graphQLString.nonNullable()),
         ),
       ]);
 
@@ -252,11 +252,11 @@ final gqlTypeForwardGraphResult =
         field('viewerId', graphQLString),
         field(
           'committerIds',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+          GraphQLListType(graphQLString.nonNullable()),
         ),
         field(
           'edges',
-          GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()).nonNullable(),
+          GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()),
         ),
       ]);
 
@@ -457,7 +457,7 @@ final gqlTypePersonTopCapabilities =
         field('subjectId', graphQLString.nonNullable()),
         field(
           'slugs',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+          GraphQLListType(graphQLString.nonNullable()),
         ),
       ]);
 
@@ -477,7 +477,7 @@ final gqlTypeForwardReasonRow =
         field('recipientId', graphQLString.nonNullable()),
         field(
           'slugs',
-          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+          GraphQLListType(graphQLString.nonNullable()),
         ),
       ]);
 

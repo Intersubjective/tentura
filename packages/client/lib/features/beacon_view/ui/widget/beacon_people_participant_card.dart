@@ -14,7 +14,6 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 
 /// One person row in the Beacon **People** tab (Phase 4).
 class BeaconPeopleParticipantCard extends StatelessWidget {
@@ -81,15 +80,6 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
           participant.updatedAt.toLocal(),
         );
 
-    // Forward-path button is shown for any active committer (status ==
-    // committed and not withdrawn) who is NOT the beacon author. Visible
-    // to everyone who can render the People tab — the server-side auth
-    // gate (BeaconCommitterForwardPathCase) still requires the viewer to
-    // be involved (author / has-edge / has-commitment).
-    final showForwardPathButton =
-        participant.status == BeaconParticipantStatusBits.committed &&
-        participant.userId != beacon.author.id;
-
     return TenturaTechCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,18 +121,6 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
               ],
             ),
           ),
-          if (showForwardPathButton)
-            IconButton(
-              icon: const Icon(TenturaIcons.graph),
-              tooltip: l10n.committerForwardPathTooltip,
-              onPressed: () => context
-                  .read<ScreenCubit>()
-                  .showCommitterForwardPathFor(
-                    beaconId: beacon.id,
-                    committerId: participant.userId,
-                    committerName: name,
-                  ),
-            ),
         ],
       ),
     );
