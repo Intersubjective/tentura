@@ -34,25 +34,29 @@ class _NewCommentInputState extends State<BottomTextInput> {
             controller: _textController,
             decoration: InputDecoration(hintText: widget.hintText),
             maxLines: null,
-            readOnly: widget.onSend == null,
-            canRequestFocus: widget.onSend != null,
+            // Must not combine enabled (semantics "focusable") with
+            // canRequestFocus: false — web/a11y can send SemanticsAction.focus
+            // and TextField asserts (material/text_field.dart onFocus).
+            enabled: widget.onSend != null,
             onTapOutside: (_) => FocusScope.of(context).unfocus(),
           ),
         ),
         IconButton(
           icon: const Icon(Icons.send),
-          onPressed: () async {
-            if (_textController.text.isEmpty) {
-              return;
-            }
-            try {
-              await widget.onSend?.call(_textController.text);
-              _textController.clear();
-            } catch (_) {}
-            if (context.mounted) {
-              FocusScope.of(context).unfocus();
-            }
-          },
+          onPressed: widget.onSend == null
+              ? null
+              : () async {
+                  if (_textController.text.isEmpty) {
+                    return;
+                  }
+                  try {
+                    await widget.onSend!.call(_textController.text);
+                    _textController.clear();
+                  } catch (_) {}
+                  if (context.mounted) {
+                    FocusScope.of(context).unfocus();
+                  }
+                },
         ),
       ],
     ),
