@@ -64,8 +64,17 @@ class ForwardCubit extends Cubit<ForwardState> {
       final ids = candidates.map((c) => c.id).toList();
       if (ids.isNotEmpty) {
         try {
+          final needs = involvement.beacon.needs;
+          final prioritizeList = needs
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList()
+            ..sort();
           final topCaps =
-              await forwardCase.fetchTopCapabilitiesForCandidates(ids);
+              await forwardCase.fetchTopCapabilitiesForCandidates(
+            ids,
+            prioritizeSlugs: prioritizeList,
+          );
           candidates = candidates
               .map((c) => c.copyWith(
                     topCapabilities: topCaps[c.id] ?? [],

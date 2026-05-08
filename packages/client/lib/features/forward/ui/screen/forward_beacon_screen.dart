@@ -333,6 +333,8 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                                       if (i > 0) const TenturaHairlineDivider(),
                                       ForwardRecipientRow(
                                         candidate: visible[i],
+                                        requiredCapabilitySlugs:
+                                            beacon?.needs ?? const {},
                                         isSelected: state.selectedIds.contains(
                                           visible[i].id,
                                         ),

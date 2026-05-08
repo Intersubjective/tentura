@@ -16,6 +16,10 @@ final class QueryCapability extends GqlNodeBase {
     GraphQLListType(graphQLString.nonNullable()),
   );
   static final _limit = GraphQLFieldInput('limit', graphQLInt);
+  static final _prioritizeSlugs = GraphQLFieldInput(
+    'prioritizeSlugs',
+    GraphQLListType(graphQLString.nonNullable()),
+  );
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     myPrivateLabelsForUser,
@@ -106,16 +110,20 @@ final class QueryCapability extends GqlNodeBase {
       GraphQLObjectField(
         'personTopCapabilitiesBatch',
         GraphQLListType(gqlTypePersonTopCapabilities.nonNullable()),
-        arguments: [_subjectUserIds, _limit],
+        arguments: [_subjectUserIds, _limit, _prioritizeSlugs],
         resolve: (_, args) async {
           final jwt = getCredentials(args);
           final subjectIds =
               (args['subjectUserIds'] as List<dynamic>).cast<String>();
           final limit = (args['limit'] as int?) ?? 2;
+          final prioritizeSlugs = (args['prioritizeSlugs'] as List<dynamic>?)
+                  ?.cast<String>() ??
+              const <String>[];
           final result = await _capabilityCase.fetchTopCapabilitiesBatch(
             viewerId: jwt.sub,
             subjectIds: subjectIds,
             limit: limit,
+            prioritizeSlugs: prioritizeSlugs,
           );
           return result.entries
               .map((e) => {'subjectId': e.key, 'slugs': e.value})

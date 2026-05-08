@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/invalidation_service.dart';
@@ -163,12 +164,16 @@ class CapabilityRepository implements CapabilityRepositoryPort {
   Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
     required List<String> subjectIds,
     int limit = 2,
+    List<String> prioritizeSlugs = const [],
   }) => _remoteApiService
       .request(
         GPersonTopCapabilitiesBatchReq(
           (r) => r
             ..vars.subjectUserIds.addAll(subjectIds)
-            ..vars.limit = limit,
+            ..vars.limit = limit
+            ..vars.prioritizeSlugs.replace(
+              BuiltList<String>.from(prioritizeSlugs),
+            ),
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)

@@ -127,6 +127,8 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                               if (i > 0) const TenturaHairlineDivider(),
                               ForwardRecipientRow(
                                 candidate: filtered[i],
+                                requiredCapabilitySlugs:
+                                    state.beacon?.needs ?? const {},
                                 isSelected: state.selectedIds
                                     .contains(filtered[i].id),
                                 onToggle: () => context

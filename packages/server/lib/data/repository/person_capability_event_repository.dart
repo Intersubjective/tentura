@@ -485,14 +485,18 @@ class PersonCapabilityEventRepository
     required String viewerId,
     required List<String> subjectIds,
     int limit = 2,
+    List<String> prioritizeSlugs = const [],
   }) async {
     if (subjectIds.isEmpty) return {};
 
-    // Build IN-list placeholders: $2, $3, ... for subject IDs; limit is last.
+    // Build IN-list placeholders: $2, $3, ... for subject IDs; limit; prioritize array.
     // Paired with fetchDeduplicatedCapabilities source-type semantics:
     //   source 0,1,3: observer-scoped; source 2: subject-only (commit roles).
     final sp = List.generate(subjectIds.length, (i) => '\$${i + 2}').join(', ');
-    final lp = '\$${subjectIds.length + 2}';
+    final limitPos = subjectIds.length + 2;
+    final prioPos = subjectIds.length + 3;
+    final lp = '\$$limitPos';
+    final pp = '\$$prioPos';
 
     final rows = await _database
         .customSelect(
@@ -541,16 +545,39 @@ class PersonCapabilityEventRepository
                      PARTITION BY subject_user_id ORDER BY cnt DESC, tag_slug ASC
                    ) AS rn
             FROM counted
+          ),
+          prioritize AS (
+            SELECT u.slug AS slug, u.ord::int AS ord
+            FROM unnest($pp::text[]) WITH ORDINALITY AS u(slug, ord)
+          ),
+          matched AS (
+            SELECT c.subject_user_id, c.tag_slug, p.ord AS ord, 0 AS tier
+            FROM counted c
+            INNER JOIN prioritize p ON c.tag_slug = p.slug
+          ),
+          combined AS (
+            SELECT subject_user_id, tag_slug, tier, ord
+            FROM matched
+            UNION ALL
+            SELECT subject_user_id, tag_slug, 1 AS tier, rn AS ord
+            FROM ranked
+            WHERE rn <= $lp
+          ),
+          dedup AS (
+            SELECT DISTINCT ON (subject_user_id, tag_slug)
+              subject_user_id, tag_slug, tier, ord
+            FROM combined
+            ORDER BY subject_user_id, tag_slug, tier ASC, ord ASC
           )
           SELECT subject_user_id, tag_slug
-          FROM ranked
-          WHERE rn <= $lp
-          ORDER BY subject_user_id, rn
+          FROM dedup
+          ORDER BY subject_user_id, tier ASC, ord ASC, tag_slug ASC
           ''',
           variables: [
             Variable.withString(viewerId),
             ...subjectIds.map(Variable.withString),
             Variable.withInt(limit),
+            Variable(TypedValue(Type.textArray, prioritizeSlugs)),
           ],
         )
         .get();

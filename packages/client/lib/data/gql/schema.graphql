@@ -4188,7 +4188,7 @@ type query_root {
   BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
   myPrivateLabelsForUser(subjectUserId: String!): [String!]!
   personCapabilityCues(subjectUserId: String!): v2_PersonCapabilityCuesPayload!
-  personTopCapabilitiesBatch(subjectUserIds: [String!]!, limit: Int): [v2_PersonTopCapabilities!]!
+  personTopCapabilitiesBatch(subjectUserIds: [String!]!, limit: Int, prioritizeSlugs: [String!]): [v2_PersonTopCapabilities!]!
   personFriendContextBatch(subjectUserIds: [String!]!): [v2_PersonFriendContext!]!
 
   """

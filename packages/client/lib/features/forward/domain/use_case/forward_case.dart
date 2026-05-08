@@ -49,9 +49,11 @@ final class ForwardCase extends UseCaseBase {
   Future<Map<String, List<String>>> fetchTopCapabilitiesForCandidates(
     List<String> subjectIds, {
     int limit = 2,
+    List<String> prioritizeSlugs = const [],
   }) => GetIt.I<CapabilityRepositoryPort>().fetchTopCapabilitiesBatch(
     subjectIds: subjectIds,
     limit: limit,
+    prioritizeSlugs: prioritizeSlugs,
   );
 
   Future<String> forwardBeacon({

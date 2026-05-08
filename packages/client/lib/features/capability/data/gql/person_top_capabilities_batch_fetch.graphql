@@ -1,5 +1,13 @@
-query PersonTopCapabilitiesBatch($subjectUserIds: [String!]!, $limit: Int) {
-  personTopCapabilitiesBatch(subjectUserIds: $subjectUserIds, limit: $limit) {
+query PersonTopCapabilitiesBatch(
+  $subjectUserIds: [String!]!
+  $limit: Int
+  $prioritizeSlugs: [String!]
+) {
+  personTopCapabilitiesBatch(
+    subjectUserIds: $subjectUserIds
+    limit: $limit
+    prioritizeSlugs: $prioritizeSlugs
+  ) {
     subjectId
     slugs
   }

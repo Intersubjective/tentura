@@ -933,12 +933,14 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
     required String? viewerId,
     required List<String>? subjectIds,
     int? limit = 2,
+    List<String>? prioritizeSlugs = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#fetchTopCapabilitiesBatch, [], {
               #viewerId: viewerId,
               #subjectIds: subjectIds,
               #limit: limit,
+              #prioritizeSlugs: prioritizeSlugs,
             }),
             returnValue: _i5.Future<Map<String, List<String>>>.value(
               <String, List<String>>{},
