@@ -39,3 +39,15 @@ final class LinkCopiedToClipboardMessage extends LocalizableMessage {
   @override
   String get toRu => 'Ссылка скопирована в буфер обмена';
 }
+
+final class NoCommitterForwardPathMessage extends LocalizableMessage {
+  const NoCommitterForwardPathMessage();
+
+  @override
+  String get toEn =>
+      'No forward path to this committer (showing your visible chain instead).';
+
+  @override
+  String get toRu =>
+      'Нет цепочки пересылок до этого коммиттера (показываю видимую вам цепочку).';
+}
