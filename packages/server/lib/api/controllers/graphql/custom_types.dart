@@ -252,11 +252,11 @@ final gqlTypeForwardGraphResult =
         field('viewerId', graphQLString),
         field(
           'committerIds',
-          GraphQLListType(graphQLString.nonNullable()),
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
         field(
           'edges',
-          GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()),
+          GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()).nonNullable(),
         ),
       ]);
 

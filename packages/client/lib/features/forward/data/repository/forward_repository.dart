@@ -268,7 +268,7 @@ class ForwardRepository {
                       batchId: e.batchId,
                     ),
                   )
-                  .toList(),
+                  .toList(growable: false),
             ),
           );
 
@@ -293,24 +293,26 @@ class ForwardRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beaconCommitterForwardPath)
       .then(
-        (g) => ForwardGraph(
-          beaconId: g.beaconId,
-          authorId: g.authorId,
-          viewerId: g.viewerId,
-          committerIds: g.committerIds.toSet(),
-          edges: g.edges
-              .map(
-                (e) => ForwardGraphEdge(
-                  id: e.id,
-                  beaconId: e.beaconId,
-                  senderId: e.senderId,
-                  recipientId: e.recipientId,
-                  parentEdgeId: e.parentEdgeId,
-                  batchId: e.batchId,
-                ),
-              )
-              .toList(),
-        ),
+        (g) {
+          return ForwardGraph(
+            beaconId: g.beaconId,
+            authorId: g.authorId,
+            viewerId: g.viewerId,
+            committerIds: g.committerIds.toSet(),
+            edges: g.edges
+                .map(
+                  (e) => ForwardGraphEdge(
+                    id: e.id,
+                    beaconId: e.beaconId,
+                    senderId: e.senderId,
+                    recipientId: e.recipientId,
+                    parentEdgeId: e.parentEdgeId,
+                    batchId: e.batchId,
+                  ),
+                )
+                .toList(growable: false),
+          );
+        },
       );
 
   Future<List<ForwardEdge>> fetchEdges({required String beaconId}) =>

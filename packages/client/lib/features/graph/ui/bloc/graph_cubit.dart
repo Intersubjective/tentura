@@ -1,5 +1,5 @@
 // graphController should be here
-// ignore_for_file: avoid_public_fields
+// ignore_for_file: avoid_public_fields, prefer_void_public_cubit_methods
 
 import 'dart:async';
 import 'package:get_it/get_it.dart';
@@ -11,6 +11,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/message/common_messages.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -102,6 +103,11 @@ class GraphCubit extends Cubit<GraphState> {
 
   final _fetchLimits = <String, int>{};
 
+  // Heuristic for isolated focus placement: initialPositionExtractor uses
+  // y = 200 - 100*positionHint (given current constants). So hints >= 3 start
+  // "north" (negative y offset) of center.
+  static const int _isolatedFocusNorthHint = 4;
+
   late final Map<String, NodeDetails> _nodes = <String, NodeDetails>{
     _egoNode.id: _egoNode,
   };
@@ -169,6 +175,8 @@ class GraphCubit extends Cubit<GraphState> {
 
       Set<EdgeDirected> edges;
       final source = _graphSource;
+      var showNoCommitterPathMessage = false;
+      String? noPathCommitterId;
       if (committerFocusUserId != null &&
           forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
@@ -195,10 +203,16 @@ class GraphCubit extends Cubit<GraphState> {
             : isSelf
                 ? ForwardsGraphViewerRole.self
                 : ForwardsGraphViewerRole.involvedOther;
-        final derivedFocus = isSelf ? authorId : committerId;
+        final hasCommitterEndpoint = edges.any(
+          (e) => e.src == committerId || e.dst == committerId,
+        );
+        final derivedFocus =
+            isSelf ? authorId : committerId;
         if (state.focus != derivedFocus) {
           emit(state.copyWith(focus: derivedFocus));
         }
+        showNoCommitterPathMessage = !hasCommitterEndpoint;
+        noPathCommitterId = !hasCommitterEndpoint ? committerId : null;
       } else if (forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
         final payload =
@@ -250,7 +264,16 @@ class GraphCubit extends Cubit<GraphState> {
       if (state.focus.isNotEmpty && !_nodes.containsKey(state.focus)) {
         final lazy = await _resolveNodeById(state.focus, pinned: true);
         if (lazy != null) {
-          _nodes[state.focus] = lazy;
+          // When the focused committer has no path edges, we still want to show
+          // them as an isolated focus node. Give it a stable hint north of root.
+          if (noPathCommitterId != null &&
+              state.focus == noPathCommitterId &&
+              lazy.positionHint != 0) {
+            _nodes[state.focus] =
+                lazy.copyWithPositionHint(_isolatedFocusNorthHint);
+          } else {
+            _nodes[state.focus] = lazy;
+          }
         }
       }
 
@@ -260,13 +283,40 @@ class GraphCubit extends Cubit<GraphState> {
 
       _updateGraph(edges);
 
+      if (showNoCommitterPathMessage) {
+        emit(
+          state.copyWith(
+            status: StateIsMessaging(const NoCommitterForwardPathMessage()),
+          ),
+        );
+        emit(state.copyWith(status: StateStatus.isSuccess));
+      }
+
       // Recenter on the derived focus node in committer-path mode so the
       // viewer immediately lands on the relevant principal (committer for
       // case 1/2, author for case 3) instead of the floating ego "Me".
       if (committerFocusUserId != null && state.focus.isNotEmpty) {
         final focusNode = _nodes[state.focus];
         if (focusNode != null) {
-          await Future.value(graphController.jumpToNode(focusNode));
+          // `jumpToNode` expects the *same instance* that the graph controller
+          // currently tracks positions for. When `NodeDetails` instances get
+          // replaced in `_nodes` (pinned/committer highlight), passing a stale
+          // instance can crash the layout with a null position.
+          NodeDetails? controllerNode;
+          for (final n in graphController.nodes) {
+            if (n.id == focusNode.id) {
+              controllerNode = n;
+              break;
+            }
+          }
+          final nodeToJump = controllerNode ?? focusNode;
+          final canLayout = graphController.canLayout;
+          final hasPosition =
+              canLayout && graphController.layout.hasPosition(nodeToJump);
+          if (!hasPosition) {
+            return;
+          }
+          await Future.value(graphController.jumpToNode(nodeToJump));
         }
       }
     } catch (e) {
@@ -279,8 +329,9 @@ class GraphCubit extends Cubit<GraphState> {
     bool pinned = false,
   }) async {
     if (id.startsWith('U')) {
+      final profile = await _profileRepository.fetchById(id);
       return UserNode(
-        user: await _profileRepository.fetchById(id),
+        user: profile,
         positionHint: _nodes.length,
         pinned: pinned,
         isCommitter: _committerIds.contains(id),
