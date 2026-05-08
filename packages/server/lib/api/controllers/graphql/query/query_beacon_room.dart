@@ -26,7 +26,7 @@ final class QueryBeaconRoom extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get roomMessageList =>
       GraphQLObjectField(
         'RoomMessageList',
-        GraphQLListType(gqlTypeRoomMessageRow.nonNullable()).nonNullable(),
+        GraphQLListType(gqlTypeRoomMessageRow.nonNullable()),
         arguments: [
           _beaconIdStr.field,
           _beforeIso.fieldNullable,
@@ -41,7 +41,7 @@ final class QueryBeaconRoom extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get beaconParticipantList =>
       GraphQLObjectField(
         'BeaconParticipantList',
-        GraphQLListType(gqlTypeBeaconParticipantRow.nonNullable()).nonNullable(),
+        GraphQLListType(gqlTypeBeaconParticipantRow.nonNullable()),
         arguments: [
           _beaconIdStr.field,
         ],
@@ -67,7 +67,7 @@ final class QueryBeaconRoom extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get beaconActivityEventList =>
       GraphQLObjectField(
         'BeaconActivityEventList',
-        GraphQLListType(gqlTypeBeaconActivityEventRow.nonNullable()).nonNullable(),
+        GraphQLListType(gqlTypeBeaconActivityEventRow.nonNullable()),
         arguments: [
           _beaconIdStr.field,
         ],
@@ -80,7 +80,7 @@ final class QueryBeaconRoom extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get inboxRoomContextBatch =>
       GraphQLObjectField(
         'InboxRoomContextBatch',
-        GraphQLListType(gqlTypeInboxRoomContextRow.nonNullable()).nonNullable(),
+        GraphQLListType(gqlTypeInboxRoomContextRow.nonNullable()),
         arguments: [InputFieldBeaconIds.field],
         resolve: (_, args) => _case.inboxRoomContextBatch(
               userId: getCredentials(args).sub,

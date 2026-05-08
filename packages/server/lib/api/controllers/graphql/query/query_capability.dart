@@ -105,7 +105,7 @@ final class QueryCapability extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get personTopCapabilitiesBatch =>
       GraphQLObjectField(
         'personTopCapabilitiesBatch',
-        GraphQLListType(gqlTypePersonTopCapabilities.nonNullable()).nonNullable(),
+        GraphQLListType(gqlTypePersonTopCapabilities.nonNullable()),
         arguments: [_subjectUserIds, _limit],
         resolve: (_, args) async {
           final jwt = getCredentials(args);
@@ -126,7 +126,7 @@ final class QueryCapability extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get personFriendContextBatch =>
       GraphQLObjectField(
         'personFriendContextBatch',
-        GraphQLListType(gqlTypePersonFriendContext.nonNullable()).nonNullable(),
+        GraphQLListType(gqlTypePersonFriendContext.nonNullable()),
         arguments: [_subjectUserIds],
         resolve: (_, args) async {
           final jwt = getCredentials(args);

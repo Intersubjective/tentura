@@ -24,8 +24,6 @@ import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 
-import 'package:tentura/domain/entity/beacon_people_lens.dart';
-
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/activity_list.dart';
@@ -33,7 +31,6 @@ import '../widget/beacon_operational_header_card.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/commitments_summary_card.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
-import '../widget/beacon_people_participant_card.dart';
 import '../widget/overview/beacon_overview_tab.dart';
 
 bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
@@ -777,34 +774,9 @@ class _CommitmentsTabBody extends StatelessWidget {
         )
         .length;
 
-    final peopleRows = beaconParticipantsVisibleForViewer(
-      participants: state.roomParticipants,
-      viewerUserId: state.myProfile.id,
-      authorUserId: beacon.author.id,
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (peopleRows.isNotEmpty) ...[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              l10n.beaconPeopleSectionTitle,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ),
-          const SizedBox(height: 12),
-          for (var i = 0; i < peopleRows.length; i++) ...[
-            if (i != 0) const SizedBox(height: 12),
-            BeaconPeopleParticipantCard(
-              beacon: beacon,
-              participant: peopleRows[i],
-              commitments: state.commitments,
-            ),
-          ],
-          const SizedBox(height: 16),
-        ],
         BeaconEvaluationHooks(
           beaconId: beacon.id,
           lifecycle: beacon.lifecycle,
@@ -820,6 +792,8 @@ class _CommitmentsTabBody extends StatelessWidget {
           if (i != 0) const SizedBox(height: 12),
           CommitmentTile(
             commitment: active[i],
+            beaconId: beacon.id,
+            beaconAuthorId: beacon.author.id,
             isMine: active[i].user.id == state.myProfile.id,
             isAuthorView: state.isBeaconMine,
             onAuthorTapCoordination:
@@ -897,6 +871,8 @@ class _CommitmentsTabBody extends StatelessWidget {
                 if (j != 0) const SizedBox(height: 12),
                 CommitmentTile(
                   commitment: withdrawn[j],
+                  beaconId: beacon.id,
+                  beaconAuthorId: beacon.author.id,
                   isMine: withdrawn[j].user.id == state.myProfile.id,
                   isAuthorView: state.isBeaconMine,
                 ),

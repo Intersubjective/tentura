@@ -17,7 +17,7 @@ final class QueryFactCard extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get beaconFactCardList =>
       GraphQLObjectField(
         'BeaconFactCardList',
-        GraphQLListType(gqlTypeBeaconFactCardRow.nonNullable()).nonNullable(),
+        GraphQLListType(gqlTypeBeaconFactCardRow.nonNullable()),
         arguments: [
           _beaconIdStr.field,
         ],

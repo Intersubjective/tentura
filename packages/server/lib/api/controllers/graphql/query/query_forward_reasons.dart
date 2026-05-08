@@ -15,7 +15,7 @@ final class QueryForwardReasons extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get forwardReasonsByBeacon =>
       GraphQLObjectField(
         'forwardReasonsByBeacon',
-        GraphQLListType(gqlTypeForwardReasonRow.nonNullable()).nonNullable(),
+        GraphQLListType(gqlTypeForwardReasonRow.nonNullable()),
         arguments: [InputFieldId.field],
         resolve: (_, args) async {
           final creds = getCredentials(args);
