@@ -23,6 +23,23 @@ class ScreenCubit extends Cubit<ScreenState> {
   void showForwardsGraphFor(String id) =>
       emit(state.navigateTo('$kPathForwardsGraph/$id'));
 
+  /// Opens the per-committer forward path graph for [beaconId] focused on
+  /// [committerId]. Optional [committerName] is forwarded so the AppBar
+  /// title can include the committer's display title.
+  void showCommitterForwardPathFor({
+    required String beaconId,
+    required String committerId,
+    String? committerName,
+  }) {
+    final query = StringBuffer('committer=${Uri.encodeQueryComponent(committerId)}');
+    if (committerName != null && committerName.isNotEmpty) {
+      query
+        ..write('&committerName=')
+        ..write(Uri.encodeQueryComponent(committerName));
+    }
+    emit(state.navigateTo('$kPathForwardsGraph/$beaconId?$query'));
+  }
+
   void showRating() => emit(state.navigateTo(kPathRating));
 
   void showBeaconsOf(String id) =>

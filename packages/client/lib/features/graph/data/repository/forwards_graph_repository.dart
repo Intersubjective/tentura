@@ -9,10 +9,15 @@ import '../../domain/entity/edge_directed.dart';
 import '../../domain/entity/node_details.dart';
 import 'graph_source_repository.dart';
 
-/// Result payload for [ForwardsGraphRepository.fetchForwardsGraph].
+/// Result payload for `ForwardsGraphRepository.fetchForwardsGraph` and
+/// `ForwardsGraphRepository.fetchCommitterForwardsGraph`. `authorId` is
+/// surfaced explicitly so the cubit can pick the focus node without
+/// re-reading the beacon header.
 typedef ForwardsGraphPayload = ({
   Set<EdgeDirected> edges,
   Set<String> committerIds,
+  String authorId,
+  String? viewerId,
 });
 
 /// Builds a directed graph from the V2 `beaconForwardGraph` query for one
@@ -64,6 +69,52 @@ class ForwardsGraphRepository implements GraphSourceRepository {
     return (
       edges: edges,
       committerIds: graph.committerIds,
+      authorId: graph.authorId,
+      viewerId: graph.viewerId,
+    );
+  }
+
+  /// Per-committer forward-path graph (V2 `beaconCommitterForwardPath`).
+  ///
+  /// Returns the union of the focused [committerId]'s ancestor closure and
+  /// the viewer's own forward edges plus their ancestor closure (so when
+  /// the viewer is an "involved other" the screen still shows author +
+  /// viewer + committer simultaneously).
+  Future<ForwardsGraphPayload> fetchCommitterForwardsGraph({
+    required String beaconId,
+    required String committerId,
+  }) async {
+    final results = await Future.wait<Object>([
+      _beaconRepository.fetchBeaconById(beaconId),
+      _forwardRepository.fetchCommitterForwardPath(
+        beaconId: beaconId,
+        committerId: committerId,
+      ),
+    ]);
+    final beacon = results[0] as Beacon;
+    final graph = results[1] as ForwardGraph;
+
+    final edges = <EdgeDirected>{
+      (
+        src: graph.authorId,
+        dst: beacon.id,
+        weight: _weight,
+        node: BeaconNode(beacon: beacon),
+      ),
+      for (final e in graph.edges)
+        (
+          src: e.senderId,
+          dst: e.recipientId,
+          weight: _weight,
+          node: null,
+        ),
+    };
+
+    return (
+      edges: edges,
+      committerIds: graph.committerIds,
+      authorId: graph.authorId,
+      viewerId: graph.viewerId,
     );
   }
 

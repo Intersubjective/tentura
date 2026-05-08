@@ -92,6 +92,14 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) async => [];
 
   @override
+  Future<List<ForwardEdgeEntity>> fetchCommitterPathChain({
+    required String beaconId,
+    required String committerId,
+    required String viewerId,
+  }) async =>
+      [];
+
+  @override
   Future<List<ForwardEdgeEntity>> fetchByRecipientId(
     String recipientId, {
     String? context,

@@ -584,6 +584,28 @@
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"
   },
+  "committerForwardPathTitleAuthor": "Forward path to {name}",
+  "@committerForwardPathTitleAuthor": {
+    "context": "ForwardsGraphScreen — viewer is the beacon author",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "committerForwardPathTitleViewer": "Forward path \u2014 you to {name}",
+  "@committerForwardPathTitleViewer": {
+    "context": "ForwardsGraphScreen — viewer is an involved-other (has forward edges but is neither author nor focused committer)",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "committerForwardPathTitleSelf": "Your forward path",
+  "@committerForwardPathTitleSelf": {
+    "context": "ForwardsGraphScreen — viewer IS the focused committer (chain reads in reverse from them to the author)"
+  },
+  "committerForwardPathTooltip": "Show forward path",
+  "@committerForwardPathTooltip": {
+    "context": "BeaconPeopleParticipantCard — IconButton tooltip for committer forward path graph"
+  },
   "myField": "My Field",
   "@myField": {
     "context": "HomeScreen"

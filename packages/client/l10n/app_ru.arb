@@ -584,6 +584,28 @@
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"
   },
+  "committerForwardPathTitleAuthor": "Путь пересылок до {name}",
+  "@committerForwardPathTitleAuthor": {
+    "context": "ForwardsGraphScreen — viewer is the beacon author",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "committerForwardPathTitleViewer": "Путь пересылок \u2014 вы \u2192 {name}",
+  "@committerForwardPathTitleViewer": {
+    "context": "ForwardsGraphScreen — viewer is an involved-other",
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "committerForwardPathTitleSelf": "Ваш путь пересылок",
+  "@committerForwardPathTitleSelf": {
+    "context": "ForwardsGraphScreen — viewer IS the focused committer"
+  },
+  "committerForwardPathTooltip": "Показать путь пересылок",
+  "@committerForwardPathTooltip": {
+    "context": "BeaconPeopleParticipantCard — IconButton tooltip"
+  },
   "myField": "Моё поле",
   "@myField": {
     "context": "HomeScreen"

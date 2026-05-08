@@ -708,6 +708,24 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
           as _i6.Future<List<_i12.ForwardEdgeEntity>>);
 
   @override
+  _i6.Future<List<_i12.ForwardEdgeEntity>> fetchCommitterPathChain({
+    required String? beaconId,
+    required String? committerId,
+    required String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchCommitterPathChain, [], {
+              #beaconId: beaconId,
+              #committerId: committerId,
+              #viewerId: viewerId,
+            }),
+            returnValue: _i6.Future<List<_i12.ForwardEdgeEntity>>.value(
+              <_i12.ForwardEdgeEntity>[],
+            ),
+          )
+          as _i6.Future<List<_i12.ForwardEdgeEntity>>);
+
+  @override
   _i6.Future<List<_i12.ForwardEdgeEntity>> fetchByRecipientId(
     String? recipientId, {
     String? context,
