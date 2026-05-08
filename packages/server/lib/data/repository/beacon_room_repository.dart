@@ -262,7 +262,8 @@ class BeaconRoomRepository {
         'myReaction': myReactionFor(id),
         'attachmentsJson':
             attachmentsJsonByMid[id] ?? '[]',
-        'mentions': m.mentions,
+        // GraphQL `[String!]` — never emit null/empty slots (see migration 0060).
+        'mentions': m.mentions.where((id) => id.isNotEmpty).toList(),
       };
     }).toList();
   }
