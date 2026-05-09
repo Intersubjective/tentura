@@ -274,4 +274,13 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
       .where((c) => !c.isWithdrawn && c.coordinationResponse == null)
       .length;
 
+  int get needCoordinationCommitmentsCount => commitments
+      .where(
+        (c) =>
+            !c.isWithdrawn &&
+            c.coordinationResponse ==
+                CoordinationResponseType.needCoordination,
+      )
+      .length;
+
 }
