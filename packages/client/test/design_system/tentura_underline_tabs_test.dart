@@ -65,4 +65,35 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'TenturaUnderlineTabs shows primary and secondary badge on same tab',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: TenturaUnderlineTabs(
+              tabs: const ['A', 'B', 'C'],
+              selectedIndex: 1,
+              onChanged: (_) {},
+              badges: const [null, 2, null],
+              secondaryBadges: const [null, 3, null],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final tabsFinder = find.byType(TenturaUnderlineTabs);
+      expect(tabsFinder, findsOneWidget);
+      expect(
+        find.descendant(of: tabsFinder, matching: find.text('2')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: tabsFinder, matching: find.text('3')),
+        findsOneWidget,
+      );
+    },
+  );
 }

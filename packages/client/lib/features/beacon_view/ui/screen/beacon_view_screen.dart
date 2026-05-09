@@ -13,7 +13,6 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
@@ -29,7 +28,6 @@ import '../dialog/commitment_message_dialog.dart';
 import '../widget/activity_list.dart';
 import '../widget/beacon_operational_header_card.dart';
 import '../widget/commitment_tile.dart';
-import '../widget/commitments_summary_card.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 import '../widget/overview/beacon_overview_tab.dart';
 
@@ -522,7 +520,9 @@ class _BeaconOperationalScrollViewState
               c.beaconRoomCue?.lastRoomMeaningfulChange ||
           p.beaconRoomCue?.currentPlan != c.beaconRoomCue?.currentPlan ||
           p.showDraftEvaluationCta != c.showDraftEvaluationCta ||
-          p.unansweredCommitmentsCount != c.unansweredCommitmentsCount,
+          p.unansweredCommitmentsCount != c.unansweredCommitmentsCount ||
+          p.needCoordinationCommitmentsCount !=
+              c.needCoordinationCommitmentsCount,
       builder: (context, state) {
         final beaconId = state.beacon.id;
         Future<void> editUpdate(TimelineUpdate u) => _showEditAuthorUpdateSheet(
@@ -568,6 +568,10 @@ class _BeaconOperationalScrollViewState
         final peopleTabBadge =
             state.isBeaconMine && state.unansweredCommitmentsCount > 0
             ? state.unansweredCommitmentsCount
+            : null;
+        final peopleTabSecondaryBadge =
+            state.needCoordinationCommitmentsCount > 0
+            ? state.needCoordinationCommitmentsCount
             : null;
 
         // Single CustomScrollView (no NestedScrollView) so the scroll position
@@ -678,6 +682,11 @@ class _BeaconOperationalScrollViewState
                             peopleTabBadge,
                             null,
                           ],
+                          secondaryBadges: [
+                            null,
+                            peopleTabSecondaryBadge,
+                            null,
+                          ],
                           attentionIndex: 1,
                           attentionActive: _peopleTabAttentionActive,
                         ),
@@ -763,16 +772,6 @@ class _CommitmentsTabBody extends StatelessWidget {
     final withdrawn = state.commitments
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
-    final usefulCount = active
-        .where((c) => c.coordinationResponse == CoordinationResponseType.useful)
-        .length;
-    final needsCoordinationCount = active
-        .where(
-          (c) =>
-              c.coordinationResponse ==
-              CoordinationResponseType.needCoordination,
-        )
-        .length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -780,11 +779,6 @@ class _CommitmentsTabBody extends StatelessWidget {
         BeaconEvaluationHooks(
           beaconId: beacon.id,
           lifecycle: beacon.lifecycle,
-        ),
-        CommitmentsSummaryCard(
-          activeCount: active.length,
-          usefulCount: usefulCount,
-          needsCoordinationCount: needsCoordinationCount,
         ),
         if (active.isNotEmpty || withdrawn.isNotEmpty)
           const SizedBox(height: 12),

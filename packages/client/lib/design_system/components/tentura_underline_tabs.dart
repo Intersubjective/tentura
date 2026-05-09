@@ -15,6 +15,7 @@ class TenturaUnderlineTabs extends StatefulWidget {
     required this.selectedIndex,
     required this.onChanged,
     this.badges,
+    this.secondaryBadges,
     this.attentionIndex,
     this.attentionActive = false,
     super.key,
@@ -24,6 +25,10 @@ class TenturaUnderlineTabs extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onChanged;
   final List<int?>? badges;
+
+  /// Optional per-tab second count (e.g. warn-styled chip). Same length as
+  /// [tabs] when non-null; entries null or <=0 are hidden.
+  final List<int?>? secondaryBadges;
 
   /// Tab index to emphasize when [attentionActive] is true.
   final int? attentionIndex;
@@ -135,6 +140,10 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
     final badge = widget.badges != null && index < widget.badges!.length
         ? widget.badges![index]
         : null;
+    final secondaryBadge =
+        widget.secondaryBadges != null && index < widget.secondaryBadges!.length
+        ? widget.secondaryBadges![index]
+        : null;
 
     final useAnimatedAttention =
         _shouldShowAttention &&
@@ -146,6 +155,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
       selected: index == widget.selectedIndex,
       onTap: () => widget.onChanged(index),
       badge: badge,
+      secondaryBadge: secondaryBadge,
       attentionBackgroundOpacity: staticAttentionOpacity,
     );
 
@@ -165,6 +175,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
           selected: index == widget.selectedIndex,
           onTap: () => widget.onChanged(index),
           badge: badge,
+          secondaryBadge: secondaryBadge,
           attentionBackgroundOpacity: opacity,
         );
       },
@@ -178,6 +189,7 @@ class _TabCell extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badge,
+    this.secondaryBadge,
     this.attentionBackgroundOpacity = 0.0,
   });
 
@@ -185,6 +197,7 @@ class _TabCell extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final int? badge;
+  final int? secondaryBadge;
   final double attentionBackgroundOpacity;
 
   @override
@@ -193,7 +206,10 @@ class _TabCell extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final active = tt.info;
     final inactive = tt.textMuted;
-    final hasBadge = badge != null && badge! > 0;
+    final hasPrimaryBadge = badge != null && badge! > 0;
+    final hasSecondaryBadge =
+        secondaryBadge != null && secondaryBadge! > 0;
+    final hasAnyBadge = hasPrimaryBadge || hasSecondaryBadge;
     final showAttention = attentionBackgroundOpacity > 0;
 
     return InkWell(
@@ -237,11 +253,27 @@ class _TabCell extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (hasBadge) ...[
+                    if (hasAnyBadge) ...[
                       const SizedBox(width: 10),
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: _BadgeBubble(count: badge!),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (hasPrimaryBadge)
+                              _BadgeBubble(
+                                count: badge!,
+                                backgroundColor: tt.info,
+                              ),
+                            if (hasPrimaryBadge && hasSecondaryBadge)
+                              const SizedBox(width: 6),
+                            if (hasSecondaryBadge)
+                              _BadgeBubble(
+                                count: secondaryBadge!,
+                                backgroundColor: tt.warn,
+                              ),
+                          ],
+                        ),
                       ),
                     ],
                   ],
@@ -268,18 +300,21 @@ class _TabCell extends StatelessWidget {
 }
 
 class _BadgeBubble extends StatelessWidget {
-  const _BadgeBubble({required this.count});
+  const _BadgeBubble({
+    required this.count,
+    required this.backgroundColor,
+  });
 
   final int count;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final tt = context.tt;
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: tt.info,
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(9),
         ),
         child: Padding(
