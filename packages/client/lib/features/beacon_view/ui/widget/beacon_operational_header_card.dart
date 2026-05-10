@@ -71,26 +71,14 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         beacon.allowsNewCommitAsNonAuthor &&
         onCommit != null;
 
-    var primaryFilledForwardOnly = false;
-
     Widget primaryBlock = const SizedBox.shrink();
-    if (!state.isBeaconMine && open) {
-      if (canCommit) {
-        primaryBlock = _PrimaryCtaSlot(
-          child: FilledButton(
-            onPressed: onCommit,
-            child: Text(l10n.labelCommit),
-          ),
-        );
-      } else if (onForward != null) {
-        primaryFilledForwardOnly = true;
-        primaryBlock = _PrimaryCtaSlot(
-          child: FilledButton(
-            onPressed: onForward,
-            child: Text(l10n.labelForward),
-          ),
-        );
-      }
+    if (!state.isBeaconMine && open && canCommit) {
+      primaryBlock = _PrimaryCtaSlot(
+        child: FilledButton(
+          onPressed: onCommit,
+          child: Text(l10n.labelCommit),
+        ),
+      );
     }
 
     final chips = <Widget>[];
@@ -105,7 +93,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       );
     }
 
-    if (open && onForward != null && !primaryFilledForwardOnly) {
+    if (open && onForward != null) {
       chips.add(
         _HeaderChip(
           icon: Icons.send_outlined,
@@ -202,9 +190,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     );
 
     final showPrimaryGap =
-        open &&
-            !state.isBeaconMine &&
-            (canCommit || primaryFilledForwardOnly);
+        open && !state.isBeaconMine && canCommit;
 
     return Padding(
       padding: outerPadding,
