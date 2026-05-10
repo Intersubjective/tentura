@@ -57,7 +57,7 @@ void main() {
     final beacon = minimalBeacon(description: 'Only legacy body');
     await pumpApp(
       tester,
-      BeaconOverviewTab(
+      BeaconStatusDashboard(
         state: viewState(beacon),
         onViewAllCommitments: () {},
         onEditTimelineUpdate: (_) async {},
@@ -67,8 +67,8 @@ void main() {
     expect(find.text('Need & context'), findsOneWidget);
     expect(find.text('Coordination'), findsOneWidget);
     expect(find.text('Context & attachments'), findsNothing);
-    // Legacy first card is non-collapsible; Coordination starts expanded → expand_less.
-    expect(find.byIcon(Icons.expand_less), findsOneWidget);
+    // Coordination starts expanded; dashboard adds extra non-collapsible panels.
+    expect(find.byIcon(Icons.expand_less), findsWidgets);
   });
 
   testWidgets(
@@ -80,7 +80,7 @@ void main() {
     );
     await pumpApp(
       tester,
-      BeaconOverviewTab(
+      BeaconStatusDashboard(
         state: viewState(beacon),
         onViewAllCommitments: () {},
         onEditTimelineUpdate: (_) async {},
@@ -95,9 +95,9 @@ void main() {
       find.textContaining('Short canonical need'),
       findsOneWidget,
     );
-    // Need + Context cards: one collapsed (expand_more), Coordination expanded (expand_less).
-    expect(find.byIcon(Icons.expand_more), findsOneWidget);
-    expect(find.byIcon(Icons.expand_less), findsOneWidget);
+    // Collapsible sections: Coordination starts expanded; Status dashboard adds more panels.
+    expect(find.byIcon(Icons.expand_more), findsWidgets);
+    expect(find.byIcon(Icons.expand_less), findsWidgets);
   });
 
   testWidgets('BeaconNeedBrief shows prefix when hasNeedSummary', (tester) async {

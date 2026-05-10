@@ -10,7 +10,7 @@ Companion to [beacon-evaluation-feature-design.md](./beacon-evaluation-feature-d
 | Commit use case | [`packages/server/lib/domain/use_case/commitment_case.dart`](../packages/server/lib/domain/use_case/commitment_case.dart) |
 | Commit persistence | [`packages/server/lib/data/repository/commitment_repository.dart`](../packages/server/lib/data/repository/commitment_repository.dart), table [`beacon_commitments.dart`](../packages/server/lib/data/database/table/beacon_commitments.dart) → Postgres `beacon_commitment` |
 | Client commit / fetch | [`packages/client/lib/features/forward/data/repository/forward_repository.dart`](../packages/client/lib/features/forward/data/repository/forward_repository.dart), GQL [`beacon_commit.graphql`](../packages/client/lib/features/forward/data/gql/beacon_commit.graphql), [`commitments_fetch.graphql`](../packages/client/lib/features/forward/data/gql/commitments_fetch.graphql) |
-| Beacon detail UI | [`packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart`](../packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart), [`beacon_view_cubit.dart`](../packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart) |
+| Beacon detail UI | [`packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart`](../packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart), [`beacon_view_cubit.dart`](../packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart), closure readiness helper [`beacon_closure_readiness.dart`](../packages/client/lib/features/beacon_view/ui/util/beacon_closure_readiness.dart) |
 | My Work / Inbox | [`my_work_fetch.graphql`](../packages/client/lib/features/my_work/data/gql/my_work_fetch.graphql), [`inbox_fetch.graphql`](../packages/client/lib/features/inbox/data/gql/inbox_fetch.graphql), [`beacon_model.graphql`](../packages/client/lib/data/gql/beacon_model.graphql) |
 | V2 routing | [`packages/client/lib/data/service/remote_api_client/build_client.dart`](../packages/client/lib/data/service/remote_api_client/build_client.dart) — `_tenturaDirectOperationNames` |
 | Hasura | [`hasura/metadata.json`](../hasura/metadata.json) — track `beacon_commitment_coordination`, new columns on `beacon` / `beacon_commitment` |
@@ -176,3 +176,43 @@ Author coordination responses are **not** reviews. Evaluation (post-close) is do
 * New unreviewed commits push status toward waiting for review.
 * Committed beacons appear in My Work; uncommit is explicit.
 * UX reads as practical coordination, not gatekeeping.
+
+---
+
+## 14. Author closure readiness (HUD — presentation-only)
+
+Closure readiness is **derived presentation** from existing beacon view state (coordination status, commitments + coordination responses, room participant rows, room cue blockers, structured activity events). **Server mutations remain authoritative** for whether close succeeds.
+
+**Implementation:** [`packages/client/lib/features/beacon_view/ui/util/beacon_closure_readiness.dart`](../packages/client/lib/features/beacon_view/ui/util/beacon_closure_readiness.dart) (`BeaconClosureReadiness`, `ClosureActionPriority`, `computeClosureReadiness`).
+
+### Hard gates
+
+Author **Close** is suppressed unless: the viewer owns the beacon; lifecycle is **open**; view state has loaded successfully with a non-empty author id; the cubit is not in a global loading state. (Delegated non-author closers are a future extension.)
+
+### Blocking signals (`blocked`)
+
+* Open blocker title present on room state cue (`beacon_room_state`).
+* Beacon coordination status **more or different help needed** (`coordination_status = 2`).
+* Author’s room participant row has status **needsInfo** (v1 proxy for “need-info targeted at the author”).
+* For each **relevant** commitment (non-withdrawn; coordination response not `not_suitable` / `overlapping`), the matching participant row: status **blocked**, or **needsInfo** when that participant is the beacon author.
+
+### v1 need-info policy
+
+Helper-targeted **needsInfo** (without the author row being in **needsInfo**) **does not** block primary Close. A future `needInfoBlocksClosure` (or equivalent) field should refine this.
+
+### Positive completion signals
+
+* **Whole-beacon done:** `beacon_activity_event` type `doneMarked` with JSON `diff_json` containing `scope: wholeBeacon` or `target: wholeBeacon`. Payloads such as `{kind: message}` (message-level mark-done) **do not** count as whole-beacon completion for this derivation.
+* **Ready path without whole-beacon flag:** coordination status **enough help committed** **and** at least one relevant commitment shows a **useful** coordination response or participant **done** / `next_move_status` done **and** every relevant commitment is in a settled terminal state per the helper (see code).
+
+Ordinary chat / timeline text is never parsed for closure.
+
+### Product flag
+
+[`kBeaconAllowForceCloseWhenBlocked`](../packages/client/lib/consts.dart): when `false`, `blocked` readiness maps Close to **hidden** (HUD rail + app-bar overflow). When `true`, Close may appear only in overflow (“close anyway” semantics remain confirmation-gated in UI).
+
+### Server / schema follow-ups
+
+* Emit structured `diff_json` for true beacon-scope done when that product action exists.
+* Optional `needInfoBlocksClosure` (or targeting metadata) to replace the author-row proxy for need-info blocking.
+* Steward / delegated closer permission OR-ed into the hard gate when supported.

@@ -1,26 +1,22 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
-import 'package:tentura/ui/widget/self_user_highlight.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
-import '../bloc/beacon_view_state.dart';
 import 'beacon_anchor_status.dart';
 
-/// Operational header for beacon detail: identity, anchor status, one primary CTA,
-/// secondary ghost chips (same visual family).
+/// Compact HUD header: identity, state tokens, NOW/YOU, people strip, action rail.
 class BeaconOperationalHeaderCard extends StatelessWidget {
   const BeaconOperationalHeaderCard({
     required this.state,
-    required this.overflowMenu,
     required this.onAuthorTap,
     this.onUpdateStatus,
     this.onPostUpdate,
@@ -29,13 +25,15 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onWatch,
     this.onStopWatching,
     this.onViewChain,
+    this.onSwitchToPeopleTab,
+    this.onCloseBeacon,
+    this.onOpenRoomSurface,
+    this.onOpenReview,
+    this.onOpenLogTab,
     super.key,
   });
 
   final BeaconViewState state;
-
-  /// Overflow menu widget (BeaconOverflowMenu) wired like app bar (⋮).
-  final Widget overflowMenu;
 
   final VoidCallback onAuthorTap;
 
@@ -47,209 +45,693 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   final VoidCallback? onStopWatching;
   final VoidCallback? onViewChain;
 
+  /// Switches to the People lens (tab index 1).
+  final VoidCallback? onSwitchToPeopleTab;
+
+  /// Author-only: close beacon (confirm + mutation), wired from screen when allowed.
+  final VoidCallback? onCloseBeacon;
+
+  /// Opens Room surface (resolve blockers / coordination).
+  final VoidCallback? onOpenRoomSurface;
+
+  /// Closed beacon: open contribution review.
+  final VoidCallback? onOpenReview;
+
+  /// Closed beacon: switch to Log tab.
+  final VoidCallback? onOpenLogTab;
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final beacon = state.beacon;
-    final open = beacon.lifecycle == BeaconLifecycle.open;
 
     final activeCommitCount =
         state.commitments.where((c) => !c.isWithdrawn).length;
+    final needCoordinationCount = state.commitments
+        .where(
+          (c) =>
+              !c.isWithdrawn &&
+              c.coordinationResponse ==
+                  CoordinationResponseType.needCoordination,
+        )
+        .length;
 
-    final anchorTone = beaconAnchorStatusTone(beacon.coordinationStatus);
+    final authorClosure = state.isBeaconMine &&
+            beacon.lifecycle == BeaconLifecycle.open
+        ? state.closureReadiness
+        : null;
 
-    final canCommit = !state.isBeaconMine &&
-        open &&
-        !state.isCommitted &&
-        beacon.allowsNewCommitAsNonAuthor &&
-        onCommit != null;
-
-    Widget primaryBlock = const SizedBox.shrink();
-    if (!state.isBeaconMine && open && canCommit) {
-      primaryBlock = _PrimaryCtaSlot(
-        child: FilledButton(
-          onPressed: onCommit,
-          child: Text(l10n.labelCommit),
-        ),
-      );
-    }
-
-    final chips = <Widget>[];
-
-    if (open && state.isBeaconMine && onPostUpdate != null) {
-      chips.add(
-        _HeaderChip(
-          icon: Icons.add,
-          label: l10n.postUpdateCTA,
-          onPressed: onPostUpdate,
-        ),
-      );
-    }
-
-    if (open && onForward != null) {
-      chips.add(
-        _HeaderChip(
-          icon: Icons.send_outlined,
-          label: l10n.labelForward,
-          onPressed: onForward,
-        ),
-      );
-    }
-
-    if (open &&
-        state.inboxStatus == InboxItemStatus.needsMe &&
-        onWatch != null) {
-      chips.add(
-        _HeaderChip(
-          icon: Icons.visibility_outlined,
-          label: l10n.beaconHeaderWatch,
-          onPressed: onWatch,
-        ),
-      );
-    } else if (open &&
-        state.inboxStatus == InboxItemStatus.watching &&
-        onStopWatching != null) {
-      chips.add(
-        _HeaderChip(
-          icon: Icons.visibility_off_outlined,
-          label: l10n.beaconHeaderStopWatching,
-          onPressed: onStopWatching,
-        ),
-      );
-    }
-
-    final secondaryRow = chips.isEmpty
-        ? const SizedBox.shrink()
-        : Padding(
-            padding: EdgeInsets.only(top: tt.rowGap / 2),
-            child: Wrap(
-              spacing: tt.rowGap / 2,
-              runSpacing: tt.rowGap / 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: chips,
-            ),
-          );
-
-    Widget readOnlyExtras = const SizedBox.shrink();
-    if (!open) {
-      readOnlyExtras = Padding(
-        padding: EdgeInsets.only(top: tt.rowGap / 2),
-        child: Row(
-          children: [
-            BeaconCardPillReadOnly(l10n: l10n),
-            const Spacer(),
-            if (onViewChain != null)
-              IconButton(
-                onPressed: onViewChain,
-                icon: const Icon(TenturaIcons.graph, size: 22),
-                style: IconButton.styleFrom(
-                  foregroundColor: scheme.onSurfaceVariant,
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.all(8),
-                  minimumSize: const Size(44, 44),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                tooltip: l10n.beaconCtaViewChain,
-              ),
-          ],
-        ),
-      );
-    }
-
-    final outerPadding = EdgeInsets.fromLTRB(
-      tt.screenHPadding,
-      tt.rowGap / 2,
-      tt.screenHPadding,
-      tt.rowGap / 2,
+    final tokens = buildBeaconHudStateTokens(
+      l10n: l10n,
+      beacon: beacon,
+      activeCommitCount: activeCommitCount,
+      needCoordinationCount: needCoordinationCount,
+      cue: state.beaconRoomCue,
+      authorClosureReadiness: authorClosure,
     );
+    final visibleTokens = tokens.length > 3 ? tokens.sublist(0, 3) : tokens;
 
-    final showPrimaryGap =
-        open && !state.isBeaconMine && canCommit;
+    final nowText = beaconHudNowLine(l10n, state);
+    final youText = beaconHudYouLine(l10n, state);
+    final titleText =
+        beacon.title.trim().isEmpty ? l10n.beaconViewTitle : beacon.title;
+
+    final bundle = _buildHudActions(l10n);
 
     return Padding(
-      padding: outerPadding,
-      child: TenturaTechCard(
-        padding: tt.cardPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            BeaconCardHeaderRow(
-              beacon: beacon,
-              menu: overflowMenu,
-              titleStyle: TenturaText.title(scheme.onSurface),
-            ),
-            SizedBox(height: tt.rowGap / 2),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onAuthorTap,
-              child: _MetaAuthorCategoryDueRow(beacon: beacon),
-            ),
-            if (beacon.hasNeedSummary) ...[
-              SizedBox(height: tt.rowGap / 2),
-              Text(
-                '${l10n.beaconNeedBriefPrefix} ${beacon.needSummary!.trim()}',
-                style: TenturaText.body(tt.textMuted),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            SizedBox(height: tt.rowGap / 2),
-            if (open && state.isBeaconMine && onUpdateStatus != null)
-              InkWell(
-                onTap: onUpdateStatus,
-                borderRadius: BorderRadius.circular(4),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.edit_outlined,
-                      size: 14,
-                      color: _anchorToneColor(anchorTone, tt),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: TenturaStatusText(
-                        beaconAnchorStatusLine(
-                          l10n,
-                          beacon,
-                          activeCommitCount,
-                        ),
-                        tone: anchorTone,
-                        maxLines: 2,
-                      ),
-                    ),
-                  ],
+      padding: EdgeInsets.fromLTRB(
+        tt.screenHPadding,
+        8,
+        tt.screenHPadding,
+        10,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              BeaconIdentityTile(beacon: beacon, size: 28),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  titleText,
+                  maxLines: 2,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.titleSmall(scheme.onSurface),
                 ),
-              )
-            else
-              TenturaStatusText(
-                beaconAnchorStatusLine(l10n, beacon, activeCommitCount),
-                tone: anchorTone,
-                maxLines: 2,
               ),
-            if (showPrimaryGap) ...[
-              SizedBox(height: tt.sectionGap / 2),
-              primaryBlock,
             ],
-            secondaryRow,
-            readOnlyExtras,
+          ),
+          const SizedBox(height: 6),
+          _HudStateTokenRow(tokens: visibleTokens),
+          const SizedBox(height: 8),
+          _HudLabeledMultiline(
+            label: l10n.beaconHudNowLabel,
+            text: nowText,
+            mutedColor: tt.textMuted,
+          ),
+          const SizedBox(height: 6),
+          _HudLabeledMultiline(
+            label: l10n.beaconHudYouLabel,
+            text: youText,
+            mutedColor: tt.textMuted,
+          ),
+          const SizedBox(height: 8),
+          _HudPeopleStrip(
+            state: state,
+            onTap: onSwitchToPeopleTab,
+          ),
+          if (bundle.specs.isNotEmpty || bundle.showOverflowClose) ...[
+            const SizedBox(height: 10),
+            _HudActionRail(
+              actions: bundle.specs,
+              trailing: bundle.showOverflowClose && onCloseBeacon != null
+                  ? _HudCloseOverflowButton(
+                      l10n: l10n,
+                      onPressed: onCloseBeacon!,
+                    )
+                  : null,
+            ),
           ],
-        ),
+          Divider(height: 1, color: tt.border),
+        ],
       ),
     );
   }
 
-  static Color _anchorToneColor(TenturaTone tone, TenturaTokens tt) =>
-      switch (tone) {
-        TenturaTone.neutral => tt.textMuted,
-        TenturaTone.info => tt.info,
-        TenturaTone.good => tt.good,
-        TenturaTone.warn => tt.warn,
-        TenturaTone.danger => tt.danger,
-      };
+  _HudActionBundle _buildHudActions(L10n l10n) {
+    final b = state.beacon;
+    final open = b.lifecycle == BeaconLifecycle.open;
 
+    if (b.lifecycle == BeaconLifecycle.deleted) {
+      return const _HudActionBundle(specs: [], showOverflowClose: false);
+    }
+
+    if (!open) {
+      final out = <_HudActionSpec>[];
+      if (onOpenReview != null) {
+        out.add(
+          _HudActionSpec(
+            icon: Icons.rate_review_outlined,
+            label: l10n.beaconHudCtaReviewContributions,
+            onPressed: onOpenReview,
+            filled: false,
+          ),
+        );
+      }
+      if (onOpenLogTab != null && out.length < 3) {
+        out.add(
+          _HudActionSpec(
+            icon: Icons.format_list_bulleted_outlined,
+            label: l10n.beaconHudCtaOpenLog,
+            onPressed: onOpenLogTab,
+            filled: false,
+          ),
+        );
+      }
+      if (onViewChain != null && out.length < 3) {
+        out.add(
+          _HudActionSpec(
+            icon: Icons.account_tree_outlined,
+            label: l10n.beaconCtaViewChain,
+            onPressed: onViewChain,
+            filled: false,
+          ),
+        );
+      }
+      return _HudActionBundle(specs: out.take(3).toList(), showOverflowClose: false);
+    }
+
+    if (state.isBeaconMine) {
+      final cp = state.closureActionPriority;
+      final readiness = state.closureReadiness;
+      final showResolve = readiness == BeaconClosureReadiness.blocked &&
+          onOpenRoomSurface != null &&
+          state.canNavigateBeaconRoom;
+
+      final overflowClose =
+          cp == ClosureActionPriority.overflow && onCloseBeacon != null;
+
+      final specs = <_HudActionSpec>[];
+
+      void addPostUpdate() {
+        if (onPostUpdate == null) return;
+        specs.add(
+          _HudActionSpec(
+            icon: Icons.edit_note_outlined,
+            label: l10n.postUpdateCTA,
+            onPressed: onPostUpdate,
+            filled: false,
+          ),
+        );
+      }
+
+      void addForward() {
+        if (onForward == null) return;
+        specs.add(
+          _HudActionSpec(
+            icon: Icons.send_outlined,
+            label: l10n.labelForward,
+            onPressed: onForward,
+            filled: false,
+          ),
+        );
+      }
+
+      void addClose({required bool filled}) {
+        if (onCloseBeacon == null) return;
+        specs.add(
+          _HudActionSpec(
+            icon: Icons.flag_outlined,
+            label: l10n.closeBeacon,
+            onPressed: onCloseBeacon,
+            filled: filled,
+          ),
+        );
+      }
+
+      void addResolve() {
+        if (onOpenRoomSurface == null) return;
+        specs.add(
+          _HudActionSpec(
+            icon: Icons.bolt_outlined,
+            label: l10n.beaconHudResolveBlocker,
+            onPressed: onOpenRoomSurface,
+            filled: false,
+          ),
+        );
+      }
+
+      void addUpdateStatus() {
+        if (onUpdateStatus == null) return;
+        if (state.unansweredCommitmentsCount != 0) return;
+        specs.add(
+          _HudActionSpec(
+            icon: Icons.tune_outlined,
+            label: l10n.beaconCtaUpdateStatus,
+            onPressed: onUpdateStatus,
+            filled: false,
+          ),
+        );
+      }
+
+      if (showResolve) {
+        addPostUpdate();
+        addResolve();
+        addForward();
+      } else {
+        switch (cp) {
+          case ClosureActionPriority.primary:
+            addClose(filled: true);
+            addPostUpdate();
+            addForward();
+          case ClosureActionPriority.secondary:
+            addPostUpdate();
+            addClose(filled: false);
+            addForward();
+          case ClosureActionPriority.overflow:
+          case ClosureActionPriority.hidden:
+            addPostUpdate();
+            addForward();
+        }
+        if (specs.length < 3) {
+          addUpdateStatus();
+        }
+      }
+
+      while (specs.length > 3) {
+        var removed = false;
+        for (var i = specs.length - 1; i >= 0; i--) {
+          final l = specs[i].label;
+          if (l == l10n.beaconCtaUpdateStatus) {
+            specs.removeAt(i);
+            removed = true;
+            break;
+          }
+        }
+        if (!removed) {
+          for (var i = specs.length - 1; i >= 0; i--) {
+            if (specs[i].label == l10n.labelForward) {
+              specs.removeAt(i);
+              break;
+            }
+          }
+        }
+      }
+
+      return _HudActionBundle(
+        specs: specs.take(3).toList(growable: false),
+        showOverflowClose: overflowClose,
+      );
+    }
+
+    final canCommit = open &&
+        !state.isCommitted &&
+        b.allowsNewCommitAsNonAuthor &&
+        onCommit != null;
+
+    if (canCommit) {
+      final out = <_HudActionSpec>[
+        _HudActionSpec(
+          icon: Icons.volunteer_activism_outlined,
+          label: l10n.labelCommit,
+          onPressed: onCommit,
+          filled: true,
+        ),
+      ];
+      if (onForward != null) {
+        out.add(
+          _HudActionSpec(
+            icon: Icons.send_outlined,
+            label: l10n.labelForward,
+            onPressed: onForward,
+            filled: false,
+          ),
+        );
+      }
+      if (state.inboxStatus == InboxItemStatus.needsMe && onWatch != null) {
+        out.add(
+          _HudActionSpec(
+            icon: Icons.visibility_outlined,
+            label: l10n.beaconHeaderWatch,
+            onPressed: onWatch,
+            filled: false,
+          ),
+        );
+      } else if (state.inboxStatus == InboxItemStatus.watching &&
+          onStopWatching != null &&
+          out.length < 3) {
+        out.add(
+          _HudActionSpec(
+            icon: Icons.visibility_off_outlined,
+            label: l10n.beaconHeaderStopWatching,
+            onPressed: onStopWatching,
+            filled: false,
+          ),
+        );
+      }
+      return _HudActionBundle(specs: out.take(3).toList(), showOverflowClose: false);
+    }
+
+    final out = <_HudActionSpec>[];
+    if (onForward != null) {
+      out.add(
+        _HudActionSpec(
+          icon: Icons.send_outlined,
+          label: l10n.labelForward,
+          onPressed: onForward,
+          filled: false,
+        ),
+      );
+    }
+    if (state.inboxStatus == InboxItemStatus.needsMe && onWatch != null) {
+      out.add(
+        _HudActionSpec(
+          icon: Icons.visibility_outlined,
+          label: l10n.beaconHeaderWatch,
+          onPressed: onWatch,
+          filled: false,
+        ),
+      );
+    } else if (state.inboxStatus == InboxItemStatus.watching &&
+        onStopWatching != null) {
+      out.add(
+        _HudActionSpec(
+          icon: Icons.visibility_off_outlined,
+          label: l10n.beaconHeaderStopWatching,
+          onPressed: onStopWatching,
+          filled: false,
+        ),
+      );
+    }
+    if (onViewChain != null && out.length < 3) {
+      out.add(
+        _HudActionSpec(
+          icon: Icons.account_tree_outlined,
+          label: l10n.beaconCtaViewChain,
+          onPressed: onViewChain,
+          filled: false,
+        ),
+      );
+    }
+    return _HudActionBundle(specs: out.take(3).toList(), showOverflowClose: false);
+  }
+}
+
+class _HudActionBundle {
+  const _HudActionBundle({
+    required this.specs,
+    required this.showOverflowClose,
+  });
+
+  final List<_HudActionSpec> specs;
+  final bool showOverflowClose;
+}
+
+class _HudCloseOverflowButton extends StatelessWidget {
+  const _HudCloseOverflowButton({
+    required this.l10n,
+    required this.onPressed,
+  });
+
+  final L10n l10n;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return PopupMenuButton<String>(
+      tooltip: l10n.beaconHudOverflowMore,
+      onSelected: (value) {
+        if (value == 'close') {
+          onPressed();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'close',
+          child: Text(l10n.beaconHudOverflowCloseBeacon),
+        ),
+      ],
+      child: SizedBox(
+        width: 44,
+        height: 40,
+        child: Icon(Icons.more_horiz, color: scheme.onSurface),
+      ),
+    );
+  }
+}
+
+class _HudActionSpec {
+  const _HudActionSpec({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    required this.filled,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool filled;
+}
+
+class _HudStateTokenRow extends StatelessWidget {
+  const _HudStateTokenRow({required this.tokens});
+
+  final List<String> tokens;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (tokens.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        for (final t in tokens)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Text(
+              t,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _HudLabeledMultiline extends StatelessWidget {
+  const _HudLabeledMultiline({
+    required this.label,
+    required this.text,
+    required this.mutedColor,
+  });
+
+  final String label;
+  final String text;
+  final Color mutedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Semantics(
+      label: '$label $text',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 44,
+            child: Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: mutedColor,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurface,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HudPeopleStrip extends StatelessWidget {
+  const _HudPeopleStrip({
+    required this.state,
+    this.onTap,
+  });
+
+  final BeaconViewState state;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    final beacon = state.beacon;
+    final author = beacon.author;
+    final active = state.commitments.where((c) => !c.isWithdrawn).toList();
+
+    const maxSlots = 5;
+    final ordered = <Profile>[author];
+    for (final c in active) {
+      if (c.user.id == author.id) continue;
+      ordered.add(c.user);
+    }
+    final slots = ordered.take(maxSlots).toList(growable: false);
+    final plus = ordered.length > maxSlots ? ordered.length - maxSlots : 0;
+
+    final child = Row(
+      children: [
+        for (var i = 0; i < slots.length; i++) ...[
+          if (i != 0) const SizedBox(width: 4),
+          _HudPersonToken(
+            profile: slots[i],
+            isAuthor: slots[i].id == author.id,
+            semanticLabel: slots[i].id == author.id
+                ? l10n.beaconPeopleLensAuthorHeading
+                : slots[i].title,
+          ),
+        ],
+        if (plus > 0) ...[
+          const SizedBox(width: 6),
+          Text(
+            '+$plus',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ],
+    );
+
+    if (onTap == null) return child;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _HudPersonToken extends StatelessWidget {
+  const _HudPersonToken({
+    required this.profile,
+    required this.isAuthor,
+    required this.semanticLabel,
+  });
+
+  final Profile profile;
+  final bool isAuthor;
+  final String semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticLabel,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          TenturaAvatar(profile: profile, size: 28),
+          if (isAuthor)
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Icon(
+                Icons.star_rounded,
+                size: 14,
+                semanticLabel: L10n.of(context)!.beaconPeopleLensAuthorHeading,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HudActionRail extends StatelessWidget {
+  const _HudActionRail({
+    required this.actions,
+    this.trailing,
+  });
+
+  final List<_HudActionSpec> actions;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i != 0) const SizedBox(width: 8),
+          Expanded(
+            child: _HudActionButton(spec: actions[i]),
+          ),
+        ],
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          trailing!,
+        ],
+      ],
+    );
+  }
+}
+
+class _HudActionButton extends StatelessWidget {
+  const _HudActionButton({required this.spec});
+
+  final _HudActionSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    final on = spec.onPressed;
+    final labelStyle = Theme.of(context).textTheme.labelMedium;
+    if (spec.filled) {
+      return FilledButton.icon(
+        onPressed: on,
+        icon: Icon(spec.icon, size: 16),
+        label: Text(
+          spec.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: labelStyle,
+        ),
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }
+    return OutlinedButton.icon(
+      onPressed: on,
+      icon: Icon(spec.icon, size: 16),
+      label: Text(
+        spec.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: labelStyle,
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
 }
 
 /// Read-only lifecycle pill (legacy beacon detail strip).
@@ -274,136 +756,6 @@ class BeaconCardPillReadOnly extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
-    );
-  }
-}
-
-class _PrimaryCtaSlot extends StatelessWidget {
-  const _PrimaryCtaSlot({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth * 0.65;
-        return Align(
-          alignment: Alignment.centerLeft,
-          child: SizedBox(
-            width: w.clamp(120.0, constraints.maxWidth),
-            child: child,
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _HeaderChip extends StatelessWidget {
-  const _HeaderChip({
-    required this.icon,
-    required this.label,
-    this.onPressed,
-  });
-
-  final VoidCallback? onPressed;
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final muted = onPressed == null;
-    final fg =
-        muted ? scheme.onSurfaceVariant.withValues(alpha: 0.54) : scheme.onSurfaceVariant;
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16, color: fg),
-      label: Text(
-        label,
-        style: TenturaText.command(fg),
-      ),
-      style: TextButton.styleFrom(
-        minimumSize: const Size(0, 36),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        foregroundColor: fg,
-        disabledForegroundColor: fg,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
-      ),
-    );
-  }
-}
-
-class _MetaAuthorCategoryDueRow extends StatelessWidget {
-  const _MetaAuthorCategoryDueRow({required this.beacon});
-
-  final Beacon beacon;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final sepStyle = beaconCardMetadataStripTextStyle(theme);
-
-    return BlocBuilder<ProfileCubit, ProfileState>(
-      buildWhen: (p, c) => p.profile.id != c.profile.id,
-      builder: (context, profileState) {
-        final author = beacon.author;
-        final name = SelfUserHighlight.displayName(
-          l10n,
-          author,
-          profileState.profile.id,
-        );
-        final nameStyle = SelfUserHighlight.nameStyle(
-          theme,
-          theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-          SelfUserHighlight.profileIsSelf(author, profileState.profile.id),
-        );
-
-        final category = beaconCardCategoryLabel(beacon, l10n);
-
-        final parts = <InlineSpan>[
-          TextSpan(text: name, style: nameStyle),
-          TextSpan(text: ' · ', style: sepStyle),
-          TextSpan(
-            text: category,
-            style: beaconCardMetadataStripTextStyle(theme),
-          ),
-        ];
-
-        final end = beacon.endAt;
-        if (end != null) {
-          parts.addAll([
-            TextSpan(text: ' · ', style: sepStyle),
-            TextSpan(
-              text: l10n.beaconChipDeadlineOn(dateFormatYMD(end)),
-              style: beaconCardMetadataStripTextStyle(theme),
-            ),
-          ]);
-        }
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SelfAwareAvatar(
-              profile: author,
-              size: 22,
-              withRating: false,
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: RichText(
-                text: TextSpan(children: parts),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

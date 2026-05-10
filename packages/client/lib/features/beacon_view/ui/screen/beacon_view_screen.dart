@@ -13,13 +13,16 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
-import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
+import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
@@ -151,12 +154,60 @@ bool _authorUpdateEditableNow(DateTime createdAt) =>
     DateTime.now().toUtc().difference(createdAt.toUtc()) <=
     _beaconAuthorUpdateEditWindow;
 
+bool _authorLifecycleToggleEnabled(BeaconViewState state) {
+  final b = state.beacon;
+  if (b.lifecycle == BeaconLifecycle.open && b.isListed) {
+    return state.closureActionPriority != ClosureActionPriority.hidden;
+  }
+  return true;
+}
+
+Future<void> _beaconViewRunAuthorCloseSheet({
+  required BuildContext context,
+  required BeaconViewCubit cubit,
+  required L10n l10n,
+  required void Function() onOpenPeopleTab,
+  required void Function(BeaconViewState state) onToggleRoomSurface,
+}) async {
+  if (!context.mounted) return;
+  final state = cubit.state;
+  if (!state.beacon.isListed) {
+    await cubit.toggleLifecycle();
+    return;
+  }
+  final summary = buildClosureConfirmationSummary(state);
+  await showBeaconCloseConfirmSheet(
+    context: context,
+    summary: summary,
+    isLoading: cubit.state.isLoading,
+    onCloseBeacon: () async {
+      Navigator.of(context).pop();
+      await cubit.toggleLifecycle();
+    },
+    onOpenPeople: () {
+      Navigator.of(context).pop();
+      onOpenPeopleTab();
+    },
+    onPostUpdate: () async {
+      Navigator.of(context).pop();
+      await _showPostAuthorUpdateSheet(context, cubit, l10n);
+    },
+    onResolveRoom: state.canNavigateBeaconRoom
+        ? () {
+            Navigator.of(context).pop();
+            onToggleRoomSurface(state);
+          }
+        : null,
+  );
+}
+
 Widget _beaconViewAppBarOverflow({
   required BuildContext context,
   required BeaconViewState state,
   required BeaconViewCubit cubit,
   required ScreenCubit screenCubit,
   required L10n l10n,
+  required Future<void> Function() onAuthorListedOpenClose,
 }) {
   final b = state.beacon;
   final beaconId = b.id;
@@ -177,16 +228,17 @@ Widget _beaconViewAppBarOverflow({
           header: beaconId,
         ),
       ),
-      onToggleLifecycle: () async {
-        if (!context.mounted) return;
-        if (state.beacon.isListed) {
-          if (await BeaconCloseConfirmDialog.show(context) != true) {
-            return;
-          }
-          if (!context.mounted) return;
-        }
-        await cubit.toggleLifecycle();
-      },
+      onToggleLifecycle: _authorLifecycleToggleEnabled(state)
+          ? () async {
+              if (!context.mounted) return;
+              final b = state.beacon;
+              if (b.lifecycle == BeaconLifecycle.open && b.isListed) {
+                await onAuthorListedOpenClose();
+                return;
+              }
+              await cubit.toggleLifecycle();
+            }
+          : null,
       onEdit: b.lifecycle == BeaconLifecycle.open
           ? () => unawaited(
               context.router.pushPath(
@@ -570,6 +622,14 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               onPeopleTabAttentionCleared: () => setState(() {
                 _peopleTabAttentionActive = false;
               }),
+              onToggleRoomSurface: _onToggleSurface,
+              onAuthorCloseRequested: (ctx) => _beaconViewRunAuthorCloseSheet(
+                context: ctx,
+                cubit: beaconViewCubit,
+                l10n: L10n.of(ctx)!,
+                onOpenPeopleTab: () => setState(() => _tabIndex = 1),
+                onToggleRoomSurface: _onToggleSurface,
+              ),
             );
           }
 
@@ -615,6 +675,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   cubit: beaconViewCubit,
                   screenCubit: screenCubit,
                   l10n: l10n,
+                  onAuthorListedOpenClose: () => _beaconViewRunAuthorCloseSheet(
+                    context: context,
+                    cubit: beaconViewCubit,
+                    l10n: l10n,
+                    onOpenPeopleTab: () => setState(() => _tabIndex = 1),
+                    onToggleRoomSurface: _onToggleSurface,
+                  ),
                 ),
               ],
               bottom: PreferredSize(
@@ -653,6 +720,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
     required this.onTabChanged,
     required this.peopleTabAttentionActive,
     required this.onPeopleTabAttentionCleared,
+    required this.onToggleRoomSurface,
+    required this.onAuthorCloseRequested,
   });
 
   final BeaconViewCubit beaconViewCubit;
@@ -663,6 +732,10 @@ class _BeaconOperationalScrollView extends StatelessWidget {
   /// Pulse/highlight People tab until first pointer interaction or tab change.
   final bool peopleTabAttentionActive;
   final VoidCallback onPeopleTabAttentionCleared;
+
+  final void Function(BeaconViewState state) onToggleRoomSurface;
+
+  final Future<void> Function(BuildContext context) onAuthorCloseRequested;
 
   void _setTab(int i) {
     if (tabIndex == i) {
@@ -686,6 +759,10 @@ class _BeaconOperationalScrollView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _beaconViewAuthorCloseFlow(BuildContext context) async {
+    await onAuthorCloseRequested(context);
   }
 
   Future<void> _runCommitFlow(BuildContext context, L10n l10n) async {
@@ -718,14 +795,22 @@ class _BeaconOperationalScrollView extends StatelessWidget {
           p.factCards != c.factCards ||
           p.roomParticipants.length != c.roomParticipants.length ||
           (p.roomParticipants
-                  .map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}')
+                  .map(
+                    (e) =>
+                        '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.status}|${e.nextMoveStatus}',
+                  )
                   .join() !=
               c.roomParticipants
-                  .map((e) => '${e.userId}|${e.userTitle}|${e.nextMoveText}')
+                  .map(
+                    (e) =>
+                        '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.status}|${e.nextMoveStatus}',
+                  )
                   .join()) ||
           p.beaconRoomCue?.lastRoomMeaningfulChange !=
               c.beaconRoomCue?.lastRoomMeaningfulChange ||
           p.beaconRoomCue?.currentPlan != c.beaconRoomCue?.currentPlan ||
+          p.beaconRoomCue?.openBlockerTitle !=
+              c.beaconRoomCue?.openBlockerTitle ||
           p.showDraftEvaluationCta != c.showDraftEvaluationCta ||
           p.unansweredCommitmentsCount != c.unansweredCommitmentsCount ||
           p.needCoordinationCommitmentsCount !=
@@ -742,10 +827,40 @@ class _BeaconOperationalScrollView extends StatelessWidget {
         );
 
         final tabBody = switch (idx) {
-          0 => BeaconOverviewTab(
+          0 => BeaconStatusDashboard(
             state: state,
             onViewAllCommitments: () => _setTab(1),
             onEditTimelineUpdate: editUpdate,
+            onClosureCloseBeacon:
+                state.isBeaconMine &&
+                    state.beacon.lifecycle == BeaconLifecycle.open &&
+                    state.closureActionPriority !=
+                        ClosureActionPriority.hidden
+                ? () => unawaited(_beaconViewAuthorCloseFlow(context))
+                : null,
+            onClosurePostUpdate:
+                state.isBeaconMine &&
+                    state.beacon.lifecycle == BeaconLifecycle.open
+                ? () => unawaited(
+                    _showPostAuthorUpdateSheet(
+                      context,
+                      beaconViewCubit,
+                      l10n,
+                    ),
+                  )
+                : null,
+            onClosureForward: () => unawaited(
+              _beaconViewOpenForwardThenMaybeNudgeCommit(
+                context,
+                beaconViewCubit,
+                l10n,
+              ),
+            ),
+            onClosureOpenPeople: () => _setTab(1),
+            onClosureResolveRoom:
+                state.isBeaconMine && state.canNavigateBeaconRoom
+                ? () => onToggleRoomSurface(state)
+                : null,
           ),
           1 => _CommitmentsTabBody(
             state: state,
@@ -795,13 +910,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                   color: scheme.surface,
                   child: BeaconOperationalHeaderCard(
                     state: state,
-                    overflowMenu: _beaconViewAppBarOverflow(
-                      context: context,
-                      state: state,
-                      cubit: beaconViewCubit,
-                      screenCubit: screenCubit,
-                      l10n: l10n,
-                    ),
                     onAuthorTap: () =>
                         screenCubit.showProfile(state.beacon.author.id),
                     onUpdateStatus:
@@ -849,6 +957,30 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                         : null,
                     onViewChain: () =>
                         screenCubit.showForwardsGraphFor(beaconId),
+                    onSwitchToPeopleTab: () => _setTab(1),
+                    onCloseBeacon:
+                        state.isBeaconMine &&
+                            state.beacon.lifecycle == BeaconLifecycle.open &&
+                            state.closureActionPriority !=
+                                ClosureActionPriority.hidden
+                        ? () =>
+                              unawaited(_beaconViewAuthorCloseFlow(context))
+                        : null,
+                    onOpenRoomSurface:
+                        state.isBeaconMine && state.canNavigateBeaconRoom
+                        ? () => onToggleRoomSurface(state)
+                        : null,
+                    onOpenReview:
+                        state.isBeaconMine &&
+                            state.beacon.lifecycle != BeaconLifecycle.open &&
+                            state.beacon.lifecycle != BeaconLifecycle.deleted
+                        ? () => unawaited(
+                            context.router.pushPath(
+                              '$kPathReviewContributions/$beaconId',
+                            ),
+                          )
+                        : null,
+                    onOpenLogTab: state.isBeaconMine ? () => _setTab(2) : null,
                   ),
                 ),
               ),
@@ -864,9 +996,9 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                         width: double.infinity,
                         child: TenturaUnderlineTabs(
                           tabs: [
-                            l10n.labelBeaconTabOverview,
+                            l10n.labelBeaconTabStatus,
                             l10n.labelBeaconTabPeople,
-                            l10n.labelBeaconTabActivity,
+                            l10n.labelBeaconTabLog,
                           ],
                           selectedIndex: idx,
                           onChanged: _setTab,
@@ -914,7 +1046,7 @@ class _PinnedSegmentBarDelegate extends SliverPersistentHeaderDelegate {
 
   final Widget child;
 
-  static const double _barHeight = 56;
+  static const double _barHeight = 48;
 
   @override
   double get minExtent => _barHeight;
@@ -958,6 +1090,7 @@ class _CommitmentsTabBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final beacon = state.beacon;
     final active = state.commitments
         .where((c) => !c.isWithdrawn)
@@ -966,6 +1099,114 @@ class _CommitmentsTabBody extends StatelessWidget {
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
 
+    final needCoordList = active
+        .where(
+          (c) =>
+              c.coordinationResponse ==
+              CoordinationResponseType.needCoordination,
+        )
+        .toList(growable: false);
+    final otherActive = active
+        .where(
+          (c) =>
+              c.coordinationResponse !=
+              CoordinationResponseType.needCoordination,
+        )
+        .toList(growable: false)
+      ..sort((a, b) {
+        int p(CoordinationResponseType? r) => switch (r) {
+              CoordinationResponseType.useful => 0,
+              CoordinationResponseType.overlapping => 1,
+              _ => 2,
+            };
+        final cmp =
+            p(a.coordinationResponse).compareTo(p(b.coordinationResponse));
+        if (cmp != 0) return cmp;
+        return a.user.title.compareTo(b.user.title);
+      });
+
+    CommitmentTile commitmentTile(TimelineCommitment c) {
+      return CommitmentTile(
+        commitment: c,
+        beaconId: beacon.id,
+        beaconAuthorId: beacon.author.id,
+        isMine: c.user.id == state.myProfile.id,
+        isAuthorView: state.isBeaconMine,
+        onAuthorTapCoordination: state.isBeaconMine && !c.isWithdrawn
+            ? () => unawaited(
+                  showCoordinationResponseBottomSheet(
+                    context: context,
+                    commitUserTitle: c.user.title,
+                    initialResponse: c.coordinationResponse,
+                    commitUserAdmittedToRoom: state.roomParticipants.any(
+                      (p) =>
+                          p.userId == c.user.id &&
+                          p.roomAccess == RoomAccessBits.admitted,
+                    ),
+                    onSave:
+                        ({
+                          required responseTypeSmallint,
+                          required inviteToRoom,
+                          required removeFromRoom,
+                        }) => beaconViewCubit.setCoordinationResponse(
+                          commitUserId: c.user.id,
+                          responseType: responseTypeSmallint,
+                          inviteToRoom: inviteToRoom,
+                          removeFromRoom: removeFromRoom,
+                        ),
+                  ),
+                )
+            : null,
+        onEdit: c.user.id == state.myProfile.id && !c.isWithdrawn
+            ? () async {
+                final outcome = await CommitmentMessageDialog.show(
+                  context,
+                  title: l10n.beaconHeaderUpdateCommitment,
+                  hintText: l10n.hintCommitMessage,
+                  initialText: c.message,
+                  allowEmptyMessage: true,
+                  showHelpTypeChips: true,
+                  initialHelpTypeSlugs: commitmentStoredHelpTypeSlugs(
+                    c.helpType,
+                  ),
+                  automaticSlugs: beacon.needs,
+                );
+                if (outcome != null && context.mounted) {
+                  await beaconViewCubit.commit(
+                    message: outcome.message,
+                    helpTypes: normalizeCommitHelpTypesWire(
+                      outcome.helpTypesWire,
+                    ),
+                  );
+                }
+              }
+            : null,
+        onWithdraw: c.user.id == state.myProfile.id &&
+                !c.isWithdrawn &&
+                beacon.allowsWithdrawWhileCommitted
+            ? () async {
+                final outcome = await CommitmentMessageDialog.show(
+                  context,
+                  title: l10n.dialogWithdrawTitle,
+                  hintText: l10n.hintWithdrawReason,
+                  allowEmptyMessage: true,
+                  requireUncommitReason: true,
+                );
+                if (outcome?.uncommitReasonWire != null && context.mounted) {
+                  await beaconViewCubit.withdraw(
+                    message: outcome!.message,
+                    uncommitReason: outcome.uncommitReasonWire!,
+                  );
+                }
+              }
+            : null,
+      );
+    }
+
+    final sectionHeaderStyle = theme.textTheme.titleSmall!.copyWith(
+      color: theme.colorScheme.onSurface,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -973,90 +1214,49 @@ class _CommitmentsTabBody extends StatelessWidget {
           beaconId: beacon.id,
           lifecycle: beacon.lifecycle,
         ),
-        if (active.isNotEmpty || withdrawn.isNotEmpty)
-          const SizedBox(height: 12),
-        for (var i = 0; i < active.length; i++) ...[
-          if (i != 0) const SizedBox(height: 12),
-          CommitmentTile(
-            commitment: active[i],
-            beaconId: beacon.id,
-            beaconAuthorId: beacon.author.id,
-            isMine: active[i].user.id == state.myProfile.id,
-            isAuthorView: state.isBeaconMine,
-            onAuthorTapCoordination:
-                state.isBeaconMine && !active[i].isWithdrawn
-                ? () => unawaited(
-                    showCoordinationResponseBottomSheet(
-                      context: context,
-                      commitUserTitle: active[i].user.title,
-                      initialResponse: active[i].coordinationResponse,
-                      commitUserAdmittedToRoom: state.roomParticipants.any(
-                        (p) =>
-                            p.userId == active[i].user.id &&
-                            p.roomAccess == RoomAccessBits.admitted,
-                      ),
-                      onSave:
-                          ({
-                            required responseTypeSmallint,
-                            required inviteToRoom,
-                            required removeFromRoom,
-                          }) => beaconViewCubit.setCoordinationResponse(
-                            commitUserId: active[i].user.id,
-                            responseType: responseTypeSmallint,
-                            inviteToRoom: inviteToRoom,
-                            removeFromRoom: removeFromRoom,
-                          ),
-                    ),
-                  )
-                : null,
-            onEdit:
-                active[i].user.id == state.myProfile.id &&
-                    !active[i].isWithdrawn
-                ? () async {
-                    final outcome = await CommitmentMessageDialog.show(
-                      context,
-                      title: l10n.beaconHeaderUpdateCommitment,
-                      hintText: l10n.hintCommitMessage,
-                      initialText: active[i].message,
-                      allowEmptyMessage: true,
-                      showHelpTypeChips: true,
-                      initialHelpTypeSlugs: commitmentStoredHelpTypeSlugs(
-                        active[i].helpType,
-                      ),
-                      automaticSlugs: beacon.needs,
-                    );
-                    if (outcome != null && context.mounted) {
-                      await beaconViewCubit.commit(
-                        message: outcome.message,
-                        helpTypes: normalizeCommitHelpTypesWire(
-                          outcome.helpTypesWire,
-                        ),
-                      );
-                    }
-                  }
-                : null,
-            onWithdraw:
-                active[i].user.id == state.myProfile.id &&
-                    !active[i].isWithdrawn &&
-                    beacon.allowsWithdrawWhileCommitted
-                ? () async {
-                    final outcome = await CommitmentMessageDialog.show(
-                      context,
-                      title: l10n.dialogWithdrawTitle,
-                      hintText: l10n.hintWithdrawReason,
-                      allowEmptyMessage: true,
-                      requireUncommitReason: true,
-                    );
-                    if (outcome?.uncommitReasonWire != null &&
-                        context.mounted) {
-                      await beaconViewCubit.withdraw(
-                        message: outcome!.message,
-                        uncommitReason: outcome.uncommitReasonWire!,
-                      );
-                    }
-                  }
-                : null,
+        const SizedBox(height: 12),
+        Text(l10n.beaconPeopleLensAuthorHeading, style: sectionHeaderStyle),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            SelfAwareAvatar(
+              profile: beacon.author,
+              size: 36,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                beacon.author.title,
+                style: theme.textTheme.bodyMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        if (needCoordList.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            l10n.beaconPeopleLensNeedsAttentionHeading,
+            style: sectionHeaderStyle,
           ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < needCoordList.length; i++) ...[
+            if (i != 0) const SizedBox(height: 12),
+            commitmentTile(needCoordList[i]),
+          ],
+        ],
+        if (otherActive.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            l10n.beaconPeopleLensActiveHelpersHeading,
+            style: sectionHeaderStyle,
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < otherActive.length; i++) ...[
+            if (i != 0) const SizedBox(height: 12),
+            commitmentTile(otherActive[i]),
+          ],
         ],
         if (withdrawn.isNotEmpty) ...[
           if (active.isNotEmpty) const SizedBox(height: 12),

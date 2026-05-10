@@ -1814,7 +1814,7 @@
   "@beaconUpdatesEmpty": {
     "context": "BeaconViewScreen"
   },
-  "postUpdateCTA": "Опубликовать обновление",
+  "postUpdateCTA": "Обновить",
   "@postUpdateCTA": {
     "context": "BeaconViewScreen"
   },
@@ -2263,7 +2263,118 @@
   "labelBeaconCoordinationSummary": "Покрытие потребности маяка",
   "coordinationSetOverallStatus": "Общий статус координации",
   "labelBeaconTabOverview": "Обзор",
+  "labelBeaconTabStatus": "Статус",
   "labelBeaconTabActivity": "Хронология",
+  "labelBeaconTabLog": "Журнал",
+  "beaconHudNowLabel": "СЕЙЧАС",
+  "beaconHudYouLabel": "ВЫ",
+  "beaconHudNoCurrentPlan": "Плана пока нет",
+  "beaconHudSituationPanelTitle": "Ситуация",
+  "beaconHudYourRolePanelTitle": "Ваша роль",
+  "beaconHudYouAuthorReview": "Проверить {count} участие(й)",
+  "@beaconHudYouAuthorReview": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHudYouAuthorIdle": "Автор · обновите план при необходимости",
+  "beaconHudYouAuthorResolveBlocker": "Снимите или обновите блокер",
+  "beaconHudYouCommitted": "Вы участвуете — держите связь с помощниками",
+  "beaconHudYouAskedToHelp": "Вас просят помочь — ответьте или наблюдайте",
+  "beaconHudYouWatching": "Наблюдаете",
+  "beaconHudYouCanCommit": "Можете присоединиться",
+  "beaconHudYouNoAction": "Нет текущего действия",
+  "beaconHudLifecycleActive": "АКТИВЕН",
+  "beaconHudLifecycleClosed": "ЗАКРЫТ",
+  "beaconHudEnoughHelp": "ДОСТАТОЧНО ПОМОЩИ",
+  "beaconHudLifecycleDeleted": "УДАЛЁН",
+  "beaconHudBlocked": "БЛОКИРОВКА",
+  "beaconHudNowBlocked": "Блокер: {title}",
+  "@beaconHudNowBlocked": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "beaconHudBeaconUnavailable": "Маяк недоступен",
+  "beaconHudYouNoActionAvailable": "Действий нет",
+  "beaconHudYouForward": "Можете переслать",
+  "beaconHudReviewOpen": "ОКНО ОЦЕНКИ",
+  "beaconHudTokenCommittedCount": "{count} принято",
+  "@beaconHudTokenCommittedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHudTokenNeedCoordCount": "{count} нужна координация",
+  "@beaconHudTokenNeedCoordCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHudNextMovePrefix": "Дальше: {text}",
+  "@beaconHudNextMovePrefix": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "beaconHudClosedSummary": "Закрыт",
+  "beaconHudResolveBlocker": "Решить",
+  "beaconHudOverflowMore": "Ещё действия",
+  "beaconHudOverflowCloseBeacon": "Закрыть маяк…",
+  "beaconHudYouAuthorReadyToClose": "Завершите цикл",
+  "beaconHudYouAuthorReviewBeforeClose": "Проверьте участия перед закрытием",
+  "beaconHudYouAuthorCoordinationActive": "Координация активна — обновите или перешлите",
+  "beaconHudTokenReadyToClose": "ГОТОВ К ЗАКРЫТИЮ",
+  "beaconHudTokenReviewBeforeClose": "ПРОВЕРКА ПЕРЕД ЗАКРЫТИЕМ",
+  "beaconHudTokenClosureBlocked": "ЗАКРЫТИЕ ЗАБЛОКИРОВАНО",
+  "beaconHudCtaReviewContributions": "Оценка",
+  "beaconHudCtaOpenLog": "Журнал",
+  "beaconCloseSheetReadyTitle": "Закрыть маяк?",
+  "beaconCloseSheetReadyBody": "Маяк будет отмечен завершённым и откроется подтверждение вклада.",
+  "beaconCloseSheetReviewTitle": "Закрыть после проверки?",
+  "beaconCloseSheetReviewBody": "Возможно, всё готово, но часть сигналов всё ещё требует вашего решения.",
+  "beaconCloseSheetPrematureTitle": "Закрыть сейчас?",
+  "beaconCloseSheetPrematureBody": "Недостаточно сигналов завершения. Раннее закрытие может обойти контекст координации.",
+  "beaconCloseSheetBlockedTitle": "Сначала снимите блокеры",
+  "beaconCloseSheetBlockedBody": "Пока есть незакрытая координация или блокеры, чистое закрытие недоступно.",
+  "beaconCloseSheetEvidenceOpenBlocker": "Есть открытый блокер",
+  "beaconCloseSheetEvidenceNoOpenBlocker": "Нет открытого блокера",
+  "beaconCloseSheetEvidenceWholeBeaconDone": "Маяк целиком отмечен завершённым",
+  "beaconCloseSheetEvidenceEnoughHelp": "Отмечено достаточно помощи",
+  "beaconCloseSheetEvidenceUsefulOrDone": "Есть полезный или завершённый результат",
+  "beaconCloseSheetEvidenceUnsettledCount": "{count} участие(й) не доведены до ясного статуса",
+  "@beaconCloseSheetEvidenceUnsettledCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconCloseSheetEvidenceUnansweredCount": "{count} участие(й) ждут вашей координации",
+  "@beaconCloseSheetEvidenceUnansweredCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconCloseSheetActionCloseBeacon": "Закрыть маяк",
+  "beaconCloseSheetActionCloseAnyway": "Всё равно закрыть",
+  "beaconCloseSheetActionKeepActive": "Оставить активным",
+  "beaconCloseSheetActionOpenPeople": "Открыть людей",
+  "beaconCloseSheetActionPostUpdate": "Обновление",
+  "beaconCloseSheetActionResolveRoom": "Открыть комнату",
+  "beaconCloseSheetActionNotNow": "Не сейчас",
+  "beaconCloseSheetBlockedForceHint": "Закрытие несмотря на блокеры отключено.",
+  "beaconClosurePanelTitleReady": "Завершите цикл",
+  "beaconClosurePanelTitleReview": "Проверка перед закрытием",
+  "beaconClosurePanelTitlePremature": "Закрытие ещё не готово",
+  "beaconClosurePanelTitleBlocked": "Сначала снимите блокеры",
+  "beaconClosurePanelBodyReady": "По сигналам координации маяк выглядит готовым к закрытию.",
+  "beaconClosurePanelBodyReview": "Закрытие возможно — сначала проверьте участия и комнату.",
+  "beaconClosurePanelBodyPremature": "Недостаточно явных сигналов завершения.",
+  "beaconClosurePanelBodyBlocked": "Закрытие заблокировано незавершённой координацией.",
+  "beaconClosurePanelEvidenceHeading": "Сигналы",
+  "beaconPeopleLensAuthorHeading": "Автор",
+  "beaconPeopleLensActiveHelpersHeading": "Активные помощники",
+  "beaconPeopleLensWithdrawnHeading": "Отозваны",
+  "beaconPeopleLensNeedsAttentionHeading": "Нужна координация",
   "beaconCtaUpdateStatus": "Статус",
   "beaconCtaEditCommitment": "Изменить участие",
   "beaconCtaViewChain": "Цепочка",
