@@ -157,13 +157,17 @@ class MyWorkCardRouter extends StatelessWidget {
 }
 
 void _openBeacon(BuildContext context, String id) {
-  unawaited(context.router.pushPath('$kPathBeaconView/$id'));
+  unawaited(
+    context.router.pushPath(
+      '$kPathBeaconView/$id?$kQueryBeaconEntry=$kBeaconEntryMyWork',
+    ),
+  );
 }
 
 void _openBeaconReviewCommitments(BuildContext context, String id) {
   unawaited(
     context.router.pushPath(
-      '$kPathBeaconView/$id?$kQueryBeaconViewTab=commitments&$kQueryBeaconPeopleTabAttention=1',
+      '$kPathBeaconView/$id?$kQueryBeaconViewTab=commitments&$kQueryBeaconPeopleTabAttention=1&$kQueryBeaconEntry=$kBeaconEntryMyWork',
     ),
   );
 }

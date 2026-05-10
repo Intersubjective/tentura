@@ -559,7 +559,7 @@ Widget _needsMeTabBody(
                 key: ValueKey('tombstone-${item.beaconId}'),
                 item: item,
                 onOpen: () => context.router.pushPath(
-                  '$kPathBeaconView/${item.beaconId}',
+                  '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
                 ),
                 onDismiss: () => inboxCubit.dismissTombstone(item.beaconId),
               );
@@ -582,7 +582,7 @@ Widget _needsMeTabBody(
                   beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
                 ),
                 onOpenBeacon: () => context.router.pushPath(
-                  '$kPathBeaconView/${item.beaconId}',
+                  '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
                 ),
                 onTap: () => unawaited(_onForwardItem(context, item)),
                 onWatch: () => inboxCubit.setWatching(item.beaconId),
@@ -661,7 +661,7 @@ Widget _watchingTabBody(
             beaconActivityEpochMs: item.newStuffBeaconOnlyActivityEpochMs,
           ),
           onOpenBeacon: () => context.router.pushPath(
-            '$kPathBeaconView/${item.beaconId}',
+            '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
           ),
           onTap: () => unawaited(_onForwardItem(context, item)),
           onStopWatching: () => inboxCubit.stopWatching(item.beaconId),

@@ -81,8 +81,8 @@ final class BeaconForwardGraphCase extends UseCaseBase {
 
     // Seeds: edges directly visible to viewer + every edge that delivered the
     // beacon to a committer. Author has no inbound forward, so committers that
-    // are also the author contribute no seed; their authorship link is rendered
-    // via the synthetic author->beacon edge on the client.
+    // are also the author contribute no seed. The client forwards graph may add
+    // an author user node when the author does not appear on any returned edge.
     final seedIds = <String>{};
     for (final e in allEdges) {
       if (e.senderId == currentUserId || e.recipientId == currentUserId) {

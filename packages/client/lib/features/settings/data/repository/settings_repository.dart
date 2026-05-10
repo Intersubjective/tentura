@@ -136,6 +136,50 @@ class SettingsRepository implements SettingsRepositoryPort {
         ),
       );
 
+  static const _kBeaconSurfaceModePrefix = 'beacon_view.last_surface_mode.';
+  static const _kMaxBeaconSurfaceModeRows = 200;
+
+  @override
+  Future<String?> getBeaconLastSurfaceModeWire(String beaconId) =>
+      _database.managers.settings
+          .filter((f) => f.key.equals(_beaconSurfaceModeKey(beaconId)))
+          .getSingleOrNull()
+          .then((v) => v?.valueText);
+
+  @override
+  Future<void> setBeaconLastSurfaceModeWire(String beaconId, String wire) async {
+    await _database.managers.settings.create(
+      (o) => o(
+        key: _beaconSurfaceModeKey(beaconId),
+        valueText: Value(wire),
+      ),
+      mode: InsertMode.insertOrReplace,
+      onConflict: DoUpdate(
+        (_) => SettingsCompanion(
+          valueText: Value(wire),
+        ),
+      ),
+    );
+    await _pruneBeaconSurfaceModeRowsIfNeeded();
+  }
+
+  Future<void> _pruneBeaconSurfaceModeRowsIfNeeded() async {
+    final rows = await (_database.select(_database.settings)
+          ..where((t) => t.key.like('$_kBeaconSurfaceModePrefix%')))
+        .get();
+    if (rows.length <= _kMaxBeaconSurfaceModeRows) return;
+    rows.sort((a, b) => a.key.compareTo(b.key));
+    final excess = rows.length - _kMaxBeaconSurfaceModeRows;
+    for (var i = 0; i < excess; i++) {
+      await (_database.delete(_database.settings)
+            ..where((t) => t.key.equals(rows[i].key)))
+          .go();
+    }
+  }
+
+  static String _beaconSurfaceModeKey(String beaconId) =>
+      '$_kBeaconSurfaceModePrefix$beaconId';
+
   /// Keys for `newStuff` indicators (per account).
   static String _newStuffInboxKey(String accountId) => 'newStuff:inbox:$accountId';
 

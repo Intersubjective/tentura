@@ -311,6 +311,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchRoomStateIfAllowed(beaconId),
         _case.fetchRoomActivityEvents(beaconId),
         _case.fetchForwardReasonsByBeacon(beaconId),
+        _case.fetchRoomUnreadForBeacon(beaconId),
       ]);
 
       final beacon = results[0]! as Beacon;
@@ -360,6 +361,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           results[9]! as List<BeaconActivityEvent>;
       final forwardReasonSlugs =
           results[10]! as Map<String, List<String>>;
+      final roomUnreadCount = results[11]! as int;
 
       final myForwards = allForwardEdges
           .where((e) => e.sender.id == myUserId)
@@ -454,6 +456,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           beaconRoomCue: beaconRoomCue,
           roomActivityEvents: roomActivityEvents,
           showDraftEvaluationCta: showDraftEvaluationCta,
+          roomUnreadCount: roomUnreadCount,
           status: StateStatus.isSuccess,
         ),
       );

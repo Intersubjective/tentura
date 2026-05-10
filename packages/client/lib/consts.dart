@@ -54,6 +54,26 @@ const kQueryBeaconViewTab = 'tab';
 /// When truthy with [kQueryBeaconViewTab]=`commitments`, pulse/highlight the People tab until interaction.
 const kQueryBeaconPeopleTabAttention = 'people_tab_attention';
 
+/// Initial beacon detail surface: `status` (default) | `room`.
+const kQueryBeaconSurface = 'surface';
+
+/// Entry provenance for beacon view resolution (`my_work`, `inbox`, …).
+const kQueryBeaconEntry = 'entry';
+
+/// [kQueryBeaconSurface] value for Room mode.
+const kBeaconSurfaceRoomQueryValue = 'room';
+
+/// [kQueryBeaconSurface] value for Status mode.
+const kBeaconSurfaceStatusQueryValue = 'status';
+
+/// [kQueryBeaconEntry] string values (snake_case).
+const kBeaconEntryMyWork = 'my_work';
+const kBeaconEntryInbox = 'inbox';
+const kBeaconEntryForward = 'forward';
+const kBeaconEntryRoomNotification = 'room_notification';
+const kBeaconEntryDeepLink = 'deep_link';
+const kBeaconEntryUnknown = 'unknown';
+
 /// First part of FQDN: `https://app.server.name`
 const kServerName = String.fromEnvironment(
   'SERVER_NAME',

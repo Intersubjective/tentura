@@ -115,7 +115,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                               item.newStuffBeaconOnlyActivityEpochMs,
                         ),
                         onOpenBeacon: () => context.router.pushPath(
-                          '$kPathBeaconView/${item.beaconId}',
+                          '$kPathBeaconView/${item.beaconId}?$kQueryBeaconEntry=$kBeaconEntryInbox',
                         ),
                         onTap: () => context.router.pushPath(
                           '$kPathForwardBeacon/${item.beaconId}',

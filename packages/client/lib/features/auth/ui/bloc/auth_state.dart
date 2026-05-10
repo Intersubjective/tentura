@@ -19,9 +19,17 @@ abstract class AuthState extends StateBase with _$AuthState {
 
   bool get isNotAuthenticated => currentAccountId.isEmpty;
 
-  AccountEntity get currentAccount => currentAccountId.isEmpty
-      ? const AccountEntity(id: '')
-      : accounts.singleWhere((e) => e.id == currentAccountId);
+  AccountEntity get currentAccount {
+    if (currentAccountId.isEmpty) {
+      return const AccountEntity(id: '');
+    }
+    for (final e in accounts) {
+      if (e.id == currentAccountId) {
+        return e;
+      }
+    }
+    return const AccountEntity(id: '');
+  }
 
   bool checkIfIsMe(String id) => id == currentAccountId;
 }

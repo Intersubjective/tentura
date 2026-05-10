@@ -50,7 +50,15 @@ class ScreenCubit extends Cubit<ScreenState> {
   void showBeaconEditDraft(String id) =>
       emit(state.navigateTo('$kPathBeaconNew?$kQueryBeaconDraftId=$id'));
 
-  void showBeacon(String id) => emit(state.navigateTo('$kPathBeaconView/$id'));
+  void showBeacon(
+    String id, {
+    String entry = kBeaconEntryUnknown,
+  }) =>
+      emit(
+        state.navigateTo(
+          '$kPathBeaconView/$id?$kQueryBeaconEntry=${Uri.encodeQueryComponent(entry)}',
+        ),
+      );
 
   void showProfile(String id) =>
       emit(state.navigateTo('$kPathProfileView/$id'));

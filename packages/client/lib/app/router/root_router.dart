@@ -190,11 +190,22 @@ class RootRouter extends RootStackRouter {
       path: '$kPathBeaconView/:id',
     ),
 
-    // Beacon coordination room (V2 chat)
+    // Beacon coordination room (V2 chat) — legacy path redirects into unified view.
     AutoRoute(
       usesPathAsKey: true,
       page: BeaconRoomRoute.page,
       path: '$kPathBeaconRoom/:id',
+      guards: [
+        AutoRouteGuard.redirect((resolver) {
+          final id = resolver.route.params.getString('id');
+          return BeaconViewRoute(
+            id: id,
+            isDeepLink: 'true',
+            surface: kBeaconSurfaceRoomQueryValue,
+            entry: kBeaconEntryDeepLink,
+          );
+        }),
+      ],
     ),
 
     AutoRoute(
@@ -302,31 +313,53 @@ class RootRouter extends RootStackRouter {
 
   Future<Uri> deepLinkTransformer(Uri uri) => SynchronousFuture(
     uri.path == kPathAppLinkView
-        ? uri.replace(
-            path: switch (uri.queryParameters['id']) {
-              final String id when id.startsWith('B') || id.startsWith('C') =>
-                uri.queryParameters['dest'] == 'room'
-                    ? '$kPathBeaconRoom/$id'
-                    : '$kPathBeaconView/$id',
-              final String id when id.startsWith('O') || id.startsWith('U') =>
-                '$kPathProfileView/$id',
-              final String id when id.startsWith('I') =>
-                _authCubit.state.isAuthenticated
-                    ? kPathNetwork
-                    : '$kPathSignUp/$id',
-              _ => kPathNetwork,
-            },
-            queryParameters: {
-              kQueryIsDeepLink: 'true',
-            },
-          )
+        ? switch (uri.queryParameters['id']) {
+            final String id when id.startsWith('B') || id.startsWith('C') =>
+              uri.replace(
+                path: '$kPathBeaconView/$id',
+                queryParameters: {
+                  kQueryIsDeepLink: 'true',
+                  if (uri.queryParameters['dest'] == 'room') ...{
+                    kQueryBeaconSurface: kBeaconSurfaceRoomQueryValue,
+                    kQueryBeaconEntry: kBeaconEntryDeepLink,
+                  },
+                },
+              ),
+            final String id when id.startsWith('O') || id.startsWith('U') =>
+              uri.replace(
+                path: '$kPathProfileView/$id',
+                queryParameters: {
+                  kQueryIsDeepLink: 'true',
+                },
+              ),
+            final String id when id.startsWith('I') => uri.replace(
+              path: _authCubit.state.isAuthenticated
+                  ? kPathNetwork
+                  : '$kPathSignUp/$id',
+              queryParameters: {
+                kQueryIsDeepLink: 'true',
+              },
+            ),
+            _ => uri.replace(
+              path: kPathNetwork,
+              queryParameters: {
+                kQueryIsDeepLink: 'true',
+              },
+            ),
+          }
         : uri,
   );
 
   /// Opens a notification [rawLink] (`/#/shared/view?…` or absolute URL).
   Future<void> openFromNotificationLink(String rawLink) async {
     final uri = _notificationUriFromRaw(rawLink);
-    final transformed = await deepLinkTransformer(uri);
+    final destRoom = uri.queryParameters['dest'] == 'room';
+    var transformed = await deepLinkTransformer(uri);
+    if (destRoom && transformed.path.startsWith(kPathBeaconView)) {
+      final q = Map<String, String>.from(transformed.queryParameters);
+      q[kQueryBeaconEntry] = kBeaconEntryRoomNotification;
+      transformed = transformed.replace(queryParameters: q);
+    }
     final qp = transformed.queryParameters;
     var path = transformed.path;
     if (qp.isNotEmpty) {

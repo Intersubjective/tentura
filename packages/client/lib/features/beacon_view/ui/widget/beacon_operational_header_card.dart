@@ -29,7 +29,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onForward,
     this.onWatch,
     this.onStopWatching,
-    this.onRoom,
     this.onViewChain,
     super.key,
   });
@@ -47,7 +46,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   final VoidCallback? onForward;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
-  final VoidCallback? onRoom;
   final VoidCallback? onViewChain;
 
   @override
@@ -62,8 +60,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         state.commitments.where((c) => !c.isWithdrawn).length;
 
     final anchorTone = _anchorTone(beacon.coordinationStatus);
-
-    final roomCount = state.roomParticipants.length;
 
     final canCommit = !state.isBeaconMine &&
         open &&
@@ -121,25 +117,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           icon: Icons.visibility_off_outlined,
           label: l10n.beaconHeaderStopWatching,
           onPressed: onStopWatching,
-        ),
-      );
-    }
-
-    if (state.canNavigateBeaconRoom && onRoom != null) {
-      chips.add(
-        _HeaderChip(
-          icon: Icons.forum_outlined,
-          label: l10n.beaconHeaderRoomCount(roomCount),
-          onPressed: onRoom,
-        ),
-      );
-    } else if (state.isRoomAdmissionBlocked) {
-      chips.add(
-        _HeaderChip(
-          icon: Icons.forum_outlined,
-          label: state.coordinationDeniesRoomAdmission
-              ? l10n.beaconRoomNoAdmission
-              : l10n.beaconRoomWaitingForApproval,
         ),
       );
     }

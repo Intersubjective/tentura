@@ -3,6 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_view/domain/beacon_surface_mode.dart';
+import 'package:tentura/features/beacon_view/domain/beacon_view_entry_source.dart';
+import 'package:tentura/features/beacon_view/domain/beacon_view_surface_resolver.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
+import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -38,7 +44,7 @@ bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   return s == '1' || s == 'true' || s == 'yes';
 }
 
-/// Query [kQueryBeaconViewTab]: `overview` | `commitments` | `activity` (legacy: `timeline`, `details`, `forwards`).
+/// Query [kQueryBeaconViewTab]: `overview` | `commitments` | `timeline` (alias: `activity`; legacy: `details`, `forwards`).
 int _beaconViewTabIndex(String? viewTab) {
   switch (viewTab) {
     case 'commitments':
@@ -284,12 +290,14 @@ Widget _beaconViewAppBarOverflow({
 }
 
 @RoutePage()
-class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
+class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconViewScreen({
     @PathParam('id') this.id = '',
     @QueryParam(kQueryIsDeepLink) this.isDeepLink,
     @QueryParam(kQueryBeaconViewTab) this.viewTab,
     @QueryParam(kQueryBeaconPeopleTabAttention) this.peopleTabAttention,
+    @QueryParam(kQueryBeaconSurface) this.surface,
+    @QueryParam(kQueryBeaconEntry) this.entry,
     super.key,
   });
 
@@ -302,6 +310,12 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
   /// With [viewTab]=`commitments`, truthy values pulse/highlight the People tab until interaction.
   final String? peopleTabAttention;
+
+  /// `status` | `room` ([kBeaconSurfaceRoomQueryValue]).
+  final String? surface;
+
+  /// Entry provenance ([kQueryBeaconEntry]).
+  final String? entry;
 
   @override
   Widget wrappedRoute(_) => MultiBlocProvider(
@@ -330,128 +344,345 @@ class BeaconViewScreen extends StatelessWidget implements AutoRouteWrapper {
   );
 
   @override
-  Widget build(BuildContext context) {
-    final screenCubit = context.read<ScreenCubit>();
-    final beaconViewCubit = context.read<BeaconViewCubit>();
-    final l10n = L10n.of(context)!;
-    return BlocBuilder<BeaconViewCubit, BeaconViewState>(
-      bloc: beaconViewCubit,
-      buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
-      builder: (context, state) {
-        final theme = Theme.of(context);
-        final scheme = theme.colorScheme;
-        final showInitialLoading =
-            state.isLoading &&
-            state.timeline.isEmpty &&
-            state.commitments.isEmpty;
-        return Scaffold(
-          appBar: AppBar(
-            backgroundColor: scheme.surface,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            toolbarHeight: InboxStyleAppBar.toolbarHeight,
-            leadingWidth: InboxStyleAppBar.toolbarHeight,
-            foregroundColor: scheme.onSurface,
-            titleTextStyle: theme.textTheme.titleLarge!.copyWith(
-              color: scheme.onSurface,
-            ),
-            titleSpacing: 8,
-            leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
-            title: Text(l10n.beaconViewTitle),
-            actions: [
-              _beaconViewAppBarOverflow(
-                context: context,
-                state: state,
-                cubit: beaconViewCubit,
-                screenCubit: screenCubit,
-                l10n: l10n,
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(4),
-              child: LinearPiActive.builder(context, state.isLoading),
-            ),
-          ),
-          body: showInitialLoading
-              ? const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                )
-              : _BeaconOperationalScrollView(
-                  beaconViewCubit: beaconViewCubit,
-                  screenCubit: screenCubit,
-                  initialTabIndex: _beaconViewTabIndex(viewTab),
-                  peopleTabAttentionOnOpen:
-                      _beaconPeopleTabAttentionQueryTruthy(
-                        peopleTabAttention,
-                      ) &&
-                      _beaconViewTabIndex(viewTab) == 1,
-                ),
-        );
-      },
-    );
-  }
+  State<BeaconViewScreen> createState() => _BeaconViewScreenState();
 }
 
-class _BeaconOperationalScrollView extends StatefulWidget {
-  const _BeaconOperationalScrollView({
-    required this.beaconViewCubit,
-    required this.screenCubit,
-    required this.initialTabIndex,
-    required this.peopleTabAttentionOnOpen,
-  });
-
-  final BeaconViewCubit beaconViewCubit;
-  final ScreenCubit screenCubit;
-  final int initialTabIndex;
-
-  /// Pulse/highlight People tab until first pointer interaction or tab change.
-  final bool peopleTabAttentionOnOpen;
-
-  @override
-  State<_BeaconOperationalScrollView> createState() =>
-      _BeaconOperationalScrollViewState();
-}
-
-class _BeaconOperationalScrollViewState
-    extends State<_BeaconOperationalScrollView> {
+class _BeaconViewScreenState extends State<BeaconViewScreen> {
   late int _tabIndex;
   late bool _peopleTabAttentionActive;
+  late BeaconSurfaceMode _surfaceMode;
+
+  RoomCubit? _roomCubit;
+  BeaconSurfaceMode? _rememberedFromDb;
+  bool _rememberedLoaded = false;
+  bool _didApplyFetchResolution = false;
+  String? _bannerMessage;
+
+  BeaconViewEntrySource get _normalizedEntry => normalizeBeaconViewEntry(
+    isDeepLink: widget.isDeepLink,
+    rawFromQuery: BeaconViewEntrySourceWire.parseQuery(widget.entry),
+  );
 
   @override
   void initState() {
     super.initState();
-    _tabIndex = widget.initialTabIndex.clamp(0, 2);
-    _peopleTabAttentionActive = widget.peopleTabAttentionOnOpen;
+    _tabIndex = _beaconViewTabIndex(widget.viewTab).clamp(0, 2);
+    _peopleTabAttentionActive =
+        _beaconPeopleTabAttentionQueryTruthy(widget.peopleTabAttention) &&
+        _beaconViewTabIndex(widget.viewTab) == 1;
+    final explicitRoom = explicitRoomSurfaceRequested(
+      surfaceQuery: widget.surface,
+      navigatedFromLegacyRoomPath: false,
+      sharedLinkDestRoom: false,
+    );
+    _surfaceMode =
+        explicitRoom ? BeaconSurfaceMode.room : BeaconSurfaceMode.status;
+    unawaited(_loadRememberedSurfacePreference());
   }
 
-  void _clearPeopleTabAttention() {
-    if (!_peopleTabAttentionActive) return;
+  Future<void> _loadRememberedSurfacePreference() async {
+    final wire = await GetIt.I<SettingsRepositoryPort>()
+        .getBeaconLastSurfaceModeWire(widget.id);
+    if (!mounted) return;
     setState(() {
-      _peopleTabAttentionActive = false;
+      _rememberedFromDb = BeaconSurfaceModeWire.tryParse(wire);
+      _rememberedLoaded = true;
+    });
+    final cubit = context.read<BeaconViewCubit>();
+    if (cubit.state.isSuccess) {
+      _applyFetchResolution(cubit.state);
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_roomCubit?.close());
+    super.dispose();
+  }
+
+  void _applyFetchResolution(BeaconViewState s) {
+    if (!s.isSuccess || _didApplyFetchResolution) return;
+    if (_normalizedEntry == BeaconViewEntrySource.myWork && !_rememberedLoaded) {
+      return;
+    }
+
+    final explicitRoom = explicitRoomSurfaceRequested(
+      surfaceQuery: widget.surface,
+      navigatedFromLegacyRoomPath: false,
+      sharedLinkDestRoom: false,
+    );
+    final explicitStatus = explicitStatusSurfaceRequested(
+      surfaceQuery: widget.surface,
+      viewTab: widget.viewTab,
+    );
+    final remembered = _normalizedEntry == BeaconViewEntrySource.myWork
+        ? _rememberedFromDb
+        : null;
+
+    final mode = resolveInitialBeaconSurfaceMode(
+      entry: _normalizedEntry,
+      hasRoomAccess: s.canNavigateBeaconRoom,
+      explicitRoomRequested: explicitRoom,
+      explicitStatusRequested: explicitStatus,
+      rememberedMode: remembered,
+    );
+
+    final roomDenied = !s.canNavigateBeaconRoom &&
+        (explicitRoom ||
+            _normalizedEntry == BeaconViewEntrySource.roomNotification ||
+            (_normalizedEntry == BeaconViewEntrySource.myWork &&
+                remembered == BeaconSurfaceMode.room));
+
+    setState(() {
+      _surfaceMode = mode;
+      _bannerMessage = roomDenied
+          ? L10n.of(context)!.beaconViewRoomAccessUnavailableBanner
+          : null;
+      _didApplyFetchResolution = true;
+      if (mode == BeaconSurfaceMode.room && s.canNavigateBeaconRoom) {
+        _roomCubit ??= RoomCubit(beaconId: widget.id);
+      }
     });
   }
 
-  void _onPointerDown(PointerDownEvent _) {
-    _clearPeopleTabAttention();
-  }
-
-  void _setTab(int i) {
-    if (_tabIndex == i) {
-      _clearPeopleTabAttention();
+  void _onToggleSurface(BeaconViewState beaconState) {
+    final next = _surfaceMode == BeaconSurfaceMode.status
+        ? BeaconSurfaceMode.room
+        : BeaconSurfaceMode.status;
+    if (next == BeaconSurfaceMode.room && !beaconState.canNavigateBeaconRoom) {
       return;
     }
     setState(() {
-      _peopleTabAttentionActive = false;
-      _tabIndex = i;
+      _surfaceMode = next;
+      _bannerMessage = null;
+      if (next == BeaconSurfaceMode.room) {
+        _roomCubit ??= RoomCubit(beaconId: widget.id);
+      }
     });
+    unawaited(
+      GetIt.I<SettingsRepositoryPort>().setBeaconLastSurfaceModeWire(
+        widget.id,
+        next.wire,
+      ),
+    );
+  }
+
+  Widget? _surfaceModeToggle({
+    required BuildContext context,
+    required BeaconViewState state,
+  }) {
+    final l10n = L10n.of(context)!;
+    if (_surfaceMode == BeaconSurfaceMode.status) {
+      final enabled = state.canNavigateBeaconRoom;
+      final label = l10n.beaconRoomOpen;
+      final child = TextButton.icon(
+        onPressed: enabled ? () => _onToggleSurface(state) : null,
+        icon: const Icon(Icons.forum_outlined),
+        label: Text(label),
+        style: TextButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+        ),
+      );
+      final decorated = state.roomUnreadCount > 0 && enabled
+          ? Badge(
+              label: Text('${state.roomUnreadCount}'),
+              child: child,
+            )
+          : child;
+      return Tooltip(
+        message: enabled
+            ? label
+            : (state.isRoomAdmissionBlocked
+                  ? (state.coordinationDeniesRoomAdmission
+                        ? l10n.beaconRoomNoAdmission
+                        : l10n.beaconRoomWaitingForApproval)
+                  : l10n.beaconViewRoomAccessUnavailableBanner),
+        child: decorated,
+      );
+    }
+
+    return Tooltip(
+      message: l10n.beaconViewSurfaceStatusAction,
+      child: TextButton.icon(
+        onPressed: () => _onToggleSurface(state),
+        icon: const Icon(Icons.dashboard_outlined),
+        label: Text(l10n.beaconViewSurfaceStatusAction),
+        style: TextButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenCubit = context.read<ScreenCubit>();
+    final beaconViewCubit = context.read<BeaconViewCubit>();
+    final l10n = L10n.of(context)!;
+    return BlocListener<BeaconViewCubit, BeaconViewState>(
+      listenWhen: (p, c) =>
+          (!p.isSuccess && c.isSuccess) ||
+          (_surfaceMode == BeaconSurfaceMode.room &&
+              p.canNavigateBeaconRoom &&
+              !c.canNavigateBeaconRoom),
+      listener: (ctx, s) {
+        if (!s.isSuccess) return;
+        if (!ctx.mounted) return;
+        if (_surfaceMode == BeaconSurfaceMode.room &&
+            !s.canNavigateBeaconRoom) {
+          setState(() {
+            _surfaceMode = BeaconSurfaceMode.status;
+            _bannerMessage = L10n.of(ctx)!.beaconViewRoomAccessUnavailableBanner;
+          });
+          return;
+        }
+        _applyFetchResolution(s);
+      },
+      child: BlocBuilder<BeaconViewCubit, BeaconViewState>(
+        bloc: beaconViewCubit,
+        buildWhen: (p, c) =>
+            c.isSuccess ||
+            c.isLoading ||
+            c.hasError ||
+            p.roomUnreadCount != c.roomUnreadCount ||
+            p.canNavigateBeaconRoom != c.canNavigateBeaconRoom ||
+            p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
+            p.coordinationDeniesRoomAdmission != c.coordinationDeniesRoomAdmission,
+        builder: (context, state) {
+          final theme = Theme.of(context);
+          final scheme = theme.colorScheme;
+          final showInitialLoading =
+              state.isLoading &&
+              state.timeline.isEmpty &&
+              state.commitments.isEmpty;
+
+          Widget body;
+          if (showInitialLoading) {
+            body = const Center(
+              child: CircularProgressIndicator.adaptive(),
+            );
+          } else if (_surfaceMode == BeaconSurfaceMode.room &&
+              state.canNavigateBeaconRoom) {
+            _roomCubit ??= RoomCubit(beaconId: widget.id);
+            body = BlocProvider.value(
+              value: _roomCubit!,
+              child: BeaconRoomSurface(beaconState: state),
+            );
+          } else {
+            body = _BeaconOperationalScrollView(
+              beaconViewCubit: beaconViewCubit,
+              screenCubit: screenCubit,
+              tabIndex: _tabIndex,
+              onTabChanged: (i) => setState(() {
+                _tabIndex = i;
+                _peopleTabAttentionActive = false;
+              }),
+              peopleTabAttentionActive: _peopleTabAttentionActive,
+              onPeopleTabAttentionCleared: () => setState(() {
+                _peopleTabAttentionActive = false;
+              }),
+            );
+          }
+
+          return Scaffold(
+            appBar: AppBar(
+              backgroundColor: scheme.surface,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              toolbarHeight: InboxStyleAppBar.toolbarHeight,
+              leadingWidth: InboxStyleAppBar.toolbarHeight,
+              foregroundColor: scheme.onSurface,
+              titleTextStyle: theme.textTheme.titleLarge!.copyWith(
+                color: scheme.onSurface,
+              ),
+              titleSpacing: 8,
+              leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
+              title: Text(l10n.beaconViewTitle),
+              actions: [
+                if (!showInitialLoading)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Align(
+                      child: _surfaceModeToggle(
+                        context: context,
+                        state: state,
+                      ),
+                    ),
+                  ),
+                _beaconViewAppBarOverflow(
+                  context: context,
+                  state: state,
+                  cubit: beaconViewCubit,
+                  screenCubit: screenCubit,
+                  l10n: l10n,
+                ),
+              ],
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(4),
+                child: LinearPiActive.builder(context, state.isLoading),
+              ),
+            ),
+            body: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_bannerMessage != null)
+                  MaterialBanner(
+                    content: Text(_bannerMessage!),
+                    actions: [
+                      TextButton(
+                        onPressed: () => setState(() => _bannerMessage = null),
+                        child: Text(l10n.beaconViewBannerDismiss),
+                      ),
+                    ],
+                  ),
+                Expanded(child: body),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _BeaconOperationalScrollView extends StatelessWidget {
+  const _BeaconOperationalScrollView({
+    required this.beaconViewCubit,
+    required this.screenCubit,
+    required this.tabIndex,
+    required this.onTabChanged,
+    required this.peopleTabAttentionActive,
+    required this.onPeopleTabAttentionCleared,
+  });
+
+  final BeaconViewCubit beaconViewCubit;
+  final ScreenCubit screenCubit;
+  final int tabIndex;
+  final ValueChanged<int> onTabChanged;
+
+  /// Pulse/highlight People tab until first pointer interaction or tab change.
+  final bool peopleTabAttentionActive;
+  final VoidCallback onPeopleTabAttentionCleared;
+
+  void _setTab(int i) {
+    if (tabIndex == i) {
+      onPeopleTabAttentionCleared();
+      return;
+    }
+    onTabChanged(i);
+  }
+
+  void _onPointerDown(PointerDownEvent _) {
+    if (!peopleTabAttentionActive) return;
+    onPeopleTabAttentionCleared();
   }
 
   Future<void> _pickCoordinationStatus(BuildContext context) async {
     await showBeaconCoordinationStatusBottomSheet(
       context: context,
       onPick: (s) => unawaited(
-        widget.beaconViewCubit.setBeaconCoordinationStatus(
+        beaconViewCubit.setBeaconCoordinationStatus(
           BeaconCoordinationStatus.fromSmallint(s),
         ),
       ),
@@ -461,7 +692,7 @@ class _BeaconOperationalScrollViewState
   Future<void> _runCommitFlow(BuildContext context, L10n l10n) async {
     await _beaconViewRunInitialCommitDialog(
       context,
-      widget.beaconViewCubit,
+      beaconViewCubit,
       l10n,
     );
   }
@@ -470,13 +701,15 @@ class _BeaconOperationalScrollViewState
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    final idx = tabIndex.clamp(0, 2);
     return BlocBuilder<BeaconViewCubit, BeaconViewState>(
-      bloc: widget.beaconViewCubit,
+      bloc: beaconViewCubit,
       buildWhen: (p, c) =>
           p.beacon != c.beacon ||
           p.beacon.coordinationStatus != c.beacon.coordinationStatus ||
           p.beacon.lifecycle != c.beacon.lifecycle ||
           p.timeline != c.timeline ||
+          p.roomActivityEvents != c.roomActivityEvents ||
           p.commitments != c.commitments ||
           p.isCommitted != c.isCommitted ||
           p.isLoading != c.isLoading ||
@@ -502,14 +735,14 @@ class _BeaconOperationalScrollViewState
         final beaconId = state.beacon.id;
         Future<void> editUpdate(TimelineUpdate u) => _showEditAuthorUpdateSheet(
           context,
-          widget.beaconViewCubit,
+          beaconViewCubit,
           l10n,
           initial: u.content,
           updateId: u.id,
           createdAt: u.createdAt,
         );
 
-        final tabBody = switch (_tabIndex) {
+        final tabBody = switch (idx) {
           0 => BeaconOverviewTab(
             state: state,
             onViewAllCommitments: () => _setTab(1),
@@ -517,7 +750,7 @@ class _BeaconOperationalScrollViewState
           ),
           1 => _CommitmentsTabBody(
             state: state,
-            beaconViewCubit: widget.beaconViewCubit,
+            beaconViewCubit: beaconViewCubit,
             l10n: l10n,
           ),
           _ => BeaconActivityList(
@@ -529,14 +762,14 @@ class _BeaconOperationalScrollViewState
           ),
         };
 
-        final tabPadding = _tabIndex == 0
+        final tabPadding = idx == 0
             ? const EdgeInsets.fromLTRB(
                 kSpacingMedium,
                 kSpacingSmall / 2,
                 kSpacingMedium,
                 kSpacingSmall,
               )
-            : _tabIndex == 1
+            : idx == 1
             ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
             : kPaddingAll;
 
@@ -566,12 +799,12 @@ class _BeaconOperationalScrollViewState
                     overflowMenu: _beaconViewAppBarOverflow(
                       context: context,
                       state: state,
-                      cubit: widget.beaconViewCubit,
-                      screenCubit: widget.screenCubit,
+                      cubit: beaconViewCubit,
+                      screenCubit: screenCubit,
                       l10n: l10n,
                     ),
                     onAuthorTap: () =>
-                        widget.screenCubit.showProfile(state.beacon.author.id),
+                        screenCubit.showProfile(state.beacon.author.id),
                     onUpdateStatus:
                         state.isBeaconMine &&
                             state.beacon.lifecycle == BeaconLifecycle.open
@@ -583,7 +816,7 @@ class _BeaconOperationalScrollViewState
                         ? () => unawaited(
                             _showPostAuthorUpdateSheet(
                               context,
-                              widget.beaconViewCubit,
+                              beaconViewCubit,
                               l10n,
                             ),
                           )
@@ -598,7 +831,7 @@ class _BeaconOperationalScrollViewState
                     onForward: () => unawaited(
                       _beaconViewOpenForwardThenMaybeNudgeCommit(
                         context,
-                        widget.beaconViewCubit,
+                        beaconViewCubit,
                         l10n,
                       ),
                     ),
@@ -607,23 +840,16 @@ class _BeaconOperationalScrollViewState
                             !state.isCommitted &&
                             state.inboxStatus == InboxItemStatus.needsMe
                         ? () =>
-                              unawaited(widget.beaconViewCubit.moveToWatching())
+                              unawaited(beaconViewCubit.moveToWatching())
                         : null,
                     onStopWatching:
                         !state.isBeaconMine &&
                             !state.isCommitted &&
                             state.inboxStatus == InboxItemStatus.watching
-                        ? () => unawaited(widget.beaconViewCubit.stopWatching())
-                        : null,
-                    onRoom: state.canNavigateBeaconRoom
-                        ? () => unawaited(
-                            context.router.pushPath(
-                              '$kPathBeaconRoom/$beaconId',
-                            ),
-                          )
+                        ? () => unawaited(beaconViewCubit.stopWatching())
                         : null,
                     onViewChain: () =>
-                        widget.screenCubit.showForwardsGraphFor(beaconId),
+                        screenCubit.showForwardsGraphFor(beaconId),
                   ),
                 ),
               ),
@@ -643,7 +869,7 @@ class _BeaconOperationalScrollViewState
                             l10n.labelBeaconTabPeople,
                             l10n.labelBeaconTabActivity,
                           ],
-                          selectedIndex: _tabIndex,
+                          selectedIndex: idx,
                           onChanged: _setTab,
                           badges: [
                             null,
@@ -656,7 +882,7 @@ class _BeaconOperationalScrollViewState
                             null,
                           ],
                           attentionIndex: 1,
-                          attentionActive: _peopleTabAttentionActive,
+                          attentionActive: peopleTabAttentionActive,
                         ),
                       ),
                     ),
@@ -664,7 +890,7 @@ class _BeaconOperationalScrollViewState
                 ),
               ),
               SliverPadding(
-                key: ValueKey<int>(_tabIndex),
+                key: ValueKey<int>(idx),
                 padding: tabPadding,
                 sliver: SliverToBoxAdapter(child: tabBody),
               ),

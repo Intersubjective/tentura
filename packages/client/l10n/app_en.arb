@@ -1790,6 +1790,18 @@
   "@beaconViewTitle": {
     "context": "BeaconViewScreen"
   },
+  "beaconViewRoomAccessUnavailableBanner": "Room isn’t available for this beacon.",
+  "@beaconViewRoomAccessUnavailableBanner": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewSurfaceStatusAction": "Status",
+  "@beaconViewSurfaceStatusAction": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewBannerDismiss": "Dismiss",
+  "@beaconViewBannerDismiss": {
+    "context": "BeaconViewScreen"
+  },
   "beaconDetailsSection": "Details",
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
@@ -2251,7 +2263,7 @@
   "labelBeaconCoordinationSummary": "Coverage on this beacon",
   "coordinationSetOverallStatus": "Set overall coordination status",
   "labelBeaconTabOverview": "Overview",
-  "labelBeaconTabActivity": "Activity",
+  "labelBeaconTabActivity": "Timeline",
   "beaconCtaUpdateStatus": "Update status",
   "beaconCtaEditCommitment": "Edit commitment",
   "beaconCtaViewChain": "View chain",
@@ -2353,16 +2365,6 @@
       "count": { "type": "int" }
     }
   },
-  "beaconActivityEditsCollapsed": "{name} edited their commitment · ×{count}",
-  "@beaconActivityEditsCollapsed": {
-    "placeholders": {
-      "name": { "type": "String" },
-      "count": { "type": "int" }
-    }
-  },
-  "beaconActivitySectionHigh": "Milestones",
-  "beaconActivitySectionMedium": "Coordination",
-  "beaconActivitySectionLow": "Edits",
   "beaconNoActivityYetShort": "No activity yet",
   "commitmentsTabAuthorLabelCaption": "author label",
   "commitmentsTabActionEdit": "edit",
@@ -2559,7 +2561,6 @@
   "beaconRoomNowCollapseTooltip": "Collapse Now",
   "beaconRoomYouExpandTooltip": "Expand You",
   "beaconRoomYouCollapseTooltip": "Collapse You",
-  "beaconActivitySectionCoordination": "Room coordination",
   "beaconActivityPlanUpdated": "Plan updated",
   "beaconActivityFactPinned": "Fact pinned",
   "beaconActivityFactVisibilityChanged": "Fact visibility changed",
