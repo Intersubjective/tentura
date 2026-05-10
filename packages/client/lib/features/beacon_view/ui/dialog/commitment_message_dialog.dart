@@ -18,6 +18,8 @@ class CommitmentMessageDialog extends StatefulWidget {
     this.initialText = '',
     this.allowEmptyMessage = false,
     this.showHelpTypeChips = false,
+    this.initialHelpTypeSlugs = const {},
+    this.automaticSlugs = const {},
     this.requireUncommitReason = false,
     super.key,
   });
@@ -29,6 +31,8 @@ class CommitmentMessageDialog extends StatefulWidget {
     String initialText = '',
     bool allowEmptyMessage = false,
     bool showHelpTypeChips = false,
+    Set<String> initialHelpTypeSlugs = const {},
+    Set<String> automaticSlugs = const {},
     bool requireUncommitReason = false,
   }) =>
       showAdaptiveDialog<CommitmentDialogOutcome>(
@@ -39,6 +43,8 @@ class CommitmentMessageDialog extends StatefulWidget {
           initialText: initialText,
           allowEmptyMessage: allowEmptyMessage,
           showHelpTypeChips: showHelpTypeChips,
+          initialHelpTypeSlugs: initialHelpTypeSlugs,
+          automaticSlugs: automaticSlugs,
           requireUncommitReason: requireUncommitReason,
         ),
       );
@@ -48,6 +54,10 @@ class CommitmentMessageDialog extends StatefulWidget {
   final String initialText;
   final bool allowEmptyMessage;
   final bool showHelpTypeChips;
+  /// Pre-selected capability slugs when [showHelpTypeChips] is true.
+  final Set<String> initialHelpTypeSlugs;
+  /// Slugs shown with automatic/highlight styling (e.g. beacon-required needs).
+  final Set<String> automaticSlugs;
   final bool requireUncommitReason;
 
   @override
@@ -57,13 +67,14 @@ class CommitmentMessageDialog extends StatefulWidget {
 
 class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
   late final TextEditingController _controller;
-  final Set<String> _helpTypeSlugs = {};
+  late final Set<String> _helpTypeSlugs;
   UncommitReason? _uncommitReason;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialText);
+    _helpTypeSlugs = Set<String>.from(widget.initialHelpTypeSlugs);
   }
 
   @override
@@ -107,6 +118,7 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
               const SizedBox(height: 8),
               CapabilityChipSet(
                 selectedSlugs: _helpTypeSlugs,
+                automaticSlugs: widget.automaticSlugs,
                 onChanged: (s) => setState(() {
                   _helpTypeSlugs
                     ..clear()

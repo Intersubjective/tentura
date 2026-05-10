@@ -26,7 +26,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onUpdateStatus,
     this.onPostUpdate,
     this.onCommit,
-    this.onUpdateCommitment,
     this.onForward,
     this.onWatch,
     this.onStopWatching,
@@ -45,7 +44,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   final VoidCallback? onUpdateStatus;
   final VoidCallback? onPostUpdate;
   final VoidCallback? onCommit;
-  final VoidCallback? onUpdateCommitment;
   final VoidCallback? onForward;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
@@ -73,12 +71,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         beacon.allowsNewCommitAsNonAuthor &&
         onCommit != null;
 
-    final updateCommitment =
-        !state.isBeaconMine &&
-            open &&
-            state.isCommitted &&
-            onUpdateCommitment != null;
-
     var primaryFilledForwardOnly = false;
 
     Widget primaryBlock = const SizedBox.shrink();
@@ -88,13 +80,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           child: FilledButton(
             onPressed: onCommit,
             child: Text(l10n.labelCommit),
-          ),
-        );
-      } else if (updateCommitment) {
-        primaryBlock = _PrimaryCtaSlot(
-          child: FilledButton(
-            onPressed: onUpdateCommitment,
-            child: Text(l10n.beaconHeaderUpdateCommitment),
           ),
         );
       } else if (onForward != null) {
@@ -219,7 +204,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final showPrimaryGap =
         open &&
             !state.isBeaconMine &&
-            (canCommit || updateCommitment || primaryFilledForwardOnly);
+            (canCommit || primaryFilledForwardOnly);
 
     return Padding(
       padding: outerPadding,

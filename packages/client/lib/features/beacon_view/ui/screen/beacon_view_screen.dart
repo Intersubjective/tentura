@@ -29,6 +29,7 @@ import '../widget/activity_list.dart';
 import '../widget/beacon_operational_header_card.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
+import '../util/commitment_help_types_wire.dart';
 import '../widget/overview/beacon_overview_tab.dart';
 
 bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
@@ -465,32 +466,6 @@ class _BeaconOperationalScrollViewState
     );
   }
 
-  Future<void> _runUpdateCommitFlow(BuildContext context, L10n l10n) async {
-    if (!context.mounted) return;
-    final cubit = widget.beaconViewCubit;
-    var initialMessage = '';
-    for (final c in cubit.state.commitments) {
-      if (!c.isWithdrawn && c.user.id == cubit.state.myProfile.id) {
-        initialMessage = c.message;
-        break;
-      }
-    }
-    final outcome = await CommitmentMessageDialog.show(
-      context,
-      title: l10n.beaconHeaderUpdateCommitment,
-      hintText: l10n.hintCommitMessage,
-      initialText: initialMessage,
-      allowEmptyMessage: true,
-      showHelpTypeChips: true,
-    );
-    if (outcome != null && context.mounted) {
-      await cubit.commit(
-        message: outcome.message,
-        helpTypes: outcome.helpTypesWire,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -619,13 +594,6 @@ class _BeaconOperationalScrollViewState
                             !state.isCommitted &&
                             state.beacon.allowsNewCommitAsNonAuthor
                         ? () => _runCommitFlow(context, l10n)
-                        : null,
-                    onUpdateCommitment:
-                        !state.isBeaconMine &&
-                            state.beacon.lifecycle == BeaconLifecycle.open &&
-                            state.isCommitted &&
-                            state.beacon.allowsWithdrawWhileCommitted
-                        ? () => unawaited(_runUpdateCommitFlow(context, l10n))
                         : null,
                     onForward: () => unawaited(
                       _beaconViewOpenForwardThenMaybeNudgeCommit(
@@ -822,14 +790,23 @@ class _CommitmentsTabBody extends StatelessWidget {
                 ? () async {
                     final outcome = await CommitmentMessageDialog.show(
                       context,
-                      title: l10n.dialogUpdateCommitTitle,
+                      title: l10n.beaconHeaderUpdateCommitment,
                       hintText: l10n.hintCommitMessage,
                       initialText: active[i].message,
+                      allowEmptyMessage: true,
+                      showHelpTypeChips: true,
+                      initialHelpTypeSlugs: commitmentStoredHelpTypeSlugs(
+                        active[i].helpType,
+                      ),
+                      automaticSlugs: beacon.needs,
                     );
-                    if (outcome != null &&
-                        outcome.message.isNotEmpty &&
-                        context.mounted) {
-                      await beaconViewCubit.commit(message: outcome.message);
+                    if (outcome != null && context.mounted) {
+                      await beaconViewCubit.commit(
+                        message: outcome.message,
+                        helpTypes: normalizeCommitHelpTypesWire(
+                          outcome.helpTypesWire,
+                        ),
+                      );
                     }
                   }
                 : null,
