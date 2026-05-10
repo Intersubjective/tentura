@@ -1,3 +1,5 @@
+import 'dart:convert' show jsonDecode;
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -123,7 +125,34 @@ String? uncommitReasonLabel(L10n l10n, String? wireKey) {
   };
 }
 
+/// Parses `beacon_commitment.help_type`: a single slug, or JSON array (server
+/// stores jsonEncode of selected slugs; see server CommitmentRepository).
+List<String> commitmentHelpTypeSlugs(String? wire) {
+  final t = wire?.trim() ?? '';
+  if (t.isEmpty) return [];
+  if (t.startsWith('[')) {
+    try {
+      final decoded = jsonDecode(t);
+      if (decoded is List) {
+        return decoded
+            .map((e) => '$e'.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+    } on Object {
+      // Malformed JSON; fall through to single slug.
+    }
+  }
+  return [t];
+}
+
 String? helpTypeLabel(L10n l10n, String? wireKey) {
   if (wireKey == null || wireKey.isEmpty) return null;
-  return CapabilityTag.fromSlug(wireKey)?.labelOf(l10n) ?? wireKey;
+  final slugs = commitmentHelpTypeSlugs(wireKey);
+  if (slugs.isEmpty) return null;
+  final parts = <String>[];
+  for (final s in slugs) {
+    parts.add(CapabilityTag.fromSlug(s)?.labelOf(l10n) ?? s);
+  }
+  return parts.join(' · ');
 }

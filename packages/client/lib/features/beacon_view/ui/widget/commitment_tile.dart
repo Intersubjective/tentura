@@ -7,6 +7,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
+import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -16,7 +17,7 @@ import '../bloc/beacon_view_state.dart';
 // for now only Active / Withdrawn are shown (see TimelineCommitment).
 // TODO(contract): [CommitmentOfferType] wire keys vs product enum — map helpType strings when schema aligns.
 
-/// Compact commitment row: technical / minimal, no pill badges, no filled in-card actions.
+/// Compact commitment row: technical / minimal; capability help_type as read-only chips.
 class CommitmentTile extends StatelessWidget {
   const CommitmentTile({
     required this.commitment,
@@ -64,7 +65,8 @@ class CommitmentTile extends StatelessWidget {
       l10n,
       commitment.coordinationResponse,
     );
-    final offerLabel = helpTypeLabel(l10n, commitment.helpType);
+    final helpTypeSlugs = commitmentHelpTypeSlugs(commitment.helpType);
+    final showHelpTypeChips = helpTypeSlugs.isNotEmpty;
     // Active / Withdrawn only (spec allows more states later).
     final stateCaption =
         isWithdrawn ? l10n.labelWithdrawn : l10n.beaconsFilterActive;
@@ -154,13 +156,13 @@ class CommitmentTile extends StatelessWidget {
                   ),
               ],
             ),
-            if (offerLabel != null) ...[
+            if (showHelpTypeChips) ...[
               const SizedBox(height: _rowGap),
-              TenturaTypeLabel(offerLabel),
+              CapabilitySlugReadonlyChips(slugs: helpTypeSlugs),
             ],
             if (commitment.message.isNotEmpty) ...[
-              if (offerLabel == null) const SizedBox(height: _rowGap),
-              if (offerLabel != null) const SizedBox(height: 6),
+              if (!showHelpTypeChips) const SizedBox(height: _rowGap),
+              if (showHelpTypeChips) const SizedBox(height: 6),
               Text(
                 commitment.message,
                 style: TenturaText.body(theme.colorScheme.onSurface),
