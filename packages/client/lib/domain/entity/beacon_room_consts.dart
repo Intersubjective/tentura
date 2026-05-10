@@ -25,6 +25,15 @@ abstract final class BeaconNextMoveSourceBits {
   static const stewardOrAuthor = 2;
 }
 
+/// Mirrors server [BeaconNextMoveStatusBits] (`beacon_participant.next_move_status`).
+abstract final class BeaconNextMoveStatusBits {
+  static const active = 0;
+  static const requested = 1;
+  static const done = 2;
+  static const declined = 3;
+  static const obsolete = 4;
+}
+
 /// Mirrors server [BeaconRoomSemanticMarker].
 abstract final class BeaconRoomSemanticMarker {
   static const updatePlan = 1;

@@ -20,8 +20,36 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../bloc/beacon_view_state.dart';
 import '../../util/beacon_chip_derivation.dart';
+import '../../util/beacon_closure_readiness.dart';
+import '../../util/beacon_hud_derivation.dart';
 
 const double _kOverviewSectionGap = 12;
+
+Widget _closureEvidenceRow(
+  ColorScheme scheme,
+  String text, {
+  required bool ok,
+}) =>
+    Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            ok ? Icons.check_circle_outline : Icons.info_outline,
+            size: 18,
+            color: ok ? scheme.primary : scheme.outline,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TenturaText.body(scheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
 
 BeaconOverviewSectionCard? _roomCueSectionCard(
   String beaconId,
@@ -234,17 +262,28 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
   }
 }
 
-class BeaconOverviewTab extends StatelessWidget {
-  const BeaconOverviewTab({
+class BeaconStatusDashboard extends StatelessWidget {
+  const BeaconStatusDashboard({
     required this.state,
     required this.onViewAllCommitments,
     required this.onEditTimelineUpdate,
+    this.onClosureCloseBeacon,
+    this.onClosurePostUpdate,
+    this.onClosureForward,
+    this.onClosureOpenPeople,
+    this.onClosureResolveRoom,
     super.key,
   });
 
   final BeaconViewState state;
   final VoidCallback onViewAllCommitments;
   final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
+
+  final VoidCallback? onClosureCloseBeacon;
+  final VoidCallback? onClosurePostUpdate;
+  final VoidCallback? onClosureForward;
+  final VoidCallback? onClosureOpenPeople;
+  final VoidCallback? onClosureResolveRoom;
 
   @override
   Widget build(BuildContext context) {
@@ -292,7 +331,6 @@ class BeaconOverviewTab extends StatelessWidget {
 
     final publicRoomCard = BeaconOverviewSectionCard(
       storageId: 'ov-${beacon.id}-pub',
-      collapsible: false,
       title: l10n.beaconPublicStatusCardTitle,
       summary: _publicStatusLine(l10n, beacon.publicStatus),
       meta: beacon.lastPublicMeaningfulChange?.trim().isNotEmpty ?? false
@@ -351,15 +389,163 @@ class BeaconOverviewTab extends StatelessWidget {
     final roomCueOverviewCard =
         _roomCueSectionCard(beacon.id, scheme, state.beaconRoomCue, l10n);
 
+    final nowPanel = BeaconOverviewSectionCard(
+      storageId: 'ov-${beacon.id}-now',
+      collapsible: false,
+      title: l10n.beaconHudSituationPanelTitle,
+      summary: '',
+      icon: Icons.radar_outlined,
+      expanded: Align(
+        alignment: Alignment.centerLeft,
+        child: SelectableText(
+          beaconHudNowExpandedBody(l10n, state),
+          style: TenturaText.body(scheme.onSurfaceVariant),
+        ),
+      ),
+    );
+
+    final youPanel = BeaconOverviewSectionCard(
+      storageId: 'ov-${beacon.id}-you',
+      collapsible: false,
+      title: l10n.beaconHudYourRolePanelTitle,
+      summary: '',
+      icon: Icons.person_pin_outlined,
+      expanded: Align(
+        alignment: Alignment.centerLeft,
+        child: SelectableText(
+          beaconHudYouLine(l10n, state),
+          style: TenturaText.body(scheme.onSurfaceVariant),
+        ),
+      ),
+    );
+
+    BeaconOverviewSectionCard? closurePanel;
+    if (state.isBeaconMine && beacon.lifecycle == BeaconLifecycle.open) {
+      final readiness = state.closureReadiness;
+      final summary = buildClosureConfirmationSummary(state);
+      final (title, body) = switch (readiness) {
+        BeaconClosureReadiness.readyToClose => (
+            l10n.beaconClosurePanelTitleReady,
+            l10n.beaconClosurePanelBodyReady,
+          ),
+        BeaconClosureReadiness.waitingForReview => (
+            l10n.beaconClosurePanelTitleReview,
+            l10n.beaconClosurePanelBodyReview,
+          ),
+        BeaconClosureReadiness.premature => (
+            l10n.beaconClosurePanelTitlePremature,
+            l10n.beaconClosurePanelBodyPremature,
+          ),
+        BeaconClosureReadiness.blocked => (
+            l10n.beaconClosurePanelTitleBlocked,
+            l10n.beaconClosurePanelBodyBlocked,
+          ),
+        BeaconClosureReadiness.notCloseable => (
+            l10n.beaconClosurePanelTitlePremature,
+            l10n.beaconClosurePanelBodyPremature,
+          ),
+      };
+
+      closurePanel = BeaconOverviewSectionCard(
+        storageId: 'ov-${beacon.id}-closure',
+        defaultOpen: true,
+        title: title,
+        summary: body,
+        icon: Icons.flag_outlined,
+        expanded: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.beaconClosurePanelEvidenceHeading,
+              style: TenturaText.typeLabel(scheme.onSurface),
+            ),
+            const SizedBox(height: 8),
+            _closureEvidenceRow(
+              scheme,
+              summary.hasOpenBlocker
+                  ? l10n.beaconCloseSheetEvidenceOpenBlocker
+                  : l10n.beaconCloseSheetEvidenceNoOpenBlocker,
+              ok: !summary.hasOpenBlocker,
+            ),
+            if (summary.hasWholeBeaconDoneSignal)
+              _closureEvidenceRow(
+                scheme,
+                l10n.beaconCloseSheetEvidenceWholeBeaconDone,
+                ok: true,
+              ),
+            if (summary.enoughHelpCommitted)
+              _closureEvidenceRow(
+                scheme,
+                l10n.beaconCloseSheetEvidenceEnoughHelp,
+                ok: true,
+              ),
+            if (summary.hasSuccessfulCommitmentResult)
+              _closureEvidenceRow(
+                scheme,
+                l10n.beaconCloseSheetEvidenceUsefulOrDone,
+                ok: true,
+              ),
+            if (summary.unsettledRelevantCount > 0)
+              _closureEvidenceRow(
+                scheme,
+                l10n.beaconCloseSheetEvidenceUnsettledCount(
+                  summary.unsettledRelevantCount,
+                ),
+                ok: false,
+              ),
+            if (summary.unansweredCommitmentsCount > 0)
+              _closureEvidenceRow(
+                scheme,
+                l10n.beaconCloseSheetEvidenceUnansweredCount(
+                  summary.unansweredCommitmentsCount,
+                ),
+                ok: false,
+              ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (onClosureCloseBeacon != null)
+                  FilledButton(
+                    onPressed: onClosureCloseBeacon,
+                    child: Text(l10n.beaconCloseSheetActionCloseBeacon),
+                  ),
+                if (onClosurePostUpdate != null)
+                  OutlinedButton(
+                    onPressed: onClosurePostUpdate,
+                    child: Text(l10n.beaconCloseSheetActionPostUpdate),
+                  ),
+                if (onClosureForward != null)
+                  OutlinedButton(
+                    onPressed: onClosureForward,
+                    child: Text(l10n.labelForward),
+                  ),
+                if (onClosureOpenPeople != null)
+                  OutlinedButton(
+                    onPressed: onClosureOpenPeople,
+                    child: Text(l10n.beaconCloseSheetActionOpenPeople),
+                  ),
+                if (readiness == BeaconClosureReadiness.blocked &&
+                    onClosureResolveRoom != null)
+                  OutlinedButton(
+                    onPressed: onClosureResolveRoom,
+                    child: Text(l10n.beaconCloseSheetActionResolveRoom),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     final children = <Widget>[
-      publicRoomCard,
-      if (roomCueOverviewCard != null) ...[
+      nowPanel,
+      const SizedBox(height: _kOverviewSectionGap),
+      youPanel,
+      if (closurePanel != null) ...[
         const SizedBox(height: _kOverviewSectionGap),
-        roomCueOverviewCard,
-      ],
-      if (factsCard != null) ...[
-        const SizedBox(height: _kOverviewSectionGap),
-        factsCard,
+        closurePanel,
       ],
       const SizedBox(height: _kOverviewSectionGap),
       if (beacon.hasNeedSummary) ...[
@@ -398,6 +584,16 @@ class BeaconOverviewTab extends StatelessWidget {
         const SizedBox(height: _kOverviewSectionGap),
         coordinationCard,
       ],
+      if (factsCard != null) ...[
+        const SizedBox(height: _kOverviewSectionGap),
+        factsCard,
+      ],
+      const SizedBox(height: _kOverviewSectionGap),
+      publicRoomCard,
+      if (roomCueOverviewCard != null) ...[
+        const SizedBox(height: _kOverviewSectionGap),
+        roomCueOverviewCard,
+      ],
     ];
 
     final content = Column(
@@ -405,7 +601,7 @@ class BeaconOverviewTab extends StatelessWidget {
       children: children,
     );
 
-    // `BeaconOverviewTab` is embedded into an outer scroll on the real screen,
+    // `BeaconStatusDashboard` is embedded into an outer scroll on the real screen,
     // but tests often mount it directly into a `Scaffold` body. In that case,
     // use an internal scroll view to avoid overflow errors.
     final isInsideScrollable = Scrollable.maybeOf(context) != null;

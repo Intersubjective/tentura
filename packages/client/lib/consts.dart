@@ -74,6 +74,10 @@ const kBeaconEntryRoomNotification = 'room_notification';
 const kBeaconEntryDeepLink = 'deep_link';
 const kBeaconEntryUnknown = 'unknown';
 
+/// When false, blocked closure readiness hides author Close (HUD + overflow).
+/// Product may enable force-close despite unresolved blockers later.
+const kBeaconAllowForceCloseWhenBlocked = false;
+
 /// First part of FQDN: `https://app.server.name`
 const kServerName = String.fromEnvironment(
   'SERVER_NAME',

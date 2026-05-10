@@ -1814,7 +1814,7 @@
   "@beaconUpdatesEmpty": {
     "context": "BeaconViewScreen"
   },
-  "postUpdateCTA": "Post update",
+  "postUpdateCTA": "Update",
   "@postUpdateCTA": {
     "context": "BeaconViewScreen"
   },
@@ -2263,7 +2263,118 @@
   "labelBeaconCoordinationSummary": "Coverage on this beacon",
   "coordinationSetOverallStatus": "Set overall coordination status",
   "labelBeaconTabOverview": "Overview",
+  "labelBeaconTabStatus": "Status",
   "labelBeaconTabActivity": "Timeline",
+  "labelBeaconTabLog": "Log",
+  "beaconHudNowLabel": "NOW",
+  "beaconHudYouLabel": "YOU",
+  "beaconHudNoCurrentPlan": "No current plan yet",
+  "beaconHudSituationPanelTitle": "Situation",
+  "beaconHudYourRolePanelTitle": "Your role",
+  "beaconHudYouAuthorReview": "Review {count} commitment(s)",
+  "@beaconHudYouAuthorReview": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHudYouAuthorIdle": "Author · update plan if needed",
+  "beaconHudYouAuthorResolveBlocker": "Resolve or update the blocker",
+  "beaconHudYouCommitted": "You committed — keep helpers aligned",
+  "beaconHudYouAskedToHelp": "Asked to help — respond or watch",
+  "beaconHudYouWatching": "Watching",
+  "beaconHudYouCanCommit": "You can commit",
+  "beaconHudYouNoAction": "No current action",
+  "beaconHudLifecycleActive": "ACTIVE",
+  "beaconHudLifecycleClosed": "CLOSED",
+  "beaconHudEnoughHelp": "ENOUGH HELP",
+  "beaconHudLifecycleDeleted": "DELETED",
+  "beaconHudBlocked": "BLOCKED",
+  "beaconHudNowBlocked": "Blocked: {title}",
+  "@beaconHudNowBlocked": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "beaconHudBeaconUnavailable": "Beacon unavailable",
+  "beaconHudYouNoActionAvailable": "No action available",
+  "beaconHudYouForward": "You can forward",
+  "beaconHudReviewOpen": "REVIEW OPEN",
+  "beaconHudTokenCommittedCount": "{count} committed",
+  "@beaconHudTokenCommittedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHudTokenNeedCoordCount": "{count} need coordination",
+  "@beaconHudTokenNeedCoordCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconHudNextMovePrefix": "Next: {text}",
+  "@beaconHudNextMovePrefix": {
+    "placeholders": {
+      "text": { "type": "String" }
+    }
+  },
+  "beaconHudClosedSummary": "Closed",
+  "beaconHudResolveBlocker": "Resolve",
+  "beaconHudOverflowMore": "More actions",
+  "beaconHudOverflowCloseBeacon": "Close beacon…",
+  "beaconHudYouAuthorReadyToClose": "Close the loop",
+  "beaconHudYouAuthorReviewBeforeClose": "Review commitments before closing",
+  "beaconHudYouAuthorCoordinationActive": "Coordination still active — update or forward",
+  "beaconHudTokenReadyToClose": "READY TO CLOSE",
+  "beaconHudTokenReviewBeforeClose": "REVIEW BEFORE CLOSE",
+  "beaconHudTokenClosureBlocked": "CLOSURE BLOCKED",
+  "beaconHudCtaReviewContributions": "Review",
+  "beaconHudCtaOpenLog": "Log",
+  "beaconCloseSheetReadyTitle": "Close beacon?",
+  "beaconCloseSheetReadyBody": "This marks the beacon complete and opens contribution acknowledgement.",
+  "beaconCloseSheetReviewTitle": "Close after review?",
+  "beaconCloseSheetReviewBody": "This beacon may be ready, but some items still need your judgment.",
+  "beaconCloseSheetPrematureTitle": "Close now?",
+  "beaconCloseSheetPrematureBody": "There is not enough completion evidence yet. Closing now may skip coordination context.",
+  "beaconCloseSheetBlockedTitle": "Resolve before closing",
+  "beaconCloseSheetBlockedBody": "Unresolved coordination or blockers should be cleared before a clean close.",
+  "beaconCloseSheetEvidenceOpenBlocker": "Open blocker present",
+  "beaconCloseSheetEvidenceNoOpenBlocker": "No open blocker",
+  "beaconCloseSheetEvidenceWholeBeaconDone": "Whole beacon marked done",
+  "beaconCloseSheetEvidenceEnoughHelp": "Enough help committed",
+  "beaconCloseSheetEvidenceUsefulOrDone": "Useful or done result present",
+  "beaconCloseSheetEvidenceUnsettledCount": "{count} commitment(s) not settled",
+  "@beaconCloseSheetEvidenceUnsettledCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconCloseSheetEvidenceUnansweredCount": "{count} commitment(s) await coordination review",
+  "@beaconCloseSheetEvidenceUnansweredCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "beaconCloseSheetActionCloseBeacon": "Close beacon",
+  "beaconCloseSheetActionCloseAnyway": "Close anyway",
+  "beaconCloseSheetActionKeepActive": "Keep active",
+  "beaconCloseSheetActionOpenPeople": "Open People",
+  "beaconCloseSheetActionPostUpdate": "Post update",
+  "beaconCloseSheetActionResolveRoom": "Open room",
+  "beaconCloseSheetActionNotNow": "Not now",
+  "beaconCloseSheetBlockedForceHint": "Closing despite blockers is disabled.",
+  "beaconClosurePanelTitleReady": "Close the loop",
+  "beaconClosurePanelTitleReview": "Review before closing",
+  "beaconClosurePanelTitlePremature": "Closure not ready",
+  "beaconClosurePanelTitleBlocked": "Resolve before closing",
+  "beaconClosurePanelBodyReady": "The beacon looks ready to close from coordination signals.",
+  "beaconClosurePanelBodyReview": "Closure may be plausible — check commitments and room state first.",
+  "beaconClosurePanelBodyPremature": "There is not enough completion evidence yet.",
+  "beaconClosurePanelBodyBlocked": "Closure is blocked until unresolved coordination clears.",
+  "beaconClosurePanelEvidenceHeading": "Signals",
+  "beaconPeopleLensAuthorHeading": "Author",
+  "beaconPeopleLensActiveHelpersHeading": "Active helpers",
+  "beaconPeopleLensWithdrawnHeading": "Withdrawn",
+  "beaconPeopleLensNeedsAttentionHeading": "Needs coordination",
   "beaconCtaUpdateStatus": "Update status",
   "beaconCtaEditCommitment": "Edit commitment",
   "beaconCtaViewChain": "View chain",
