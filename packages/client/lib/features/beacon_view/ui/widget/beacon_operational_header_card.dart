@@ -533,32 +533,34 @@ class _HudLabeledMultiline extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Semantics(
       label: '$label $text',
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 44,
-            child: Text(
-              label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: mutedColor,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1,
+      child: ExcludeSemantics(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 44,
+              child: Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: mutedColor,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1,
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              text,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurface,
-                height: 1.25,
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurface,
+                  height: 1.25,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -642,22 +644,23 @@ class _HudPersonToken extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       label: semanticLabel,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          TenturaAvatar(profile: profile, size: 28),
-          if (isAuthor)
-            Positioned(
-              right: -2,
-              bottom: -2,
-              child: Icon(
-                Icons.star_rounded,
-                size: 14,
-                semanticLabel: L10n.of(context)!.beaconPeopleLensAuthorHeading,
-                color: Theme.of(context).colorScheme.primary,
+      child: ExcludeSemantics(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            TenturaAvatar(profile: profile, size: 28),
+            if (isAuthor)
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Icon(
+                  Icons.star_rounded,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -675,7 +678,8 @@ class _HudActionRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      // Default cross-axis is center. Avoid stretch: header sits in a sliver with
+      // unbounded height, and stretch would pass infinite extent to children.
       children: [
         for (var i = 0; i < actions.length; i++) ...[
           if (i != 0) const SizedBox(width: 8),
