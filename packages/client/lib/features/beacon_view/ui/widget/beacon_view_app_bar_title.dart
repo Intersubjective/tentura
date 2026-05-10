@@ -5,8 +5,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
-import 'beacon_anchor_status.dart';
-
 /// AppBar title: beacon identity tile, elided title, single-line anchor status.
 ///
 /// Optional [onTap] makes the whole row (icon + title + status) a surface switch
@@ -15,7 +13,8 @@ import 'beacon_anchor_status.dart';
 class BeaconViewAppBarTitle extends StatelessWidget {
   const BeaconViewAppBarTitle({
     required this.beacon,
-    required this.activeCommitCount,
+    required this.statusLine,
+    required this.statusTone,
     required this.l10n,
     this.onTap,
     this.tooltipMessage,
@@ -24,7 +23,13 @@ class BeaconViewAppBarTitle extends StatelessWidget {
   });
 
   final Beacon beacon;
-  final int activeCommitCount;
+
+  /// Single-line operational status (caller chooses terse vs full).
+  final String statusLine;
+
+  /// Semantic tone for [statusLine].
+  final TenturaTone statusTone;
+
   final L10n l10n;
 
   /// Switch beacon surface (status ↔ room). Null ⇒ not interactive.
@@ -42,9 +47,6 @@ class BeaconViewAppBarTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final statusLine =
-        beaconAnchorStatusLine(l10n, beacon, activeCommitCount);
-    final tone = beaconAnchorStatusTone(beacon.coordinationStatus);
     final titleText =
         beacon.title.isEmpty ? l10n.beaconViewTitle : beacon.title;
 
@@ -66,11 +68,11 @@ class BeaconViewAppBarTitle extends StatelessWidget {
                 titleText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TenturaText.title(scheme.onSurface),
+                style: TenturaText.titleSmall(scheme.onSurface),
               ),
               TenturaStatusText(
                 statusLine,
-                tone: tone,
+                tone: statusTone,
               ),
             ],
           ),

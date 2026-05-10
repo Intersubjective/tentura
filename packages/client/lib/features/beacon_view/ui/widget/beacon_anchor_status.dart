@@ -24,3 +24,18 @@ String beaconAnchorStatusLine(
       : l10n.beaconHeaderCommitmentsCount(activeCommitCount);
   return '$coord · $committedPart';
 }
+
+/// Terse anchor line for compact surfaces (e.g. AppBar): ALL-CAPS code · count.
+String beaconAnchorStatusLineShort(
+  Beacon beacon,
+  int activeCommitCount,
+) =>
+    switch (beacon.coordinationStatus) {
+      BeaconCoordinationStatus.noCommitmentsYet => 'IDLE',
+      BeaconCoordinationStatus.commitmentsWaitingForReview =>
+        activeCommitCount > 0 ? 'REVIEW · $activeCommitCount' : 'REVIEW',
+      BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
+        activeCommitCount > 0 ? 'GAP · $activeCommitCount' : 'GAP',
+      BeaconCoordinationStatus.enoughHelpCommitted =>
+        activeCommitCount > 0 ? 'OK · $activeCommitCount' : 'OK',
+    };
