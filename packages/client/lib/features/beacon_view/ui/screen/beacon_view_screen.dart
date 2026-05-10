@@ -467,51 +467,21 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
   }
 
-  Widget? _surfaceModeToggle({
-    required BuildContext context,
-    required BeaconViewState state,
-  }) {
-    final l10n = L10n.of(context)!;
+  String _beaconViewSurfaceSwitchTooltip(
+    BeaconViewState state,
+    L10n l10n,
+  ) {
     if (_surfaceMode == BeaconSurfaceMode.status) {
       final enabled = state.canNavigateBeaconRoom;
-      final label = l10n.beaconRoomOpen;
-      final child = TextButton.icon(
-        onPressed: enabled ? () => _onToggleSurface(state) : null,
-        icon: const Icon(Icons.forum_outlined),
-        label: Text(label),
-        style: TextButton.styleFrom(
-          foregroundColor: Theme.of(context).colorScheme.onSurface,
-        ),
-      );
-      final decorated = state.roomUnreadCount > 0 && enabled
-          ? Badge(
-              label: Text('${state.roomUnreadCount}'),
-              child: child,
-            )
-          : child;
-      return Tooltip(
-        message: enabled
-            ? label
-            : (state.isRoomAdmissionBlocked
-                  ? (state.coordinationDeniesRoomAdmission
-                        ? l10n.beaconRoomNoAdmission
-                        : l10n.beaconRoomWaitingForApproval)
-                  : l10n.beaconViewRoomAccessUnavailableBanner),
-        child: decorated,
-      );
+      return enabled
+          ? l10n.beaconRoomOpen
+          : (state.isRoomAdmissionBlocked
+                ? (state.coordinationDeniesRoomAdmission
+                      ? l10n.beaconRoomNoAdmission
+                      : l10n.beaconRoomWaitingForApproval)
+                : l10n.beaconViewRoomAccessUnavailableBanner);
     }
-
-    return Tooltip(
-      message: l10n.beaconViewSurfaceStatusAction,
-      child: TextButton.icon(
-        onPressed: () => _onToggleSurface(state),
-        icon: const Icon(Icons.dashboard_outlined),
-        label: Text(l10n.beaconViewSurfaceStatusAction),
-        style: TextButton.styleFrom(
-          foregroundColor: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
-    );
+    return l10n.beaconViewSurfaceStatusAction;
   }
 
   @override
@@ -606,18 +576,23 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     .where((c) => !c.isWithdrawn)
                     .length,
                 l10n: l10n,
+                onTap: !showInitialLoading &&
+                        (_surfaceMode == BeaconSurfaceMode.room ||
+                            state.canNavigateBeaconRoom)
+                    ? () => _onToggleSurface(state)
+                    : null,
+                tooltipMessage: !showInitialLoading
+                    ? _beaconViewSurfaceSwitchTooltip(state, l10n)
+                    : null,
+                roomUnreadBadgeCount:
+                    !showInitialLoading &&
+                            _surfaceMode == BeaconSurfaceMode.status &&
+                            state.canNavigateBeaconRoom &&
+                            state.roomUnreadCount > 0
+                        ? state.roomUnreadCount
+                        : null,
               ),
               actions: [
-                if (!showInitialLoading)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Align(
-                      child: _surfaceModeToggle(
-                        context: context,
-                        state: state,
-                      ),
-                    ),
-                  ),
                 _beaconViewAppBarOverflow(
                   context: context,
                   state: state,
