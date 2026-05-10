@@ -1155,7 +1155,8 @@ class BeaconRoomRepository {
             ..where((m) {
               var cond = m.beaconId.equals(beaconId);
               if (excludeSelf) {
-                cond = cond & m.authorId.isNotValue(exclude);
+                // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
+                cond = cond & m.authorId.equals(exclude).not();
               }
               return cond;
             }))
@@ -1167,7 +1168,8 @@ class BeaconRoomRepository {
             var cond = m.beaconId.equals(beaconId) &
                 m.createdAt.isBiggerThanValue(PgDateTime(after));
             if (excludeSelf) {
-              cond = cond & m.authorId.isNotValue(exclude);
+              // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
+              cond = cond & m.authorId.equals(exclude).not();
             }
             return cond;
           }))
