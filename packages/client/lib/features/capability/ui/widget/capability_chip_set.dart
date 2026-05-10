@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// A grouped, selectable chip set for capability tags.
@@ -162,26 +163,13 @@ class _GroupSection extends StatelessWidget {
           runSpacing: 4,
           children: [
             for (final tag in tags)
-              FilterChip(
-                label: Text(tag.labelOf(l10n)),
-                avatar: Icon(tag.icon, size: 18),
-                showCheckmark: false,
+              CapabilityTagFilterChip(
+                tag: tag,
+                l10n: l10n,
+                theme: theme,
                 selected: selectedSlugs.contains(tag.slug),
+                isAutomatic: automaticSlugs.contains(tag.slug),
                 onSelected: (v) => onToggle(tag.slug, v),
-                selectedColor: automaticSlugs.contains(tag.slug)
-                    ? theme.colorScheme.secondaryContainer
-                    : null,
-                backgroundColor: automaticSlugs.contains(tag.slug)
-                    ? theme.colorScheme.secondaryContainer
-                        .withValues(alpha: 0.55)
-                    : null,
-                side: automaticSlugs.contains(tag.slug)
-                    ? BorderSide(
-                        color: theme.colorScheme.secondary
-                            .withValues(alpha: 0.7),
-                        width: 1.5,
-                      )
-                    : null,
               ),
           ],
         ),
