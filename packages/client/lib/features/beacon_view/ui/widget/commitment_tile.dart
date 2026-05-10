@@ -14,7 +14,7 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 import '../bloc/beacon_view_state.dart';
 
 // TODO(contract): [CommitmentState] inProgress / done when backend exposes lifecycle;
-// for now only Active / Withdrawn are shown (see TimelineCommitment).
+// for now only withdrawn is labeled in-row; active commitments have no status chip.
 // TODO(contract): [CommitmentOfferType] wire keys vs product enum — map helpType strings when schema aligns.
 
 /// Compact commitment row: technical / minimal; capability help_type as read-only chips.
@@ -59,7 +59,6 @@ class CommitmentTile extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final isWithdrawn = commitment.isWithdrawn;
-    final opacity = isWithdrawn ? 0.55 : 1.0;
     final dateShown = isWithdrawn ? commitment.updatedAt : commitment.createdAt;
     final coordinationLabel = coordinationResponseLabel(
       l10n,
@@ -67,164 +66,153 @@ class CommitmentTile extends StatelessWidget {
     );
     final helpTypeSlugs = commitmentHelpTypeSlugs(commitment.helpType);
     final showHelpTypeChips = helpTypeSlugs.isNotEmpty;
-    // Active / Withdrawn only (spec allows more states later).
-    final stateCaption =
-        isWithdrawn ? l10n.labelWithdrawn : l10n.beaconsFilterActive;
     final showForwardPathButton =
         !isWithdrawn && commitment.user.id != beaconAuthorId;
 
-    return Opacity(
-      opacity: opacity,
-      child: TenturaTechCardStatic(
-        isOwned: isMine,
-        showShadow: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: isMine
-                      ? null
-                      : () => context.read<ScreenCubit>().showProfile(
-                            commitment.user.id,
-                          ),
-                  child: TenturaAvatar(profile: commitment.user),
-                ),
-                const SizedBox(width: _contentGap),
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            BlocBuilder<ProfileCubit, ProfileState>(
-                              buildWhen: (p, c) => p.profile.id != c.profile.id,
-                              builder: (context, state) {
-                                final titleSmall = theme.textTheme.titleSmall!;
-                                final isSelf = SelfUserHighlight.profileIsSelf(
+    return TenturaTechCardStatic(
+      isOwned: isMine && !isWithdrawn,
+      showShadow: !isWithdrawn,
+      surfaceOverride: isWithdrawn ? tt.bg : null,
+      borderOverride: isWithdrawn ? tt.borderSubtle : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: isMine
+                    ? null
+                    : () => context.read<ScreenCubit>().showProfile(
+                        commitment.user.id,
+                      ),
+                child: TenturaAvatar(profile: commitment.user),
+              ),
+              const SizedBox(width: _contentGap),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          BlocBuilder<ProfileCubit, ProfileState>(
+                            buildWhen: (p, c) => p.profile.id != c.profile.id,
+                            builder: (context, state) {
+                              final titleSmall = theme.textTheme.titleSmall!;
+                              final isSelf = SelfUserHighlight.profileIsSelf(
+                                commitment.user,
+                                state.profile.id,
+                              );
+                              return Text(
+                                SelfUserHighlight.displayName(
+                                  l10n,
                                   commitment.user,
                                   state.profile.id,
-                                );
-                                return Text(
-                                  SelfUserHighlight.displayName(
-                                    l10n,
-                                    commitment.user,
-                                    state.profile.id,
-                                  ),
-                                  style: isSelf
-                                      ? SelfUserHighlight.nameStyle(
-                                          theme,
-                                          titleSmall,
-                                          true,
-                                        )
-                                      : titleSmall.copyWith(
-                                          color: theme.colorScheme.onSurface,
-                                        ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 2),
-                            TenturaMetaText(
-                              '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'
-                              '${commitment.isEdited ? ' · ${l10n.labelEdited}' : ''}',
-                            ),
-                          ],
-                        ),
+                                ),
+                                style: isSelf
+                                    ? SelfUserHighlight.nameStyle(
+                                        theme,
+                                        titleSmall,
+                                        true,
+                                      )
+                                    : titleSmall.copyWith(
+                                        color: theme.colorScheme.onSurface,
+                                      ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 2),
+                          TenturaMetaText(
+                            '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'
+                            '${commitment.isEdited ? ' · ${l10n.labelEdited}' : ''}',
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
+                    ),
+                    const SizedBox(width: 6),
                       if (isWithdrawn)
-                        TenturaStatusText(
-                          stateCaption,
-                          tone: TenturaTone.danger,
-                        )
-                      else
-                        TenturaStatusText(stateCaption),
-                    ],
-                  ),
-                ),
-                if (showForwardPathButton)
-                  IconButton(
-                    icon: const Icon(TenturaIcons.graph),
-                    tooltip: l10n.committerForwardPathTooltip,
-                    onPressed: () => context
-                        .read<ScreenCubit>()
-                        .showCommitterForwardPathFor(
-                          beaconId: beaconId,
-                          committerId: commitment.user.id,
-                          committerName: commitment.user.title,
-                        ),
-                  ),
-              ],
-            ),
-            if (showHelpTypeChips) ...[
-              const SizedBox(height: _rowGap),
-              CapabilitySlugReadonlyChips(slugs: helpTypeSlugs),
-            ],
-            if (commitment.message.isNotEmpty) ...[
-              if (!showHelpTypeChips) const SizedBox(height: _rowGap),
-              if (showHelpTypeChips) const SizedBox(height: 6),
-              Text(
-                commitment.message,
-                style: TenturaText.body(theme.colorScheme.onSurface),
-              ),
-            ],
-            if (!isWithdrawn &&
-                (coordinationLabel != null ||
-                    (isAuthorView && onAuthorTapCoordination != null))) ...[
-              const SizedBox(height: _rowGap),
-              const TenturaHairlineDivider(subtle: false),
-              const SizedBox(height: 8),
-              _AuthorFooter(
-                l10n: l10n,
-                tt: tt,
-                coordinationLabel: coordinationLabel,
-                responseType: commitment.coordinationResponse,
-                authorLabelColor: commitment.coordinationResponse != null
-                    ? _authorLabelColor(
-                        tt,
-                        commitment.coordinationResponse!,
-                      )
-                    : tt.textMuted,
-                isAuthorView: isAuthorView,
-                onAuthorTapCoordination: onAuthorTapCoordination,
-              ),
-            ],
-            if (isMine && !isWithdrawn && (onEdit != null || onWithdraw != null))
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  children: [
-                    if (onEdit != null)
-                      TenturaTextAction(
-                        label: l10n.commitmentsTabActionEdit,
-                        onPressed: onEdit,
-                      ),
-                    if (onEdit != null && onWithdraw != null)
-                      const SizedBox(width: 4),
-                    if (onWithdraw != null)
-                      TenturaTextAction(
-                        label: l10n.commitmentsTabActionWithdraw,
-                        onPressed: onWithdraw,
-                        tone: TenturaTone.danger,
-                      ),
+                        TenturaStatusText(l10n.labelWithdrawn),
                   ],
                 ),
               ),
-            if (isWithdrawn &&
-                uncommitReasonLabel(l10n, commitment.uncommitReason) !=
-                    null) ...[
-              const SizedBox(height: 8),
-              Text(
-                uncommitReasonLabel(l10n, commitment.uncommitReason)!,
-                style: TenturaText.bodySmall(tt.textMuted),
-              ),
+              if (showForwardPathButton)
+                IconButton(
+                  icon: const Icon(TenturaIcons.graph),
+                  tooltip: l10n.committerForwardPathTooltip,
+                  onPressed: () =>
+                      context.read<ScreenCubit>().showCommitterForwardPathFor(
+                        beaconId: beaconId,
+                        committerId: commitment.user.id,
+                        committerName: commitment.user.title,
+                      ),
+                ),
             ],
+          ),
+          if (showHelpTypeChips) ...[
+            const SizedBox(height: _rowGap),
+            CapabilitySlugReadonlyChips(slugs: helpTypeSlugs),
           ],
-        ),
+          if (commitment.message.isNotEmpty) ...[
+            if (!showHelpTypeChips) const SizedBox(height: _rowGap),
+            if (showHelpTypeChips) const SizedBox(height: 6),
+            Text(
+              commitment.message,
+              style: TenturaText.body(theme.colorScheme.onSurface),
+            ),
+          ],
+          if (!isWithdrawn &&
+              (coordinationLabel != null ||
+                  (isAuthorView && onAuthorTapCoordination != null))) ...[
+            const SizedBox(height: _rowGap),
+            const TenturaHairlineDivider(subtle: false),
+            const SizedBox(height: 8),
+            _AuthorFooter(
+              l10n: l10n,
+              tt: tt,
+              coordinationLabel: coordinationLabel,
+              responseType: commitment.coordinationResponse,
+              authorLabelColor: commitment.coordinationResponse != null
+                  ? _authorLabelColor(
+                      tt,
+                      commitment.coordinationResponse!,
+                    )
+                  : tt.textMuted,
+              isAuthorView: isAuthorView,
+              onAuthorTapCoordination: onAuthorTapCoordination,
+            ),
+          ],
+          if (isMine && !isWithdrawn && (onEdit != null || onWithdraw != null))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  if (onEdit != null)
+                    TenturaTextAction(
+                      label: l10n.commitmentsTabActionEdit,
+                      onPressed: onEdit,
+                    ),
+                  if (onEdit != null && onWithdraw != null)
+                    const SizedBox(width: 4),
+                  if (onWithdraw != null)
+                    TenturaTextAction(
+                      label: l10n.commitmentsTabActionWithdraw,
+                      onPressed: onWithdraw,
+                      tone: TenturaTone.danger,
+                    ),
+                ],
+              ),
+            ),
+          if (isWithdrawn &&
+              uncommitReasonLabel(l10n, commitment.uncommitReason) != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              uncommitReasonLabel(l10n, commitment.uncommitReason)!,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+          ],
+        ],
       ),
     );
   }

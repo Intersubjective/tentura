@@ -11,6 +11,8 @@ class TenturaTechCard extends StatelessWidget {
     this.onTap,
     this.padding,
     this.showShadow = false,
+    this.surfaceOverride,
+    this.borderOverride,
   });
 
   final Widget child;
@@ -19,15 +21,21 @@ class TenturaTechCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final bool showShadow;
 
+  /// When non-null, used instead of [TenturaTokens.surface] for the card fill.
+  final Color? surfaceOverride;
+
+  /// When non-null, used instead of the default hairline border color.
+  final Color? borderOverride;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final effectivePadding = padding ?? tt.cardPadding;
-    final borderColor = isOwned
-        ? tt.info.withValues(alpha: 0.3)
-        : tt.border;
+    final borderColor =
+        borderOverride ??
+        (isOwned ? tt.info.withValues(alpha: 0.3) : tt.border);
     return Material(
-      color: tt.surface,
+      color: surfaceOverride ?? tt.surface,
       shadowColor: showShadow
           ? Colors.black.withValues(alpha: 0.04)
           : Colors.transparent,
@@ -60,6 +68,8 @@ class TenturaTechCardStatic extends StatelessWidget {
     this.isOwned = false,
     this.padding,
     this.showShadow = false,
+    this.surfaceOverride,
+    this.borderOverride,
   });
 
   final Widget child;
@@ -67,16 +77,22 @@ class TenturaTechCardStatic extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final bool showShadow;
 
+  /// When non-null, used instead of [TenturaTokens.surface] for the card fill.
+  final Color? surfaceOverride;
+
+  /// When non-null, used instead of the default hairline border color.
+  final Color? borderOverride;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final effectivePadding = padding ?? tt.cardPadding;
-    final borderColor = isOwned
-        ? tt.info.withValues(alpha: 0.3)
-        : tt.border;
+    final borderColor =
+        borderOverride ??
+        (isOwned ? tt.info.withValues(alpha: 0.3) : tt.border);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: tt.surface,
+        color: surfaceOverride ?? tt.surface,
         borderRadius: BorderRadius.circular(tt.cardRadius),
         border: Border.all(color: borderColor),
         boxShadow: showShadow
