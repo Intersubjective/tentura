@@ -65,21 +65,19 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
   late CoordinationResponseType _selected =
       widget.initialResponse ?? CoordinationResponseType.useful;
 
-  late bool _inviteToRoom = !widget.commitUserAdmittedToRoom &&
+  late bool _admitToRoom = widget.commitUserAdmittedToRoom ||
       _defaultInviteForCoordination(_selected);
 
-  bool _inviteTouched = false;
-
-  bool _pendingRemoveFromRoom = false;
+  bool _admitTouched = false;
 
   Future<void> _onSavePressed() async {
     try {
       await widget.onSave(
         responseTypeSmallint: _selected.smallintValue,
         inviteToRoom:
-            !widget.commitUserAdmittedToRoom && _inviteToRoom,
+            !widget.commitUserAdmittedToRoom && _admitToRoom,
         removeFromRoom:
-            widget.commitUserAdmittedToRoom && _pendingRemoveFromRoom,
+            widget.commitUserAdmittedToRoom && !_admitToRoom,
       );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -91,8 +89,8 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
   void _onResponseSelected(CoordinationResponseType value) {
     setState(() {
       _selected = value;
-      if (!_inviteTouched && !widget.commitUserAdmittedToRoom) {
-        _inviteToRoom = _defaultInviteForCoordination(value);
+      if (!_admitTouched && !widget.commitUserAdmittedToRoom) {
+        _admitToRoom = _defaultInviteForCoordination(value);
       }
     });
   }
@@ -102,7 +100,8 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
-    final maxH = MediaQuery.sizeOf(context).height * 0.52;
+    // Tall enough for response options + fixed room row + actions on typical phones.
+    final maxH = MediaQuery.sizeOf(context).height * 0.72;
 
     return SafeArea(
       child: SizedBox(
@@ -167,69 +166,60 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
                         ),
                       ),
                     ],
-                    SizedBox(height: tt.rowGap),
-                    Divider(height: 1, color: scheme.outlineVariant),
-                    SizedBox(height: tt.rowGap * 0.5),
-                    if (!widget.commitUserAdmittedToRoom)
-                      SizedBox(
-                        height: 46,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                l10n.coordinationInviteToRoomRow,
-                                style: Theme.of(context).textTheme.bodyMedium,
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: tt.rowGap * 0.5),
+                  Divider(height: 1, color: scheme.outlineVariant),
+                  SizedBox(height: tt.rowGap * 0.5),
+                  MergeSemantics(
+                    child: SizedBox(
+                      height: 48,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              l10n.coordinationInviteToRoomRow,
+                              style: TenturaText.body(
+                                _admitToRoom
+                                    ? tt.good
+                                    : widget.commitUserAdmittedToRoom
+                                        ? tt.danger
+                                        : tt.textMuted,
                               ),
                             ),
-                            Switch.adaptive(
-                              value: _inviteToRoom,
-                              onChanged: (v) => setState(() {
-                                _inviteTouched = true;
-                                _inviteToRoom = v;
-                              }),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      SizedBox(
-                        height: 46,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                l10n.coordinationRemoveFromRoom,
-                                style: TenturaText.body(
-                                  _pendingRemoveFromRoom
-                                      ? tt.danger
-                                      : tt.textMuted,
-                                ),
-                              ),
-                            ),
-                            Theme(
-                              data: Theme.of(context).copyWith(
-                                checkboxTheme: CheckboxThemeData(
-                                  fillColor:
-                                      WidgetStateProperty.resolveWith((states) {
-                                    if (states.contains(WidgetState.selected)) {
-                                      return tt.danger;
-                                    }
-                                    return scheme.surfaceContainerHighest;
-                                  }),
-                                ),
-                              ),
-                              child: Checkbox.adaptive(
-                                value: _pendingRemoveFromRoom,
-                                onChanged: (v) => setState(() {
-                                  _pendingRemoveFromRoom = v ?? false;
+                          ),
+                          Theme(
+                            data: Theme.of(context).copyWith(
+                              checkboxTheme: CheckboxThemeData(
+                                fillColor:
+                                    WidgetStateProperty.resolveWith((states) {
+                                  if (states.contains(WidgetState.selected)) {
+                                    return tt.good;
+                                  }
+                                  return scheme.surfaceContainerHighest;
                                 }),
                               ),
                             ),
-                          ],
-                        ),
+                            child: Checkbox.adaptive(
+                              value: _admitToRoom,
+                              onChanged: (v) => setState(() {
+                                _admitTouched = true;
+                                _admitToRoom = v ?? false;
+                              }),
+                            ),
+                          ),
+                        ],
                       ),
-                  ],
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Divider(height: 1, color: scheme.outlineVariant),

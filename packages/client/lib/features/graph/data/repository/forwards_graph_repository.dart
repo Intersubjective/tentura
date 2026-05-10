@@ -1,12 +1,8 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
-import 'package:tentura/features/forward/domain/entity/forward_graph.dart';
 
 import '../../domain/entity/edge_directed.dart';
-import '../../domain/entity/node_details.dart';
 import 'graph_source_repository.dart';
 
 /// Result payload for `ForwardsGraphRepository.fetchForwardsGraph` and
@@ -27,13 +23,9 @@ typedef ForwardsGraphPayload = ({
 /// `packages/server/lib/domain/use_case/beacon_forward_graph_case.dart`.
 @Singleton(env: [Environment.dev, Environment.prod])
 class ForwardsGraphRepository implements GraphSourceRepository {
-  ForwardsGraphRepository(
-    this._forwardRepository,
-    this._beaconRepository,
-  );
+  ForwardsGraphRepository(this._forwardRepository);
 
   final ForwardRepository _forwardRepository;
-  final BeaconRepository _beaconRepository;
 
   static const _weight = 1.0;
 
@@ -43,20 +35,11 @@ class ForwardsGraphRepository implements GraphSourceRepository {
   Future<ForwardsGraphPayload> fetchForwardsGraph({
     required String beaconId,
   }) async {
-    final results = await Future.wait<Object>([
-      _beaconRepository.fetchBeaconById(beaconId),
-      _forwardRepository.fetchForwardGraph(beaconId: beaconId),
-    ]);
-    final beacon = results[0] as Beacon;
-    final graph = results[1] as ForwardGraph;
+    final graph = await _forwardRepository.fetchForwardGraph(
+      beaconId: beaconId,
+    );
 
     final edges = <EdgeDirected>{
-      (
-        src: graph.authorId,
-        dst: beacon.id,
-        weight: _weight,
-        node: BeaconNode(beacon: beacon),
-      ),
       for (final e in graph.edges)
         (
           src: e.senderId,
@@ -84,23 +67,12 @@ class ForwardsGraphRepository implements GraphSourceRepository {
     required String beaconId,
     required String committerId,
   }) async {
-    final results = await Future.wait<Object>([
-      _beaconRepository.fetchBeaconById(beaconId),
-      _forwardRepository.fetchCommitterForwardPath(
-        beaconId: beaconId,
-        committerId: committerId,
-      ),
-    ]);
-    final beacon = results[0] as Beacon;
-    final graph = results[1] as ForwardGraph;
+    final graph = await _forwardRepository.fetchCommitterForwardPath(
+      beaconId: beaconId,
+      committerId: committerId,
+    );
 
     final edges = <EdgeDirected>{
-      (
-        src: graph.authorId,
-        dst: beacon.id,
-        weight: _weight,
-        node: BeaconNode(beacon: beacon),
-      ),
       for (final e in graph.edges)
         (
           src: e.senderId,

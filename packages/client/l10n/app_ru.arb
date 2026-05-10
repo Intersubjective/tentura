@@ -1790,6 +1790,18 @@
   "@beaconViewTitle": {
     "context": "BeaconViewScreen"
   },
+  "beaconViewRoomAccessUnavailableBanner": "Комната для этого маяка недоступна.",
+  "@beaconViewRoomAccessUnavailableBanner": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewSurfaceStatusAction": "Статус",
+  "@beaconViewSurfaceStatusAction": {
+    "context": "BeaconViewScreen"
+  },
+  "beaconViewBannerDismiss": "Скрыть",
+  "@beaconViewBannerDismiss": {
+    "context": "BeaconViewScreen"
+  },
   "beaconDetailsSection": "Подробности",
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
@@ -2251,7 +2263,7 @@
   "labelBeaconCoordinationSummary": "Покрытие потребности маяка",
   "coordinationSetOverallStatus": "Общий статус координации",
   "labelBeaconTabOverview": "Обзор",
-  "labelBeaconTabActivity": "События",
+  "labelBeaconTabActivity": "Хронология",
   "beaconCtaUpdateStatus": "Статус",
   "beaconCtaEditCommitment": "Изменить участие",
   "beaconCtaViewChain": "Цепочка",
@@ -2353,16 +2365,6 @@
       "count": { "type": "int" }
     }
   },
-  "beaconActivityEditsCollapsed": "{name} правил участие · ×{count}",
-  "@beaconActivityEditsCollapsed": {
-    "placeholders": {
-      "name": { "type": "String" },
-      "count": { "type": "int" }
-    }
-  },
-  "beaconActivitySectionHigh": "Вехи",
-  "beaconActivitySectionMedium": "Координация",
-  "beaconActivitySectionLow": "Правки",
   "beaconNoActivityYetShort": "Пока нет событий",
   "commitmentsTabAuthorLabelCaption": "метка автора",
   "commitmentsTabActionEdit": "правка",
@@ -2559,7 +2561,6 @@
   "beaconRoomNowCollapseTooltip": "Свернуть «Сейчас»",
   "beaconRoomYouExpandTooltip": "Развернуть «Вы»",
   "beaconRoomYouCollapseTooltip": "Свернуть «Вы»",
-  "beaconActivitySectionCoordination": "Согласование в комнате",
   "beaconActivityPlanUpdated": "План обновлён",
   "beaconActivityFactPinned": "Факт закреплён",
   "beaconActivityFactVisibilityChanged": "Изменена видимость факта",

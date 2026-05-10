@@ -21,6 +21,7 @@ import '../../data/repository/graph_repository.dart';
 import '../../data/repository/graph_source_repository.dart';
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/edge_directed.dart';
+import '../../domain/prune_directed_paths.dart';
 import '../../domain/entity/node_details.dart';
 import 'graph_state.dart';
 
@@ -177,6 +178,7 @@ class GraphCubit extends Cubit<GraphState> {
       final source = _graphSource;
       var showNoCommitterPathMessage = false;
       String? noPathCommitterId;
+      var forwardsAuthorId = '';
       if (committerFocusUserId != null &&
           forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
@@ -186,6 +188,7 @@ class GraphCubit extends Cubit<GraphState> {
         );
         edges = payload.edges;
         _committerIds = payload.committerIds;
+        forwardsAuthorId = payload.authorId;
 
         // Focus rule for the three viewer-role cases (see plan):
         //   case 1 (author):         focus = committer
@@ -211,6 +214,13 @@ class GraphCubit extends Cubit<GraphState> {
         if (state.focus != derivedFocus) {
           emit(state.copyWith(focus: derivedFocus));
         }
+        // Committer-card graph only: keep edges on some directed path from
+        // ego (viewer) to focus (committer, or author when viewer = committer).
+        edges = edgesOnSomeDirectedPath(
+          edges: edges,
+          root: state.me.id,
+          focus: derivedFocus,
+        );
         showNoCommitterPathMessage = !hasCommitterEndpoint;
         noPathCommitterId = !hasCommitterEndpoint ? committerId : null;
       } else if (forwardsGraphBeaconId != null &&
@@ -219,6 +229,7 @@ class GraphCubit extends Cubit<GraphState> {
             await source.fetchForwardsGraph(beaconId: forwardsGraphBeaconId!);
         edges = payload.edges;
         _committerIds = payload.committerIds;
+        forwardsAuthorId = payload.authorId;
       } else {
         edges = await _graphSource.fetch(
           positiveOnly: state.positiveOnly,
@@ -274,6 +285,18 @@ class GraphCubit extends Cubit<GraphState> {
           } else {
             _nodes[state.focus] = lazy;
           }
+        }
+      }
+
+      if (forwardsGraphBeaconId != null &&
+          forwardsAuthorId.isNotEmpty &&
+          !_nodes.containsKey(forwardsAuthorId)) {
+        final lazy = await _resolveNodeById(
+          forwardsAuthorId,
+          pinned: state.focus == forwardsAuthorId,
+        );
+        if (lazy != null) {
+          _nodes[forwardsAuthorId] = lazy;
         }
       }
 

@@ -224,6 +224,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// Open beacon: viewer has draft evaluation targets (overflow → draft review).
     @Default(false) bool showDraftEvaluationCta,
 
+    /// From V2 inbox room hints batch; unread messages in beacon room for viewer.
+    @Default(0) int roomUnreadCount,
+
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconViewState;
 

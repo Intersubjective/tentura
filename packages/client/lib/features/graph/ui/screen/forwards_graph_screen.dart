@@ -21,7 +21,8 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
     super.key,
   });
 
-  /// Beacon id; graph centers on this beacon as focus.
+  /// Beacon id from the route; used only to load forwards data. The graph
+  /// cubit is given the viewer's user id as initial focus (not this value).
   final String focus;
 
   /// When non-null, switches the screen into committer-path mode and
@@ -39,13 +40,16 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
             create: (_) => ScreenCubit(),
           ),
           BlocProvider(
-            create: (_) => GraphCubit(
-              me: GetIt.I<ProfileCubit>().state.profile,
-              focus: focus,
-              graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
-              forwardsGraphBeaconId: focus,
-              committerFocusUserId: committerId,
-            ),
+            create: (_) {
+              final me = GetIt.I<ProfileCubit>().state.profile;
+              return GraphCubit(
+                me: me,
+                focus: me.id,
+                graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
+                forwardsGraphBeaconId: focus,
+                committerFocusUserId: committerId,
+              );
+            },
           ),
         ],
         child: MultiBlocListener(

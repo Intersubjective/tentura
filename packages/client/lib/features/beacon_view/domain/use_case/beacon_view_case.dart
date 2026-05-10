@@ -21,6 +21,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 
 import '../../data/repository/beacon_author_update_repository.dart';
@@ -37,7 +38,8 @@ final class BeaconViewCase extends UseCaseBase {
     this._beaconAuthorUpdateRepository,
     this._factCards,
     this._beaconRoomCase,
-    this._activityEvents, {
+    this._activityEvents,
+    this._roomHints, {
     required super.env,
     required super.logger,
   });
@@ -59,6 +61,8 @@ final class BeaconViewCase extends UseCaseBase {
   final BeaconRoomCase _beaconRoomCase;
 
   final BeaconActivityEventRepository _activityEvents;
+
+  final BeaconRoomHintsRepository _roomHints;
 
   Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
 
@@ -172,6 +176,16 @@ final class BeaconViewCase extends UseCaseBase {
       return await _activityEvents.list(beaconId: beaconId);
     } on Object catch (_) {
       return [];
+    }
+  }
+
+  /// Inbox/My Work style unread count for beacon room (0 when not a room member).
+  Future<int> fetchRoomUnreadForBeacon(String beaconId) async {
+    try {
+      final map = await _roomHints.fetchByBeaconIds([beaconId]);
+      return map[beaconId]?.roomUnreadCount ?? 0;
+    } on Object catch (_) {
+      return 0;
     }
   }
 

@@ -142,9 +142,13 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
       case 'U':
         await context.pushRoute(ProfileViewRoute(id: code));
       case 'B':
-        await context.pushRoute(BeaconViewRoute(id: code));
+        await context.pushRoute(
+          BeaconViewRoute(id: code, entry: kBeaconEntryUnknown),
+        );
       case 'C':
-        await context.pushRoute(BeaconViewRoute(id: code));
+        await context.pushRoute(
+          BeaconViewRoute(id: code, entry: kBeaconEntryUnknown),
+        );
       case 'I':
         final result = await _invitationRepository.fetchById(code);
         if (mounted) {

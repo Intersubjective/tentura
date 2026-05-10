@@ -24,7 +24,7 @@ _ActivityTier _tierFor(TimelineEntry e) => switch (e) {
       _ => _ActivityTier.medium,
     };
 
-/// Importance-grouped activity log for the beacon detail Activity tab.
+/// Chronological timeline (newest first) for the beacon detail Timeline tab.
 class BeaconActivityList extends StatelessWidget {
   const BeaconActivityList({
     required this.timeline,
@@ -44,19 +44,7 @@ class BeaconActivityList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final coordinationTiles = <Widget>[
-      for (final e in roomActivityEvents)
-        ListTile(
-          dense: true,
-          leading: const Icon(Icons.hub_outlined),
-          title: Text(_coordinationTitle(context, e)),
-          subtitle: Text(
-            _activityTs(e.createdAt),
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-        ),
-    ];
-    if (timeline.isEmpty && coordinationTiles.isEmpty) {
+    if (timeline.isEmpty && roomActivityEvents.isEmpty) {
       return Padding(
         padding: kPaddingSmallV,
         child: Text(
@@ -68,182 +56,45 @@ class BeaconActivityList extends StatelessWidget {
       );
     }
 
-    final high = <TimelineEntry>[];
-    final medium = <TimelineEntry>[];
-    final low = <TimelineEntry>[];
-    for (final e in timeline) {
-      switch (_tierFor(e)) {
-        case _ActivityTier.high:
-          high.add(e);
-        case _ActivityTier.medium:
-          medium.add(e);
-        case _ActivityTier.low:
-          low.add(e);
-      }
-    }
-    high.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    medium.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    low.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-    final children = <Widget>[];
-
-    void addSection(String title, List<Widget> tiles) {
-      if (tiles.isEmpty) return;
-      children
-        ..add(
-          Padding(
-            padding: const EdgeInsets.only(
-              top: kSpacingMedium,
-              bottom: kSpacingSmall,
-            ),
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
+    var tie = 0;
+    final rows = <({DateTime t, int tie, Widget child})>[];
+    for (final e in roomActivityEvents) {
+      rows.add((
+        t: e.createdAt.toUtc(),
+        tie: tie++,
+        child: ListTile(
+          dense: true,
+          leading: const Icon(Icons.hub_outlined),
+          title: Text(_coordinationTitle(context, e)),
+          subtitle: Text(
+            _activityTs(e.createdAt),
+            style: Theme.of(context).textTheme.labelSmall,
           ),
-        )
-        ..addAll(tiles);
+        ),
+      ));
     }
-
-    addSection(
-      l10n.beaconActivitySectionCoordination,
-      coordinationTiles,
-    );
-
-    addSection(
-      l10n.beaconActivitySectionHigh,
-      high
-          .map(
-            (e) => _ActivityEntryTile(
-              entry: e,
-              beacon: beacon,
-              isAuthorView: isAuthorView,
-              onEditTimelineUpdate: onEditTimelineUpdate,
-              tier: _ActivityTier.high,
-            ),
-          )
-          .toList(),
-    );
-
-    addSection(
-      l10n.beaconActivitySectionMedium,
-      medium
-          .map(
-            (e) => _ActivityEntryTile(
-              entry: e,
-              beacon: beacon,
-              isAuthorView: isAuthorView,
-              onEditTimelineUpdate: onEditTimelineUpdate,
-              tier: _ActivityTier.medium,
-            ),
-          )
-          .toList(),
-    );
-
-    addSection(
-      l10n.beaconActivitySectionLow,
-      _buildLowTierTiles(
-        l10n: l10n,
-        low: low,
-        beacon: beacon,
-        isAuthorView: isAuthorView,
-        onEditTimelineUpdate: onEditTimelineUpdate,
-      ),
-    );
+    for (final e in timeline) {
+      rows.add((
+        t: e.timestamp.toUtc(),
+        tie: tie++,
+        child: _ActivityEntryTile(
+          entry: e,
+          beacon: beacon,
+          isAuthorView: isAuthorView,
+          onEditTimelineUpdate: onEditTimelineUpdate,
+          tier: _tierFor(e),
+        ),
+      ));
+    }
+    rows.sort((a, b) {
+      final c = b.t.compareTo(a.t);
+      if (c != 0) return c;
+      return a.tie.compareTo(b.tie);
+    });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
-    );
-  }
-}
-
-List<Widget> _buildLowTierTiles({
-  required L10n l10n,
-  required List<TimelineEntry> low,
-  required Beacon beacon,
-  required bool isAuthorView,
-  required Future<void> Function(TimelineUpdate u) onEditTimelineUpdate,
-}) {
-  final out = <Widget>[];
-  var i = 0;
-  while (i < low.length) {
-    final e = low[i];
-    if (e is TimelineCommitmentUpdated) {
-      var run = 1;
-      var j = i + 1;
-      while (j < low.length &&
-          low[j] is TimelineCommitmentUpdated &&
-          (low[j] as TimelineCommitmentUpdated).committer.id == e.committer.id) {
-        run++;
-        j++;
-      }
-      if (run >= 2) {
-        out.add(
-          _CollapsedEditsTile(
-            committerTitle: e.committer.title,
-            count: run,
-            timestamp: e.timestamp,
-          ),
-        );
-        i = j;
-        continue;
-      }
-    }
-    out.add(
-      _ActivityEntryTile(
-        entry: e,
-        beacon: beacon,
-        isAuthorView: isAuthorView,
-        onEditTimelineUpdate: onEditTimelineUpdate,
-        tier: _ActivityTier.low,
-      ),
-    );
-    i++;
-  }
-  return out;
-}
-
-class _CollapsedEditsTile extends StatelessWidget {
-  const _CollapsedEditsTile({
-    required this.committerTitle,
-    required this.count,
-    required this.timestamp,
-  });
-
-  final String committerTitle;
-  final int count;
-  final DateTime timestamp;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    return Padding(
-      padding: kPaddingSmallV,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.more_horiz,
-            size: 20,
-            color: theme.colorScheme.outline,
-          ),
-          const SizedBox(width: kSpacingSmall),
-          Expanded(
-            child: Text(
-              l10n.beaconActivityEditsCollapsed(committerTitle, count),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Text(
-            _activityTs(timestamp),
-            style: theme.textTheme.labelSmall,
-          ),
-        ],
-      ),
+      children: [for (final r in rows) r.child],
     );
   }
 }
