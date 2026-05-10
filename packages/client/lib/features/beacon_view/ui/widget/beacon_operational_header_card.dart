@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -15,6 +13,7 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import '../bloc/beacon_view_state.dart';
+import 'beacon_anchor_status.dart';
 
 /// Operational header for beacon detail: identity, anchor status, one primary CTA,
 /// secondary ghost chips (same visual family).
@@ -59,7 +58,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final activeCommitCount =
         state.commitments.where((c) => !c.isWithdrawn).length;
 
-    final anchorTone = _anchorTone(beacon.coordinationStatus);
+    final anchorTone = beaconAnchorStatusTone(beacon.coordinationStatus);
 
     final canCommit = !state.isBeaconMine &&
         open &&
@@ -212,7 +211,11 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: TenturaStatusText(
-                        _anchorLine(l10n, beacon, activeCommitCount),
+                        beaconAnchorStatusLine(
+                          l10n,
+                          beacon,
+                          activeCommitCount,
+                        ),
                         tone: anchorTone,
                         maxLines: 2,
                       ),
@@ -222,7 +225,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               )
             else
               TenturaStatusText(
-                _anchorLine(l10n, beacon, activeCommitCount),
+                beaconAnchorStatusLine(l10n, beacon, activeCommitCount),
                 tone: anchorTone,
                 maxLines: 2,
               ),
@@ -247,23 +250,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         TenturaTone.danger => tt.danger,
       };
 
-  static TenturaTone _anchorTone(BeaconCoordinationStatus s) =>
-      switch (s) {
-        BeaconCoordinationStatus.noCommitmentsYet => TenturaTone.neutral,
-        BeaconCoordinationStatus.commitmentsWaitingForReview =>
-          TenturaTone.info,
-        BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
-          TenturaTone.warn,
-        BeaconCoordinationStatus.enoughHelpCommitted => TenturaTone.good,
-      };
-
-  static String _anchorLine(L10n l10n, Beacon beacon, int activeCommitCount) {
-    final coord = coordinationStatusLabel(l10n, beacon.coordinationStatus);
-    final committedPart = activeCommitCount == 0
-        ? l10n.beaconHeaderNoCommitments
-        : l10n.beaconHeaderCommitmentsCount(activeCommitCount);
-    return '$coord · $committedPart';
-  }
 }
 
 /// Read-only lifecycle pill (legacy beacon detail strip).

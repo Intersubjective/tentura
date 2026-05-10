@@ -13,7 +13,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
-import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
@@ -33,6 +32,7 @@ import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/activity_list.dart';
 import '../widget/beacon_operational_header_card.dart';
+import '../widget/beacon_view_app_bar_title.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 import '../util/commitment_help_types_wire.dart';
@@ -544,6 +544,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             c.isSuccess ||
             c.isLoading ||
             c.hasError ||
+            p.beacon != c.beacon ||
+            p.commitments != c.commitments ||
             p.roomUnreadCount != c.roomUnreadCount ||
             p.canNavigateBeaconRoom != c.canNavigateBeaconRoom ||
             p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
@@ -590,15 +592,21 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               scrolledUnderElevation: 0,
-              toolbarHeight: InboxStyleAppBar.toolbarHeight,
-              leadingWidth: InboxStyleAppBar.toolbarHeight,
+              toolbarHeight: kToolbarHeight,
+              leadingWidth: kToolbarHeight,
               foregroundColor: scheme.onSurface,
               titleTextStyle: theme.textTheme.titleLarge!.copyWith(
                 color: scheme.onSurface,
               ),
               titleSpacing: 8,
               leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
-              title: Text(l10n.beaconViewTitle),
+              title: BeaconViewAppBarTitle(
+                beacon: state.beacon,
+                activeCommitCount: state.commitments
+                    .where((c) => !c.isWithdrawn)
+                    .length,
+                l10n: l10n,
+              ),
               actions: [
                 if (!showInitialLoading)
                   Padding(
