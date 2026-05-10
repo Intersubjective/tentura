@@ -1139,22 +1139,38 @@ class BeaconRoomRepository {
   }
 
   /// Room messages created strictly after [after] (exclusive), for unread counts.
+  ///
+  /// When [excludeAuthorId] is non-empty, messages authored by that user are omitted
+  /// (your own messages are never "unread" for you).
   Future<int> countRoomMessagesAfter({
     required String beaconId,
     DateTime? after,
+    String? excludeAuthorId,
   }) async {
+    final exclude = excludeAuthorId?.trim();
+    final excludeSelf = exclude != null && exclude.isNotEmpty;
+
     if (after == null) {
       final rows = await (_db.select(_db.beaconRoomMessages)
-            ..where((m) => m.beaconId.equals(beaconId)))
+            ..where((m) {
+              var cond = m.beaconId.equals(beaconId);
+              if (excludeSelf) {
+                cond = cond & m.authorId.isNotValue(exclude);
+              }
+              return cond;
+            }))
           .get();
       return rows.length;
     }
     final rows = await (_db.select(_db.beaconRoomMessages)
-          ..where(
-            (m) =>
-                m.beaconId.equals(beaconId) &
-                m.createdAt.isBiggerThanValue(PgDateTime(after)),
-          ))
+          ..where((m) {
+            var cond = m.beaconId.equals(beaconId) &
+                m.createdAt.isBiggerThanValue(PgDateTime(after));
+            if (excludeSelf) {
+              cond = cond & m.authorId.isNotValue(exclude);
+            }
+            return cond;
+          }))
         .get();
     return rows.length;
   }

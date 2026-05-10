@@ -1,5 +1,6 @@
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -10,6 +11,9 @@ part 'room_state.freezed.dart';
 abstract class RoomState extends StateBase with _$RoomState {
   const factory RoomState({
     @Default('') String beaconId,
+
+    /// Viewer user id; own-authored messages never count as unread.
+    @Default('') String myUserId,
     @Default(<RoomMessage>[]) List<RoomMessage> messages,
     @Default(<BeaconParticipant>[]) List<BeaconParticipant> participants,
     @Default(<BeaconFactCard>[]) List<BeaconFactCard> factCards,
@@ -31,12 +35,21 @@ abstract class RoomState extends StateBase with _$RoomState {
 
   const RoomState._();
 
+  bool _isUnreadForViewer(RoomMessage m, DateTime? anchor) {
+    if (myUserId.isNotEmpty && m.authorId == myUserId) {
+      return false;
+    }
+    return anchor == null || m.createdAt.isAfter(anchor);
+  }
+
   /// Earliest unread row: `createdAt` strictly after the snapshotted watermark; all unread when watermark is null.
+  /// Own-authored rows are never unread.
   String? get firstUnreadMessageId {
     final anchor = unreadAnchorAt;
     for (final m in messages) {
-      final isUnread = anchor == null || m.createdAt.isAfter(anchor);
-      if (isUnread) return m.id;
+      if (_isUnreadForViewer(m, anchor)) {
+        return m.id;
+      }
     }
     return null;
   }
@@ -44,12 +57,9 @@ abstract class RoomState extends StateBase with _$RoomState {
   int get unreadCount {
     final anchor = unreadAnchorAt;
     if (messages.isEmpty) return 0;
-    if (anchor == null) {
-      return messages.length;
-    }
     var n = 0;
     for (final m in messages) {
-      if (m.createdAt.isAfter(anchor)) {
+      if (_isUnreadForViewer(m, anchor)) {
         n++;
       }
     }
@@ -61,5 +71,43 @@ abstract class RoomState extends StateBase with _$RoomState {
     final id = firstUnreadMessageId;
     if (id == null) return -1;
     return messages.indexWhere((m) => m.id == id);
+  }
+
+  List<BeaconParticipant> participantsMatchingQuery(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) {
+      return participants
+          .where(
+            (p) =>
+                p.roomAccess == RoomAccessBits.admitted && p.handle.isNotEmpty,
+          )
+          .toList(growable: false);
+    }
+    return participants
+        .where(
+          (p) =>
+              p.roomAccess == RoomAccessBits.admitted &&
+              p.handle.isNotEmpty &&
+              p.handle.toLowerCase().contains(q),
+        )
+        .toList(growable: false);
+  }
+
+  /// Active or corrected fact originating from [message].
+  BeaconFactCard? factForRoomMessage(RoomMessage message) {
+    final lid = message.linkedFactCardId;
+    if (lid != null && lid.isNotEmpty) {
+      for (final f in factCards) {
+        if (f.id == lid) {
+          return f;
+        }
+      }
+    }
+    for (final f in factCards) {
+      if (f.sourceMessageId == message.id) {
+        return f;
+      }
+    }
+    return null;
   }
 }

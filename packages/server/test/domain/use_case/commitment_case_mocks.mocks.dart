@@ -1768,11 +1768,13 @@ class MockBeaconRoomRepository extends _i1.Mock
   _i6.Future<int> countRoomMessagesAfter({
     required String? beaconId,
     DateTime? after,
+    String? excludeAuthorId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#countRoomMessagesAfter, [], {
               #beaconId: beaconId,
               #after: after,
+              #excludeAuthorId: excludeAuthorId,
             }),
             returnValue: _i6.Future<int>.value(0),
           )

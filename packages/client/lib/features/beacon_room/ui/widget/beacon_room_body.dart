@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -324,12 +325,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       cubit: cubit,
                       fact: f,
                     ),
-                    onOpenFileAttachment: (a) => _openRoomFileAttachment(
-                      context,
-                      cubit,
-                      l10n,
-                      a,
-                    ),
+                    onOpenFileAttachment: (a) =>
+                        _openRoomFileAttachment(context, l10n, a),
                   ),
                 if (!widget.hideCoordinationStrips)
                   BeaconRoomYouStrip(
@@ -357,7 +354,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                               itemCount: state.messages.length,
                               itemBuilder: (context, i) {
                                 final m = state.messages[i];
-                                final pf = cubit.factForRoomMessage(m);
+                                final pf = state.factForRoomMessage(m);
                                 final isCoord =
                                     _roomMessageIsCoordinationStateCard(m);
                                 final idxUnread = state.firstUnreadIndex;
@@ -394,7 +391,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                                   onOpenFileAttachment: (a) =>
                                       _openRoomFileAttachment(
                                         context,
-                                        cubit,
                                         l10n,
                                         a,
                                       ),
@@ -548,7 +544,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     Profile viewer,
     RoomMessage message,
   ) {
-    final pf = cubit.factForRoomMessage(message);
+    final pf = cubit.state.factForRoomMessage(message);
     final showFactInMenu = !_roomMessageIsCoordinationStateCard(message);
     final isOwnMessage = message.authorId == viewer.id;
     unawaited(
@@ -1072,12 +1068,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
 
   Future<void> _openRoomFileAttachment(
     BuildContext context,
-    RoomCubit cubit,
     L10n l10n,
     RoomMessageAttachment attachment,
   ) async {
     try {
-      final bytes = await cubit.downloadRoomAttachment(attachment.id);
+      final bytes =
+          await GetIt.I<BeaconRoomCase>().downloadRoomAttachment(attachment.id);
       final name = attachment.fileName.trim().isEmpty
           ? 'file'
           : attachment.fileName.trim();
@@ -1220,7 +1216,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       return;
     }
     final cubit = context.read<RoomCubit>();
-    final suggestions = cubit
+    final suggestions = cubit.state
         .participantsMatchingQuery(query)
         .where((p) => p.handle.isNotEmpty)
         .take(5)
