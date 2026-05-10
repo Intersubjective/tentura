@@ -104,25 +104,29 @@ class CommitmentTile extends StatelessWidget {
                             BlocBuilder<ProfileCubit, ProfileState>(
                               buildWhen: (p, c) => p.profile.id != c.profile.id,
                               builder: (context, state) {
+                                final titleSmall = theme.textTheme.titleSmall!;
+                                final isSelf = SelfUserHighlight.profileIsSelf(
+                                  commitment.user,
+                                  state.profile.id,
+                                );
                                 return Text(
                                   SelfUserHighlight.displayName(
                                     l10n,
                                     commitment.user,
                                     state.profile.id,
                                   ),
-                                  style: theme.textTheme.titleSmall!.copyWith(
-                                    color: theme.colorScheme.onSurface,
-                                  ),
+                                  style: isSelf
+                                      ? SelfUserHighlight.nameStyle(
+                                          theme,
+                                          titleSmall,
+                                          true,
+                                        )
+                                      : titleSmall.copyWith(
+                                          color: theme.colorScheme.onSurface,
+                                        ),
                                 );
                               },
                             ),
-                            if (isMine) ...[
-                              const SizedBox(height: 2),
-                              TenturaStatusText(
-                                l10n.commitmentsTabMineLabel,
-                                tone: TenturaTone.info,
-                              ),
-                            ],
                             const SizedBox(height: 2),
                             TenturaMetaText(
                               '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'

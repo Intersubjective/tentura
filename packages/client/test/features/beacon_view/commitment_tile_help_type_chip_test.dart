@@ -133,4 +133,28 @@ void main() {
     expect(find.byType(FilterChip), findsNothing);
     expect(find.byType(Chip), findsNothing);
   });
+
+  testWidgets(
+    'viewer commitment shows You in primary accent, no mine row',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          CommitmentTile(
+            commitment: _commitment(userId: 'me'),
+            beaconId: 'B1',
+            beaconAuthorId: 'auth',
+            isMine: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('You'), findsOneWidget);
+      expect(find.text('mine'), findsNothing);
+      final theme = Theme.of(tester.element(find.text('You')));
+      final text = tester.widget<Text>(find.text('You'));
+      expect(text.style?.color, theme.colorScheme.primary);
+      expect(text.style?.fontWeight, FontWeight.w600);
+    },
+  );
 }
