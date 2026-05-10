@@ -221,6 +221,7 @@ final class BeaconRoomCase extends UseCaseBase {
           : await _room.countRoomMessagesAfter(
               beaconId: bid,
               after: seenAt,
+              excludeAuthorId: userId,
             );
       final blockerTitle = st?.openBlockerId == null
           ? null

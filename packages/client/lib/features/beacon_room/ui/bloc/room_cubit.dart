@@ -2,14 +2,11 @@ import 'dart:async';
 
 import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
-
-import 'package:tentura/domain/entity/beacon_participant.dart';
 
 import '../../domain/use_case/beacon_room_case.dart';
 import '../message/beacon_room_fact_messages.dart';
@@ -25,7 +22,13 @@ class RoomCubit extends Cubit<RoomState> {
     required String beaconId,
     BeaconRoomCase? beaconRoomCase,
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
-       super(RoomState(beaconId: beaconId, status: const StateIsLoading())) {
+       super(
+         RoomState(
+           beaconId: beaconId,
+           myUserId: GetIt.I<ProfileCubit>().state.profile.id,
+           status: const StateIsLoading(),
+         ),
+       ) {
     _refreshSub = _case.beaconRoomRefresh.listen(_onRemoteRefresh);
     unawaited(load());
   }
@@ -36,48 +39,10 @@ class RoomCubit extends Cubit<RoomState> {
 
   bool _markSeenEmittedThisVisit = false;
 
-  List<BeaconParticipant> participantsMatchingQuery(String query) {
-    final q = query.trim().toLowerCase();
-    if (q.isEmpty) {
-      return state.participants
-          .where(
-            (p) =>
-                p.roomAccess == RoomAccessBits.admitted && p.handle.isNotEmpty,
-          )
-          .toList(growable: false);
-    }
-    return state.participants
-        .where(
-          (p) =>
-              p.roomAccess == RoomAccessBits.admitted &&
-              p.handle.isNotEmpty &&
-              p.handle.toLowerCase().contains(q),
-        )
-        .toList(growable: false);
-  }
-
   void _onRemoteRefresh(String id) {
     if (id == state.beaconId) {
       unawaited(load());
     }
-  }
-
-  /// Active or corrected fact originating from [message].
-  BeaconFactCard? factForRoomMessage(RoomMessage message) {
-    final lid = message.linkedFactCardId;
-    if (lid != null && lid.isNotEmpty) {
-      for (final f in state.factCards) {
-        if (f.id == lid) {
-          return f;
-        }
-      }
-    }
-    for (final f in state.factCards) {
-      if (f.sourceMessageId == message.id) {
-        return f;
-      }
-    }
-    return null;
   }
 
   void clearScrollToMessageTarget() {
@@ -144,6 +109,7 @@ class RoomCubit extends Cubit<RoomState> {
           factCards: factCards,
           roomState: roomState,
           unreadAnchorAt: anchor,
+          myUserId: GetIt.I<ProfileCubit>().state.profile.id,
           pendingMarkSeen: !_markSeenEmittedThisVisit,
           status: const StateIsSuccess(),
         ),
@@ -324,14 +290,16 @@ class RoomCubit extends Cubit<RoomState> {
         body: trimmed,
         uploads: uploads,
       );
+      _markSeenEmittedThisVisit = false;
+      await markSeenNowIfNeeded();
+      if (!isClosed) {
+        emit(state.copyWith(unreadAnchorAt: null));
+      }
       await load();
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
-
-  Future<Uint8List> downloadRoomAttachment(String attachmentId) =>
-      _case.downloadRoomAttachment(attachmentId);
 
   Future<void> toggleReaction({
     required String messageId,
@@ -503,6 +471,11 @@ class RoomCubit extends Cubit<RoomState> {
         isAnonymous: isAnonymous,
         allowRevote: allowRevote,
       );
+      _markSeenEmittedThisVisit = false;
+      await markSeenNowIfNeeded();
+      if (!isClosed) {
+        emit(state.copyWith(unreadAnchorAt: null));
+      }
       await load();
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));

@@ -17,8 +17,8 @@ void main() {
       userId: 'U1',
       message: 'm',
       status: 0,
-      createdAt: DateTime.utc(2025, 1, 1),
-      updatedAt: DateTime.utc(2025, 1, 1),
+      createdAt: DateTime.utc(2025),
+      updatedAt: DateTime.utc(2025),
       user: user,
       roomAccess: RoomAccessBits.admitted,
     );
@@ -37,8 +37,8 @@ void main() {
       userId: 'U1',
       message: 'm',
       status: 0,
-      createdAt: DateTime.utc(2025, 1, 1),
-      updatedAt: DateTime.utc(2025, 1, 1),
+      createdAt: DateTime.utc(2025),
+      updatedAt: DateTime.utc(2025),
       user: user,
     );
     final m = commitmentWithCoordinationToGqlMap(row);

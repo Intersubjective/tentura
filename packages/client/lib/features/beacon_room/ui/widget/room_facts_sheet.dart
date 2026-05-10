@@ -8,7 +8,9 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -138,7 +140,8 @@ class _RoomFactsBodyState extends State<_RoomFactsBody> {
 
   Future<void> _openFactAttachmentFile(RoomMessageAttachment a) async {
     try {
-      final bytes = await widget.cubit.downloadRoomAttachment(a.id);
+      final bytes =
+          await GetIt.I<BeaconRoomCase>().downloadRoomAttachment(a.id);
       final name = a.fileName.trim().isEmpty ? 'file' : a.fileName.trim();
       await SharePlus.instance.share(
         ShareParams(

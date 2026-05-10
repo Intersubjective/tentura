@@ -44,8 +44,60 @@ void main() {
     expect(s.nowCollapsed, true);
     expect(s.youCollapsed, true);
     expect(s.pendingMarkSeen, true);
+    expect(s.myUserId, '');
     expect(s.unreadAnchorAt, null);
     expect(s.messages, isEmpty);
     expect(s.status, isA<StateIsSuccess>());
+  });
+
+  test('own-authored messages never count as unread (with anchor)', () {
+    final anchor = DateTime.utc(2026, 6, 15, 12);
+    final s = RoomState(
+      myUserId: 'me',
+      messages: [
+        RoomMessage(
+          id: 'mine',
+          beaconId: 'b',
+          authorId: 'me',
+          body: '',
+          createdAt: DateTime.utc(2026, 6, 15, 13),
+        ),
+        RoomMessage(
+          id: 'theirs',
+          beaconId: 'b',
+          authorId: 'other',
+          body: '',
+          createdAt: DateTime.utc(2026, 6, 15, 13),
+        ),
+      ],
+      unreadAnchorAt: anchor,
+    );
+    expect(s.unreadCount, 1);
+    expect(s.firstUnreadMessageId, 'theirs');
+    expect(s.firstUnreadIndex, 1);
+  });
+
+  test('null anchor: excludes only own messages from unread count', () {
+    final s = RoomState(
+      myUserId: 'me',
+      messages: [
+        RoomMessage(
+          id: 'mine',
+          beaconId: 'b',
+          authorId: 'me',
+          body: '',
+          createdAt: DateTime.utc(2026),
+        ),
+        RoomMessage(
+          id: 'theirs',
+          beaconId: 'b',
+          authorId: 'other',
+          body: '',
+          createdAt: DateTime.utc(2026, 1, 2),
+        ),
+      ],
+    );
+    expect(s.unreadCount, 1);
+    expect(s.firstUnreadMessageId, 'theirs');
   });
 }
