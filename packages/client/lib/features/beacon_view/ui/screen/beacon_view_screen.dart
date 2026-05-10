@@ -32,6 +32,7 @@ import '../bloc/beacon_view_cubit.dart';
 import '../dialog/commitment_message_dialog.dart';
 import '../widget/activity_list.dart';
 import '../widget/beacon_operational_header_card.dart';
+import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_view_app_bar_title.dart';
 import '../widget/commitment_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
@@ -528,6 +529,22 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               state.timeline.isEmpty &&
               state.commitments.isEmpty;
 
+          final activeCommitCount = state.commitments
+              .where((c) => !c.isWithdrawn)
+              .length;
+          final (appBarStatusLine, appBarStatusTone) = switch (_surfaceMode) {
+            BeaconSurfaceMode.room => state.roomUnreadCount > 0
+                ? (
+                    'ROOM · Unread: ${state.roomUnreadCount}',
+                    TenturaTone.info,
+                  )
+                : ('ROOM · UP-TO-DATE', TenturaTone.neutral),
+            _ => (
+                beaconAnchorStatusLineShort(state.beacon, activeCommitCount),
+                beaconAnchorStatusTone(state.beacon.coordinationStatus),
+              ),
+          };
+
           Widget body;
           if (showInitialLoading) {
             body = const Center(
@@ -572,9 +589,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
               title: BeaconViewAppBarTitle(
                 beacon: state.beacon,
-                activeCommitCount: state.commitments
-                    .where((c) => !c.isWithdrawn)
-                    .length,
+                statusLine: appBarStatusLine,
+                statusTone: appBarStatusTone,
                 l10n: l10n,
                 onTap: !showInitialLoading &&
                         (_surfaceMode == BeaconSurfaceMode.room ||
