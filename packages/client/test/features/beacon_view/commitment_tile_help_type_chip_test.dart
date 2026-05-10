@@ -14,8 +14,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState(
-        profile: Profile(id: 'me', title: 'Me'),
-      );
+    profile: Profile(id: 'me', title: 'Me'),
+  );
 
   @override
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
@@ -41,6 +41,7 @@ TimelineCommitment _commitment({
   required String userId,
   String? helpType,
   String message = '',
+  bool isWithdrawn = false,
 }) {
   final t = DateTime.utc(2025);
   return TimelineCommitment(
@@ -49,6 +50,7 @@ TimelineCommitment _commitment({
     createdAt: t,
     updatedAt: t,
     helpType: helpType,
+    isWithdrawn: isWithdrawn,
   );
 }
 
@@ -60,8 +62,9 @@ void main() {
     expect(commitmentHelpTypeSlugs(null), isEmpty);
   });
 
-  testWidgets('known help_type renders selected FilterChip with l10n label',
-      (tester) async {
+  testWidgets('known help_type renders selected FilterChip with l10n label', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         CommitmentTile(
@@ -81,7 +84,9 @@ void main() {
     expect(chip.onSelected, isNotNull);
   });
 
-  testWidgets('unknown help_type wire renders plain Chip label', (tester) async {
+  testWidgets('unknown help_type wire renders plain Chip label', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         CommitmentTile(
@@ -97,8 +102,9 @@ void main() {
     expect(find.widgetWithText(Chip, 'legacy_unknown_key'), findsOneWidget);
   });
 
-  testWidgets('JSON-encoded help_type array renders one chip per slug',
-      (tester) async {
+  testWidgets('JSON-encoded help_type array renders one chip per slug', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(
         CommitmentTile(
@@ -132,6 +138,25 @@ void main() {
 
     expect(find.byType(FilterChip), findsNothing);
     expect(find.byType(Chip), findsNothing);
+    expect(find.text('Active'), findsNothing);
+  });
+
+  testWidgets('withdrawn commitment shows Withdrawn, not Active', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        CommitmentTile(
+          commitment: _commitment(userId: 'c1', isWithdrawn: true),
+          beaconId: 'B1',
+          beaconAuthorId: 'auth',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Withdrawn'), findsOneWidget);
+    expect(find.text('Active'), findsNothing);
   });
 
   testWidgets(
