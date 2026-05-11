@@ -8,7 +8,6 @@ import 'package:tentura/features/beacon_view/domain/beacon_surface_mode.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_view_entry_source.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_view_surface_resolver.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
-import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -405,8 +404,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   late BeaconSurfaceMode _surfaceMode;
 
   RoomCubit? _roomCubit;
-  BeaconSurfaceMode? _rememberedFromDb;
-  bool _rememberedLoaded = false;
   bool _didApplyFetchResolution = false;
   String? _bannerMessage;
 
@@ -429,21 +426,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
     _surfaceMode =
         explicitRoom ? BeaconSurfaceMode.room : BeaconSurfaceMode.status;
-    unawaited(_loadRememberedSurfacePreference());
-  }
-
-  Future<void> _loadRememberedSurfacePreference() async {
-    final wire = await GetIt.I<SettingsRepositoryPort>()
-        .getBeaconLastSurfaceModeWire(widget.id);
-    if (!mounted) return;
-    setState(() {
-      _rememberedFromDb = BeaconSurfaceModeWire.tryParse(wire);
-      _rememberedLoaded = true;
-    });
-    final cubit = context.read<BeaconViewCubit>();
-    if (cubit.state.isSuccess) {
-      _applyFetchResolution(cubit.state);
-    }
   }
 
   @override
@@ -454,9 +436,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   void _applyFetchResolution(BeaconViewState s) {
     if (!s.isSuccess || _didApplyFetchResolution) return;
-    if (_normalizedEntry == BeaconViewEntrySource.myWork && !_rememberedLoaded) {
-      return;
-    }
 
     final explicitRoom = explicitRoomSurfaceRequested(
       surfaceQuery: widget.surface,
@@ -467,23 +446,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       surfaceQuery: widget.surface,
       viewTab: widget.viewTab,
     );
-    final remembered = _normalizedEntry == BeaconViewEntrySource.myWork
-        ? _rememberedFromDb
-        : null;
 
     final mode = resolveInitialBeaconSurfaceMode(
       entry: _normalizedEntry,
       hasRoomAccess: s.canNavigateBeaconRoom,
       explicitRoomRequested: explicitRoom,
       explicitStatusRequested: explicitStatus,
-      rememberedMode: remembered,
     );
 
     final roomDenied = !s.canNavigateBeaconRoom &&
         (explicitRoom ||
-            _normalizedEntry == BeaconViewEntrySource.roomNotification ||
-            (_normalizedEntry == BeaconViewEntrySource.myWork &&
-                remembered == BeaconSurfaceMode.room));
+            _normalizedEntry == BeaconViewEntrySource.roomNotification);
 
     setState(() {
       _surfaceMode = mode;
@@ -511,12 +484,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         _roomCubit ??= RoomCubit(beaconId: widget.id);
       }
     });
-    unawaited(
-      GetIt.I<SettingsRepositoryPort>().setBeaconLastSurfaceModeWire(
-        widget.id,
-        next.wire,
-      ),
-    );
   }
 
   String _beaconViewSurfaceSwitchTooltip(

@@ -12,7 +12,6 @@ void main() {
           hasRoomAccess: true,
           explicitRoomRequested: true,
           explicitStatusRequested: true,
-          rememberedMode: null,
         ),
         BeaconSurfaceMode.status,
       );
@@ -25,7 +24,6 @@ void main() {
           hasRoomAccess: true,
           explicitRoomRequested: true,
           explicitStatusRequested: false,
-          rememberedMode: null,
         ),
         BeaconSurfaceMode.room,
       );
@@ -38,46 +36,42 @@ void main() {
           hasRoomAccess: false,
           explicitRoomRequested: true,
           explicitStatusRequested: false,
-          rememberedMode: null,
         ),
         BeaconSurfaceMode.status,
       );
     });
 
-    test('myWork remembered room + access => room', () {
+    test('myWork implicit => status even with room access', () {
       expect(
         resolveInitialBeaconSurfaceMode(
           entry: BeaconViewEntrySource.myWork,
           hasRoomAccess: true,
           explicitRoomRequested: false,
           explicitStatusRequested: false,
-          rememberedMode: BeaconSurfaceMode.room,
         ),
-        BeaconSurfaceMode.room,
+        BeaconSurfaceMode.status,
       );
     });
 
-    test('myWork remembered room + no access => status', () {
+    test('myWork implicit + no room access => status', () {
       expect(
         resolveInitialBeaconSurfaceMode(
           entry: BeaconViewEntrySource.myWork,
           hasRoomAccess: false,
           explicitRoomRequested: false,
           explicitStatusRequested: false,
-          rememberedMode: BeaconSurfaceMode.room,
         ),
         BeaconSurfaceMode.status,
       );
     });
 
-    test('inbox entry always status when no explicit room', () {
+    test('inbox implicit => status', () {
       expect(
         resolveInitialBeaconSurfaceMode(
           entry: BeaconViewEntrySource.inbox,
           hasRoomAccess: true,
           explicitRoomRequested: false,
           explicitStatusRequested: false,
-          rememberedMode: BeaconSurfaceMode.room,
         ),
         BeaconSurfaceMode.status,
       );
@@ -90,7 +84,6 @@ void main() {
           hasRoomAccess: true,
           explicitRoomRequested: false,
           explicitStatusRequested: false,
-          rememberedMode: null,
         ),
         BeaconSurfaceMode.room,
       );
