@@ -1208,37 +1208,42 @@ class _CommitmentsTabBody extends StatelessWidget {
         const SizedBox(height: 12),
         Text(l10n.beaconPeopleLensAuthorHeading, style: sectionHeaderStyle),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            SelfAwareAvatar(
-              profile: beacon.author,
-              size: 36,
-              withRating: beacon.author.id != state.myProfile.id,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: BlocBuilder<ProfileCubit, ProfileState>(
-                buildWhen: (p, c) => p.profile.id != c.profile.id,
-                builder: (context, profileState) {
-                  final base = beaconCardMetadataLineTextStyle(theme);
-                  final isSelf = SelfUserHighlight.profileIsSelf(
-                    beacon.author,
-                    profileState.profile.id,
-                  );
-                  return Text(
-                    SelfUserHighlight.displayName(
-                      l10n,
+        GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () =>
+              context.read<ScreenCubit>().showProfile(beacon.author.id),
+          child: Row(
+            children: [
+              SelfAwareAvatar(
+                profile: beacon.author,
+                size: 36,
+                withRating: beacon.author.id != state.myProfile.id,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: BlocBuilder<ProfileCubit, ProfileState>(
+                  buildWhen: (p, c) => p.profile.id != c.profile.id,
+                  builder: (context, profileState) {
+                    final base = beaconCardMetadataLineTextStyle(theme);
+                    final isSelf = SelfUserHighlight.profileIsSelf(
                       beacon.author,
                       profileState.profile.id,
-                    ),
-                    style: SelfUserHighlight.nameStyle(theme, base, isSelf),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  );
-                },
+                    );
+                    return Text(
+                      SelfUserHighlight.displayName(
+                        l10n,
+                        beacon.author,
+                        profileState.profile.id,
+                      ),
+                      style: SelfUserHighlight.nameStyle(theme, base, isSelf),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         if (needCoordList.isNotEmpty) ...[
           const SizedBox(height: 16),
