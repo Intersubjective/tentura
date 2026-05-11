@@ -637,24 +637,20 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   statusLine: appBarStatusLine,
                   statusTone: appBarStatusTone,
                   l10n: l10n,
-                  onTap:
-                      !showInitialLoading &&
-                          (_surfaceMode == BeaconSurfaceMode.room ||
-                              state.canNavigateBeaconRoom)
-                      ? () => _onToggleSurface(state)
-                      : null,
-                  tooltipMessage: !showInitialLoading
-                      ? _beaconViewSurfaceSwitchTooltip(state, l10n)
-                      : null,
-                  roomUnreadBadgeCount:
-                      !showInitialLoading &&
-                          _surfaceMode == BeaconSurfaceMode.status &&
-                          state.canNavigateBeaconRoom &&
-                          state.roomUnreadCount > 0
-                      ? state.roomUnreadCount
-                      : null,
                 ),
                 actions: [
+                  if (!showInitialLoading &&
+                      _surfaceMode == BeaconSurfaceMode.status &&
+                      state.canNavigateBeaconRoom)
+                    Badge(
+                      isLabelVisible: state.roomUnreadCount > 0,
+                      label: Text('${state.roomUnreadCount}'),
+                      child: IconButton(
+                        tooltip: _beaconViewSurfaceSwitchTooltip(state, l10n),
+                        icon: const Icon(Icons.forum_rounded),
+                        onPressed: () => _onToggleSurface(state),
+                      ),
+                    ),
                   _beaconViewAppBarOverflow(
                     context: context,
                     state: state,
@@ -822,6 +818,9 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             state: state,
             onViewAllCommitments: () => _setTab(1),
             onEditTimelineUpdate: editUpdate,
+            onOpenRoom: state.canNavigateBeaconRoom
+                ? () => onToggleRoomSurface(state)
+                : null,
             onClosureCloseBeacon:
                 state.isBeaconMine &&
                     state.beacon.lifecycle == BeaconLifecycle.open &&

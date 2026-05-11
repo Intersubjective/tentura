@@ -2202,6 +2202,13 @@
   "beaconHudYouLabel": "YOU",
   "beaconHudNoCurrentPlan": "No current plan yet",
   "beaconHudSituationPanelTitle": "Situation",
+  "beaconSituationStateLabel": "State",
+  "beaconSituationPlanLabel": "Plan",
+  "beaconSituationBlockerLabel": "Blocker",
+  "beaconSituationLastChangeLabel": "Last",
+  "beaconSituationOpenRoom": "Open Room",
+  "beaconBlockersPanelTitle": "Blockers / Questions",
+  "beaconBlockersPanelAskInRoom": "Ask in Room",
   "beaconHudYourRolePanelTitle": "Your role",
   "beaconHudYouAuthorReview": "Review {count} commitment(s)",
   "@beaconHudYouAuthorReview": {
