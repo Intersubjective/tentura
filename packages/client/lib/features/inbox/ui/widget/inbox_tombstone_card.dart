@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
@@ -33,7 +34,8 @@ class InboxTombstoneCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final isDeleted = item.status == InboxItemStatus.deletedBeforeResponse;
-    final contextLabel = _tombstoneContextLine(item, l10n);
+    final contextLabel =
+        kShowBeaconCardContextCategory ? _tombstoneContextLine(item, l10n) : '';
     final title = isDeleted
         ? l10n.inboxTombstoneDeletedTitle
         : (item.beacon?.title.trim().isNotEmpty ?? false)
@@ -66,13 +68,15 @@ class InboxTombstoneCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          contextLabel,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: scheme.outline,
+                        if (contextLabel.isNotEmpty) ...[
+                          Text(
+                            contextLabel,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: scheme.outline,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
+                          const SizedBox(height: 4),
+                        ],
                         Text(
                           title,
                           style: theme.textTheme.titleMedium?.copyWith(

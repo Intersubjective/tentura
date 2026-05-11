@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -33,10 +34,6 @@ class CompactBeaconContextStrip extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final locale = Localizations.localeOf(context).toString();
 
-    final contextLabel = beacon.context.isNotEmpty
-        ? beacon.context
-        : l10n.inboxCategoryGeneral;
-
     final start = beacon.startAt;
     final end = beacon.endAt;
     var dateRange = '';
@@ -66,10 +63,15 @@ class CompactBeaconContextStrip extends StatelessWidget {
         buildWhen: (p, c) => p.profile.id != c.profile.id,
         builder: (context, state) {
           final authorLine = _authorLabel(l10n, beacon.author, state.profile.id);
-          final buffer = StringBuffer()
-            ..write(authorLine)
-            ..write(' · ')
-            ..write(contextLabel);
+          final buffer = StringBuffer()..write(authorLine);
+          if (kShowBeaconCardContextCategory) {
+            final contextLabel = beacon.context.isNotEmpty
+                ? beacon.context
+                : l10n.inboxCategoryGeneral;
+            buffer
+              ..write(' · ')
+              ..write(contextLabel);
+          }
           if (dateRange.isNotEmpty) {
             buffer
               ..write(' · ')

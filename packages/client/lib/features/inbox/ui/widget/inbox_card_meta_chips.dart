@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -32,12 +33,19 @@ class InboxCardMetaChips extends StatelessWidget {
         ? l10n.inboxCategoryGeneral
         : beacon.context.trim();
 
-    final segments = <String>[category];
+    final segments = <String>[];
+    if (kShowBeaconCardContextCategory) {
+      segments.add(category);
+    }
     if (beacon.commitmentCount > 0) {
       segments.add(l10n.inboxCommitmentsCount(beacon.commitmentCount));
     }
     if (item.forwardCount > 1) {
       segments.add(l10n.inboxForwardCount(item.forwardCount));
+    }
+
+    if (segments.isEmpty) {
+      return const SizedBox.shrink();
     }
 
     return Text.rich(
