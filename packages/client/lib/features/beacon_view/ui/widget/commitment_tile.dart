@@ -7,7 +7,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
-import 'package:tentura/features/capability/ui/widget/capability_tag_chip.dart';
+import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -152,7 +152,7 @@ class CommitmentTile extends StatelessWidget {
           ),
           if (showHelpTypeChips) ...[
             const SizedBox(height: _rowGap),
-            CapabilitySlugReadonlyChips(slugs: helpTypeSlugs),
+            ForwardCapabilityChips(slugs: helpTypeSlugs),
           ],
           if (commitment.message.isNotEmpty) ...[
             if (!showHelpTypeChips) const SizedBox(height: _rowGap),
