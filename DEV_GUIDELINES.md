@@ -137,7 +137,9 @@ PG trigger (AFTER INSERT/UPDATE/DELETE)
 }
 ```
 
-`entity` is one of `"beacon"`, `"commitment"`, or `"forward"`.
+`entity` is one of `"beacon"`, `"commitment"`, `"forward"`, or beacon-room–related
+keys such as `"room_message"`, `"participant"`, `"fact_card"`, `"blocker"`,
+`"activity_event"` (see migrations using `notify_entity_change(...)`).
 `event` is the lowercase Postgres `TG_OP`: `"insert"`, `"update"`, or `"delete"`.
 
 ### Fan-out strategy (phase 1)
@@ -173,6 +175,16 @@ the repository call in `_database.withMutatingUser(userId, () => ...)`.
 `rxdart` `bufferTime(500ms)` and deduplicates within each window. This
 collapses batch operations (e.g. multi-recipient forwards) into a single
 invalidation event per entity ID.
+
+**Beacon room slice:** `beaconRoomInvalidations` is a
+`Stream<({String beaconId, BeaconRoomEntityType entityType})>` (see
+`features/beacon_room/domain/entity/beacon_room_invalidation.dart`). The WS
+`payload['entity']` string is mapped to `BeaconRoomEntityType` before emit;
+debouncing deduplicates identical `(beaconId, entityType)` pairs in the same
+window. `BeaconViewCase` exposes this stream so UI cubits do not import
+`data/service/` directly. `BeaconViewCubit` routes each type to a minimal
+subset of `BeaconViewCase` fetches (e.g. `room_message` → room activity list +
+unread count only), instead of re-running the full beacon timeline fetch.
 
 ### Adding real-time updates for a new entity
 

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/data/service/invalidation_service.dart';
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -40,7 +40,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     _forwardCompletedSub = _case.forwardCompleted.listen(
       (beaconId) {
         if (isClosed || beaconId != state.beacon.id) return;
-        if (_fetchInProgress) { _fetchPending = true; return; }
+        if (_fetchInProgress) {
+          _fetchPending = true;
+          return;
+        }
         unawaited(_runFetchWithGate());
       },
       cancelOnError: false,
@@ -48,18 +51,16 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     _commitmentChangesSub = _case.commitmentChanges.listen(
       (event) {
         if (isClosed || event.beaconId != state.beacon.id) return;
-        if (_fetchInProgress) { _fetchPending = true; return; }
+        if (_fetchInProgress) {
+          _fetchPending = true;
+          return;
+        }
         unawaited(_runFetchWithGate());
       },
       cancelOnError: false,
     );
-    _beaconRoomRefreshSub =
-        GetIt.I<InvalidationService>().beaconRoomInvalidations.listen(
-      (bid) {
-        if (isClosed || bid != state.beacon.id) return;
-        if (_fetchInProgress) { _fetchPending = true; return; }
-        unawaited(_runFetchWithGate());
-      },
+    _beaconRoomRefreshSub = _case.beaconRoomInvalidations.listen(
+      _onRoomInvalidation,
       cancelOnError: false,
     );
     unawaited(_fetchBeaconByIdWithTimeline());
@@ -71,10 +72,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<CommitmentEvent> _commitmentChangesSub;
 
-  late final StreamSubscription<String> _beaconRoomRefreshSub;
+  late final StreamSubscription<BeaconRoomInvalidation> _beaconRoomRefreshSub;
 
   bool _fetchInProgress = false;
   bool _fetchPending = false;
+
+  final Set<BeaconRoomEntityType> _pendingRoomTypes = {};
 
   @override
   Future<void> close() async {
@@ -272,7 +275,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  /// Run one stream-triggered refresh under the concurrency gate.
+  /// Run one stream-triggered full refresh under the concurrency gate.
   ///
   /// At most one gate-guarded fetch runs at a time. If a second invalidation
   /// arrives while one is in flight, the flag is set and a follow-up fetch
@@ -282,14 +285,107 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> _runFetchWithGate() async {
     _fetchInProgress = true;
     _fetchPending = false;
+    _pendingRoomTypes.clear();
     try {
       await _fetchBeaconByIdWithTimeline();
     } finally {
       _fetchInProgress = false;
-      if (!isClosed && _fetchPending) {
-        unawaited(_runFetchWithGate());
+      if (!isClosed) {
+        if (_fetchPending) {
+          unawaited(_runFetchWithGate());
+        } else if (_pendingRoomTypes.isNotEmpty) {
+          final next = {..._pendingRoomTypes};
+          _pendingRoomTypes.clear();
+          unawaited(_runTargetedFetch(next));
+        }
       }
     }
+  }
+
+  void _onRoomInvalidation(BeaconRoomInvalidation inv) {
+    if (isClosed || inv.beaconId != state.beacon.id) return;
+    if (_fetchInProgress) {
+      _pendingRoomTypes.add(inv.entityType);
+      return;
+    }
+    unawaited(_runTargetedFetch({inv.entityType}));
+  }
+
+  Future<void> _runTargetedFetch(Set<BeaconRoomEntityType> types) async {
+    if (types.isEmpty) return;
+    _fetchInProgress = true;
+    try {
+      await _fetchForEntityTypes(types);
+    } catch (e) {
+      if (!isClosed) emit(state.copyWith(status: StateHasError(e)));
+    } finally {
+      _fetchInProgress = false;
+      if (!isClosed) {
+        if (_fetchPending) {
+          unawaited(_runFetchWithGate());
+        } else if (_pendingRoomTypes.isNotEmpty) {
+          final next = {..._pendingRoomTypes};
+          _pendingRoomTypes.clear();
+          unawaited(_runTargetedFetch(next));
+        }
+      }
+    }
+  }
+
+  Future<void> _fetchForEntityTypes(Set<BeaconRoomEntityType> types) async {
+    final beaconId = state.beacon.id;
+    var needActivity = false;
+    var needUnread = false;
+    var needParticipants = false;
+    var needRoomState = false;
+    var needFactCards = false;
+    for (final t in types) {
+      if (t == BeaconRoomEntityType.roomMessage) {
+        needActivity = true;
+        needUnread = true;
+      } else if (t == BeaconRoomEntityType.activityEvent) {
+        needActivity = true;
+      } else if (t == BeaconRoomEntityType.participant) {
+        needParticipants = true;
+        needRoomState = true;
+      } else if (t == BeaconRoomEntityType.factCard) {
+        needFactCards = true;
+      } else if (t == BeaconRoomEntityType.blocker) {
+        needRoomState = true;
+      }
+    }
+    await Future.wait([
+      if (needActivity) _refreshRoomActivityEvents(beaconId),
+      if (needUnread) _refreshRoomUnread(beaconId),
+      if (needParticipants) _refreshRoomParticipants(beaconId),
+      if (needRoomState) _refreshBeaconRoomCue(beaconId),
+      if (needFactCards) _refreshFactCards(beaconId),
+    ]);
+  }
+
+  Future<void> _refreshRoomActivityEvents(String beaconId) async {
+    final events = await _case.fetchRoomActivityEvents(beaconId);
+    if (!isClosed) emit(state.copyWith(roomActivityEvents: events));
+  }
+
+  Future<void> _refreshRoomUnread(String beaconId) async {
+    final count = await _case.fetchRoomUnreadForBeacon(beaconId);
+    if (!isClosed) emit(state.copyWith(roomUnreadCount: count));
+  }
+
+  Future<void> _refreshRoomParticipants(String beaconId) async {
+    final participants = await _case.fetchRoomParticipants(beaconId);
+    if (!isClosed) emit(state.copyWith(roomParticipants: participants));
+  }
+
+  Future<void> _refreshBeaconRoomCue(String beaconId) async {
+    final cue = await _case.fetchRoomStateIfAllowed(beaconId);
+    if (!isClosed) emit(state.copyWith(beaconRoomCue: cue));
+  }
+
+  Future<void> _refreshFactCards(String beaconId) async {
+    final cards = await _case.fetchFactCards(beaconId);
+    if (!isClosed) emit(state.copyWith(factCards: cards));
   }
 
   Future<void> _fetchBeaconByIdWithTimeline() async {
@@ -353,8 +449,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final factCards = results[4]! as List<BeaconFactCard>;
       final roomParticipants = results[5]! as List<BeaconParticipant>;
       final beaconRoomCue = results[6] as BeaconRoomState?;
-      final roomActivityEvents =
-          results[7]! as List<BeaconActivityEvent>;
+      final roomActivityEvents = results[7]! as List<BeaconActivityEvent>;
       final roomUnreadCount = results[8]! as int;
 
       final isCommitted = commitments
@@ -412,8 +507,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       var showDraftEvaluationCta = false;
       if (beacon.lifecycle == BeaconLifecycle.open) {
         try {
-          showDraftEvaluationCta =
-              await _case.beaconHasDraftEvaluationTargets(beaconId);
+          showDraftEvaluationCta = await _case.beaconHasDraftEvaluationTargets(
+            beaconId,
+          );
         } on Object catch (_) {
           showDraftEvaluationCta = false;
         }
@@ -474,7 +570,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> _applyForwardsFromRemote(String beaconId, String myUserId) async {
+  Future<void> _applyForwardsFromRemote(
+    String beaconId,
+    String myUserId,
+  ) async {
     final results = await Future.wait([
       _case.fetchForwardEdgesForBeacon(beaconId),
       _case.fetchBeaconInvolvement(beaconId: beaconId),
@@ -585,7 +684,8 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
     DateTime? responseUpdatedAt,
     String? responseAuthorUserId,
     int? roomAccess,
-  }) row,
+  })
+  row,
 }) {
   final author = beacon.author;
   final response = CoordinationResponseType.tryFromInt(row.responseType);
@@ -643,8 +743,7 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
       ),
     );
   }
-  final edited =
-      row.updatedAt.difference(row.createdAt).inSeconds.abs() > 1;
+  final edited = row.updatedAt.difference(row.createdAt).inSeconds.abs() > 1;
   if (edited) {
     events.add(
       TimelineCommitmentUpdated(

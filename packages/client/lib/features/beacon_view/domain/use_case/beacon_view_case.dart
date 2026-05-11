@@ -19,9 +19,11 @@ import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
+import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 
 import '../../data/repository/beacon_author_update_repository.dart';
@@ -39,7 +41,8 @@ final class BeaconViewCase extends UseCaseBase {
     this._factCards,
     this._beaconRoomCase,
     this._activityEvents,
-    this._roomHints, {
+    this._roomHints,
+    this._invalidationService, {
     required super.env,
     required super.logger,
   });
@@ -64,21 +67,25 @@ final class BeaconViewCase extends UseCaseBase {
 
   final BeaconRoomHintsRepository _roomHints;
 
+  final InvalidationService _invalidationService;
+
   Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
 
   Stream<CommitmentEvent> get commitmentChanges =>
       _forwardRepository.commitmentChanges;
 
+  Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
+      _invalidationService.beaconRoomInvalidations;
+
   Future<void> setInboxStatus({
     required String beaconId,
     required InboxItemStatus status,
     String rejectionMessage = '',
-  }) =>
-      _inboxRepository.setStatus(
-        beaconId: beaconId,
-        status: status,
-        rejectionMessage: rejectionMessage,
-      );
+  }) => _inboxRepository.setStatus(
+    beaconId: beaconId,
+    status: status,
+    rejectionMessage: rejectionMessage,
+  );
 
   Future<void> deleteBeacon(String beaconId) =>
       _beaconRepository.delete(beaconId);
@@ -100,49 +107,45 @@ final class BeaconViewCase extends UseCaseBase {
     String? message,
     List<String>? helpTypes,
     bool notifyCommitmentListeners = true,
-  }) =>
-      _forwardRepository.commit(
-        beaconId: beaconId,
-        message: message,
-        helpTypes: helpTypes,
-        notifyCommitmentListeners: notifyCommitmentListeners,
-      );
+  }) => _forwardRepository.commit(
+    beaconId: beaconId,
+    message: message,
+    helpTypes: helpTypes,
+    notifyCommitmentListeners: notifyCommitmentListeners,
+  );
 
   Future<bool> forwardWithdraw({
     required String beaconId,
     required String uncommitReason,
     String? message,
-  }) =>
-      _forwardRepository.withdraw(
-        beaconId: beaconId,
-        message: message,
-        uncommitReason: uncommitReason,
-      );
+  }) => _forwardRepository.withdraw(
+    beaconId: beaconId,
+    message: message,
+    uncommitReason: uncommitReason,
+  );
 
   Future<({BeaconCoordinationStatus status, DateTime? updatedAt})>
-      setCoordinationResponse({
+  setCoordinationResponse({
     required String beaconId,
     required String commitUserId,
     required int responseType,
     required bool inviteToRoom,
     required bool removeFromRoom,
-  }) =>
-      _coordinationRepository.setCoordinationResponse(
-        beaconId: beaconId,
-        commitUserId: commitUserId,
-        responseType: responseType,
-        inviteToRoom: inviteToRoom,
-        removeFromRoom: removeFromRoom,
-      );
+  }) => _coordinationRepository.setCoordinationResponse(
+    beaconId: beaconId,
+    commitUserId: commitUserId,
+    responseType: responseType,
+    inviteToRoom: inviteToRoom,
+    removeFromRoom: removeFromRoom,
+  );
 
   Future<void> setBeaconCoordinationStatus({
     required String beaconId,
     required int coordinationStatus,
-  }) =>
-      _coordinationRepository.setBeaconCoordinationStatus(
-        beaconId: beaconId,
-        coordinationStatus: coordinationStatus,
-      );
+  }) => _coordinationRepository.setBeaconCoordinationStatus(
+    beaconId: beaconId,
+    coordinationStatus: coordinationStatus,
+  );
 
   Future<Beacon> fetchBeaconById(String beaconId) =>
       _beaconRepository.fetchBeaconById(beaconId);
@@ -190,50 +193,54 @@ final class BeaconViewCase extends UseCaseBase {
   }
 
   Future<
-      List<
-          ({
-            String beaconId,
-            String userId,
-            Profile user,
-            String message,
-            String? helpType,
-            int status,
-            String? uncommitReason,
-            DateTime createdAt,
-            DateTime updatedAt,
-            int? responseType,
-            DateTime? responseUpdatedAt,
-            String? responseAuthorUserId,
-            int? roomAccess,
-          })>> fetchCommitmentsWithCoordination({
+    List<
+      ({
+        String beaconId,
+        String userId,
+        Profile user,
+        String message,
+        String? helpType,
+        int status,
+        String? uncommitReason,
+        DateTime createdAt,
+        DateTime updatedAt,
+        int? responseType,
+        DateTime? responseUpdatedAt,
+        String? responseAuthorUserId,
+        int? roomAccess,
+      })
+    >
+  >
+  fetchCommitmentsWithCoordination({
     required String beaconId,
-  }) =>
-      _coordinationRepository.fetchCommitmentsWithCoordination(
-        beaconId: beaconId,
-      );
+  }) => _coordinationRepository.fetchCommitmentsWithCoordination(
+    beaconId: beaconId,
+  );
 
   Future<
-      List<
-          ({
-            String id,
-            int number,
-            Profile author,
-            String content,
-            DateTime createdAt,
-          })>>
-      fetchBeaconUpdates({
+    List<
+      ({
+        String id,
+        int number,
+        Profile author,
+        String content,
+        DateTime createdAt,
+      })
+    >
+  >
+  fetchBeaconUpdates({
     required String beaconId,
-  }) =>
-      _forwardRepository.fetchUpdates(beaconId: beaconId);
+  }) => _forwardRepository.fetchUpdates(beaconId: beaconId);
 
   Future<void> postBeaconAuthorUpdate({
     required String beaconId,
     required String content,
-  }) =>
-      _beaconAuthorUpdateRepository.post(
+  }) => _beaconAuthorUpdateRepository
+      .post(
         beaconId: beaconId,
         content: content,
-      ).then((_) {});
+      )
+      .then((_) {});
 
   Future<void> editBeaconAuthorUpdate({
     required String id,
@@ -241,18 +248,23 @@ final class BeaconViewCase extends UseCaseBase {
   }) =>
       _beaconAuthorUpdateRepository.edit(id: id, content: content).then((_) {});
 
-  Future<({InboxItemStatus? status, InboxProvenance provenance, String latestNotePreview})>
-      fetchInboxContextForBeacon(String beaconId) =>
-          _inboxRepository.fetchInboxContextForBeacon(beaconId);
+  Future<
+    ({
+      InboxItemStatus? status,
+      InboxProvenance provenance,
+      String latestNotePreview,
+    })
+  >
+  fetchInboxContextForBeacon(String beaconId) =>
+      _inboxRepository.fetchInboxContextForBeacon(beaconId);
 
   Future<List<ForwardEdge>> fetchMyForwardEdges({
     required String beaconId,
     required String myUserId,
-  }) =>
-      _forwardRepository.fetchMyForwardEdges(
-        beaconId: beaconId,
-        myUserId: myUserId,
-      );
+  }) => _forwardRepository.fetchMyForwardEdges(
+    beaconId: beaconId,
+    myUserId: myUserId,
+  );
 
   /// All forward edges on the beacon, newest first (`ForwardEdgesFetch`: `order_by: created_at desc`).
   Future<List<ForwardEdge>> fetchForwardEdgesForBeacon(String beaconId) =>
@@ -260,8 +272,7 @@ final class BeaconViewCase extends UseCaseBase {
 
   Future<BeaconInvolvementData> fetchBeaconInvolvement({
     required String beaconId,
-  }) =>
-      _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);
+  }) => _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId);
 
   Future<Map<String, List<String>>> fetchForwardReasonsByBeacon(
     String beaconId,
@@ -274,10 +285,9 @@ final class BeaconViewCase extends UseCaseBase {
     required String beaconId,
     required int publicStatus,
     String? lastPublicMeaningfulChange,
-  }) =>
-      _beaconRepository.updatePublicStatus(
-        id: beaconId,
-        publicStatus: publicStatus,
-        lastPublicMeaningfulChange: lastPublicMeaningfulChange,
-      );
+  }) => _beaconRepository.updatePublicStatus(
+    id: beaconId,
+    publicStatus: publicStatus,
+    lastPublicMeaningfulChange: lastPublicMeaningfulChange,
+  );
 }
