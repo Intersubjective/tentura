@@ -136,6 +136,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
                     )
                   : null,
             ),
+            const SizedBox(height: 10),
           ],
           Divider(height: 1, color: tt.border),
         ],
@@ -227,7 +228,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         specs.add(
           _HudActionSpec(
             icon: Icons.flag_outlined,
-            label: l10n.closeBeacon,
+            label: l10n.buttonClose,
             onPressed: onCloseBeacon,
             filled: filled,
           ),
