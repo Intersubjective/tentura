@@ -40,6 +40,7 @@ class RoomCubit extends Cubit<RoomState> {
   bool _markSeenEmittedThisVisit = false;
 
   void _onRemoteRefresh(String id) {
+    if (isClosed) return;
     if (id == state.beaconId) {
       unawaited(load());
     }
@@ -83,6 +84,7 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   Future<void> load() async {
+    if (isClosed) return;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       final messages = await _case.fetchMessages(beaconId: state.beaconId);
@@ -90,6 +92,8 @@ class RoomCubit extends Cubit<RoomState> {
           await _case.fetchParticipants(state.beaconId);
       final roomState = await _case.fetchBeaconRoomState(state.beaconId);
       final factCards = await _case.fetchFactCards(state.beaconId);
+
+      if (isClosed) return;
 
       var anchor = state.unreadAnchorAt;
       if (anchor == null) {
@@ -102,20 +106,24 @@ class RoomCubit extends Cubit<RoomState> {
         }
       }
 
-      emit(
-        state.copyWith(
-          messages: messages,
-          participants: participants,
-          factCards: factCards,
-          roomState: roomState,
-          unreadAnchorAt: anchor,
-          myUserId: GetIt.I<ProfileCubit>().state.profile.id,
-          pendingMarkSeen: !_markSeenEmittedThisVisit,
-          status: const StateIsSuccess(),
-        ),
-      );
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            messages: messages,
+            participants: participants,
+            factCards: factCards,
+            roomState: roomState,
+            unreadAnchorAt: anchor,
+            myUserId: GetIt.I<ProfileCubit>().state.profile.id,
+            pendingMarkSeen: !_markSeenEmittedThisVisit,
+            status: const StateIsSuccess(),
+          ),
+        );
+      }
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      if (!isClosed) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
     }
   }
 
@@ -485,8 +493,8 @@ class RoomCubit extends Cubit<RoomState> {
 
   @override
   Future<void> close() async {
-    await markSeenNowIfNeeded();
     await _refreshSub.cancel();
+    await markSeenNowIfNeeded();
     return super.close();
   }
 }

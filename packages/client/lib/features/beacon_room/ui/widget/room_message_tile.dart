@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -15,7 +16,6 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_reaction_picker.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -31,23 +31,29 @@ class RoomMessageTile extends StatelessWidget {
     required this.message,
     required this.myProfile,
     required this.onToggleReaction,
-    this.onPinnedFactManage,
     this.onActionsPressed,
     this.onOpenFileAttachment,
     this.onVotePoll,
+    this.previousMessage,
+    this.nextMessage,
+    this.breakGroupAbove = false,
     this.participants = const [],
     super.key,
   });
 
   final RoomMessage message;
 
-  /// When non-null (message already has a pinned fact), filled pin beside overflow opens fact actions.
-  final Future<void> Function()? onPinnedFactManage;
+  final RoomMessage? previousMessage;
+
+  final RoomMessage? nextMessage;
+
+  /// True when a date pill or unread band sits directly above this tile.
+  final bool breakGroupAbove;
 
   /// Current user (for aligning / styling mine vs others').
   final Profile myProfile;
 
-  /// Open actions for this message (overflow menu).
+  /// Open actions for this message (tap / secondary tap on bubble).
   final void Function(RoomMessage message)? onActionsPressed;
 
   /// Member-only file attachments (download + share flow).
@@ -60,9 +66,24 @@ class RoomMessageTile extends StatelessWidget {
     String pollingId,
     List<String> variantIds, {
     int? score,
-  })? onVotePoll;
+  })?
+  onVotePoll;
 
   final List<BeaconParticipant> participants;
+
+  static bool _isCoordStateCard(RoomMessage m) =>
+      m.semanticMarker == BeaconRoomSemanticMarker.blocker ||
+      m.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
+      m.semanticMarker == BeaconRoomSemanticMarker.done;
+
+  /// True when [a] and [b] must not share a Telegram-style avatar group.
+  static bool _groupBreak(RoomMessage? a, RoomMessage? b) {
+    if (a == null || b == null) return true;
+    if (a.authorId != b.authorId) return true;
+    if (_isCoordStateCard(a) || _isCoordStateCard(b)) return true;
+    final diff = b.createdAt.difference(a.createdAt).inMinutes.abs();
+    return diff > 5;
+  }
 
   String _semanticShortLabel(L10n l10n, int? marker) => switch (marker) {
     BeaconRoomSemanticMarker.updatePlan => l10n.beaconRoomSemanticPlan,
@@ -118,17 +139,33 @@ class RoomMessageTile extends StatelessWidget {
   static String _formatAttachmentSize(int bytes) =>
       formatRoomAttachmentSize(bytes);
 
+  static String _formatTime(DateTime t) {
+    final l = t.toLocal();
+    return '${l.hour.toString().padLeft(2, '0')}:'
+        '${l.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tt =
+        theme.extension<TenturaTokens>() ??
+        (theme.brightness == Brightness.dark
+            ? TenturaTokens.dark
+            : TenturaTokens.light);
     final isMine = message.authorId == myProfile.id;
     final semantic = _semanticShortLabel(l10n, message.semanticMarker);
     final display = _bodyForDisplay(message);
-    final isStateCard =
-        message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
-        message.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
-        message.semanticMarker == BeaconRoomSemanticMarker.done;
+    final isStateCard = _isCoordStateCard(message);
+
+    final isGroupStart =
+        breakGroupAbove || _groupBreak(previousMessage, message);
+    final isGroupEnd = _groupBreak(message, nextMessage);
+
+    final topPad = isGroupStart ? tt.sectionGap : tt.rowGap / 2;
+    final bottomPad = isGroupEnd ? tt.sectionGap : tt.rowGap / 2;
 
     final viewerReactions = _viewerReactionEmojiSet(message);
 
@@ -167,8 +204,7 @@ class RoomMessageTile extends StatelessWidget {
         spanBuilder: ({required text, textStyle}) {
           final handle = text.substring(1).toLowerCase();
           final userId = handleToUserId[handle];
-          final isMentioned =
-              userId != null && mentionedIds.contains(userId);
+          final isMentioned = userId != null && mentionedIds.contains(userId);
           if (!isMentioned) {
             return TextSpan(text: text, style: textStyle);
           }
@@ -176,10 +212,9 @@ class RoomMessageTile extends StatelessWidget {
           return TextSpan(
             text: text,
             style: textStyle?.copyWith(
-              color:
-                  isSelfMention ? null : theme.colorScheme.primary,
+              color: isSelfMention ? null : scheme.primary,
               backgroundColor: isSelfMention
-                  ? theme.colorScheme.tertiaryContainer.withValues(alpha: 0.8)
+                  ? scheme.tertiaryContainer.withValues(alpha: 0.8)
                   : null,
               fontWeight: isSelfMention ? FontWeight.w600 : FontWeight.w700,
             ),
@@ -188,376 +223,380 @@ class RoomMessageTile extends StatelessWidget {
       ),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Divider(),
-        Material(
-          color: Colors.transparent,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: isStateCard
-                  ? theme.colorScheme.tertiaryContainer.withValues(
-                      alpha: 0.35,
-                    )
-                  : null,
-              borderRadius: BorderRadius.circular(12),
-              border: isStateCard
-                  ? Border.all(color: theme.colorScheme.tertiary)
-                  : null,
-            ),
-            child: Padding(
-              padding: kPaddingH.add(kPaddingSmallT),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: isMine
-                            ? null
-                            : () => context.read<ScreenCubit>().showProfile(
-                                message.author.id,
-                              ),
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: kSpacingSmall),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SelfAwarePlainMiniAvatar(
-                                profile: message.author,
-                              ),
-                              if (authorCapabilityIcons.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                SizedBox(
-                                  width: AvatarRated.sizeSmall,
-                                  child: Wrap(
-                                    alignment: WrapAlignment.center,
-                                    spacing: 2,
-                                    runSpacing: 2,
-                                    children: [
-                                      for (final icon in authorCapabilityIcons)
-                                        Icon(
-                                          icon,
-                                          size: 12,
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                        ),
-                                    ],
-                                  ),
+    Widget reactionsAndTime() => Padding(
+      padding: EdgeInsets.only(top: tt.rowGap / 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: isMine
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        children: [
+          Flexible(
+            child: Wrap(
+              spacing: kSpacingSmall,
+              runSpacing: kSpacingSmall / 2,
+              alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final entry in _sortedReactionEntries(message))
+                  InkWell(
+                    key: ValueKey('${message.id}-re-${entry.key}'),
+                    onTap: () => unawaited(
+                      onToggleReaction(message.id, entry.key),
+                    ),
+                    onLongPress:
+                        (message.reactors[entry.key]?.isNotEmpty ?? false)
+                        ? () => unawaited(
+                            showReactionSendersSheet(
+                              context,
+                              reactors: message.reactors,
+                              reactionCounts: message.reactionCounts,
+                              initialEmoji: entry.key,
+                            ),
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(18),
+                    child: Padding(
+                      padding: kPaddingSmallH.add(
+                        const EdgeInsets.symmetric(vertical: 6),
+                      ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: viewerReactions.contains(entry.key)
+                              ? scheme.primaryContainer
+                              : scheme.surfaceContainerHighest.withValues(
+                                  alpha: 0.75,
                                 ),
-                              ],
-                            ],
+                          borderRadius: BorderRadius.circular(999),
+                          border: viewerReactions.contains(entry.key)
+                              ? Border.all(color: scheme.primary)
+                              : null,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: kSpacingSmall,
+                            vertical: 2,
+                          ),
+                          child: _RoomReactionChipPill(
+                            emoji: entry.key,
+                            count: entry.value,
+                            reactors: message.reactors[entry.key] ?? const [],
                           ),
                         ),
                       ),
-                      Expanded(
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(
+              left: isMine ? 0 : tt.iconTextGap,
+              right: isMine ? tt.iconTextGap : 0,
+              bottom: 2,
+            ),
+            child: Text(
+              [
+                _formatTime(message.createdAt),
+                if (message.editedAt != null) l10n.beaconRoomMessageEdited,
+              ].join(' · '),
+              textAlign: isMine ? TextAlign.end : TextAlign.start,
+              style: theme.textTheme.labelSmall,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Widget coreColumn({required bool showNameHeader}) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: isMine
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        if (showNameHeader)
+          BlocBuilder<ProfileCubit, ProfileState>(
+            buildWhen: (p, c) => p.profile.id != c.profile.id,
+            builder: (context, state) {
+              final isSelf = SelfUserHighlight.profileIsSelf(
+                message.author,
+                state.profile.id,
+              );
+              return Text(
+                SelfUserHighlight.displayName(
+                  l10n,
+                  message.author,
+                  state.profile.id,
+                ),
+                textAlign: isMine ? TextAlign.end : TextAlign.start,
+                style: SelfUserHighlight.nameStyle(
+                  theme,
+                  theme.textTheme.headlineMedium,
+                  isSelf,
+                ),
+              );
+            },
+          ),
+        if (semantic.isNotEmpty && !isStateCard)
+          Padding(
+            padding: EdgeInsets.only(top: tt.iconTextGap / 2),
+            child: Text(
+              semantic,
+              textAlign: isMine ? TextAlign.end : TextAlign.start,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: scheme.tertiary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        if (display.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(top: tt.rowGap / 2),
+            child: ShowMoreText(
+              display,
+              style: ShowMoreText.buildTextStyle(context),
+              colorClickableText: scheme.primary,
+              annotations: mentionAnnotations,
+              textAlign: isMine ? TextAlign.end : TextAlign.start,
+            ),
+          ),
+        if (imageAttachments.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(top: tt.rowGap / 2),
+            child: RoomMessageInlineImageAlbum(
+              attachments: imageAttachments,
+            ),
+          ),
+        if (fileAttachments.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(top: tt.rowGap / 2),
+            child: Wrap(
+              spacing: kSpacingSmall,
+              runSpacing: kSpacingSmall,
+              alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
+              children: [
+                for (final a in fileAttachments)
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.insert_drive_file_outlined,
+                      size: 22,
+                    ),
+                    label: Text(
+                      [
+                        if (a.fileName.trim().isNotEmpty)
+                          a.fileName
+                        else
+                          l10n.beaconRoomAttachmentUntitled,
+                        if (_formatAttachmentSize(a.sizeBytes).isNotEmpty)
+                          ' · ${_formatAttachmentSize(a.sizeBytes)}',
+                      ].join(),
+                    ),
+                    onPressed: onOpenFileAttachment == null
+                        ? null
+                        : () => unawaited(onOpenFileAttachment!(a)),
+                  ),
+              ],
+            ),
+          ),
+        if (message.linkedPollingId != null)
+          Padding(
+            padding: EdgeInsets.only(top: tt.rowGap / 2),
+            child: RoomPollCard(
+              poll:
+                  RoomPollData.tryParse(message.pollDataJson) ??
+                  RoomPollData(
+                    id: message.linkedPollingId!,
+                    question: '',
+                    variants: const [],
+                    totalVotes: 0,
+                    myVariantIds: const [],
+                  ),
+              participants: participants,
+              onVote: onVotePoll == null
+                  ? null
+                  : (variantIds, {score}) => unawaited(
+                      onVotePoll!(
+                        message.linkedPollingId!,
+                        variantIds,
+                        score: score,
+                      ),
+                    ),
+            ),
+          ),
+        reactionsAndTime(),
+      ],
+    );
+
+    Widget bubbleShell({
+      required Widget child,
+      required Color background,
+      required Color borderColor,
+    }) => Material(
+      color: Colors.transparent,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          border: Border.all(color: borderColor),
+        ),
+        child: Padding(
+          padding: tt.cardPadding,
+          child: child,
+        ),
+      ),
+    );
+
+    Widget wrapActions(Widget inner) => GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onActionsPressed == null ? null : () => onActionsPressed!(message),
+      onSecondaryTap: onActionsPressed == null
+          ? null
+          : () => onActionsPressed!(message),
+      child: inner,
+    );
+
+    if (isStateCard) {
+      final stateBody = BlocBuilder<ProfileCubit, ProfileState>(
+        buildWhen: (p, c) => p.profile.id != c.profile.id,
+        builder: (context, state) {
+          final displayName = SelfUserHighlight.displayName(
+            l10n,
+            message.author,
+            state.profile.id,
+          );
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                semantic.isEmpty
+                    ? displayName
+                    : l10n.beaconRoomStateCardInlineHeader(
+                        displayName,
+                        semantic,
+                      ),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              coreColumn(showNameHeader: false),
+            ],
+          );
+        },
+      );
+
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          topPad,
+          tt.screenHPadding,
+          bottomPad,
+        ),
+        child: wrapActions(
+          LayoutBuilder(
+            builder: (context, c) {
+              final cap = tt.contentMaxWidth ?? c.maxWidth;
+              return Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: cap),
+                  child: bubbleShell(
+                    background: scheme.tertiaryContainer.withValues(
+                      alpha: 0.45,
+                    ),
+                    borderColor: scheme.tertiary,
+                    child: stateBody,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    final bubbleBg = isMine ? tt.info.withValues(alpha: 0.18) : tt.surface;
+    final bubbleBorder = isMine ? tt.skyBorder : tt.borderSubtle;
+
+    final bubbleChild = bubbleShell(
+      background: bubbleBg,
+      borderColor: bubbleBorder,
+      child: coreColumn(
+        showNameHeader: !isMine && isGroupStart,
+      ),
+    );
+
+    /// Same [Row] skeleton for mine and others: avatar gutter + gap + bubble so
+    /// left/right bubble borders line up; bubble fills remaining width.
+    final fullWidthBubble = LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        width: constraints.maxWidth,
+        child: wrapActions(bubbleChild),
+      ),
+    );
+
+    // Others' bubbles: slight inset from the list edge so the card border
+    // is not flush with the screen padding.
+    final bubbleSlot = isMine
+        ? fullWidthBubble
+        : Padding(
+            padding: const EdgeInsets.only(right: kSpacingSmall),
+            child: fullWidthBubble,
+          );
+
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        SizedBox(
+          width: AvatarRated.sizeSmall + kSpacingSmall,
+          child: isMine
+              ? const SizedBox.shrink()
+              : (isGroupEnd
+                    ? GestureDetector(
+                        onTap: () => context.read<ScreenCubit>().showProfile(
+                          message.author.id,
+                        ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child:
-                                      BlocBuilder<ProfileCubit, ProfileState>(
-                                        buildWhen: (p, c) =>
-                                            p.profile.id != c.profile.id,
-                                        builder: (context, state) {
-                                          final isSelf =
-                                              SelfUserHighlight.profileIsSelf(
-                                                message.author,
-                                                state.profile.id,
-                                              );
-                                          return Text(
-                                            SelfUserHighlight.displayName(
-                                              l10n,
-                                              message.author,
-                                              state.profile.id,
-                                            ),
-                                            style: SelfUserHighlight.nameStyle(
-                                              theme,
-                                              theme.textTheme.headlineMedium,
-                                              isSelf,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                ),
-                                if (onPinnedFactManage != null)
-                                  IconButton(
-                                    tooltip: l10n.beaconRoomFactManageTooltip,
-                                    icon: Icon(
-                                      Icons.push_pin,
-                                      size: 22,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: () => unawaited(
-                                      onPinnedFactManage!(),
-                                    ),
-                                  ),
-                                IconButton(
-                                  tooltip: l10n.beaconRoomMessageActionsTitle,
-                                  icon: const Icon(Icons.more_vert),
-                                  onPressed: onActionsPressed == null
-                                      ? null
-                                      : () => onActionsPressed!(message),
-                                ),
-                              ],
-                            ),
-                            if (semantic.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: kSpacingSmall / 2,
-                                ),
-                                child: Text(
-                                  semantic,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: theme.colorScheme.tertiary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            if (display.isNotEmpty)
-                              Padding(
-                                padding: kPaddingSmallT,
-                                child: ShowMoreText(
-                                  display,
-                                  style: ShowMoreText.buildTextStyle(context),
-                                  colorClickableText: theme.colorScheme.primary,
-                                  annotations: mentionAnnotations,
-                                ),
-                              ),
-                            if (imageAttachments.isNotEmpty)
-                              Padding(
-                                padding: kPaddingSmallT,
-                                child: RoomMessageInlineImageAlbum(
-                                  attachments: imageAttachments,
-                                ),
-                              ),
-                            if (fileAttachments.isNotEmpty)
-                              Padding(
-                                padding: kPaddingSmallT,
+                            SelfAwarePlainMiniAvatar(profile: message.author),
+                            if (authorCapabilityIcons.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              SizedBox(
+                                width: AvatarRated.sizeSmall,
                                 child: Wrap(
-                                  spacing: kSpacingSmall,
-                                  runSpacing: kSpacingSmall,
+                                  alignment: WrapAlignment.center,
+                                  spacing: 2,
+                                  runSpacing: 2,
                                   children: [
-                                    for (final a in fileAttachments)
-                                      ActionChip(
-                                        avatar: const Icon(
-                                          Icons.insert_drive_file_outlined,
-                                          size: 22,
-                                        ),
-                                        label: Text(
-                                          [
-                                            if (a.fileName.trim().isNotEmpty)
-                                              a.fileName
-                                            else
-                                              l10n.beaconRoomAttachmentUntitled,
-                                            if (_formatAttachmentSize(
-                                              a.sizeBytes,
-                                            ).isNotEmpty)
-                                              ' · ${_formatAttachmentSize(a.sizeBytes)}',
-                                          ].join(),
-                                        ),
-                                        onPressed: onOpenFileAttachment == null
-                                            ? null
-                                            : () => unawaited(
-                                                onOpenFileAttachment!(a),
-                                              ),
+                                    for (final icon in authorCapabilityIcons)
+                                      Icon(
+                                        icon,
+                                        size: 12,
+                                        color: scheme.onSurfaceVariant,
                                       ),
                                   ],
                                 ),
                               ),
-                            if (message.linkedPollingId != null)
-                              Padding(
-                                padding: kPaddingSmallT,
-                                child: RoomPollCard(
-                                  poll: RoomPollData.tryParse(
-                                        message.pollDataJson,
-                                      ) ??
-                                      RoomPollData(
-                                        id: message.linkedPollingId!,
-                                        question: '',
-                                        variants: const [],
-                                        totalVotes: 0,
-                                        myVariantIds: const [],
-                                      ),
-                                  participants: participants,
-                                  onVote: onVotePoll == null
-                                      ? null
-                                      : (variantIds, {score}) => unawaited(
-                                            onVotePoll!(
-                                              message.linkedPollingId!,
-                                              variantIds,
-                                              score: score,
-                                            ),
-                                          ),
-                                ),
-                              ),
+                            ],
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: kPaddingSmallV,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Wrap(
-                              spacing: kSpacingSmall,
-                              runSpacing: kSpacingSmall / 2,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                for (final entry in _sortedReactionEntries(
-                                  message,
-                                ))
-                                  InkWell(
-                                    key: ValueKey(
-                                      '${message.id}-re-${entry.key}',
-                                    ),
-                                    onTap: () => unawaited(
-                                      onToggleReaction(
-                                        message.id,
-                                        entry.key,
-                                      ),
-                                    ),
-                                    onLongPress:
-                                        (message.reactors[entry.key]
-                                                    ?.isNotEmpty ??
-                                                false)
-                                            ? () => unawaited(
-                                                showReactionSendersSheet(
-                                                  context,
-                                                  reactors: message.reactors,
-                                                  reactionCounts:
-                                                      message.reactionCounts,
-                                                  initialEmoji: entry.key,
-                                                ),
-                                              )
-                                            : null,
-                                    borderRadius: BorderRadius.circular(18),
-                                    child: Padding(
-                                      padding: kPaddingSmallH.add(
-                                        const EdgeInsets.symmetric(
-                                          vertical: 6,
-                                        ),
-                                      ),
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color:
-                                              viewerReactions.contains(
-                                                entry.key,
-                                              )
-                                              ? theme
-                                                    .colorScheme
-                                                    .primaryContainer
-                                              : theme
-                                                    .colorScheme
-                                                    .surfaceContainerHighest
-                                                    .withValues(alpha: 0.75),
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          border:
-                                              viewerReactions.contains(
-                                                entry.key,
-                                              )
-                                              ? Border.all(
-                                                  color:
-                                                      theme.colorScheme.primary,
-                                                )
-                                              : null,
-                                        ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: kSpacingSmall,
-                                            vertical: 2,
-                                          ),
-                                          child: _RoomReactionChipPill(
-                                            emoji: entry.key,
-                                            count: entry.value,
-                                            reactors:
-                                                message.reactors[entry.key] ??
-                                                const [],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                Builder(
-                                  builder: (anchorCtx) {
-                                    return IconButton(
-                                      padding: EdgeInsets.zero,
-                                      visualDensity: VisualDensity.compact,
-                                      constraints: const BoxConstraints(
-                                        minWidth: 44,
-                                        minHeight: 44,
-                                      ),
-                                      iconSize: 22,
-                                      tooltip:
-                                          l10n.beaconRoomReactionAddTooltip,
-                                      icon: Icon(
-                                        Icons.add_reaction_outlined,
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                      onPressed: () => unawaited(
-                                        showRoomReactionPicker(
-                                          anchorContext: anchorCtx,
-                                          selected: viewerReactions,
-                                          semanticLabel: l10n
-                                              .beaconRoomReactionPickerSemantic,
-                                          onPick: (emoji) => unawaited(
-                                            onToggleReaction(
-                                              message.id,
-                                              emoji,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: kSpacingSmall,
-                            top: 2,
-                          ),
-                          child: Text(
-                            [
-                              _formatTime(message.createdAt),
-                              if (message.editedAt != null)
-                                l10n.beaconRoomMessageEdited,
-                            ].join(' · '),
-                            style: theme.textTheme.labelSmall,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+                      )
+                    : const SizedBox.shrink()),
         ),
+        SizedBox(width: tt.avatarTextGap),
+        Expanded(child: bubbleSlot),
       ],
     );
-  }
 
-  static String _formatTime(DateTime t) {
-    final l = t.toLocal();
-    return '${l.hour.toString().padLeft(2, '0')}:'
-        '${l.minute.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        tt.screenHPadding,
+        topPad,
+        tt.screenHPadding,
+        bottomPad,
+      ),
+      child: row,
+    );
   }
 }
 
@@ -650,13 +689,15 @@ class _ReactorAvatarStrip extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: SelfUserHighlight.profileIsSelf(
+                          color:
+                              SelfUserHighlight.profileIsSelf(
                                 visible[i],
                                 state.profile.id,
                               )
                               ? scheme.primary
                               : ringColor,
-                          width: SelfUserHighlight.profileIsSelf(
+                          width:
+                              SelfUserHighlight.profileIsSelf(
                                 visible[i],
                                 state.profile.id,
                               )

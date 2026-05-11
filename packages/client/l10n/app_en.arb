@@ -2540,6 +2540,19 @@
   "beaconRoomSemanticDone": "Done",
   "beaconRoomSemanticPoll": "Poll",
   "beaconRoomSemanticSystem": "System",
+  "beaconRoomStateCardInlineHeader": "{authorName} — {semanticLabel}",
+  "@beaconRoomStateCardInlineHeader": {
+    "placeholders": {
+      "authorName": {
+        "type": "String"
+      },
+      "semanticLabel": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomDateToday": "Today",
+  "beaconRoomDateYesterday": "Yesterday",
   "beaconRoomMessagePinnedFactChipPublic": "Pinned · public fact",
   "beaconRoomMessagePinnedFactChipPrivate": "Pinned · room fact",
   "beaconRoomFactsFilterAll": "All",

@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -29,8 +30,10 @@ import 'beacon_room_you_strip.dart';
 import 'fact_actions_sheet.dart';
 import 'mention_suggestions_overlay.dart';
 import 'mention_text_controller.dart';
+import 'room_date_separator.dart';
 import 'room_message_tile.dart';
 import 'room_now_strip.dart';
+import 'room_reaction_picker.dart';
 import 'room_unread_divider.dart';
 
 /// Body-only room UI; expects [RoomCubit] above.
@@ -313,111 +316,109 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           }
 
           return Column(
-              children: [
-                if (!widget.hideCoordinationStrips && state.roomState != null)
-                  RoomNowStrip(
-                    roomState: state.roomState!,
-                    factCards: state.factCards,
-                    collapsed: state.nowCollapsed,
-                    onToggleCollapse: cubit.toggleNowCollapsed,
-                    onOpenFact: (f) => showFactActionsSheet(
+            children: [
+              if (!widget.hideCoordinationStrips && state.roomState != null)
+                RoomNowStrip(
+                  roomState: state.roomState!,
+                  factCards: state.factCards,
+                  collapsed: state.nowCollapsed,
+                  onToggleCollapse: cubit.toggleNowCollapsed,
+                  onOpenFact: (f) => showFactActionsSheet(
+                    context,
+                    cubit: cubit,
+                    fact: f,
+                  ),
+                  onOpenFileAttachment: (a) =>
+                      _openRoomFileAttachment(context, l10n, a),
+                ),
+              if (!widget.hideCoordinationStrips)
+                BeaconRoomYouStrip(
+                  myParticipant: myRow,
+                  collapsed: state.youCollapsed,
+                  onToggleCollapse: cubit.toggleYouCollapsed,
+                  onEditNextMove: () => unawaited(
+                    _showNextMoveSheet(
                       context,
-                      cubit: cubit,
-                      fact: f,
-                    ),
-                    onOpenFileAttachment: (a) =>
-                        _openRoomFileAttachment(context, l10n, a),
-                  ),
-                if (!widget.hideCoordinationStrips)
-                  BeaconRoomYouStrip(
-                    myParticipant: myRow,
-                    collapsed: state.youCollapsed,
-                    onToggleCollapse: cubit.toggleYouCollapsed,
-                    onEditNextMove: () => unawaited(
-                      _showNextMoveSheet(
-                        context,
-                        cubit,
-                        l10n,
-                        targetUserId: myProfile.id,
-                      ),
+                      cubit,
+                      l10n,
+                      targetUserId: myProfile.id,
                     ),
                   ),
-                Expanded(
-                  child: state.hasError && state.messages.isEmpty
-                      ? Center(child: Text(err))
-                      : Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            ListView.builder(
-                              controller: _scrollController,
-                              padding: const EdgeInsets.only(bottom: 72),
-                              itemCount: state.messages.length,
-                              itemBuilder: (context, i) {
-                                final m = state.messages[i];
-                                final pf = state.factForRoomMessage(m);
-                                final isCoord =
-                                    _roomMessageIsCoordinationStateCard(m);
-                                final idxUnread = state.firstUnreadIndex;
-                                final unreads = state.unreadCount;
-                                final showUnreadBand =
-                                    unreads > 0 &&
-                                    idxUnread >= 0 &&
-                                    i == idxUnread;
-
-                                final messageTile = RoomMessageTile(
-                                  key: _messageKey(m.id),
-                                  message: m,
-                                  myProfile: myProfile,
-                                  onPinnedFactManage: (!isCoord && pf != null)
-                                      ? () => showFactActionsSheet(
-                                          context,
-                                          cubit: cubit,
-                                          fact: pf,
-                                        )
-                                      : null,
-                                  onActionsPressed: (msg) =>
-                                      _onMessageActionsPressed(
-                                        context,
-                                        cubit,
-                                        l10n,
-                                        myProfile,
-                                        msg,
-                                      ),
-                                  onToggleReaction: (messageId, emoji) =>
-                                      cubit.toggleReaction(
-                                        messageId: messageId,
-                                        emoji: emoji,
-                                      ),
-                                  onOpenFileAttachment: (a) =>
-                                      _openRoomFileAttachment(
-                                        context,
-                                        l10n,
-                                        a,
-                                      ),
-                                  participants: state.participants,
-                                  onVotePoll:
-                                      (pollingId, variantIds, {score}) =>
-                                          cubit.votePoll(
-                                            messageId: m.id,
-                                            pollingId: pollingId,
-                                            variantIds: variantIds,
-                                            score: score,
-                                          ),
-                                );
-
-                                if (!showUnreadBand) {
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    child: messageTile,
+                ),
+              Expanded(
+                child: state.hasError && state.messages.isEmpty
+                    ? Center(child: Text(err))
+                    : Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.only(bottom: 72),
+                            itemCount: state.messages.length,
+                            itemBuilder: (context, i) {
+                              final m = state.messages[i];
+                              final prev = i == 0
+                                  ? null
+                                  : state.messages[i - 1];
+                              final next = i + 1 >= state.messages.length
+                                  ? null
+                                  : state.messages[i + 1];
+                              final dateChanged =
+                                  prev == null ||
+                                  !roomMessageSameLocalDay(
+                                    prev.createdAt,
+                                    m.createdAt,
                                   );
-                                }
-                                return Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
+                              final idxUnread = state.firstUnreadIndex;
+                              final unreads = state.unreadCount;
+                              final showUnreadBand =
+                                  unreads > 0 &&
+                                  idxUnread >= 0 &&
+                                  i == idxUnread;
+
+                              final messageTile = RoomMessageTile(
+                                key: _messageKey(m.id),
+                                message: m,
+                                myProfile: myProfile,
+                                previousMessage: prev,
+                                nextMessage: next,
+                                breakGroupAbove: dateChanged || showUnreadBand,
+                                onActionsPressed: (msg) =>
+                                    _onMessageActionsPressed(
+                                      context,
+                                      cubit,
+                                      l10n,
+                                      myProfile,
+                                      msg,
+                                    ),
+                                onToggleReaction: (messageId, emoji) =>
+                                    cubit.toggleReaction(
+                                      messageId: messageId,
+                                      emoji: emoji,
+                                    ),
+                                onOpenFileAttachment: (a) =>
+                                    _openRoomFileAttachment(
+                                      context,
+                                      l10n,
+                                      a,
+                                    ),
+                                participants: state.participants,
+                                onVotePoll: (pollingId, variantIds, {score}) =>
+                                    cubit.votePoll(
+                                      messageId: m.id,
+                                      pollingId: pollingId,
+                                      variantIds: variantIds,
+                                      score: score,
+                                    ),
+                              );
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (dateChanged)
+                                    RoomDateSeparator(date: m.createdAt),
+                                  if (showUnreadBand)
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 12,
@@ -426,74 +427,68 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                                         unreadCount: unreads,
                                       ),
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                      ),
-                                      child: messageTile,
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                            if (_showJumpFab)
-                              Positioned(
-                                right: 12,
-                                bottom: 8,
-                                child: Badge(
-                                  isLabelVisible: state.unreadCount > 0,
-                                  label: Text('${state.unreadCount}'),
-                                  child: FloatingActionButton.small(
-                                    heroTag: 'beacon_room_jump_latest',
-                                    tooltip:
-                                        l10n.beaconRoomScrollToLatestTooltip,
-                                    onPressed: () => unawaited(_jumpToLatest()),
-                                    child: const Icon(
-                                      Icons.arrow_downward_rounded,
-                                    ),
+                                  messageTile,
+                                ],
+                              );
+                            },
+                          ),
+                          if (_showJumpFab)
+                            Positioned(
+                              right: 12,
+                              bottom: 8,
+                              child: Badge(
+                                isLabelVisible: state.unreadCount > 0,
+                                label: Text('${state.unreadCount}'),
+                                child: FloatingActionButton.small(
+                                  heroTag: 'beacon_room_jump_latest',
+                                  tooltip: l10n.beaconRoomScrollToLatestTooltip,
+                                  onPressed: () => unawaited(_jumpToLatest()),
+                                  child: const Icon(
+                                    Icons.arrow_downward_rounded,
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
-                ),
-                if (state.isLoading && state.messages.isEmpty)
-                  const Padding(
-                    padding: kPaddingV,
-                    child: CircularProgressIndicator(),
-                  ),
-                SafeArea(
-                  child: Material(
-                    child: Padding(
-                      padding: kPaddingH.add(kPaddingSmallT).add(kPaddingV),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: BeaconRoomComposer(
-                              imageRepository: GetIt.I<ImageRepository>(),
-                              isSending: state.isLoading,
-                              onSend: (body, uploads) => cubit.sendMessage(
-                                body: body,
-                                uploads: uploads,
-                              ),
                             ),
-                          ),
-                          IconButton(
-                            tooltip: L10n.of(context)!.beaconRoomCreatePoll,
-                            icon: const Icon(Icons.poll_outlined),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: state.isLoading
-                                ? null
-                                : () => _showCreatePollSheet(context, cubit),
-                          ),
                         ],
                       ),
+              ),
+              if (state.isLoading && state.messages.isEmpty)
+                const Padding(
+                  padding: kPaddingV,
+                  child: CircularProgressIndicator(),
+                ),
+              SafeArea(
+                child: Material(
+                  child: Padding(
+                    padding: kPaddingH.add(kPaddingSmallT).add(kPaddingV),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: BeaconRoomComposer(
+                            imageRepository: GetIt.I<ImageRepository>(),
+                            isSending: state.isLoading,
+                            onSend: (body, uploads) => cubit.sendMessage(
+                              body: body,
+                              uploads: uploads,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: L10n.of(context)!.beaconRoomCreatePoll,
+                          icon: const Icon(Icons.poll_outlined),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: state.isLoading
+                              ? null
+                              : () => _showCreatePollSheet(context, cubit),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ],
+              ),
+            ],
           );
         },
       ),
@@ -537,6 +532,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     await _showPinFactChoices(context, cubit, l10n, message, text);
   }
 
+  static Set<String> _viewerReactionEmojis(RoomMessage m) {
+    final raw = m.myReaction;
+    if (raw == null || raw.trim().isEmpty) return {};
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+  }
+
   void _onMessageActionsPressed(
     BuildContext context,
     RoomCubit cubit,
@@ -547,114 +552,178 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final pf = cubit.state.factForRoomMessage(message);
     final showFactInMenu = !_roomMessageIsCoordinationStateCard(message);
     final isOwnMessage = message.authorId == viewer.id;
+    final viewerReactions = _viewerReactionEmojis(message);
     unawaited(
       showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
         builder: (ctx) {
           final theme = Theme.of(ctx);
+          final tt = ctx.tt;
           return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: kPaddingH.add(kPaddingSmallT),
-                  child: Text(
-                    l10n.beaconRoomMessageActionsTitle,
-                    style: Theme.of(ctx).textTheme.titleMedium,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: kPaddingH.add(kPaddingSmallT),
+                    child: Text(
+                      l10n.beaconRoomMessageActionsTitle,
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
                   ),
-                ),
-                if (isOwnMessage && showFactInMenu)
+                  Padding(
+                    padding: kPaddingH,
+                    child: Wrap(
+                      spacing: kSpacingSmall,
+                      runSpacing: kSpacingSmall,
+                      children: [
+                        for (final emoji in kBeaconRoomReactionPickerEmojis)
+                          InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              unawaited(
+                                cubit.toggleReaction(
+                                  messageId: message.id,
+                                  emoji: emoji,
+                                ),
+                              );
+                            },
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: viewerReactions.contains(emoji)
+                                      ? tt.skyBorder
+                                      : Colors.transparent,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Text(
+                                  emoji,
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (isOwnMessage && showFactInMenu)
+                    ListTile(
+                      leading: const Icon(Icons.edit_outlined),
+                      title: Text(l10n.beaconRoomActionEditMessage),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          _showEditMessageSheet(context, cubit, l10n, message),
+                        );
+                      },
+                    ),
                   ListTile(
-                    leading: const Icon(Icons.edit_outlined),
-                    title: Text(l10n.beaconRoomActionEditMessage),
+                    leading: const Icon(Icons.edit_note_outlined),
+                    title: Text(l10n.beaconRoomActionUpdatePlan),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      unawaited(_showPlanUpdateSheet(context, cubit, l10n));
+                    },
+                  ),
+                  if (showFactInMenu && pf == null)
+                    ListTile(
+                      leading: const Icon(Icons.fact_check_outlined),
+                      title: Text(l10n.beaconRoomActionPinFact),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          _pinOrManageFactForMessage(
+                            context,
+                            cubit,
+                            l10n,
+                            message,
+                            null,
+                          ),
+                        );
+                      },
+                    ),
+                  if (showFactInMenu && pf != null)
+                    ListTile(
+                      leading: const Icon(Icons.fact_check_outlined),
+                      title: Text(l10n.beaconRoomActionViewPinnedFact),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          showFactActionsSheet(
+                            context,
+                            cubit: cubit,
+                            fact: pf,
+                          ),
+                        );
+                      },
+                    ),
+                  if (showFactInMenu && pf != null)
+                    ListTile(
+                      leading: Icon(
+                        Icons.push_pin_outlined,
+                        color: theme.colorScheme.error,
+                      ),
+                      title: Text(
+                        l10n.beaconRoomFactCardActionRemove,
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          _confirmUnpinFactFromMessage(
+                            context,
+                            cubit,
+                            l10n,
+                            pf,
+                          ),
+                        );
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.report_problem_outlined),
+                    title: Text(l10n.beaconRoomActionMarkBlocker),
                     onTap: () {
                       Navigator.pop(ctx);
                       unawaited(
-                        _showEditMessageSheet(context, cubit, l10n, message),
+                        _showMarkBlockerSheet(context, cubit, l10n, message),
                       );
                     },
                   ),
-                ListTile(
-                  leading: const Icon(Icons.edit_note_outlined),
-                  title: Text(l10n.beaconRoomActionUpdatePlan),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    unawaited(_showPlanUpdateSheet(context, cubit, l10n));
-                  },
-                ),
-                if (showFactInMenu && pf == null)
                   ListTile(
-                    leading: const Icon(Icons.fact_check_outlined),
-                    title: Text(l10n.beaconRoomActionPinFact),
+                    leading: const Icon(Icons.help_outline),
+                    title: Text(l10n.beaconRoomActionNeedInfo),
                     onTap: () {
                       Navigator.pop(ctx);
                       unawaited(
-                        _pinOrManageFactForMessage(
+                        _showNeedInfoSheet(
                           context,
                           cubit,
                           l10n,
+                          viewer,
                           message,
-                          null,
                         ),
                       );
                     },
                   ),
-                if (showFactInMenu && pf != null)
                   ListTile(
-                    leading: Icon(
-                      Icons.push_pin_outlined,
-                      color: theme.colorScheme.error,
-                    ),
-                    title: Text(
-                      l10n.beaconRoomFactCardActionRemove,
-                      style: TextStyle(color: theme.colorScheme.error),
-                    ),
+                    leading: const Icon(Icons.task_alt_outlined),
+                    title: Text(l10n.beaconRoomActionMarkDone),
                     onTap: () {
                       Navigator.pop(ctx);
                       unawaited(
-                        _confirmUnpinFactFromMessage(context, cubit, l10n, pf),
+                        _showMarkDoneSheet(context, cubit, l10n, message),
                       );
                     },
                   ),
-                ListTile(
-                  leading: const Icon(Icons.report_problem_outlined),
-                  title: Text(l10n.beaconRoomActionMarkBlocker),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    unawaited(
-                      _showMarkBlockerSheet(context, cubit, l10n, message),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.help_outline),
-                  title: Text(l10n.beaconRoomActionNeedInfo),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    unawaited(
-                      _showNeedInfoSheet(
-                        context,
-                        cubit,
-                        l10n,
-                        viewer,
-                        message,
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.task_alt_outlined),
-                  title: Text(l10n.beaconRoomActionMarkDone),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    unawaited(
-                      _showMarkDoneSheet(context, cubit, l10n, message),
-                    );
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -1072,8 +1141,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomMessageAttachment attachment,
   ) async {
     try {
-      final bytes =
-          await GetIt.I<BeaconRoomCase>().downloadRoomAttachment(attachment.id);
+      final bytes = await GetIt.I<BeaconRoomCase>().downloadRoomAttachment(
+        attachment.id,
+      );
       final name = attachment.fileName.trim().isEmpty
           ? 'file'
           : attachment.fileName.trim();

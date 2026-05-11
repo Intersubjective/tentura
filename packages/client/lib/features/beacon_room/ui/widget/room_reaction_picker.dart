@@ -6,6 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+/// Curated reaction emojis (same list as the anchored picker grid).
+const List<String> kBeaconRoomReactionPickerEmojis =
+    BeaconRoomMessageReaction.quickPickerEmojis;
+
 const double _kReactionPickerCellExtent = 40;
 
 /// Anchored Telegram-style emoji reaction strip (curated subset only).
@@ -109,7 +113,7 @@ class _RoomReactionPopupContent extends StatelessWidget {
     final mq = MediaQuery.of(context);
     final cols = mq.size.width >= 360 ? 8 : 4;
     const cell = _kReactionPickerCellExtent;
-    const emojis = BeaconRoomMessageReaction.quickPickerEmojis;
+    const emojis = kBeaconRoomReactionPickerEmojis;
 
     final rows = <List<String>>[];
     for (var i = 0; i < emojis.length; i += cols) {

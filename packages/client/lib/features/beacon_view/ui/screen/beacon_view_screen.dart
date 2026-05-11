@@ -426,9 +426,20 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         : BeaconSurfaceMode.status;
   }
 
+  /// Drop the embedded room cubit so the next room visit re-reads the
+  /// server last-seen watermark for the unread divider.
+  void _releaseEmbeddedRoomCubit() {
+    final c = _roomCubit;
+    if (c == null) return;
+    _roomCubit = null;
+    if (!c.isClosed) {
+      unawaited(c.close());
+    }
+  }
+
   @override
   void dispose() {
-    unawaited(_roomCubit?.close());
+    _releaseEmbeddedRoomCubit();
     super.dispose();
   }
 
@@ -478,6 +489,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     }
     if (next == BeaconSurfaceMode.status) {
       context.read<BeaconViewCubit>().clearRoomUnread();
+      _releaseEmbeddedRoomCubit();
     }
     setState(() {
       _surfaceMode = next;
@@ -521,6 +533,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         if (!ctx.mounted) return;
         if (_surfaceMode == BeaconSurfaceMode.room &&
             !s.canNavigateBeaconRoom) {
+          _releaseEmbeddedRoomCubit();
           setState(() {
             _surfaceMode = BeaconSurfaceMode.status;
             _bannerMessage = L10n.of(
