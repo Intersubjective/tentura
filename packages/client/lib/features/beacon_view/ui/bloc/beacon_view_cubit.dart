@@ -275,6 +275,16 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
+  /// Immediately zeros out the cached unread count.
+  ///
+  /// Call this when the user leaves the room surface so the badge clears
+  /// without waiting for the next server invalidation.
+  void clearRoomUnread() {
+    if (!isClosed && state.roomUnreadCount != 0) {
+      emit(state.copyWith(roomUnreadCount: 0));
+    }
+  }
+
   /// Run one stream-triggered full refresh under the concurrency gate.
   ///
   /// At most one gate-guarded fetch runs at a time. If a second invalidation
