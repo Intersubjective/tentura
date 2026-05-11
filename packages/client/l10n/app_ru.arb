@@ -642,18 +642,6 @@
   "@buttonStart": {
     "context": "Intro"
   },
-  "confirmOpinionRemoval": "Вы уверены, что хотите удалить это мнение?",
-  "@confirmOpinionRemoval": {
-    "context": "OpinionDeleteDialog"
-  },
-  "noOpinions": "Мнений пока нет",
-  "@noOpinions": {
-    "context": "OpinionList"
-  },
-  "deleteOpinion": "Удалить моё мнение",
-  "@deleteOpinion": {
-    "context": "OpinionTile"
-  },
   "confirmProfileRemoval": "Вы уверены, что хотите удалить ваш профиль?",
   "@confirmProfileRemoval": {
     "context": "MyProfileDelete"
@@ -705,26 +693,6 @@
   "removeFromMyField": "Убрать из друзей",
   "@removeFromMyField": {
     "context": "ProfileViewAppBar"
-  },
-  "onlyOneOpinion": "Вы можете оставить только одно мнение",
-  "@onlyOneOpinion": {
-    "context": "Opinions"
-  },
-  "writeOpinion": "Написать мнение",
-  "@writeOpinion": {
-    "context": "Opinions"
-  },
-  "positiveOrNegativeOpinion": "Это мнение положительное или отрицательное?",
-  "@positiveOrNegativeOpinion": {
-    "context": "Opinions"
-  },
-  "positiveOpinion": "Положительное",
-  "@positiveOpinion": {
-    "context": "Opinions"
-  },
-  "negativeOpinion": "Отрицательное",
-  "@negativeOpinion": {
-    "context": "Opinions"
   },
   "rating": "Рейтинг",
   "@rating": {

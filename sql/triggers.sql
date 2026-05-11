@@ -1,7 +1,7 @@
 -- Triggers and trigger functions for MeritRank + app logic
 -- Extracted from packages/server migrations m0002, m0003, m0005.
 -- Prerequisites: mr_put_edge(), mr_delete_edge(); mr_set_new_edges_filter() optional (behind flag, unimplemented/WIP)
--- (e.g. from MeritRank/Hasura schema). Tables public.beacon, opinion,
+-- (e.g. from MeritRank/Hasura schema). Tables public.beacon,
 -- vote_beacon, vote_user, "user", user_vsids, invitation, message,
 -- polling, polling_variant, polling_act, user_updates must exist.
 --
@@ -31,44 +31,6 @@ BEGIN
     WHERE user_id = NEW.user_id
     RETURNING counter INTO NEW.ticker;
   RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.notify_meritrank_opinion_mutation()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-BEGIN
-  IF (TG_OP = 'INSERT') THEN
-    PERFORM mr_put_edge(
-      NEW.subject,
-      NEW.id,
-      (abs(NEW.amount))::double precision,
-      '',
-      NEW.ticker
-    );
-    PERFORM mr_put_edge(
-      NEW.id,
-      NEW.subject,
-      (1)::double precision,
-      '',
-      NEW.ticker
-    );
-    PERFORM mr_put_edge(
-      NEW.id,
-      NEW.object,
-      (sign(NEW.amount))::double precision,
-      '',
-      NEW.ticker
-    );
-    RETURN NEW;
-
-  ELSIF (TG_OP = 'DELETE') THEN
-    PERFORM mr_delete_edge(OLD.subject, OLD.id);
-    PERFORM mr_delete_edge(OLD.id, OLD.subject);
-    PERFORM mr_delete_edge(OLD.id, OLD.object);
-    RETURN OLD;
-  END IF;
 END;
 $$;
 
@@ -126,18 +88,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.opinion_before_insert()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-BEGIN
-  UPDATE user_vsids SET counter = counter + 1
-    WHERE user_id = NEW.subject
-    RETURNING counter INTO NEW.ticker;
-  RETURN NEW;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION public.vote_beacon_before_insert()
   RETURNS trigger
   LANGUAGE plpgsql
@@ -163,10 +113,6 @@ END;
 $$;
 
 -- Triggers
-CREATE OR REPLACE TRIGGER notify_meritrank_opinion_mutation
-  AFTER INSERT OR DELETE ON public.opinion
-  FOR EACH ROW EXECUTE FUNCTION public.notify_meritrank_opinion_mutation();
-
 CREATE OR REPLACE TRIGGER notify_meritrank_vote_user_mutation
   AFTER INSERT OR UPDATE ON public.vote_user
   FOR EACH ROW EXECUTE FUNCTION public.notify_meritrank_vote_user_mutation();
@@ -182,10 +128,6 @@ CREATE OR REPLACE TRIGGER on_user_created
 CREATE OR REPLACE TRIGGER public_beacon_before_insert
   BEFORE INSERT ON public.beacon
   FOR EACH ROW EXECUTE FUNCTION public.beacon_before_insert();
-
-CREATE OR REPLACE TRIGGER public_opinion_before_insert
-  BEFORE INSERT ON public.opinion
-  FOR EACH ROW EXECUTE FUNCTION public.opinion_before_insert();
 
 CREATE OR REPLACE TRIGGER public_vote_beacon_before_insert
   BEFORE INSERT ON public.vote_beacon
@@ -243,15 +185,6 @@ BEGIN
     -- Edges User -> User (vote)
     SELECT subject AS src, object AS dst, amount::float8 AS weight, ticker::bigint AS magnitude, ''::text AS context
     FROM vote_user
-    UNION ALL
-    -- Edges Author -> Opinion
-    SELECT subject, id, (abs(amount))::float8, ticker::bigint, ''::text FROM "opinion"
-    UNION ALL
-    -- Edges Opinion -> Author
-    SELECT id, subject, 1.0::float8, ticker::bigint, ''::text FROM "opinion"
-    UNION ALL
-    -- Edges Opinion -> User
-    SELECT id, object, (sign(amount))::float8, ticker::bigint, ''::text FROM "opinion"
     UNION ALL
     -- Pollings and Variants (variant -> polling)
     SELECT pv.id, p.id, 1.0::float8, 0::bigint, ''::text

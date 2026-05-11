@@ -1,7 +1,0 @@
-# import '/data/gql/opinion_model.graphql'
-
-query OpinionFetchById($id: String!) {
-  opinion_by_pk(id: $id) {
-    ...OpinionModel
-  }
-}

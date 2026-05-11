@@ -6,7 +6,6 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/api/view/shared_view/shared_view_document.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
-import 'package:tentura_server/domain/use_case/opinion_case.dart';
 
 import '_base_controller.dart';
 
@@ -16,7 +15,6 @@ final class SharedViewController extends BaseController {
     this._beaconRepository,
     this._userRepository,
     this._invitationCase,
-    this._opinionCase,
     super.env,
   );
 
@@ -25,8 +23,6 @@ final class SharedViewController extends BaseController {
   final UserRepositoryPort _userRepository;
 
   final InvitationCase _invitationCase;
-
-  final OpinionCase _opinionCase;
 
   @override
   Future<Response> handler(Request request) async {
@@ -54,7 +50,7 @@ final class SharedViewController extends BaseController {
             'B' => await _beaconRepository.getBeaconById(beaconId: ogId),
             'C' => throw const IdWrongException(),
             'I' => await _invitationCase.fetchById(invitationId: ogId),
-            'O' => await _opinionCase.getOpinionById(ogId),
+            'O' => throw const IdWrongException(),
             'U' => await _userRepository.getById(ogId),
             _ => throw IdWrongException(id: ogId),
           },

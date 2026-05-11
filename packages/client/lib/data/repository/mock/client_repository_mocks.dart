@@ -36,7 +36,6 @@ import 'package:tentura/features/my_work/data/repository/my_work_repository.dart
 import 'package:tentura/features/notification/domain/port/fcm_local_repository_port.dart';
 import 'package:tentura/features/notification/domain/port/fcm_remote_repository_port.dart';
 
-import 'package:tentura/features/opinion/data/repository/opinion_repository.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile_view/data/repository/mutual_friends_repository.dart';
@@ -105,9 +104,6 @@ class AppUpdateRepositoryMock extends Mock implements AppUpdateRepository {}
 
 @Injectable(as: GeoRepository, env: [Environment.test], order: 1)
 class GeoRepositoryMock extends Mock implements GeoRepository {}
-
-@Injectable(as: OpinionRepository, env: [Environment.test], order: 1)
-class OpinionRepositoryMock extends Mock implements OpinionRepository {}
 
 @Injectable(as: MyWorkRepository, env: [Environment.test], order: 1)
 class MyWorkRepositoryMock extends Mock implements MyWorkRepository {}
