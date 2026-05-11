@@ -2822,6 +2822,8 @@
   "capabilityTagHosting": "Размещение",
   "capabilityTagMoney": "Деньги",
   "capabilityTagOrders": "Заказы",
+  "capabilityTagGig": "Подработка / временная работа",
+  "capabilityTagJob": "Работа",
   "capabilityTagFood": "Еда",
   "capabilityTagHousing": "Жильё",
   "capabilityTagEquipment": "Оборудование",
