@@ -26,7 +26,6 @@ const kAllowedCapabilitySlugs = {
   'hosting',
   // Resources
   'money',
-  'orders',
   'food',
   'housing',
   'equipment',
@@ -40,5 +39,8 @@ const kAllowedCapabilitySlugs = {
   // Special / legacy aliases
   'time',
   'contact',
+  'orders',
+  'gig',
+  'job',
   'other',
 };

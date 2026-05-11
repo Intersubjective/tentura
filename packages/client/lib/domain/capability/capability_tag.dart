@@ -34,7 +34,6 @@ enum CapabilityTag {
 
   // Resources
   money(slug: 'money', group: CapabilityGroup.resources),
-  orders(slug: 'orders', group: CapabilityGroup.resources),
   food(slug: 'food', group: CapabilityGroup.resources),
   housing(slug: 'housing', group: CapabilityGroup.resources),
   equipment(slug: 'equipment', group: CapabilityGroup.resources),
@@ -50,6 +49,9 @@ enum CapabilityTag {
   // Special / legacy aliases
   time(slug: 'time', group: CapabilityGroup.resources),
   contact(slug: 'contact', group: CapabilityGroup.communication),
+  orders(slug: 'orders', group: CapabilityGroup.special),
+  gig(slug: 'gig', group: CapabilityGroup.special),
+  job(slug: 'job', group: CapabilityGroup.special),
   other(slug: 'other', group: CapabilityGroup.special);
 
   const CapabilityTag({
@@ -89,6 +91,8 @@ enum CapabilityTag {
     CapabilityTag.hosting => l10n.capabilityTagHosting,
     CapabilityTag.money => l10n.capabilityTagMoney,
     CapabilityTag.orders => l10n.capabilityTagOrders,
+    CapabilityTag.gig => l10n.capabilityTagGig,
+    CapabilityTag.job => l10n.capabilityTagJob,
     CapabilityTag.food => l10n.capabilityTagFood,
     CapabilityTag.housing => l10n.capabilityTagHousing,
     CapabilityTag.equipment => l10n.capabilityTagEquipment,
@@ -126,6 +130,8 @@ enum CapabilityTag {
     CapabilityTag.hosting => Icons.home_rounded,
     CapabilityTag.money => Icons.payments_rounded,
     CapabilityTag.orders => Icons.shopping_cart_rounded,
+    CapabilityTag.gig => Icons.timelapse_rounded,
+    CapabilityTag.job => Icons.work_rounded,
     CapabilityTag.food => Icons.restaurant_rounded,
     CapabilityTag.housing => Icons.apartment_rounded,
     CapabilityTag.equipment => Icons.inventory_2_rounded,

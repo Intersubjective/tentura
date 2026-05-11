@@ -2834,6 +2834,8 @@
   "capabilityTagHosting": "Hosting",
   "capabilityTagMoney": "Money",
   "capabilityTagOrders": "Orders",
+  "capabilityTagGig": "Gig / temp work",
+  "capabilityTagJob": "Job",
   "capabilityTagFood": "Food",
   "capabilityTagHousing": "Housing",
   "capabilityTagEquipment": "Equipment",
