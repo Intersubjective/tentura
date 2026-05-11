@@ -62,7 +62,7 @@ void main() {
     expect(commitmentHelpTypeSlugs(null), isEmpty);
   });
 
-  testWidgets('known help_type renders selected FilterChip with l10n label', (
+  testWidgets('known help_type renders read-only RawChip with l10n label', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -76,15 +76,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(FilterChip, 'Money'), findsOneWidget);
-    final chip = tester.widget<FilterChip>(
-      find.widgetWithText(FilterChip, 'Money'),
+    expect(find.widgetWithText(RawChip, 'Money'), findsOneWidget);
+    final chip = tester.widget<RawChip>(
+      find.widgetWithText(RawChip, 'Money'),
     );
-    expect(chip.selected, isTrue);
-    expect(chip.onSelected, isNotNull);
+    expect(chip.onPressed, isNull);
   });
 
-  testWidgets('unknown help_type wire renders plain Chip label', (
+  testWidgets('unknown help_type wire renders plain RawChip label', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -99,7 +98,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(FilterChip), findsNothing);
-    expect(find.widgetWithText(Chip, 'legacy_unknown_key'), findsOneWidget);
+    expect(
+      find.widgetWithText(RawChip, 'legacy_unknown_key'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('JSON-encoded help_type array renders one chip per slug', (
@@ -119,9 +121,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(FilterChip, 'Money'), findsOneWidget);
-    expect(find.widgetWithText(FilterChip, 'Time'), findsOneWidget);
-    expect(find.byType(FilterChip), findsNWidgets(2));
+    expect(find.widgetWithText(RawChip, 'Money'), findsOneWidget);
+    expect(find.widgetWithText(RawChip, 'Time'), findsOneWidget);
+    expect(find.byType(RawChip), findsNWidgets(2));
   });
 
   testWidgets('null help_type hides capability row', (tester) async {
@@ -137,7 +139,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(FilterChip), findsNothing);
-    expect(find.byType(Chip), findsNothing);
+    expect(find.byType(RawChip), findsNothing);
     expect(find.text('Active'), findsNothing);
   });
 
