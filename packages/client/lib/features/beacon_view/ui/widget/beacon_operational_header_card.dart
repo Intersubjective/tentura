@@ -9,11 +9,10 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.da
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
 import 'beacon_anchor_status.dart';
 
-/// Compact HUD header: identity, state tokens, NOW/YOU, people strip, action rail.
+/// Compact HUD header: state tokens, NOW/YOU, people strip, action rail.
 class BeaconOperationalHeaderCard extends StatelessWidget {
   const BeaconOperationalHeaderCard({
     required this.state,
@@ -64,8 +63,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final beacon = state.beacon;
 
     final activeCommitCount =
@@ -96,8 +93,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
     final nowText = beaconHudNowLine(l10n, state);
     final youText = beaconHudYouLine(l10n, state);
-    final titleText =
-        beacon.title.trim().isEmpty ? l10n.beaconViewTitle : beacon.title;
 
     final bundle = _buildHudActions(l10n);
 
@@ -112,23 +107,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              BeaconIdentityTile(beacon: beacon, size: 28),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  titleText,
-                  maxLines: 2,
-                  softWrap: true,
-                  overflow: TextOverflow.ellipsis,
-                  style: TenturaText.titleSmall(scheme.onSurface),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
           _HudStateTokenRow(tokens: visibleTokens),
           const SizedBox(height: 8),
           _HudLabeledMultiline(
