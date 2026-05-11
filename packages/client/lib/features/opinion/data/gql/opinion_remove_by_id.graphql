@@ -1,5 +1,0 @@
-mutation OpinionRemoveById($id: String!) {
-  delete_opinion_by_pk(id: $id) {
-    id
-  }
-}

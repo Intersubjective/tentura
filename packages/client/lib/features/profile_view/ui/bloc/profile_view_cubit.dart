@@ -7,7 +7,6 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
-import 'package:tentura/features/opinion/data/repository/opinion_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import 'profile_view_state.dart';
@@ -30,7 +29,6 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
        _capabilityRepository =
            capabilityRepository ?? GetIt.I<CapabilityRepositoryPort>(),
        super(switch (id) {
-         _ when id.startsWith('O') => ProfileViewState(focusOpinionId: id),
          _ when id.startsWith('U') => ProfileViewState(
            profile: Profile(id: id),
          ),
@@ -57,27 +55,13 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
   Future<void> fetch() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      String profileId;
-      if (state.profile.isEmpty && state.focusOpinionId.isNotEmpty) {
-        final opinion = await GetIt.I<OpinionRepository>().fetchById(
-          state.focusOpinionId,
-        );
-        profileId = opinion.objectId;
-        emit(
-          state.copyWith(
-            status: StateStatus.isSuccess,
-            profile: await _profileRepository.fetchById(profileId),
-          ),
-        );
-      } else {
-        profileId = state.profile.id;
-        emit(
-          state.copyWith(
-            status: StateStatus.isSuccess,
-            profile: await _profileRepository.fetchById(profileId),
-          ),
-        );
-      }
+      final profileId = state.profile.id;
+      emit(
+        state.copyWith(
+          status: StateStatus.isSuccess,
+          profile: await _profileRepository.fetchById(profileId),
+        ),
+      );
       await _refreshCues();
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));

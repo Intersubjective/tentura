@@ -14,7 +14,6 @@ import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_update_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
-import 'package:tentura_server/domain/entity/opinion_entity.dart';
 import 'package:tentura_server/domain/entity/polling_entity.dart';
 import 'package:tentura_server/domain/entity/polling_variant_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -45,7 +44,6 @@ import 'table/fcm_tokens.dart';
 import 'table/images.dart';
 import 'table/inbox_items.dart';
 import 'table/invitations.dart';
-import 'table/opinions.dart';
 import 'table/p2p_messages.dart';
 import 'table/pollings.dart';
 import 'table/polling_acts.dart';
@@ -88,7 +86,6 @@ part 'tentura_db.g.dart';
     Images,
     InboxItems,
     Invitations,
-    Opinions,
     P2pMessages,
     PersonCapabilityEvents,
     Pollings,

@@ -2402,19 +2402,6 @@ type mutation_root {
   delete_beacon_pinned_by_pk(beacon_id: String!, user_id: String!): beacon_pinned
 
   """
-  delete data from the table: "opinion"
-  """
-  delete_opinion(
-    """filter the rows which have to be deleted"""
-    where: opinion_bool_exp!
-  ): opinion_mutation_response
-
-  """
-  delete single row from the table: "opinion"
-  """
-  delete_opinion_by_pk(id: String!): opinion
-
-  """
   delete data from the table: "user_context"
   """
   delete_user_context(
@@ -2555,28 +2542,6 @@ type mutation_root {
     """upsert condition"""
     on_conflict: invitation_on_conflict
   ): invitation
-
-  """
-  insert data into the table: "opinion"
-  """
-  insert_opinion(
-    """the rows to be inserted"""
-    objects: [opinion_insert_input!]!
-
-    """upsert condition"""
-    on_conflict: opinion_on_conflict
-  ): opinion_mutation_response
-
-  """
-  insert a single row into the table: "opinion"
-  """
-  insert_opinion_one(
-    """the row to be inserted"""
-    object: opinion_insert_input!
-
-    """upsert condition"""
-    on_conflict: opinion_on_conflict
-  ): opinion
 
   """
   insert data into the table: "user_context"
@@ -2837,8 +2802,6 @@ type mutual_score {
   dst: String
   dst_score: float8
 
-  """An object relationship"""
-  opinion: opinion
   src: String
   src_score: float8
 
@@ -2881,7 +2844,6 @@ input mutual_score_bool_exp {
   beacon: beacon_bool_exp
   dst: String_comparison_exp
   dst_score: float8_comparison_exp
-  opinion: opinion_bool_exp
   src: String_comparison_exp
   src_score: float8_comparison_exp
   user: user_bool_exp
@@ -2912,7 +2874,6 @@ input mutual_score_order_by {
   beacon: beacon_order_by
   dst: order_by
   dst_score: order_by
-  opinion: opinion_order_by
   src: order_by
   src_score: order_by
   user: user_order_by
@@ -3093,177 +3054,6 @@ input neighbors_score_stream_cursor_value_input {
   src: String
   src_cluster_score: Int
   src_score: float8
-}
-
-"""
-columns and relationships of "opinion"
-"""
-type opinion {
-  amount: Int!
-
-  """An object relationship"""
-  author: user
-  content: String!
-  created_at: timestamptz!
-  id: String!
-  object: String!
-
-  """
-  A computed field, executes function "opinion_get_scores"
-  """
-  scores(
-    """distinct select on columns"""
-    distinct_on: [mutual_score_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [mutual_score_order_by!]
-
-    """filter the rows returned"""
-    where: mutual_score_bool_exp
-  ): [mutual_score!]
-  subject: String!
-
-  """An object relationship"""
-  user: user!
-}
-
-"""
-Boolean expression to filter rows from the table "opinion". All fields are combined with a logical 'AND'.
-"""
-input opinion_bool_exp {
-  _and: [opinion_bool_exp!]
-  _not: opinion_bool_exp
-  _or: [opinion_bool_exp!]
-  amount: Int_comparison_exp
-  author: user_bool_exp
-  content: String_comparison_exp
-  created_at: timestamptz_comparison_exp
-  id: String_comparison_exp
-  object: String_comparison_exp
-  scores: mutual_score_bool_exp
-  subject: String_comparison_exp
-  user: user_bool_exp
-}
-
-"""
-unique or primary key constraints on table "opinion"
-"""
-enum opinion_constraint {
-  """
-  unique or primary key constraint on columns "id"
-  """
-  opinion_pkey
-
-  """
-  unique or primary key constraint on columns "object", "subject"
-  """
-  opinion_subject_object_key
-}
-
-"""
-input type for inserting data into table "opinion"
-"""
-input opinion_insert_input {
-  amount: Int
-  content: String
-  object: String
-}
-
-"""
-response of any mutation on the table "opinion"
-"""
-type opinion_mutation_response {
-  """number of rows affected by the mutation"""
-  affected_rows: Int!
-
-  """data from the rows affected by the mutation"""
-  returning: [opinion!]!
-}
-
-"""
-on_conflict condition type for table "opinion"
-"""
-input opinion_on_conflict {
-  constraint: opinion_constraint!
-  update_columns: [opinion_update_column!]! = []
-  where: opinion_bool_exp
-}
-
-"""Ordering options when selecting data from "opinion"."""
-input opinion_order_by {
-  amount: order_by
-  author: user_order_by
-  content: order_by
-  created_at: order_by
-  id: order_by
-  object: order_by
-  scores_aggregate: mutual_score_aggregate_order_by
-  subject: order_by
-  user: user_order_by
-}
-
-"""
-select columns of table "opinion"
-"""
-enum opinion_select_column {
-  """column name"""
-  amount
-
-  """column name"""
-  content
-
-  """column name"""
-  created_at
-
-  """column name"""
-  id
-
-  """column name"""
-  object
-
-  """column name"""
-  subject
-}
-
-"""
-Streaming cursor of the table "opinion"
-"""
-input opinion_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: opinion_stream_cursor_value_input!
-
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input opinion_stream_cursor_value_input {
-  amount: Int
-  content: String
-  created_at: timestamptz
-  id: String
-  object: String
-  subject: String
-}
-
-"""
-placeholder for update columns of table "opinion" (current role has no relevant permissions)
-"""
-enum opinion_update_column {
-  """placeholder (do not use)"""
-  _PLACEHOLDER
-}
-
-input opinions_args {
-  limit_: Int
-  object: String
-  offset_: Int
 }
 
 """column ordering options"""
@@ -3992,54 +3782,6 @@ type query_root {
     """filter the rows returned"""
     where: neighbors_score_bool_exp
   ): [neighbors_score!]!
-
-  """
-  fetch data from the table: "opinion"
-  """
-  opinion(
-    """distinct select on columns"""
-    distinct_on: [opinion_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [opinion_order_by!]
-
-    """filter the rows returned"""
-    where: opinion_bool_exp
-  ): [opinion!]!
-
-  """fetch data from the table: "opinion" using primary key columns"""
-  opinion_by_pk(id: String!): opinion
-
-  """
-  execute function "opinions" which returns "mutual_score"
-  """
-  opinions(
-    """
-    input parameters for function "opinions"
-    """
-    args: opinions_args!
-
-    """distinct select on columns"""
-    distinct_on: [mutual_score_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [mutual_score_order_by!]
-
-    """filter the rows returned"""
-    where: mutual_score_bool_exp
-  ): [mutual_score!]!
 
   """
   fetch data from the table: "polling"
@@ -4902,68 +4644,6 @@ type subscription_root {
     """filter the rows returned"""
     where: neighbors_score_bool_exp
   ): [neighbors_score!]!
-
-  """
-  fetch data from the table: "opinion"
-  """
-  opinion(
-    """distinct select on columns"""
-    distinct_on: [opinion_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [opinion_order_by!]
-
-    """filter the rows returned"""
-    where: opinion_bool_exp
-  ): [opinion!]!
-
-  """fetch data from the table: "opinion" using primary key columns"""
-  opinion_by_pk(id: String!): opinion
-
-  """
-  fetch data from the table in a streaming manner: "opinion"
-  """
-  opinion_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-
-    """cursor to stream the results returned by the query"""
-    cursor: [opinion_stream_cursor_input]!
-
-    """filter the rows returned"""
-    where: opinion_bool_exp
-  ): [opinion!]!
-
-  """
-  execute function "opinions" which returns "mutual_score"
-  """
-  opinions(
-    """
-    input parameters for function "opinions"
-    """
-    args: opinions_args!
-
-    """distinct select on columns"""
-    distinct_on: [mutual_score_select_column!]
-
-    """limit the number of rows returned"""
-    limit: Int
-
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-
-    """sort the rows by one or more columns"""
-    order_by: [mutual_score_order_by!]
-
-    """filter the rows returned"""
-    where: mutual_score_bool_exp
-  ): [mutual_score!]!
 
   """
   fetch data from the table: "polling"

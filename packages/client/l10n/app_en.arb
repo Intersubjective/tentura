@@ -642,18 +642,6 @@
   "@buttonStart": {
     "context": "Intro"
   },
-  "confirmOpinionRemoval": "Are you sure you want to delete this opinion?",
-  "@confirmOpinionRemoval": {
-    "context": "OpinionDeleteDialog"
-  },
-  "noOpinions": "There are no opinions yet",
-  "@noOpinions": {
-    "context": "OpinionList"
-  },
-  "deleteOpinion": "Delete my opinion",
-  "@deleteOpinion": {
-    "context": "OpinionTile"
-  },
   "confirmProfileRemoval": "Are you sure you want to delete your profile?",
   "@confirmProfileRemoval": {
     "context": "MyProfileDelete"
@@ -705,26 +693,6 @@
   "removeFromMyField": "Remove from friends",
   "@removeFromMyField": {
     "context": "ProfileViewAppBar"
-  },
-  "onlyOneOpinion": "You can have only one opinion",
-  "@onlyOneOpinion": {
-    "context": "Opinions"
-  },
-  "writeOpinion": "Write an opinion",
-  "@writeOpinion": {
-    "context": "Opinions"
-  },
-  "positiveOrNegativeOpinion": "Is this opinion is positive or negative?",
-  "@positiveOrNegativeOpinion": {
-    "context": "Opinions"
-  },
-  "positiveOpinion": "Positive",
-  "@positiveOpinion": {
-    "context": "Opinions"
-  },
-  "negativeOpinion": "Negative",
-  "@negativeOpinion": {
-    "context": "Opinions"
   },
   "rating": "Rating",
   "@rating": {

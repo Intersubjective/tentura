@@ -8,7 +8,6 @@ part 'profile_view_state.freezed.dart';
 abstract class ProfileViewState extends StateBase with _$ProfileViewState {
   const factory ProfileViewState({
     @Default(Profile()) Profile profile,
-    @Default('') String focusOpinionId,
     @Default(StateIsSuccess()) StateStatus status,
     @Default(PersonCapabilityCues.empty) PersonCapabilityCues cues,
   }) = _ProfileViewState;

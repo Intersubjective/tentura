@@ -522,21 +522,6 @@
                 }
               },
               {
-                "name": "opinion",
-                "using": {
-                  "manual_configuration": {
-                    "column_mapping": {
-                      "dst": "id"
-                    },
-                    "insertion_order": null,
-                    "remote_table": {
-                      "name": "opinion",
-                      "schema": "public"
-                    }
-                  }
-                }
-              },
-              {
                 "name": "user",
                 "using": {
                   "manual_configuration": {
@@ -563,94 +548,6 @@
                     "src"
                   ],
                   "filter": {}
-                },
-                "comment": ""
-              }
-            ]
-          },
-          {
-            "table": {
-              "name": "opinion",
-              "schema": "public"
-            },
-            "object_relationships": [
-              {
-                "name": "author",
-                "using": {
-                  "manual_configuration": {
-                    "column_mapping": {
-                      "subject": "id"
-                    },
-                    "insertion_order": null,
-                    "remote_table": {
-                      "name": "user",
-                      "schema": "public"
-                    }
-                  }
-                }
-              },
-              {
-                "name": "user",
-                "using": {
-                  "foreign_key_constraint_on": "object"
-                }
-              }
-            ],
-            "computed_fields": [
-              {
-                "name": "scores",
-                "definition": {
-                  "function": {
-                    "name": "opinion_get_scores",
-                    "schema": "public"
-                  },
-                  "session_argument": "hasura_session"
-                }
-              }
-            ],
-            "insert_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "check": {},
-                  "set": {
-                    "subject": "x-hasura-User-Id"
-                  },
-                  "columns": [
-                    "amount",
-                    "content",
-                    "object"
-                  ]
-                },
-                "comment": ""
-              }
-            ],
-            "select_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "amount",
-                    "content",
-                    "created_at",
-                    "id",
-                    "object",
-                    "subject"
-                  ],
-                  "filter": {}
-                },
-                "comment": ""
-              }
-            ],
-            "delete_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "filter": {
-                    "subject": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
-                  }
                 },
                 "comment": ""
               }
@@ -1818,21 +1715,6 @@
           {
             "function": {
               "name": "my_field",
-              "schema": "public"
-            },
-            "configuration": {
-              "custom_root_fields": {},
-              "session_argument": "hasura_session"
-            },
-            "permissions": [
-              {
-                "role": "user"
-              }
-            ]
-          },
-          {
-            "function": {
-              "name": "opinions",
               "schema": "public"
             },
             "configuration": {

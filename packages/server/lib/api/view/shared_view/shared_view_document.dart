@@ -4,12 +4,10 @@ import 'package:jaspr/server.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
-import 'package:tentura_server/domain/entity/opinion_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 import 'components/beacon_view_component.dart';
 import 'components/invitation_view_component.dart';
-import 'components/opinion_view_component.dart';
 import 'components/user_view_component.dart';
 import 'shared_view_styles.dart';
 
@@ -45,21 +43,6 @@ class SharedViewDocument extends StatelessComponent {
         title: beacon.title,
         description: beacon.description,
         imagePath: beacon.imageUrl,
-      ),
-    ),
-
-    // Opinion
-    final OpinionEntity opinion => _buildDocument(
-      body: [
-        UserViewComponent(user: opinion.user),
-        _hr,
-        OpinionViewComponent(opinion: opinion),
-      ],
-      meta: _buildMeta(
-        id: opinion.id,
-        title: opinion.user.title,
-        description: opinion.content,
-        imagePath: opinion.user.imageUrl,
       ),
     ),
 
@@ -110,12 +93,6 @@ class SharedViewDocument extends StatelessComponent {
     'og:url': '$kServerName/shared/view?id=$id',
     'og:image': imagePath,
   };
-
-  static const _hr = hr(
-    styles: Styles(
-      margin: Spacing.symmetric(horizontal: kEdgeInsetsS),
-    ),
-  );
 
   static final _head = [
     link(
