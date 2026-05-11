@@ -5769,6 +5769,7 @@ type RoomMessageRow {
   authorImageId: String!
   reactionsJson: String
   myReaction: String
+  reactorsJson: String
   attachmentsJson: String!
   mentions: [String!]!
 }
