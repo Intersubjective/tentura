@@ -6,54 +6,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 /// Whether `wire` should show a capability chip row (non-empty after trim).
 bool capabilitySlugHasDisplay(String? wire) => wire?.trim().isNotEmpty ?? false;
 
-/// One FilterChip per known slug (icon + label, same styling as CapabilityChipSet);
-/// unknown slugs render as a plain [Chip] with the raw wire text.
-class CapabilitySlugReadonlyChips extends StatelessWidget {
-  const CapabilitySlugReadonlyChips({
-    required this.slugs,
-    super.key,
-  });
-
-  final List<String> slugs;
-
-  @override
-  Widget build(BuildContext context) {
-    final trimmed =
-        slugs.map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-    if (trimmed.isEmpty) return const SizedBox.shrink();
-
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: [
-        for (final slug in trimmed) _slugChip(slug: slug, l10n: l10n, theme: theme),
-      ],
-    );
-  }
-
-  Widget _slugChip({
-    required String slug,
-    required L10n l10n,
-    required ThemeData theme,
-  }) {
-    final tag = CapabilityTag.fromSlug(slug);
-    if (tag != null) {
-      return CapabilityTagFilterChip(
-        tag: tag,
-        l10n: l10n,
-        theme: theme,
-        selected: true,
-        isAutomatic: false,
-        onSelected: null,
-      );
-    }
-    return _UnknownSlugChip(slug: slug, theme: theme);
-  }
-}
-
 /// FilterChip for one CapabilityTag, matching CapabilityChipSet per-tag styling.
 class CapabilityTagFilterChip extends StatelessWidget {
   const CapabilityTagFilterChip({
@@ -98,28 +50,5 @@ class CapabilityTagFilterChip extends StatelessWidget {
       return IgnorePointer(child: chip);
     }
     return chip;
-  }
-}
-
-class _UnknownSlugChip extends StatelessWidget {
-  const _UnknownSlugChip({
-    required this.slug,
-    required this.theme,
-  });
-
-  final String slug;
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Chip(
-      label: Text(slug),
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      side: BorderSide(
-        color: theme.colorScheme.outlineVariant,
-      ),
-    );
   }
 }
