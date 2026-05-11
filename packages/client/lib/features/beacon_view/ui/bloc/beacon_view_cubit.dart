@@ -296,6 +296,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     try {
       final beaconId = state.beacon.id;
       final myUserId = state.myProfile.id;
+      final wasForwardsLoaded = state.forwardsLoaded;
 
       final results = await Future.wait([
         _case.fetchBeaconById(beaconId),
@@ -304,13 +305,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         ),
         _case.fetchBeaconUpdates(beaconId: beaconId),
         _case.fetchInboxContextForBeacon(beaconId),
-        _case.fetchForwardEdgesForBeacon(beaconId),
-        _case.fetchBeaconInvolvement(beaconId: beaconId),
         _case.fetchFactCards(beaconId),
         _case.fetchRoomParticipants(beaconId),
         _case.fetchRoomStateIfAllowed(beaconId),
         _case.fetchRoomActivityEvents(beaconId),
-        _case.fetchForwardReasonsByBeacon(beaconId),
         _case.fetchRoomUnreadForBeacon(beaconId),
       ]);
 
@@ -352,25 +350,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                 InboxProvenance provenance,
                 String latestNotePreview,
               });
-      final allForwardEdges = results[4]! as List<ForwardEdge>;
-      final involvement = results[5]! as BeaconInvolvementData;
-      final factCards = results[6]! as List<BeaconFactCard>;
-      final roomParticipants = results[7]! as List<BeaconParticipant>;
-      final beaconRoomCue = results[8] as BeaconRoomState?;
+      final factCards = results[4]! as List<BeaconFactCard>;
+      final roomParticipants = results[5]! as List<BeaconParticipant>;
+      final beaconRoomCue = results[6] as BeaconRoomState?;
       final roomActivityEvents =
-          results[9]! as List<BeaconActivityEvent>;
-      final forwardReasonSlugs =
-          results[10]! as Map<String, List<String>>;
-      final roomUnreadCount = results[11]! as int;
-
-      final myForwards = allForwardEdges
-          .where((e) => e.sender.id == myUserId)
-          .toList(growable: false);
-      final viewerForwardEdges = allForwardEdges
-          .where(
-            (e) => e.sender.id == myUserId || e.recipient.id == myUserId,
-          )
-          .toList(growable: false);
+          results[7]! as List<BeaconActivityEvent>;
+      final roomUnreadCount = results[8]! as int;
 
       final isCommitted = commitments
           .where((c) => c.status == 0)
@@ -443,25 +428,91 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           inboxStatus: inboxCtx.status,
           forwardProvenance: inboxCtx.provenance,
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
-          myForwards: myForwards,
-          viewerForwardEdges: viewerForwardEdges,
-          forwardReasonSlugs: forwardReasonSlugs,
-          involvementCommittedIds: involvement.committedIds,
-          involvementWatchingIds: involvement.watchingIds,
-          involvementOnwardForwarderIds: involvement.onwardForwarderIds,
-          involvementRejectedIds: involvement.rejectedIds,
-          hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
           factCards: factCards,
           roomParticipants: roomParticipants,
           beaconRoomCue: beaconRoomCue,
           roomActivityEvents: roomActivityEvents,
           showDraftEvaluationCta: showDraftEvaluationCta,
           roomUnreadCount: roomUnreadCount,
+          forwardsLoaded: wasForwardsLoaded,
           status: StateStatus.isSuccess,
         ),
       );
+      if (wasForwardsLoaded) {
+        unawaited(_refreshForwards(beaconId, myUserId));
+      }
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  /// Lazy-load forwards subsection (People tab). Cached for cubit lifetime.
+  Future<void> loadForwards() async {
+    if (state.forwardsLoaded || state.forwardsLoading) return;
+    emit(state.copyWith(forwardsLoading: true));
+    try {
+      final beaconId = state.beacon.id;
+      final myUserId = state.myProfile.id;
+      await _applyForwardsFromRemote(beaconId, myUserId);
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            forwardsLoaded: true,
+            forwardsLoading: false,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            forwardsLoading: false,
+            status: StateHasError(e),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _applyForwardsFromRemote(String beaconId, String myUserId) async {
+    final results = await Future.wait([
+      _case.fetchForwardEdgesForBeacon(beaconId),
+      _case.fetchBeaconInvolvement(beaconId: beaconId),
+      _case.fetchForwardReasonsByBeacon(beaconId),
+    ]);
+    final allEdges = results[0] as List<ForwardEdge>;
+    final involvement = results[1] as BeaconInvolvementData;
+    final reasons = results[2] as Map<String, List<String>>;
+    final myForwards = allEdges
+        .where((e) => e.sender.id == myUserId)
+        .toList(growable: false);
+    final viewerEdges = allEdges
+        .where(
+          (e) => e.sender.id == myUserId || e.recipient.id == myUserId,
+        )
+        .toList(growable: false);
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          myForwards: myForwards,
+          viewerForwardEdges: viewerEdges,
+          forwardReasonSlugs: reasons,
+          involvementCommittedIds: involvement.committedIds,
+          involvementWatchingIds: involvement.watchingIds,
+          involvementOnwardForwarderIds: involvement.onwardForwarderIds,
+          involvementRejectedIds: involvement.rejectedIds,
+          hasForwardedThisBeaconOnce: myForwards.isNotEmpty,
+        ),
+      );
+    }
+  }
+
+  /// Best-effort refresh after main fetch when forwards were already shown.
+  Future<void> _refreshForwards(String beaconId, String myUserId) async {
+    try {
+      await _applyForwardsFromRemote(beaconId, myUserId);
+    } on Object catch (_) {
+      // Non-fatal: keep existing forwards visible.
     }
   }
 

@@ -212,6 +212,12 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// True when the current user has forwarded this beacon at least once.
     @Default(false) bool hasForwardedThisBeaconOnce,
 
+    /// True after the lazy forwards load has completed at least once this session.
+    @Default(false) bool forwardsLoaded,
+
+    /// True while lazy forwards fetch is in flight.
+    @Default(false) bool forwardsLoading,
+
     @Default([]) List<BeaconFactCard> factCards,
 
     /// From V2 room APIs when the viewer has room access (else empty / null).

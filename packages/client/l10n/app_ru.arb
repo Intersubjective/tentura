@@ -1980,6 +1980,11 @@
     "context": "BeaconViewScreen",
     "description": "Tab title for forward trail / notes to the viewer"
   },
+  "beaconPeopleShowForwards": "Показать пересылки",
+  "@beaconPeopleShowForwards": {
+    "context": "BeaconViewScreen",
+    "description": "CTA button in People tab to lazy-load the forwards subsection"
+  },
   "beaconForwardsEmpty": "Пока нет цепочки пересылок к вам по этому маяку.",
   "@beaconForwardsEmpty": {
     "context": "BeaconViewScreen",

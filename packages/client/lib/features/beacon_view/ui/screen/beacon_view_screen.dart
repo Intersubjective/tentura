@@ -781,6 +781,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
           p.forwardProvenance != c.forwardProvenance ||
           p.inboxStatus != c.inboxStatus ||
           p.viewerForwardEdges != c.viewerForwardEdges ||
+          p.forwardsLoaded != c.forwardsLoaded ||
+          p.forwardsLoading != c.forwardsLoading ||
           p.factCards != c.factCards ||
           p.roomParticipants.length != c.roomParticipants.length ||
           (p.roomParticipants
@@ -1253,7 +1255,7 @@ class _CommitmentsTabBody extends StatelessWidget {
         if (otherActive.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text(
-            l10n.beaconPeopleLensActiveHelpersHeading,
+            '${l10n.beaconPeopleLensActiveHelpersHeading} (${otherActive.length})',
             style: sectionHeaderStyle,
           ),
           const SizedBox(height: 8),
@@ -1263,27 +1265,7 @@ class _CommitmentsTabBody extends StatelessWidget {
           ],
         ],
         const SizedBox(height: 16),
-        Text(l10n.labelForwards, style: sectionHeaderStyle),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            icon: const Icon(Icons.send),
-            label: Text(l10n.labelForward),
-            onPressed: () => unawaited(
-              context.router.pushPath('$kPathForwardBeacon/${beacon.id}'),
-            ),
-          ),
-        ),
-        const SizedBox(height: kSpacingMedium),
-        if (state.isLoading && state.viewerForwardEdges.isEmpty)
-          const Center(
-            child: Padding(
-              padding: kPaddingSmallV,
-              child: CircularProgressIndicator.adaptive(),
-            ),
-          )
-        else ...[
+        if (state.forwardsLoaded) ...[
           Builder(
             builder: (context) {
               final edges = state.viewerForwardEdges;
@@ -1315,18 +1297,11 @@ class _CommitmentsTabBody extends StatelessWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(
-                      padding: kPaddingSmallV,
-                      child: Wrap(
-                        spacing: kSpacingSmall,
-                        runSpacing: kSpacingSmall,
-                        children: [
-                          BeaconCardPill(
-                            label: l10n.beaconForwardsCount(edges.length),
-                          ),
-                        ],
-                      ),
+                    Text(
+                      '${l10n.labelForwards} (${edges.length})',
+                      style: sectionHeaderStyle,
                     ),
+                    const SizedBox(height: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -1339,18 +1314,40 @@ class _CommitmentsTabBody extends StatelessWidget {
                   ],
                 );
               }
-              return Padding(
-                padding: kPaddingSmallV,
-                child: Text(
-                  l10n.beaconForwardsEmpty,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '${l10n.labelForwards} (0)',
+                    style: sectionHeaderStyle,
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.beaconForwardsEmpty,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               );
             },
           ),
-        ],
+        ] else if (state.forwardsLoading)
+          const Center(
+            child: Padding(
+              padding: kPaddingSmallV,
+              child: CircularProgressIndicator.adaptive(),
+            ),
+          )
+        else
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.forward_to_inbox),
+              label: Text(l10n.beaconPeopleShowForwards),
+              onPressed: () => unawaited(beaconViewCubit.loadForwards()),
+            ),
+          ),
         if (withdrawn.isNotEmpty) ...[
           if (active.isNotEmpty) const SizedBox(height: 12),
           ExpansionTile(
