@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -135,45 +136,66 @@ class _GroupSection extends StatelessWidget {
     final autoCount = automaticSlugs.intersection(groupSlugs).length;
     final initiallyExpanded = selectedCount > 0 || autoCount > 0;
 
-    return ExpansionTile(
-      key: ValueKey<CapabilityGroup>(group),
-      tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-      initiallyExpanded: initiallyExpanded,
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              groupLabel,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
+    final cs = theme.colorScheme;
+    final categoryInteractionTheme = theme.copyWith(
+      splashFactory: NoSplash.splashFactory,
+      highlightColor: Colors.transparent,
+      hoverColor: Colors.transparent,
+      focusColor: Colors.transparent,
+      splashColor: Colors.transparent,
+      colorScheme: cs.copyWith(surfaceTint: Colors.transparent),
+    );
+
+    return Theme(
+      data: categoryInteractionTheme,
+      child: ExpansionTile(
+        key: ValueKey<CapabilityGroup>(group),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+        initiallyExpanded: initiallyExpanded,
+        splashColor: Colors.transparent,
+        onExpansionChanged: (_) {
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            SchedulerBinding.instance.addPostFrameCallback((_) {
+              FocusManager.instance.primaryFocus?.unfocus();
+            });
+          });
+        },
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                groupLabel,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          if (selectedCount > 0)
-            _CountBadge(count: selectedCount, preExisting: false),
-          if (autoCount > 0)
-            _CountBadge(count: autoCount, preExisting: true),
-        ],
-      ),
-      childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-      children: [
-        Wrap(
-          spacing: 6,
-          runSpacing: 4,
-          children: [
-            for (final tag in tags)
-              CapabilityTagFilterChip(
-                tag: tag,
-                l10n: l10n,
-                theme: theme,
-                selected: selectedSlugs.contains(tag.slug),
-                isAutomatic: automaticSlugs.contains(tag.slug),
-                onSelected: (v) => onToggle(tag.slug, v),
-              ),
+            if (selectedCount > 0)
+              _CountBadge(count: selectedCount, preExisting: false),
+            if (autoCount > 0)
+              _CountBadge(count: autoCount, preExisting: true),
           ],
         ),
-      ],
+        childrenPadding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              for (final tag in tags)
+                CapabilityTagFilterChip(
+                  tag: tag,
+                  l10n: l10n,
+                  theme: theme,
+                  selected: selectedSlugs.contains(tag.slug),
+                  isAutomatic: automaticSlugs.contains(tag.slug),
+                  onSelected: (v) => onToggle(tag.slug, v),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

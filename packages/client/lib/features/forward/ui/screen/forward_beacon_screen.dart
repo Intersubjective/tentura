@@ -12,6 +12,7 @@ import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 
 import '../bloc/forward_cubit.dart';
 import '../widget/compact_beacon_context_strip.dart';
@@ -148,51 +149,53 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setModalState) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.7,
-          minChildSize: 0.4,
-          maxChildSize: 0.95,
-          builder: (_, scrollController) => Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.forwardReasonPrompt,
-                        style: Theme.of(ctx).textTheme.titleMedium,
+      builder: (_) => UnfocusSheetBody(
+        child: StatefulBuilder(
+          builder: (ctx, setModalState) => DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.7,
+            minChildSize: 0.4,
+            maxChildSize: 0.95,
+            builder: (_, scrollController) => Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.forwardReasonPrompt,
+                          style: Theme.of(ctx).textTheme.titleMedium,
+                        ),
                       ),
-                    ),
-                    FilledButton(
-                      onPressed: () {
-                        cubit.setRecipientReasons(
-                          recipientId,
-                          selected.toList(),
-                        );
-                        Navigator.of(ctx).pop();
-                      },
-                      child: Text(l10n.buttonSave),
-                    ),
-                  ],
+                      FilledButton(
+                        onPressed: () {
+                          cubit.setRecipientReasons(
+                            recipientId,
+                            selected.toList(),
+                          );
+                          Navigator.of(ctx).pop();
+                        },
+                        child: Text(l10n.buttonSave),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-                  children: [
-                    CapabilityChipSet(
-                      selectedSlugs: selected,
-                      automaticSlugs: existingSlugs,
-                      onChanged: (s) => setModalState(() => selected = s),
-                    ),
-                  ],
+                Expanded(
+                  child: ListView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                    children: [
+                      CapabilityChipSet(
+                        selectedSlugs: selected,
+                        automaticSlugs: existingSlugs,
+                        onChanged: (s) => setModalState(() => selected = s),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
