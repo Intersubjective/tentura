@@ -17,7 +17,6 @@ const kPathHome = '/home';
 const kPathFriends = '/home/friends';
 const kPathProfile = '/home/profile';
 const kPathFavorites = '/home/favorites';
-const kPathChat = kPathAppLinkChat;
 const kPathGraph = '/graph';
 const kPathForwardsGraph = '/graph/forwards';
 const kPathRating = '/rating';

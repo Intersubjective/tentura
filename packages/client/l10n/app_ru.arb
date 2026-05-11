@@ -458,10 +458,6 @@
   "@writeComment": {
     "context": "Comments"
   },
-  "chatLabelToday": "Сегодня",
-  "@chatLabelToday": {
-    "context": "ChatSeparator"
-  },
   "submitComplaint": "Отправить жалобу",
   "@submitComplaint": {
     "context": "ComplaintScreen"
@@ -2060,10 +2056,6 @@
     "context": "BeaconViewScreen",
     "description": "Label shown on edited commitments"
   },
-  "chatPresenceTyping": "Печатает…",
-  "@chatPresenceTyping": {
-    "context": "Chat"
-  },
   "chatPresenceOnline": "В сети",
   "@chatPresenceOnline": {
     "context": "Chat"
@@ -2099,26 +2091,6 @@
     "placeholders": {
       "date": { "type": "String" }
     }
-  },
-  "chatMessageCopy": "Копировать",
-  "@chatMessageCopy": {
-    "context": "Chat"
-  },
-  "chatMessageDeleteForMe": "Удалить у меня",
-  "@chatMessageDeleteForMe": {
-    "context": "Chat"
-  },
-  "chatMessageRetry": "Повторить",
-  "@chatMessageRetry": {
-    "context": "Chat"
-  },
-  "chatMenuClearChat": "Очистить чат",
-  "@chatMenuClearChat": {
-    "context": "Chat"
-  },
-  "chatClearConfirmTitle": "Удалить все сообщения в этом чате?",
-  "@chatClearConfirmTitle": {
-    "context": "Chat"
   },
   "evaluationBannerTitle": "Маяк закрыт — отзыв о вкладе",
   "evaluationBannerTitleDraft": "Приватные черновики",

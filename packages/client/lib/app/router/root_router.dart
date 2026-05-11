@@ -254,35 +254,6 @@ class RootRouter extends RootStackRouter {
       //
     ),
 
-    // Chat
-    AutoRoute(
-      keepHistory: false,
-      usesPathAsKey: true,
-      maintainState: false,
-      page: ChatRoute.page,
-      path: '$kPathChat/:id',
-      guards: [
-        AutoRouteGuard.redirect(
-          (_) => _authCubit.state.isNotAuthenticated
-              ? const AuthLoginRoute()
-              : null,
-        ),
-        AutoRouteGuard.redirect(
-          (resolver) {
-            final receiverId = resolver.route.queryParams.getString(
-              'receiver_id',
-              '',
-            );
-            if (receiverId.isNotEmpty &&
-                _authCubit.state.currentAccountId != receiverId) {
-              unawaited(_authCubit.signOut());
-            }
-            return null;
-          },
-        ),
-      ],
-    ),
-
     // Complaint
     AutoRoute(
       keepHistory: false,

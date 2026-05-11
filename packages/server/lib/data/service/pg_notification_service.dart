@@ -16,7 +16,6 @@ class PgNotificationService {
       env.pgEndpoint,
       settings: env.pgEndpointSettings,
     );
-    await connection.execute('LISTEN p2p_chat');
     await connection.execute('LISTEN entity_changes');
     return PgNotificationService._(connection);
   }
@@ -24,9 +23,6 @@ class PgNotificationService {
   PgNotificationService._(this._connection);
 
   final Connection _connection;
-
-  /// Stream of payloads arriving on the `p2p_chat` channel.
-  Stream<String> get notifications => _connection.channels['p2p_chat'];
 
   /// Stream of payloads arriving on the `entity_changes` channel.
   Stream<String> get entityChangeNotifications =>

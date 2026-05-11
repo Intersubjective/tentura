@@ -51,7 +51,7 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
     message: message,
     ttlInSeconds: 60,
     fcmTokens: fcmTokens,
-    analyticsLabel: 'p2p_chat',
+    analyticsLabel: 'notification',
     webConfig: message.actionUrl == null
         ? null
         : {

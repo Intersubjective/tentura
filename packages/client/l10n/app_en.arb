@@ -458,10 +458,6 @@
   "@writeComment": {
     "context": "Comments"
   },
-  "chatLabelToday": "Today",
-  "@chatLabelToday": {
-    "context": "ChatSeparator"
-  },
   "submitComplaint": "Submit Complaint",
   "@submitComplaint": {
     "context": "ComplaintScreen"
@@ -2060,10 +2056,6 @@
     "context": "BeaconViewScreen",
     "description": "Label shown on edited commitments"
   },
-  "chatPresenceTyping": "Typing…",
-  "@chatPresenceTyping": {
-    "context": "Chat"
-  },
   "chatPresenceOnline": "Online",
   "@chatPresenceOnline": {
     "context": "Chat"
@@ -2099,26 +2091,6 @@
     "placeholders": {
       "date": { "type": "String" }
     }
-  },
-  "chatMessageCopy": "Copy",
-  "@chatMessageCopy": {
-    "context": "Chat"
-  },
-  "chatMessageDeleteForMe": "Delete for me",
-  "@chatMessageDeleteForMe": {
-    "context": "Chat"
-  },
-  "chatMessageRetry": "Retry",
-  "@chatMessageRetry": {
-    "context": "Chat"
-  },
-  "chatMenuClearChat": "Clear chat",
-  "@chatMenuClearChat": {
-    "context": "Chat"
-  },
-  "chatClearConfirmTitle": "Are you sure you want to delete all messages from this chat?",
-  "@chatClearConfirmTitle": {
-    "context": "Chat"
   },
   "evaluationBannerTitle": "Beacon closed — review contributions",
   "evaluationBannerTitleDraft": "Private draft notes",

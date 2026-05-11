@@ -56,8 +56,7 @@ class Env {
     // Meritrank service
     Duration? meritrankCalculateTimeout,
 
-    // Chat
-    int? chatDefaultBatchSize,
+    // User presence (WS offline delay; env CHAT_OFFLINE_DELAY)
     Duration? chatStatusOfflineAfterDelay,
 
     // Firebase
@@ -144,11 +143,6 @@ class Env {
              minutes: int.tryParse(_env['MR_CALCULATE_TIMEOUT'] ?? '') ?? 10,
            ),
 
-       // Chat
-       chatDefaultBatchSize =
-           chatDefaultBatchSize ??
-           int.tryParse(_env['CHAT_BATCH_SIZE'] ?? '') ??
-           10,
        chatStatusOfflineAfterDelay =
            chatStatusOfflineAfterDelay ??
            Duration(
@@ -314,9 +308,6 @@ class Env {
 
   // Meritrank service
   final Duration meritrankCalculateTimeout;
-
-  // Chat
-  final int chatDefaultBatchSize;
 
   final Duration chatStatusOfflineAfterDelay;
 

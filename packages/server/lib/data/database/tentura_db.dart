@@ -1,4 +1,3 @@
-import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart';
 import 'package:postgres/postgres.dart';
 import 'package:injectable/injectable.dart';
@@ -44,7 +43,6 @@ import 'table/fcm_tokens.dart';
 import 'table/images.dart';
 import 'table/inbox_items.dart';
 import 'table/invitations.dart';
-import 'table/p2p_messages.dart';
 import 'table/pollings.dart';
 import 'table/polling_acts.dart';
 import 'table/polling_variants.dart';
@@ -86,7 +84,6 @@ part 'tentura_db.g.dart';
     Images,
     InboxItems,
     Invitations,
-    P2pMessages,
     PersonCapabilityEvents,
     Pollings,
     PollingActs,

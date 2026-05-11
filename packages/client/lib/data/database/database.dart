@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:logging/logging.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/domain/enum.dart';
 import 'package:tentura/env.dart';
 
 import 'database.steps.dart';
@@ -16,7 +15,6 @@ part 'database.g.dart';
   tables: [
     Accounts,
     Friends,
-    P2pMessages,
     Settings,
   ],
 )
@@ -70,11 +68,6 @@ final class Database extends _$Database {
       },
       from2To3: (m, schema) async {
         _logger.warning('Migrating step 2 to 3...');
-        await m.createTable(schema.p2pMessages);
-        await m.createIndex(schema.p2pMessagesSender);
-        await m.createIndex(schema.p2pMessagesReceiver);
-        await m.createIndex(schema.p2pMessagesCreatedAt);
-        await m.createIndex(schema.p2pMessagesDeliveredAt);
         await m.addColumn(schema.accounts, schema.accounts.fcmTokenUpdatedAt);
 
         await customStatement('DROP TABLE IF EXISTS messages;');
