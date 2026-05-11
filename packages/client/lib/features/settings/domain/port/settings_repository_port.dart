@@ -21,9 +21,4 @@ abstract class SettingsRepositoryPort {
   Future<int?> getNewStuffMyWorkLastSeenMs(String accountId);
 
   Future<void> setNewStuffMyWorkLastSeenMs(String accountId, int epochMs);
-
-  /// Last intentional beacon detail surface (`status` | `room`), per beacon id.
-  Future<String?> getBeaconLastSurfaceModeWire(String beaconId);
-
-  Future<void> setBeaconLastSurfaceModeWire(String beaconId, String wire);
 }

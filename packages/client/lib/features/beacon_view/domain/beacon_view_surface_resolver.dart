@@ -7,7 +7,6 @@ BeaconSurfaceMode resolveInitialBeaconSurfaceMode({
   required bool hasRoomAccess,
   required bool explicitRoomRequested,
   required bool explicitStatusRequested,
-  required BeaconSurfaceMode? rememberedMode,
 }) {
   // Non-null `viewTab` / `surface=status` implies Status even if `surface=room`
   // was also passed (query forgery / conflicting links).
@@ -20,15 +19,10 @@ BeaconSurfaceMode resolveInitialBeaconSurfaceMode({
   }
 
   switch (entry) {
-    case BeaconViewEntrySource.myWork:
-      if (hasRoomAccess && rememberedMode == BeaconSurfaceMode.room) {
-        return BeaconSurfaceMode.room;
-      }
-      return BeaconSurfaceMode.status;
-
     case BeaconViewEntrySource.roomNotification:
       return hasRoomAccess ? BeaconSurfaceMode.room : BeaconSurfaceMode.status;
 
+    case BeaconViewEntrySource.myWork:
     case BeaconViewEntrySource.inbox:
     case BeaconViewEntrySource.forward:
     case BeaconViewEntrySource.deepLink:
