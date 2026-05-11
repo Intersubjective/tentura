@@ -424,8 +424,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       navigatedFromLegacyRoomPath: false,
       sharedLinkDestRoom: false,
     );
-    _surfaceMode =
-        explicitRoom ? BeaconSurfaceMode.room : BeaconSurfaceMode.status;
+    _surfaceMode = explicitRoom
+        ? BeaconSurfaceMode.room
+        : BeaconSurfaceMode.status;
   }
 
   @override
@@ -454,7 +455,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       explicitStatusRequested: explicitStatus,
     );
 
-    final roomDenied = !s.canNavigateBeaconRoom &&
+    final roomDenied =
+        !s.canNavigateBeaconRoom &&
         (explicitRoom ||
             _normalizedEntry == BeaconViewEntrySource.roomNotification);
 
@@ -521,7 +523,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             !s.canNavigateBeaconRoom) {
           setState(() {
             _surfaceMode = BeaconSurfaceMode.status;
-            _bannerMessage = L10n.of(ctx)!.beaconViewRoomAccessUnavailableBanner;
+            _bannerMessage = L10n.of(
+              ctx,
+            )!.beaconViewRoomAccessUnavailableBanner;
           });
           return;
         }
@@ -538,7 +542,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             p.roomUnreadCount != c.roomUnreadCount ||
             p.canNavigateBeaconRoom != c.canNavigateBeaconRoom ||
             p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
-            p.coordinationDeniesRoomAdmission != c.coordinationDeniesRoomAdmission,
+            p.coordinationDeniesRoomAdmission !=
+                c.coordinationDeniesRoomAdmission,
         builder: (context, state) {
           final theme = Theme.of(context);
           final scheme = theme.colorScheme;
@@ -551,16 +556,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               .where((c) => !c.isWithdrawn)
               .length;
           final (appBarStatusLine, appBarStatusTone) = switch (_surfaceMode) {
-            BeaconSurfaceMode.room => state.roomUnreadCount > 0
-                ? (
-                    'ROOM · Unread: ${state.roomUnreadCount}',
-                    TenturaTone.info,
-                  )
-                : ('ROOM · UP-TO-DATE', TenturaTone.neutral),
+            BeaconSurfaceMode.room =>
+              state.roomUnreadCount > 0
+                  ? (
+                      'ROOM · Unread: ${state.roomUnreadCount}',
+                      TenturaTone.info,
+                    )
+                  : ('ROOM · UP-TO-DATE', TenturaTone.neutral),
             _ => (
-                beaconAnchorStatusLineShort(state.beacon, activeCommitCount),
-                beaconAnchorStatusTone(state.beacon.coordinationStatus),
-              ),
+              beaconAnchorStatusLineShort(state.beacon, activeCommitCount),
+              beaconAnchorStatusTone(state.beacon.coordinationStatus),
+            ),
           };
 
           Widget body;
@@ -573,7 +579,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             _roomCubit ??= RoomCubit(beaconId: widget.id);
             body = BlocProvider.value(
               value: _roomCubit!,
-              child: BeaconRoomSurface(beaconState: state),
+              child: const BeaconRoomSurface(),
             );
           } else {
             body = _BeaconOperationalScrollView(
@@ -599,77 +605,97 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             );
           }
 
-          return Scaffold(
-            appBar: AppBar(
-              backgroundColor: scheme.surface,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              toolbarHeight: kToolbarHeight,
-              leadingWidth: kToolbarHeight,
-              foregroundColor: scheme.onSurface,
-              titleTextStyle: theme.textTheme.titleLarge!.copyWith(
-                color: scheme.onSurface,
-              ),
-              titleSpacing: 8,
-              leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
-              title: BeaconViewAppBarTitle(
-                beacon: state.beacon,
-                statusLine: appBarStatusLine,
-                statusTone: appBarStatusTone,
-                l10n: l10n,
-                onTap: !showInitialLoading &&
-                        (_surfaceMode == BeaconSurfaceMode.room ||
-                            state.canNavigateBeaconRoom)
-                    ? () => _onToggleSurface(state)
-                    : null,
-                tooltipMessage: !showInitialLoading
-                    ? _beaconViewSurfaceSwitchTooltip(state, l10n)
-                    : null,
-                roomUnreadBadgeCount:
-                    !showInitialLoading &&
-                            _surfaceMode == BeaconSurfaceMode.status &&
-                            state.canNavigateBeaconRoom &&
-                            state.roomUnreadCount > 0
-                        ? state.roomUnreadCount
-                        : null,
-              ),
-              actions: [
-                _beaconViewAppBarOverflow(
-                  context: context,
-                  state: state,
-                  cubit: beaconViewCubit,
-                  screenCubit: screenCubit,
-                  l10n: l10n,
-                  onAuthorListedOpenClose: () => _beaconViewRunAuthorCloseSheet(
-                    context: context,
-                    cubit: beaconViewCubit,
-                    l10n: l10n,
-                    onOpenPeopleTab: () => setState(() => _tabIndex = 1),
-                    onToggleRoomSurface: _onToggleSurface,
-                  ),
+          return PopScope(
+            canPop: _surfaceMode != BeaconSurfaceMode.room,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop || !context.mounted) return;
+              if (_surfaceMode == BeaconSurfaceMode.room) {
+                _onToggleSurface(beaconViewCubit.state);
+              }
+            },
+            child: Scaffold(
+              appBar: AppBar(
+                backgroundColor: scheme.surface,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                toolbarHeight: kToolbarHeight,
+                leadingWidth: kToolbarHeight,
+                foregroundColor: scheme.onSurface,
+                titleTextStyle: theme.textTheme.titleLarge!.copyWith(
+                  color: scheme.onSurface,
                 ),
-              ],
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(4),
-                child: LinearPiActive.builder(context, state.isLoading),
-              ),
-            ),
-            body: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_bannerMessage != null)
-                  MaterialBanner(
-                    content: Text(_bannerMessage!),
-                    actions: [
-                      TextButton(
-                        onPressed: () => setState(() => _bannerMessage = null),
-                        child: Text(l10n.beaconViewBannerDismiss),
-                      ),
-                    ],
+                titleSpacing: 8,
+                leading: _surfaceMode == BeaconSurfaceMode.room
+                    ? IconButton(
+                        tooltip: MaterialLocalizations.of(
+                          context,
+                        ).backButtonTooltip,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        onPressed: () => _onToggleSurface(state),
+                      )
+                    : const AutoLeadingWithFallback(fallbackPath: kPathHome),
+                title: BeaconViewAppBarTitle(
+                  beacon: state.beacon,
+                  statusLine: appBarStatusLine,
+                  statusTone: appBarStatusTone,
+                  l10n: l10n,
+                  onTap:
+                      !showInitialLoading &&
+                          (_surfaceMode == BeaconSurfaceMode.room ||
+                              state.canNavigateBeaconRoom)
+                      ? () => _onToggleSurface(state)
+                      : null,
+                  tooltipMessage: !showInitialLoading
+                      ? _beaconViewSurfaceSwitchTooltip(state, l10n)
+                      : null,
+                  roomUnreadBadgeCount:
+                      !showInitialLoading &&
+                          _surfaceMode == BeaconSurfaceMode.status &&
+                          state.canNavigateBeaconRoom &&
+                          state.roomUnreadCount > 0
+                      ? state.roomUnreadCount
+                      : null,
+                ),
+                actions: [
+                  _beaconViewAppBarOverflow(
+                    context: context,
+                    state: state,
+                    cubit: beaconViewCubit,
+                    screenCubit: screenCubit,
+                    l10n: l10n,
+                    onAuthorListedOpenClose: () =>
+                        _beaconViewRunAuthorCloseSheet(
+                          context: context,
+                          cubit: beaconViewCubit,
+                          l10n: l10n,
+                          onOpenPeopleTab: () => setState(() => _tabIndex = 1),
+                          onToggleRoomSurface: _onToggleSurface,
+                        ),
                   ),
-                Expanded(child: body),
-              ],
+                ],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(4),
+                  child: LinearPiActive.builder(context, state.isLoading),
+                ),
+              ),
+              body: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_bannerMessage != null)
+                    MaterialBanner(
+                      content: Text(_bannerMessage!),
+                      actions: [
+                        TextButton(
+                          onPressed: () =>
+                              setState(() => _bannerMessage = null),
+                          child: Text(l10n.beaconViewBannerDismiss),
+                        ),
+                      ],
+                    ),
+                  Expanded(child: body),
+                ],
+              ),
             ),
           );
         },
@@ -800,8 +826,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             onClosureCloseBeacon:
                 state.isBeaconMine &&
                     state.beacon.lifecycle == BeaconLifecycle.open &&
-                    state.closureActionPriority !=
-                        ClosureActionPriority.hidden
+                    state.closureActionPriority != ClosureActionPriority.hidden
                 ? () => unawaited(_beaconViewAuthorCloseFlow(context))
                 : null,
             onClosurePostUpdate:
@@ -912,8 +937,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                         !state.isBeaconMine &&
                             !state.isCommitted &&
                             state.inboxStatus == InboxItemStatus.needsMe
-                        ? () =>
-                              unawaited(beaconViewCubit.moveToWatching())
+                        ? () => unawaited(beaconViewCubit.moveToWatching())
                         : null,
                     onStopWatching:
                         !state.isBeaconMine &&
@@ -929,8 +953,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                             state.beacon.lifecycle == BeaconLifecycle.open &&
                             state.closureActionPriority !=
                                 ClosureActionPriority.hidden
-                        ? () =>
-                              unawaited(_beaconViewAuthorCloseFlow(context))
+                        ? () => unawaited(_beaconViewAuthorCloseFlow(context))
                         : null,
                     onOpenRoomSurface:
                         state.isBeaconMine && state.canNavigateBeaconRoom
@@ -1072,24 +1095,26 @@ class _CommitmentsTabBody extends StatelessWidget {
               CoordinationResponseType.needCoordination,
         )
         .toList(growable: false);
-    final otherActive = active
-        .where(
-          (c) =>
-              c.coordinationResponse !=
-              CoordinationResponseType.needCoordination,
-        )
-        .toList(growable: false)
-      ..sort((a, b) {
-        int p(CoordinationResponseType? r) => switch (r) {
+    final otherActive =
+        active
+            .where(
+              (c) =>
+                  c.coordinationResponse !=
+                  CoordinationResponseType.needCoordination,
+            )
+            .toList(growable: false)
+          ..sort((a, b) {
+            int p(CoordinationResponseType? r) => switch (r) {
               CoordinationResponseType.useful => 0,
               CoordinationResponseType.overlapping => 1,
               _ => 2,
             };
-        final cmp =
-            p(a.coordinationResponse).compareTo(p(b.coordinationResponse));
-        if (cmp != 0) return cmp;
-        return a.user.title.compareTo(b.user.title);
-      });
+            final cmp = p(
+              a.coordinationResponse,
+            ).compareTo(p(b.coordinationResponse));
+            if (cmp != 0) return cmp;
+            return a.user.title.compareTo(b.user.title);
+          });
 
     CommitmentTile commitmentTile(TimelineCommitment c) {
       return CommitmentTile(
@@ -1100,28 +1125,28 @@ class _CommitmentsTabBody extends StatelessWidget {
         isAuthorView: state.isBeaconMine,
         onAuthorTapCoordination: state.isBeaconMine && !c.isWithdrawn
             ? () => unawaited(
-                  showCoordinationResponseBottomSheet(
-                    context: context,
-                    commitUserTitle: c.user.title,
-                    initialResponse: c.coordinationResponse,
-                    commitUserAdmittedToRoom: state.roomParticipants.any(
-                      (p) =>
-                          p.userId == c.user.id &&
-                          p.roomAccess == RoomAccessBits.admitted,
-                    ),
-                    onSave:
-                        ({
-                          required responseTypeSmallint,
-                          required inviteToRoom,
-                          required removeFromRoom,
-                        }) => beaconViewCubit.setCoordinationResponse(
-                          commitUserId: c.user.id,
-                          responseType: responseTypeSmallint,
-                          inviteToRoom: inviteToRoom,
-                          removeFromRoom: removeFromRoom,
-                        ),
+                showCoordinationResponseBottomSheet(
+                  context: context,
+                  commitUserTitle: c.user.title,
+                  initialResponse: c.coordinationResponse,
+                  commitUserAdmittedToRoom: state.roomParticipants.any(
+                    (p) =>
+                        p.userId == c.user.id &&
+                        p.roomAccess == RoomAccessBits.admitted,
                   ),
-                )
+                  onSave:
+                      ({
+                        required responseTypeSmallint,
+                        required inviteToRoom,
+                        required removeFromRoom,
+                      }) => beaconViewCubit.setCoordinationResponse(
+                        commitUserId: c.user.id,
+                        responseType: responseTypeSmallint,
+                        inviteToRoom: inviteToRoom,
+                        removeFromRoom: removeFromRoom,
+                      ),
+                ),
+              )
             : null,
         onEdit: c.user.id == state.myProfile.id && !c.isWithdrawn
             ? () async {
@@ -1147,7 +1172,8 @@ class _CommitmentsTabBody extends StatelessWidget {
                 }
               }
             : null,
-        onWithdraw: c.user.id == state.myProfile.id &&
+        onWithdraw:
+            c.user.id == state.myProfile.id &&
                 !c.isWithdrawn &&
                 beacon.allowsWithdrawWhileCommitted
             ? () async {
