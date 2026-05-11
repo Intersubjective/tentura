@@ -210,12 +210,6 @@ class RootRouter extends RootStackRouter {
 
     AutoRoute(
       usesPathAsKey: true,
-      page: BeaconForwardsRoute.page,
-      path: '$kPathBeaconForwards/:id',
-    ),
-
-    AutoRoute(
-      usesPathAsKey: true,
       page: ReviewContributionsRoute.page,
       path: '$kPathReviewContributions/:id',
     ),

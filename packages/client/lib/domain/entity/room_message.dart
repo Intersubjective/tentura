@@ -17,6 +17,7 @@ abstract class RoomMessage with _$RoomMessage {
     @Default(Profile()) Profile author,
     @Default(<String, int>{}) Map<String, int> reactionCounts,
     String? myReaction,
+    @Default(<String, List<Profile>>{}) Map<String, List<Profile>> reactors,
     int? semanticMarker,
     String? linkedBlockerId,
     String? linkedFactCardId,

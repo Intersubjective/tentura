@@ -1980,11 +1980,6 @@
     "context": "BeaconViewScreen",
     "description": "Tab title for forward trail / notes to the viewer"
   },
-  "overflowMenuSeeForwards": "Смотреть пересылки",
-  "@overflowMenuSeeForwards": {
-    "context": "BeaconOverflowMenu",
-    "description": "Overflow menu row: navigate to forwards trail screen"
-  },
   "beaconForwardsEmpty": "Пока нет цепочки пересылок к вам по этому маяку.",
   "@beaconForwardsEmpty": {
     "context": "BeaconViewScreen",
@@ -2675,6 +2670,8 @@
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
   "beaconRoomReactionAddTooltip": "Добавить реакцию",
   "beaconRoomReactionPickerSemantic": "Выбор реакции",
+  "beaconRoomReactionSendersSheetTitle": "Реакции",
+  "beaconRoomReactionSendersSheetSemantic": "Кто отреагировал",
   "beaconRoomActionUpdatePlan": "Обновить план…",
   "beaconRoomActionPinFact": "Закрепить как факт",
   "beaconRoomActionMarkBlocker": "Пометить блокер…",

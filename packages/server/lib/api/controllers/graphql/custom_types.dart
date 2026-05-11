@@ -73,6 +73,7 @@ final gqlTypeRoomMessageRow =
         field('authorImageId', graphQLString.nonNullable()),
         field('reactionsJson', graphQLString),
         field('myReaction', graphQLString),
+        field('reactorsJson', graphQLString),
         field('attachmentsJson', graphQLString.nonNullable()),
         field(
           'mentions',

@@ -12,7 +12,9 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
@@ -40,6 +42,7 @@ import '../widget/commitment_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 import '../util/commitment_help_types_wire.dart';
 import '../widget/overview/beacon_overview_tab.dart';
+import '../widget/unified_forward_row.dart';
 
 bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   if (v == null || v.isEmpty) return false;
@@ -247,9 +250,6 @@ Widget _beaconViewAppBarOverflow({
       onForward: () => unawaited(
         _beaconViewOpenForwardThenMaybeNudgeCommit(context, cubit, l10n),
       ),
-      onViewForwards: () => unawaited(
-        context.router.pushPath('$kPathBeaconForwards/$beaconId'),
-      ),
       onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
       onDraftReview: state.showDraftEvaluationCta
           ? () => unawaited(
@@ -304,9 +304,6 @@ Widget _beaconViewAppBarOverflow({
         : () => unawaited(
             _beaconViewOpenForwardThenMaybeNudgeCommit(context, cubit, l10n),
           ),
-    onViewForwards: () => unawaited(
-      context.router.pushPath('$kPathBeaconForwards/$beaconId'),
-    ),
     onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
     onDraftReview: state.showDraftEvaluationCta
         ? () => unawaited(
@@ -1214,14 +1211,29 @@ class _CommitmentsTabBody extends StatelessWidget {
             SelfAwareAvatar(
               profile: beacon.author,
               size: 36,
+              withRating: beacon.author.id != state.myProfile.id,
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                beacon.author.title,
-                style: theme.textTheme.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              child: BlocBuilder<ProfileCubit, ProfileState>(
+                buildWhen: (p, c) => p.profile.id != c.profile.id,
+                builder: (context, profileState) {
+                  final base = beaconCardMetadataLineTextStyle(theme);
+                  final isSelf = SelfUserHighlight.profileIsSelf(
+                    beacon.author,
+                    profileState.profile.id,
+                  );
+                  return Text(
+                    SelfUserHighlight.displayName(
+                      l10n,
+                      beacon.author,
+                      profileState.profile.id,
+                    ),
+                    style: SelfUserHighlight.nameStyle(theme, base, isSelf),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
               ),
             ),
           ],
@@ -1249,6 +1261,95 @@ class _CommitmentsTabBody extends StatelessWidget {
             if (i != 0) const SizedBox(height: 12),
             commitmentTile(otherActive[i]),
           ],
+        ],
+        const SizedBox(height: 16),
+        Text(l10n.labelForwards, style: sectionHeaderStyle),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            icon: const Icon(Icons.send),
+            label: Text(l10n.labelForward),
+            onPressed: () => unawaited(
+              context.router.pushPath('$kPathForwardBeacon/${beacon.id}'),
+            ),
+          ),
+        ),
+        const SizedBox(height: kSpacingMedium),
+        if (state.isLoading && state.viewerForwardEdges.isEmpty)
+          const Center(
+            child: Padding(
+              padding: kPaddingSmallV,
+              child: CircularProgressIndicator.adaptive(),
+            ),
+          )
+        else ...[
+          Builder(
+            builder: (context) {
+              final edges = state.viewerForwardEdges;
+              final hasAny = edges.isNotEmpty;
+              final viewerId = state.myProfile.id;
+              final feedRows = <Widget>[
+                for (final e in edges)
+                  e.sender.id == viewerId
+                      ? UnifiedForwardRow.outgoing(
+                          edge: e,
+                          viewerUserId: viewerId,
+                          committed: state.involvementCommittedIds,
+                          watching: state.involvementWatchingIds,
+                          onward: state.involvementOnwardForwarderIds,
+                          reasonSlugs: state.forwardReasonSlugs[
+                                  '${e.sender.id}__${e.recipient.id}'] ??
+                              const [],
+                        )
+                      : UnifiedForwardRow.inbound(
+                          sender: e.sender,
+                          note: e.note,
+                          viewerUserId: viewerId,
+                          reasonSlugs: state.forwardReasonSlugs[
+                                  '${e.sender.id}__${e.recipient.id}'] ??
+                              const [],
+                        ),
+              ];
+              if (hasAny) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: kPaddingSmallV,
+                      child: Wrap(
+                        spacing: kSpacingSmall,
+                        runSpacing: kSpacingSmall,
+                        children: [
+                          BeaconCardPill(
+                            label: l10n.beaconForwardsCount(edges.length),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < feedRows.length; i++) ...[
+                          if (i > 0) const SizedBox(height: kSpacingMedium),
+                          feedRows[i],
+                        ],
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Padding(
+                padding: kPaddingSmallV,
+                child: Text(
+                  l10n.beaconForwardsEmpty,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              );
+            },
+          ),
         ],
         if (withdrawn.isNotEmpty) ...[
           if (active.isNotEmpty) const SizedBox(height: 12),

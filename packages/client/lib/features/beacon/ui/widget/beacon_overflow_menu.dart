@@ -33,7 +33,6 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onCommit,
     this.onWithdraw,
     this.onForward,
-    this.onViewForwards,
     this.onForwardsGraph,
     this.onDraftReview,
     this.onWatch,
@@ -57,7 +56,6 @@ class BeaconOverflowMenu extends StatelessWidget {
   final Future<void> Function()? onCommit;
   final Future<void> Function()? onWithdraw;
   final VoidCallback? onForward;
-  final VoidCallback? onViewForwards;
   final VoidCallback? onForwardsGraph;
   final VoidCallback? onDraftReview;
   final VoidCallback? onWatch;
@@ -134,13 +132,6 @@ class BeaconOverflowMenu extends StatelessWidget {
     if (onForward != null) {
       add('forward', Icons.send, l10n.labelForward);
     }
-    if (onViewForwards != null) {
-      add(
-        'view_forwards',
-        Icons.forward_to_inbox,
-        l10n.overflowMenuSeeForwards,
-      );
-    }
     if (onForwardsGraph != null) {
       add(
         'forwards_graph',
@@ -208,7 +199,6 @@ class BeaconOverflowMenu extends StatelessWidget {
           'commit' => unawaited(_deferPopupAction(context, onCommit)),
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
           'forward' => onForward?.call(),
-          'view_forwards' => onViewForwards?.call(),
           'forwards_graph' => onForwardsGraph?.call(),
           'draft_review' => onDraftReview?.call(),
           'watch' => onWatch?.call(),

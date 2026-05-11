@@ -158,8 +158,25 @@ class BeaconRoomRepository {
         await _db.managers.users.filter((u) => u.id.isIn(authorIds)).get();
     final userById = {for (final u in users) u.id: u};
 
+    final ids = msgs.map((m) => m.id).toList();
+    final reactionRows = await (_db.select(_db.beaconRoomMessageReactions)
+          ..where((r) => r.messageId.isIn(ids)))
+        .get();
+
+    final reactorIds = reactionRows.map((r) => r.userId).toSet();
+    final missingReactorUserIds =
+        reactorIds.difference(userById.keys.toSet()).toList();
+    if (missingReactorUserIds.isNotEmpty) {
+      final moreUsers = await _db.managers.users
+          .filter((u) => u.id.isIn(missingReactorUserIds))
+          .get();
+      for (final u in moreUsers) {
+        userById[u.id] = u;
+      }
+    }
+
     final imageUuidIds = {
-      for (final u in users)
+      for (final u in userById.values)
         if (u.imageId case final UuidValue id) id,
     }.toList();
 
@@ -172,14 +189,38 @@ class BeaconRoomRepository {
       }
     }
 
-    final ids = msgs.map((m) => m.id).toList();
-    final reactionRows = await (_db.select(_db.beaconRoomMessageReactions)
-          ..where((r) => r.messageId.isIn(ids)))
-        .get();
-
     final countsByMessage = <String, Map<String, int>>{};
     final viewerEmojisByMessage = <String, List<String>>{};
-    for (final rr in reactionRows) {
+    /// Per message, per emoji, ordered reactor profile rows (newest first).
+    final reactorsByMessage =
+        <String, Map<String, List<Map<String, Object?>>>>{};
+
+    Map<String, Object?> reactorProfileJson(String uid) {
+      final userRow = userById[uid];
+      final title = userRow?.title ?? '';
+      final imgUuid = userRow?.imageId;
+      final image = imgUuid != null ? imageByUuid[imgUuid] : null;
+      final hasPicture = imgUuid != null;
+      final picHeight = image?.height ?? 0;
+      final picWidth = image?.width ?? 0;
+      final blurHash = image?.hash ?? '';
+      final imageId = image != null ? image.id.toString() : '';
+      return <String, Object?>{
+        'id': uid,
+        'title': title,
+        'hasPicture': hasPicture,
+        'imageId': imageId,
+        'blurHash': blurHash,
+        'picHeight': picHeight,
+        'picWidth': picWidth,
+      };
+    }
+
+    final sortedReactions = [...reactionRows]
+      ..sort(
+        (a, b) => b.createdAt.dateTime.compareTo(a.createdAt.dateTime),
+      );
+    for (final rr in sortedReactions) {
       final mid = rr.messageId;
       final emoji = rr.emoji;
       final uid = rr.userId;
@@ -189,6 +230,13 @@ class BeaconRoomRepository {
 
       if (uid == viewerUserId) {
         viewerEmojisByMessage.putIfAbsent(mid, () => <String>[]).add(emoji);
+      }
+
+      final byEmoji =
+          reactorsByMessage.putIfAbsent(mid, () => <String, List<Map<String, Object?>>>{});
+      final list = byEmoji.putIfAbsent(emoji, () => <Map<String, Object?>>[]);
+      if (!list.any((m) => m['id'] == uid)) {
+        list.add(reactorProfileJson(uid));
       }
     }
 
@@ -207,6 +255,23 @@ class BeaconRoomRepository {
       }
       final unique = list.toSet().toList()..sort();
       return unique.join(',');
+    }
+
+    String? reactorsJsonFor(String messageId) {
+      final byEmoji = reactorsByMessage[messageId];
+      if (byEmoji == null || byEmoji.isEmpty) {
+        return null;
+      }
+      final out = <String, List<Map<String, Object?>>>{};
+      for (final e in byEmoji.entries) {
+        if (e.value.isNotEmpty) {
+          out[e.key] = e.value;
+        }
+      }
+      if (out.isEmpty) {
+        return null;
+      }
+      return jsonEncode(out);
     }
 
     Object? encodeSystemPayload(Object? raw) {
@@ -260,6 +325,7 @@ class BeaconRoomRepository {
         'authorImageId': authorImageId,
         'reactionsJson': reactionsJsonFor(id),
         'myReaction': myReactionFor(id),
+        'reactorsJson': reactorsJsonFor(id),
         'attachmentsJson':
             attachmentsJsonByMid[id] ?? '[]',
         // GraphQL `[String!]` — never emit null/empty slots (see migration 0060).

@@ -1,9 +1,5 @@
-import 'dart:async';
-
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -145,11 +141,6 @@ class InboxItemTile extends StatelessWidget {
                     }
                   : null,
               onForward: onTap,
-              onViewForwards: () => unawaited(
-                context.router.pushPath(
-                  '$kPathBeaconForwards/${beacon.id}',
-                ),
-              ),
               onForwardsGraph: () =>
                   context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
               onWatch: onWatch,

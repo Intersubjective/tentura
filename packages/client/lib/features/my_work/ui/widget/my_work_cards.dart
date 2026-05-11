@@ -292,9 +292,6 @@ class _AuthoredActiveCard extends StatelessWidget {
               onForward: () => unawaited(
                 context.router.pushPath('$kPathForwardBeacon/${b.id}'),
               ),
-              onViewForwards: () => unawaited(
-                context.router.pushPath('$kPathBeaconForwards/${b.id}'),
-              ),
               onForwardsGraph: () =>
                   context.read<ScreenCubit>().showForwardsGraphFor(b.id),
               onDelete: () async {
@@ -375,9 +372,6 @@ class _CommittedActiveCard extends StatelessWidget {
               beacon: b,
               onForward: () => unawaited(
                 context.router.pushPath('$kPathForwardBeacon/${b.id}'),
-              ),
-              onViewForwards: () => unawaited(
-                context.router.pushPath('$kPathBeaconForwards/${b.id}'),
               ),
               onForwardsGraph: () =>
                   context.read<ScreenCubit>().showForwardsGraphFor(b.id),
@@ -581,9 +575,6 @@ class _ClosedAuthoredCard extends StatelessWidget {
               onForward: () => unawaited(
                 context.router.pushPath('$kPathForwardBeacon/${b.id}'),
               ),
-              onViewForwards: () => unawaited(
-                context.router.pushPath('$kPathBeaconForwards/${b.id}'),
-              ),
               onForwardsGraph: () =>
                   context.read<ScreenCubit>().showForwardsGraphFor(b.id),
               onDelete: () async {
@@ -673,9 +664,6 @@ class _ClosedCommittedCard extends StatelessWidget {
               beacon: b,
               onForward: () => unawaited(
                 context.router.pushPath('$kPathForwardBeacon/${b.id}'),
-              ),
-              onViewForwards: () => unawaited(
-                context.router.pushPath('$kPathBeaconForwards/${b.id}'),
               ),
               onForwardsGraph: () =>
                   context.read<ScreenCubit>().showForwardsGraphFor(b.id),

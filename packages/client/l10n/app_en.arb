@@ -1980,11 +1980,6 @@
     "context": "BeaconViewScreen",
     "description": "Tab title for forward trail / notes to the viewer"
   },
-  "overflowMenuSeeForwards": "See forwards",
-  "@overflowMenuSeeForwards": {
-    "context": "BeaconOverflowMenu",
-    "description": "Overflow menu row: navigate to forwards trail screen"
-  },
   "beaconForwardsEmpty": "No forward trail for you on this beacon yet.",
   "@beaconForwardsEmpty": {
     "context": "BeaconViewScreen",
@@ -2680,6 +2675,14 @@
   "beaconRoomReactionPickerSemantic": "Reaction picker",
   "@beaconRoomReactionPickerSemantic": {
     "description": "Accessibility label for the floating emoji reaction popup"
+  },
+  "beaconRoomReactionSendersSheetTitle": "Reactions",
+  "@beaconRoomReactionSendersSheetTitle": {
+    "description": "Title for the bottom sheet listing people who reacted to a room message"
+  },
+  "beaconRoomReactionSendersSheetSemantic": "Who reacted",
+  "@beaconRoomReactionSendersSheetSemantic": {
+    "description": "Accessibility label for the who-reacted bottom sheet"
   },
   "beaconRoomActionUpdatePlan": "Update plan…",
   "beaconRoomActionPinFact": "Pin as fact",

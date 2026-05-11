@@ -58,6 +58,68 @@ class BeaconRoomRepository {
   /// Debounced beacon ids where room messages or participants changed remotely.
   Stream<String> get beaconRoomRefresh => _roomRefreshController.stream;
 
+  /// Parses V2 `reactorsJson`: `{ emoji: [{ id, title, hasPicture, imageId, blurHash, picHeight, picWidth }] }`.
+  static Map<String, List<Profile>> parseReactorsJson(String? raw) {
+    if (raw == null || raw.isEmpty) {
+      return const {};
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        return const {};
+      }
+      final out = <String, List<Profile>>{};
+      for (final e in decoded.entries) {
+        final key = e.key;
+        if (key is! String) {
+          continue;
+        }
+        final listVal = e.value;
+        if (listVal is! List) {
+          continue;
+        }
+        final profiles = <Profile>[];
+        for (final item in listVal) {
+          if (item is! Map) {
+            continue;
+          }
+          final map = Map<String, Object?>.from(item);
+          final id = map['id'] as String? ?? '';
+          if (id.isEmpty) {
+            continue;
+          }
+          final title = map['title'] as String? ?? '';
+          final hasPicture = map['hasPicture'] as bool? ?? false;
+          final imageId = map['imageId'] as String? ?? '';
+          final blurHash = map['blurHash'] as String? ?? '';
+          final picHeight = (map['picHeight'] as num?)?.toInt() ?? 0;
+          final picWidth = (map['picWidth'] as num?)?.toInt() ?? 0;
+          profiles.add(
+            Profile(
+              id: id,
+              title: title,
+              image: hasPicture && imageId.isNotEmpty
+                  ? ImageEntity(
+                      id: imageId,
+                      authorId: id,
+                      blurHash: blurHash,
+                      height: picHeight,
+                      width: picWidth,
+                    )
+                  : null,
+            ),
+          );
+        }
+        if (profiles.isNotEmpty) {
+          out[key] = profiles;
+        }
+      }
+      return out;
+    } on Object catch (_) {
+      return const {};
+    }
+  }
+
   Future<List<RoomMessage>> fetchMessages({
     required String beaconId,
     String? beforeIso,
@@ -118,6 +180,7 @@ class BeaconRoomRepository {
               author: author,
               reactionCounts: reactionCounts,
               myReaction: m.myReaction,
+              reactors: BeaconRoomRepository.parseReactorsJson(m.reactorsJson),
               semanticMarker: m.semanticMarker,
               linkedBlockerId: m.linkedBlockerId,
               linkedFactCardId: m.linkedFactCardId,

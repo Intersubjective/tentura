@@ -13,11 +13,13 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
+import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_reaction_picker.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:readmore/readmore.dart';
@@ -385,6 +387,20 @@ class RoomMessageTile extends StatelessWidget {
                                         entry.key,
                                       ),
                                     ),
+                                    onLongPress:
+                                        (message.reactors[entry.key]
+                                                    ?.isNotEmpty ??
+                                                false)
+                                            ? () => unawaited(
+                                                showReactionSendersSheet(
+                                                  context,
+                                                  reactors: message.reactors,
+                                                  reactionCounts:
+                                                      message.reactionCounts,
+                                                  initialEmoji: entry.key,
+                                                ),
+                                              )
+                                            : null,
                                     borderRadius: BorderRadius.circular(18),
                                     child: Padding(
                                       padding: kPaddingSmallH.add(
@@ -406,7 +422,7 @@ class RoomMessageTile extends StatelessWidget {
                                                     .surfaceContainerHighest
                                                     .withValues(alpha: 0.75),
                                           borderRadius: BorderRadius.circular(
-                                            16,
+                                            999,
                                           ),
                                           border:
                                               viewerReactions.contains(
@@ -423,23 +439,12 @@ class RoomMessageTile extends StatelessWidget {
                                             horizontal: kSpacingSmall,
                                             vertical: 2,
                                           ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                entry.key,
-                                                style:
-                                                    theme.textTheme.titleMedium,
-                                              ),
-                                              const SizedBox(
-                                                width: kSpacingSmall / 2,
-                                              ),
-                                              Text(
-                                                '${entry.value}',
-                                                style:
-                                                    theme.textTheme.labelMedium,
-                                              ),
-                                            ],
+                                          child: _RoomReactionChipPill(
+                                            emoji: entry.key,
+                                            count: entry.value,
+                                            reactors:
+                                                message.reactors[entry.key] ??
+                                                const [],
                                           ),
                                         ),
                                       ),
@@ -513,5 +518,150 @@ class RoomMessageTile extends StatelessWidget {
     final l = t.toLocal();
     return '${l.hour.toString().padLeft(2, '0')}:'
         '${l.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// Emoji + overlapping reactor avatars (Telegram-style), or count fallback.
+class _RoomReactionChipPill extends StatelessWidget {
+  const _RoomReactionChipPill({
+    required this.emoji,
+    required this.count,
+    required this.reactors,
+  });
+
+  final String emoji;
+
+  final int count;
+
+  final List<Profile> reactors;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          emoji,
+          style: theme.textTheme.titleMedium?.copyWith(height: 1),
+        ),
+        const SizedBox(width: 4),
+        if (reactors.isNotEmpty)
+          _ReactorAvatarStrip(profiles: reactors)
+        else
+          Text(
+            '$count',
+            style: theme.textTheme.labelMedium?.copyWith(height: 1),
+          ),
+      ],
+    );
+  }
+}
+
+class _ReactorAvatarStrip extends StatelessWidget {
+  const _ReactorAvatarStrip({required this.profiles});
+
+  final List<Profile> profiles;
+
+  static const double _size = 16;
+
+  static const double _overlap = 4;
+
+  static const int _maxVisible = 3;
+
+  static const double _step = _size - _overlap;
+
+  /// Stack height: room for [AvatarRated] plus up to 2px ring (self highlight).
+  static const double _stackCross = _size + 4;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final n = profiles.length;
+    if (n == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final overflow = n > _maxVisible ? n - _maxVisible : 0;
+    final visible = profiles.take(_maxVisible).toList();
+    final extraSlots = overflow > 0 ? 1 : 0;
+    final width = _size + (visible.length + extraSlots - 1) * _step;
+
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      buildWhen: (p, c) => p.profile.id != c.profile.id,
+      builder: (context, state) {
+        final theme = Theme.of(context);
+        final ringColor = scheme.outlineVariant;
+
+        return SizedBox(
+          width: width,
+          height: _stackCross,
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            clipBehavior: Clip.none,
+            children: [
+              for (var i = 0; i < visible.length; i++)
+                Positioned(
+                  left: i * _step,
+                  top: 0,
+                  bottom: 0,
+                  child: Align(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: SelfUserHighlight.profileIsSelf(
+                                visible[i],
+                                state.profile.id,
+                              )
+                              ? scheme.primary
+                              : ringColor,
+                          width: SelfUserHighlight.profileIsSelf(
+                                visible[i],
+                                state.profile.id,
+                              )
+                              ? 2
+                              : 1,
+                        ),
+                      ),
+                      child: AvatarRated(
+                        profile: visible[i],
+                        withRating: false,
+                        size: _size,
+                      ),
+                    ),
+                  ),
+                ),
+              if (overflow > 0)
+                Positioned(
+                  left: visible.length * _step,
+                  top: 0,
+                  bottom: 0,
+                  child: Align(
+                    child: Container(
+                      width: _size,
+                      height: _size,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: scheme.surfaceContainerHigh,
+                        border: Border.all(color: ringColor),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '+$overflow',
+                        style: theme.textTheme.labelMedium!.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurfaceVariant,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

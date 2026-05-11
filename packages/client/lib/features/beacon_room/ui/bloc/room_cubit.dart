@@ -314,6 +314,7 @@ class RoomCubit extends Cubit<RoomState> {
       optimistic[idx] = toggleRoomMessageReactionLocally(
         optimistic[idx],
         emoji,
+        GetIt.I<ProfileCubit>().state.profile,
       );
       emit(state.copyWith(messages: optimistic));
     }
