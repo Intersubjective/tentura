@@ -290,11 +290,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               ),
             ),
 
-            // Context
-            const Padding(
-              padding: kPaddingSmallV,
-              child: ContextDropDown(),
-            ),
+            // Context (topics selector; gated — see kShowBeaconCreateContextSelector)
+            if (kShowBeaconCreateContextSelector)
+              const Padding(
+                padding: kPaddingSmallV,
+                child: ContextDropDown(),
+              ),
 
             // Date Range
             Padding(

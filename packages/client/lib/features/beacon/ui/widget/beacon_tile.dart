@@ -47,8 +47,8 @@ class BeaconTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Context
-            if (beacon.context.isNotEmpty)
+            // Context (gated — see kShowBeaconCardContextCategory)
+            if (kShowBeaconCardContextCategory && beacon.context.isNotEmpty)
               Padding(
                 padding: kPaddingAllS,
                 child: Row(

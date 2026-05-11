@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_text.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -212,8 +213,10 @@ class BeaconCardMetadataBlock extends StatelessWidget {
                   style: baseStyle,
                   children: [
                     TextSpan(text: name, style: nameStyle),
-                    TextSpan(text: ' · ', style: baseStyle),
-                    TextSpan(text: category),
+                    if (kShowBeaconCardContextCategory) ...[
+                      TextSpan(text: ' · ', style: baseStyle),
+                      TextSpan(text: category),
+                    ],
                   ],
                 ),
                 maxLines: 1,
@@ -490,6 +493,9 @@ class BeaconCardCategoryMeta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!kShowBeaconCardContextCategory) {
+      return const SizedBox.shrink();
+    }
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;

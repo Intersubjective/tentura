@@ -87,3 +87,13 @@ const kRoomAttachmentsPath = 'room_attachments';
 const kAvatarPlaceholderBlurhash =
     ':QPjJjoL?bxu~qRjD%xuM{j[%MayIUj[t7j[~qa{xuWBD%of%MWBRjj[j[ayxuj[M{ay?bj[IT'
     'WBayofayWBxuayRjofofWBWBj[Rjj[t7ayRjayRjofs:fQfQfRWBj[ofay';
+
+//
+// Feature UI gates (compile-time; flip to re-enable)
+//
+
+/// Context / “topics” dropdown on beacon create/edit (`ContextDropDown`).
+const kShowBeaconCreateContextSelector = false;
+
+/// Beacon context (“category”) on list cards, tiles, forward strip, tombstones.
+const kShowBeaconCardContextCategory = false;
