@@ -95,8 +95,7 @@ void main() {
       find.textContaining('Short canonical need'),
       findsOneWidget,
     );
-    // Collapsible sections: Coordination starts expanded; Status dashboard adds more panels.
-    expect(find.byIcon(Icons.expand_more), findsWidgets);
+    // Collapsible sections: Coordination and Context & attachments start expanded.
     expect(find.byIcon(Icons.expand_less), findsWidgets);
   });
 

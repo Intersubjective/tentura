@@ -429,6 +429,7 @@ class BeaconStatusDashboard extends StatelessWidget {
         ? null
         : BeaconOverviewSectionCard(
             storageId: 'ov-${beacon.id}-facts',
+            defaultOpen: true,
             title: l10n.beaconOverviewPublicFactsTitle,
             summary: l10n.beaconOverviewPublicFactsCount(publicFacts.length),
             icon: Icons.fact_check_outlined,
@@ -461,6 +462,7 @@ class BeaconStatusDashboard extends StatelessWidget {
 
     final contextCard = BeaconOverviewSectionCard(
       storageId: 'ov-${beacon.id}-ctx',
+      defaultOpen: true,
       title: l10n.beaconContextAttachmentsTitle,
       summary: contextSummary,
       icon: Icons.attach_file,
