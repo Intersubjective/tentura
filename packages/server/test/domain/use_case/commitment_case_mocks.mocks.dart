@@ -1290,6 +1290,16 @@ class MockBeaconRoomRepository extends _i1.Mock
           as _i6.Future<List<_i4.BeaconParticipant>>);
 
   @override
+  _i6.Future<Map<String, String?>> helpTypesByUserId(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#helpTypesByUserId, [beaconId]),
+            returnValue: _i6.Future<Map<String, String?>>.value(
+              <String, String?>{},
+            ),
+          )
+          as _i6.Future<Map<String, String?>>);
+
+  @override
   _i6.Future<Map<String, String>> userHandlesByIds(Iterable<String>? userIds) =>
       (super.noSuchMethod(
             Invocation.method(#userHandlesByIds, [userIds]),

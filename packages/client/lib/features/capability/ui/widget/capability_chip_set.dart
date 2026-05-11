@@ -18,10 +18,14 @@ class CapabilityChipSet extends StatelessWidget {
     required this.selectedSlugs,
     required this.onChanged,
     this.automaticSlugs = const {},
+    this.maxSelection,
     super.key,
   });
 
   final Set<String> selectedSlugs;
+
+  /// When non-null, unselected tags cannot be toggled on once selection length reaches this.
+  final int? maxSelection;
 
   /// Slugs that were added automatically (via forward/commit/close-ack).
   /// These chips are shown in a secondary color to distinguish them from
@@ -48,6 +52,7 @@ class CapabilityChipSet extends StatelessWidget {
                 .toList(),
             selectedSlugs: selectedSlugs,
             automaticSlugs: automaticSlugs,
+            maxSelection: maxSelection,
             onToggle: (slug, selected) {
               final next = Set<String>.from(selectedSlugs);
               selected ? next.add(slug) : next.remove(slug);
@@ -118,6 +123,7 @@ class _GroupSection extends StatelessWidget {
     required this.onToggle,
     required this.theme,
     required this.l10n,
+    this.maxSelection,
   });
 
   final CapabilityGroup group;
@@ -125,6 +131,7 @@ class _GroupSection extends StatelessWidget {
   final List<CapabilityTag> tags;
   final Set<String> selectedSlugs;
   final Set<String> automaticSlugs;
+  final int? maxSelection;
   final void Function(String slug, bool selected) onToggle;
   final ThemeData theme;
   final L10n l10n;
@@ -135,6 +142,9 @@ class _GroupSection extends StatelessWidget {
     final selectedCount = selectedSlugs.intersection(groupSlugs).length;
     final autoCount = automaticSlugs.intersection(groupSlugs).length;
     final initiallyExpanded = selectedCount > 0 || autoCount > 0;
+    final selectionLimit = maxSelection;
+    final atSelectionLimit = selectionLimit != null &&
+        selectedSlugs.length >= selectionLimit;
 
     final cs = theme.colorScheme;
     final categoryInteractionTheme = theme.copyWith(
@@ -190,7 +200,10 @@ class _GroupSection extends StatelessWidget {
                   theme: theme,
                   selected: selectedSlugs.contains(tag.slug),
                   isAutomatic: automaticSlugs.contains(tag.slug),
-                  onSelected: (v) => onToggle(tag.slug, v),
+                  onSelected: atSelectionLimit &&
+                          !selectedSlugs.contains(tag.slug)
+                      ? null
+                      : (v) => onToggle(tag.slug, v),
                 ),
             ],
           ),

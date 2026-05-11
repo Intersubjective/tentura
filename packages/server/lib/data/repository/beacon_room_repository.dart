@@ -553,6 +553,14 @@ class BeaconRoomRepository {
           .filter((r) => r.beaconId.id(beaconId))
           .get();
 
+  /// Active commitment `help_type` wire per user id for this beacon (at most one row per user).
+  Future<Map<String, String?>> helpTypesByUserId(String beaconId) async {
+    final rows = await _db.managers.beaconCommitments
+        .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))
+        .get();
+    return {for (final r in rows) r.userId: r.helpType};
+  }
+
   /// `user.title` for V2 row projections (missing users yield no map entry).
   /// Trims `user.handle` per id (empty string when unset).
   Future<Map<String, String>> userHandlesByIds(Iterable<String> userIds) async {
