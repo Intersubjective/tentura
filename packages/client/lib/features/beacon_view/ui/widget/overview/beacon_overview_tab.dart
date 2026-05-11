@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
@@ -51,34 +50,6 @@ Widget _closureEvidenceRow(
       ),
     );
 
-BeaconOverviewSectionCard? _roomCueSectionCard(
-  String beaconId,
-  ColorScheme scheme,
-  BeaconRoomState? cue,
-  L10n l10n,
-) {
-  if (cue == null) return null;
-  final lm = cue.lastRoomMeaningfulChange?.trim();
-  final cueBody = (lm != null && lm.isNotEmpty)
-      ? lm
-      : cue.currentPlan.trim();
-  if (cueBody.isEmpty) return null;
-  return BeaconOverviewSectionCard(
-    storageId: 'ov-$beaconId-roomCue',
-    title: l10n.beaconOverviewRoomCueCardTitle,
-    summary: '',
-    icon: Icons.meeting_room_outlined,
-    defaultOpen: true,
-    expanded: Align(
-      alignment: Alignment.centerLeft,
-      child: SelectableText(
-        cueBody,
-        style: TenturaText.body(scheme.onSurfaceVariant),
-      ),
-    ),
-  );
-}
-
 String _publicStatusLine(L10n l10n, int s) => switch (s) {
   0 => l10n.beaconPublicStatusOpen,
   1 => l10n.beaconPublicStatusCoordinating,
@@ -87,6 +58,140 @@ String _publicStatusLine(L10n l10n, int s) => switch (s) {
   4 => l10n.beaconPublicStatusClosed,
   _ => l10n.beaconPublicStatusOpen,
 };
+
+Widget _situationLabeledRow(
+  BuildContext context, {
+  required String label,
+  required String value,
+}) {
+  final scheme = Theme.of(context).colorScheme;
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 92,
+          child: Text(
+            label,
+            style: TenturaText.typeLabel(scheme.onSurface),
+          ),
+        ),
+        Expanded(
+          child: SelectableText(
+            value,
+            style: TenturaText.body(scheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SituationPanelBody extends StatelessWidget {
+  const _SituationPanelBody({
+    required this.l10n,
+    required this.state,
+    this.onOpenRoom,
+  });
+
+  final L10n l10n;
+  final BeaconViewState state;
+  final VoidCallback? onOpenRoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final beacon = state.beacon;
+    final cue = state.beaconRoomCue;
+
+    if (beacon.lifecycle == BeaconLifecycle.deleted) {
+      return SelectableText(
+        l10n.beaconHudBeaconUnavailable,
+        style: TenturaText.body(scheme.onSurfaceVariant),
+      );
+    }
+
+    if (beacon.lifecycle != BeaconLifecycle.open) {
+      return SelectableText(
+        beaconHudNowLine(l10n, state),
+        style: TenturaText.body(scheme.onSurfaceVariant),
+      );
+    }
+
+    final plan = cue?.currentPlan.trim() ?? '';
+    final blockerTitle = cue?.openBlockerTitle?.trim();
+    final roomLast = cue?.lastRoomMeaningfulChange?.trim();
+    final pubLast = beacon.lastPublicMeaningfulChange?.trim();
+
+    String? lastText;
+    if (roomLast != null && roomLast.isNotEmpty) {
+      lastText = roomLast;
+    } else if (pubLast != null && pubLast.isNotEmpty) {
+      lastText = pubLast;
+    }
+
+    final rows = <Widget>[
+      _situationLabeledRow(
+        context,
+        label: l10n.beaconSituationStateLabel,
+        value: _publicStatusLine(l10n, beacon.publicStatus),
+      ),
+    ];
+
+    if (plan.isNotEmpty) {
+      rows.add(
+        _situationLabeledRow(
+          context,
+          label: l10n.beaconSituationPlanLabel,
+          value: plan,
+        ),
+      );
+    }
+
+    if (blockerTitle != null && blockerTitle.isNotEmpty) {
+      rows.add(
+        _situationLabeledRow(
+          context,
+          label: l10n.beaconSituationBlockerLabel,
+          value: blockerTitle,
+        ),
+      );
+    }
+
+    if (lastText != null) {
+      rows.add(
+        _situationLabeledRow(
+          context,
+          label: l10n.beaconSituationLastChangeLabel,
+          value: lastText,
+        ),
+      );
+    }
+
+    final hasRoomSignal = cue != null &&
+        (plan.isNotEmpty ||
+            (blockerTitle != null && blockerTitle.isNotEmpty) ||
+            (roomLast != null && roomLast.isNotEmpty));
+    final showOpenRoom =
+        onOpenRoom != null && state.canNavigateBeaconRoom && hasRoomSignal;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ...rows,
+        if (showOpenRoom)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: onOpenRoom,
+              child: Text(l10n.beaconSituationOpenRoom),
+            ),
+          ),
+      ],
+    );
+  }
+}
 
 /// Foldable overview section: icon, title, summary, optional meta, chevron, expanded body.
 /// When [collapsible] is false, the body is always visible (no chevron / tap-to-toggle).
@@ -267,6 +372,7 @@ class BeaconStatusDashboard extends StatelessWidget {
     required this.state,
     required this.onViewAllCommitments,
     required this.onEditTimelineUpdate,
+    this.onOpenRoom,
     this.onClosureCloseBeacon,
     this.onClosurePostUpdate,
     this.onClosureForward,
@@ -278,6 +384,9 @@ class BeaconStatusDashboard extends StatelessWidget {
   final BeaconViewState state;
   final VoidCallback onViewAllCommitments;
   final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
+
+  /// Opens Room surface when viewer has room access (AppBar toggle target).
+  final VoidCallback? onOpenRoom;
 
   final VoidCallback? onClosureCloseBeacon;
   final VoidCallback? onClosurePostUpdate;
@@ -329,25 +438,6 @@ class BeaconStatusDashboard extends StatelessWidget {
             ),
           );
 
-    final publicRoomCard = BeaconOverviewSectionCard(
-      storageId: 'ov-${beacon.id}-pub',
-      title: l10n.beaconPublicStatusCardTitle,
-      summary: _publicStatusLine(l10n, beacon.publicStatus),
-      meta: beacon.lastPublicMeaningfulChange?.trim().isNotEmpty ?? false
-          ? beacon.lastPublicMeaningfulChange
-          : null,
-      icon: Icons.public_outlined,
-      expanded: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          (beacon.lastPublicMeaningfulChange?.trim().isNotEmpty ?? false)
-              ? beacon.lastPublicMeaningfulChange!.trim()
-              : l10n.beaconPublicStatusNoNote,
-          style: TenturaText.body(scheme.onSurfaceVariant),
-        ),
-      ),
-    );
-
     final coordinationCard = BeaconOverviewSectionCard(
       storageId: 'ov-${beacon.id}-coord',
       defaultOpen: true,
@@ -386,21 +476,16 @@ class BeaconStatusDashboard extends StatelessWidget {
       ),
     );
 
-    final roomCueOverviewCard =
-        _roomCueSectionCard(beacon.id, scheme, state.beaconRoomCue, l10n);
-
     final nowPanel = BeaconOverviewSectionCard(
       storageId: 'ov-${beacon.id}-now',
       collapsible: false,
       title: l10n.beaconHudSituationPanelTitle,
       summary: '',
       icon: Icons.radar_outlined,
-      expanded: Align(
-        alignment: Alignment.centerLeft,
-        child: SelectableText(
-          beaconHudNowExpandedBody(l10n, state),
-          style: TenturaText.body(scheme.onSurfaceVariant),
-        ),
+      expanded: _SituationPanelBody(
+        l10n: l10n,
+        state: state,
+        onOpenRoom: onOpenRoom,
       ),
     );
 
@@ -419,8 +504,65 @@ class BeaconStatusDashboard extends StatelessWidget {
       ),
     );
 
+    final hasOpenBlocker =
+        state.beaconRoomCue?.openBlockerTitle?.trim().isNotEmpty ?? false;
+    final hasNeedCoord = state.needCoordinationCommitmentsCount > 0;
+    final blockersPanel = hasOpenBlocker || hasNeedCoord
+        ? BeaconOverviewSectionCard(
+            storageId: 'ov-${beacon.id}-blockers',
+            collapsible: false,
+            defaultOpen: true,
+            title: l10n.beaconBlockersPanelTitle,
+            summary: '',
+            icon: Icons.warning_amber_rounded,
+            expanded: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (hasOpenBlocker)
+                  SelectableText(
+                    state.beaconRoomCue!.openBlockerTitle!.trim(),
+                    style: TenturaText.body(scheme.onSurfaceVariant),
+                  ),
+                if (hasNeedCoord) ...[
+                  if (hasOpenBlocker) SizedBox(height: context.tt.rowGap),
+                  Text(
+                    l10n.beaconHudTokenNeedCoordCount(
+                      state.needCoordinationCommitmentsCount,
+                    ),
+                    style: TenturaText.body(scheme.onSurfaceVariant),
+                  ),
+                ],
+                SizedBox(height: context.tt.rowGap),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: onViewAllCommitments,
+                      child: Text(l10n.beaconCloseSheetActionOpenPeople),
+                    ),
+                    if (onOpenRoom != null && state.canNavigateBeaconRoom)
+                      OutlinedButton(
+                        onPressed: onOpenRoom,
+                        child: Text(l10n.beaconBlockersPanelAskInRoom),
+                      ),
+                    if (hasOpenBlocker &&
+                        (onOpenRoom == null || !state.canNavigateBeaconRoom))
+                      OutlinedButton(
+                        onPressed: onViewAllCommitments,
+                        child: Text(l10n.beaconHudResolveBlocker),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          )
+        : null;
+
     BeaconOverviewSectionCard? closurePanel;
-    if (state.isBeaconMine && beacon.lifecycle == BeaconLifecycle.open) {
+    if (state.isBeaconMine &&
+        beacon.lifecycle == BeaconLifecycle.open &&
+        state.closureReadiness != BeaconClosureReadiness.notCloseable) {
       final readiness = state.closureReadiness;
       final summary = buildClosureConfirmationSummary(state);
       final (title, body) = switch (readiness) {
@@ -440,6 +582,7 @@ class BeaconStatusDashboard extends StatelessWidget {
             l10n.beaconClosurePanelTitleBlocked,
             l10n.beaconClosurePanelBodyBlocked,
           ),
+        // Filtered by outer `closureReadiness != notCloseable`; kept for exhaustiveness.
         BeaconClosureReadiness.notCloseable => (
             l10n.beaconClosurePanelTitlePremature,
             l10n.beaconClosurePanelBodyPremature,
@@ -543,6 +686,10 @@ class BeaconStatusDashboard extends StatelessWidget {
       nowPanel,
       const SizedBox(height: _kOverviewSectionGap),
       youPanel,
+      if (blockersPanel != null) ...[
+        const SizedBox(height: _kOverviewSectionGap),
+        blockersPanel,
+      ],
       if (closurePanel != null) ...[
         const SizedBox(height: _kOverviewSectionGap),
         closurePanel,
@@ -583,16 +730,12 @@ class BeaconStatusDashboard extends StatelessWidget {
         ),
         const SizedBox(height: _kOverviewSectionGap),
         coordinationCard,
+        const SizedBox(height: _kOverviewSectionGap),
+        contextCard,
       ],
       if (factsCard != null) ...[
         const SizedBox(height: _kOverviewSectionGap),
         factsCard,
-      ],
-      const SizedBox(height: _kOverviewSectionGap),
-      publicRoomCard,
-      if (roomCueOverviewCard != null) ...[
-        const SizedBox(height: _kOverviewSectionGap),
-        roomCueOverviewCard,
       ],
     ];
 

@@ -66,7 +66,7 @@ void main() {
 
     expect(find.text('Need & context'), findsOneWidget);
     expect(find.text('Coordination'), findsOneWidget);
-    expect(find.text('Context & attachments'), findsNothing);
+    expect(find.text('Context & attachments'), findsOneWidget);
     // Coordination starts expanded; dashboard adds extra non-collapsible panels.
     expect(find.byIcon(Icons.expand_less), findsWidgets);
   });

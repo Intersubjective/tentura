@@ -2202,6 +2202,13 @@
   "beaconHudYouLabel": "ВЫ",
   "beaconHudNoCurrentPlan": "Плана пока нет",
   "beaconHudSituationPanelTitle": "Ситуация",
+  "beaconSituationStateLabel": "Статус",
+  "beaconSituationPlanLabel": "План",
+  "beaconSituationBlockerLabel": "Блокер",
+  "beaconSituationLastChangeLabel": "Последнее",
+  "beaconSituationOpenRoom": "Открыть комнату",
+  "beaconBlockersPanelTitle": "Блокеры / Вопросы",
+  "beaconBlockersPanelAskInRoom": "Спросить в комнате",
   "beaconHudYourRolePanelTitle": "Ваша роль",
   "beaconHudYouAuthorReview": "Проверить {count} участие(й)",
   "@beaconHudYouAuthorReview": {
