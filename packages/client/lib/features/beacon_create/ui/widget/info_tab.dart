@@ -9,6 +9,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
@@ -65,8 +66,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setModalState) => DraggableScrollableSheet(
+      builder: (_) => UnfocusSheetBody(
+        child: StatefulBuilder(
+          builder: (ctx, setModalState) => DraggableScrollableSheet(
           expand: false,
           initialChildSize: 0.7,
           minChildSize: 0.4,
@@ -107,6 +109,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
