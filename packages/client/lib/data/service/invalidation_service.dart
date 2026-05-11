@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:rxdart/rxdart.dart';
 
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+
 import 'remote_api_service.dart';
 
 /// Receives entity-change invalidation signals from the V2 WebSocket and
@@ -18,8 +20,7 @@ class InvalidationService {
   InvalidationService(RemoteApiService remoteApiService) {
     _subscription = remoteApiService.webSocketMessages
         .where(
-          (e) =>
-              e['type'] == 'subscription' && e['path'] == 'entity_changes',
+          (e) => e['type'] == 'subscription' && e['path'] == 'entity_changes',
         )
         .listen(_onInvalidation);
   }
@@ -31,7 +32,8 @@ class InvalidationService {
   final _beaconChanges = StreamController<String>.broadcast();
   final _commitmentChanges = StreamController<String>.broadcast();
   final _forwardChanges = StreamController<String>.broadcast();
-  final _beaconRoomChanges = StreamController<String>.broadcast();
+  final _beaconRoomChanges =
+      StreamController<BeaconRoomInvalidation>.broadcast();
   final _capabilityChanges = StreamController<String>.broadcast();
 
   /// Beacon ID that was changed by another user or session (debounced).
@@ -42,12 +44,11 @@ class InvalidationService {
       .asBroadcastStream();
 
   /// Beacon ID whose commitments changed (debounced).
-  late final Stream<String> commitmentInvalidations =
-      _commitmentChanges.stream
-          .bufferTime(_debounceWindow)
-          .where((batch) => batch.isNotEmpty)
-          .expand((batch) => batch.toSet())
-          .asBroadcastStream();
+  late final Stream<String> commitmentInvalidations = _commitmentChanges.stream
+      .bufferTime(_debounceWindow)
+      .where((batch) => batch.isNotEmpty)
+      .expand((batch) => batch.toSet())
+      .asBroadcastStream();
 
   /// Beacon ID whose forwards changed (debounced).
   late final Stream<String> forwardInvalidations = _forwardChanges.stream
@@ -56,9 +57,9 @@ class InvalidationService {
       .expand((batch) => batch.toSet())
       .asBroadcastStream();
 
-  /// Beacon ID whose room chat or participant rows changed (`room_message` /
-  /// `participant` NOTIFY branches; payload `id` is the beacon).
-  late final Stream<String> beaconRoomInvalidations =
+  /// Beacon room slice invalidation (`room_message`, `participant`, etc.);
+  /// payload `id` is the beacon id.
+  late final Stream<BeaconRoomInvalidation> beaconRoomInvalidations =
       _beaconRoomChanges.stream
           .bufferTime(_debounceWindow)
           .where((batch) => batch.isNotEmpty)
@@ -66,12 +67,11 @@ class InvalidationService {
           .asBroadcastStream();
 
   /// Subject user ID whose capability cues changed (`person_capability_event` NOTIFY branch).
-  late final Stream<String> capabilityInvalidations =
-      _capabilityChanges.stream
-          .bufferTime(_debounceWindow)
-          .where((batch) => batch.isNotEmpty)
-          .expand((batch) => batch.toSet())
-          .asBroadcastStream();
+  late final Stream<String> capabilityInvalidations = _capabilityChanges.stream
+      .bufferTime(_debounceWindow)
+      .where((batch) => batch.isNotEmpty)
+      .expand((batch) => batch.toSet())
+      .asBroadcastStream();
 
   void _onInvalidation(Map<String, dynamic> msg) {
     final payload = msg['payload'];
@@ -87,11 +87,25 @@ class InvalidationService {
       case 'forward':
         _forwardChanges.add(id);
       case 'room_message':
+        _beaconRoomChanges.add(
+          (beaconId: id, entityType: BeaconRoomEntityType.roomMessage),
+        );
       case 'participant':
+        _beaconRoomChanges.add(
+          (beaconId: id, entityType: BeaconRoomEntityType.participant),
+        );
       case 'fact_card':
+        _beaconRoomChanges.add(
+          (beaconId: id, entityType: BeaconRoomEntityType.factCard),
+        );
       case 'blocker':
+        _beaconRoomChanges.add(
+          (beaconId: id, entityType: BeaconRoomEntityType.blocker),
+        );
       case 'activity_event':
-        _beaconRoomChanges.add(id);
+        _beaconRoomChanges.add(
+          (beaconId: id, entityType: BeaconRoomEntityType.activityEvent),
+        );
       case 'person_capability_event':
         _capabilityChanges.add(id);
     }

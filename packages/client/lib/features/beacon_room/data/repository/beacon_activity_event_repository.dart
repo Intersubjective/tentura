@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 
 import '../gql/_g/beacon_activity_event_list.req.gql.dart';
@@ -14,9 +15,10 @@ class BeaconActivityEventRepository {
     this._remote,
     InvalidationService invalidationService,
   ) {
-    _sub = invalidationService.beaconRoomInvalidations.listen((beaconId) {
-      if (!_changes.isClosed) {
-        _changes.add(beaconId);
+    _sub = invalidationService.beaconRoomInvalidations.listen((inv) {
+      if (_changes.isClosed) return;
+      if (inv.entityType == BeaconRoomEntityType.activityEvent) {
+        _changes.add(inv.beaconId);
       }
     });
   }
@@ -25,7 +27,7 @@ class BeaconActivityEventRepository {
 
   final RemoteApiService _remote;
 
-  late final StreamSubscription<String> _sub;
+  late final StreamSubscription<BeaconRoomInvalidation> _sub;
 
   final _changes = StreamController<String>.broadcast();
 

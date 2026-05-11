@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
+import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
@@ -39,9 +40,11 @@ class BeaconRoomRepository {
     InvalidationService invalidationService,
   ) {
     _roomInvSub = invalidationService.beaconRoomInvalidations.listen(
-      (beaconId) {
-        if (!_roomRefreshController.isClosed) {
-          _roomRefreshController.add(beaconId);
+      (inv) {
+        if (_roomRefreshController.isClosed) return;
+        if (inv.entityType == BeaconRoomEntityType.roomMessage ||
+            inv.entityType == BeaconRoomEntityType.participant) {
+          _roomRefreshController.add(inv.beaconId);
         }
       },
     );
@@ -51,7 +54,7 @@ class BeaconRoomRepository {
 
   final RemoteApiService _remoteApiService;
 
-  late final StreamSubscription<String> _roomInvSub;
+  late final StreamSubscription<BeaconRoomInvalidation> _roomInvSub;
 
   final _roomRefreshController = StreamController<String>.broadcast();
 
@@ -140,59 +143,57 @@ class BeaconRoomRepository {
           DateTime.parse(b.createdAt),
         ),
       );
-    return sorted
-        .map(
-          (m) {
-            final reactionCounts = <String, int>{};
-            final rawJson = m.reactionsJson;
-            if (rawJson != null && rawJson.isNotEmpty) {
-              final decoded = jsonDecode(rawJson);
-              if (decoded is Map) {
-                for (final e in decoded.entries) {
-                  final k = e.key;
-                  final v = e.value;
-                  if (k is String && v is num) {
-                    reactionCounts[k] = v.toInt();
-                  }
-                }
+    return sorted.map(
+      (m) {
+        final reactionCounts = <String, int>{};
+        final rawJson = m.reactionsJson;
+        if (rawJson != null && rawJson.isNotEmpty) {
+          final decoded = jsonDecode(rawJson);
+          if (decoded is Map) {
+            for (final e in decoded.entries) {
+              final k = e.key;
+              final v = e.value;
+              if (k is String && v is num) {
+                reactionCounts[k] = v.toInt();
               }
             }
-            final author = Profile(
-              id: m.authorId,
-              title: m.authorTitle,
-              image: m.authorHasPicture && m.authorImageId.isNotEmpty
-                  ? ImageEntity(
-                      id: m.authorImageId,
-                      authorId: m.authorId,
-                      blurHash: m.authorBlurHash,
-                      height: m.authorPicHeight,
-                      width: m.authorPicWidth,
-                    )
-                  : null,
-            );
-            return RoomMessage(
-              id: m.id,
-              beaconId: m.beaconId,
-              authorId: m.authorId,
-              body: m.body,
-              createdAt: DateTime.parse(m.createdAt),
-              editedAt: m.editedAt != null ? DateTime.parse(m.editedAt!) : null,
-              author: author,
-              reactionCounts: reactionCounts,
-              myReaction: m.myReaction,
-              reactors: BeaconRoomRepository.parseReactorsJson(m.reactorsJson),
-              semanticMarker: m.semanticMarker,
-              linkedBlockerId: m.linkedBlockerId,
-              linkedFactCardId: m.linkedFactCardId,
-              linkedPollingId: m.linkedPollingId,
-              pollDataJson: m.pollDataJson,
-              systemPayloadJson: m.systemPayloadJson,
-              attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
-              mentions: m.mentions.toList(),
-            );
-          },
-        )
-        .toList();
+          }
+        }
+        final author = Profile(
+          id: m.authorId,
+          title: m.authorTitle,
+          image: m.authorHasPicture && m.authorImageId.isNotEmpty
+              ? ImageEntity(
+                  id: m.authorImageId,
+                  authorId: m.authorId,
+                  blurHash: m.authorBlurHash,
+                  height: m.authorPicHeight,
+                  width: m.authorPicWidth,
+                )
+              : null,
+        );
+        return RoomMessage(
+          id: m.id,
+          beaconId: m.beaconId,
+          authorId: m.authorId,
+          body: m.body,
+          createdAt: DateTime.parse(m.createdAt),
+          editedAt: m.editedAt != null ? DateTime.parse(m.editedAt!) : null,
+          author: author,
+          reactionCounts: reactionCounts,
+          myReaction: m.myReaction,
+          reactors: BeaconRoomRepository.parseReactorsJson(m.reactorsJson),
+          semanticMarker: m.semanticMarker,
+          linkedBlockerId: m.linkedBlockerId,
+          linkedFactCardId: m.linkedFactCardId,
+          linkedPollingId: m.linkedPollingId,
+          pollDataJson: m.pollDataJson,
+          systemPayloadJson: m.systemPayloadJson,
+          attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
+          mentions: m.mentions.toList(),
+        );
+      },
+    ).toList();
   }
 
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async {
@@ -226,35 +227,33 @@ class BeaconRoomRepository {
     required String nextMoveText,
     required int nextMoveSource,
     int? nextMoveStatus,
-  }) async =>
-      _remoteApiService
-          .request(
-            GBeaconParticipantSetNextMoveReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..targetUserId = targetUserId
-                ..nextMoveText = nextMoveText
-                ..nextMoveSource = nextMoveSource
-                ..nextMoveStatus = nextMoveStatus,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).BeaconParticipantSetNextMove);
+  }) async => _remoteApiService
+      .request(
+        GBeaconParticipantSetNextMoveReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..targetUserId = targetUserId
+            ..nextMoveText = nextMoveText
+            ..nextMoveSource = nextMoveSource
+            ..nextMoveStatus = nextMoveStatus,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).BeaconParticipantSetNextMove);
 
   Future<bool> updateRoomPlan({
     required String beaconId,
     required String currentPlan,
-  }) async =>
-      _remoteApiService
-          .request(
-            GBeaconRoomStatePlanUpdateReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..currentPlan = currentPlan,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).BeaconRoomStatePlanUpdate);
+  }) async => _remoteApiService
+      .request(
+        GBeaconRoomStatePlanUpdateReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..currentPlan = currentPlan,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).BeaconRoomStatePlanUpdate);
 
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
     final r = await _remoteApiService
@@ -286,8 +285,8 @@ class BeaconRoomRepository {
             nextMoveStatus: p.nextMoveStatus,
             nextMoveSource: p.nextMoveSource,
             linkedMessageId: p.linkedMessageId,
-            lastSeenRoomAt: p.lastSeenRoomAt == null ||
-                    p.lastSeenRoomAt!.isEmpty
+            lastSeenRoomAt:
+                p.lastSeenRoomAt == null || p.lastSeenRoomAt!.isEmpty
                 ? null
                 : DateTime.parse(p.lastSeenRoomAt!),
           ),
@@ -373,64 +372,60 @@ class BeaconRoomRepository {
   Future<bool> participantOfferHelp({
     required String beaconId,
     required String note,
-  }) async =>
-      _remoteApiService
-          .request(
-            GBeaconParticipantOfferHelpReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..body = note,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).BeaconParticipantOfferHelp);
+  }) async => _remoteApiService
+      .request(
+        GBeaconParticipantOfferHelpReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..body = note,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).BeaconParticipantOfferHelp);
 
   Future<bool> admit({
     required String beaconId,
     required String participantUserId,
-  }) async =>
-      _remoteApiService
-          .request(
-            GBeaconRoomAdmitReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..participantUserId = participantUserId,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).BeaconRoomAdmit);
+  }) async => _remoteApiService
+      .request(
+        GBeaconRoomAdmitReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..participantUserId = participantUserId,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).BeaconRoomAdmit);
 
   Future<bool> promoteSteward({
     required String beaconId,
     required String stewardUserId,
-  }) async =>
-      _remoteApiService
-          .request(
-            GBeaconStewardPromoteReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..stewardUserId = stewardUserId,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).BeaconStewardPromote);
+  }) async => _remoteApiService
+      .request(
+        GBeaconStewardPromoteReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..stewardUserId = stewardUserId,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).BeaconStewardPromote);
 
   Future<bool> toggleReaction({
     required String beaconId,
     required String messageId,
     required String emoji,
-  }) async =>
-      _remoteApiService
-          .request(
-            GRoomMessageReactionToggleReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..messageId = messageId
-                ..emoji = emoji,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).RoomMessageReactionToggle);
+  }) async => _remoteApiService
+      .request(
+        GRoomMessageReactionToggleReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..messageId = messageId
+            ..emoji = emoji,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).RoomMessageReactionToggle);
 
   Future<void> createPoll({
     required String beaconId,
@@ -439,21 +434,20 @@ class BeaconRoomRepository {
     String pollType = 'single',
     bool isAnonymous = true,
     bool allowRevote = true,
-  }) =>
-      _remoteApiService
-          .request(
-            GRoomPollCreateReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..question = question
-                ..variants.replace(variants)
-                ..pollType = pollType
-                ..isAnonymous = isAnonymous
-                ..allowRevote = allowRevote,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).RoomPollCreate);
+  }) => _remoteApiService
+      .request(
+        GRoomPollCreateReq(
+          (b) => b.vars
+            ..beaconId = beaconId
+            ..question = question
+            ..variants.replace(variants)
+            ..pollType = pollType
+            ..isAnonymous = isAnonymous
+            ..allowRevote = allowRevote,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).RoomPollCreate);
 
   @disposeMethod
   Future<void> dispose() async {
