@@ -217,7 +217,6 @@ Widget _beaconViewAppBarOverflow({
   if (state.isBeaconMine) {
     return BeaconOverflowMenu(
       beacon: b,
-      onGraph: b.myVote >= 0 ? () => screenCubit.showGraphFor(beaconId) : null,
       onShare: () => unawaited(
         ShareCodeDialog.show(
           context,

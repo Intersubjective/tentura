@@ -29,9 +29,6 @@ class BeaconMineControl extends StatelessWidget {
     final evaluationRepo = GetIt.I<EvaluationRepository>();
     return BeaconOverflowMenu(
       beacon: beacon,
-      onGraph: beacon.myVote < 0
-          ? null
-          : () => context.read<ScreenCubit>().showGraphFor(beacon.id),
       onShare: () => unawaited(
         ShareCodeDialog.show(
           context,

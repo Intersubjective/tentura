@@ -247,9 +247,6 @@ class _AuthoredActiveCard extends StatelessWidget {
             beacon: b,
             menu: BeaconOverflowMenu(
               beacon: b,
-              onGraph: b.myVote >= 0
-                  ? () => context.read<ScreenCubit>().showGraphFor(b.id)
-                  : null,
               onShare: () => unawaited(
                 ShareCodeDialog.show(
                   context,
@@ -539,9 +536,6 @@ class _ClosedAuthoredCard extends StatelessWidget {
             beacon: b,
             menu: BeaconOverflowMenu(
               beacon: b,
-              onGraph: b.myVote >= 0
-                  ? () => context.read<ScreenCubit>().showGraphFor(b.id)
-                  : null,
               onShare: () => unawaited(
                 ShareCodeDialog.show(
                   context,

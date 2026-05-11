@@ -454,14 +454,6 @@
   "@confirmBeaconPublishingHint": {
     "context": "BeaconPublishDialog"
   },
-  "labelComments": "Комментарии",
-  "@labelComments": {
-    "context": "Comments"
-  },
-  "showAllComments": "Показать все комментарии",
-  "@showAllComments": {
-    "context": "Comments"
-  },
   "writeComment": "Написать комментарий",
   "@writeComment": {
     "context": "Comments"
