@@ -27,7 +27,6 @@ class BeaconOverflowMenu extends StatelessWidget {
     /// Overrides default edit-beacon label for the edit row (e.g. draft).
     this.editActionLabel,
     this.onOpenBeacon,
-    this.onGraph,
     this.onShare,
     this.onToggleLifecycle,
     this.onEdit,
@@ -52,7 +51,6 @@ class BeaconOverflowMenu extends StatelessWidget {
   /// Inbox / list: open detail (optional).
   final VoidCallback? onOpenBeacon;
 
-  final VoidCallback? onGraph;
   final VoidCallback? onShare;
   final Future<void> Function()? onToggleLifecycle;
   final VoidCallback? onEdit;
@@ -102,9 +100,6 @@ class BeaconOverflowMenu extends StatelessWidget {
 
     if (onOpenBeacon != null) {
       add('open_beacon', Icons.open_in_new, l10n.openBeacon);
-    }
-    if (onGraph != null) {
-      add('graph', TenturaIcons.graph, l10n.graphView);
     }
     if (onShare != null) {
       add('share', Icons.qr_code, l10n.shareLink);
@@ -205,7 +200,6 @@ class BeaconOverflowMenu extends StatelessWidget {
         itemBuilder: (_) => entries,
         onSelected: (value) => switch (value) {
           'open_beacon' => onOpenBeacon?.call(),
-          'graph' => onGraph?.call(),
           'share' => onShare?.call(),
           'toggle_lifecycle' => unawaited(
             _deferPopupAction(context, onToggleLifecycle),

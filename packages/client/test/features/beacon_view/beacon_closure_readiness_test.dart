@@ -88,7 +88,6 @@ void main() {
           createdAt: DateTime.utc(2025),
           updatedAt: DateTime.utc(2025),
           id: 'b1',
-          author: const Profile(),
         ),
       );
       expect(closeHardGate(s), false);
