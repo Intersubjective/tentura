@@ -117,6 +117,7 @@ final gqlTypeBeaconParticipantRow =
         field('nextMoveSource', graphQLInt),
         field('linkedMessageId', graphQLString),
         field('lastSeenRoomAt', graphQLString),
+        field('helpType', graphQLString),
         field('createdAt', graphQLString.nonNullable()),
         field('updatedAt', graphQLString.nonNullable()),
       ]);

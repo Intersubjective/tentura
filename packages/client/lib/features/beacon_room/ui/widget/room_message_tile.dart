@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -15,6 +16,7 @@ import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.d
 import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_reaction_picker.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -130,6 +132,20 @@ class RoomMessageTile extends StatelessWidget {
 
     final viewerReactions = _viewerReactionEmojiSet(message);
 
+    String? authorHelpTypeWire;
+    for (final p in participants) {
+      if (p.userId == message.authorId) {
+        authorHelpTypeWire = p.helpType;
+        break;
+      }
+    }
+    final authorCapabilityIcons = commitmentHelpTypeSlugs(authorHelpTypeWire)
+        .take(4)
+        .map(CapabilityTag.fromSlug)
+        .whereType<CapabilityTag>()
+        .map((t) => t.icon)
+        .toList();
+
     final imageAttachments = message.attachments
         .where((a) => a.isImage && a.imageId.isNotEmpty)
         .toList();
@@ -206,8 +222,32 @@ class RoomMessageTile extends StatelessWidget {
                               ),
                         child: Padding(
                           padding: const EdgeInsets.only(right: kSpacingSmall),
-                          child: SelfAwarePlainMiniAvatar(
-                            profile: message.author,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SelfAwarePlainMiniAvatar(
+                                profile: message.author,
+                              ),
+                              if (authorCapabilityIcons.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                SizedBox(
+                                  width: AvatarRated.sizeSmall,
+                                  child: Wrap(
+                                    alignment: WrapAlignment.center,
+                                    spacing: 2,
+                                    runSpacing: 2,
+                                    children: [
+                                      for (final icon in authorCapabilityIcons)
+                                        Icon(
+                                          icon,
+                                          size: 12,
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ),

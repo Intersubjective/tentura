@@ -119,6 +119,7 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
               CapabilityChipSet(
                 selectedSlugs: _helpTypeSlugs,
                 automaticSlugs: widget.automaticSlugs,
+                maxSelection: 4,
                 onChanged: (s) => setState(() {
                   _helpTypeSlugs
                     ..clear()

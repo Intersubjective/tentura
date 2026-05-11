@@ -548,6 +548,7 @@ final class BeaconRoomCase extends UseCaseBase {
 
     final picMetaByUserId =
         userIds.isEmpty ? const <String, ({bool hasPicture, int picHeight, int picWidth, String blurHash, String imageId})>{} : await _room.userPicMetaByIds(userIds);
+    final helpTypesByUserId = await _room.helpTypesByUserId(beaconId);
     return rows
         .map(
           (r) => <String, Object?>{
@@ -572,6 +573,7 @@ final class BeaconRoomCase extends UseCaseBase {
             'lastSeenRoomAt': r.lastSeenRoomAt?.dateTime
                 .toUtc()
                 .toIso8601String(),
+            'helpType': helpTypesByUserId[r.userId],
             'createdAt': r.createdAt.dateTime.toIso8601String(),
             'updatedAt': r.updatedAt.dateTime.toIso8601String(),
           },

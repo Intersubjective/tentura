@@ -285,6 +285,7 @@ class BeaconRoomRepository {
             nextMoveStatus: p.nextMoveStatus,
             nextMoveSource: p.nextMoveSource,
             linkedMessageId: p.linkedMessageId,
+            helpType: p.helpType,
             lastSeenRoomAt:
                 p.lastSeenRoomAt == null || p.lastSeenRoomAt!.isEmpty
                 ? null
