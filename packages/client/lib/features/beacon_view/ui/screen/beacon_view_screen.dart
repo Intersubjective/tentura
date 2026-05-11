@@ -476,6 +476,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (next == BeaconSurfaceMode.room && !beaconState.canNavigateBeaconRoom) {
       return;
     }
+    if (next == BeaconSurfaceMode.status) {
+      context.read<BeaconViewCubit>().clearRoomUnread();
+    }
     setState(() {
       _surfaceMode = next;
       _bannerMessage = null;

@@ -28,9 +28,9 @@ abstract class RoomState extends StateBase with _$RoomState {
     /// Cleared after mark-seen is flushed (`markSeenNowIfNeeded`) this session.
     @Default(true) bool pendingMarkSeen,
 
-    @Default(true) bool nowCollapsed,
+    @Default(false) bool nowCollapsed,
 
-    @Default(true) bool youCollapsed,
+    @Default(false) bool youCollapsed,
   }) = _RoomState;
 
   const RoomState._();
