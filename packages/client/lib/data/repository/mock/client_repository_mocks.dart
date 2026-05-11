@@ -13,9 +13,6 @@ import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.da
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
 
-import 'package:tentura/features/chat/domain/port/chat_local_repository_port.dart';
-import 'package:tentura/features/chat/domain/port/chat_remote_repository_port.dart';
-
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
 import 'package:tentura/features/context/data/repository/context_repository.dart';
 
@@ -55,12 +52,6 @@ class GraphRepositoryMock extends Mock implements GraphRepository {}
 @Injectable(as: ForwardsGraphRepository, env: [Environment.test], order: 1)
 class ForwardsGraphRepositoryMock extends Mock
     implements ForwardsGraphRepository {}
-
-@Injectable(as: ChatLocalRepositoryPort, env: [Environment.test], order: 1)
-class ChatLocalRepositoryMock extends Mock implements ChatLocalRepositoryPort {}
-
-@Injectable(as: ChatRemoteRepositoryPort, env: [Environment.test], order: 1)
-class ChatRemoteRepositoryMock extends Mock implements ChatRemoteRepositoryPort {}
 
 @Injectable(as: InvitationRepository, env: [Environment.test], order: 1)
 class InvitationRepositoryMock extends Mock implements InvitationRepository {}

@@ -1,7 +1,7 @@
 {
   "_meta": {
     "description": "This file contains a serialized version of schema entities for drift.",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "options": {
     "store_date_time_values_as_text": true
@@ -187,108 +187,6 @@
       "references": [],
       "type": "table",
       "data": {
-        "name": "p2p_messages",
-        "was_declared_in_moor": false,
-        "columns": [
-          {
-            "name": "client_id",
-            "getter_name": "clientId",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "server_id",
-            "getter_name": "serverId",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "sender_id",
-            "getter_name": "senderId",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "receiver_id",
-            "getter_name": "receiverId",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "content",
-            "getter_name": "content",
-            "moor_type": "string",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "created_at",
-            "getter_name": "createdAt",
-            "moor_type": "dateTime",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "delivered_at",
-            "getter_name": "deliveredAt",
-            "moor_type": "dateTime",
-            "nullable": true,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": []
-          },
-          {
-            "name": "status",
-            "getter_name": "status",
-            "moor_type": "int",
-            "nullable": false,
-            "customConstraints": null,
-            "default_dart": null,
-            "default_client_dart": null,
-            "dsl_features": [],
-            "type_converter": {
-              "dart_expr": "const EnumIndexConverter<ChatMessageStatus>(ChatMessageStatus.values)",
-              "dart_type_name": "ChatMessageStatus"
-            }
-          }
-        ],
-        "is_virtual": false,
-        "without_rowid": true,
-        "constraints": [],
-        "explicit_pk": [
-          "client_id",
-          "server_id"
-        ]
-      }
-    },
-    {
-      "id": 3,
-      "references": [],
-      "type": "table",
-      "data": {
         "name": "settings",
         "was_declared_in_moor": false,
         "columns": [
@@ -344,70 +242,35 @@
           "key"
         ]
       }
+    }
+  ],
+  "fixed_sql": [
+    {
+      "name": "accounts",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"accounts\" (\"id\" TEXT NOT NULL, \"title\" TEXT NOT NULL DEFAULT '', \"image_id\" TEXT NOT NULL DEFAULT '', \"blur_hash\" TEXT NOT NULL DEFAULT '', \"height\" INTEGER NOT NULL DEFAULT 0, \"width\" INTEGER NOT NULL DEFAULT 0, \"fcm_token_updated_at\" TEXT NULL, PRIMARY KEY (\"id\")) WITHOUT ROWID;"
+        }
+      ]
     },
     {
-      "id": 4,
-      "references": [
-        2
-      ],
-      "type": "index",
-      "data": {
-        "on": 2,
-        "name": "p2p_messages_sender",
-        "sql": null,
-        "unique": false,
-        "columns": [
-          "sender_id"
-        ]
-      }
+      "name": "friends",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"friends\" (\"subject_id\" TEXT NOT NULL, \"object_id\" TEXT NOT NULL, \"title\" TEXT NOT NULL DEFAULT '', \"image_id\" TEXT NOT NULL DEFAULT '', \"blur_hash\" TEXT NOT NULL DEFAULT '', \"height\" INTEGER NOT NULL DEFAULT 0, \"width\" INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (\"subject_id\", \"object_id\")) WITHOUT ROWID;"
+        }
+      ]
     },
     {
-      "id": 5,
-      "references": [
-        2
-      ],
-      "type": "index",
-      "data": {
-        "on": 2,
-        "name": "p2p_messages_receiver",
-        "sql": null,
-        "unique": false,
-        "columns": [
-          "receiver_id"
-        ]
-      }
-    },
-    {
-      "id": 6,
-      "references": [
-        2
-      ],
-      "type": "index",
-      "data": {
-        "on": 2,
-        "name": "p2p_messages_created_at",
-        "sql": null,
-        "unique": false,
-        "columns": [
-          "created_at"
-        ]
-      }
-    },
-    {
-      "id": 7,
-      "references": [
-        2
-      ],
-      "type": "index",
-      "data": {
-        "on": 2,
-        "name": "p2p_messages_delivered_at",
-        "sql": null,
-        "unique": false,
-        "columns": [
-          "delivered_at"
-        ]
-      }
+      "name": "settings",
+      "sql": [
+        {
+          "dialect": "sqlite",
+          "sql": "CREATE TABLE IF NOT EXISTS \"settings\" (\"key\" TEXT NOT NULL, \"value_text\" TEXT NULL, \"value_int\" INTEGER NULL, \"value_bool\" INTEGER NULL CHECK (\"value_bool\" IN (0, 1)), PRIMARY KEY (\"key\")) WITHOUT ROWID;"
+        }
+      ]
     }
   ]
 }
