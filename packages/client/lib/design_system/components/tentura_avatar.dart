@@ -31,17 +31,18 @@ class TenturaAvatar extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: profile.hasNoAvatar
-          ? _Initials(lettering: _initialsFor(profile), size: s)
+          ? _Initials(lettering: initialsForProfile(profile), size: s)
           : _Network(
               profile: profile,
               cacheSize: cache,
-              initials: _initialsFor(profile),
+              initials: initialsForProfile(profile),
               size: s,
             ),
     );
   }
 
-  static String _initialsFor(Profile profile) {
+  /// Initials when there is no profile photo (also used by room mini avatars).
+  static String initialsForProfile(Profile profile) {
     final t = profile.title.trim();
     if (t.isEmpty) {
       return '?';

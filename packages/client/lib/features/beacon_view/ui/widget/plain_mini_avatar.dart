@@ -1,6 +1,9 @@
 import 'package:blurhash_shader/blurhash_shader.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/design_system/tentura_text.dart';
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 
@@ -26,12 +29,35 @@ class PlainMiniAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt =
+        theme.extension<TenturaTokens>() ??
+        (theme.brightness == Brightness.dark
+            ? TenturaTokens.dark
+            : TenturaTokens.light);
+
     final avatar = ClipOval(
       child: profile.hasNoAvatar
-          ? AvatarRated.getAvatarPlaceholder(
-              cacheHeight: _cacheSize,
-              cacheWidth: _cacheSize,
-              fit: boxFit,
+          ? ColoredBox(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: SizedBox(
+                width: size,
+                height: size,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Text(
+                      TenturaAvatar.initialsForProfile(profile),
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      style: TenturaText.bodySmall(tt.textFaint).copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             )
           : profile.image?.blurHash.isEmpty ?? true
           ? _imageNetwork
