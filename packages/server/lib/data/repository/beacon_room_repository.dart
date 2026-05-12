@@ -888,17 +888,33 @@ class BeaconRoomRepository {
     required String userId,
   }) =>
       _db.withMutatingUser(userId, () async {
-        await _db.managers.beaconParticipants
+        final now = PgDateTime(DateTime.timestamp());
+        final updated = await _db.managers.beaconParticipants
             .filter(
               (r) => r.beaconId.id(beaconId) & r.userId.id(userId),
             )
             .update(
               (u) => u(
-                lastSeenRoomAt:
-                    Value(PgDateTime(DateTime.timestamp())),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
+                lastSeenRoomAt: Value(now),
+                updatedAt: Value(now),
               ),
             );
+        if (updated == 0) {
+          // Author/steward has no participant row — create a minimal one so
+          // lastSeenRoomAt is persisted and returned by listParticipants.
+          await _db.managers.beaconParticipants.create(
+            (o) => o(
+              createdAt: const Value.absent(),
+              updatedAt: const Value.absent(),
+              id: generateId('P'),
+              beaconId: beaconId,
+              userId: userId,
+              role: BeaconParticipantRoleBits.watcher,
+              roomAccess: const Value(RoomAccessBits.admitted),
+              lastSeenRoomAt: Value(now),
+            ),
+          );
+        }
       });
 
   /// Upserts coordinated plan text (`beacon_room_state.current_plan`).

@@ -38,6 +38,7 @@ class RoomCubit extends Cubit<RoomState> {
   late final StreamSubscription<String> _refreshSub;
 
   bool _markSeenEmittedThisVisit = false;
+  bool _loadInProgress = false;
 
   void _onRemoteRefresh(String id) {
     if (isClosed) return;
@@ -64,6 +65,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   Future<void> markSeenNowIfNeeded() async {
     if (_markSeenEmittedThisVisit) return;
+    if (_loadInProgress) return;
     try {
       await _case.markRoomSeenIfAllowed(state.beaconId);
       _markSeenEmittedThisVisit = true;
@@ -85,6 +87,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   Future<void> load() async {
     if (isClosed) return;
+    _loadInProgress = true;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       final messages = await _case.fetchMessages(beaconId: state.beaconId);
@@ -124,6 +127,8 @@ class RoomCubit extends Cubit<RoomState> {
       if (!isClosed) {
         emit(state.copyWith(status: StateHasError(e)));
       }
+    } finally {
+      _loadInProgress = false;
     }
   }
 
@@ -300,9 +305,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       _markSeenEmittedThisVisit = false;
       await markSeenNowIfNeeded();
-      if (!isClosed) {
-        emit(state.copyWith(unreadAnchorAt: null));
-      }
+      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
       await load();
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
@@ -482,9 +485,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       _markSeenEmittedThisVisit = false;
       await markSeenNowIfNeeded();
-      if (!isClosed) {
-        emit(state.copyWith(unreadAnchorAt: null));
-      }
+      if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
       await load();
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));

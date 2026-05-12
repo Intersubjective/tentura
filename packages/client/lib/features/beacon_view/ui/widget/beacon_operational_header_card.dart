@@ -692,9 +692,9 @@ class _HudActionButton extends StatelessWidget {
           spec.label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: labelStyle,
         ),
         style: FilledButton.styleFrom(
+          textStyle: labelStyle,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           visualDensity: VisualDensity.compact,
         ),
