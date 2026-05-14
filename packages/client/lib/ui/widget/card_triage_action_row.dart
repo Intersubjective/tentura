@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -8,12 +7,12 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 /// Owner CTA row stacks vertically below this width (`BeaconOperationalHeaderCard` chips).
 const double kCardTriageActionRowNarrowMaxWidth = 380;
 
-/// Triage actions for beacon cards: Commit primary, Forward outlined, optional
+/// Triage actions for beacon cards: Offer Help primary, Forward outlined, optional
 /// tertiary (beacon detail: View chain as icon-only on the right).
 class CardTriageActionRow extends StatelessWidget {
   const CardTriageActionRow({
     required this.onForward,
-    this.onCommit,
+    this.onOfferHelp,
     this.secondaryLabel,
     this.secondaryIcon,
     this.secondaryTooltip,
@@ -21,7 +20,7 @@ class CardTriageActionRow extends StatelessWidget {
     super.key,
   });
 
-  final Future<void> Function()? onCommit;
+  final Future<void> Function()? onOfferHelp;
   final VoidCallback onForward;
   final String? secondaryLabel;
   final IconData? secondaryIcon;
@@ -38,12 +37,12 @@ class CardTriageActionRow extends StatelessWidget {
     final scheme = theme.colorScheme;
     final tt = context.tt;
     final actionLabelStyle = theme.textTheme.labelLarge!;
-    final hasCommit = onCommit != null;
+    final hasOfferHelp = onOfferHelp != null;
     final hasSecondary =
         onSecondary != null &&
         (secondaryLabel != null || secondaryIcon != null);
 
-    final commitFlex = hasSecondary ? 5 : 1;
+    final offerHelpFlex = hasSecondary ? 5 : 1;
     final forwardFlex = hasSecondary ? 4 : 1;
 
     final forwardBtn = OutlinedButton.icon(
@@ -65,20 +64,13 @@ class CardTriageActionRow extends StatelessWidget {
       ),
     );
 
-    final commitBtn = FilledButton.icon(
+    final offerHelpBtn = FilledButton.icon(
       onPressed: () async {
-        await onCommit?.call();
+        await onOfferHelp?.call();
       },
-      icon: SvgPicture.asset(
-        'images/tentura_commit_hand_check.svg',
-        width: 20,
-        height: 20,
-        theme: SvgTheme(currentColor: scheme.onPrimary),
-        colorMapper: _CommitIconColorMapper(scheme.primary),
-        excludeFromSemantics: true,
-      ),
+      icon: Icon(Icons.volunteer_activism_outlined, size: 20),
       label: Text(
-        l10n.labelCommit,
+        l10n.labelOfferHelp,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         softWrap: false,
@@ -150,10 +142,10 @@ class CardTriageActionRow extends StatelessWidget {
 
     return Row(
       children: [
-        if (hasCommit) ...[
+        if (hasOfferHelp) ...[
           Expanded(
-            flex: commitFlex,
-            child: commitBtn,
+            flex: offerHelpFlex,
+            child: offerHelpBtn,
           ),
           const SizedBox(width: kSpacingSmall),
           Expanded(
@@ -169,20 +161,4 @@ class CardTriageActionRow extends StatelessWidget {
       ],
     );
   }
-}
-
-class _CommitIconColorMapper extends ColorMapper {
-  const _CommitIconColorMapper(this.badgeForeground);
-
-  static const _badgeForegroundMarker = Color(0xFF000001);
-
-  final Color badgeForeground;
-
-  @override
-  Color substitute(
-    String? id,
-    String elementName,
-    String attributeName,
-    Color color,
-  ) => color == _badgeForegroundMarker ? badgeForeground : color;
 }

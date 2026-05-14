@@ -6,7 +6,7 @@ import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
-import 'package:tentura/features/beacon_view/ui/widget/commitment_tile.dart';
+import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -37,15 +37,15 @@ Widget _wrap(Widget child) {
   );
 }
 
-TimelineCommitment _commitment({
+TimelineHelpOffer _helpOffer({
   required String userId,
   String? helpType,
   String message = '',
   bool isWithdrawn = false,
 }) {
   final t = DateTime.utc(2025);
-  return TimelineCommitment(
-    user: Profile(id: userId, title: 'Committer'),
+  return TimelineHelpOffer(
+    user: Profile(id: userId, title: 'Help Offerer'),
     message: message,
     createdAt: t,
     updatedAt: t,
@@ -55,11 +55,11 @@ TimelineCommitment _commitment({
 }
 
 void main() {
-  test('commitmentHelpTypeSlugs parses JSON array or single slug', () {
-    expect(commitmentHelpTypeSlugs('["money","time"]'), ['money', 'time']);
-    expect(commitmentHelpTypeSlugs('money'), ['money']);
-    expect(commitmentHelpTypeSlugs('  '), isEmpty);
-    expect(commitmentHelpTypeSlugs(null), isEmpty);
+  test('helpOfferTypeSlugs parses JSON array or single slug', () {
+    expect(helpOfferTypeSlugs('["money","time"]'), ['money', 'time']);
+    expect(helpOfferTypeSlugs('money'), ['money']);
+    expect(helpOfferTypeSlugs('  '), isEmpty);
+    expect(helpOfferTypeSlugs(null), isEmpty);
   });
 
   testWidgets('known help_type renders read-only RawChip with l10n label', (
@@ -67,8 +67,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _wrap(
-        CommitmentTile(
-          commitment: _commitment(userId: 'c1', helpType: 'money'),
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', helpType: 'money'),
           beaconId: 'B1',
           beaconAuthorId: 'auth',
         ),
@@ -88,8 +88,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _wrap(
-        CommitmentTile(
-          commitment: _commitment(userId: 'c1', helpType: 'legacy_unknown_key'),
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', helpType: 'legacy_unknown_key'),
           beaconId: 'B1',
           beaconAuthorId: 'auth',
         ),
@@ -109,8 +109,8 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _wrap(
-        CommitmentTile(
-          commitment: _commitment(
+        HelpOfferTile(
+          helpOffer: _helpOffer(
             userId: 'c1',
             helpType: '["money","time"]',
           ),
@@ -129,8 +129,8 @@ void main() {
   testWidgets('null help_type hides capability row', (tester) async {
     await tester.pumpWidget(
       _wrap(
-        CommitmentTile(
-          commitment: _commitment(userId: 'c1'),
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1'),
           beaconId: 'B1',
           beaconAuthorId: 'auth',
         ),
@@ -143,13 +143,13 @@ void main() {
     expect(find.text('Active'), findsNothing);
   });
 
-  testWidgets('withdrawn commitment shows Withdrawn, not Active', (
+  testWidgets('withdrawn help offer shows Withdrawn, not Active', (
     tester,
   ) async {
     await tester.pumpWidget(
       _wrap(
-        CommitmentTile(
-          commitment: _commitment(userId: 'c1', isWithdrawn: true),
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', isWithdrawn: true),
           beaconId: 'B1',
           beaconAuthorId: 'auth',
         ),
@@ -162,12 +162,12 @@ void main() {
   });
 
   testWidgets(
-    'viewer commitment shows You in primary accent, no mine row',
+    'viewer help offer shows You in primary accent, no mine row',
     (tester) async {
       await tester.pumpWidget(
         _wrap(
-          CommitmentTile(
-            commitment: _commitment(userId: 'me'),
+          HelpOfferTile(
+            helpOffer: _helpOffer(userId: 'me'),
             beaconId: 'B1',
             beaconAuthorId: 'auth',
             isMine: true,

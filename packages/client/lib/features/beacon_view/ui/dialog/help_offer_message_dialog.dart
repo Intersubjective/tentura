@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/domain/entity/uncommit_reason.dart';
+import 'package:tentura/domain/entity/withdraw_reason.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Result of [CommitmentMessageDialog.show].
-typedef CommitmentDialogOutcome = ({
+/// Result of [HelpOfferMessageDialog.show].
+typedef HelpOfferDialogOutcome = ({
   String message,
   List<String>? helpTypesWire,
-  String? uncommitReasonWire,
+  String? withdrawReasonWire,
 });
 
-class CommitmentMessageDialog extends StatefulWidget {
-  const CommitmentMessageDialog({
+class HelpOfferMessageDialog extends StatefulWidget {
+  const HelpOfferMessageDialog({
     required this.title,
     required this.hintText,
     this.initialText = '',
@@ -20,11 +20,11 @@ class CommitmentMessageDialog extends StatefulWidget {
     this.showHelpTypeChips = false,
     this.initialHelpTypeSlugs = const {},
     this.automaticSlugs = const {},
-    this.requireUncommitReason = false,
+    this.requireWithdrawReason = false,
     super.key,
   });
 
-  static Future<CommitmentDialogOutcome?> show(
+  static Future<HelpOfferDialogOutcome?> show(
     BuildContext context, {
     required String title,
     required String hintText,
@@ -33,11 +33,11 @@ class CommitmentMessageDialog extends StatefulWidget {
     bool showHelpTypeChips = false,
     Set<String> initialHelpTypeSlugs = const {},
     Set<String> automaticSlugs = const {},
-    bool requireUncommitReason = false,
+    bool requireWithdrawReason = false,
   }) =>
-      showAdaptiveDialog<CommitmentDialogOutcome>(
+      showAdaptiveDialog<HelpOfferDialogOutcome>(
         context: context,
-        builder: (_) => CommitmentMessageDialog(
+        builder: (_) => HelpOfferMessageDialog(
           title: title,
           hintText: hintText,
           initialText: initialText,
@@ -45,7 +45,7 @@ class CommitmentMessageDialog extends StatefulWidget {
           showHelpTypeChips: showHelpTypeChips,
           initialHelpTypeSlugs: initialHelpTypeSlugs,
           automaticSlugs: automaticSlugs,
-          requireUncommitReason: requireUncommitReason,
+          requireWithdrawReason: requireWithdrawReason,
         ),
       );
 
@@ -58,17 +58,17 @@ class CommitmentMessageDialog extends StatefulWidget {
   final Set<String> initialHelpTypeSlugs;
   /// Slugs shown with automatic/highlight styling (e.g. beacon-required needs).
   final Set<String> automaticSlugs;
-  final bool requireUncommitReason;
+  final bool requireWithdrawReason;
 
   @override
-  State<CommitmentMessageDialog> createState() =>
-      _CommitmentMessageDialogState();
+  State<HelpOfferMessageDialog> createState() =>
+      _HelpOfferMessageDialogState();
 }
 
-class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
+class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
   late final TextEditingController _controller;
   late final Set<String> _helpTypeSlugs;
-  UncommitReason? _uncommitReason;
+  WithdrawReason? _withdrawReason;
 
   @override
   void initState() {
@@ -88,14 +88,14 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
     if (!widget.allowEmptyMessage && text.isEmpty) {
       return;
     }
-    if (widget.requireUncommitReason && _uncommitReason == null) {
+    if (widget.requireWithdrawReason && _withdrawReason == null) {
       return;
     }
     Navigator.of(context).pop((
       message: text,
       helpTypesWire:
           _helpTypeSlugs.isEmpty ? null : _helpTypeSlugs.toList(),
-      uncommitReasonWire: _uncommitReason?.wireKey,
+      withdrawReasonWire: _withdrawReason?.wireKey,
     ));
   }
 
@@ -112,7 +112,7 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
           children: [
             if (widget.showHelpTypeChips) ...[
               Text(
-                l10n.commitRolePrompt,
+                l10n.helpOfferRolePrompt,
                 style: theme.textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
@@ -128,9 +128,9 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
               ),
               const SizedBox(height: 16),
             ],
-            if (widget.requireUncommitReason) ...[
+            if (widget.requireWithdrawReason) ...[
               Text(
-                l10n.labelUncommitReasonRequired,
+                l10n.labelWithdrawReasonRequired,
                 style: theme.textTheme.labelLarge,
               ),
               const SizedBox(height: 8),
@@ -138,13 +138,13 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (final r in UncommitReason.values)
+                  for (final r in WithdrawReason.values)
                     FilterChip(
-                      label: Text(_uncommitReasonLabel(l10n, r)),
-                      selected: _uncommitReason == r,
+                      label: Text(_withdrawReasonLabel(l10n, r)),
+                      selected: _withdrawReason == r,
                       onSelected: (_) {
                         setState(() {
-                          _uncommitReason = _uncommitReason == r ? null : r;
+                          _withdrawReason = _withdrawReason == r ? null : r;
                         });
                       },
                     ),
@@ -153,7 +153,7 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
               const SizedBox(height: 16),
             ],
             TextField(
-              autofocus: !widget.requireUncommitReason,
+              autofocus: !widget.requireWithdrawReason,
               controller: _controller,
               maxLines: 3,
               decoration: InputDecoration(hintText: widget.hintText),
@@ -175,12 +175,12 @@ class _CommitmentMessageDialogState extends State<CommitmentMessageDialog> {
     );
   }
 
-  static String _uncommitReasonLabel(L10n l10n, UncommitReason r) =>
+  static String _withdrawReasonLabel(L10n l10n, WithdrawReason r) =>
       switch (r) {
-        UncommitReason.cannotDoIt => l10n.uncommitCantDoIt,
-        UncommitReason.timing => l10n.uncommitTimingChanged,
-        UncommitReason.wrongFit => l10n.uncommitWrongFit,
-        UncommitReason.someoneElse => l10n.uncommitSomeoneElseTookOver,
-        UncommitReason.other => l10n.uncommitOther,
+        WithdrawReason.cannotDoIt => l10n.withdrawCantDoIt,
+        WithdrawReason.timing => l10n.withdrawTimingChanged,
+        WithdrawReason.wrongFit => l10n.withdrawWrongFit,
+        WithdrawReason.someoneElse => l10n.withdrawSomeoneElseTookOver,
+        WithdrawReason.other => l10n.withdrawOther,
       };
 }

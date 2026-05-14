@@ -29,7 +29,7 @@ abstract class BeaconParticipant with _$BeaconParticipant {
     /// When this user last read the beacon room (`beacon_participant.last_seen_room_at`).
     DateTime? lastSeenRoomAt,
 
-    /// Active commitment capability wire (`beacon_commitment.help_type`), when any.
+    /// Active help-offer capability wire (`beacon_help_offers.help_type`), when any.
     String? helpType,
   }) = _BeaconParticipant;
 }

@@ -27,22 +27,22 @@ MyWorkCardViewModel _vm({
 void main() {
   test('visibleCards All uses nonArchivedCards', () {
     final a = _vm(id: 'a', role: MyWorkCardRole.authored, kind: MyWorkCardKind.authoredActive);
-    final c = _vm(id: 'b', role: MyWorkCardRole.committed, kind: MyWorkCardKind.committedActive);
+    final c = _vm(id: 'b', role: MyWorkCardRole.helpOffered, kind: MyWorkCardKind.helpOfferedActive);
     final s = MyWorkState(nonArchivedCards: [a, c]);
     expect(s.visibleCards.length, 2);
   });
 
   test('visibleCards Authored excludes committed role', () {
     final a = _vm(id: 'a', role: MyWorkCardRole.authored, kind: MyWorkCardKind.authoredActive);
-    final c = _vm(id: 'b', role: MyWorkCardRole.committed, kind: MyWorkCardKind.committedActive);
+    final c = _vm(id: 'b', role: MyWorkCardRole.helpOffered, kind: MyWorkCardKind.helpOfferedActive);
     final s = MyWorkState(nonArchivedCards: [a, c], filter: MyWorkFilter.authored);
     expect(s.visibleCards.map((e) => e.beaconId).toList(), ['a']);
   });
 
   test('visibleCards Committed excludes authored role', () {
     final a = _vm(id: 'a', role: MyWorkCardRole.authored, kind: MyWorkCardKind.authoredActive);
-    final c = _vm(id: 'b', role: MyWorkCardRole.committed, kind: MyWorkCardKind.committedActive);
-    final s = MyWorkState(nonArchivedCards: [a, c], filter: MyWorkFilter.committed);
+    final c = _vm(id: 'b', role: MyWorkCardRole.helpOffered, kind: MyWorkCardKind.helpOfferedActive);
+    final s = MyWorkState(nonArchivedCards: [a, c], filter: MyWorkFilter.helpOffered);
     expect(s.visibleCards.map((e) => e.beaconId).toList(), ['b']);
   });
 
@@ -63,7 +63,7 @@ void main() {
   test('archivedCountHint dedupes shared ids', () {
     const s = MyWorkState(
       authoredClosedIdHints: ['a', 'b'],
-      committedClosedIdHints: ['b', 'c'],
+      helpOfferedClosedIdHints: ['b', 'c'],
     );
     expect(s.archivedCountHint, 3);
   });

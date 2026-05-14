@@ -44,7 +44,7 @@ TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
   );
 }
 
-/// My Work / inbox operational status line (`committed · …`).
+/// My Work / inbox operational status line (`help offered · …`).
 TextStyle beaconCardStatusLineTextStyle(ThemeData theme) {
   final tt = theme.extension<TenturaTokens>();
   final muted = tt?.textMuted ?? theme.colorScheme.onSurfaceVariant;
@@ -446,7 +446,7 @@ class BeaconCardPill extends StatelessWidget {
   }
 }
 
-/// Icon + child row for metadata strips (topic, commitments, insights).
+/// Icon + child row for metadata strips (topic, help offers, insights).
 ///
 /// Use [mainAxisSize] [MainAxisSize.max] with an [Expanded] child for a
 /// full-width context line; default [MainAxisSize.min] fits [Wrap] children.

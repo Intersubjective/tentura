@@ -25,18 +25,18 @@ When those truths conflict with convenience, **preserve truth**. The system must
 
 On `beacon.state` transition, for each `inbox_item` with `beacon_id = beacon.id`:
 
-- Eligible only if **`status = 0` (needs_me)** and the user has **no active** `beacon_commitment` (`status = 0` on commitment).
+- Eligible only if **`status = 0` (needs_me)** and the user has **no active** `beacon_help offer` (`status = 0` on help offer).
 - **Do not** change rows that are already **watching** (`1`) or **rejected** (`2`).
 
 Mappings:
 
 - New state **`1` (closed)**, **`5` (closed review open)**, or **`6` (closed review complete)** from **`0` (open)`** → set `status = 3`, set `before_response_terminal_at` if null.
 - New state **`2` (deleted)** → set `status = 4` (from `0`, or upgrade from `3` to `4`).
-- **`5` → `6` (review window ends)** — if `inbox_item.status = 1` (**Watching**) and the user has a **withdrawn** `beacon_commitment` (`status = 1`) and **no active** commitment (`status = 0`), set `status = 3`. This matches users who **committed then withdrew**: `beaconWithdraw` calls `upsertWatchingForSender`, which is **not** the same as explicitly choosing Watching before closure (see watching doc); once the beacon reaches **review complete**, they should see a **passive tombstone**, not a triage-style Watching row. Users who chose **Watching** without ever having a commitment row keep **Watching** (Case 6).
+- **`5` → `6` (review window ends)** — if `inbox_item.status = 1` (**Watching**) and the user has a **withdrawn** `beacon_help offer` (`status = 1`) and **no active** help offer (`status = 0`), set `status = 3`. This matches users who **offered help then withdrew**: `beaconWithdraw` calls `upsertWatchingForSender`, which is **not** the same as explicitly choosing Watching before closure (see watching doc); once the beacon reaches **review complete**, they should see a **passive tombstone**, not a triage-style Watching row. Users who chose **Watching** without ever having a help offer row keep **Watching** (Case 6).
 
 **Withdraw (`beaconWithdraw`)** when the beacon is **not OPEN** (`state <> 0`): the server calls `inbox_item_apply_tombstone_after_withdraw` so the inbox row becomes **`closed_before_response` / `deleted_before_response`** instead of **`upsertWatchingForSender`** (which would leave a triage-style **Watching** row on a terminal beacon). Open beacons (`state = 0`) still use Watching after withdraw.
 
-Logic lives in Postgres (see migrations `m0024`–`m0026`) and [`CommitmentCase.withdraw`](../packages/server/lib/domain/use_case/commitment_case.dart) so all writers behave consistently.
+Logic lives in Postgres (see migrations `m0024`–`m0026`) and [`Help offerCase.withdraw`](../packages/server/lib/domain/use_case/help offer_case.dart) so all writers behave consistently.
 
 ## UI (Flutter)
 
@@ -53,7 +53,7 @@ Clients call a dedicated GraphQL mutation that sets **`tombstone_dismissed_at`**
 
 | Area | Rule |
 |------|------|
-| Explicit stance | Watching, rejected, commitment, forward-committed paths **override** before-response derivation. |
+| Explicit stance | Watching, rejected, help offer, forward-offered help paths **override** before-response derivation. |
 | Offline / sync | On sync, derive from stored stance + latest beacon lifecycle; explicit stance wins. |
 | Dismiss | Hides continuity artifact only; does not rewrite history. |
 | Recipient lists | Silent recipients must not appear as if they chose Watching / Not for me. |
@@ -68,7 +68,7 @@ Clients call a dedicated GraphQL mutation that sets **`tombstone_dismissed_at`**
 5. **Author deletes (lifecycle) before reaction** — `deleted_before_response`; generic passive copy; unsafe rationale not exposed.
 6. **User moved to Watching before closure** — not before-response; keep Watching; update lifecycle only.
 7. **User forwarded but did not commit, then closes** — not before-response; keep forward stance.
-8. **User committed, then closes** — normal My Work / closure flow.
+8. **User offered help, then closes** — normal My Work / closure flow.
 9. **Not for me, then closes** — keep rejected semantics; do not overwrite with before-response.
 10. **Closes while offline** — on sync, deterministic from stance + lifecycle.
 11. **Push only, never opens app** — valid before-response; tombstone may appear when app opens.
@@ -96,7 +96,7 @@ Dispute over obligation to act, blame, inferred recommendations from silence, pu
 
 - [`docs/v1/product-decisions.md`](v1/product-decisions.md) — inbox locks and document map.
 - [`docs/v1/watching-mechanism.md`](v1/watching-mechanism.md) — Watching vs triage.
-- [`docs/overcommit-coordination-feature-design.md`](overcommit-coordination-feature-design.md) — commit gates and lifecycle.
+- [`docs/over-offer-coordination-feature-design.md`](over-offer-coordination-feature-design.md) — commit gates and lifecycle.
 
 ## Implementation pointers
 

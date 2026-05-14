@@ -11,7 +11,7 @@ query MyWorkInit($userId: String!) {
   ) {
     ...BeaconModel
   }
-  committedNonClosed: beacon_commitment(
+  helpOfferedNonClosed: beacon_help_offer(
     where: {
       user_id: {_eq: $userId},
       status: {_eq: 0},
@@ -46,7 +46,7 @@ query MyWorkInit($userId: String!) {
   ) {
     id
   }
-  committedClosedIds: beacon_commitment(
+  helpOfferedClosedIds: beacon_help_offer(
     where: {
       user_id: {_eq: $userId},
       status: {_eq: 0},
@@ -72,7 +72,7 @@ query MyWorkClosed($userId: String!) {
   ) {
     ...BeaconModel
   }
-  committedClosed: beacon_commitment(
+  helpOfferedClosed: beacon_help_offer(
     where: {
       user_id: {_eq: $userId},
       status: {_eq: 0},

@@ -33,14 +33,14 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 
 import '../bloc/beacon_view_cubit.dart';
-import '../dialog/commitment_message_dialog.dart';
+import '../dialog/help_offer_message_dialog.dart';
 import '../widget/activity_list.dart';
 import '../widget/beacon_operational_header_card.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_view_app_bar_title.dart';
-import '../widget/commitment_tile.dart';
+import '../widget/help_offer_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
-import '../util/commitment_help_types_wire.dart';
+import '../util/help_offer_types_wire.dart';
 import '../widget/overview/beacon_overview_tab.dart';
 import '../widget/unified_forward_row.dart';
 
@@ -50,10 +50,10 @@ bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   return s == '1' || s == 'true' || s == 'yes';
 }
 
-/// Query [kQueryBeaconViewTab]: `overview` | `commitments` | `timeline` (alias: `activity`; legacy: `details`, `forwards`).
+/// Query [kQueryBeaconViewTab]: `overview` | `helpOffers` | `timeline` (alias: `activity`; legacy: `details`, `forwards`).
 int _beaconViewTabIndex(String? viewTab) {
   switch (viewTab) {
-    case 'commitments':
+    case 'helpOffers':
       return 1;
     case 'activity':
     case 'timeline':
@@ -71,24 +71,24 @@ bool _forwardInPrimaryCta(BeaconViewState state) {
   if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
     return false;
   }
-  if (!state.isCommitted && b.allowsNewCommitAsNonAuthor) {
+  if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
     return true;
   }
-  if (state.isCommitted && !b.allowsWithdrawWhileCommitted) {
+  if (state.isHelpOffered && !b.allowsWithdrawWhileHelpOffered) {
     return true;
   }
   return false;
 }
 
-bool _hideCommitWithdrawFromOverflow(BeaconViewState state) {
+bool _hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
   final b = state.beacon;
   if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
     return false;
   }
-  if (!state.isCommitted && b.allowsNewCommitAsNonAuthor) {
+  if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
     return true;
   }
-  if (state.isCommitted && b.allowsWithdrawWhileCommitted) {
+  if (state.isHelpOffered && b.allowsWithdrawWhileHelpOffered) {
     return true;
   }
   return false;
@@ -96,34 +96,34 @@ bool _hideCommitWithdrawFromOverflow(BeaconViewState state) {
 
 const _beaconAuthorUpdateEditWindow = Duration(hours: 1);
 
-/// Initial commit dialog + [BeaconViewCubit.commit] (not update-commitment).
-Future<void> _beaconViewRunInitialCommitDialog(
+/// Initial help offer dialog + [BeaconViewCubit.offerHelp].
+Future<void> _beaconViewRunInitialHelpOfferDialog(
   BuildContext context,
   BeaconViewCubit cubit,
   L10n l10n,
 ) async {
   if (!context.mounted) return;
-  final useCommitAnyway =
+  final useOfferHelpAnyway =
       cubit.state.beacon.coordinationStatus ==
-      BeaconCoordinationStatus.enoughHelpCommitted;
-  final outcome = await CommitmentMessageDialog.show(
+      BeaconCoordinationStatus.enoughHelpOffered;
+  final outcome = await HelpOfferMessageDialog.show(
     context,
-    title: useCommitAnyway
-        ? l10n.dialogCommitAnywayTitle
-        : l10n.dialogCommitTitle,
-    hintText: l10n.hintCommitMessage,
+    title: useOfferHelpAnyway
+        ? l10n.dialogOfferHelpAnywayTitle
+        : l10n.dialogOfferHelpTitle,
+    hintText: l10n.hintOfferHelpMessage,
     allowEmptyMessage: true,
     showHelpTypeChips: true,
   );
   if (outcome != null && context.mounted) {
-    await cubit.commit(
+    await cubit.offerHelp(
       message: outcome.message,
       helpTypes: outcome.helpTypesWire,
     );
   }
 }
 
-Future<void> _beaconViewOpenForwardThenMaybeNudgeCommit(
+Future<void> _beaconViewOpenForwardThenMaybeNudgeOfferHelp(
   BuildContext context,
   BeaconViewCubit cubit,
   L10n l10n,
@@ -134,19 +134,19 @@ Future<void> _beaconViewOpenForwardThenMaybeNudgeCommit(
   );
   if (!context.mounted || didForward != true) return;
   final s = cubit.state;
-  if (s.isCommitted ||
+  if (s.isHelpOffered ||
       s.isBeaconMine ||
-      !s.beacon.allowsNewCommitAsNonAuthor ||
+      !s.beacon.allowsNewHelpOfferAsNonAuthor ||
       s.beacon.lifecycle != BeaconLifecycle.open) {
     return;
   }
   showSnackBar(
     context,
-    text: l10n.nudgeCommitAfterForward,
+    text: l10n.nudgeOfferHelpAfterForward,
     action: SnackBarAction(
-      label: l10n.labelCommit,
+      label: l10n.labelOfferHelp,
       onPressed: () => unawaited(
-        _beaconViewRunInitialCommitDialog(context, cubit, l10n),
+        _beaconViewRunInitialHelpOfferDialog(context, cubit, l10n),
       ),
     ),
   );
@@ -214,7 +214,7 @@ Widget _beaconViewAppBarOverflow({
   final b = state.beacon;
   final beaconId = b.id;
   final hideOverflowForward = _forwardInPrimaryCta(state);
-  final hideCommitWithdraw = _hideCommitWithdrawFromOverflow(state);
+  final hideOfferHelpWithdraw = _hideOfferHelpWithdrawFromOverflow(state);
 
   if (state.isBeaconMine) {
     return BeaconOverflowMenu(
@@ -248,7 +248,7 @@ Widget _beaconViewAppBarOverflow({
             )
           : null,
       onForward: () => unawaited(
-        _beaconViewOpenForwardThenMaybeNudgeCommit(context, cubit, l10n),
+        _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
       ),
       onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
       onDraftReview: state.showDraftEvaluationCta
@@ -270,31 +270,31 @@ Widget _beaconViewAppBarOverflow({
 
   return BeaconOverflowMenu(
     beacon: b,
-    onCommit:
-        !hideCommitWithdraw &&
-            !state.isCommitted &&
-            b.allowsNewCommitAsNonAuthor
+    onOfferHelp:
+        !hideOfferHelpWithdraw &&
+            !state.isHelpOffered &&
+            b.allowsNewHelpOfferAsNonAuthor
         ? () async {
-            await _beaconViewRunInitialCommitDialog(context, cubit, l10n);
+            await _beaconViewRunInitialHelpOfferDialog(context, cubit, l10n);
           }
         : null,
     onWithdraw:
-        !hideCommitWithdraw &&
-            state.isCommitted &&
-            b.allowsWithdrawWhileCommitted
+        !hideOfferHelpWithdraw &&
+            state.isHelpOffered &&
+            b.allowsWithdrawWhileHelpOffered
         ? () async {
             if (!context.mounted) return;
-            final outcome = await CommitmentMessageDialog.show(
+            final outcome = await HelpOfferMessageDialog.show(
               context,
-              title: l10n.dialogWithdrawTitle,
+              title: l10n.dialogWithdrawHelpOfferTitle,
               hintText: l10n.hintWithdrawReason,
               allowEmptyMessage: true,
-              requireUncommitReason: true,
+              requireWithdrawReason: true,
             );
-            if (outcome?.uncommitReasonWire != null && context.mounted) {
+            if (outcome?.withdrawReasonWire != null && context.mounted) {
               await cubit.withdraw(
                 message: outcome!.message,
-                uncommitReason: outcome.uncommitReasonWire!,
+                withdrawReason: outcome.withdrawReasonWire!,
               );
             }
           }
@@ -302,7 +302,7 @@ Widget _beaconViewAppBarOverflow({
     onForward: hideOverflowForward
         ? null
         : () => unawaited(
-            _beaconViewOpenForwardThenMaybeNudgeCommit(context, cubit, l10n),
+            _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
           ),
     onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
     onDraftReview: state.showDraftEvaluationCta
@@ -312,11 +312,11 @@ Widget _beaconViewAppBarOverflow({
             ),
           )
         : null,
-    onWatch: !state.isCommitted && state.inboxStatus == InboxItemStatus.needsMe
+    onWatch: !state.isHelpOffered && state.inboxStatus == InboxItemStatus.needsMe
         ? () => unawaited(cubit.moveToWatching())
         : null,
     onStopWatching:
-        !state.isCommitted && state.inboxStatus == InboxItemStatus.watching
+        !state.isHelpOffered && state.inboxStatus == InboxItemStatus.watching
         ? () => unawaited(cubit.stopWatching())
         : null,
     onCantHelp:
@@ -353,10 +353,10 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
 
   final String? isDeepLink;
 
-  /// `overview` | `commitments` | `activity` (legacy: `timeline`, `details`, `forwards`).
+  /// `overview` | `helpOffers` | `activity` (legacy: `timeline`, `details`, `forwards`).
   final String? viewTab;
 
-  /// With [viewTab]=`commitments`, truthy values pulse/highlight the People tab until interaction.
+  /// With [viewTab]=`helpOffers`, truthy values pulse/highlight the People tab until interaction.
   final String? peopleTabAttention;
 
   /// `status` | `room` ([kBeaconSurfaceRoomQueryValue]).
@@ -551,7 +551,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             c.isLoading ||
             c.hasError ||
             p.beacon != c.beacon ||
-            p.commitments != c.commitments ||
+            p.helpOffers != c.helpOffers ||
             p.roomUnreadCount != c.roomUnreadCount ||
             p.canNavigateBeaconRoom != c.canNavigateBeaconRoom ||
             p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
@@ -563,9 +563,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           final showInitialLoading =
               state.isLoading &&
               state.timeline.isEmpty &&
-              state.commitments.isEmpty;
+              state.helpOffers.isEmpty;
 
-          final activeCommitCount = state.commitments
+          final activeHelpOfferCount = state.helpOffers
               .where((c) => !c.isWithdrawn)
               .length;
           final (appBarStatusLine, appBarStatusTone) = switch (_surfaceMode) {
@@ -577,7 +577,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     )
                   : ('ROOM · UP-TO-DATE', TenturaTone.neutral),
             _ => (
-              beaconAnchorStatusLineShort(state.beacon, activeCommitCount),
+              beaconAnchorStatusLineShort(state.beacon, activeHelpOfferCount),
               beaconAnchorStatusTone(state.beacon.coordinationStatus),
             ),
           };
@@ -766,8 +766,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
     await onAuthorCloseRequested(context);
   }
 
-  Future<void> _runCommitFlow(BuildContext context, L10n l10n) async {
-    await _beaconViewRunInitialCommitDialog(
+  Future<void> _runOfferHelpFlow(BuildContext context, L10n l10n) async {
+    await _beaconViewRunInitialHelpOfferDialog(
       context,
       beaconViewCubit,
       l10n,
@@ -787,8 +787,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
           p.beacon.lifecycle != c.beacon.lifecycle ||
           p.timeline != c.timeline ||
           p.roomActivityEvents != c.roomActivityEvents ||
-          p.commitments != c.commitments ||
-          p.isCommitted != c.isCommitted ||
+          p.helpOffers != c.helpOffers ||
+          p.isHelpOffered != c.isHelpOffered ||
           p.isLoading != c.isLoading ||
           p.forwardProvenance != c.forwardProvenance ||
           p.inboxStatus != c.inboxStatus ||
@@ -815,9 +815,9 @@ class _BeaconOperationalScrollView extends StatelessWidget {
           p.beaconRoomCue?.openBlockerTitle !=
               c.beaconRoomCue?.openBlockerTitle ||
           p.showDraftEvaluationCta != c.showDraftEvaluationCta ||
-          p.unansweredCommitmentsCount != c.unansweredCommitmentsCount ||
-          p.needCoordinationCommitmentsCount !=
-              c.needCoordinationCommitmentsCount,
+          p.unansweredHelpOffersCount != c.unansweredHelpOffersCount ||
+          p.needCoordinationHelpOffersCount !=
+              c.needCoordinationHelpOffersCount,
       builder: (context, state) {
         final beaconId = state.beacon.id;
         Future<void> editUpdate(TimelineUpdate u) => _showEditAuthorUpdateSheet(
@@ -832,7 +832,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
         final tabBody = switch (idx) {
           0 => BeaconStatusDashboard(
             state: state,
-            onViewAllCommitments: () => _setTab(1),
+            onViewAllHelpOffers: () => _setTab(1),
             onEditTimelineUpdate: editUpdate,
             onOpenRoom: state.canNavigateBeaconRoom
                 ? () => onToggleRoomSurface(state)
@@ -855,7 +855,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                   )
                 : null,
             onClosureForward: () => unawaited(
-              _beaconViewOpenForwardThenMaybeNudgeCommit(
+              _beaconViewOpenForwardThenMaybeNudgeOfferHelp(
                 context,
                 beaconViewCubit,
                 l10n,
@@ -867,7 +867,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                 ? () => onToggleRoomSurface(state)
                 : null,
           ),
-          1 => _CommitmentsTabBody(
+          1 => _HelpOffersTabBody(
             state: state,
             beaconViewCubit: beaconViewCubit,
             l10n: l10n,
@@ -893,12 +893,12 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             : kPaddingAll;
 
         final peopleTabBadge =
-            state.isBeaconMine && state.unansweredCommitmentsCount > 0
-            ? state.unansweredCommitmentsCount
+            state.isBeaconMine && state.unansweredHelpOffersCount > 0
+            ? state.unansweredHelpOffersCount
             : null;
         final peopleTabSecondaryBadge =
-            state.needCoordinationCommitmentsCount > 0
-            ? state.needCoordinationCommitmentsCount
+            state.needCoordinationHelpOffersCount > 0
+            ? state.needCoordinationHelpOffersCount
             : null;
 
         // Single CustomScrollView (no NestedScrollView) so the scroll position
@@ -933,15 +933,15 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                             ),
                           )
                         : null,
-                    onCommit:
+                    onOfferHelp:
                         !state.isBeaconMine &&
                             state.beacon.lifecycle == BeaconLifecycle.open &&
-                            !state.isCommitted &&
-                            state.beacon.allowsNewCommitAsNonAuthor
-                        ? () => _runCommitFlow(context, l10n)
+                            !state.isHelpOffered &&
+                            state.beacon.allowsNewHelpOfferAsNonAuthor
+                        ? () => _runOfferHelpFlow(context, l10n)
                         : null,
                     onForward: () => unawaited(
-                      _beaconViewOpenForwardThenMaybeNudgeCommit(
+                      _beaconViewOpenForwardThenMaybeNudgeOfferHelp(
                         context,
                         beaconViewCubit,
                         l10n,
@@ -949,13 +949,13 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                     ),
                     onWatch:
                         !state.isBeaconMine &&
-                            !state.isCommitted &&
+                            !state.isHelpOffered &&
                             state.inboxStatus == InboxItemStatus.needsMe
                         ? () => unawaited(beaconViewCubit.moveToWatching())
                         : null,
                     onStopWatching:
                         !state.isBeaconMine &&
-                            !state.isCommitted &&
+                            !state.isHelpOffered &&
                             state.inboxStatus == InboxItemStatus.watching
                         ? () => unawaited(beaconViewCubit.stopWatching())
                         : null,
@@ -1080,8 +1080,8 @@ class _PinnedSegmentBarDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-class _CommitmentsTabBody extends StatelessWidget {
-  const _CommitmentsTabBody({
+class _HelpOffersTabBody extends StatelessWidget {
+  const _HelpOffersTabBody({
     required this.state,
     required this.beaconViewCubit,
     required this.l10n,
@@ -1095,10 +1095,10 @@ class _CommitmentsTabBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final beacon = state.beacon;
-    final active = state.commitments
+    final active = state.helpOffers
         .where((c) => !c.isWithdrawn)
         .toList(growable: false);
-    final withdrawn = state.commitments
+    final withdrawn = state.helpOffers
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
 
@@ -1130,9 +1130,9 @@ class _CommitmentsTabBody extends StatelessWidget {
             return a.user.title.compareTo(b.user.title);
           });
 
-    CommitmentTile commitmentTile(TimelineCommitment c) {
-      return CommitmentTile(
-        commitment: c,
+    HelpOfferTile helpOfferTile(TimelineHelpOffer c) {
+      return HelpOfferTile(
+        helpOffer: c,
         beaconId: beacon.id,
         beaconAuthorId: beacon.author.id,
         isMine: c.user.id == state.myProfile.id,
@@ -1141,9 +1141,9 @@ class _CommitmentsTabBody extends StatelessWidget {
             ? () => unawaited(
                 showCoordinationResponseBottomSheet(
                   context: context,
-                  commitUserTitle: c.user.title,
+                  offerUserTitle: c.user.title,
                   initialResponse: c.coordinationResponse,
-                  commitUserAdmittedToRoom: state.roomParticipants.any(
+                  offerUserAdmittedToRoom: state.roomParticipants.any(
                     (p) =>
                         p.userId == c.user.id &&
                         p.roomAccess == RoomAccessBits.admitted,
@@ -1154,7 +1154,7 @@ class _CommitmentsTabBody extends StatelessWidget {
                         required inviteToRoom,
                         required removeFromRoom,
                       }) => beaconViewCubit.setCoordinationResponse(
-                        commitUserId: c.user.id,
+                        offerUserId: c.user.id,
                         responseType: responseTypeSmallint,
                         inviteToRoom: inviteToRoom,
                         removeFromRoom: removeFromRoom,
@@ -1164,22 +1164,22 @@ class _CommitmentsTabBody extends StatelessWidget {
             : null,
         onEdit: c.user.id == state.myProfile.id && !c.isWithdrawn
             ? () async {
-                final outcome = await CommitmentMessageDialog.show(
+                final outcome = await HelpOfferMessageDialog.show(
                   context,
-                  title: l10n.beaconHeaderUpdateCommitment,
-                  hintText: l10n.hintCommitMessage,
+                  title: l10n.beaconHeaderUpdateHelpOffer,
+                  hintText: l10n.hintOfferHelpMessage,
                   initialText: c.message,
                   allowEmptyMessage: true,
                   showHelpTypeChips: true,
-                  initialHelpTypeSlugs: commitmentStoredHelpTypeSlugs(
+                  initialHelpTypeSlugs: helpOfferStoredHelpTypeSlugs(
                     c.helpType,
                   ),
                   automaticSlugs: beacon.needs,
                 );
                 if (outcome != null && context.mounted) {
-                  await beaconViewCubit.commit(
+                  await beaconViewCubit.offerHelp(
                     message: outcome.message,
-                    helpTypes: normalizeCommitHelpTypesWire(
+                    helpTypes: normalizeOfferHelpTypesWire(
                       outcome.helpTypesWire,
                     ),
                   );
@@ -1189,19 +1189,19 @@ class _CommitmentsTabBody extends StatelessWidget {
         onWithdraw:
             c.user.id == state.myProfile.id &&
                 !c.isWithdrawn &&
-                beacon.allowsWithdrawWhileCommitted
+                beacon.allowsWithdrawWhileHelpOffered
             ? () async {
-                final outcome = await CommitmentMessageDialog.show(
+                final outcome = await HelpOfferMessageDialog.show(
                   context,
-                  title: l10n.dialogWithdrawTitle,
+                  title: l10n.dialogWithdrawHelpOfferTitle,
                   hintText: l10n.hintWithdrawReason,
                   allowEmptyMessage: true,
-                  requireUncommitReason: true,
+                  requireWithdrawReason: true,
                 );
-                if (outcome?.uncommitReasonWire != null && context.mounted) {
+                if (outcome?.withdrawReasonWire != null && context.mounted) {
                   await beaconViewCubit.withdraw(
                     message: outcome!.message,
-                    uncommitReason: outcome.uncommitReasonWire!,
+                    withdrawReason: outcome.withdrawReasonWire!,
                   );
                 }
               }
@@ -1269,7 +1269,7 @@ class _CommitmentsTabBody extends StatelessWidget {
           const SizedBox(height: 8),
           for (var i = 0; i < needCoordList.length; i++) ...[
             if (i != 0) const SizedBox(height: 12),
-            commitmentTile(needCoordList[i]),
+            helpOfferTile(needCoordList[i]),
           ],
         ],
         if (otherActive.isNotEmpty) ...[
@@ -1281,7 +1281,7 @@ class _CommitmentsTabBody extends StatelessWidget {
           const SizedBox(height: 8),
           for (var i = 0; i < otherActive.length; i++) ...[
             if (i != 0) const SizedBox(height: 12),
-            commitmentTile(otherActive[i]),
+            helpOfferTile(otherActive[i]),
           ],
         ],
         const SizedBox(height: 16),
@@ -1297,7 +1297,7 @@ class _CommitmentsTabBody extends StatelessWidget {
                       ? UnifiedForwardRow.outgoing(
                           edge: e,
                           viewerUserId: viewerId,
-                          committed: state.involvementCommittedIds,
+                          helpOffered: state.involvementHelpOfferedIds,
                           watching: state.involvementWatchingIds,
                           onward: state.involvementOnwardForwarderIds,
                           reasonSlugs: state.forwardReasonSlugs[
@@ -1375,8 +1375,8 @@ class _CommitmentsTabBody extends StatelessWidget {
             children: [
               for (var j = 0; j < withdrawn.length; j++) ...[
                 if (j != 0) const SizedBox(height: 12),
-                CommitmentTile(
-                  commitment: withdrawn[j],
+                HelpOfferTile(
+                  helpOffer: withdrawn[j],
                   beaconId: beacon.id,
                   beaconAuthorId: beacon.author.id,
                   isMine: withdrawn[j].user.id == state.myProfile.id,

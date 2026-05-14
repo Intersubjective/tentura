@@ -29,18 +29,18 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'graph_state.dart';
 
-/// Viewer's relationship to the focused chain in committer-path mode.
+/// Viewer's relationship to the focused chain in help-offerer-path mode.
 enum ForwardsGraphViewerRole {
   /// Viewer is the beacon author (root of the chain).
   author,
 
-  /// Viewer is the focused committer themselves; the focus is rotated onto
+  /// Viewer is the focused help offerer themselves; the focus is rotated onto
   /// the author so the chain reads "in reverse" from the viewer's PoV.
   self,
 
-  /// Viewer is neither the author nor the committer but has at least one
+  /// Viewer is neither the author nor the help offerer but has at least one
   /// forward edge for the beacon; their own sub-chain is overlaid on top
-  /// of the committer's chain so they see how they fit between the two.
+  /// of the help offerer's chain so they see how they fit between the two.
   involvedOther,
 }
 
@@ -56,10 +56,10 @@ class GraphCubit extends Cubit<GraphState> {
     this.forwardsGraphBeaconId,
 
     /// When set together with [forwardsGraphBeaconId], the cubit fetches the
-    /// per-committer forward path (V2 `beaconCommitterForwardPath`) instead
+    /// per-help-offerer forward path (V2 `beaconHelpOffererForwardPath`) instead
     /// of the broader `beaconForwardGraph`. Focus auto-rotates onto the
-    /// committer (or the author when the viewer IS the committer — case 3).
-    this.committerFocusUserId,
+    /// help offerer (or the author when the viewer IS the help offerer — case 3).
+    this.helpOffererFocusUserId,
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
   }) : _egoNode = UserNode(
@@ -84,18 +84,18 @@ class GraphCubit extends Cubit<GraphState> {
 
   final String? forwardsGraphBeaconId;
 
-  final String? committerFocusUserId;
+  final String? helpOffererFocusUserId;
 
   final BeaconRepository _beaconRepository;
 
   final ProfileRepositoryPort _profileRepository;
 
-  /// Resolved viewer role for the committer-path view; null when the cubit
+  /// Resolved viewer role for the help-offerer-path view; null when the cubit
   /// is operating in any other mode (regular forwards graph or MeritRank).
   /// Set during [_fetch] once `authorId`/`viewerId` are known.
-  ForwardsGraphViewerRole? _committerViewerRole;
+  ForwardsGraphViewerRole? _helpOffererViewerRole;
 
-  ForwardsGraphViewerRole? get committerViewerRole => _committerViewerRole;
+  ForwardsGraphViewerRole? get helpOffererViewerRole => _helpOffererViewerRole;
 
   final graphController =
       GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
@@ -113,9 +113,9 @@ class GraphCubit extends Cubit<GraphState> {
     _egoNode.id: _egoNode,
   };
 
-  /// Active committers for [forwardsGraphBeaconId] (forwards graph only).
-  /// Highlighted via [UserNode.isCommitter] in the renderer.
-  Set<String> _committerIds = const <String>{};
+  /// Active help offerers for [forwardsGraphBeaconId] (forwards graph only).
+  /// Highlighted via [UserNode.isHelpOfferer] in the renderer.
+  Set<String> _helpOffererIds = const <String>{};
 
   @override
   Future<void> close() {
@@ -176,59 +176,59 @@ class GraphCubit extends Cubit<GraphState> {
 
       Set<EdgeDirected> edges;
       final source = _graphSource;
-      var showNoCommitterPathMessage = false;
-      String? noPathCommitterId;
+      var showNoHelpOffererPathMessage = false;
+      String? noPathHelpOffererId;
       var forwardsAuthorId = '';
-      if (committerFocusUserId != null &&
+      if (helpOffererFocusUserId != null &&
           forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
-        final payload = await source.fetchCommitterForwardsGraph(
+        final payload = await source.fetchHelpOffererForwardsGraph(
           beaconId: forwardsGraphBeaconId!,
-          committerId: committerFocusUserId!,
+          helpOffererId: helpOffererFocusUserId!,
         );
         edges = payload.edges;
-        _committerIds = payload.committerIds;
+        _helpOffererIds = payload.helpOffererIds;
         forwardsAuthorId = payload.authorId;
 
         // Focus rule for the three viewer-role cases (see plan):
-        //   case 1 (author):         focus = committer
-        //   case 2 (involved-other): focus = committer
-        //   case 3 (committer-self): focus = author (chain reads "in reverse")
+        //   case 1 (author):         focus = help offerer
+        //   case 2 (involved-other): focus = help offerer
+        //   case 3 (help-offerer-self): focus = author (chain reads "in reverse")
         // Ego node is always `me` (existing pattern); the role rotates onto
         // whichever principal happens to be the viewer.
         final viewerId = payload.viewerId ?? state.me.id;
         final authorId = payload.authorId;
-        final committerId = committerFocusUserId!;
+        final helpOffererId = helpOffererFocusUserId!;
         final isAuthor = viewerId == authorId;
-        final isSelf = viewerId == committerId;
-        _committerViewerRole = isAuthor
+        final isSelf = viewerId == helpOffererId;
+        _helpOffererViewerRole = isAuthor
             ? ForwardsGraphViewerRole.author
             : isSelf
                 ? ForwardsGraphViewerRole.self
                 : ForwardsGraphViewerRole.involvedOther;
-        final hasCommitterEndpoint = edges.any(
-          (e) => e.src == committerId || e.dst == committerId,
+        final hasHelpOffererEndpoint = edges.any(
+          (e) => e.src == helpOffererId || e.dst == helpOffererId,
         );
         final derivedFocus =
-            isSelf ? authorId : committerId;
+            isSelf ? authorId : helpOffererId;
         if (state.focus != derivedFocus) {
           emit(state.copyWith(focus: derivedFocus));
         }
-        // Committer-card graph only: keep edges on some directed path from
-        // ego (viewer) to focus (committer, or author when viewer = committer).
+        // Help-offerer-card graph only: keep edges on some directed path from
+        // ego (viewer) to focus (help offerer, or author when viewer = help offerer).
         edges = edgesOnSomeDirectedPath(
           edges: edges,
           root: state.me.id,
           focus: derivedFocus,
         );
-        showNoCommitterPathMessage = !hasCommitterEndpoint;
-        noPathCommitterId = !hasCommitterEndpoint ? committerId : null;
+        showNoHelpOffererPathMessage = !hasHelpOffererEndpoint;
+        noPathHelpOffererId = !hasHelpOffererEndpoint ? helpOffererId : null;
       } else if (forwardsGraphBeaconId != null &&
           source is ForwardsGraphRepository) {
         final payload =
             await source.fetchForwardsGraph(beaconId: forwardsGraphBeaconId!);
         edges = payload.edges;
-        _committerIds = payload.committerIds;
+        _helpOffererIds = payload.helpOffererIds;
         forwardsAuthorId = payload.authorId;
       } else {
         edges = await _graphSource.fetch(
@@ -275,10 +275,10 @@ class GraphCubit extends Cubit<GraphState> {
       if (state.focus.isNotEmpty && !_nodes.containsKey(state.focus)) {
         final lazy = await _resolveNodeById(state.focus, pinned: true);
         if (lazy != null) {
-          // When the focused committer has no path edges, we still want to show
+          // When the focused help offerer has no path edges, we still want to show
           // them as an isolated focus node. Give it a stable hint north of root.
-          if (noPathCommitterId != null &&
-              state.focus == noPathCommitterId &&
+          if (noPathHelpOffererId != null &&
+              state.focus == noPathHelpOffererId &&
               lazy.positionHint != 0) {
             _nodes[state.focus] =
                 lazy.copyWithPositionHint(_isolatedFocusNorthHint);
@@ -300,30 +300,30 @@ class GraphCubit extends Cubit<GraphState> {
         }
       }
 
-      _applyCommitterHighlights();
+      _applyHelpOffererHighlights();
 
       emit(state.copyWith(status: StateStatus.isSuccess));
 
       _updateGraph(edges);
 
-      if (showNoCommitterPathMessage) {
+      if (showNoHelpOffererPathMessage) {
         emit(
           state.copyWith(
-            status: StateIsMessaging(const NoCommitterForwardPathMessage()),
+            status: StateIsMessaging(const NoHelpOffererForwardPathMessage()),
           ),
         );
         emit(state.copyWith(status: StateStatus.isSuccess));
       }
 
-      // Recenter on the derived focus node in committer-path mode so the
-      // viewer immediately lands on the relevant principal (committer for
+      // Recenter on the derived focus node in help-offerer-path mode so the
+      // viewer immediately lands on the relevant principal (help offerer for
       // case 1/2, author for case 3) instead of the floating ego "Me".
-      if (committerFocusUserId != null && state.focus.isNotEmpty) {
+      if (helpOffererFocusUserId != null && state.focus.isNotEmpty) {
         final focusNode = _nodes[state.focus];
         if (focusNode != null) {
           // `jumpToNode` expects the *same instance* that the graph controller
           // currently tracks positions for. When `NodeDetails` instances get
-          // replaced in `_nodes` (pinned/committer highlight), passing a stale
+          // replaced in `_nodes` (pinned/help-offerer highlight), passing a stale
           // instance can crash the layout with a null position.
           NodeDetails? controllerNode;
           for (final n in graphController.nodes) {
@@ -357,7 +357,7 @@ class GraphCubit extends Cubit<GraphState> {
         user: profile,
         positionHint: _nodes.length,
         pinned: pinned,
-        isCommitter: _committerIds.contains(id),
+        isHelpOfferer: _helpOffererIds.contains(id),
       );
     }
     if (id.startsWith('B')) {
@@ -370,14 +370,14 @@ class GraphCubit extends Cubit<GraphState> {
     return null;
   }
 
-  /// Stamps `isCommitter` on every committer's [UserNode] currently in
+  /// Stamps `isHelpOfferer` on every help offerer's [UserNode] currently in
   /// [_nodes]. Called after each fetch so late-arriving nodes pick up the flag.
-  void _applyCommitterHighlights() {
-    if (_committerIds.isEmpty) return;
-    for (final id in _committerIds) {
+  void _applyHelpOffererHighlights() {
+    if (_helpOffererIds.isEmpty) return;
+    for (final id in _helpOffererIds) {
       final node = _nodes[id];
-      if (node is UserNode && !node.isCommitter) {
-        _nodes[id] = node.copyWithIsCommitter(true);
+      if (node is UserNode && !node.isHelpOfferer) {
+        _nodes[id] = node.copyWithIsHelpOfferer(true);
       }
     }
   }

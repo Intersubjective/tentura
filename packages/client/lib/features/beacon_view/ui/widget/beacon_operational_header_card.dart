@@ -19,7 +19,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     required this.onAuthorTap,
     this.onUpdateStatus,
     this.onPostUpdate,
-    this.onCommit,
+    this.onOfferHelp,
     this.onForward,
     this.onWatch,
     this.onStopWatching,
@@ -38,7 +38,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   final VoidCallback? onUpdateStatus;
   final VoidCallback? onPostUpdate;
-  final VoidCallback? onCommit;
+  final VoidCallback? onOfferHelp;
   final VoidCallback? onForward;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
@@ -65,9 +65,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final tt = context.tt;
     final beacon = state.beacon;
 
-    final activeCommitCount =
-        state.commitments.where((c) => !c.isWithdrawn).length;
-    final needCoordinationCount = state.commitments
+    final activeHelpOfferCount =
+        state.helpOffers.where((c) => !c.isWithdrawn).length;
+    final needCoordinationCount = state.helpOffers
         .where(
           (c) =>
               !c.isWithdrawn &&
@@ -84,7 +84,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final tokens = buildBeaconHudStateTokens(
       l10n: l10n,
       beacon: beacon,
-      activeCommitCount: activeCommitCount,
+      activeHelpOfferCount: activeHelpOfferCount,
       needCoordinationCount: needCoordinationCount,
       cue: state.beaconRoomCue,
       authorClosureReadiness: authorClosure,
@@ -249,7 +249,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
       void addUpdateStatus() {
         if (onUpdateStatus == null) return;
-        if (state.unansweredCommitmentsCount != 0) return;
+        if (state.unansweredHelpOffersCount != 0) return;
         specs.add(
           _HudActionSpec(
             icon: Icons.tune_outlined,
@@ -310,17 +310,17 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       );
     }
 
-    final canCommit = open &&
-        !state.isCommitted &&
-        b.allowsNewCommitAsNonAuthor &&
-        onCommit != null;
+    final canOfferHelp = open &&
+        !state.isHelpOffered &&
+        b.allowsNewHelpOfferAsNonAuthor &&
+        onOfferHelp != null;
 
-    if (canCommit) {
+    if (canOfferHelp) {
       final out = <_HudActionSpec>[
         _HudActionSpec(
           icon: Icons.volunteer_activism_outlined,
-          label: l10n.labelCommit,
-          onPressed: onCommit,
+          label: l10n.labelOfferHelp,
+          onPressed: onOfferHelp,
           filled: true,
         ),
       ];
@@ -560,7 +560,7 @@ class _HudPeopleStrip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final beacon = state.beacon;
     final author = beacon.author;
-    final active = state.commitments.where((c) => !c.isWithdrawn).toList();
+    final active = state.helpOffers.where((c) => !c.isWithdrawn).toList();
 
     const maxSlots = 5;
     final ordered = <Profile>[author];

@@ -131,13 +131,13 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
           .then((rows) => rows.map(_toEntity).toList());
 
   @override
-  Future<List<ForwardEdgeEntity>> fetchCommitterPathChain({
+  Future<List<ForwardEdgeEntity>> fetchHelpOffererPathChain({
     required String beaconId,
-    required String committerId,
+    required String helpOffererId,
     required String viewerId,
   }) async {
     // Recursive CTE returns just the edge ids that participate in either the
-    // committer's or the viewer's ancestor closure for this beacon. Reading
+    // help offerer's or the viewer's ancestor closure for this beacon. Reading
     // the full row via [managers.beaconForwardEdges] keeps the timestamptz
     // mapping consistent with [fetchByBeaconId] (PgDateTime -> DateTime).
     final idRows = await _database
@@ -161,7 +161,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
           ''',
           variables: [
             Variable.withString(beaconId),
-            Variable.withString(committerId),
+            Variable.withString(helpOffererId),
             Variable.withString(viewerId),
           ],
         )

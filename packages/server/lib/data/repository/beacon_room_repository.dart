@@ -553,9 +553,9 @@ class BeaconRoomRepository {
           .filter((r) => r.beaconId.id(beaconId))
           .get();
 
-  /// Active commitment `help_type` wire per user id for this beacon (at most one row per user).
+  /// Active help offer `help_type` wire per user id for this beacon (at most one row per user).
   Future<Map<String, String?>> helpTypesByUserId(String beaconId) async {
-    final rows = await _db.managers.beaconCommitments
+    final rows = await _db.managers.beaconHelpOffers
         .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))
         .get();
     return {for (final r in rows) r.userId: r.helpType};
@@ -730,15 +730,15 @@ class BeaconRoomRepository {
       });
 
   /// Author coordination: admit helper into beacon Room (creates participant row when absent).
-  Future<void> inviteCommitUserToBeaconRoom({
+  Future<void> inviteOfferUserToBeaconRoom({
     required String beaconId,
-    required String commitUserId,
+    required String offerUserId,
     required String authorUserId,
   }) async {
     await _db.withMutatingUser(authorUserId, () async {
       final existing = await findParticipant(
         beaconId: beaconId,
-        userId: commitUserId,
+        userId: offerUserId,
       );
       if (existing == null) {
         await _db.managers.beaconParticipants.create(
@@ -747,7 +747,7 @@ class BeaconRoomRepository {
             updatedAt: const Value.absent(),
             id: generateId('P'),
             beaconId: beaconId,
-            userId: commitUserId,
+            userId: offerUserId,
             role: BeaconParticipantRoleBits.helper,
             status: const Value(BeaconParticipantStatusBits.committed),
             roomAccess: const Value(RoomAccessBits.admitted),
@@ -756,7 +756,7 @@ class BeaconRoomRepository {
       } else {
         await _db.managers.beaconParticipants
             .filter(
-              (r) => r.beaconId.id(beaconId) & r.userId.id(commitUserId),
+              (r) => r.beaconId.id(beaconId) & r.userId.id(offerUserId),
             )
             .update(
               (o) => o(
@@ -770,22 +770,22 @@ class BeaconRoomRepository {
   }
 
   /// Author coordination: revoke Room access for this helper (`room_access = none`).
-  Future<void> revokeCommitUserBeaconRoomAccess({
+  Future<void> revokeOfferUserBeaconRoomAccess({
     required String beaconId,
-    required String commitUserId,
+    required String offerUserId,
     required String authorUserId,
   }) async {
     await _db.withMutatingUser(authorUserId, () async {
       final existing = await findParticipant(
         beaconId: beaconId,
-        userId: commitUserId,
+        userId: offerUserId,
       );
       if (existing == null) {
         return;
       }
       await _db.managers.beaconParticipants
           .filter(
-            (r) => r.beaconId.id(beaconId) & r.userId.id(commitUserId),
+            (r) => r.beaconId.id(beaconId) & r.userId.id(offerUserId),
           )
           .update(
             (o) => o(

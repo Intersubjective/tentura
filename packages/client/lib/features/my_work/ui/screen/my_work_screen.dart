@@ -99,7 +99,7 @@ class _MyWorkOverflowMenu extends StatelessWidget {
 String _labelForFilter(L10n l10n, MyWorkFilter f) => switch (f) {
   MyWorkFilter.all => l10n.myWorkFilterAll,
   MyWorkFilter.authored => l10n.myWorkFilterAuthored,
-  MyWorkFilter.committed => l10n.myWorkFilterCommitted,
+  MyWorkFilter.helpOffered => l10n.myWorkFilterHelpOffered,
   MyWorkFilter.archived => l10n.myWorkFilterArchived,
 };
 
@@ -238,7 +238,7 @@ class _MyWorkBody extends StatelessWidget {
   String _emptyMessage(L10n l10n, MyWorkFilter f) => switch (f) {
     MyWorkFilter.all => l10n.myWorkEmptyAll,
     MyWorkFilter.authored => l10n.myWorkEmptyAuthored,
-    MyWorkFilter.committed => l10n.myWorkEmptyCommitted,
+    MyWorkFilter.helpOffered => l10n.myWorkEmptyHelpOffered,
     MyWorkFilter.archived => l10n.myWorkEmptyArchived,
   };
 

@@ -3,7 +3,7 @@ enum CandidateInvolvement {
   forwarded,
   forwardedByMe,
   watching,
-  committed,
+  helpOffered,
   withdrawn,
   declined,
   author;

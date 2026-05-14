@@ -12,7 +12,7 @@ import 'entity/my_work_sort.dart';
 int myWorkCardSortTier(MyWorkCardViewModel vm) {
   if (vm.showReadyForReviewChip || vm.showReviewCta) return 400;
   if (vm.attentionChip == MyWorkAttentionChip.reviewWindowOpen) return 390;
-  if (vm.showReviewCommitmentsCta) return 350;
+  if (vm.showReviewHelpOffersCta) return 350;
   if (vm.attentionChip == MyWorkAttentionChip.reviewPending) return 330;
   if (vm.attentionChip == MyWorkAttentionChip.moreHelpNeeded) return 250;
   if (vm.kind == MyWorkCardKind.authoredDraft) return 50;
@@ -77,17 +77,17 @@ MyWorkCardViewModel _deriveAuthored({
   if (lc == BeaconLifecycle.closedReviewOpen) {
     attention = MyWorkAttentionChip.reviewWindowOpen;
   } else if (beacon.coordinationStatus ==
-      BeaconCoordinationStatus.commitmentsWaitingForReview) {
+      BeaconCoordinationStatus.helpOffersWaitingForReview) {
     attention = MyWorkAttentionChip.reviewPending;
   } else if (beacon.coordinationStatus ==
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
     attention = MyWorkAttentionChip.moreHelpNeeded;
   }
 
-  final showReviewCommitmentsCta =
+  final showReviewHelpOffersCta =
       beacon.coordinationStatus ==
-          BeaconCoordinationStatus.commitmentsWaitingForReview &&
-      beacon.commitmentCount > 0;
+          BeaconCoordinationStatus.helpOffersWaitingForReview &&
+      beacon.helpOfferCount > 0;
 
   return MyWorkCardViewModel(
     beaconId: beacon.id,
@@ -95,12 +95,12 @@ MyWorkCardViewModel _deriveAuthored({
     kind: MyWorkCardKind.authoredActive,
     beacon: beacon,
     attentionChip: attention,
-    showReviewCommitmentsCta: showReviewCommitmentsCta,
+    showReviewHelpOffersCta: showReviewHelpOffersCta,
   );
 }
 
-MyWorkCardViewModel _deriveCommitted({
-  required MyWorkCommittedRow row,
+MyWorkCardViewModel _deriveHelpOffered({
+  required MyWorkHelpOfferedRow row,
   bool archived = false,
 }) {
   final beacon = row.beacon;
@@ -109,14 +109,14 @@ MyWorkCardViewModel _deriveCommitted({
   if (archived || lc.isClosedSection) {
     return MyWorkCardViewModel(
       beaconId: beacon.id,
-      role: MyWorkCardRole.committed,
-      kind: MyWorkCardKind.committedClosed,
+      role: MyWorkCardRole.helpOffered,
+      kind: MyWorkCardKind.helpOfferedClosed,
       beacon: beacon,
-      commitMessage: row.commitMessage,
+      offerHelpMessage: row.offerHelpMessage,
       authorResponseType: row.authorResponseType,
       forwarderSenders: row.forwarderSenders,
       showArchiveAffordance: true,
-      commitmentRowUpdatedAt: row.commitmentRowUpdatedAt,
+      helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
       authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
     );
   }
@@ -125,50 +125,50 @@ MyWorkCardViewModel _deriveCommitted({
 
   return MyWorkCardViewModel(
     beaconId: beacon.id,
-    role: MyWorkCardRole.committed,
-    kind: MyWorkCardKind.committedActive,
+    role: MyWorkCardRole.helpOffered,
+    kind: MyWorkCardKind.helpOfferedActive,
     beacon: beacon,
-    commitMessage: row.commitMessage,
+    offerHelpMessage: row.offerHelpMessage,
     authorResponseType: row.authorResponseType,
     forwarderSenders: row.forwarderSenders,
     showReadyForReviewChip: reviewOpen,
     showReviewCta: reviewOpen,
-    commitmentRowUpdatedAt: row.commitmentRowUpdatedAt,
+    helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
     authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
   );
 }
 
-/// Non-archived cards from init fetch (authored beacons + committed rows).
+/// Non-archived cards from init fetch (authored beacons + help-offered rows).
 List<MyWorkCardViewModel> buildNonArchivedViewModels({
   required List<Beacon> authoredNonClosed,
-  required List<MyWorkCommittedRow> committedNonClosed,
+  required List<MyWorkHelpOfferedRow> helpOfferedNonClosed,
 }) {
   final authored = authoredNonClosed
       .map((b) => _deriveAuthored(beacon: b))
       .toList(growable: false);
   final authoredIds = authored.map((v) => v.beaconId).toSet();
-  final committed = committedNonClosed
-      .map((r) => _deriveCommitted(row: r))
+  final helpOffered = helpOfferedNonClosed
+      .map((r) => _deriveHelpOffered(row: r))
       .where((v) => !authoredIds.contains(v.beaconId))
       .toList(growable: false);
-  final merged = [...authored, ...committed]..sort(compareMyWorkCards);
+  final merged = [...authored, ...helpOffered]..sort(compareMyWorkCards);
   return merged;
 }
 
 /// Archived (closed lifecycle) cards from lazy closed fetch.
 List<MyWorkCardViewModel> buildArchivedViewModels({
   required List<Beacon> authoredClosed,
-  required List<MyWorkCommittedRow> committedClosed,
+  required List<MyWorkHelpOfferedRow> helpOfferedClosed,
 }) {
   final authored = authoredClosed
       .map((b) => _deriveAuthored(beacon: b, archived: true))
       .toList(growable: false);
   final authoredIds = authored.map((v) => v.beaconId).toSet();
-  final committed = committedClosed
-      .map((r) => _deriveCommitted(row: r, archived: true))
+  final helpOffered = helpOfferedClosed
+      .map((r) => _deriveHelpOffered(row: r, archived: true))
       .where((v) => !authoredIds.contains(v.beaconId))
       .toList(growable: false);
-  final merged = [...authored, ...committed]..sort(compareMyWorkCards);
+  final merged = [...authored, ...helpOffered]..sort(compareMyWorkCards);
   return merged;
 }
 
@@ -176,26 +176,26 @@ List<MyWorkCardViewModel> buildArchivedViewModels({
 MyWorkCardViewModel myWorkCardViewModelForBeaconView({
   required Beacon beacon,
   required bool isBeaconMine,
-  required bool isCommitted,
-  required String myCommitMessage,
+  required bool isHelpOffered,
+  required String myOfferHelpMessage,
   CoordinationResponseType? myAuthorResponseType,
-  DateTime? myCommitmentUpdatedAt,
+  DateTime? myHelpOfferUpdatedAt,
 }) {
   if (isBeaconMine) {
     return _deriveAuthored(beacon: beacon);
   }
-  if (isCommitted) {
+  if (isHelpOffered) {
     final archived = beacon.lifecycle.isClosedSection;
     final row = (
       beacon: beacon,
-      commitMessage: myCommitMessage,
+      offerHelpMessage: myOfferHelpMessage,
       helpType: null,
       authorResponseType: myAuthorResponseType,
       forwarderSenders: <Profile>[],
-      commitmentRowUpdatedAt: myCommitmentUpdatedAt ?? beacon.updatedAt,
+      helpOfferRowUpdatedAt: myHelpOfferUpdatedAt ?? beacon.updatedAt,
       authorCoordinationUpdatedAt: null,
     );
-    return _deriveCommitted(row: row, archived: archived);
+    return _deriveHelpOffered(row: row, archived: archived);
   }
   return _deriveAuthored(beacon: beacon);
 }

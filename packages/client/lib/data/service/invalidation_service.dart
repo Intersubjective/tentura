@@ -30,7 +30,7 @@ class InvalidationService {
   late final StreamSubscription<Map<String, dynamic>> _subscription;
 
   final _beaconChanges = StreamController<String>.broadcast();
-  final _commitmentChanges = StreamController<String>.broadcast();
+  final _helpOfferChanges = StreamController<String>.broadcast();
   final _forwardChanges = StreamController<String>.broadcast();
   final _beaconRoomChanges =
       StreamController<BeaconRoomInvalidation>.broadcast();
@@ -43,8 +43,8 @@ class InvalidationService {
       .expand((batch) => batch.toSet())
       .asBroadcastStream();
 
-  /// Beacon ID whose commitments changed (debounced).
-  late final Stream<String> commitmentInvalidations = _commitmentChanges.stream
+  /// Beacon ID whose help offers changed (debounced).
+  late final Stream<String> helpOfferInvalidations = _helpOfferChanges.stream
       .bufferTime(_debounceWindow)
       .where((batch) => batch.isNotEmpty)
       .expand((batch) => batch.toSet())
@@ -82,8 +82,8 @@ class InvalidationService {
     switch (payload['entity']) {
       case 'beacon':
         _beaconChanges.add(id);
-      case 'commitment':
-        _commitmentChanges.add(id);
+      case 'help_offer':
+        _helpOfferChanges.add(id);
       case 'forward':
         _forwardChanges.add(id);
       case 'room_message':
@@ -115,7 +115,7 @@ class InvalidationService {
   Future<void> dispose() async {
     await _subscription.cancel();
     await _beaconChanges.close();
-    await _commitmentChanges.close();
+    await _helpOfferChanges.close();
     await _forwardChanges.close();
     await _beaconRoomChanges.close();
     await _capabilityChanges.close();

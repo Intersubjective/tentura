@@ -176,7 +176,7 @@ class RoomMessageTile extends StatelessWidget {
         break;
       }
     }
-    final authorCapabilityIcons = commitmentHelpTypeSlugs(authorHelpTypeWire)
+    final authorCapabilityIcons = helpOfferTypeSlugs(authorHelpTypeWire)
         .take(4)
         .map(CapabilityTag.fromSlug)
         .whereType<CapabilityTag>()

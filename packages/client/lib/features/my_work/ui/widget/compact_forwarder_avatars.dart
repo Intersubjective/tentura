@@ -5,7 +5,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
-/// Tiny overlapping forwarder avatars + optional `+N` (My Work committed footer).
+/// Tiny overlapping forwarder avatars + optional `+N` (My Work help offered footer).
 class CompactForwarderAvatars extends StatelessWidget {
   const CompactForwarderAvatars({
     required this.profiles,

@@ -21,13 +21,13 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
   const BeaconPeopleParticipantCard({
     required this.beacon,
     required this.participant,
-    required this.commitments,
+    required this.helpOffers,
     super.key,
   });
 
   final Beacon beacon;
   final BeaconParticipant participant;
-  final List<TimelineCommitment> commitments;
+  final List<TimelineHelpOffer> helpOffers;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +36,7 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
     final onV = scheme.onSurfaceVariant;
 
     final titles = <String, String>{
-      for (final c in commitments) c.user.id: c.user.title,
+      for (final c in helpOffers) c.user.id: c.user.title,
     };
     final name = participantDisplayTitle(
       participant: participant,
@@ -48,23 +48,23 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
     if (participant.userId == beacon.author.id) {
       profile = beacon.author;
     } else {
-      Profile? fromCommit;
-      for (final c in commitments) {
+      Profile? fromHelpOffer;
+      for (final c in helpOffers) {
         if (c.user.id == participant.userId) {
-          fromCommit = c.user;
+          fromHelpOffer = c.user;
           break;
         }
       }
-      profile = fromCommit ?? Profile(id: participant.userId);
+      profile = fromHelpOffer ?? Profile(id: participant.userId);
     }
     if (profile.title.isEmpty) {
       profile = profile.copyWith(title: name);
     }
 
-    CoordinationResponseType? authorResponseForCommitted;
-    for (final c in commitments) {
+    CoordinationResponseType? authorResponseForHelpOffered;
+    for (final c in helpOffers) {
       if (!c.isWithdrawn && c.user.id == participant.userId) {
-        authorResponseForCommitted = c.coordinationResponse;
+        authorResponseForHelpOffered = c.coordinationResponse;
         break;
       }
     }
@@ -72,7 +72,7 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
     final statusLabel = _statusL10n(
       l10n,
       participant.status,
-      authorResponseForCommitted,
+      authorResponseForHelpOffered,
     );
     final roleLabel = _roleL10n(l10n, participant.role);
     final next = participant.nextMoveText?.trim();
@@ -81,11 +81,11 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
           participant.updatedAt.toLocal(),
         );
 
-    // Forward-path button is shown for any active committer (status ==
+    // Forward-path button is shown for any active help offerer (status ==
     // committed and not withdrawn) who is NOT the beacon author. Visible
     // to everyone who can render the People tab — the server-side auth
-    // gate (BeaconCommitterForwardPathCase) still requires the viewer to
-    // be involved (author / has-edge / has-commitment).
+    // gate (BeaconHelpOffererForwardPathCase) still requires the viewer to
+    // be involved (author / has-edge / has-help-offer).
     final showForwardPathButton =
         participant.status == BeaconParticipantStatusBits.committed &&
             participant.userId != beacon.author.id;
@@ -134,12 +134,12 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
           if (showForwardPathButton)
             IconButton(
               icon: const Icon(TenturaIcons.graph),
-              tooltip: l10n.committerForwardPathTooltip,
+              tooltip: l10n.helpOffererForwardPathTooltip,
               onPressed: () =>
-                  context.read<ScreenCubit>().showCommitterForwardPathFor(
+                  context.read<ScreenCubit>().showHelpOffererForwardPathFor(
                         beaconId: beacon.id,
-                        committerId: participant.userId,
-                        committerName: name,
+                        helpOffererId: participant.userId,
+                        helpOffererName: name,
                       ),
             ),
         ],
@@ -162,14 +162,14 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
   static String _statusL10n(
     L10n l10n,
     int status,
-    CoordinationResponseType? authorResponse,
+    CoordinationResponseType? authorResponseForOffered,
   ) {
-    if (status == BeaconParticipantStatusBits.committed && authorResponse != null) {
-      return switch (authorResponse) {
-        CoordinationResponseType.useful => l10n.beaconPeopleStatusCommittedUseful,
+    if (status == BeaconParticipantStatusBits.committed && authorResponseForOffered != null) {
+      return switch (authorResponseForOffered) {
+        CoordinationResponseType.useful => l10n.beaconPeopleStatusHelpOfferedUseful,
         CoordinationResponseType.needCoordination =>
-          l10n.beaconPeopleStatusCommittedNeedCoordination,
-        _ => l10n.beaconPeopleStatusCommitted,
+          l10n.beaconPeopleStatusHelpOfferedNeedCoordination,
+        _ => l10n.beaconPeopleStatusHelpOffered,
       };
     }
     if (status == BeaconParticipantStatusBits.watching) {
@@ -188,7 +188,7 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
       return l10n.beaconPeopleStatusChecking;
     }
     if (status == BeaconParticipantStatusBits.committed) {
-      return l10n.beaconPeopleStatusCommitted;
+      return l10n.beaconPeopleStatusHelpOffered;
     }
     if (status == BeaconParticipantStatusBits.needsInfo) {
       return l10n.beaconPeopleStatusNeedsInfo;

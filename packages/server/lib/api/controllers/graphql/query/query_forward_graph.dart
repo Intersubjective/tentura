@@ -6,7 +6,7 @@ import '../input/_input_types.dart';
 
 /// Root query field [beaconForwardGraph]: edges visible to the viewer plus the
 /// ancestor closure and the chain that delivered the beacon to each active
-/// committer. See [BeaconForwardGraphCase] for the visibility model.
+/// help offerer. See [BeaconForwardGraphCase] for the visibility model.
 final class QueryForwardGraph extends GqlNodeBase {
   QueryForwardGraph({BeaconForwardGraphCase? beaconForwardGraphCase})
     : _beaconForwardGraphCase =

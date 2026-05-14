@@ -132,7 +132,7 @@ class MyWorkCardRouter extends StatelessWidget {
             newStuffReasonLabels: reasonLabels,
             activityWhenLine: activityWhenLine,
           ),
-          MyWorkCardKind.committedActive => _CommittedActiveCard(
+          MyWorkCardKind.helpOfferedActive => _HelpOfferedActiveCard(
             vm: vm,
             highlight: highlight,
             newStuffReasonLabels: reasonLabels,
@@ -144,7 +144,7 @@ class MyWorkCardRouter extends StatelessWidget {
             newStuffReasonLabels: reasonLabels,
             activityWhenLine: activityWhenLine,
           ),
-          MyWorkCardKind.committedClosed => _ClosedCommittedCard(
+          MyWorkCardKind.helpOfferedClosed => _ClosedHelpOfferedCard(
             vm: vm,
             highlight: highlight,
             newStuffReasonLabels: reasonLabels,
@@ -164,10 +164,10 @@ void _openBeacon(BuildContext context, String id) {
   );
 }
 
-void _openBeaconReviewCommitments(BuildContext context, String id) {
+void _openBeaconReviewHelpOffers(BuildContext context, String id) {
   unawaited(
     context.router.pushPath(
-      '$kPathBeaconView/$id?$kQueryBeaconViewTab=commitments&$kQueryBeaconPeopleTabAttention=1&$kQueryBeaconEntry=$kBeaconEntryMyWork',
+      '$kPathBeaconView/$id?$kQueryBeaconViewTab=help_offers&$kQueryBeaconPeopleTabAttention=1&$kQueryBeaconEntry=$kBeaconEntryMyWork',
     ),
   );
 }
@@ -204,7 +204,7 @@ class _AuthoredActiveCard extends StatelessWidget {
     final evaluationRepo = GetIt.I<EvaluationRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
 
-    final hasReviewCta = vm.showReviewCommitmentsCta;
+    final hasReviewCta = vm.showReviewHelpOffersCta;
     final needsForwardCta = !vm.authorHasForwardedOnce;
     final footerActions = (hasReviewCta || needsForwardCta)
         ? Column(
@@ -215,9 +215,9 @@ class _AuthoredActiveCard extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TenturaCommandButton(
-                    label: l10n.myWorkReviewCommitmentsCta,
+                    label: l10n.myWorkReviewHelpOffersCta,
                     onPressed: () =>
-                        _openBeaconReviewCommitments(context, b.id),
+                        _openBeaconReviewHelpOffers(context, b.id),
                   ),
                 ),
               if (hasReviewCta && needsForwardCta)
@@ -333,8 +333,8 @@ class _AuthoredActiveCard extends StatelessWidget {
   }
 }
 
-class _CommittedActiveCard extends StatelessWidget {
-  const _CommittedActiveCard({
+class _HelpOfferedActiveCard extends StatelessWidget {
+  const _HelpOfferedActiveCard({
     required this.vm,
     required this.highlight,
     required this.newStuffReasonLabels,
@@ -472,7 +472,7 @@ class _DraftAuthoredCard extends StatelessWidget {
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
-            l10n.myWorkDraftStatusLine(b.commitmentCount),
+            l10n.myWorkDraftStatusLine(b.helpOfferCount),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -623,8 +623,8 @@ class _ClosedAuthoredCard extends StatelessWidget {
   }
 }
 
-class _ClosedCommittedCard extends StatelessWidget {
-  const _ClosedCommittedCard({
+class _ClosedHelpOfferedCard extends StatelessWidget {
+  const _ClosedHelpOfferedCard({
     required this.vm,
     required this.highlight,
     required this.newStuffReasonLabels,

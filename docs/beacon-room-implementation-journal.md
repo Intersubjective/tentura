@@ -16,7 +16,7 @@ Plan: see workspace plan `beacon_room_implementation_54f2f85e.plan.md` (do not e
 
 ## 2026-04-28 — Phase 1.1 / 1.9 (partial) — Server DB + scaffold
 
-**Decision:** Implemented `m0036` (new room/participant/state/message/reaction/attachment tables, `notify_entity_change` branches, triggers, beacon author + commitment migrate), `m0037` (drop legacy `vote_comment` + `comment`). Removed server `Comments` drift table + `CommentRepository` + OG shared-view preview for `id=C*` (now `IdWrongException`). Added drift tables + `BeaconRoomRepository` + `BeaconRoomCase` (minimal permissions).
+**Decision:** Implemented `m0036` (new room/participant/state/message/reaction/attachment tables, `notify_entity_change` branches, triggers, beacon author + help offer migrate), `m0037` (drop legacy `vote_comment` + `comment`). Removed server `Comments` drift table + `CommentRepository` + OG shared-view preview for `id=C*` (now `IdWrongException`). Added drift tables + `BeaconRoomRepository` + `BeaconRoomCase` (minimal permissions).
 
 **Rationale:** Unblocks subsequent V2 GraphQL + client wiring; aligns with plan scaffold-from-comment then delete legacy path.
 
@@ -28,7 +28,7 @@ Plan: see workspace plan `beacon_room_implementation_54f2f85e.plan.md` (do not e
 
 ## 2026-04-28 — Phase 1.2 / 1.3 / 1.x client slice (continued)
 
-**Decision:** V2 GraphQL: `RoomMessageList`, `BeaconParticipantList`, mutations `RoomMessageCreate`, `BeaconParticipantOfferHelp`, `BeaconRoomAdmit`, `BeaconStewardPromote`, `RoomMessageReactionToggle`; `custom_types` rows `RoomMessageRow`, `BeaconParticipantRow`. `BeaconRoomCase` refactored `_canUseRoom` (author / steward / admitted) for messages, list, reactions, and new `listParticipants`. Hasura: track `beacon_participant`, `beacon_room_state`, `beacon_steward` with `_or` permissions; removed `comment` / `vote_comment` and comment relationships on `beacon`, `user`, `edge`, `mutual_score`. Client: `InvalidationService` `beaconRoomInvalidations`; `BeaconRoomRepository` + `BeaconRoomCase`; `RoomCubit` / `RoomState`; `BeaconRoomScreen` + `BeaconRoomRoute` (`$kPathBeaconRoom/:id`); “Room” entry on `BeaconView`; l10n keys; `labelCommitments` → People / Люди; `schema.graphql` extended for new V2 ops + row types.
+**Decision:** V2 GraphQL: `RoomMessageList`, `BeaconParticipantList`, mutations `RoomMessageCreate`, `BeaconParticipantOfferHelp`, `BeaconRoomAdmit`, `BeaconStewardPromote`, `RoomMessageReactionToggle`; `custom_types` rows `RoomMessageRow`, `BeaconParticipantRow`. `BeaconRoomCase` refactored `_canUseRoom` (author / steward / admitted) for messages, list, reactions, and new `listParticipants`. Hasura: track `beacon_participant`, `beacon_room_state`, `beacon_steward` with `_or` permissions; removed `comment` / `vote_comment` and comment relationships on `beacon`, `user`, `edge`, `mutual_score`. Client: `InvalidationService` `beaconRoomInvalidations`; `BeaconRoomRepository` + `BeaconRoomCase`; `RoomCubit` / `RoomState`; `BeaconRoomScreen` + `BeaconRoomRoute` (`$kPathBeaconRoom/:id`); “Room” entry on `BeaconView`; l10n keys; `labelHelp offers` → People / Люди; `schema.graphql` extended for new V2 ops + row types.
 
 **Rationale:** Participant list stays V2-only to avoid large Hasura introspection churn; Hasura still tracks summary tables for permissions/relationship graph. Room access check unified on server.
 
@@ -46,7 +46,7 @@ Plan: see workspace plan `beacon_room_implementation_54f2f85e.plan.md` (do not e
 
 ## 2026-04-28 — Phase 2.1–2.x (incremental)
 
-**Decision:** Migration `m0038` adds `beacon.public_status` (smallint default 0) and `last_public_meaningful_change` (nullable text). **`beacon_commitment` drop deferred:** forward/coordination and Hasura `commitments` still depend on the table; Phase 2.1 drop requires migrating commit flows to `beacon_participant` + coordinating repo refactors first.
+**Decision:** Migration `m0038` adds `beacon.public_status` (smallint default 0) and `last_public_meaningful_change` (nullable text). **`beacon_help offer` drop deferred:** forward/coordination and Hasura `help offers` still depend on the table; Phase 2.1 drop requires migrating commit flows to `beacon_participant` + coordinating repo refactors first.
 
 **Rationale:** Public status surfaces on Hasura-backed `BeaconModel`/`Beacon` immediately; committing table removal without replacing forward-graph reads would break prod.
 
@@ -54,7 +54,7 @@ Plan: see workspace plan `beacon_room_implementation_54f2f85e.plan.md` (do not e
 
 **Files touched:** Server `m0038.dart`, `_migrations.dart`, `table/beacons.dart`, `beacon_repository*.dart`, `beacon_mapper.dart`, `beacon_entity.dart`, `beacon_public_status.dart`, `beacon_room_consts.dart`, `beacon_room_repository.dart`, `beacon_room_case.dart`, GraphQL beacon/room mutations+queries; client `schema.graphql`, `beacon_model.graphql`, `beacon_model.dart`, `beacon_room/**`, `beacon_repository.dart`, `build_client.dart`; `hasura/metadata.json`.
 
-**Follow-up:** Dedicated migration to drop `beacon_commitment` after forward/commit paths use participants only; Overview/Forward/Inbox **strips** using `publicStatus` (UI polish); optional `beacon_order_by` / filters if Hasura complains on new columns.
+**Follow-up:** Dedicated migration to drop `beacon_help offer` after forward/commit paths use participants only; Overview/Forward/Inbox **strips** using `publicStatus` (UI polish); optional `beacon_order_by` / filters if Hasura complains on new columns.
 
 ## 2026-04-28 — Phase 5.4 guardrails + Phase 6 propagation close-out
 

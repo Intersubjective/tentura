@@ -20,15 +20,15 @@ class BeaconDerivedChip {
   final bool emphasized;
 }
 
-int activeCommitmentCount(List<TimelineCommitment> commitments) =>
-    commitments.where((c) => !c.isWithdrawn).length;
+int activeHelpOfferCount(List<TimelineHelpOffer> helpOffers) =>
+    helpOffers.where((c) => !c.isWithdrawn).length;
 
-int usefulCommitmentCount(List<TimelineCommitment> commitments) => commitments
+int usefulHelpOfferCount(List<TimelineHelpOffer> helpOffers) => helpOffers
     .where((c) => !c.isWithdrawn && c.coordinationResponse == CoordinationResponseType.useful)
     .length;
 
-int withdrawnCommitmentCount(List<TimelineCommitment> commitments) =>
-    commitments.where((c) => c.isWithdrawn).length;
+int withdrawnHelpOfferCount(List<TimelineHelpOffer> helpOffers) =>
+    helpOffers.where((c) => c.isWithdrawn).length;
 
 /// Distinct forwarders toward the viewer (edges where viewer is recipient).
 int distinctForwarderCountTowardViewer({
@@ -47,26 +47,26 @@ int distinctForwarderCountTowardViewer({
 List<BeaconDerivedChip> deriveSupportingChips({
   required L10n l10n,
   required Beacon beacon,
-  required List<TimelineCommitment> commitments,
+  required List<TimelineHelpOffer> helpOffers,
   required List<ForwardEdge> viewerForwardEdges,
   required String myUserId,
   required bool isAuthorView,
 }) {
   final out = <BeaconDerivedChip>[];
 
-  final n = activeCommitmentCount(commitments);
+  final n = activeHelpOfferCount(helpOffers);
   if (n > 0) {
-    out.add(BeaconDerivedChip(label: l10n.beaconChipCommitsCount(n)));
+    out.add(BeaconDerivedChip(label: l10n.beaconChipHelpOffersCount(n)));
   }
 
-  final u = usefulCommitmentCount(commitments);
+  final u = usefulHelpOfferCount(helpOffers);
   if (u > 0) {
     out.add(BeaconDerivedChip(label: l10n.beaconChipUsefulCount(u)));
   }
 
-  out.addAll(_missingHelpChips(l10n, beacon.coordinationStatus, commitments));
+  out.addAll(_missingHelpChips(l10n, beacon.coordinationStatus, helpOffers));
 
-  final helpTypes = commitments
+  final helpTypes = helpOffers
       .where((c) => !c.isWithdrawn)
       .map((c) => c.helpType)
       .whereType<String>()
@@ -109,19 +109,19 @@ List<BeaconDerivedChip> deriveSupportingChips({
 List<BeaconDerivedChip> _missingHelpChips(
   L10n l10n,
   BeaconCoordinationStatus status,
-  List<TimelineCommitment> commitments,
+  List<TimelineHelpOffer> helpOffers,
 ) {
   switch (status) {
     case BeaconCoordinationStatus.moreOrDifferentHelpNeeded:
       return [BeaconDerivedChip(label: l10n.beaconChipMoreHelpNeeded, emphasized: true)];
-    case BeaconCoordinationStatus.commitmentsWaitingForReview:
-      return [BeaconDerivedChip(label: l10n.beaconChipReviewingCommitments)];
-    case BeaconCoordinationStatus.enoughHelpCommitted:
-      if (activeCommitmentCount(commitments) == 0) {
+    case BeaconCoordinationStatus.helpOffersWaitingForReview:
+      return [BeaconDerivedChip(label: l10n.beaconChipReviewingHelpOffers)];
+    case BeaconCoordinationStatus.enoughHelpOffered:
+      if (activeHelpOfferCount(helpOffers) == 0) {
         return [];
       }
       return [BeaconDerivedChip(label: l10n.beaconChipEnoughHelp)];
-    case BeaconCoordinationStatus.noCommitmentsYet:
+    case BeaconCoordinationStatus.noHelpOffersYet:
       return [];
   }
 }

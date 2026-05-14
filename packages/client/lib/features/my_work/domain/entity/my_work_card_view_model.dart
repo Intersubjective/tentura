@@ -10,23 +10,23 @@ part 'my_work_card_view_model.freezed.dart';
 enum MyWorkNewStuffReason {
   newBeacon,
   authorResponseChanged,
-  commitmentUpdated,
+  helpOfferUpdated,
   coordinationStatusChanged,
   beaconUpdated,
 }
 
-enum MyWorkCardRole { authored, committed }
+enum MyWorkCardRole { authored, helpOffered }
 
 enum MyWorkCardKind {
   authoredActive,
   authoredDraft,
-  committedActive,
+  helpOfferedActive,
   authoredClosed,
-  committedClosed,
+  helpOfferedClosed,
 }
 
 enum MyWorkAttentionChip {
-  /// Author: commitments waiting for review (beacon-level signal).
+  /// Author: help offers waiting for review (beacon-level signal).
   reviewPending,
 
   /// Author: beacon in closed-review-open (evaluation window).
@@ -43,10 +43,10 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     required MyWorkCardRole role,
     required MyWorkCardKind kind,
     required Beacon beacon,
-    @Default('') String commitMessage,
+    @Default('') String offerHelpMessage,
     CoordinationResponseType? authorResponseType,
     @Default([]) List<Profile> forwarderSenders,
-    @Default(false) bool showReviewCommitmentsCta,
+    @Default(false) bool showReviewHelpOffersCta,
     @Default(false) bool showReadyForReviewChip,
     @Default(false) bool showReviewCta,
     @Default(false) bool showArchiveAffordance,
@@ -57,10 +57,10 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     /// Admitted room coordination summary line (Phase 6).
     @Default('') String roomInboxSubtitle,
 
-    /// Committed cards: `beacon_commitment.updated_at` from My Work fetch.
-    DateTime? commitmentRowUpdatedAt,
+    /// Help-offered cards: `beacon_help_offers.updated_at` from My Work fetch.
+    DateTime? helpOfferRowUpdatedAt,
 
-    /// Committed cards: `beacon_commitment_coordination.updated_at`.
+    /// Help-offered cards: `beacon_help_offer_coordinations.updated_at`.
     DateTime? authorCoordinationUpdatedAt,
   }) = _MyWorkCardViewModel;
 
@@ -68,7 +68,7 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
   bool get isArchived =>
       kind == MyWorkCardKind.authoredClosed ||
-      kind == MyWorkCardKind.committedClosed;
+      kind == MyWorkCardKind.helpOfferedClosed;
 
   /// Max relevant backend activity for NewStuff (tab dot + row dot), in epoch ms.
   int get newStuffActivityEpochMs {
@@ -81,8 +81,8 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     if (cs != null && cs > max) {
       max = cs;
     }
-    if (role == MyWorkCardRole.committed) {
-      final cr = commitmentRowUpdatedAt?.millisecondsSinceEpoch;
+    if (role == MyWorkCardRole.helpOffered) {
+      final cr = helpOfferRowUpdatedAt?.millisecondsSinceEpoch;
       if (cr != null && cr > max) {
         max = cr;
       }
@@ -97,7 +97,7 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
   static const _myWorkReasonDisplayOrder = <MyWorkNewStuffReason>[
     MyWorkNewStuffReason.newBeacon,
     MyWorkNewStuffReason.authorResponseChanged,
-    MyWorkNewStuffReason.commitmentUpdated,
+    MyWorkNewStuffReason.helpOfferUpdated,
     MyWorkNewStuffReason.coordinationStatusChanged,
     MyWorkNewStuffReason.beaconUpdated,
   ];
@@ -118,15 +118,15 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
     final u = b.updatedAt.millisecondsSinceEpoch;
     final cs = b.coordinationStatusUpdatedAt?.millisecondsSinceEpoch;
-    final cr = commitmentRowUpdatedAt?.millisecondsSinceEpoch;
+    final cr = helpOfferRowUpdatedAt?.millisecondsSinceEpoch;
     final ar = authorCoordinationUpdatedAt?.millisecondsSinceEpoch;
 
-    if (role == MyWorkCardRole.committed) {
+    if (role == MyWorkCardRole.helpOffered) {
       if (ar != null && ar > seen) {
         raw.add(MyWorkNewStuffReason.authorResponseChanged);
       }
       if (cr != null && cr > seen && (ar == null || cr != ar)) {
-        raw.add(MyWorkNewStuffReason.commitmentUpdated);
+        raw.add(MyWorkNewStuffReason.helpOfferUpdated);
       }
     }
     if (cs != null && cs > seen) {

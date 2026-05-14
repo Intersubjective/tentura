@@ -42,12 +42,12 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// `beacon_review_window.status` (0=open, 1=complete); null if no row.
     int? reviewWindowStatus,
-    @Default(BeaconCoordinationStatus.noCommitmentsYet)
+    @Default(BeaconCoordinationStatus.noHelpOffersYet)
     BeaconCoordinationStatus coordinationStatus,
     DateTime? coordinationStatusUpdatedAt,
 
-    /// Rows in `beacon_commitment` for this beacon (from GraphQL aggregate when fetched).
-    @Default(0) int commitmentCount,
+    /// Rows in `beacon_help_offer` for this beacon (from GraphQL aggregate when fetched).
+    @Default(0) int helpOfferCount,
 
     /// Curated symbolic icon key (client catalog); null = default identity tile.
     String? iconCode,
@@ -70,11 +70,11 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   /// Non-closed listing (OPEN, DRAFT, PENDING_REVIEW, CLOSED_REVIEW_OPEN); profile filters and author controls.
   bool get isListed => lifecycle.isActiveSection;
 
-  /// Non-author may start a commitment only when lifecycle is OPEN (matches server `beaconCommit`).
-  bool get allowsNewCommitAsNonAuthor => lifecycle == BeaconLifecycle.open;
+  /// Non-author may offer help only when lifecycle is OPEN (matches server `beaconOfferHelp`).
+  bool get allowsNewHelpOfferAsNonAuthor => lifecycle == BeaconLifecycle.open;
 
-  /// Committer may withdraw in OPEN, PENDING_REVIEW, or CLOSED_REVIEW_OPEN (matches server `beaconWithdraw`).
-  bool get allowsWithdrawWhileCommitted =>
+  /// Help offerer may withdraw in OPEN, PENDING_REVIEW, or CLOSED_REVIEW_OPEN (matches server `beaconWithdraw`).
+  bool get allowsWithdrawWhileHelpOffered =>
       lifecycle == BeaconLifecycle.open ||
       lifecycle == BeaconLifecycle.pendingReview ||
       lifecycle == BeaconLifecycle.closedReviewOpen;

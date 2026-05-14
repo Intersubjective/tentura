@@ -159,13 +159,13 @@ void main() {
     test('author response wins tie with commitment row', () {
       final vm = MyWorkCardViewModel(
         beaconId: 'b1',
-        role: MyWorkCardRole.committed,
-        kind: MyWorkCardKind.committedActive,
+        role: MyWorkCardRole.helpOffered,
+        kind: MyWorkCardKind.helpOfferedActive,
         beacon: baseBeacon(
           createdAt: createdEarly2019,
           updatedAt: beaconUpdatedBeforeSeen,
         ),
-        commitmentRowUpdatedAt: t2,
+        helpOfferRowUpdatedAt: t2,
         authorCoordinationUpdatedAt: t2,
       );
       expect(
@@ -177,20 +177,20 @@ void main() {
     test('commitment row when strictly newer than author response', () {
       final vm = MyWorkCardViewModel(
         beaconId: 'b1',
-        role: MyWorkCardRole.committed,
-        kind: MyWorkCardKind.committedActive,
+        role: MyWorkCardRole.helpOffered,
+        kind: MyWorkCardKind.helpOfferedActive,
         beacon: baseBeacon(
           createdAt: createdEarly2019,
           updatedAt: beaconUpdatedBeforeSeen,
         ),
-        commitmentRowUpdatedAt: t3,
+        helpOfferRowUpdatedAt: t3,
         authorCoordinationUpdatedAt: t2,
       );
       expect(
         vm.newStuffReasons(seenLate2019),
         [
           MyWorkNewStuffReason.authorResponseChanged,
-          MyWorkNewStuffReason.commitmentUpdated,
+          MyWorkNewStuffReason.helpOfferUpdated,
         ],
       );
     });

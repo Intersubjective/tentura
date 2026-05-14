@@ -572,27 +572,31 @@
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"
   },
-  "committerForwardPathTitleAuthor": "Forward path to {name}",
-  "@committerForwardPathTitleAuthor": {
+  "helpOffererForwardPathTitleAuthor": "Forward path to {name}",
+  "@helpOffererForwardPathTitleAuthor": {
     "context": "ForwardsGraphScreen — viewer is the beacon author",
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
-  "committerForwardPathTitleViewer": "Forward path \u2014 you to {name}",
-  "@committerForwardPathTitleViewer": {
-    "context": "ForwardsGraphScreen — viewer is an involved-other (has forward edges but is neither author nor focused committer)",
+  "helpOffererForwardPathTitleViewer": "Forward path — you to {name}",
+  "@helpOffererForwardPathTitleViewer": {
+    "context": "ForwardsGraphScreen — viewer is an involved-other (has forward edges but is neither author nor focused helper)",
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
-  "committerForwardPathTitleSelf": "Your forward path",
-  "@committerForwardPathTitleSelf": {
-    "context": "ForwardsGraphScreen — viewer IS the focused committer (chain reads in reverse from them to the author)"
+  "helpOffererForwardPathTitleSelf": "Your forward path",
+  "@helpOffererForwardPathTitleSelf": {
+    "context": "ForwardsGraphScreen — viewer IS the focused helper (chain reads in reverse from them to the author)"
   },
-  "committerForwardPathTooltip": "Show forward path",
-  "@committerForwardPathTooltip": {
-    "context": "BeaconPeopleParticipantCard — IconButton tooltip for committer forward path graph"
+  "helpOffererForwardPathTooltip": "Show forward path",
+  "@helpOffererForwardPathTooltip": {
+    "context": "BeaconPeopleParticipantCard — IconButton tooltip for helper forward path graph"
   },
   "myField": "My Field",
   "@myField": {
@@ -658,9 +662,9 @@
   "@profileSharedBeaconsForwardedSection": {
     "context": "Profile — shared beacons section header"
   },
-  "profileSharedBeaconsCoCommittedSection": "Working on together",
-  "@profileSharedBeaconsCoCommittedSection": {
-    "context": "Profile — co-committed beacons section header"
+  "profileSharedBeaconsCoHelpOfferedSection": "Working on together",
+  "@profileSharedBeaconsCoHelpOfferedSection": {
+    "context": "Profile — co-helped beacons section header"
   },
   "showMutualFriends": "Show mutual friends",
   "@showMutualFriends": {
@@ -885,13 +889,13 @@
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
   },
-  "newStuffReasonCommitmentUpdated": "Your commitment or note was updated",
-  "@newStuffReasonCommitmentUpdated": {
-    "context": "NewStuff dot — commitment row changed"
+  "newStuffReasonHelpOfferUpdated": "Your help offer or note was updated",
+  "@newStuffReasonHelpOfferUpdated": {
+    "context": "NewStuff dot — help offer row changed"
   },
   "newStuffReasonAuthorResponseChanged": "Author changed response to your commitment",
   "@newStuffReasonAuthorResponseChanged": {
-    "context": "NewStuff dot — author coordination response to commitment"
+    "context": "NewStuff dot — author coordination response to help offer"
   },
   "inboxEmpty": "Inbox is empty",
   "@inboxEmpty": {
@@ -1217,18 +1221,18 @@
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"
   },
-  "inboxCommitmentsCount": "{count} commitments",
-  "@inboxCommitmentsCount": {
-    "context": "BeaconViewScreen commitments tab label",
+  "inboxHelpOffersCount": "{count} help offers",
+  "@inboxHelpOffersCount": {
+    "context": "BeaconViewScreen help offers tab label",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "beaconCardCommitmentCount": "{count}",
-  "@beaconCardCommitmentCount": {
-    "context": "Beacon list card meta strip (icon conveys commitments)",
+  "beaconCardHelpOfferCount": "{count}",
+  "@beaconCardHelpOfferCount": {
+    "context": "Beacon list card meta strip (icon conveys help offers)",
     "placeholders": {
       "count": {
         "type": "int"
@@ -1329,8 +1333,8 @@
   "@forwardMyNoteShowLess": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardCommitted": "Committed",
-  "@forwardCommitted": {
+  "forwardHelpOffered": "Help Offered",
+  "@forwardHelpOffered": {
     "context": "ForwardBeaconScreen"
   },
   "forwardWithdrawn": "Withdrew commitment",
@@ -1448,8 +1452,8 @@
   "@myWorkFilterAuthored": {
     "context": "MyWorkScreen"
   },
-  "myWorkFilterCommitted": "Committed",
-  "@myWorkFilterCommitted": {
+  "myWorkFilterHelpOffered": "Help Offered",
+  "@myWorkFilterHelpOffered": {
     "context": "MyWorkScreen"
   },
   "myWorkFilterArchived": "Archived",
@@ -1476,7 +1480,7 @@
   "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyAll": "No authored or committed work yet",
+  "myWorkEmptyAll": "No authored or help-offered work yet",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
   },
@@ -1484,8 +1488,8 @@
   "@myWorkEmptyAuthored": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyCommitted": "No active commitments",
-  "@myWorkEmptyCommitted": {
+  "myWorkEmptyHelpOffered": "No active help offers",
+  "@myWorkEmptyHelpOffered": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyArchived": "No archived items",
@@ -1504,8 +1508,8 @@
   "@myWorkChipDraft": {
     "context": "MyWorkScreen"
   },
-  "myWorkChipCommitted": "I Committed",
-  "@myWorkChipCommitted": {
+  "myWorkChipHelpOffered": "I Offered Help",
+  "@myWorkChipHelpOffered": {
     "context": "MyWorkScreen"
   },
   "myWorkChipReviewPending": "Review pending",
@@ -1532,16 +1536,16 @@
   "@myWorkStatusDraft": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusNoCommitments": "No commitments",
-  "@myWorkStatusNoCommitments": {
+  "myWorkStatusNoHelpOffers": "No help offers",
+  "@myWorkStatusNoHelpOffers": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusNeedsMoreHelp": "Needs more help",
   "@myWorkStatusNeedsMoreHelp": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusReviewingCommitments": "Reviewing commitments",
-  "@myWorkStatusReviewingCommitments": {
+  "myWorkStatusReviewingHelpOffers": "Reviewing help offers",
+  "@myWorkStatusReviewingHelpOffers": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusEnoughHelp": "Enough help",
@@ -1589,16 +1593,16 @@
   "@myWorkStatusWaitingOnAuthor": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusZeroCommitted": "0 committed",
-  "@myWorkStatusZeroCommitted": {
+  "myWorkStatusZeroHelpOffered": "0 offered help",
+  "@myWorkStatusZeroHelpOffered": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusOneCommitted": "1 committed",
-  "@myWorkStatusOneCommitted": {
+  "myWorkStatusOneHelpOffered": "1 offered help",
+  "@myWorkStatusOneHelpOffered": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusNCommitted": "{count} committed",
-  "@myWorkStatusNCommitted": {
+  "myWorkStatusNHelpOffered": "{count} offered help",
+  "@myWorkStatusNHelpOffered": {
     "context": "MyWorkScreen",
     "placeholders": {
       "count": {
@@ -1614,16 +1618,16 @@
   "@myWorkStatusReadyForReview": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusCommittedPersonal": "Committed",
-  "@myWorkStatusCommittedPersonal": {
+  "myWorkStatusHelpOfferedPersonal": "Help Offered",
+  "@myWorkStatusHelpOfferedPersonal": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusMirrorNeedsMoreHelp": "needs more help",
   "@myWorkStatusMirrorNeedsMoreHelp": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusMirrorReviewingCommitments": "reviewing commitments",
-  "@myWorkStatusMirrorReviewingCommitments": {
+  "myWorkStatusMirrorReviewingHelpOffers": "reviewing help offers",
+  "@myWorkStatusMirrorReviewingHelpOffers": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusMirrorEnoughHelp": "enough help",
@@ -1638,11 +1642,11 @@
   "@myWorkStatusAcknowledgeContributions": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusCommitmentWithResponse": "{commitment}: {response}",
-  "@myWorkStatusCommitmentWithResponse": {
+  "myWorkStatusHelpOfferWithResponse": "{helpOffer}: {response}",
+  "@myWorkStatusHelpOfferWithResponse": {
     "context": "MyWorkScreen",
     "placeholders": {
-      "commitment": {
+      "helpOffer": {
         "type": "String"
       },
       "response": {
@@ -1659,8 +1663,8 @@
       }
     }
   },
-  "myWorkReviewCommitmentsCta": "Review commitments",
-  "@myWorkReviewCommitmentsCta": {
+  "myWorkReviewHelpOffersCta": "Review help offers",
+  "@myWorkReviewHelpOffersCta": {
     "context": "MyWorkScreen"
   },
   "myWorkReviewCta": "Review",
@@ -1693,8 +1697,8 @@
       }
     }
   },
-  "myWorkCommitmentsShort": "{count}",
-  "@myWorkCommitmentsShort": {
+  "myWorkHelpOffersShort": "{count}",
+  "@myWorkHelpOffersShort": {
     "context": "MyWorkScreen",
     "placeholders": {
       "count": {
@@ -1787,7 +1791,7 @@
       }
     }
   },
-  "beaconUpdateComposerHint": "What changed? Share progress with committers and watchers.",
+  "beaconUpdateComposerHint": "What changed? Share progress with helpers and watchers.",
   "@beaconUpdateComposerHint": {
     "context": "BeaconViewScreen"
   },
@@ -1807,22 +1811,22 @@
   "@beaconUpdateEditExpired": {
     "context": "BeaconViewScreen"
   },
-  "labelCommitted": "Committed",
-  "@labelCommitted": {
+  "labelHelpOffered": "Help Offered",
+  "@labelHelpOffered": {
     "context": "BeaconViewScreen"
   },
-  "labelCommit": "Commit",
-  "@labelCommit": {
+  "labelOfferHelp": "Offer Help",
+  "@labelOfferHelp": {
     "context": "BeaconViewScreen"
   },
-  "nudgeCommitAfterForward": "Forwarded! Put your name on it too?",
-  "@nudgeCommitAfterForward": {
+  "nudgeOfferHelpAfterForward": "Forwarded! Offer your help too?",
+  "@nudgeOfferHelpAfterForward": {
     "context": "BeaconViewScreen"
   },
-  "labelCommitAnyway": "Offer help anyway",
-  "@labelCommitAnyway": {
+  "labelOfferHelpAnyway": "Offer help anyway",
+  "@labelOfferHelpAnyway": {
     "context": "BeaconViewScreen",
-    "description": "Commit button when coordination status is enough help committed"
+    "description": "Offer help button when coordination status is enough help offered help"
   },
   "labelForward": "Forward",
   "@labelForward": {
@@ -1844,76 +1848,106 @@
   "@timelineForwarded": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "sender": { "type": "String" },
-      "recipient": { "type": "String" }
+      "sender": {
+        "type": "String"
+      },
+      "recipient": {
+        "type": "String"
+      }
     }
   },
-  "timelineCommitted": "{user} committed",
-  "@timelineCommitted": {
+  "timelineHelpOffered": "{user} offered help",
+  "@timelineHelpOffered": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "user": { "type": "String" }
+      "user": {
+        "type": "String"
+      }
     }
   },
-  "timelineCommittedWithMessage": "{user} committed: \"{message}\"",
-  "@timelineCommittedWithMessage": {
+  "timelineHelpOfferedWithMessage": "{user} offered help: \"{message}\"",
+  "@timelineHelpOfferedWithMessage": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "user": { "type": "String" },
-      "message": { "type": "String" }
+      "user": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
     }
   },
   "timelineWithdrew": "{user} withdrew",
   "@timelineWithdrew": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "user": { "type": "String" }
+      "user": {
+        "type": "String"
+      }
     }
   },
   "timelineWithdrewWithMessage": "{user} withdrew: \"{message}\"",
   "@timelineWithdrewWithMessage": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "user": { "type": "String" },
-      "message": { "type": "String" }
+      "user": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
     }
   },
   "labelWithdrawn": "Withdrawn",
   "@labelWithdrawn": {
     "context": "BeaconViewScreen",
-    "description": "Badge for withdrawn commitment in commitments list"
+    "description": "Badge for withdrawn help offer in help offers list"
   },
   "timelineUpdate": "{author}: {content}",
   "@timelineUpdate": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "author": { "type": "String" },
-      "content": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "content": {
+        "type": "String"
+      }
     }
   },
   "timelineCreated": "{author} created the beacon",
   "@timelineCreated": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "author": { "type": "String" }
+      "author": {
+        "type": "String"
+      }
     }
   },
-  "timelineCommitmentDetailsUpdated": "{user} updated commitment",
-  "@timelineCommitmentDetailsUpdated": {
+  "timelineHelpOfferDetailsUpdated": "{user} updated help offer",
+  "@timelineHelpOfferDetailsUpdated": {
     "context": "BeaconViewScreen",
-    "description": "Timeline: committer changed message or help type",
+    "description": "Timeline: helper changed message or help type",
     "placeholders": {
-      "user": { "type": "String" }
+      "user": {
+        "type": "String"
+      }
     }
   },
   "timelineAuthorCoordinationResponseLine": "{author} set response for {committer}: {label}",
   "@timelineAuthorCoordinationResponseLine": {
     "context": "BeaconViewScreen",
-    "description": "Timeline: beacon author coordination response for a commitment",
+    "description": "Timeline: beacon author coordination response for a help offer",
     "placeholders": {
-      "author": { "type": "String" },
-      "committer": { "type": "String" },
-      "label": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "committer": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
     }
   },
   "timelineBeaconLifecycleChanged": "{author} changed beacon status to {status}",
@@ -1921,8 +1955,12 @@
     "context": "BeaconViewScreen",
     "description": "Timeline: beacon lifecycle/state changed",
     "placeholders": {
-      "author": { "type": "String" },
-      "status": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
     }
   },
   "timelineBeaconCoordinationStatusChanged": "{author} changed coordination status to {status}",
@@ -1930,14 +1968,18 @@
     "context": "BeaconViewScreen",
     "description": "Timeline: beacon-level coordination status changed",
     "placeholders": {
-      "author": { "type": "String" },
-      "status": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
     }
   },
-  "labelCommitments": "People",
-  "@labelCommitments": {
+  "labelHelpOffers": "People",
+  "@labelHelpOffers": {
     "context": "BeaconViewScreen",
-    "description": "Tab title for commitments list"
+    "description": "Tab title for help offers list"
   },
   "labelForwards": "Forwards",
   "@labelForwards": {
@@ -1984,10 +2026,10 @@
       }
     }
   },
-  "forwardReactionCommitted": "Committed",
-  "@forwardReactionCommitted": {
+  "forwardReactionHelpOffered": "Help Offered",
+  "@forwardReactionHelpOffered": {
     "context": "BeaconViewScreen",
-    "description": "Label when a forward recipient committed to the beacon"
+    "description": "Label when a forward recipient offered help to the beacon"
   },
   "forwardReactionWatching": "Watching",
   "@forwardReactionWatching": {
@@ -2016,45 +2058,45 @@
       }
     }
   },
-  "dialogCommitTitle": "Commit to beacon",
-  "@dialogCommitTitle": {
+  "dialogOfferHelpTitle": "Offer help on beacon",
+  "@dialogOfferHelpTitle": {
     "context": "BeaconViewScreen",
-    "description": "Title for commit dialog"
+    "description": "Title for offer help dialog"
   },
-  "dialogCommitAnywayTitle": "Offer help anyway",
-  "@dialogCommitAnywayTitle": {
+  "dialogOfferHelpAnywayTitle": "Offer help anyway",
+  "@dialogOfferHelpAnywayTitle": {
     "context": "BeaconViewScreen",
-    "description": "Commit dialog title when beacon shows enough help committed"
+    "description": "Offer help dialog title when beacon shows enough help offered help"
   },
-  "dialogWithdrawTitle": "Withdraw commitment",
-  "@dialogWithdrawTitle": {
+  "dialogWithdrawHelpOfferTitle": "Withdraw help offer",
+  "@dialogWithdrawHelpOfferTitle": {
     "context": "BeaconViewScreen",
     "description": "Title for withdraw dialog"
   },
-  "dialogUpdateCommitTitle": "Update commitment",
-  "@dialogUpdateCommitTitle": {
+  "dialogUpdateHelpOfferTitle": "Update help offer",
+  "@dialogUpdateHelpOfferTitle": {
     "context": "BeaconViewScreen",
-    "description": "Title for edit commitment dialog"
+    "description": "Title for edit help offer dialog"
   },
-  "hintCommitMessage": "How will you help?",
-  "@hintCommitMessage": {
+  "hintOfferHelpMessage": "How will you help?",
+  "@hintOfferHelpMessage": {
     "context": "BeaconViewScreen",
-    "description": "Hint text for commit message input"
+    "description": "Hint text for help offer message input"
   },
   "hintWithdrawReason": "Why are you withdrawing?",
   "@hintWithdrawReason": {
     "context": "BeaconViewScreen",
     "description": "Hint text for withdraw reason input"
   },
-  "noCommitmentsYet": "No commitments yet",
-  "@noCommitmentsYet": {
+  "noHelpOffersYet": "No help offers yet",
+  "@noHelpOffersYet": {
     "context": "BeaconViewScreen",
-    "description": "Empty state for commitments tab"
+    "description": "Empty state for help offers tab"
   },
   "labelEdited": "edited",
   "@labelEdited": {
     "context": "BeaconViewScreen",
-    "description": "Label shown on edited commitments"
+    "description": "Label shown on edited help offers"
   },
   "chatPresenceOnline": "Online",
   "@chatPresenceOnline": {
@@ -2068,28 +2110,36 @@
   "@chatPresenceLastSeenMinutes": {
     "context": "Chat",
     "placeholders": {
-      "minutes": { "type": "int" }
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "chatPresenceLastSeenHours": "Last seen {hours}h ago",
   "@chatPresenceLastSeenHours": {
     "context": "Chat",
     "placeholders": {
-      "hours": { "type": "int" }
+      "hours": {
+        "type": "int"
+      }
     }
   },
   "chatPresenceLastSeenDays": "Last seen {days}d ago",
   "@chatPresenceLastSeenDays": {
     "context": "Chat",
     "placeholders": {
-      "days": { "type": "int" }
+      "days": {
+        "type": "int"
+      }
     }
   },
   "profilePresenceLastSeenOnDate": "Last seen {date}",
   "@profilePresenceLastSeenOnDate": {
     "context": "Profile",
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "evaluationBannerTitle": "Beacon closed — review contributions",
@@ -2103,12 +2153,14 @@
   "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this beacon will not see your answers by default. It is only used to improve your own local trust view: who you may want to trust more, trust less, or route beacons through next time. In simple terms: your answers help Tentura make better personal recommendations and matching for you around the people involved here and the people connected to them. Please judge only what you actually saw in this beacon. If you are not sure, choose \"No basis\".",
   "evaluationDraftDone": "Done",
   "evaluationSectionAuthor": "Author",
-  "evaluationSectionCommitter": "Committers",
+  "evaluationSectionHelpOfferer": "Helpers",
   "evaluationSectionForwarder": "Forwarders",
   "evaluationReviewDeadline": "Review closes {date}",
   "@evaluationReviewDeadline": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "evaluationSubmitFinish": "Submit and finish",
@@ -2118,14 +2170,18 @@
   "evaluationProgress": "{reviewed} of {total} reviewed",
   "@evaluationProgress": {
     "placeholders": {
-      "reviewed": { "type": "int" },
-      "total": { "type": "int" }
+      "reviewed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "evaluationPrivateHint": "Private feedback for this beacon only. Your answer is used only to improve your own personalized trust and recommendation logic. It is not a public score, and it is not shown to other people here as your named rating.",
   "evaluationPromptAuthor": "How did the author’s contribution affect this beacon?",
-  "evaluationPromptCommitter": "How did this person’s commitment affect this beacon?",
-  "evaluationPromptCommitterHandoff": "How did this person handle the handoff after you forwarded the beacon to them?",
+  "evaluationPromptHelpOfferer": "How did this person's help affect this beacon?",
+  "evaluationPromptHelpOffererHandoff": "How did this person handle the handoff after you forwarded the beacon to them?",
   "evaluationPromptForwarder": "How did this forwarding help or hurt this beacon?",
   "evaluationEmptyTargets": "There is no one to review for this beacon yet.",
   "evaluationSave": "Save",
@@ -2139,33 +2195,45 @@
   "evaluationReviewPeriodEndsIn": "Review period ends in {remaining}.",
   "@evaluationReviewPeriodEndsIn": {
     "placeholders": {
-      "remaining": { "type": "String" }
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "evaluationReviewDurationDaysHours": "{days}d {hours}h",
   "@evaluationReviewDurationDaysHours": {
     "placeholders": {
-      "days": { "type": "int" },
-      "hours": { "type": "int" }
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
     }
   },
   "evaluationReviewDurationHoursMinutes": "{hours}h {minutes}m",
   "@evaluationReviewDurationHoursMinutes": {
     "placeholders": {
-      "hours": { "type": "int" },
-      "minutes": { "type": "int" }
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "evaluationReviewDurationMinutes": "{minutes}m",
   "@evaluationReviewDurationMinutes": {
     "placeholders": {
-      "minutes": { "type": "int" }
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "evaluationReviewDurationLessThanMinute": "<1m",
   "labelHelpTypeOptional": "Type of help (optional)",
-  "labelUncommitReasonRequired": "Why are you stepping back?",
-  "coordinationNoCommitments": "No commitments yet",
+  "labelWithdrawReasonRequired": "Why are you stepping back?",
+  "coordinationNoHelpOffers": "No help offers yet",
   "coordinationWaitingForReview": "Commitments waiting for review",
   "coordinationMoreHelpNeeded": "More or different help needed",
   "coordinationEnoughHelp": "Enough help committed",
@@ -2179,16 +2247,18 @@
   "coordinationInviteToRoomRow": "Admit to room",
   "beaconRoomWaitingForApproval": "Waiting for approval",
   "beaconRoomNoAdmission": "No room admission",
-  "uncommitCantDoIt": "Cannot do it anymore",
-  "uncommitTimingChanged": "Timing no longer works",
-  "uncommitWrongFit": "Wrong fit",
-  "uncommitSomeoneElseTookOver": "Someone else took over",
-  "uncommitOther": "Other",
+  "withdrawCantDoIt": "Cannot do it anymore",
+  "withdrawTimingChanged": "Timing no longer works",
+  "withdrawWrongFit": "Wrong fit",
+  "withdrawSomeoneElseTookOver": "Someone else took over",
+  "withdrawOther": "Other",
   "labelCoordinationStatus": "Coordination",
-  "labelCommitmentCount": "{count} commitments",
-  "@labelCommitmentCount": {
+  "labelHelpOfferCount": "{count} help offers",
+  "@labelHelpOfferCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "labelSetCoordinationResponse": "Set coordination signal",
@@ -2213,15 +2283,17 @@
   "beaconHudYouAuthorReview": "Review {count} commitment(s)",
   "@beaconHudYouAuthorReview": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHudYouAuthorIdle": "Author · update plan if needed",
   "beaconHudYouAuthorResolveBlocker": "Resolve or update the blocker",
-  "beaconHudYouCommitted": "You committed — keep helpers aligned",
+  "beaconHudYouHelpOffered": "You offered help — keep helpers aligned",
   "beaconHudYouAskedToHelp": "Asked to help — respond or watch",
   "beaconHudYouWatching": "Watching",
-  "beaconHudYouCanCommit": "You can commit",
+  "beaconHudYouCanOfferHelp": "You can offer help",
   "beaconHudYouNoAction": "No current action",
   "beaconHudLifecycleActive": "ACTIVE",
   "beaconHudLifecycleClosed": "CLOSED",
@@ -2231,29 +2303,37 @@
   "beaconHudNowBlocked": "Blocked: {title}",
   "@beaconHudNowBlocked": {
     "placeholders": {
-      "title": { "type": "String" }
+      "title": {
+        "type": "String"
+      }
     }
   },
   "beaconHudBeaconUnavailable": "Beacon unavailable",
   "beaconHudYouNoActionAvailable": "No action available",
   "beaconHudYouForward": "You can forward",
   "beaconHudReviewOpen": "REVIEW OPEN",
-  "beaconHudTokenCommittedCount": "{count} committed",
-  "@beaconHudTokenCommittedCount": {
+  "beaconHudTokenHelpOfferedCount": "{count} offered help",
+  "@beaconHudTokenHelpOfferedCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHudTokenNeedCoordCount": "{count} need coordination",
   "@beaconHudTokenNeedCoordCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHudNextMovePrefix": "Next: {text}",
   "@beaconHudNextMovePrefix": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "beaconHudClosedSummary": "Closed",
@@ -2261,7 +2341,7 @@
   "beaconHudOverflowMore": "More actions",
   "beaconHudOverflowCloseBeacon": "Close beacon…",
   "beaconHudYouAuthorReadyToClose": "Close the loop",
-  "beaconHudYouAuthorReviewBeforeClose": "Review commitments before closing",
+  "beaconHudYouAuthorReviewBeforeClose": "Review help offers before closing",
   "beaconHudYouAuthorCoordinationActive": "Coordination still active — update or forward",
   "beaconHudTokenReadyToClose": "READY TO CLOSE",
   "beaconHudTokenReviewBeforeClose": "REVIEW BEFORE CLOSE",
@@ -2281,16 +2361,20 @@
   "beaconCloseSheetEvidenceWholeBeaconDone": "Whole beacon marked done",
   "beaconCloseSheetEvidenceEnoughHelp": "Enough help committed",
   "beaconCloseSheetEvidenceUsefulOrDone": "Useful or done result present",
-  "beaconCloseSheetEvidenceUnsettledCount": "{count} commitment(s) not settled",
+  "beaconCloseSheetEvidenceUnsettledCount": "{count} help offer(s) not settled",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "beaconCloseSheetEvidenceUnansweredCount": "{count} commitment(s) await coordination review",
+  "beaconCloseSheetEvidenceUnansweredCount": "{count} help offer(s) await coordination review",
   "@beaconCloseSheetEvidenceUnansweredCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconCloseSheetActionCloseBeacon": "Close beacon",
@@ -2315,64 +2399,80 @@
   "beaconPeopleLensWithdrawnHeading": "Withdrawn",
   "beaconPeopleLensNeedsAttentionHeading": "Needs coordination",
   "beaconCtaUpdateStatus": "Update status",
-  "beaconCtaEditCommitment": "Edit commitment",
+  "beaconCtaEditHelpOffer": "Edit help offer",
   "beaconCtaViewChain": "View chain",
   "beaconCtaReadOnly": "Read only",
-  "beaconChipCommitsCount": "{count} commits",
-  "@beaconChipCommitsCount": {
+  "beaconChipHelpOffersCount": "{count} help offers",
+  "@beaconChipHelpOffersCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconChipUsefulCount": "{count} useful",
   "@beaconChipUsefulCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconChipForwardedBy": "Forwarded by {count}",
   "@beaconChipForwardedBy": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconChipYouForwarded": "You forwarded ×{count}",
   "@beaconChipYouForwarded": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconChipMoreHelpNeeded": "More help needed",
-  "beaconChipReviewingCommitments": "Reviewing commitments",
+  "beaconChipReviewingHelpOffers": "Reviewing help offers",
   "beaconChipEnoughHelp": "Enough help",
   "beaconChipHelpTypeCommitted": "{type}",
   "@beaconChipHelpTypeCommitted": {
     "placeholders": {
-      "type": { "type": "String" }
+      "type": {
+        "type": "String"
+      }
     }
   },
   "beaconChipDeadlineOn": "Ends {date}",
   "@beaconChipDeadlineOn": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
-  "beaconHeaderNoCommitments": "No commitments",
-  "beaconHeaderCommitmentsCount": "{count} committed",
-  "@beaconHeaderCommitmentsCount": {
+  "beaconHeaderNoHelpOffers": "No help offers",
+  "beaconHeaderHelpOffersCount": "{count} offered help",
+  "@beaconHeaderHelpOffersCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHeaderRoomCount": "Room · {count}",
   "@beaconHeaderRoomCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHeaderWatch": "Watch",
   "beaconHeaderStopWatching": "Stop watching",
-  "beaconHeaderUpdateCommitment": "Update commitment",
+  "beaconHeaderUpdateHelpOffer": "Update help offer",
   "beaconNeedSummaryTitle": "Need",
   "beaconCoordinationCardTitle": "Coordination",
   "beaconPublicStatusCardTitle": "Public status",
@@ -2383,8 +2483,8 @@
   "beaconPublicStatusClosed": "Closed",
   "beaconPublicStatusNoNote": "No public note",
   "beaconYourRelationTitle": "Your relation",
-  "beaconCommitSnapshotTitle": "Commitments",
-  "beaconViewAllCommitments": "View all commitments",
+  "beaconHelpOfferSnapshotTitle": "Help offers",
+  "beaconViewAllHelpOffers": "View all help offers",
   "beaconLatestUpdateTitle": "Latest author update",
   "beaconForwardChainPreview": "Forward chain",
   "beaconForwardChainTapHint": "Tap for full graph",
@@ -2406,60 +2506,80 @@
   "beaconDescriptionTooLong": "Description must be {max} characters or fewer",
   "@beaconDescriptionTooLong": {
     "placeholders": {
-      "max": { "type": "int" }
+      "max": {
+        "type": "int"
+      }
     }
   },
   "beaconShowWithdrawn": "Show {count} withdrawn",
   "@beaconShowWithdrawn": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconNoActivityYetShort": "No activity yet",
-  "commitmentsTabAuthorLabelCaption": "author label",
-  "commitmentsTabActionEdit": "edit",
-  "commitmentsTabActionWithdraw": "withdraw",
-  "commitmentsTabSummaryUseful": "{n} useful",
-  "@commitmentsTabSummaryUseful": {
+  "helpOffersTabAuthorLabelCaption": "author label",
+  "helpOffersTabActionEdit": "edit",
+  "helpOffersTabActionWithdraw": "withdraw",
+  "helpOffersTabSummaryUseful": "{n} useful",
+  "@helpOffersTabSummaryUseful": {
     "placeholders": {
-      "n": { "type": "int" }
+      "n": {
+        "type": "int"
+      }
     }
   },
-  "commitmentsTabSummaryNeedCoordination": "{n} needs coordination",
-  "@commitmentsTabSummaryNeedCoordination": {
+  "helpOffersTabSummaryNeedCoordination": "{n} needs coordination",
+  "@helpOffersTabSummaryNeedCoordination": {
     "placeholders": {
-      "n": { "type": "int" }
+      "n": {
+        "type": "int"
+      }
     }
   },
   "beaconViaChain": "via {chain}",
   "@beaconViaChain": {
     "placeholders": {
-      "chain": { "type": "String" }
+      "chain": {
+        "type": "String"
+      }
     }
   },
   "beaconRelationNoTrail": "No forward chain recorded for you.",
   "beaconOverviewCoordinationHeaderPair": "{a} · {b}",
   "@beaconOverviewCoordinationHeaderPair": {
     "placeholders": {
-      "a": { "type": "String" },
-      "b": { "type": "String" }
+      "a": {
+        "type": "String"
+      },
+      "b": {
+        "type": "String"
+      }
     }
   },
   "beaconOverviewNeedsShortMoreHelp": "Needs more help",
-  "beaconOverviewActiveCommitments": "{count, plural, one{1 active commitment} other{{count} active commitments}}",
-  "@beaconOverviewActiveCommitments": {
+  "beaconOverviewActiveHelpOffers": "{count, plural, one{1 active help offer} other{{count} active help offers}}",
+  "@beaconOverviewActiveHelpOffers": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewUsefulAndCoord": "{useful} useful · {need} needs coordination",
   "@beaconOverviewUsefulAndCoord": {
     "placeholders": {
-      "useful": { "type": "int" },
-      "need": { "type": "int" }
+      "useful": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
     }
   },
-  "beaconViewAndCoordinateCommitments": "View and coordinate commitments",
+  "beaconViewAndCoordinateHelpOffers": "View and coordinate help offers",
   "beaconOverviewDiagnosisNeedDifferentSkillBody": "Existing offers help, but do not cover the remaining gap.",
   "beaconOverviewDiagnosisNeedCoordinationBody": "Commitments need clearer coordination before work can move forward.",
   "beaconOverviewDiagnosisGenericMoreHelpBody": "Coverage does not match the remaining gap yet.",
@@ -2468,45 +2588,61 @@
   "beaconOverviewNeedMeta": "Created by {author} · {context}",
   "@beaconOverviewNeedMeta": {
     "placeholders": {
-      "author": { "type": "String" },
-      "context": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "context": {
+        "type": "String"
+      }
     }
   },
   "beaconOverviewNeedMetaAuthorOnly": "Created by {author}",
   "@beaconOverviewNeedMetaAuthorOnly": {
     "placeholders": {
-      "author": { "type": "String" }
+      "author": {
+        "type": "String"
+      }
     }
   },
   "beaconOverviewPhotosCount": "{count, plural, one{1 photo} other{{count} photos}}",
   "@beaconOverviewPhotosCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewDescriptionTextOnly": "Text description",
   "beaconOverviewActivityEventCount": "{count, plural, one{1 event} other{{count} events}}",
   "@beaconOverviewActivityEventCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewForwardAuthorSummary": "{people, plural, one{1 person in your forward network} other{{people} people in your forward network}}",
   "@beaconOverviewForwardAuthorSummary": {
     "placeholders": {
-      "people": { "type": "int" }
+      "people": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewHopsFromAuthor": "{hops, plural, one{1 hop from author} other{{hops} hops from author}}",
   "@beaconOverviewHopsFromAuthor": {
     "placeholders": {
-      "hops": { "type": "int" }
+      "hops": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewPeopleInChain": "{people, plural, one{1 person in chain} other{{people} people in chain}}",
   "@beaconOverviewPeopleInChain": {
     "placeholders": {
-      "people": { "type": "int" }
+      "people": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewForwardEmpty": "No forward path recorded for you",
@@ -2595,14 +2731,20 @@
   "beaconPinnedFactCarouselPositionLabel": "{current} of {total}",
   "@beaconPinnedFactCarouselPositionLabel": {
     "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "beaconPinnedFactCarouselDotSemanticLabel": "Go to fact {index}",
   "@beaconPinnedFactCarouselDotSemanticLabel": {
     "placeholders": {
-      "index": {"type": "int"}
+      "index": {
+        "type": "int"
+      }
     }
   },
   "beaconRoomStripMeaningfulChangeLabel": "Latest change",
@@ -2616,7 +2758,9 @@
   "beaconRoomUnreadDividerCount": "Unread · {count}",
   "@beaconRoomUnreadDividerCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconRoomScrollToLatestTooltip": "Jump to latest messages",
@@ -2671,14 +2815,18 @@
   "beaconRoomMarkDoneConfirmSingleBlocker": "Resolve blocker: {title}",
   "@beaconRoomMarkDoneConfirmSingleBlocker": {
     "placeholders": {
-      "title": { "type": "String" }
+      "title": {
+        "type": "String"
+      }
     }
   },
   "beaconPeopleSectionTitle": "People & roles",
   "beaconPeopleParticipantUpdated": "Updated {when}",
   "@beaconPeopleParticipantUpdated": {
     "placeholders": {
-      "when": { "type": "String" }
+      "when": {
+        "type": "String"
+      }
     }
   },
   "beaconPeopleRoleAuthor": "Author",
@@ -2692,9 +2840,9 @@
   "beaconPeopleStatusCandidate": "Candidate",
   "beaconPeopleStatusAdmitted": "Admitted",
   "beaconPeopleStatusChecking": "Checking in",
-  "beaconPeopleStatusCommitted": "Committed",
-  "beaconPeopleStatusCommittedUseful": "Committed · marked useful",
-  "beaconPeopleStatusCommittedNeedCoordination": "Committed · needs coordination",
+  "beaconPeopleStatusHelpOffered": "Help Offered",
+  "beaconPeopleStatusHelpOfferedUseful": "Help Offered · marked useful",
+  "beaconPeopleStatusHelpOfferedNeedCoordination": "Help Offered · needs coordination",
   "beaconPeopleStatusNeedsInfo": "Needs info",
   "beaconPeopleStatusBlocked": "Blocked",
   "beaconPeopleStatusDone": "Done",
@@ -2702,43 +2850,57 @@
   "beaconPeopleStatusUnknown": "Status {code}",
   "@beaconPeopleStatusUnknown": {
     "placeholders": {
-      "code": { "type": "int" }
+      "code": {
+        "type": "int"
+      }
     }
   },
   "inboxCardRoomUnread": "{count, plural, =0{Room up to date} one{1 unread in Room} other{{count} unread in Room}}",
   "@inboxCardRoomUnread": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "inboxCardRoomPlan": "Room plan: {text}",
   "@inboxCardRoomPlan": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "inboxCardRoomNextMove": "Next step: {text}",
   "@inboxCardRoomNextMove": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "inboxCardRoomLastChange": "Latest in Room: {text}",
   "@inboxCardRoomLastChange": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "inboxCardPublicFactLine": "Public fact: {text}",
   "@inboxCardPublicFactLine": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "inboxCardOpenBlocker": "Open blocker: {text}",
   "@inboxCardOpenBlocker": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "forwardIncludePublicNote": "Include public status note in message",
@@ -2750,28 +2912,32 @@
   "beaconRoomAttachmentsTooMany": "You can attach up to {max} files.",
   "@beaconRoomAttachmentsTooMany": {
     "placeholders": {
-      "max": { "type": "int" }
+      "max": {
+        "type": "int"
+      }
     }
   },
   "beaconRoomAttachmentTooLarge": "Each file must be {maxMb} MB or smaller.",
   "@beaconRoomAttachmentTooLarge": {
     "placeholders": {
-      "maxMb": { "type": "int" }
+      "maxMb": {
+        "type": "int"
+      }
     }
   },
   "beaconRoomAttachmentUntitled": "File",
   "beaconRoomAttachmentOpenFailed": "Could not open attachment.",
   "beaconRoomAttachmentOpenShare": "Share file",
-
   "capabilityEditPrivateLabels": "Edit my labels",
   "capabilityEditCapabilities": "Edit capabilities",
   "capabilityCueMyLabels": "My labels: {tags}",
   "@capabilityCueMyLabels": {
     "placeholders": {
-      "tags": { "type": "String" }
+      "tags": {
+        "type": "String"
+      }
     }
   },
-
   "capabilityGroupLogistics": "Logistics",
   "capabilityGroupCommunication": "Communication",
   "capabilityGroupKnowledge": "Knowledge",
@@ -2779,7 +2945,6 @@
   "capabilityGroupResources": "Resources",
   "capabilityGroupTechnical": "Technical",
   "capabilityGroupSpecial": "Other",
-
   "capabilityTagTransport": "Transport",
   "capabilityTagStorage": "Storage",
   "capabilityTagPickupDelivery": "Pickup / delivery",
@@ -2816,27 +2981,32 @@
   "capabilityTagTime": "Time",
   "capabilityTagContact": "Contact",
   "capabilityTagOther": "Other",
-
   "forwardReasonPrompt": "Why are you forwarding to this person?",
   "forwardReasonApplyToAll": "Apply same reasons to all",
   "capabilityCueForwardedFor": "Often forwarded for: {tags}",
   "@capabilityCueForwardedFor": {
     "placeholders": {
-      "tags": { "type": "String" }
+      "tags": {
+        "type": "String"
+      }
     }
   },
-  "commitRolePrompt": "How are you helping?",
-  "capabilityCueCommitted": "Committed: {tags}",
-  "@capabilityCueCommitted": {
+  "helpOfferRolePrompt": "How are you helping?",
+  "capabilityCueHelpOffered": "Offered help: {tags}",
+  "@capabilityCueHelpOffered": {
     "placeholders": {
-      "tags": { "type": "String" }
+      "tags": {
+        "type": "String"
+      }
     }
   },
   "closeAckPrompt": "What did this person actually help with?",
   "capabilityCueAcknowledged": "Helped with: {tags}",
   "@capabilityCueAcknowledged": {
     "placeholders": {
-      "tags": { "type": "String" }
+      "tags": {
+        "type": "String"
+      }
     }
   },
   "beaconRoomCreatePoll": "Create poll",
@@ -2844,21 +3014,27 @@
   "beaconRoomPollVotesCount": "{count, plural, =0{No votes} =1{1 vote} other{{count} votes}}",
   "@beaconRoomPollVotesCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "friendContextInboxCount": "{count} active beacons forwarded to them",
   "@friendContextInboxCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "friendContextSharedCount": "{count} active beacons you both see",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconRequirementsTitle": "Requirements",
@@ -2867,7 +3043,9 @@
   "beaconRequirementsSelectedCount": "{count, plural, =0{None selected} one{1 selected} other{{count} selected}}",
   "@beaconRequirementsSelectedCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   }
 }

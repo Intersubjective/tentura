@@ -12,7 +12,7 @@ import '../gql/_g/my_work_fetch.data.gql.dart';
 import '../gql/_g/my_work_fetch.req.gql.dart';
 
 export '../../domain/entity/my_work_fetch_types.dart'
-    show MyWorkClosedResult, MyWorkCommittedRow, MyWorkInitResult;
+    show MyWorkClosedResult, MyWorkHelpOfferedRow, MyWorkInitResult;
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class MyWorkRepository {
@@ -34,11 +34,11 @@ class MyWorkRepository {
       authoredNonClosed: d.authoredNonClosed
           .map((e) => BeaconModel(e).toEntity())
           .toList(),
-      committedNonClosed:
-          d.committedNonClosed.map(_mapInitCommittedRow).toList(),
+      helpOfferedNonClosed:
+          d.helpOfferedNonClosed.map(_mapInitHelpOfferedRow).toList(),
       authoredClosedIds: d.authoredClosedIds.map((e) => e.id).toList(),
-      committedClosedIds:
-          d.committedClosedIds.map((e) => e.beacon.id).toList(),
+      helpOfferedClosedIds:
+          d.helpOfferedClosedIds.map((e) => e.beacon.id).toList(),
     );
   }
 
@@ -53,13 +53,13 @@ class MyWorkRepository {
     return (
       authoredClosed:
           d.authoredClosed.map((e) => BeaconModel(e).toEntity()).toList(),
-      committedClosed:
-          d.committedClosed.map(_mapClosedCommittedRow).toList(),
+      helpOfferedClosed:
+          d.helpOfferedClosed.map(_mapClosedHelpOfferedRow).toList(),
     );
   }
 
-  static MyWorkCommittedRow _mapInitCommittedRow(
-    GMyWorkInitData_committedNonClosed e,
+  static MyWorkHelpOfferedRow _mapInitHelpOfferedRow(
+    GMyWorkInitData_helpOfferedNonClosed e,
   ) {
     final b = e.beacon;
     final beacon = BeaconModel(b).toEntity();
@@ -68,19 +68,19 @@ class MyWorkRepository {
         .toList();
     return (
       beacon: beacon,
-      commitMessage: e.message,
+      offerHelpMessage: e.message,
       helpType: e.help_type,
       authorResponseType: CoordinationResponseType.tryFromInt(
         e.coordination?.response_type,
       ),
       forwarderSenders: forwarders,
-      commitmentRowUpdatedAt: e.updated_at,
+      helpOfferRowUpdatedAt: e.updated_at,
       authorCoordinationUpdatedAt: e.coordination?.updated_at,
     );
   }
 
-  static MyWorkCommittedRow _mapClosedCommittedRow(
-    GMyWorkClosedData_committedClosed e,
+  static MyWorkHelpOfferedRow _mapClosedHelpOfferedRow(
+    GMyWorkClosedData_helpOfferedClosed e,
   ) {
     final b = e.beacon;
     final beacon = BeaconModel(b).toEntity();
@@ -89,13 +89,13 @@ class MyWorkRepository {
         .toList();
     return (
       beacon: beacon,
-      commitMessage: e.message,
+      offerHelpMessage: e.message,
       helpType: e.help_type,
       authorResponseType: CoordinationResponseType.tryFromInt(
         e.coordination?.response_type,
       ),
       forwarderSenders: forwarders,
-      commitmentRowUpdatedAt: e.updated_at,
+      helpOfferRowUpdatedAt: e.updated_at,
       authorCoordinationUpdatedAt: e.coordination?.updated_at,
     );
   }

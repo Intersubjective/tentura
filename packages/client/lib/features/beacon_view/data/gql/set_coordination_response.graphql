@@ -1,13 +1,13 @@
 mutation SetCoordinationResponse(
   $beaconId: String!
-  $commitUserId: String!
+  $offerUserId: String!
   $inviteToRoom: Boolean!
   $removeFromRoom: Boolean!
   $responseType: Int!
 ) {
   setCoordinationResponse(
     id: $beaconId
-    commitUserId: $commitUserId
+    offerUserId: $offerUserId
     inviteToRoom: $inviteToRoom
     removeFromRoom: $removeFromRoom
     responseType: $responseType

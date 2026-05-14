@@ -10,11 +10,11 @@ final class MovedToInboxMessage extends LocalizableMessage {
 
   @override
   String get toEn =>
-      'Commitment withdrawn — the beacon is in Watching (not in Needs me).';
+      'Help offer withdrawn — the beacon is in Watching (not in Needs me).';
 
   @override
   String get toRu =>
-      'Обязательство отозвано — маяк в «Наблюдении», не в «Нужно мне».';
+      'Предложение помощи отозвано — маяк в «Наблюдении», не в «Нужно мне».';
 }
 
 final class _ForwardActionLabel extends LocalizableMessage {
@@ -27,17 +27,17 @@ final class _ForwardActionLabel extends LocalizableMessage {
   String get toRu => 'Переслать';
 }
 
-/// After first commit: snackbar text + action opens forward for this beacon.
-final class CommittedForwardNudgeMessage extends LocalizableActionMessage {
-  const CommittedForwardNudgeMessage(this.beaconId);
+/// After first help offer: snackbar text + action opens forward for this beacon.
+final class HelpOfferedForwardNudgeMessage extends LocalizableActionMessage {
+  const HelpOfferedForwardNudgeMessage(this.beaconId);
 
   final String beaconId;
 
   @override
-  String get toEn => 'Committed! Forward it to someone?';
+  String get toEn => 'Help offered! Forward it to someone?';
 
   @override
-  String get toRu => 'Закоммичено! Переслать кому-нибудь?';
+  String get toRu => 'Помощь предложена! Переслать кому-нибудь?';
 
   @override
   LocalizableMessage get label => const _ForwardActionLabel();

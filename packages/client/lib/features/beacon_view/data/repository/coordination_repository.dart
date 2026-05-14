@@ -6,8 +6,8 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
 
-import '../gql/_g/commitments_with_coordination.data.gql.dart';
-import '../gql/_g/commitments_with_coordination.req.gql.dart';
+import '../gql/_g/help_offers_with_coordination.data.gql.dart';
+import '../gql/_g/help_offers_with_coordination.req.gql.dart';
 import '../gql/_g/set_beacon_coordination_status.req.gql.dart';
 import '../gql/_g/set_coordination_response.req.gql.dart';
 
@@ -28,7 +28,7 @@ class CoordinationRepository {
         String message,
         String? helpType,
         int status,
-        String? uncommitReason,
+        String? withdrawReason,
         DateTime createdAt,
         DateTime updatedAt,
         int? responseType,
@@ -38,15 +38,15 @@ class CoordinationRepository {
       })
     >
   >
-  fetchCommitmentsWithCoordination({
+  fetchHelpOffersWithCoordination({
     required String beaconId,
   }) => _remoteApiService
       .request(
-        GCommitmentsWithCoordinationReq((r) => r..vars.beaconId = beaconId),
+        GHelpOffersWithCoordinationReq((r) => r..vars.beaconId = beaconId),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
-        final rows = r.dataOrThrow(label: _label).commitmentsWithCoordination;
+        final rows = r.dataOrThrow(label: _label).helpOffersWithCoordination;
         if (rows == null) {
           return [];
         }
@@ -55,11 +55,11 @@ class CoordinationRepository {
               (e) => (
                 beaconId: e.beaconId,
                 userId: e.userId,
-                user: _profileFromCommitmentUser(e.user),
+                user: _profileFromHelpOfferUser(e.user),
                 message: e.message,
                 helpType: e.helpType,
                 status: e.status,
-                uncommitReason: e.uncommitReason,
+                withdrawReason: e.withdrawReason,
                 createdAt: DateTime.parse(e.createdAt),
                 updatedAt: DateTime.parse(e.updatedAt),
                 responseType: e.responseType,
@@ -76,7 +76,7 @@ class CoordinationRepository {
   Future<({BeaconCoordinationStatus status, DateTime? updatedAt})>
   setCoordinationResponse({
     required String beaconId,
-    required String commitUserId,
+    required String offerUserId,
     required int responseType,
     required bool inviteToRoom,
     required bool removeFromRoom,
@@ -85,7 +85,7 @@ class CoordinationRepository {
         GSetCoordinationResponseReq(
           (r) => r
             ..vars.beaconId = beaconId
-            ..vars.commitUserId = commitUserId
+            ..vars.offerUserId = offerUserId
             ..vars.responseType = responseType
             ..vars.inviteToRoom = inviteToRoom
             ..vars.removeFromRoom = removeFromRoom,
@@ -119,8 +119,8 @@ class CoordinationRepository {
       .then((r) => r.dataOrThrow(label: _label));
 }
 
-Profile _profileFromCommitmentUser(
-  GCommitmentsWithCoordinationData_commitmentsWithCoordination_user user,
+Profile _profileFromHelpOfferUser(
+  GHelpOffersWithCoordinationData_helpOffersWithCoordination_user user,
 ) {
   UserPresenceStatus? presenceStatus;
   DateTime? presenceLastSeenAt;

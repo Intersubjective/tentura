@@ -1,4 +1,4 @@
-/// Per-commit author response (`beacon_commitment_coordination.response_type`).
+/// Per-offer author response (`beacon_help_offer_coordination.response_type`).
 enum CoordinationResponseType {
   useful(0),
   overlapping(1),

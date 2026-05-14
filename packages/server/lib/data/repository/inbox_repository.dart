@@ -52,7 +52,7 @@ class InboxRepository implements InboxRepositoryPort {
           .get()
           .then((rows) => rows.map((r) => r.userId).toList());
 
-  /// After forward: sender moves to watching when they have no active commitment.
+  /// After forward: sender moves to watching when they have no active help offer.
   /// Preserves existing `forward_count` and note preview on conflict.
   /// After withdraw when the beacon is not OPEN: passive tombstone, not Watching.
   @override

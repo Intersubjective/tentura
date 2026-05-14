@@ -16,8 +16,8 @@ import '../widget/graph_body.dart';
 class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   const ForwardsGraphScreen({
     @PathParam('id') this.focus = '',
-    @QueryParam('committer') this.committerId,
-    @QueryParam('committerName') this.committerName,
+    @QueryParam('committer') this.helpOffererId,
+    @QueryParam('committerName') this.helpOffererName,
     super.key,
   });
 
@@ -25,13 +25,13 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   /// cubit is given the viewer's user id as initial focus (not this value).
   final String focus;
 
-  /// When non-null, switches the screen into committer-path mode and
-  /// fetches `beaconCommitterForwardPath(id: focus, committerId: ...)`.
-  final String? committerId;
+  /// When non-null, switches the screen into help-offerer-path mode and
+  /// fetches `beaconHelpOffererForwardPath(id: focus, helpOffererId: ...)`.
+  final String? helpOffererId;
 
-  /// Optional committer display title forwarded by the People tab so the
+  /// Optional help offerer display title forwarded by the People tab so the
   /// AppBar title can read e.g. "Forward path to {name}".
-  final String? committerName;
+  final String? helpOffererName;
 
   @override
   Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
@@ -47,7 +47,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
                 focus: me.id,
                 graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
                 forwardsGraphBeaconId: focus,
-                committerFocusUserId: committerId,
+                helpOffererFocusUserId: helpOffererId,
               );
             },
           ),
@@ -74,7 +74,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
         leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
         title: BlocBuilder<GraphCubit, GraphState>(
           buildWhen: (p, c) => p.status != c.status,
-          builder: (_, _) => Text(_titleFor(l10n, cubit.committerViewerRole)),
+          builder: (_, _) => Text(_titleFor(l10n, cubit.helpOffererViewerRole)),
         ),
         actions: [
           PopupMenuButton<void>(
@@ -92,19 +92,19 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   }
 
   String _titleFor(L10n l10n, ForwardsGraphViewerRole? role) {
-    if (committerId == null || role == null) {
+    if (helpOffererId == null || role == null) {
       return l10n.forwardsGraphView;
     }
-    final name = committerName?.trim();
+    final name = helpOffererName?.trim();
     final hasName = name != null && name.isNotEmpty;
     return switch (role) {
       ForwardsGraphViewerRole.author => hasName
-          ? l10n.committerForwardPathTitleAuthor(name)
+          ? l10n.helpOffererForwardPathTitleAuthor(name)
           : l10n.forwardsGraphView,
       ForwardsGraphViewerRole.involvedOther => hasName
-          ? l10n.committerForwardPathTitleViewer(name)
+          ? l10n.helpOffererForwardPathTitleViewer(name)
           : l10n.forwardsGraphView,
-      ForwardsGraphViewerRole.self => l10n.committerForwardPathTitleSelf,
+      ForwardsGraphViewerRole.self => l10n.helpOffererForwardPathTitleSelf,
     };
   }
 }

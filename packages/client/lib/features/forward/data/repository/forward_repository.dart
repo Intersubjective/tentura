@@ -11,13 +11,13 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
-import '../../domain/entity/commitment_event.dart';
+import '../../domain/entity/help_offer_event.dart';
 import '../../domain/entity/forward_edge.dart';
 import '../../domain/entity/forward_graph.dart';
 import '../gql/_g/beacon_involvement_data.data.gql.dart';
 import '../gql/_g/beacon_involvement_data.req.gql.dart';
 import '../gql/_g/beacon_forward_graph.req.gql.dart';
-import '../gql/_g/beacon_committer_forward_path.req.gql.dart';
+import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
     show GForwardRecipientReasonInput;
@@ -26,15 +26,15 @@ import '../gql/_g/forward_update.req.gql.dart';
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
 import '../gql/_g/forward_edges_fetch.req.gql.dart';
 import '../gql/_g/forward_reasons_fetch.req.gql.dart';
-import '../gql/_g/beacon_commit.req.gql.dart';
+import '../gql/_g/beacon_offer_help.req.gql.dart';
 import '../gql/_g/beacon_withdraw.req.gql.dart';
-import '../gql/_g/commitments_fetch.req.gql.dart';
+import '../gql/_g/help_offers_fetch.req.gql.dart';
 import '../gql/_g/beacon_updates_fetch.req.gql.dart';
 
 typedef BeaconInvolvementData = ({
   Beacon beacon,
   Set<String> forwardedToIds,
-  Set<String> committedIds,
+  Set<String> helpOfferedIds,
   Set<String> withdrawnIds,
   Set<String> rejectedIds,
   Set<String> watchingIds,
@@ -51,9 +51,9 @@ class ForwardRepository {
     this._beaconRepository,
     InvalidationService invalidationService,
   ) {
-    _commitmentInvalidationSub =
-        invalidationService.commitmentInvalidations.listen(
-      (id) => _commitmentController.add(CommitmentInvalidated(id)),
+    _helpOfferInvalidationSub =
+        invalidationService.helpOfferInvalidations.listen(
+      (id) => _helpOfferController.add(HelpOfferInvalidated(id)),
     );
     _forwardInvalidationSub =
         invalidationService.forwardInvalidations.listen(
@@ -68,14 +68,14 @@ class ForwardRepository {
   final RemoteApiService _remoteApiService;
   final BeaconRepository _beaconRepository;
 
-  late final StreamSubscription<String> _commitmentInvalidationSub;
+  late final StreamSubscription<String> _helpOfferInvalidationSub;
   late final StreamSubscription<String> _forwardInvalidationSub;
 
-  final _commitmentController =
-      StreamController<CommitmentEvent>.broadcast();
+  final _helpOfferController =
+      StreamController<HelpOfferEvent>.broadcast();
 
-  Stream<CommitmentEvent> get commitmentChanges =>
-      _commitmentController.stream;
+  Stream<HelpOfferEvent> get helpOfferChanges =>
+      _helpOfferController.stream;
 
   final _forwardCompletedController = StreamController<String>.broadcast();
 
@@ -85,9 +85,9 @@ class ForwardRepository {
 
   @disposeMethod
   Future<void> dispose() async {
-    await _commitmentInvalidationSub.cancel();
+    await _helpOfferInvalidationSub.cancel();
     await _forwardInvalidationSub.cancel();
-    await _commitmentController.close();
+    await _helpOfferController.close();
     await _forwardCompletedController.close();
   }
 
@@ -190,7 +190,7 @@ class ForwardRepository {
     return (
       beacon: beacon,
       forwardedToIds: inv.forwardedToIds?.toSet() ?? {},
-      committedIds: inv.committedIds?.toSet() ?? {},
+      helpOfferedIds: inv.helpOfferedIds?.toSet() ?? {},
       withdrawnIds: inv.withdrawnIds?.toSet() ?? {},
       rejectedIds: inv.rejectedIds?.toSet() ?? {},
       watchingIds: inv.watchingIds?.toSet() ?? {},
@@ -242,8 +242,8 @@ class ForwardRepository {
   ///
   /// Returns the edges visible to the viewer plus the parent_edge_id ancestor
   /// closure and the chains that delivered the beacon to each active
-  /// committer. The viewer must be the author OR have at least one forward
-  /// edge for the beacon OR have an active commitment.
+  /// help offerer. The viewer must be the author OR have at least one forward
+  /// edge for the beacon OR have an active help offer.
   Future<ForwardGraph> fetchForwardGraph({required String beaconId}) =>
       _remoteApiService
           .request(
@@ -256,7 +256,7 @@ class ForwardRepository {
               beaconId: g.beaconId,
               authorId: g.authorId,
               viewerId: g.viewerId,
-              committerIds: g.committerIds.toSet(),
+              helpOffererIds: g.helpOffererIds.toSet(),
               edges: g.edges
                   .map(
                     (e) => ForwardGraphEdge(
@@ -272,33 +272,33 @@ class ForwardRepository {
             ),
           );
 
-  /// Fetches the per-committer forward-path payload (V2 `beaconCommitterForwardPath`).
+  /// Fetches the per-help-offerer forward-path payload (V2 `beaconHelpOffererForwardPath`).
   ///
-  /// Returns the union of (a) the committer's ancestor closure and (b) the
+  /// Returns the union of (a) the help offerer's ancestor closure and (b) the
   /// viewer's own forward edges and their ancestor closure, so the screen
-  /// can render author + viewer + committer simultaneously when the viewer
+  /// can render author + viewer + help offerer simultaneously when the viewer
   /// is an "involved other". `viewerId` is always set on the returned
   /// [ForwardGraph]; the cubit derives the viewer role from it.
-  Future<ForwardGraph> fetchCommitterForwardPath({
+  Future<ForwardGraph> fetchHelpOffererForwardPath({
     required String beaconId,
-    required String committerId,
+    required String helpOffererId,
   }) => _remoteApiService
       .request(
-        GBeaconCommitterForwardPathReq(
+        GBeaconHelpOffererForwardPathReq(
           (r) => r
             ..vars.id = beaconId
-            ..vars.committerId = committerId,
+            ..vars.helpOffererId = helpOffererId,
         ),
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).beaconCommitterForwardPath)
+      .then((r) => r.dataOrThrow(label: _label).beaconHelpOffererForwardPath)
       .then(
         (g) {
           return ForwardGraph(
             beaconId: g.beaconId,
             authorId: g.authorId,
             viewerId: g.viewerId,
-            committerIds: g.committerIds.toSet(),
+            helpOffererIds: g.helpOffererIds.toSet(),
             edges: g.edges
                 .map(
                   (e) => ForwardGraphEdge(
@@ -350,26 +350,26 @@ class ForwardRepository {
                 Profile user,
                 String message,
                 String? helpType,
-                String? uncommitReason,
+                String? withdrawReason,
                 DateTime createdAt,
                 DateTime updatedAt,
                 bool isWithdrawn,
               })>>
-      fetchCommitments({required String beaconId}) => _remoteApiService
+      fetchHelpOffers({required String beaconId}) => _remoteApiService
           .request(
-            GCommitmentsFetchReq((r) => r..vars.beaconId = beaconId),
+            GHelpOffersFetchReq((r) => r..vars.beaconId = beaconId),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then(
             (r) => r
                 .dataOrThrow(label: _label)
-                .beacon_commitment
+                .beacon_help_offer
                 .map(
                   (e) => (
                     user: (e.user as UserModel).toEntity(),
                     message: e.message,
                     helpType: e.help_type,
-                    uncommitReason: e.uncommit_reason,
+                    withdrawReason: e.withdraw_reason,
                     createdAt: e.created_at,
                     updatedAt: e.updated_at,
                     isWithdrawn: e.status == 1,
@@ -431,15 +431,15 @@ class ForwardRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beaconForwardUpdate);
 
-  Future<bool> commit({
+  Future<bool> offerHelp({
     required String beaconId,
     String? message,
     List<String>? helpTypes,
-    bool notifyCommitmentListeners = true,
+    bool notifyHelpOfferListeners = true,
   }) async {
     final ok = await _remoteApiService
         .request(
-          GBeaconCommitReq(
+          GBeaconOfferHelpReq(
             (r) => r
               ..vars.beaconId = beaconId
               ..vars.message = message
@@ -449,16 +449,16 @@ class ForwardRepository {
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).beaconCommit);
-    if (ok && notifyCommitmentListeners) {
-      _commitmentController.add(CommitmentCreated(beaconId));
+        .then((r) => r.dataOrThrow(label: _label).beaconOfferHelp);
+    if (ok && notifyHelpOfferListeners) {
+      _helpOfferController.add(HelpOfferCreated(beaconId));
     }
     return ok;
   }
 
   Future<bool> withdraw({
     required String beaconId,
-    required String uncommitReason,
+    required String withdrawReason,
     String? message,
   }) async {
     final ok = await _remoteApiService
@@ -467,13 +467,13 @@ class ForwardRepository {
             (r) => r
               ..vars.beaconId = beaconId
               ..vars.message = message
-              ..vars.uncommitReason = uncommitReason,
+              ..vars.withdrawReason = withdrawReason,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).beaconWithdraw);
     if (ok) {
-      _commitmentController.add(CommitmentWithdrawn(beaconId));
+      _helpOfferController.add(HelpOfferWithdrawn(beaconId));
     }
     return ok;
   }

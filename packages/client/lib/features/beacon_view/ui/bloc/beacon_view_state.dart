@@ -23,9 +23,9 @@ sealed class TimelineEntry implements Comparable<TimelineEntry> {
   int compareTo(TimelineEntry other) => other.timestamp.compareTo(timestamp);
 }
 
-/// Committer joined (one row in commitments tab; not itself a timeline variant).
-class TimelineCommitment {
-  TimelineCommitment({
+/// Help offerer joined (one row in helpOffers tab; not itself a timeline variant).
+class TimelineHelpOffer {
+  TimelineHelpOffer({
     required this.user,
     required this.message,
     required this.createdAt,
@@ -33,7 +33,7 @@ class TimelineCommitment {
     this.isWithdrawn = false,
     this.helpType,
     this.coordinationResponse,
-    this.uncommitReason,
+    this.withdrawReason,
     this.roomAccess,
   });
   final Profile user;
@@ -43,23 +43,23 @@ class TimelineCommitment {
   final bool isWithdrawn;
   final String? helpType;
   final CoordinationResponseType? coordinationResponse;
-  final String? uncommitReason;
-  /// `beacon_participants.room_access` for this committer when known.
+  final String? withdrawReason;
+  /// `beacon_participants.room_access` for this helpOfferer when known.
   final int? roomAccess;
 
   bool get isEdited =>
       !isWithdrawn && updatedAt.difference(createdAt).inSeconds.abs() > 1;
 }
 
-/// Committer committed at [createdAt].
-class TimelineCommitmentCreated extends TimelineEntry {
-  TimelineCommitmentCreated({
-    required this.committer,
+/// Help offerer offered help at [createdAt].
+class TimelineHelpOfferCreated extends TimelineEntry {
+  TimelineHelpOfferCreated({
+    required this.helpOfferer,
     required this.message,
     required this.createdAt,
     this.helpType,
   });
-  final Profile committer;
+  final Profile helpOfferer;
   final String message;
   final String? helpType;
   final DateTime createdAt;
@@ -68,15 +68,15 @@ class TimelineCommitmentCreated extends TimelineEntry {
   DateTime get timestamp => createdAt;
 }
 
-/// Commitment message/help type changed ([updatedAt]).
-class TimelineCommitmentUpdated extends TimelineEntry {
-  TimelineCommitmentUpdated({
-    required this.committer,
+/// Help offer message/help type changed ([updatedAt]).
+class TimelineHelpOfferUpdated extends TimelineEntry {
+  TimelineHelpOfferUpdated({
+    required this.helpOfferer,
     required this.message,
     required this.updatedAt,
     this.helpType,
   });
-  final Profile committer;
+  final Profile helpOfferer;
   final String message;
   final String? helpType;
   final DateTime updatedAt;
@@ -85,16 +85,16 @@ class TimelineCommitmentUpdated extends TimelineEntry {
   DateTime get timestamp => updatedAt;
 }
 
-/// Beacon author set/changed coordination response for [committer]'s commitment.
+/// Beacon author set/changed coordination response for [helpOfferer]'s help offer.
 class TimelineAuthorCoordinationResponse extends TimelineEntry {
   TimelineAuthorCoordinationResponse({
     required this.author,
-    required this.committer,
+    required this.helpOfferer,
     required this.response,
     required this.at,
   });
   final Profile author;
-  final Profile committer;
+  final Profile helpOfferer;
   final CoordinationResponseType response;
   final DateTime at;
 
@@ -102,17 +102,17 @@ class TimelineAuthorCoordinationResponse extends TimelineEntry {
   DateTime get timestamp => at;
 }
 
-/// Committer withdrew at [withdrawnAt].
-class TimelineCommitmentWithdrawn extends TimelineEntry {
-  TimelineCommitmentWithdrawn({
-    required this.committer,
+/// Help offerer withdrew at [withdrawnAt].
+class TimelineHelpOfferWithdrawn extends TimelineEntry {
+  TimelineHelpOfferWithdrawn({
+    required this.helpOfferer,
     required this.message,
     required this.withdrawnAt,
-    this.uncommitReason,
+    this.withdrawReason,
   });
-  final Profile committer;
+  final Profile helpOfferer;
   final String message;
-  final String? uncommitReason;
+  final String? withdrawReason;
   final DateTime withdrawnAt;
 
   @override
@@ -183,8 +183,8 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   const factory BeaconViewState({
     required Beacon beacon,
     @Default([]) List<TimelineEntry> timeline,
-    @Default([]) List<TimelineCommitment> commitments,
-    @Default(false) bool isCommitted,
+    @Default([]) List<TimelineHelpOffer> helpOffers,
+    @Default(false) bool isHelpOffered,
     @Default(Profile()) Profile myProfile,
 
     /// Current user's inbox stance for this beacon (`null` = no inbox row).
@@ -204,7 +204,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     @Default({}) Map<String, List<String>> forwardReasonSlugs,
 
     /// V2 `beaconInvolvement` id sets (for recipient reaction icons on [myForwards]).
-    @Default({}) Set<String> involvementCommittedIds,
+    @Default({}) Set<String> involvementHelpOfferedIds,
     @Default({}) Set<String> involvementWatchingIds,
     @Default({}) Set<String> involvementOnwardForwarderIds,
     @Default({}) Set<String> involvementRejectedIds,
@@ -241,9 +241,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get isBeaconMine => beacon.author.id == myProfile.id;
   bool get isBeaconNotMine => beacon.author.id != myProfile.id;
 
-  /// Active commitment row for the current viewer, if any.
-  TimelineCommitment? get myActiveCommitment {
-    for (final c in commitments) {
+  /// Active help offer row for the current viewer, if any.
+  TimelineHelpOffer? get myActiveHelpOffer {
+    for (final c in helpOffers) {
       if (!c.isWithdrawn && c.user.id == myProfile.id) {
         return c;
       }
@@ -251,12 +251,12 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     return null;
   }
 
-  /// Author signaled this commitment may use the beacon room (`notSuitable` counts as denial).
+  /// Author signaled this help offer may use the beacon room (`notSuitable` counts as denial).
   ///
   /// Also true when the server auto-admitted the viewer (trusted forward / mutual
   /// subscribe): `roomAccess` is `RoomAccessBits.admitted` before any coordination row.
   bool get hasRoomAdmission {
-    final c = myActiveCommitment;
+    final c = myActiveHelpOffer;
     if (c == null) return false;
     final ra = c.roomAccess;
     if (ra != null && ra == RoomAccessBits.admitted) return true;
@@ -264,26 +264,26 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     return r != null && r != CoordinationResponseType.notSuitable;
   }
 
-  /// Non-author viewer is committed but has not received an admitting coordination signal.
+  /// Non-author viewer has offered help but has not received an admitting coordination signal.
   bool get isRoomAdmissionBlocked =>
-      !isBeaconMine && isCommitted && !hasRoomAdmission;
+      !isBeaconMine && isHelpOffered && !hasRoomAdmission;
 
   /// Room chip only when the viewer may use room APIs (mirrors server: author,
-  /// steward, or admitted participant). Non-authors without a commitment or
+  /// steward, or admitted participant). Non-authors without a help offer or
   /// coordination admission must not navigate — they get [isRoomAdmissionBlocked]
   /// or no room chip.
   bool get canNavigateBeaconRoom =>
-      isBeaconMine || (isCommitted && hasRoomAdmission);
+      isBeaconMine || (isHelpOffered && hasRoomAdmission);
 
   bool get coordinationDeniesRoomAdmission =>
-      myActiveCommitment?.coordinationResponse ==
+      myActiveHelpOffer?.coordinationResponse ==
       CoordinationResponseType.notSuitable;
 
-  int get unansweredCommitmentsCount => commitments
+  int get unansweredHelpOffersCount => helpOffers
       .where((c) => !c.isWithdrawn && c.coordinationResponse == null)
       .length;
 
-  int get needCoordinationCommitmentsCount => commitments
+  int get needCoordinationHelpOffersCount => helpOffers
       .where(
         (c) =>
             !c.isWithdrawn &&

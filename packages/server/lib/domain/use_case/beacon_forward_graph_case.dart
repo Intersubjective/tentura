@@ -1,11 +1,11 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/commitment_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 import '_use_case_base.dart';
@@ -17,27 +17,27 @@ import '_use_case_base.dart';
 /// * the parent_edge_id ancestor closure of those edges, so the chain back to
 ///   the author is reconstructed even when the viewer never received an
 ///   intermediate forward, and
-/// * for every active committer of the beacon, the chain that delivered the
+/// * for every active help offerer of the beacon, the chain that delivered the
 ///   beacon to them (so the graph shows who acted on it and via whom).
 ///
 /// Authorization: viewer must be the beacon author OR have at least one
 /// forward edge for the beacon (as sender or recipient) OR have an active
-/// commitment on the beacon.
+/// help offer on the beacon.
 ///
-/// The committer ids are returned alongside so the client can highlight them.
+/// The help offerer ids are returned alongside so the client can highlight them.
 @Singleton(order: 2)
 final class BeaconForwardGraphCase extends UseCaseBase {
   BeaconForwardGraphCase(
     this._beaconRepository,
     this._forwardEdgeRepository,
-    this._commitmentRepository, {
+    this._helpOfferRepository, {
     required super.env,
     required super.logger,
   });
 
   final BeaconRepositoryPort _beaconRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
-  final CommitmentRepositoryPort _commitmentRepository;
+  final HelpOfferRepositoryPort _helpOfferRepository;
 
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
   // ignore: no_map_dynamic_in_use_case_api
@@ -48,15 +48,15 @@ final class BeaconForwardGraphCase extends UseCaseBase {
     final results = await Future.wait([
       _beaconRepository.getBeaconById(beaconId: beaconId),
       _forwardEdgeRepository.fetchByBeaconId(beaconId),
-      _commitmentRepository.fetchAllByBeaconId(beaconId),
+      _helpOfferRepository.fetchAllByBeaconId(beaconId),
     ]);
 
     final beacon = results[0] as BeaconEntity;
     final allEdges = results[1] as List<ForwardEdgeEntity>;
-    final commitments = results[2] as List<CommitmentEntity>;
+    final helpOffers = results[2] as List<HelpOfferEntity>;
 
     final authorId = beacon.author.id;
-    final committerIds = commitments
+    final helpOffererIds = helpOffers
         .where((c) => c.status == 0)
         .map((c) => c.userId)
         .toSet();
@@ -64,7 +64,7 @@ final class BeaconForwardGraphCase extends UseCaseBase {
     final isAuthor = currentUserId == authorId;
     final isInvolved =
         isAuthor ||
-        committerIds.contains(currentUserId) ||
+        helpOffererIds.contains(currentUserId) ||
         allEdges.any(
           (e) =>
               e.senderId == currentUserId || e.recipientId == currentUserId,
@@ -80,7 +80,7 @@ final class BeaconForwardGraphCase extends UseCaseBase {
     };
 
     // Seeds: edges directly visible to viewer + every edge that delivered the
-    // beacon to a committer. Author has no inbound forward, so committers that
+    // beacon to a help offerer. Author has no inbound forward, so help offerers that
     // are also the author contribute no seed. The client forwards graph may add
     // an author user node when the author does not appear on any returned edge.
     final seedIds = <String>{};
@@ -88,7 +88,7 @@ final class BeaconForwardGraphCase extends UseCaseBase {
       if (e.senderId == currentUserId || e.recipientId == currentUserId) {
         seedIds.add(e.id);
       }
-      if (committerIds.contains(e.recipientId)) {
+      if (helpOffererIds.contains(e.recipientId)) {
         seedIds.add(e.id);
       }
     }
@@ -111,7 +111,7 @@ final class BeaconForwardGraphCase extends UseCaseBase {
     return {
       'beaconId': beaconId,
       'authorId': authorId,
-      'committerIds': committerIds.toList(),
+      'helpOffererIds': helpOffererIds.toList(),
       'edges': [
         for (final e in visibleEdges)
           {

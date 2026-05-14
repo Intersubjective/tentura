@@ -30,7 +30,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onShare,
     this.onToggleLifecycle,
     this.onEdit,
-    this.onCommit,
+    this.onOfferHelp,
     this.onWithdraw,
     this.onForward,
     this.onForwardsGraph,
@@ -53,7 +53,7 @@ class BeaconOverflowMenu extends StatelessWidget {
   final VoidCallback? onShare;
   final Future<void> Function()? onToggleLifecycle;
   final VoidCallback? onEdit;
-  final Future<void> Function()? onCommit;
+  final Future<void> Function()? onOfferHelp;
   final Future<void> Function()? onWithdraw;
   final VoidCallback? onForward;
   final VoidCallback? onForwardsGraph;
@@ -112,21 +112,21 @@ class BeaconOverflowMenu extends StatelessWidget {
     if (onEdit != null) {
       add('edit', Icons.edit_outlined, editActionLabel ?? l10n.editBeacon);
     }
-    if (onCommit != null) {
-      final useCommitAnyway =
+    if (onOfferHelp != null) {
+      final useOfferHelpAnyway =
           beacon.coordinationStatus ==
-          BeaconCoordinationStatus.enoughHelpCommitted;
+          BeaconCoordinationStatus.enoughHelpOffered;
       add(
-        'commit',
+        'offerHelp',
         Icons.handshake,
-        useCommitAnyway ? l10n.labelCommitAnyway : l10n.labelCommit,
+        useOfferHelpAnyway ? l10n.labelOfferHelpAnyway : l10n.labelOfferHelp,
       );
     }
     if (onWithdraw != null) {
       add(
         'withdraw',
         Icons.remove_circle_outline,
-        l10n.dialogWithdrawTitle,
+        l10n.dialogWithdrawHelpOfferTitle,
       );
     }
     if (onForward != null) {
@@ -196,7 +196,7 @@ class BeaconOverflowMenu extends StatelessWidget {
             _deferPopupAction(context, onToggleLifecycle),
           ),
           'edit' => onEdit?.call(),
-          'commit' => unawaited(_deferPopupAction(context, onCommit)),
+          'offerHelp' => unawaited(_deferPopupAction(context, onOfferHelp)),
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
           'forward' => onForward?.call(),
           'forwards_graph' => onForwardsGraph?.call(),

@@ -1,7 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
-import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
@@ -33,29 +33,29 @@ class CoordinationRepository implements CoordinationRepositoryPort {
   Future<void> deleteForCommit({
     required String beaconId,
     required String userId,
-  }) => _database.managers.beaconCommitmentCoordinations
+  }) => _database.managers.beaconHelpOfferCoordinations
       .filter(
-        (e) => e.commitBeaconId.id(beaconId) & e.commitUserId.id(userId),
+        (e) => e.offerBeaconId.id(beaconId) & e.offerUserId.id(userId),
       )
       .delete();
 
   @override
   Future<void> upsertResponse({
     required String beaconId,
-    required String commitUserId,
+    required String offerUserId,
     required String authorUserId,
     required int responseType,
   }) => _database
-      .into(_database.beaconCommitmentCoordinations)
+      .into(_database.beaconHelpOfferCoordinations)
       .insert(
-        BeaconCommitmentCoordinationsCompanion.insert(
-          commitBeaconId: beaconId,
-          commitUserId: commitUserId,
+        BeaconHelpOfferCoordinationsCompanion.insert(
+          offerBeaconId: beaconId,
+          offerUserId: offerUserId,
           authorUserId: authorUserId,
           responseType: responseType,
         ),
         onConflict: DoUpdate(
-          (_) => BeaconCommitmentCoordinationsCompanion(
+          (_) => BeaconHelpOfferCoordinationsCompanion(
             authorUserId: Value(authorUserId),
             responseType: Value(responseType),
             updatedAt: Value(PgDateTime(DateTime.timestamp())),
@@ -63,7 +63,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
         ),
       );
 
-  /// Per active commitment user: author response type + when it last changed + author id.
+  /// Per active help offer user: author response type + when it last changed + author id.
   Future<
     Map<
       String,
@@ -75,12 +75,12 @@ class CoordinationRepository implements CoordinationRepositoryPort {
     >
   >
   _coordinationByCommitUserId(String beaconId) async {
-    final rows = await _database.managers.beaconCommitmentCoordinations
-        .filter((e) => e.commitBeaconId.id(beaconId))
+    final rows = await _database.managers.beaconHelpOfferCoordinations
+        .filter((e) => e.offerBeaconId.id(beaconId))
         .get();
     return {
       for (final r in rows)
-        r.commitUserId: (
+        r.offerUserId: (
           responseType: r.responseType,
           responseUpdatedAt: r.updatedAt.dateTime,
           authorUserId: r.authorUserId,
@@ -126,7 +126,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
         .getSingleOrNull();
     if (beacon == null) return;
 
-    final active = await _database.managers.beaconCommitments
+    final active = await _database.managers.beaconHelpOffers
         .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))
         .get();
 
@@ -167,11 +167,11 @@ class CoordinationRepository implements CoordinationRepositoryPort {
   }
 
   @override
-  Future<List<CommitmentWithCoordinationRow>> commitmentsWithCoordination(
+  Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
     String beaconId, {
     required String viewerId,
   }) async {
-    final rows = await _database.managers.beaconCommitments
+    final rows = await _database.managers.beaconHelpOffers
         .filter((e) => e.beaconId.id(beaconId))
         .orderBy((e) => e.updatedAt.desc())
         .get();
@@ -190,7 +190,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
       for (final p in participantRows) p.userId: p.roomAccess,
     };
 
-    final out = <CommitmentWithCoordinationRow>[];
+    final out = <HelpOfferWithCoordinationRow>[];
     for (final row in rows) {
       final user = await _database.managers.users
           .filter((e) => e.id.equals(row.userId))
@@ -233,7 +233,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
         userPresence: userPresence,
       );
       out.add(
-        CommitmentWithCoordinationRow(
+        HelpOfferWithCoordinationRow(
           beaconId: row.beaconId,
           userId: row.userId,
           message: row.message,
@@ -242,7 +242,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
           updatedAt: row.updatedAt.dateTime.toUtc(),
           user: userPublic,
           helpType: row.helpType,
-          uncommitReason: row.uncommitReason,
+          withdrawReason: row.withdrawReason,
           responseType: coord?.responseType,
           responseUpdatedAt: coord?.responseUpdatedAt.toUtc(),
           responseAuthorUserId: coord?.authorUserId,

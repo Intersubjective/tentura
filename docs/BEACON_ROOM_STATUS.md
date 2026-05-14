@@ -5,7 +5,7 @@ The full specification lives in [`features/beacon_room.md`](features/beacon_room
 ## Done in repo (incremental)
 
 - **Journal:** [`beacon-room-implementation-journal.md`](beacon-room-implementation-journal.md)
-- **Migrations:** `m0036` (room/participant/state/messages/reactions/attachments + `notify_entity_change` for `room_message`/`participant` + migration from commitments + seeds), `m0037` (drop legacy `comment`/`vote_comment`)
+- **Migrations:** `m0036` (room/participant/state/messages/reactions/attachments + `notify_entity_change` for `room_message`/`participant` + migration from help offers + seeds), `m0037` (drop legacy `comment`/`vote_comment`)
 - **Server Drift:** new tables wired in [`packages/server/lib/data/database/tentura_db.dart`](../packages/server/lib/data/database/tentura_db.dart); legacy `Comments` removed
 - **Removed legacy comment stack (server):** repository, mapper, mocks, OG `C` preview (`SharedViewController` / `SharedViewDocument`)
 - **Server runtime:** [`BeaconRoomRepository`](../packages/server/lib/data/repository/beacon_room_repository.dart), [`BeaconRoomCase`](../packages/server/lib/domain/use_case/beacon_room_case.dart) (`@Singleton`)

@@ -665,10 +665,10 @@ class PersonCapabilityEventRepository
 
             UNION
 
-            SELECT bc.beacon_id
-            FROM public.beacon_commitment bc
-            JOIN active_beacons ab ON ab.id = bc.beacon_id
-            WHERE bc.user_id = $1 AND bc.status = 0
+            SELECT bho.beacon_id
+            FROM public.beacon_help_offer bho
+            JOIN active_beacons ab ON ab.id = bho.beacon_id
+            WHERE bho.user_id = $1 AND bho.status = 0
           ),
           friend_involved AS (
             SELECT f.friend_id, b.id AS beacon_id
@@ -686,11 +686,11 @@ class PersonCapabilityEventRepository
 
             UNION
 
-            SELECT f.friend_id, bc.beacon_id
+            SELECT f.friend_id, bho.beacon_id
             FROM friends f
-            JOIN public.beacon_commitment bc ON bc.user_id = f.friend_id
-            JOIN active_beacons ab ON ab.id = bc.beacon_id
-            WHERE bc.status = 0
+            JOIN public.beacon_help_offer bho ON bho.user_id = f.friend_id
+            JOIN active_beacons ab ON ab.id = bho.beacon_id
+            WHERE bho.status = 0
           ),
           co_involved AS (
             SELECT fi.friend_id, fi.beacon_id

@@ -1,19 +1,19 @@
 /// Beacon-level coordination (`beacon.coordination_status` smallint).
 enum BeaconCoordinationStatus {
-  noCommitmentsYet(0),
-  commitmentsWaitingForReview(1),
+  noHelpOffersYet(0),
+  helpOffersWaitingForReview(1),
   moreOrDifferentHelpNeeded(2),
-  enoughHelpCommitted(3);
+  enoughHelpOffered(3);
 
   const BeaconCoordinationStatus(this.smallintValue);
 
   final int smallintValue;
 
   static BeaconCoordinationStatus fromSmallint(int v) => switch (v) {
-        0 => noCommitmentsYet,
-        1 => commitmentsWaitingForReview,
+        0 => noHelpOffersYet,
+        1 => helpOffersWaitingForReview,
         2 => moreOrDifferentHelpNeeded,
-        3 => enoughHelpCommitted,
-        _ => noCommitmentsYet,
+        3 => enoughHelpOffered,
+        _ => noHelpOffersYet,
       };
 }

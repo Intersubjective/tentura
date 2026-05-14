@@ -60,14 +60,14 @@ final class UserNode extends NodeDetails {
     super.pinned,
     super.size,
     super.positionHint,
-    this.isCommitter = false,
+    this.isHelpOfferer = false,
   });
 
   final Profile user;
 
-  /// True when the user has an active commitment for the focused beacon
+  /// True when the user has an active help offer for the focused beacon
   /// (forwards graph only). Used by the renderer to draw a highlight ring.
-  final bool isCommitter;
+  final bool isHelpOfferer;
 
   @override
   String get userId => user.id;
@@ -95,7 +95,7 @@ final class UserNode extends NodeDetails {
     user: user,
     pinned: isPinned,
     positionHint: positionHint,
-    isCommitter: isCommitter,
+    isHelpOfferer: isHelpOfferer,
   );
 
   @override
@@ -104,23 +104,23 @@ final class UserNode extends NodeDetails {
     size: size,
     pinned: pinned,
     positionHint: positionHint,
-    isCommitter: isCommitter,
+    isHelpOfferer: isHelpOfferer,
   );
 
-  UserNode copyWithIsCommitter(bool value) => UserNode(
+  UserNode copyWithIsHelpOfferer(bool value) => UserNode(
     user: user,
     size: size,
     pinned: pinned,
     positionHint: positionHint,
-    isCommitter: value,
+    isHelpOfferer: value,
   );
 
   @override
-  int get hashCode => super.hashCode ^ isCommitter.hashCode;
+  int get hashCode => super.hashCode ^ isHelpOfferer.hashCode;
 
   @override
   bool operator ==(Object other) =>
-      super == other && other is UserNode && other.isCommitter == isCommitter;
+      super == other && other is UserNode && other.isHelpOfferer == isHelpOfferer;
 }
 
 final class BeaconNode extends NodeDetails {

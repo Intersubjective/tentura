@@ -5,7 +5,7 @@ import 'package:tentura/domain/entity/repository_event.dart';
 
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
-import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
+import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -35,7 +35,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       _onBeaconChanged,
       cancelOnError: false,
     );
-    _commitmentChanges = _forwardRepository.commitmentChanges.listen(
+    _helpOfferChanges = _forwardRepository.helpOfferChanges.listen(
       (_) => unawaited(fetch()),
       cancelOnError: false,
     );
@@ -71,7 +71,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
-  late final StreamSubscription<CommitmentEvent> _commitmentChanges;
+  late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
 
   late final StreamSubscription<String> _forwardCompleted;
 
@@ -104,7 +104,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   @override
   Future<void> close() async {
     await _beaconChanges.cancel();
-    await _commitmentChanges.cancel();
+    await _helpOfferChanges.cancel();
     await _forwardCompleted.cancel();
     return super.close();
   }
@@ -119,7 +119,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           nonArchivedCards: const [],
           archivedCards: const [],
           authoredClosedIdHints: const [],
-          committedClosedIdHints: const [],
+          helpOfferedClosedIdHints: const [],
           closedDataFetched: false,
           closedFetchInProgress: false,
         ),
@@ -141,7 +141,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       }
       final nonArchived = buildNonArchivedViewModels(
         authoredNonClosed: init.authoredNonClosed,
-        committedNonClosed: init.committedNonClosed,
+        helpOfferedNonClosed: init.helpOfferedNonClosed,
       );
       final hints = await _roomHints.fetchByBeaconIds(
         nonArchived.map((c) => c.beaconId),
@@ -175,7 +175,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           status: const StateIsSuccess(),
           nonArchivedCards: withForwardFlags,
           authoredClosedIdHints: init.authoredClosedIds,
-          committedClosedIdHints: init.committedClosedIds,
+          helpOfferedClosedIdHints: init.helpOfferedClosedIds,
           closedDataFetched: false,
           archivedCards: const [],
         ),
@@ -224,7 +224,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       }
       final archived = buildArchivedViewModels(
         authoredClosed: closed.authoredClosed,
-        committedClosed: closed.committedClosed,
+        helpOfferedClosed: closed.helpOfferedClosed,
       );
       final archHints = await _roomHints.fetchByBeaconIds(
         archived.map((c) => c.beaconId),
@@ -298,7 +298,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         authoredClosedIdHints: state.authoredClosedIdHints
             .where((id) => id != beaconId)
             .toList(),
-        committedClosedIdHints: state.committedClosedIdHints
+        helpOfferedClosedIdHints: state.helpOfferedClosedIdHints
             .where((id) => id != beaconId)
             .toList(),
       ),

@@ -104,8 +104,8 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (userId == inv.beacon.author.id) {
       return CandidateInvolvement.author;
     }
-    if (inv.committedIds.contains(userId)) {
-      return CandidateInvolvement.committed;
+    if (inv.helpOfferedIds.contains(userId)) {
+      return CandidateInvolvement.helpOffered;
     }
     if (inv.withdrawnIds.contains(userId)) {
       return CandidateInvolvement.withdrawn;

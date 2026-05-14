@@ -25,7 +25,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeReviewWindowStatus,
   gqlTypeEvaluationSummary,
   gqlTypeCoordinationStatusResult,
-  gqlTypeCommitmentWithCoordinationRow,
+  gqlTypeHelpOfferWithCoordinationRow,
   gqlTypeRoomMessageCreatePayload,
   gqlTypeRoomMessageRow,
   gqlTypeBeaconRoomStateRow,
@@ -205,7 +205,7 @@ final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
       GraphQLListType(graphQLString.nonNullable()),
     ),
     field(
-      'committedIds',
+      'helpOfferedIds',
       GraphQLListType(graphQLString.nonNullable()),
     ),
     field(
@@ -241,10 +241,10 @@ final gqlTypeForwardGraphEdge = GraphQLObjectType('ForwardGraphEdge', null)
     field('batchId', graphQLString),
   ]);
 
-/// Result of `beaconForwardGraph` and `beaconCommitterForwardPath`: edge set
-/// plus the committer ids the client should highlight. `viewerId` is non-null
-/// only for `beaconCommitterForwardPath` (so the client can derive whether the
-/// viewer is the beacon author, the focused committer, or an "involved
+/// Result of `beaconForwardGraph` and `beaconHelpOffererForwardPath`: edge set
+/// plus the help offerer ids the client should highlight. `viewerId` is non-null
+/// only for `beaconHelpOffererForwardPath` (so the client can derive whether the
+/// viewer is the beacon author, the focused help offerer, or an "involved
 /// other"). Callers of the older `beaconForwardGraph` ignore the field.
 final gqlTypeForwardGraphResult =
     GraphQLObjectType('ForwardGraphResult', null)
@@ -253,7 +253,7 @@ final gqlTypeForwardGraphResult =
         field('authorId', graphQLString.nonNullable()),
         field('viewerId', graphQLString),
         field(
-          'committerIds',
+          'helpOffererIds',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
         field(
@@ -431,9 +431,9 @@ final gqlTypeCoordinationStatusResult = GraphQLObjectType(
     field('coordinationStatusUpdatedAt', graphQLString),
   ]);
 
-/// One commitment row with optional author coordination response (V2).
-final gqlTypeCommitmentWithCoordinationRow = GraphQLObjectType(
-  'CommitmentWithCoordinationRow',
+/// One help offer row with optional author coordination response (V2).
+final gqlTypeHelpOfferWithCoordinationRow = GraphQLObjectType(
+  'HelpOfferWithCoordinationRow',
   null,
 )
   ..fields.addAll([
@@ -442,7 +442,7 @@ final gqlTypeCommitmentWithCoordinationRow = GraphQLObjectType(
     field('message', graphQLString.nonNullable()),
     field('helpType', graphQLString),
     field('status', graphQLInt.nonNullable()),
-    field('uncommitReason', graphQLString),
+    field('withdrawReason', graphQLString),
     field('createdAt', graphQLString.nonNullable()),
     field('updatedAt', graphQLString.nonNullable()),
     field('responseType', graphQLInt),

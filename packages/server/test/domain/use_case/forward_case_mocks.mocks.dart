@@ -9,14 +9,14 @@ import 'package:mockito/mockito.dart' as _i1;
 import 'package:tentura_server/data/service/beacon_room_push_service.dart'
     as _i12;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
-import 'package:tentura_server/domain/entity/commitment_entity.dart' as _i9;
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart' as _i7;
+import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i9;
 import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i11;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i4;
-import 'package:tentura_server/domain/port/commitment_repository_port.dart'
-    as _i8;
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart'
     as _i6;
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart'
+    as _i8;
 import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i10;
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart'
     as _i3;
@@ -490,15 +490,15 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
           as _i5.Future<List<_i7.ForwardEdgeEntity>>);
 
   @override
-  _i5.Future<List<_i7.ForwardEdgeEntity>> fetchCommitterPathChain({
+  _i5.Future<List<_i7.ForwardEdgeEntity>> fetchHelpOffererPathChain({
     required String? beaconId,
-    required String? committerId,
+    required String? helpOffererId,
     required String? viewerId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#fetchCommitterPathChain, [], {
+            Invocation.method(#fetchHelpOffererPathChain, [], {
               #beaconId: beaconId,
-              #committerId: committerId,
+              #helpOffererId: helpOffererId,
               #viewerId: viewerId,
             }),
             returnValue: _i5.Future<List<_i7.ForwardEdgeEntity>>.value(
@@ -549,12 +549,12 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
           as _i5.Future<bool>);
 }
 
-/// A class which mocks [CommitmentRepositoryPort].
+/// A class which mocks [HelpOfferRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockCommitmentRepositoryPort extends _i1.Mock
-    implements _i8.CommitmentRepositoryPort {
-  MockCommitmentRepositoryPort() {
+class MockHelpOfferRepositoryPort extends _i1.Mock
+    implements _i8.HelpOfferRepositoryPort {
+  MockHelpOfferRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
@@ -583,14 +583,14 @@ class MockCommitmentRepositoryPort extends _i1.Mock
   _i5.Future<void> withdraw({
     required String? beaconId,
     required String? userId,
-    required String? uncommitReason,
+    required String? withdrawReason,
     String? message = '',
   }) =>
       (super.noSuchMethod(
             Invocation.method(#withdraw, [], {
               #beaconId: beaconId,
               #userId: userId,
-              #uncommitReason: uncommitReason,
+              #withdrawReason: withdrawReason,
               #message: message,
             }),
             returnValue: _i5.Future<void>.value(),
@@ -599,42 +599,42 @@ class MockCommitmentRepositoryPort extends _i1.Mock
           as _i5.Future<void>);
 
   @override
-  _i5.Future<List<_i9.CommitmentEntity>> fetchByBeaconId(String? beaconId) =>
+  _i5.Future<List<_i9.HelpOfferEntity>> fetchByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByBeaconId, [beaconId]),
-            returnValue: _i5.Future<List<_i9.CommitmentEntity>>.value(
-              <_i9.CommitmentEntity>[],
+            returnValue: _i5.Future<List<_i9.HelpOfferEntity>>.value(
+              <_i9.HelpOfferEntity>[],
             ),
           )
-          as _i5.Future<List<_i9.CommitmentEntity>>);
+          as _i5.Future<List<_i9.HelpOfferEntity>>);
 
   @override
-  _i5.Future<List<_i9.CommitmentEntity>> fetchAllByBeaconId(String? beaconId) =>
+  _i5.Future<List<_i9.HelpOfferEntity>> fetchAllByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchAllByBeaconId, [beaconId]),
-            returnValue: _i5.Future<List<_i9.CommitmentEntity>>.value(
-              <_i9.CommitmentEntity>[],
+            returnValue: _i5.Future<List<_i9.HelpOfferEntity>>.value(
+              <_i9.HelpOfferEntity>[],
             ),
           )
-          as _i5.Future<List<_i9.CommitmentEntity>>);
+          as _i5.Future<List<_i9.HelpOfferEntity>>);
 
   @override
-  _i5.Future<List<_i9.CommitmentEntity>> fetchByUserId(String? userId) =>
+  _i5.Future<List<_i9.HelpOfferEntity>> fetchByUserId(String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByUserId, [userId]),
-            returnValue: _i5.Future<List<_i9.CommitmentEntity>>.value(
-              <_i9.CommitmentEntity>[],
+            returnValue: _i5.Future<List<_i9.HelpOfferEntity>>.value(
+              <_i9.HelpOfferEntity>[],
             ),
           )
-          as _i5.Future<List<_i9.CommitmentEntity>>);
+          as _i5.Future<List<_i9.HelpOfferEntity>>);
 
   @override
-  _i5.Future<bool> hasActiveCommitment({
+  _i5.Future<bool> hasActiveHelpOffer({
     required String? beaconId,
     required String? userId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#hasActiveCommitment, [], {
+            Invocation.method(#hasActiveHelpOffer, [], {
               #beaconId: beaconId,
               #userId: userId,
             }),
@@ -1010,15 +1010,15 @@ class MockBeaconRoomPushService extends _i1.Mock
           as _i5.Future<void>);
 
   @override
-  _i5.Future<void> notifyCommitToAuthor({
+  _i5.Future<void> notifyHelpOfferToAuthor({
     required String? beaconId,
-    required String? committerId,
+    required String? helpOffererId,
     required String? authorId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#notifyCommitToAuthor, [], {
+            Invocation.method(#notifyHelpOfferToAuthor, [], {
               #beaconId: beaconId,
-              #committerId: committerId,
+              #helpOffererId: helpOffererId,
               #authorId: authorId,
             }),
             returnValue: _i5.Future<void>.value(),

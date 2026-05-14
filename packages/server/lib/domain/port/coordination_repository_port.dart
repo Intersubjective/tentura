@@ -1,4 +1,4 @@
-import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 
 abstract class CoordinationRepositoryPort {
   Future<void> deleteForCommit({
@@ -8,7 +8,7 @@ abstract class CoordinationRepositoryPort {
 
   Future<void> upsertResponse({
     required String beaconId,
-    required String commitUserId,
+    required String offerUserId,
     required String authorUserId,
     required int responseType,
   });
@@ -23,7 +23,7 @@ abstract class CoordinationRepositoryPort {
 
   Future<void> recomputeAndPersistBeaconCoordinationStatus(String beaconId);
 
-  Future<List<CommitmentWithCoordinationRow>> commitmentsWithCoordination(
+  Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
     String beaconId, {
     required String viewerId,
   });

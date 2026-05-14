@@ -7,19 +7,19 @@ Condensed product + implementation reference. Full narrative rationale lives in 
 | Surface | Meaning |
 |--------|---------|
 | **Inbox (Needs me)** | Pending triage — needs a decision now. |
-| **My Work** | Ownership: authored or committed. |
-| **Watching** (inbox tab) | Triaged passive follow: not rejected, not committed, not owning execution. |
+| **My Work** | Ownership: authored or offered help. |
+| **Watching** (inbox tab) | Triaged passive follow: not rejected, not offered help, not owning execution. |
 | **Not interested** (rejected tab) | Explicit "not for me". |
 
 ## UX rules
 
 - **Watching is secondary**, not a third primary action beside Forward and Not for me on the inbox card.
-- Entry points: **overflow** ("Move to Watching"), **beacon detail**, and **automatic** after the user forwards **without** an active commitment.
+- Entry points: **overflow** ("Move to Watching"), **beacon detail**, and **automatic** after the user forwards **without** an active help offer.
 - Use **neutral** visual treatment (muted / outline); not success green, not error red, not warning amber.
 
 ## Copy
 
-- Use: **Move to Watching**, **Watching**, expanded tooltips: *Watching — not committed*, *Watching — following, not handling*.
+- Use: **Move to Watching**, **Watching**, expanded tooltips: *Watching — not offered help*, *Watching — following, not handling*.
 - Avoid: Bookmark, Save, Pending, Maybe later, Interested (hides social meaning).
 
 ## Data model (current)
@@ -30,7 +30,7 @@ Optional future: audit columns or timeline events (`entered_watching_at`, `sourc
 
 ## Transitions
 
-- **Into Watching:** user chooses Move to Watching; or user completes **forward** and has **no active commitment** on that beacon (server sets sender row to watching).
+- **Into Watching:** user chooses Move to Watching; or user completes **forward** and has **no active help offer** on that beacon (server sets sender row to watching).
 - **Out of Watching (stronger actions):** commit → My Work; not for me → rejected; forward onward → recipient-visible state becomes **Forwarded** (precedence below); personal Watching list may still show the beacon until product adds stricter rules.
 
 ## Recipient-visible state (forward list)
@@ -38,8 +38,8 @@ Optional future: audit columns or timeline events (`entered_watching_at`, `sourc
 Upstream users see each recipient's **current** stance with deterministic precedence (strongest wins):
 
 1. **Author** — beacon creator
-2. **Committed** (active commitment)
-3. **Withdrawn** — withdrew commitment
+2. **Help Offered** (active help offer)
+3. **Withdrawn** — withdrew help offer
 4. **Forwarded by me** — current user already forwarded to this person (`myForwardedRecipients`); blocks re-selection, shows the note used
 5. **Declined** — rejected the beacon
 6. **Forwarded** (by others) — received a forward from someone else (`forwardedToIds`) or forwarded onward (`onwardForwarderIds`); **selectable** for forwarding by the current user

@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
-import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-// Pumps a MaterialApp that shows CommitmentMessageDialog with
+// Pumps a MaterialApp that shows HelpOfferMessageDialog with
 // showHelpTypeChips enabled and allowEmptyMessage so the submit button
 // works without typing text.
 Future<void> _pumpDialog(WidgetTester tester) async {
@@ -20,9 +20,9 @@ Future<void> _pumpDialog(WidgetTester tester) async {
       home: Scaffold(
         body: Builder(
           builder: (context) => TextButton(
-            onPressed: () => CommitmentMessageDialog.show(
+            onPressed: () => HelpOfferMessageDialog.show(
               context,
-              title: 'Commit',
+              title: 'Offer Help',
               hintText: 'Your message',
               showHelpTypeChips: true,
               allowEmptyMessage: true,
@@ -126,7 +126,7 @@ void main() {
   testWidgets(
     'selecting a chip and submitting passes the correct wireKey in the outcome',
     (tester) async {
-      CommitmentDialogOutcome? outcome;
+      HelpOfferDialogOutcome? outcome;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -138,9 +138,9 @@ void main() {
             body: Builder(
               builder: (context) => TextButton(
                 onPressed: () async {
-                  outcome = await CommitmentMessageDialog.show(
+                  outcome = await HelpOfferMessageDialog.show(
                     context,
-                    title: 'Commit',
+                    title: 'Offer Help',
                     hintText: 'Your message',
                     showHelpTypeChips: true,
                     allowEmptyMessage: true,
@@ -175,7 +175,7 @@ void main() {
   testWidgets(
     'submitting without chip selection yields null helpTypeWire',
     (tester) async {
-      CommitmentDialogOutcome? outcome;
+      HelpOfferDialogOutcome? outcome;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -187,9 +187,9 @@ void main() {
             body: Builder(
               builder: (context) => TextButton(
                 onPressed: () async {
-                  outcome = await CommitmentMessageDialog.show(
+                  outcome = await HelpOfferMessageDialog.show(
                     context,
-                    title: 'Commit',
+                    title: 'Offer Help',
                     hintText: 'Your message',
                     showHelpTypeChips: true,
                     allowEmptyMessage: true,
@@ -233,7 +233,7 @@ void main() {
   testWidgets(
     'selecting physicalHelp chip submits wire key physical_help',
     (tester) async {
-      CommitmentDialogOutcome? outcome;
+      HelpOfferDialogOutcome? outcome;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -245,9 +245,9 @@ void main() {
             body: Builder(
               builder: (context) => TextButton(
                 onPressed: () async {
-                  outcome = await CommitmentMessageDialog.show(
+                  outcome = await HelpOfferMessageDialog.show(
                     context,
-                    title: 'Commit',
+                    title: 'Offer Help',
                     hintText: 'Your message',
                     showHelpTypeChips: true,
                     allowEmptyMessage: true,

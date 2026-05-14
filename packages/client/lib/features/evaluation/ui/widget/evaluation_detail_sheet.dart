@@ -41,11 +41,11 @@ Future<void> showEvaluationDetailSheet({
   String promptText() {
     if (participant.role == EvaluationParticipantRole.committer &&
         participant.promptVariant == 'handoff') {
-      return l10n.evaluationPromptCommitterHandoff;
+      return l10n.evaluationPromptHelpOffererHandoff;
     }
     return switch (participant.role) {
       EvaluationParticipantRole.author => l10n.evaluationPromptAuthor,
-      EvaluationParticipantRole.committer => l10n.evaluationPromptCommitter,
+      EvaluationParticipantRole.committer => l10n.evaluationPromptHelpOfferer,
       EvaluationParticipantRole.forwarder => l10n.evaluationPromptForwarder,
     };
   }

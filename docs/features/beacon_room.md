@@ -193,7 +193,7 @@ New minimal rule:
 
 ```text
 Offering help is open.
-Becoming committed/involved requires approval by Author or Beacon Steward.
+Becoming offered help/involved requires approval by Author or Beacon Steward.
 ```
 
 Use this flow:
@@ -210,7 +210,7 @@ User taps Offer help / Commit
 │  └─ Decline / remove
 └─ if admitted:
    ├─ user becomes Room member
-   ├─ participant status = checking / committed
+   ├─ participant status = checking / offered help
    └─ Beacon moves to My Work for that user
 ```
 
@@ -313,7 +313,7 @@ Beacon (single)
 │  │
 │  ├─ Candidate / participant
 │  │  ├─ offer help / request admission
-│  │  ├─ withdraw offer / withdraw commitment
+│  │  ├─ withdraw offer / withdraw help offer
 │  │  ├─ open room, if admitted
 │  │  └─ mark done / need info, if admitted
 │  │
@@ -459,7 +459,7 @@ Author is always admitted.
 Beacon Steward is admitted by definition.
 A user who offers help becomes Candidate helper.
 Candidate helper becomes Room member only after Author/Steward approval.
-Committed/involved status requires Room admission.
+Help Offered/involved status requires Room admission.
 Forwarding alone never grants Room access.
 Watching alone never grants Room access.
 ```
@@ -594,7 +594,7 @@ ParticipantState
 │  ├─ candidate
 │  ├─ admitted
 │  ├─ checking
-│  ├─ committed
+│  ├─ offered help
 │  ├─ needs_info
 │  ├─ blocked
 │  ├─ done
@@ -1223,7 +1223,7 @@ System inserts should be visually quieter than user messages but more visible th
 
 ## People lens changes
 
-The People lens replaces the previous “Commitments” lens. It should contain all relevant people, but visibility depends on viewer access.
+The People lens replaces the previous “Help offers” lens. It should contain all relevant people, but visibility depends on viewer access.
 
 ```text
 People
@@ -1280,7 +1280,7 @@ offered_help
 candidate
 admitted
 checking
-committed
+offered help
 needs_info
 blocked
 done
@@ -1403,7 +1403,7 @@ Asked of you: know anyone flying after Mar 22?
 
 ## My Work interaction
 
-My Work shows authored, stewarded, admitted, or committed Beacons.
+My Work shows authored, stewarded, admitted, or offered help Beacons.
 
 For author/steward:
 
@@ -1757,7 +1757,7 @@ A successful implementation should satisfy:
 2. Room opens as a separate screen/mode.
 3. Users who can see the Beacon do not automatically see the Room.
 4. Room admission is controlled by Author and/or Beacon Steward.
-5. Offering help is open, but becoming committed/involved requires approval.
+5. Offering help is open, but becoming offered help/involved requires approval.
 6. The current plan is visible only to Room members.
 7. Public fact cards are visible on public Beacon surfaces.
 8. Private fact cards are visible only in Room.

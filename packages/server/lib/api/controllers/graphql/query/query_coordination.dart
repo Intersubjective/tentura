@@ -12,21 +12,21 @@ final class QueryCoordination extends GqlNodeBase {
   final CoordinationCase _coordinationCase;
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
-    commitmentsWithCoordination,
+    helpOffersWithCoordination,
   ];
 
-  GraphQLObjectField<dynamic, dynamic> get commitmentsWithCoordination =>
+  GraphQLObjectField<dynamic, dynamic> get helpOffersWithCoordination =>
       GraphQLObjectField(
-        'commitmentsWithCoordination',
-        GraphQLListType(gqlTypeCommitmentWithCoordinationRow.nonNullable()),
+        'helpOffersWithCoordination',
+        GraphQLListType(gqlTypeHelpOfferWithCoordinationRow.nonNullable()),
         arguments: [InputFieldId.field],
         resolve: (_, args) async {
           final jwt = getCredentials(args);
-          final rows = await _coordinationCase.commitmentsWithCoordination(
+          final rows = await _coordinationCase.helpOffersWithCoordination(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             viewerId: jwt.sub,
           );
-          return rows.map(commitmentWithCoordinationToGqlMap).toList();
+          return rows.map(helpOfferWithCoordinationToGqlMap).toList();
         },
       );
 }

@@ -27,7 +27,7 @@ Amendments and locks for implementation agents. These **override** older phrasin
   - **optional new API** that returns **people involved in this beacon** with roles such as:
     - forwarded (along chain),
     - unseen (relative to current user),
-    - already involved (committed / uncommitted / declined),
+    - already involved (offered help / withdrawted / declined),
     - author.
 - “Best next” remains to be defined as a ranking heuristic (likely MR + involvement + recency); can stay client-side until server assists.
 
@@ -64,27 +64,27 @@ Amendments and locks for implementation agents. These **override** older phrasin
 
 ---
 
-## Commit and overcommit coordination (Phase 1)
+## Commit and over-offer coordination (Phase 1)
 
 - **Commit stays open by default** — no mandatory pre-approval for ordinary commits.
-- **Hard lifecycle gate for commit:** only **OPEN** beacons accept new commitments (`beaconCommit`). Coordination status is **not** a commit lock (including “enough help committed”); use softer UI copy in that case (see overcommit doc §11).
-- **Uncommit:** allowed only when lifecycle is **not** closed, draft, deleted, or closed-review-complete — i.e. allowed on **open**, **pending review**, and **closed review open** (see overcommit doc §9).
-- **Author coordination responses** describe **coverage / fit of the beacon’s need**, not approval or rejection of a person. UI and data model must keep that framing (see [`../overcommit-coordination-feature-design.md`](../overcommit-coordination-feature-design.md)).
+- **Hard lifecycle gate for commit:** only **OPEN** beacons accept new help offers (`beaconCommit`). Coordination status is **not** a commit lock (including “enough help offered help”); use softer UI copy in that case (see over-offer doc §11).
+- **Withdraw:** allowed only when lifecycle is **not** closed, draft, deleted, or closed-review-complete — i.e. allowed on **open**, **pending review**, and **closed review open** (see over-offer doc §9).
+- **Author coordination responses** describe **coverage / fit of the beacon’s need**, not approval or rejection of a person. UI and data model must keep that framing (see [`../over-offer-coordination-feature-design.md`](../over-offer-coordination-feature-design.md)).
 
 ---
 
 ## Watching (Phase 1)
 
-- **Watching** is explicit passive follow: triaged, not rejected, not committed, not owning execution. It lives in **`inbox_item.status = 1`** alongside Needs me (`0`) and rejected (`2`).
-- **Do not** add a third primary CTA (Watch) next to Forward / Not for me on inbox cards. Use overflow, beacon detail, and auto-watch after forward when the user has **no active commitment**.
+- **Watching** is explicit passive follow: triaged, not rejected, not offered help, not owning execution. It lives in **`inbox_item.status = 1`** alongside Needs me (`0`) and rejected (`2`).
+- **Do not** add a third primary CTA (Watch) next to Forward / Not for me on inbox cards. Use overflow, beacon detail, and auto-watch after forward when the user has **no active help offer**.
 - **Forward without commit** moves the sender’s row to **Watching** so Inbox stays a real triage queue.
-- **Recipient lists** (forward screen) must show **Watching** with clear precedence vs Committed / Forwarded onward / Not for me — see [`watching-mechanism.md`](./watching-mechanism.md).
+- **Recipient lists** (forward screen) must show **Watching** with clear precedence vs Help Offered / Forwarded onward / Not for me — see [`watching-mechanism.md`](./watching-mechanism.md).
 
 ---
 
 ## Before-response terminal / tombstone (Phase 1)
 
-- If the recipient **never** explicitly triaged (needs_me only: no Watching, no rejected, no active commitment), and the beacon becomes **terminal** (closed / deleted lifecycle / post-close review states per migration rules), set passive inbox **`inbox_item.status`** to **`closed_before_response`** or **`deleted_before_response`** — do **not** infer Watching, Not for me, or ownership.
+- If the recipient **never** explicitly triaged (needs_me only: no Watching, no rejected, no active help offer), and the beacon becomes **terminal** (closed / deleted lifecycle / post-close review states per migration rules), set passive inbox **`inbox_item.status`** to **`closed_before_response`** or **`deleted_before_response`** — do **not** infer Watching, Not for me, or ownership.
 - **Actionable** inbox tabs (Needs me / Watching / Rejected) only show statuses **`0` / `1` / `2`**. Tombstones use **`tombstone_dismissed_at`** to hide the passive card without rewriting stance history.
 - **Lifecycle `deleted`** with the **beacon row retained** is the Phase 1 assumption for joinable tombstone titles; hard SQL delete of beacons cascades away `inbox_item` rows — see [`../before-response-terminal-tombstone.md`](../before-response-terminal-tombstone.md).
 
@@ -97,6 +97,6 @@ Amendments and locks for implementation agents. These **override** older phrasin
 | `product-decisions.md` (this file) | Locks and amended goals |
 | `missing-features-plan.md` | What to build; references this file |
 | `contradictions-plan.md` | Code vs brief conflicts still to fix |
-| `../overcommit-coordination-feature-design.md` | Overcommit coordination (active beacon), commit / uncommit / status |
+| `../over-offer-coordination-feature-design.md` | Over-offer coordination (active beacon), commit / withdraw / status |
 | `watching-mechanism.md` | Watching stance: surfaces, transitions, forward-list precedence, copy |
 | `../before-response-terminal-tombstone.md` | Terminal-before-triage: relation states, tombstone UI, dismiss, corner cases |

@@ -3,7 +3,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
-import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
+import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
 import '../../domain/use_case/inbox_case.dart';
 import '../../domain/enum.dart';
@@ -25,8 +25,8 @@ class InboxCubit extends Cubit<InboxState> {
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
        super(InboxState(currentUserId: userId)) {
-    _commitmentChanges = _forwardRepository.commitmentChanges.listen(
-      _onCommitmentChanged,
+    _helpOfferChanges = _forwardRepository.helpOfferChanges.listen(
+      _onHelpOfferChanged,
       cancelOnError: false,
     );
     _forwardCompleted = _forwardRepository.forwardCompleted.listen(
@@ -45,14 +45,14 @@ class InboxCubit extends Cubit<InboxState> {
   final ForwardRepository _forwardRepository;
   final NewStuffCubit _newStuffCubit;
 
-  late final StreamSubscription<CommitmentEvent> _commitmentChanges;
+  late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
   late final StreamSubscription<String> _forwardCompleted;
   late final StreamSubscription<void> _inboxLocalMutations;
 
-  void _onCommitmentChanged(CommitmentEvent event) => switch (event) {
-        CommitmentCreated(:final beaconId) => _removeInboxItem(beaconId),
-        CommitmentWithdrawn() ||
-        CommitmentInvalidated() =>
+  void _onHelpOfferChanged(HelpOfferEvent event) => switch (event) {
+        HelpOfferCreated(:final beaconId) => _removeInboxItem(beaconId),
+        HelpOfferWithdrawn() ||
+        HelpOfferInvalidated() =>
           unawaited(fetch(showLoading: false)),
       };
 
@@ -120,7 +120,7 @@ class InboxCubit extends Cubit<InboxState> {
 
   @override
   Future<void> close() async {
-    await _commitmentChanges.cancel();
+    await _helpOfferChanges.cancel();
     await _forwardCompleted.cancel();
     await _inboxLocalMutations.cancel();
     return super.close();

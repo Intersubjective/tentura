@@ -19,7 +19,7 @@ class UnifiedForwardRow extends StatelessWidget {
     this.inboundSender,
     this.inboundNote,
     this.outboundEdge,
-    this.involvementCommittedIds,
+    this.involvementHelpOfferedIds,
     this.involvementWatchingIds,
     this.involvementOnwardForwarderIds,
     super.key,
@@ -28,7 +28,7 @@ class UnifiedForwardRow extends StatelessWidget {
               (outboundEdge != null &&
                   inboundSender == null &&
                   inboundNote == null &&
-                  involvementCommittedIds != null &&
+                  involvementHelpOfferedIds != null &&
                   involvementWatchingIds != null &&
                   involvementOnwardForwarderIds != null),
           'Use .inbound or .outgoing factory with matching optional fields',
@@ -52,7 +52,7 @@ class UnifiedForwardRow extends StatelessWidget {
   factory UnifiedForwardRow.outgoing({
     required ForwardEdge edge,
     required String viewerUserId,
-    required Set<String> committed,
+    required Set<String> helpOffered,
     required Set<String> watching,
     required Set<String> onward,
     List<String> reasonSlugs = const [],
@@ -62,7 +62,7 @@ class UnifiedForwardRow extends StatelessWidget {
         viewerUserId: viewerUserId,
         reasonSlugs: reasonSlugs,
         outboundEdge: edge,
-        involvementCommittedIds: committed,
+        involvementHelpOfferedIds: helpOffered,
         involvementWatchingIds: watching,
         involvementOnwardForwarderIds: onward,
         key: key,
@@ -75,7 +75,7 @@ class UnifiedForwardRow extends StatelessWidget {
   final String? inboundNote;
 
   final ForwardEdge? outboundEdge;
-  final Set<String>? involvementCommittedIds;
+  final Set<String>? involvementHelpOfferedIds;
   final Set<String>? involvementWatchingIds;
   final Set<String>? involvementOnwardForwarderIds;
 
@@ -208,7 +208,7 @@ class UnifiedForwardRow extends StatelessWidget {
       scheme,
       l10n,
       edge,
-      involvementCommittedIds!,
+      involvementHelpOfferedIds!,
       involvementWatchingIds!,
       involvementOnwardForwarderIds!,
     );
@@ -228,7 +228,7 @@ class UnifiedForwardRow extends StatelessWidget {
     ColorScheme scheme,
     L10n l10n,
     ForwardEdge edge,
-    Set<String> committed,
+    Set<String> helpOffered,
     Set<String> watching,
     Set<String> onward,
   ) {
@@ -247,11 +247,11 @@ class UnifiedForwardRow extends StatelessWidget {
         ),
       ];
     }
-    if (committed.contains(id)) {
+    if (helpOffered.contains(id)) {
       return [
         _ReactionLine(
           icon: Icons.check_circle_outline,
-          text: l10n.forwardReactionCommitted,
+          text: l10n.forwardReactionHelpOffered,
           iconColor: scheme.tertiary,
           alignEnd: false,
         ),

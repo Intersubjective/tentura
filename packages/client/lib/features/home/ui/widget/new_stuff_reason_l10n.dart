@@ -13,8 +13,8 @@ String l10nMyWorkNewStuffReason(L10n l10n, MyWorkNewStuffReason r) => switch (r)
       MyWorkNewStuffReason.newBeacon => l10n.newStuffReasonNewBeacon,
       MyWorkNewStuffReason.authorResponseChanged =>
         l10n.newStuffReasonAuthorResponseChanged,
-      MyWorkNewStuffReason.commitmentUpdated =>
-        l10n.newStuffReasonCommitmentUpdated,
+      MyWorkNewStuffReason.helpOfferUpdated =>
+        l10n.newStuffReasonHelpOfferUpdated,
       MyWorkNewStuffReason.coordinationStatusChanged =>
         l10n.newStuffReasonCoordinationStatusChanged,
       MyWorkNewStuffReason.beaconUpdated => l10n.newStuffReasonBeaconUpdated,

@@ -1,15 +1,15 @@
 import 'dart:async';
 
 import 'package:injectable/injectable.dart';
-import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
-import 'package:tentura_server/domain/entity/commitment_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 
 import '_use_case_base.dart';
 
-/// Aggregates forward / commitment / inbox-rejection data for a beacon.
+/// Aggregates forward / help-offer / inbox-rejection data for a beacon.
 ///
 /// Used by the V2 `beaconInvolvement` query so the client does not rely on
 /// Hasura `beacon_by_pk { rejected_user_ids, forward_edges, ... }`, which is
@@ -18,14 +18,14 @@ import '_use_case_base.dart';
 final class BeaconInvolvementCase extends UseCaseBase {
   BeaconInvolvementCase(
     this._forwardEdgeRepository,
-    this._commitmentRepository,
+    this._helpOfferRepository,
     this._inboxRepository, {
     required super.env,
     required super.logger,
   });
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
-  final CommitmentRepositoryPort _commitmentRepository;
+  final HelpOfferRepositoryPort _helpOfferRepository;
   final InboxRepositoryPort _inboxRepository;
 
   /// Returns a map matching `BeaconInvolvement` GraphQL field names.
@@ -40,25 +40,25 @@ final class BeaconInvolvementCase extends UseCaseBase {
   }) async {
     final results = await Future.wait([
       _forwardEdgeRepository.fetchByBeaconId(beaconId),
-      _commitmentRepository.fetchAllByBeaconId(beaconId),
+      _helpOfferRepository.fetchAllByBeaconId(beaconId),
       _inboxRepository.fetchRejectedUserIdsByBeacon(beaconId),
       _inboxRepository.fetchWatchingUserIdsByBeacon(beaconId),
       _forwardEdgeRepository.fetchDistinctSenderIdsByBeaconId(beaconId),
     ]);
 
     final edges = results[0] as List<ForwardEdgeEntity>;
-    final commitments = results[1] as List<CommitmentEntity>;
+    final helpOffers = results[1] as List<HelpOfferEntity>;
     final rejectedIds = results[2] as List<String>;
     final watchingIds = results[3] as List<String>;
     final onwardForwarderIds = results[4] as List<String>;
 
     final forwardedToIds = edges.map((e) => e.recipientId).toSet().toList();
-    final committedIds = commitments
+    final helpOfferedIds = helpOffers
         .where((c) => c.status == 0)
         .map((c) => c.userId)
         .toSet()
         .toList();
-    final withdrawnIds = commitments
+    final withdrawnIds = helpOffers
         .where((c) => c.status == 1)
         .map((c) => c.userId)
         .toSet()
@@ -87,7 +87,7 @@ final class BeaconInvolvementCase extends UseCaseBase {
 
     return {
       'forwardedToIds': forwardedToIds,
-      'committedIds': committedIds,
+      'helpOfferedIds': helpOfferedIds,
       'withdrawnIds': withdrawnIds,
       'rejectedIds': rejectedIds,
       'watchingIds': watchingIds,

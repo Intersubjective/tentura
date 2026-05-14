@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:tentura/domain/capability/capability_tag.dart';
 
-/// Parses `beacon_commitment.help_type`: JSON-encoded slug list from the server
+/// Parses `beacon_help_offer.help_type`: JSON-encoded slug list from the server
 /// upsert path, or a legacy single slug. Returns slugs known to CapabilityTag.
-Set<String> commitmentStoredHelpTypeSlugs(String? helpType) {
+Set<String> helpOfferStoredHelpTypeSlugs(String? helpType) {
   if (helpType == null || helpType.trim().isEmpty) return {};
   final raw = helpType.trim();
   if (raw.startsWith('[')) {
@@ -28,8 +28,8 @@ Set<String> commitmentStoredHelpTypeSlugs(String? helpType) {
   return {};
 }
 
-/// Drop unknown slugs before commit (defensive).
-List<String>? normalizeCommitHelpTypesWire(List<String>? wire) {
+/// Drop unknown slugs before offer help (defensive).
+List<String>? normalizeOfferHelpTypesWire(List<String>? wire) {
   if (wire == null || wire.isEmpty) return null;
   final out = <String>[];
   for (final s in wire) {

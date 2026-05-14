@@ -174,12 +174,12 @@ final class EvaluationException extends ExceptionBase {
        );
 }
 
-final class CommitmentCoordinationException extends ExceptionBase {
-  CommitmentCoordinationException({
-    required CommitmentCoordinationExceptionCode coordinationCode,
+final class HelpOfferCoordinationException extends ExceptionBase {
+  HelpOfferCoordinationException({
+    required HelpOfferCoordinationExceptionCode coordinationCode,
     String? description,
   }) : super(
-         code: CommitmentCoordinationExceptionCodes(coordinationCode),
+         code: HelpOfferCoordinationExceptionCodes(coordinationCode),
          description: description ?? coordinationCode.name,
        );
 }

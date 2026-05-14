@@ -41,18 +41,18 @@ class BeaconRoomPushService {
     }
   }
 
-  Future<void> notifyCommitToAuthor({
+  Future<void> notifyHelpOfferToAuthor({
     required String beaconId,
-    required String committerId,
+    required String helpOffererId,
     required String authorId,
   }) async {
-    if (authorId.isEmpty || authorId == committerId) return;
-    final committer = await _users.getById(committerId);
-    final title = committer.title.isEmpty ? 'Someone' : committer.title;
+    if (authorId.isEmpty || authorId == helpOffererId) return;
+    final offerer = await _users.getById(helpOffererId);
+    final title = offerer.title.isEmpty ? 'Someone' : offerer.title;
     await _send(
       receiverId: authorId,
       title: title,
-      body: 'Committed to your beacon',
+      body: 'Offered help on your beacon',
       beaconId: beaconId,
     );
   }

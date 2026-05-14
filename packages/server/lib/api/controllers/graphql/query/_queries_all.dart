@@ -3,7 +3,7 @@ import 'package:graphql_schema2/graphql_schema2.dart';
 import 'query_beacon_involvement.dart';
 import 'query_beacon_room.dart';
 import 'query_capability.dart';
-import 'query_committer_forward_path.dart';
+import 'query_help_offerer_forward_path.dart';
 import 'query_coordination.dart';
 import 'query_evaluation.dart';
 import 'query_fact_card.dart';
@@ -18,7 +18,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryBeaconInvolvement().all,
   ...QueryBeaconRoom().all,
   ...QueryCapability().all,
-  ...QueryCommitterForwardPath().all,
+  ...QueryHelpOffererForwardPath().all,
   ...QueryCoordination().all,
   ...QueryEvaluation().all,
   ...QueryFactCard().all,

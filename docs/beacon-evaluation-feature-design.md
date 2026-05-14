@@ -7,14 +7,14 @@ Companion to [beacon-evaluation-principles.md](./beacon-evaluation-principles.md
 - **Close the loop** / **Acknowledge contributions** / **How did this contribution affect this beacon?**
 - Never: 360 review, rating people, reputation, leaderboards.
 
-**Not the same as overcommit coordination:** During an **open** beacon, authors may set per-commit **coordination responses** and a beacon-level **coordination status** (coverage / fit of the need — not “approval” of committers). That feature is documented in [`overcommit-coordination-feature-design.md`](./overcommit-coordination-feature-design.md). Evaluation here applies **after** successful closure and the review window; coordination metadata during active work may provide context later but is **not** an evaluation submission.
+**Not the same as over-offer coordination:** During an **open** beacon, authors may set per-commit **coordination responses** and a beacon-level **coordination status** (coverage / fit of the need — not “approval” of helpers). That feature is documented in [`over-offer-coordination-feature-design.md`](./over-offer-coordination-feature-design.md). Evaluation here applies **after** successful closure and the review window; coordination metadata during active work may provide context later but is **not** an evaluation submission.
 
 **Not the same as Watching:** The inbox **Watching** stance ([`docs/v1/watching-mechanism.md`](./v1/watching-mechanism.md)) does **not** by itself confer evaluation eligibility; eligibility follows the participant and visibility rules in this document only.
 
 ## Phase 1 scope
 
 - Successful closure **by beacon author** only (`beaconCloseWithReview` V2 mutation).
-- Roles: **author**, **committers** (active `beacon_commitment` at closure), **adjacent forwarders** only (see below).
+- Roles: **author**, **helpers** (active `beacon_help offer` at closure), **adjacent forwarders** only (see below).
 - Excluded: dead-branch forwarders, failed/disputed closures, reopened beacons (Phase 2), stewards, cross-beacon summaries.
 
 ## Beacon lifecycle values (`beacon.state` smallint)
@@ -86,24 +86,24 @@ Summaries computed on read with **k-anonymity** (see Privacy). Only **submitted*
 ## Eligibility — participants
 
 1. **Author** `A` = `beacon.user_id`.
-2. **Committers** = users with active commitment (`status = 0`) at closure.
-3. **Adjacent forwarder** for committer `C`: among edges with `recipient_id = C`, take the **latest** by `created_at` (direct forward into committer). `sender_id` is the adjacent forwarder `F`. Add `F` to the set (dedupe).
+2. **Helpers** = users with active help offer (`status = 0`) at closure.
+3. **Adjacent forwarder** for helper `C`: among edges with `recipient_id = C`, take the **latest** by `created_at` (direct forward into helper). `sender_id` is the adjacent forwarder `F`. Add `F` to the set (dedupe).
 
-`participants = {A} ∪ committers ∪ adjacent_forwarders`.
+`participants = {A} ∪ helpers ∪ adjacent_forwarders`.
 
 ## Eligibility — visibility (who may evaluate whom)
 
 For participants `E` (evaluator) and `P` (evaluated), `E ≠ P`:
 
-- **Author** may evaluate: every committer; every **forwarder** participant (adjacent only; they are already filtered).
-- **Committer `C`** may evaluate: author `A`; **every other committer**; the **forwarder who sent to `C`** (sender of chosen edge to `C`), if that user is a participant and ≠ `C`.
-- **Forwarder `F`** may evaluate: **author `A`**; each **committer `C`** such that `F` is the adjacent forwarder for `C` (edge `F → C`).
+- **Author** may evaluate: every helper; every **forwarder** participant (adjacent only; they are already filtered).
+- **Helper `C`** may evaluate: author `A`; **every other helper**; the **forwarder who sent to `C`** (sender of chosen edge to `C`), if that user is a participant and ≠ `C`.
+- **Forwarder `F`** may evaluate: **author `A`**; each **helper `C`** such that `F` is the adjacent forwarder for `C` (edge `F → C`).
 
 No other pairs are inserted into `beacon_evaluation_visibility`.
 
-### Restricted prompt: forwarder → committer
+### Restricted prompt: forwarder → helper
 
-When `F` evaluates downstream committer `C`, the UI uses **handoff** prompt variant (not full committer rubric). Server exposes `promptVariant: "handoff" | "full"` on each card in **`evaluationParticipants`**.
+When `F` evaluates downstream helper `C`, the UI uses **handoff** prompt variant (not full helper rubric). Server exposes `promptVariant: "handoff" | "full"` on each card in **`evaluationParticipants`**.
 
 ## Privacy: evaluated-user summary
 
@@ -146,7 +146,7 @@ See implementation: `packages/server/lib/domain/evaluation/evaluation_reason_tag
 
 - **No basis vs zero:** distinct values and copy; server rejects tags on NO_BASIS.
 - **Tiny N:** summary suppression when distinct evaluators &lt; 3.
-- **Forwarder → committer:** handoff-only prompt variant; same tag sets as full committer evaluation for validation.
+- **Forwarder → helper:** handoff-only prompt variant; same tag sets as full helper evaluation for validation.
 - **Drafts never submitted:** dropped or non-counting at window end.
 
 ## References

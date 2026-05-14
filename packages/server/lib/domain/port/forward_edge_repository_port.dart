@@ -34,22 +34,22 @@ abstract class ForwardEdgeRepositoryPort {
 
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId);
 
-  /// Recursive ancestor closure for `BeaconCommitterForwardPathCase`.
+  /// Recursive ancestor closure for `BeaconHelpOffererForwardPathCase`.
   ///
   /// Seeds the chain on three predicate disjuncts and walks `parent_edge_id`
   /// upwards via a Postgres recursive CTE:
-  /// * edges that delivered the beacon to [committerId] (recipient_id),
+  /// * edges that delivered the beacon to [helpOffererId] (recipient_id),
   /// * edges where [viewerId] is the recipient,
   /// * edges where [viewerId] is the sender.
   ///
   /// Cancelled edges (`cancelled_at IS NOT NULL`) are excluded at every
   /// recursion level so a cancelled mid-chain hop is omitted, mirroring
   /// [fetchByBeaconId]. When the viewer is the beacon author or the
-  /// committer themselves the viewer-OR clauses match nothing extra and
-  /// the result reduces to the committer's ancestor closure.
-  Future<List<ForwardEdgeEntity>> fetchCommitterPathChain({
+  /// help offerer themselves the viewer-OR clauses match nothing extra and
+  /// the result reduces to the help offerer's ancestor closure.
+  Future<List<ForwardEdgeEntity>> fetchHelpOffererPathChain({
     required String beaconId,
-    required String committerId,
+    required String helpOffererId,
     required String viewerId,
   });
 
