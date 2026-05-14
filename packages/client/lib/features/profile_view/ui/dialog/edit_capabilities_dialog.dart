@@ -11,7 +11,7 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 
 /// Bottom-sheet modal for editing the viewer's subjective capability view of
 /// [subjectId]. Shows all capability slugs currently visible to the viewer,
-/// with automatically-acquired slugs (commit roles, forwards, close-acks)
+/// with automatically-acquired slugs (help offer roles, forwards, close-acks)
 /// rendered in a secondary color. The viewer may add or remove any slug;
 /// removals create tombstone records that suppress the slug only for this viewer.
 class EditCapabilitiesDialog extends StatefulWidget {

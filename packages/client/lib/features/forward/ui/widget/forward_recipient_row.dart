@@ -62,7 +62,7 @@ class ForwardRecipientRow extends StatelessWidget {
             : l10n.forwardedByMe,
       CandidateInvolvement.forwarded => l10n.forwardAlreadyForwarded,
       CandidateInvolvement.watching => l10n.forwardWatching,
-      CandidateInvolvement.committed => l10n.forwardCommitted,
+      CandidateInvolvement.helpOffered => l10n.forwardHelpOffered,
       CandidateInvolvement.withdrawn => l10n.forwardWithdrawn,
       CandidateInvolvement.unseen => l10n.forwardFilterUnseen,
     };

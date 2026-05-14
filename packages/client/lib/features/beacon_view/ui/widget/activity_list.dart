@@ -20,7 +20,7 @@ _ActivityTier _tierFor(TimelineEntry e) => switch (e) {
       TimelineBeaconLifecycleChanged() ||
       TimelineBeaconCoordinationStatusChanged() =>
         _ActivityTier.high,
-      TimelineCommitmentUpdated() => _ActivityTier.low,
+      TimelineHelpOfferUpdated() => _ActivityTier.low,
       _ => _ActivityTier.medium,
     };
 
@@ -182,9 +182,9 @@ IconData _icon(TimelineEntry e) => switch (e) {
       TimelineCreation() => Icons.flag_rounded,
       TimelineBeaconLifecycleChanged() => Icons.flag_circle_outlined,
       TimelineBeaconCoordinationStatusChanged() => Icons.sync_alt,
-      TimelineCommitmentCreated() => Icons.handshake,
-      TimelineCommitmentUpdated() => Icons.edit_note,
-      TimelineCommitmentWithdrawn() => Icons.heart_broken,
+      TimelineHelpOfferCreated() => Icons.handshake,
+      TimelineHelpOfferUpdated() => Icons.edit_note,
+      TimelineHelpOfferWithdrawn() => Icons.heart_broken,
       TimelineAuthorCoordinationResponse() => Icons.reply_rounded,
       TimelineUpdate() => Icons.campaign_outlined,
     };
@@ -194,28 +194,28 @@ Color _iconColor(ThemeData theme, TimelineEntry e, _ActivityTier tier) {
     return theme.colorScheme.primary;
   }
   return switch (e) {
-    TimelineCommitmentWithdrawn() => theme.colorScheme.error,
-    TimelineCommitmentCreated() => theme.colorScheme.tertiary,
+    TimelineHelpOfferWithdrawn() => theme.colorScheme.error,
+    TimelineHelpOfferCreated() => theme.colorScheme.tertiary,
     TimelineAuthorCoordinationResponse() => theme.colorScheme.secondary,
     _ => theme.colorScheme.onSurfaceVariant,
   };
 }
 
 String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
-      final TimelineCommitmentCreated e => e.message.isNotEmpty
-          ? l10n.timelineCommittedWithMessage(e.committer.title, e.message)
-          : l10n.timelineCommitted(e.committer.title),
-      final TimelineCommitmentUpdated e =>
-        _timelineCommitmentUpdatedLine(l10n, e),
+      final TimelineHelpOfferCreated e => e.message.isNotEmpty
+          ? l10n.timelineHelpOfferedWithMessage(e.helpOfferer.title, e.message)
+          : l10n.timelineHelpOffered(e.helpOfferer.title),
+      final TimelineHelpOfferUpdated e =>
+        _timelineHelpOfferUpdatedLine(l10n, e),
       final TimelineAuthorCoordinationResponse e =>
         l10n.timelineAuthorCoordinationResponseLine(
           e.author.title,
-          e.committer.title,
+          e.helpOfferer.title,
           coordinationResponseLabel(l10n, e.response) ?? '',
         ),
-      final TimelineCommitmentWithdrawn e => e.message.isNotEmpty
-          ? l10n.timelineWithdrewWithMessage(e.committer.title, e.message)
-          : l10n.timelineWithdrew(e.committer.title),
+      final TimelineHelpOfferWithdrawn e => e.message.isNotEmpty
+          ? l10n.timelineWithdrewWithMessage(e.helpOfferer.title, e.message)
+          : l10n.timelineWithdrew(e.helpOfferer.title),
       final TimelineBeaconCoordinationStatusChanged e =>
         l10n.timelineBeaconCoordinationStatusChanged(
           e.author.title,
@@ -259,8 +259,8 @@ String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
         l10n.beaconLifecycleClosedReviewComplete,
     };
 
-String _timelineCommitmentUpdatedLine(L10n l10n, TimelineCommitmentUpdated e) {
-  final base = l10n.timelineCommitmentDetailsUpdated(e.committer.title);
+String _timelineHelpOfferUpdatedLine(L10n l10n, TimelineHelpOfferUpdated e) {
+  final base = l10n.timelineHelpOfferDetailsUpdated(e.helpOfferer.title);
   final help = helpTypeLabel(l10n, e.helpType);
   if (help != null && help.isNotEmpty) {
     return '$base · $help';

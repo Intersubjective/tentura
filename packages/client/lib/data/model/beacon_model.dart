@@ -50,7 +50,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
         i.coordination_status,
       ),
       coordinationStatusUpdatedAt: i.coordination_status_updated_at,
-      commitmentCount: i.commitments_aggregate.aggregate?.count ?? 0,
+      helpOfferCount: i.help_offers_aggregate.aggregate?.count ?? 0,
       iconCode: i.icon_code,
       iconBackground: decodeBeaconIconBackgroundArgb(i.icon_background),
       publicStatus: i.public_status,

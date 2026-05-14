@@ -9,8 +9,8 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/dialog/commitment_message_dialog.dart';
-import 'package:tentura/features/beacon_view/ui/message/commitment_messages.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
@@ -151,7 +151,7 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
                 return Scaffold(
                   backgroundColor: scheme.surface,
                   appBar: AppBar(
-                    // Same fill as the inbox card Commit [FilledButton] default style.
+                    // Same fill as the inbox card Offer Help [FilledButton] default style.
                     backgroundColor: scheme.primary,
                     surfaceTintColor: Colors.transparent,
                     elevation: 0,
@@ -593,8 +593,8 @@ Widget _needsMeTabBody(
                     await inboxCubit.reject(item.beaconId, message: msg);
                   }
                 },
-                onCommit: _inboxCardAllowsCommit(item)
-                    ? () => _inboxCommit(context, item.beacon!)
+                onOfferHelp: _inboxCardAllowsOfferHelp(item)
+                    ? () => _inboxOfferHelp(context, item.beacon!)
                     : null,
               );
             },
@@ -672,8 +672,8 @@ Widget _watchingTabBody(
               await inboxCubit.reject(item.beaconId, message: msg);
             }
           },
-          onCommit: _inboxCardAllowsCommit(item)
-              ? () => _inboxCommit(context, item.beacon!)
+          onOfferHelp: _inboxCardAllowsOfferHelp(item)
+              ? () => _inboxOfferHelp(context, item.beacon!)
               : null,
           showCtaRow: false,
           showProvenance: false,
@@ -691,34 +691,34 @@ Future<void> openInboxRejectedArchive(BuildContext context) async {
   await cubit.fetch();
 }
 
-bool _inboxCardAllowsCommit(InboxItem item) {
+bool _inboxCardAllowsOfferHelp(InboxItem item) {
   final b = item.beacon;
   return b != null &&
-      b.allowsNewCommitAsNonAuthor &&
+      b.allowsNewHelpOfferAsNonAuthor &&
       item.status != InboxItemStatus.rejected;
 }
 
-Future<void> _inboxCommit(BuildContext context, Beacon beacon) async {
+Future<void> _inboxOfferHelp(BuildContext context, Beacon beacon) async {
   final l10n = L10n.of(context)!;
-  final useCommitAnyway =
-      beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpCommitted;
-  final outcome = await CommitmentMessageDialog.show(
+  final useOfferHelpAnyway =
+      beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpOffered;
+  final outcome = await HelpOfferMessageDialog.show(
     context,
-    title: useCommitAnyway
-        ? l10n.dialogCommitAnywayTitle
-        : l10n.dialogCommitTitle,
-    hintText: l10n.hintCommitMessage,
+    title: useOfferHelpAnyway
+        ? l10n.dialogOfferHelpAnywayTitle
+        : l10n.dialogOfferHelpTitle,
+    hintText: l10n.hintOfferHelpMessage,
     allowEmptyMessage: true,
     showHelpTypeChips: true,
   );
   if (outcome == null || !context.mounted) return;
-  final ok = await GetIt.I<ForwardRepository>().commit(
+  final ok = await GetIt.I<ForwardRepository>().offerHelp(
     beaconId: beacon.id,
     message: outcome.message,
     helpTypes: outcome.helpTypesWire,
   );
   if (!context.mounted || !ok) return;
-  final msg = CommittedForwardNudgeMessage(beacon.id);
+  final msg = HelpOfferedForwardNudgeMessage(beacon.id);
   final locale = l10n.localeName;
   showSnackBar(
     context,
@@ -735,14 +735,14 @@ Future<void> _onForwardItem(BuildContext context, InboxItem item) async {
     ForwardBeaconRoute(beaconId: item.beaconId),
   );
   if (!context.mounted || didForward != true) return;
-  if (!_inboxCardAllowsCommit(item)) return;
+  if (!_inboxCardAllowsOfferHelp(item)) return;
   final l10n = L10n.of(context)!;
   showSnackBar(
     context,
-    text: l10n.nudgeCommitAfterForward,
+    text: l10n.nudgeOfferHelpAfterForward,
     action: SnackBarAction(
-      label: l10n.labelCommit,
-      onPressed: () => unawaited(_inboxCommit(context, item.beacon!)),
+      label: l10n.labelOfferHelp,
+      onPressed: () => unawaited(_inboxOfferHelp(context, item.beacon!)),
     ),
   );
 }

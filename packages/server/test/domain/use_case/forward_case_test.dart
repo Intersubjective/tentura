@@ -13,7 +13,7 @@ import 'forward_case_mocks.mocks.dart';
 
 void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
-  late MockCommitmentRepositoryPort commitmentRepo;
+  late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRepositoryPort beaconRepo;
@@ -25,7 +25,7 @@ void main() {
 
   setUp(() {
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
-    commitmentRepo = MockCommitmentRepositoryPort();
+    helpOfferRepo = MockHelpOfferRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
@@ -38,7 +38,7 @@ void main() {
     );
     case_ = ForwardCase(
       forwardEdgeRepo,
-      commitmentRepo,
+      helpOfferRepo,
       inboxRepo,
       capabilityCase,
       beaconRepo,

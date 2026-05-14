@@ -17,7 +17,7 @@ abstract final class TenturaPalette {
   static const Color amber = Color(0xFFB45309);
   static const Color rose = Color(0xFFBE123C);
 
-  // Dark: operational tints (aligned with [CommitmentToneColors] dark where useful)
+  // Dark: operational tints (aligned with [HelpOfferToneColors] dark where useful)
   static const Color textDark = Color(0xFFE1E1E1);
   static const Color textMutedDark = Color(0xFF94A3B8);
   static const Color textFaintDark = Color(0xFF64748B);

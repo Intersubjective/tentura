@@ -1,0 +1,3 @@
+mutation BeaconOfferHelp($beaconId: String!, $message: String, $helpTypes: [String!]) {
+  beaconOfferHelp(id: $beaconId, message: $message, helpTypes: $helpTypes)
+}

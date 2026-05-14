@@ -1,13 +1,13 @@
 # import '/data/gql/image_model.graphql'
 
-query CommitmentsWithCoordination($beaconId: String!) {
-  commitmentsWithCoordination(id: $beaconId) {
+query HelpOffersWithCoordination($beaconId: String!) {
+  helpOffersWithCoordination(id: $beaconId) {
     beaconId
     userId
     message
     helpType
     status
-    uncommitReason
+    withdrawReason
     createdAt
     updatedAt
     responseType

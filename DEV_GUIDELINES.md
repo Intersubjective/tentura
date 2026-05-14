@@ -104,7 +104,7 @@ When adding a new V2 server query or mutation:
 
 ## Entity invalidation (real-time)
 
-Near-real-time updates for entity changes (beacons, commitments, forwards) are
+Near-real-time updates for entity changes (beacons, help offers, forwards) are
 delivered via lightweight **invalidation signals** over the existing V2 WebSocket
 (`/api/v2/ws`). This is **not** Hasura GraphQL subscriptions and **not** HTTP
 polling.
@@ -119,7 +119,7 @@ PG trigger (AFTER INSERT/UPDATE/DELETE)
   → WebsocketPathEntityChanges.fanOutEntityChange (targets sessions by user_ids)
   → WS message to client
   → InvalidationService (packages/client/…/invalidation_service.dart)
-  → Repository emits RepositoryEventInvalidate / CommitmentInvalidated
+  → Repository emits RepositoryEventInvalidate / HelpOfferInvalidated
   → Cubit refetches via existing fetch()
 ```
 
@@ -137,7 +137,7 @@ PG trigger (AFTER INSERT/UPDATE/DELETE)
 }
 ```
 
-`entity` is one of `"beacon"`, `"commitment"`, `"forward"`, or beacon-room–related
+`entity` is one of `"beacon"`, `"help offer"`, `"forward"`, or beacon-room–related
 keys such as `"room_message"`, `"participant"`, `"fact_card"`, `"blocker"`,
 `"activity_event"` (see migrations using `notify_entity_change(...)`).
 `event` is the lowercase Postgres `TG_OP`: `"insert"`, `"update"`, or `"delete"`.
@@ -149,7 +149,7 @@ Relationship-based targeting — the PG trigger embeds the affected user IDs:
 | Entity | Notified users |
 |--------|----------------|
 | `beacon` | Beacon author (`user_id`) |
-| `commitment` | Committing user + beacon author (looked up from `beacon`) |
+| `help offer` | Committing user + beacon author (looked up from `beacon`) |
 | `forward` | Sender + recipient of the forward edge |
 
 No client-side subscription registration is needed. Phase 2 may add

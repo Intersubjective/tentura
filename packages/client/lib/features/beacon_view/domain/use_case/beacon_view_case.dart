@@ -14,7 +14,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
-import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
+import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
@@ -71,8 +71,8 @@ final class BeaconViewCase extends UseCaseBase {
 
   Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
 
-  Stream<CommitmentEvent> get commitmentChanges =>
-      _forwardRepository.commitmentChanges;
+  Stream<HelpOfferEvent> get helpOfferChanges =>
+      _forwardRepository.helpOfferChanges;
 
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
       _invalidationService.beaconRoomInvalidations;
@@ -102,38 +102,38 @@ final class BeaconViewCase extends UseCaseBase {
   Future<void> setBeaconLifecycle(BeaconLifecycle next, {required String id}) =>
       _beaconRepository.setBeaconLifecycle(next, id: id);
 
-  Future<bool> forwardCommit({
+  Future<bool> forwardOfferHelp({
     required String beaconId,
     String? message,
     List<String>? helpTypes,
-    bool notifyCommitmentListeners = true,
-  }) => _forwardRepository.commit(
+    bool notifyHelpOfferListeners = true,
+  }) => _forwardRepository.offerHelp(
     beaconId: beaconId,
     message: message,
     helpTypes: helpTypes,
-    notifyCommitmentListeners: notifyCommitmentListeners,
+    notifyHelpOfferListeners: notifyHelpOfferListeners,
   );
 
   Future<bool> forwardWithdraw({
     required String beaconId,
-    required String uncommitReason,
+    required String withdrawReason,
     String? message,
   }) => _forwardRepository.withdraw(
     beaconId: beaconId,
     message: message,
-    uncommitReason: uncommitReason,
+    withdrawReason: withdrawReason,
   );
 
   Future<({BeaconCoordinationStatus status, DateTime? updatedAt})>
   setCoordinationResponse({
     required String beaconId,
-    required String commitUserId,
+    required String offerUserId,
     required int responseType,
     required bool inviteToRoom,
     required bool removeFromRoom,
   }) => _coordinationRepository.setCoordinationResponse(
     beaconId: beaconId,
-    commitUserId: commitUserId,
+    offerUserId: offerUserId,
     responseType: responseType,
     inviteToRoom: inviteToRoom,
     removeFromRoom: removeFromRoom,
@@ -201,7 +201,7 @@ final class BeaconViewCase extends UseCaseBase {
         String message,
         String? helpType,
         int status,
-        String? uncommitReason,
+        String? withdrawReason,
         DateTime createdAt,
         DateTime updatedAt,
         int? responseType,
@@ -211,9 +211,9 @@ final class BeaconViewCase extends UseCaseBase {
       })
     >
   >
-  fetchCommitmentsWithCoordination({
+  fetchHelpOffersWithCoordination({
     required String beaconId,
-  }) => _coordinationRepository.fetchCommitmentsWithCoordination(
+  }) => _coordinationRepository.fetchHelpOffersWithCoordination(
     beaconId: beaconId,
   );
 

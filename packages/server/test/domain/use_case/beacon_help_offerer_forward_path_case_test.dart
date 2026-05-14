@@ -5,29 +5,29 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/commitment_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/use_case/beacon_committer_forward_path_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_help_offerer_forward_path_case.dart';
 
 import 'forward_case_mocks.mocks.dart';
 
 void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
-  late MockCommitmentRepositoryPort commitmentRepo;
+  late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockBeaconRepositoryPort beaconRepo;
-  late BeaconCommitterForwardPathCase case_;
+  late BeaconHelpOffererForwardPathCase case_;
 
   const beaconId = 'B0000000000000000000000001';
   const authorId = 'U0000000000000000000000001';
-  const committerId = 'U0000000000000000000000002';
+  const helpOffererId = 'U0000000000000000000000002';
   const viewerInvolvedId = 'U0000000000000000000000003';
   const viewerStrangerId = 'U0000000000000000000000004';
 
   final now = DateTime.utc(2025);
 
-  // Two ancestor edges feeding committerId (multi-route shape).
+  // Two ancestor edges feeding helpOffererId (multi-route shape).
   final edgeAuthorToHop = ForwardEdgeEntity(
     id: 'F0000000000000000000000001',
     beaconId: beaconId,
@@ -35,48 +35,48 @@ void main() {
     recipientId: viewerInvolvedId,
     createdAt: now,
   );
-  final edgeHopToCommitter = ForwardEdgeEntity(
+  final edgeHopToHelpOfferer = ForwardEdgeEntity(
     id: 'F0000000000000000000000002',
     beaconId: beaconId,
     senderId: viewerInvolvedId,
-    recipientId: committerId,
+    recipientId: helpOffererId,
     parentEdgeId: edgeAuthorToHop.id,
     createdAt: now.add(const Duration(seconds: 1)),
   );
-  final edgeAuthorDirectToCommitter = ForwardEdgeEntity(
+  final edgeAuthorDirectToHelpOfferer = ForwardEdgeEntity(
     id: 'F0000000000000000000000003',
     beaconId: beaconId,
     senderId: authorId,
-    recipientId: committerId,
+    recipientId: helpOffererId,
     createdAt: now.add(const Duration(seconds: 2)),
   );
 
   // Full beacon edge set used by the auth gate.
   final allEdges = <ForwardEdgeEntity>[
     edgeAuthorToHop,
-    edgeHopToCommitter,
-    edgeAuthorDirectToCommitter,
+    edgeHopToHelpOfferer,
+    edgeAuthorDirectToHelpOfferer,
   ];
 
-  // Active commitment for the focused committer.
-  final activeCommitment = CommitmentEntity(
+  // Active help offer for the focused help offerer.
+  final activeHelpOffer = HelpOfferEntity(
     beaconId: beaconId,
-    userId: committerId,
+    userId: helpOffererId,
     createdAt: now,
     updatedAt: now,
   );
 
   setUp(() {
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
-    commitmentRepo = MockCommitmentRepositoryPort();
+    helpOfferRepo = MockHelpOfferRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
 
-    case_ = BeaconCommitterForwardPathCase(
+    case_ = BeaconHelpOffererForwardPathCase(
       beaconRepo,
       forwardEdgeRepo,
-      commitmentRepo,
+      helpOfferRepo,
       env: Env(environment: Environment.test),
-      logger: Logger('BeaconCommitterForwardPathCaseTest'),
+      logger: Logger('BeaconHelpOffererForwardPathCaseTest'),
     );
 
     when(beaconRepo.getBeaconById(beaconId: anyNamed('beaconId'))).thenAnswer(
@@ -88,23 +88,23 @@ void main() {
         updatedAt: now,
       ),
     );
-    when(commitmentRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
-      (_) async => [activeCommitment],
+    when(helpOfferRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
+      (_) async => [activeHelpOffer],
     );
     when(forwardEdgeRepo.fetchByBeaconId(beaconId)).thenAnswer(
       (_) async => allEdges,
     );
     when(
-      forwardEdgeRepo.fetchCommitterPathChain(
+      forwardEdgeRepo.fetchHelpOffererPathChain(
         beaconId: anyNamed('beaconId'),
-        committerId: anyNamed('committerId'),
+        helpOffererId: anyNamed('helpOffererId'),
         viewerId: anyNamed('viewerId'),
       ),
     ).thenAnswer(
       (_) async => [
         edgeAuthorToHop,
-        edgeHopToCommitter,
-        edgeAuthorDirectToCommitter,
+        edgeHopToHelpOfferer,
+        edgeAuthorDirectToHelpOfferer,
       ],
     );
   });
@@ -113,17 +113,17 @@ void main() {
     test('case 1 (viewer = author): viewerId == authorId in result', () async {
       final res = await case_.asMap(
         beaconId: beaconId,
-        committerId: committerId,
+        helpOffererId: helpOffererId,
         currentUserId: authorId,
       );
       expect(res['viewerId'], authorId);
       expect(res['authorId'], authorId);
       expect(res['beaconId'], beaconId);
-      expect(res['committerIds'], [committerId]);
+      expect(res['helpOffererIds'], [helpOffererId]);
       verify(
-        forwardEdgeRepo.fetchCommitterPathChain(
+        forwardEdgeRepo.fetchHelpOffererPathChain(
           beaconId: beaconId,
-          committerId: committerId,
+          helpOffererId: helpOffererId,
           viewerId: authorId,
         ),
       ).called(1);
@@ -134,15 +134,15 @@ void main() {
       () async {
         final res = await case_.asMap(
           beaconId: beaconId,
-          committerId: committerId,
+          helpOffererId: helpOffererId,
           currentUserId: viewerInvolvedId,
         );
         expect(res['viewerId'], viewerInvolvedId);
-        expect(res['committerIds'], [committerId]);
+        expect(res['helpOffererIds'], [helpOffererId]);
         verify(
-          forwardEdgeRepo.fetchCommitterPathChain(
+          forwardEdgeRepo.fetchHelpOffererPathChain(
             beaconId: beaconId,
-            committerId: committerId,
+            helpOffererId: helpOffererId,
             viewerId: viewerInvolvedId,
           ),
         ).called(1);
@@ -150,20 +150,20 @@ void main() {
     );
 
     test(
-      'case 3 (viewer = committer): viewerId == committerId',
+      'case 3 (viewer = help offerer): viewerId == helpOffererId',
       () async {
         final res = await case_.asMap(
           beaconId: beaconId,
-          committerId: committerId,
-          currentUserId: committerId,
+          helpOffererId: helpOffererId,
+          currentUserId: helpOffererId,
         );
-        expect(res['viewerId'], committerId);
-        expect(res['committerIds'], [committerId]);
+        expect(res['viewerId'], helpOffererId);
+        expect(res['helpOffererIds'], [helpOffererId]);
         verify(
-          forwardEdgeRepo.fetchCommitterPathChain(
+          forwardEdgeRepo.fetchHelpOffererPathChain(
             beaconId: beaconId,
-            committerId: committerId,
-            viewerId: committerId,
+            helpOffererId: helpOffererId,
+            viewerId: helpOffererId,
           ),
         ).called(1);
       },
@@ -174,7 +174,7 @@ void main() {
     test('every chain edge is forwarded to the result map', () async {
       final res = await case_.asMap(
         beaconId: beaconId,
-        committerId: committerId,
+        helpOffererId: helpOffererId,
         currentUserId: authorId,
       );
       final edges = res['edges']! as List<Map<String, dynamic>>;
@@ -183,16 +183,16 @@ void main() {
         edges.map((e) => e['id']).toSet(),
         {
           edgeAuthorToHop.id,
-          edgeHopToCommitter.id,
-          edgeAuthorDirectToCommitter.id,
+          edgeHopToHelpOfferer.id,
+          edgeAuthorDirectToHelpOfferer.id,
         },
       );
       // Ancestor relationship preserved (multi-route: F2 -> F1, F3 root).
       final byId = {
         for (final e in edges) e['id'] as String: e,
       };
-      expect(byId[edgeHopToCommitter.id]!['parentEdgeId'], edgeAuthorToHop.id);
-      expect(byId[edgeAuthorDirectToCommitter.id]!['parentEdgeId'], isNull);
+      expect(byId[edgeHopToHelpOfferer.id]!['parentEdgeId'], edgeAuthorToHop.id);
+      expect(byId[edgeAuthorDirectToHelpOfferer.id]!['parentEdgeId'], isNull);
     });
   });
 
@@ -201,31 +201,31 @@ void main() {
       await expectLater(
         case_.asMap(
           beaconId: beaconId,
-          committerId: committerId,
+          helpOffererId: helpOffererId,
           currentUserId: viewerStrangerId,
         ),
         throwsA(isA<UnauthorizedException>()),
       );
       verifyNever(
-        forwardEdgeRepo.fetchCommitterPathChain(
+        forwardEdgeRepo.fetchHelpOffererPathChain(
           beaconId: anyNamed('beaconId'),
-          committerId: anyNamed('committerId'),
+          helpOffererId: anyNamed('helpOffererId'),
           viewerId: anyNamed('viewerId'),
         ),
       );
     });
 
     test(
-      'viewer with active commitment on the beacon (not the focused '
-      'committer) is allowed',
+      'viewer with active help offer on the beacon (not the focused '
+      'help offerer) is allowed',
       () async {
-        const otherCommitterId = 'U0000000000000000000000005';
-        when(commitmentRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
+        const otherHelpOffererId = 'U0000000000000000000000005';
+        when(helpOfferRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
           (_) async => [
-            activeCommitment,
-            CommitmentEntity(
+            activeHelpOffer,
+            HelpOfferEntity(
               beaconId: beaconId,
-              userId: otherCommitterId,
+              userId: otherHelpOffererId,
               createdAt: now,
               updatedAt: now,
             ),
@@ -233,44 +233,44 @@ void main() {
         );
         final res = await case_.asMap(
           beaconId: beaconId,
-          committerId: committerId,
-          currentUserId: otherCommitterId,
+          helpOffererId: helpOffererId,
+          currentUserId: otherHelpOffererId,
         );
-        expect(res['viewerId'], otherCommitterId);
+        expect(res['viewerId'], otherHelpOffererId);
       },
     );
   });
 
-  group('committer validation', () {
-    test('non-active committer throws IdNotFoundException', () async {
-      const inactiveCommitter = 'U0000000000000000000000009';
+  group('help offerer validation', () {
+    test('non-active help offerer throws IdNotFoundException', () async {
+      const inactiveHelpOfferer = 'U0000000000000000000000009';
       await expectLater(
         case_.asMap(
           beaconId: beaconId,
-          committerId: inactiveCommitter,
+          helpOffererId: inactiveHelpOfferer,
           currentUserId: authorId,
         ),
         throwsA(isA<IdNotFoundException>()),
       );
       verifyNever(
-        forwardEdgeRepo.fetchCommitterPathChain(
+        forwardEdgeRepo.fetchHelpOffererPathChain(
           beaconId: anyNamed('beaconId'),
-          committerId: anyNamed('committerId'),
+          helpOffererId: anyNamed('helpOffererId'),
           viewerId: anyNamed('viewerId'),
         ),
       );
     });
 
-    test('withdrawn committer is not active → IdNotFoundException', () async {
-      when(commitmentRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
+    test('withdrawn help offerer is not active → IdNotFoundException', () async {
+      when(helpOfferRepo.fetchAllByBeaconId(beaconId)).thenAnswer(
         (_) async => [
-          activeCommitment.copyWith(status: 1),
+          activeHelpOffer.copyWith(status: 1),
         ],
       );
       await expectLater(
         case_.asMap(
           beaconId: beaconId,
-          committerId: committerId,
+          helpOffererId: helpOffererId,
           currentUserId: authorId,
         ),
         throwsA(isA<IdNotFoundException>()),

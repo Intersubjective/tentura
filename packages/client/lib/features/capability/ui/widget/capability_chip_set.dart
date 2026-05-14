@@ -27,7 +27,7 @@ class CapabilityChipSet extends StatelessWidget {
   /// When non-null, unselected tags cannot be toggled on once selection length reaches this.
   final int? maxSelection;
 
-  /// Slugs that were added automatically (via forward/commit/close-ack).
+  /// Slugs that were added automatically (via forward/offer-help/close-ack).
   /// These chips are shown in a secondary color to distinguish them from
   /// manually-added ones.
   final Set<String> automaticSlugs;

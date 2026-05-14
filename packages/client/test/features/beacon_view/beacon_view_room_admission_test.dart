@@ -6,12 +6,12 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 
-TimelineCommitment _commitmentMe({
+TimelineHelpOffer _commitmentMe({
   required Profile me,
   CoordinationResponseType? coordinationResponse,
   int? roomAccess,
 }) =>
-    TimelineCommitment(
+    TimelineHelpOffer(
       user: me,
       message: '',
       createdAt: DateTime(2025),
@@ -29,8 +29,8 @@ void main() {
   test('committed non-author gains room admission unless notSuitable', () {
     final noSignal = BeaconViewState(
       beacon: beacon,
-      commitments: [_commitmentMe(me: me)],
-      isCommitted: true,
+      helpOffers: [_commitmentMe(me: me)],
+      isHelpOffered: true,
       myProfile: me,
     );
     expect(noSignal.hasRoomAdmission, isFalse);
@@ -38,13 +38,13 @@ void main() {
 
     final autoAdmitted = BeaconViewState(
       beacon: beacon,
-      commitments: [
+      helpOffers: [
         _commitmentMe(
           me: me,
           roomAccess: RoomAccessBits.admitted,
         ),
       ],
-      isCommitted: true,
+      isHelpOffered: true,
       myProfile: me,
     );
     expect(autoAdmitted.hasRoomAdmission, isTrue);
@@ -52,10 +52,10 @@ void main() {
 
     final useful = BeaconViewState(
       beacon: beacon,
-      commitments: [
+      helpOffers: [
         _commitmentMe(me: me, coordinationResponse: CoordinationResponseType.useful),
       ],
-      isCommitted: true,
+      isHelpOffered: true,
       myProfile: me,
     );
     expect(useful.hasRoomAdmission, isTrue);
@@ -63,13 +63,13 @@ void main() {
 
     final rejected = BeaconViewState(
       beacon: beacon,
-      commitments: [
+      helpOffers: [
         _commitmentMe(
           me: me,
           coordinationResponse: CoordinationResponseType.notSuitable,
         ),
       ],
-      isCommitted: true,
+      isHelpOffered: true,
       myProfile: me,
     );
     expect(rejected.hasRoomAdmission, isFalse);
@@ -89,15 +89,15 @@ void main() {
     final ownerCommits = BeaconViewState(
       beacon:
           Beacon.empty.copyWith(id: 'Bbbbb', updatedAt: DateTime(2025), author: me),
-      commitments: [
-        TimelineCommitment(
+      helpOffers: [
+        TimelineHelpOffer(
           user: me,
           message: '',
           createdAt: DateTime(2025),
           updatedAt: DateTime(2025),
         ),
       ],
-      isCommitted: true,
+      isHelpOffered: true,
       myProfile: me,
     );
     expect(ownerCommits.isBeaconMine, isTrue);

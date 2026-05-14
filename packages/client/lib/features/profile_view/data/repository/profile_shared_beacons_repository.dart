@@ -6,7 +6,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 
 import '../gql/_g/profile_shared_beacons_fetch.req.gql.dart';
 
-enum TargetBeaconReaction { committed, onward, watching, rejected, none }
+enum TargetBeaconReaction { helpOffered, onward, watching, rejected, none }
 
 typedef ProfileForwardedBeaconEntry = ({
   String edgeId,
@@ -17,15 +17,15 @@ typedef ProfileForwardedBeaconEntry = ({
   TargetBeaconReaction reaction,
 });
 
-typedef ProfileCoCommittedEntry = ({
+typedef ProfileCoHelpOfferedEntry = ({
   Beacon beacon,
-  String targetCommitMessage,
+  String targetOfferHelpMessage,
   String? targetHelpType,
 });
 
 typedef ProfileSharedBeaconsData = ({
   List<ProfileForwardedBeaconEntry> forwarded,
-  List<ProfileCoCommittedEntry> coCommitted,
+  List<ProfileCoHelpOfferedEntry> coHelpOffered,
 });
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -42,11 +42,11 @@ class ProfileSharedBeaconsRepository {
   }) async {
     final results = await Future.wait([
       _fetchForwarded(meId: meId, targetId: targetId),
-      _fetchCoCommitted(meId: meId, targetId: targetId),
+      _fetchCoHelpOffered(meId: meId, targetId: targetId),
     ]);
     return (
       forwarded: results[0] as List<ProfileForwardedBeaconEntry>,
-      coCommitted: results[1] as List<ProfileCoCommittedEntry>,
+      coHelpOffered: results[1] as List<ProfileCoHelpOfferedEntry>,
     );
   }
 
@@ -76,7 +76,7 @@ class ProfileSharedBeaconsRepository {
                     recipientRejectionMessage: e.recipient_rejection_message,
                     reaction: _deriveForwardedReaction(
                       recipientRejected: e.recipient_rejected,
-                      hasTargetCommitment: e.beacon.commitments.isNotEmpty,
+                      hasTargetHelpOffer: e.beacon.help_offers.isNotEmpty,
                       hasTargetOnwardEdge: e.beacon.forward_edges.isNotEmpty,
                     ),
                   ),
@@ -84,7 +84,7 @@ class ProfileSharedBeaconsRepository {
                 .toList(),
           );
 
-  Future<List<ProfileCoCommittedEntry>> _fetchCoCommitted({
+  Future<List<ProfileCoHelpOfferedEntry>> _fetchCoHelpOffered({
     required String meId,
     required String targetId,
   }) =>
@@ -104,8 +104,8 @@ class ProfileSharedBeaconsRepository {
                 .map(
                   (e) => (
                     beacon: BeaconModel(e).toEntity(),
-                    targetCommitMessage: e.commitments.firstOrNull?.message ?? '',
-                    targetHelpType: e.commitments.firstOrNull?.help_type,
+                    targetOfferHelpMessage: e.help_offers.firstOrNull?.message ?? '',
+                    targetHelpType: e.help_offers.firstOrNull?.help_type,
                   ),
                 )
                 .toList(),
@@ -113,11 +113,11 @@ class ProfileSharedBeaconsRepository {
 
   static TargetBeaconReaction _deriveForwardedReaction({
     required bool recipientRejected,
-    required bool hasTargetCommitment,
+    required bool hasTargetHelpOffer,
     required bool hasTargetOnwardEdge,
   }) {
     if (recipientRejected) return TargetBeaconReaction.rejected;
-    if (hasTargetCommitment) return TargetBeaconReaction.committed;
+    if (hasTargetHelpOffer) return TargetBeaconReaction.helpOffered;
     if (hasTargetOnwardEdge) return TargetBeaconReaction.onward;
     return TargetBeaconReaction.none;
   }

@@ -78,8 +78,8 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
   }
 
   if (state.isBeaconMine) {
-    if (state.unansweredCommitmentsCount > 0) {
-      return l10n.beaconHudYouAuthorReview(state.unansweredCommitmentsCount);
+    if (state.unansweredHelpOffersCount > 0) {
+      return l10n.beaconHudYouAuthorReview(state.unansweredHelpOffersCount);
     }
     final blockerTitle = state.beaconRoomCue?.openBlockerTitle?.trim();
     if (blockerTitle != null && blockerTitle.isNotEmpty) {
@@ -107,8 +107,8 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
     return l10n.beaconHudNextMovePrefix(myMove);
   }
 
-  if (state.isCommitted) {
-    return l10n.beaconHudYouCommitted;
+  if (state.isHelpOffered) {
+    return l10n.beaconHudYouHelpOffered;
   }
 
   if (state.inboxStatus == InboxItemStatus.needsMe) {
@@ -120,9 +120,9 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
   }
 
   if (beacon.lifecycle == BeaconLifecycle.open &&
-      !state.isCommitted &&
-      beacon.allowsNewCommitAsNonAuthor) {
-    return l10n.beaconHudYouCanCommit;
+      !state.isHelpOffered &&
+      beacon.allowsNewHelpOfferAsNonAuthor) {
+    return l10n.beaconHudYouCanOfferHelp;
   }
 
   return l10n.beaconHudYouNoAction;

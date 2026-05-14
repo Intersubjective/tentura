@@ -40,14 +40,14 @@ final class LinkCopiedToClipboardMessage extends LocalizableMessage {
   String get toRu => 'Ссылка скопирована в буфер обмена';
 }
 
-final class NoCommitterForwardPathMessage extends LocalizableMessage {
-  const NoCommitterForwardPathMessage();
+final class NoHelpOffererForwardPathMessage extends LocalizableMessage {
+  const NoHelpOffererForwardPathMessage();
 
   @override
   String get toEn =>
-      'No forward path to this committer (showing your visible chain instead).';
+      'No forward path to this help offerer (showing your visible chain instead).';
 
   @override
   String get toRu =>
-      'Нет цепочки пересылок до этого коммиттера (показываю видимую вам цепочку).';
+      'Нет цепочки пересылок до этого помощника (показываю видимую вам цепочку).';
 }

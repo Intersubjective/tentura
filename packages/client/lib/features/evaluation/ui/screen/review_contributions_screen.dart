@@ -271,7 +271,7 @@ List<Widget> _participantSections({
   );
   addRole(
     EvaluationParticipantRole.committer,
-    l10n.evaluationSectionCommitter,
+    l10n.evaluationSectionHelpOfferer,
     out,
   );
   addRole(

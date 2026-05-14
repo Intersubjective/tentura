@@ -10,15 +10,15 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 Beacon _b({
   required String id,
   required BeaconLifecycle lifecycle,
-  BeaconCoordinationStatus coordination = BeaconCoordinationStatus.noCommitmentsYet,
-  int commitmentCount = 0,
+  BeaconCoordinationStatus coordination = BeaconCoordinationStatus.noHelpOffersYet,
+  int helpOfferCount = 0,
 }) =>
     Beacon.empty.copyWith(
       id: id,
       updatedAt: DateTime(2025, 1, 2),
       lifecycle: lifecycle,
       coordinationStatus: coordination,
-      commitmentCount: commitmentCount,
+      helpOfferCount: helpOfferCount,
       author: const Profile(id: 'auth', title: 'Author Co'),
     );
 
@@ -27,7 +27,7 @@ void main() {
     final authored = [_b(id: 'd', lifecycle: BeaconLifecycle.draft)];
     final vms = buildNonArchivedViewModels(
       authoredNonClosed: authored,
-      committedNonClosed: const [],
+      helpOfferedNonClosed: const [],
     );
     expect(vms.single.kind, MyWorkCardKind.authoredDraft);
   });
@@ -37,30 +37,30 @@ void main() {
       _b(
         id: 'a',
         lifecycle: BeaconLifecycle.open,
-        coordination: BeaconCoordinationStatus.commitmentsWaitingForReview,
-        commitmentCount: 2,
+        coordination: BeaconCoordinationStatus.helpOffersWaitingForReview,
+        helpOfferCount: 2,
       ),
     ];
     final vms = buildNonArchivedViewModels(
       authoredNonClosed: authored,
-      committedNonClosed: const [],
+      helpOfferedNonClosed: const [],
     );
-    expect(vms.single.showReviewCommitmentsCta, isTrue);
+    expect(vms.single.showReviewHelpOffersCta, isTrue);
   });
 
   test('committed active shows ready for review chip in closedReviewOpen', () {
     final row = (
       beacon: _b(id: 'c', lifecycle: BeaconLifecycle.closedReviewOpen),
-      commitMessage: 'note',
+      offerHelpMessage: 'note',
       helpType: null,
       authorResponseType: null,
       forwarderSenders: const <Profile>[],
-      commitmentRowUpdatedAt: DateTime(2025, 1, 2),
+      helpOfferRowUpdatedAt: DateTime(2025, 1, 2),
       authorCoordinationUpdatedAt: null,
     );
     final vms = buildNonArchivedViewModels(
       authoredNonClosed: const [],
-      committedNonClosed: [row],
+      helpOfferedNonClosed: [row],
     );
     expect(vms.single.showReadyForReviewChip, isTrue);
     expect(vms.single.showReviewCta, isTrue);
@@ -70,21 +70,21 @@ void main() {
     final beacon = _b(
       id: 'both',
       lifecycle: BeaconLifecycle.open,
-      coordination: BeaconCoordinationStatus.enoughHelpCommitted,
-      commitmentCount: 2,
+      coordination: BeaconCoordinationStatus.enoughHelpOffered,
+      helpOfferCount: 2,
     );
     final row = (
       beacon: beacon,
-      commitMessage: 'mine',
+      offerHelpMessage: 'mine',
       helpType: null,
       authorResponseType: null,
       forwarderSenders: const <Profile>[],
-      commitmentRowUpdatedAt: DateTime(2025, 1, 3),
+      helpOfferRowUpdatedAt: DateTime(2025, 1, 3),
       authorCoordinationUpdatedAt: null,
     );
     final vms = buildNonArchivedViewModels(
       authoredNonClosed: [beacon],
-      committedNonClosed: [row],
+      helpOfferedNonClosed: [row],
     );
     expect(vms.length, 1);
     expect(vms.single.role, MyWorkCardRole.authored);
@@ -95,20 +95,20 @@ void main() {
     final closed = [_b(id: 'z', lifecycle: BeaconLifecycle.closed)];
     final row = (
       beacon: _b(id: 'y', lifecycle: BeaconLifecycle.closed),
-      commitMessage: '',
+      offerHelpMessage: '',
       helpType: null,
       authorResponseType: null,
       forwarderSenders: const <Profile>[],
-      commitmentRowUpdatedAt: DateTime(2025, 1, 2),
+      helpOfferRowUpdatedAt: DateTime(2025, 1, 2),
       authorCoordinationUpdatedAt: null,
     );
     final vms = buildArchivedViewModels(
       authoredClosed: closed,
-      committedClosed: [row],
+      helpOfferedClosed: [row],
     );
     expect(
       vms.map((e) => e.kind).toSet(),
-      {MyWorkCardKind.authoredClosed, MyWorkCardKind.committedClosed},
+      {MyWorkCardKind.authoredClosed, MyWorkCardKind.helpOfferedClosed},
     );
   });
 
@@ -117,17 +117,17 @@ void main() {
       id: 'bv1',
       lifecycle: BeaconLifecycle.open,
       coordination: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
-      commitmentCount: 1,
+      helpOfferCount: 1,
     );
     final fromList = buildNonArchivedViewModels(
       authoredNonClosed: [b],
-      committedNonClosed: const [],
+      helpOfferedNonClosed: const [],
     ).single;
     final fromBeaconView = myWorkCardViewModelForBeaconView(
       beacon: b,
       isBeaconMine: true,
-      isCommitted: false,
-      myCommitMessage: '',
+      isHelpOffered: false,
+      myOfferHelpMessage: '',
     );
     expect(fromBeaconView, fromList);
   });
@@ -136,23 +136,23 @@ void main() {
     final b = _b(id: 'bv2', lifecycle: BeaconLifecycle.open);
     final row = (
       beacon: b,
-      commitMessage: 'hi',
+      offerHelpMessage: 'hi',
       helpType: null,
       authorResponseType: null,
       forwarderSenders: const <Profile>[],
-      commitmentRowUpdatedAt: DateTime(2025, 3),
+      helpOfferRowUpdatedAt: DateTime(2025, 3),
       authorCoordinationUpdatedAt: null,
     );
     final fromList = buildNonArchivedViewModels(
       authoredNonClosed: const [],
-      committedNonClosed: [row],
+      helpOfferedNonClosed: [row],
     ).single;
     final fromBeaconView = myWorkCardViewModelForBeaconView(
       beacon: b,
       isBeaconMine: false,
-      isCommitted: true,
-      myCommitMessage: 'hi',
-      myCommitmentUpdatedAt: DateTime(2025, 3),
+      isHelpOffered: true,
+      myOfferHelpMessage: 'hi',
+      myHelpOfferUpdatedAt: DateTime(2025, 3),
     );
     expect(fromBeaconView, fromList);
   });

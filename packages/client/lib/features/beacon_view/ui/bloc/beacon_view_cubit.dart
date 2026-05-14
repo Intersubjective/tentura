@@ -14,7 +14,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
     show BeaconInvolvementData;
-import 'package:tentura/features/forward/domain/entity/commitment_event.dart';
+import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -23,7 +23,7 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 
 import '../../domain/use_case/beacon_view_case.dart';
 import '../message/beacon_update_messages.dart';
-import '../message/commitment_messages.dart';
+import '../message/help_offer_messages.dart';
 import 'beacon_view_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -48,7 +48,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       },
       cancelOnError: false,
     );
-    _commitmentChangesSub = _case.commitmentChanges.listen(
+    _helpOfferChangesSub = _case.helpOfferChanges.listen(
       (event) {
         if (isClosed || event.beaconId != state.beacon.id) return;
         if (_fetchInProgress) {
@@ -70,7 +70,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<String> _forwardCompletedSub;
 
-  late final StreamSubscription<CommitmentEvent> _commitmentChangesSub;
+  late final StreamSubscription<HelpOfferEvent> _helpOfferChangesSub;
 
   late final StreamSubscription<BeaconRoomInvalidation> _beaconRoomRefreshSub;
 
@@ -82,7 +82,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   @override
   Future<void> close() async {
     await _forwardCompletedSub.cancel();
-    await _commitmentChangesSub.cancel();
+    await _helpOfferChangesSub.cancel();
     await _beaconRoomRefreshSub.cancel();
     return super.close();
   }
@@ -169,25 +169,25 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> commit({
+  Future<void> offerHelp({
     required String message,
     List<String>? helpTypes,
   }) async {
-    final wasAlreadyCommitted = state.isCommitted;
+    final wasAlreadyHelpOffered = state.isHelpOffered;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _case.forwardCommit(
+      await _case.forwardOfferHelp(
         beaconId: state.beacon.id,
         message: message,
         helpTypes: helpTypes,
-        notifyCommitmentListeners: !wasAlreadyCommitted,
+        notifyHelpOfferListeners: !wasAlreadyHelpOffered,
       );
       await _fetchBeaconByIdWithTimeline();
-      if (!state.hasError && !wasAlreadyCommitted) {
+      if (!state.hasError && !wasAlreadyHelpOffered) {
         emit(
           state.copyWith(
             status: StateIsMessaging(
-              CommittedForwardNudgeMessage(state.beacon.id),
+              HelpOfferedForwardNudgeMessage(state.beacon.id),
             ),
           ),
         );
@@ -199,14 +199,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   Future<void> withdraw({
     required String message,
-    required String uncommitReason,
+    required String withdrawReason,
   }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.forwardWithdraw(
         beaconId: state.beacon.id,
         message: message,
-        uncommitReason: uncommitReason,
+        withdrawReason: withdrawReason,
       );
       await _fetchBeaconByIdWithTimeline();
       if (!state.hasError) {
@@ -222,7 +222,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> setCoordinationResponse({
-    required String commitUserId,
+    required String offerUserId,
     required int responseType,
     required bool inviteToRoom,
     required bool removeFromRoom,
@@ -231,7 +231,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     try {
       await _case.setCoordinationResponse(
         beaconId: state.beacon.id,
-        commitUserId: commitUserId,
+        offerUserId: offerUserId,
         responseType: responseType,
         inviteToRoom: inviteToRoom,
         removeFromRoom: removeFromRoom,
@@ -289,7 +289,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   ///
   /// At most one gate-guarded fetch runs at a time. If a second invalidation
   /// arrives while one is in flight, the flag is set and a follow-up fetch
-  /// starts once the current one finishes. Explicit callers (commit, withdraw,
+  /// starts once the current one finishes. Explicit callers (offerHelp, withdraw,
   /// etc.) call [_fetchBeaconByIdWithTimeline] directly — they already hold
   /// the "source of truth" guarantee because they run after the mutation.
   Future<void> _runFetchWithGate() async {
@@ -406,7 +406,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
       final results = await Future.wait([
         _case.fetchBeaconById(beaconId),
-        _case.fetchCommitmentsWithCoordination(
+        _case.fetchHelpOffersWithCoordination(
           beaconId: beaconId,
         ),
         _case.fetchBeaconUpdates(beaconId: beaconId),
@@ -419,7 +419,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       ]);
 
       final beacon = results[0]! as Beacon;
-      final commitments =
+      final helpOffers =
           results[1]!
               as List<
                 ({
@@ -429,7 +429,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   String message,
                   String? helpType,
                   int status,
-                  String? uncommitReason,
+                  String? withdrawReason,
                   DateTime createdAt,
                   DateTime updatedAt,
                   int? responseType,
@@ -462,13 +462,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final roomActivityEvents = results[7]! as List<BeaconActivityEvent>;
       final roomUnreadCount = results[8]! as int;
 
-      final isCommitted = commitments
+      final isHelpOffered = helpOffers
           .where((c) => c.status == 0)
           .any((c) => c.userId == myUserId);
 
-      final commitmentsList = <TimelineCommitment>[
-        for (final c in commitments)
-          TimelineCommitment(
+      final helpOffersList = <TimelineHelpOffer>[
+        for (final c in helpOffers)
+          TimelineHelpOffer(
             user: c.user,
             message: c.message,
             createdAt: c.createdAt,
@@ -478,18 +478,18 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             coordinationResponse: CoordinationResponseType.tryFromInt(
               c.responseType,
             ),
-            uncommitReason: c.uncommitReason,
+            withdrawReason: c.withdrawReason,
             roomAccess: c.roomAccess,
           ),
       ];
 
-      final commitmentTimeline = <TimelineEntry>[
-        for (final c in commitments)
-          ...commitmentRowsToTimelineEntries(beacon: beacon, row: c),
+      final helpOfferTimeline = <TimelineEntry>[
+        for (final c in helpOffers)
+          ...helpOfferRowsToTimelineEntries(beacon: beacon, row: c),
       ];
 
       final timeline = <TimelineEntry>[
-        ...commitmentTimeline,
+        ...helpOfferTimeline,
         if (beacon.coordinationStatusUpdatedAt != null)
           TimelineBeaconCoordinationStatusChanged(
             author: beacon.author,
@@ -529,8 +529,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         state.copyWith(
           beacon: beacon,
           timeline: timeline,
-          commitments: commitmentsList,
-          isCommitted: isCommitted,
+          helpOffers: helpOffersList,
+          isHelpOffered: isHelpOffered,
           inboxStatus: inboxCtx.status,
           forwardProvenance: inboxCtx.provenance,
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
@@ -606,7 +606,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           myForwards: myForwards,
           viewerForwardEdges: viewerEdges,
           forwardReasonSlugs: reasons,
-          involvementCommittedIds: involvement.committedIds,
+          involvementHelpOfferedIds: involvement.helpOfferedIds,
           involvementWatchingIds: involvement.watchingIds,
           involvementOnwardForwarderIds: involvement.onwardForwarderIds,
           involvementRejectedIds: involvement.rejectedIds,
@@ -677,8 +677,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       };
 }
 
-/// One commitment row → ordered timeline events (commit / author response / edit / withdraw).
-List<TimelineEntry> commitmentRowsToTimelineEntries({
+/// One help offer row → ordered timeline events (offer / author response / edit / withdraw).
+List<TimelineEntry> helpOfferRowsToTimelineEntries({
   required Beacon beacon,
   required ({
     String beaconId,
@@ -687,7 +687,7 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
     String message,
     String? helpType,
     int status,
-    String? uncommitReason,
+    String? withdrawReason,
     DateTime createdAt,
     DateTime updatedAt,
     int? responseType,
@@ -703,8 +703,8 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
 
   if (row.status == 1) {
     events.add(
-      TimelineCommitmentCreated(
-        committer: row.user,
+      TimelineHelpOfferCreated(
+        helpOfferer: row.user,
         message: row.message,
         createdAt: row.createdAt,
         helpType: row.helpType,
@@ -716,7 +716,7 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
       events.add(
         TimelineAuthorCoordinationResponse(
           author: author,
-          committer: row.user,
+          helpOfferer: row.user,
           response: response,
           at: row.responseUpdatedAt!,
         ),
@@ -724,11 +724,11 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
     }
     events
       ..add(
-        TimelineCommitmentWithdrawn(
-          committer: row.user,
+        TimelineHelpOfferWithdrawn(
+          helpOfferer: row.user,
           message: row.message,
           withdrawnAt: row.updatedAt,
-          uncommitReason: row.uncommitReason,
+          withdrawReason: row.withdrawReason,
         ),
       )
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
@@ -736,8 +736,8 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
   }
 
   events.add(
-    TimelineCommitmentCreated(
-      committer: row.user,
+    TimelineHelpOfferCreated(
+      helpOfferer: row.user,
       message: row.message,
       createdAt: row.createdAt,
       helpType: row.helpType,
@@ -747,7 +747,7 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
     events.add(
       TimelineAuthorCoordinationResponse(
         author: author,
-        committer: row.user,
+        helpOfferer: row.user,
         response: response,
         at: row.responseUpdatedAt!,
       ),
@@ -756,8 +756,8 @@ List<TimelineEntry> commitmentRowsToTimelineEntries({
   final edited = row.updatedAt.difference(row.createdAt).inSeconds.abs() > 1;
   if (edited) {
     events.add(
-      TimelineCommitmentUpdated(
-        committer: row.user,
+      TimelineHelpOfferUpdated(
+        helpOfferer: row.user,
         message: row.message,
         updatedAt: row.updatedAt,
         helpType: row.helpType,

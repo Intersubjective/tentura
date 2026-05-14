@@ -37,8 +37,8 @@ class InboxCardMetaChips extends StatelessWidget {
     if (kShowBeaconCardContextCategory) {
       segments.add(category);
     }
-    if (beacon.commitmentCount > 0) {
-      segments.add(l10n.inboxCommitmentsCount(beacon.commitmentCount));
+    if (beacon.helpOfferCount > 0) {
+      segments.add(l10n.inboxHelpOffersCount(beacon.helpOfferCount));
     }
     if (item.forwardCount > 1) {
       segments.add(l10n.inboxForwardCount(item.forwardCount));

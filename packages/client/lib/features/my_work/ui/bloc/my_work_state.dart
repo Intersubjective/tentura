@@ -9,7 +9,7 @@ export 'package:tentura/ui/bloc/state_base.dart';
 
 part 'my_work_state.freezed.dart';
 
-enum MyWorkFilter { all, authored, committed, archived }
+enum MyWorkFilter { all, authored, helpOffered, archived }
 
 @freezed
 abstract class MyWorkState extends StateBase with _$MyWorkState {
@@ -17,7 +17,7 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
     @Default([]) List<MyWorkCardViewModel> nonArchivedCards,
     @Default([]) List<MyWorkCardViewModel> archivedCards,
     @Default([]) List<String> authoredClosedIdHints,
-    @Default([]) List<String> committedClosedIdHints,
+    @Default([]) List<String> helpOfferedClosedIdHints,
     @Default(false) bool closedDataFetched,
     @Default(false) bool closedFetchInProgress,
     @Default(MyWorkFilter.all) MyWorkFilter filter,
@@ -36,9 +36,9 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
         nonArchivedCards
             .where((c) => c.role == MyWorkCardRole.authored)
             .toList(),
-      MyWorkFilter.committed =>
+      MyWorkFilter.helpOffered =>
         nonArchivedCards
-            .where((c) => c.role == MyWorkCardRole.committed)
+            .where((c) => c.role == MyWorkCardRole.helpOffered)
             .toList(),
     };
     final list = List<MyWorkCardViewModel>.from(base)
@@ -49,7 +49,7 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
   /// Closed-tab style count before lazy fetch completes (deduped beacon ids).
   int get archivedCountHint =>
       authoredClosedIdHints.length +
-      committedClosedIdHints
+      helpOfferedClosedIdHints
           .where((id) => !authoredClosedIdHints.contains(id))
           .length;
 }

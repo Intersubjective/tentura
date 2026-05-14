@@ -38,8 +38,8 @@ class GraphNodeWidget extends StatelessWidget {
               state.profile.id,
             );
             Widget result = core;
-            if (userNode.isCommitter) {
-              result = _CommitterRing(size: s, child: result);
+            if (userNode.isHelpOfferer) {
+              result = _HelpOffererRing(size: s, child: result);
             }
             if (isSelf && s <= 48) {
               result = SelfUserHighlight.wrapSmallAvatar(
@@ -66,11 +66,11 @@ class GraphNodeWidget extends StatelessWidget {
   }
 }
 
-/// Distinct accent ring for users who committed to the focused beacon
+/// Distinct accent ring for users who offered help for the focused beacon
 /// (forwards graph). Drawn outside the avatar so it does not collide with the
 /// self-user ring (which uses [ColorScheme.primary]).
-class _CommitterRing extends StatelessWidget {
-  const _CommitterRing({required this.size, required this.child});
+class _HelpOffererRing extends StatelessWidget {
+  const _HelpOffererRing({required this.size, required this.child});
 
   final double size;
   final Widget child;
@@ -87,7 +87,7 @@ class _CommitterRing extends StatelessWidget {
           Center(child: child),
           IgnorePointer(
             child: CustomPaint(
-              painter: _CommitterRingPainter(color: color),
+              painter: _HelpOffererRingPainter(color: color),
             ),
           ),
         ],
@@ -96,8 +96,8 @@ class _CommitterRing extends StatelessWidget {
   }
 }
 
-class _CommitterRingPainter extends CustomPainter {
-  _CommitterRingPainter({required this.color});
+class _HelpOffererRingPainter extends CustomPainter {
+  _HelpOffererRingPainter({required this.color});
 
   final Color color;
 
@@ -115,6 +115,6 @@ class _CommitterRingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CommitterRingPainter oldDelegate) =>
+  bool shouldRepaint(covariant _HelpOffererRingPainter oldDelegate) =>
       oldDelegate.color != color;
 }

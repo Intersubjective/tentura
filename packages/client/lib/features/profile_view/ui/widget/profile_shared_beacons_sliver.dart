@@ -31,9 +31,9 @@ class ProfileSharedBeaconsSliver extends StatelessWidget {
 
         final data = state.data!;
         final forwarded = data.forwarded;
-        final coCommitted = data.coCommitted;
+        final coHelpOffered = data.coHelpOffered;
 
-        if (forwarded.isEmpty && coCommitted.isEmpty) {
+        if (forwarded.isEmpty && coHelpOffered.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
 
@@ -44,10 +44,10 @@ class ProfileSharedBeaconsSliver extends StatelessWidget {
             .where((e) => !e.beacon.lifecycle.isActiveSection)
             .toList();
 
-        final activeCoCommitted = coCommitted
+        final activeCoHelpOffered = coHelpOffered
             .where((e) => e.beacon.lifecycle.isActiveSection)
             .toList();
-        final archivedCoCommitted = coCommitted
+        final archivedCoHelpOffered = coHelpOffered
             .where((e) => !e.beacon.lifecycle.isActiveSection)
             .toList();
 
@@ -64,10 +64,10 @@ class ProfileSharedBeaconsSliver extends StatelessWidget {
                   for (final entry in [...activeForwarded, ...archivedForwarded])
                     _ForwardedBeaconCard(entry: entry),
                 ],
-                if (coCommitted.isNotEmpty) ...[
-                  _SectionHeader(label: l10n.profileSharedBeaconsCoCommittedSection),
-                  for (final entry in [...activeCoCommitted, ...archivedCoCommitted])
-                    _CoCommittedBeaconCard(entry: entry),
+                if (coHelpOffered.isNotEmpty) ...[
+                  _SectionHeader(label: l10n.profileSharedBeaconsCoHelpOfferedSection),
+                  for (final entry in [...activeCoHelpOffered, ...archivedCoHelpOffered])
+                    _CoHelpOfferedBeaconCard(entry: entry),
                 ],
               ],
             ),
@@ -132,14 +132,14 @@ class _ForwardedBeaconCard extends StatelessWidget {
   }
 }
 
-class _CoCommittedBeaconCard extends StatelessWidget {
-  const _CoCommittedBeaconCard({required this.entry});
+class _CoHelpOfferedBeaconCard extends StatelessWidget {
+  const _CoHelpOfferedBeaconCard({required this.entry});
 
-  final ProfileCoCommittedEntry entry;
+  final ProfileCoHelpOfferedEntry entry;
 
   @override
   Widget build(BuildContext context) {
-    final hasNote = entry.targetCommitMessage.trim().isNotEmpty;
+    final hasNote = entry.targetOfferHelpMessage.trim().isNotEmpty;
     return Padding(
       padding: kPaddingSmallT,
       child: BeaconCardShell(
@@ -154,9 +154,9 @@ class _CoCommittedBeaconCard extends StatelessWidget {
             ),
             const SizedBox(height: kSpacingSmall),
             _LifecyclePill(beacon: entry.beacon),
-            if (hasNote) _ForwardNote(note: entry.targetCommitMessage.trim()),
+            if (hasNote) _ForwardNote(note: entry.targetOfferHelpMessage.trim()),
             const _ReactionRow(
-              reaction: TargetBeaconReaction.committed,
+              reaction: TargetBeaconReaction.helpOffered,
               rejectionMessage: '',
             ),
           ],
@@ -225,9 +225,9 @@ class _ReactionRow extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     final (IconData icon, String label, Color color) = switch (reaction) {
-      TargetBeaconReaction.committed => (
+      TargetBeaconReaction.helpOffered => (
         Icons.check_circle_outline,
-        l10n.forwardReactionCommitted,
+        l10n.forwardReactionHelpOffered,
         scheme.tertiary,
       ),
       TargetBeaconReaction.onward => (

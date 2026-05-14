@@ -34,7 +34,7 @@ void main() {
         rScore: 1,
         score: 99,
       ),
-      involvement: CandidateInvolvement.committed,
+      involvement: CandidateInvolvement.helpOffered,
     );
 
     const state = ForwardState(

@@ -22,7 +22,7 @@ final class MyWorkStatusLineData {
   final String slot2;
   final String slot3;
 
-  /// When set, [slot1] is tinted for the viewer's committed-card author reaction.
+  /// When set, [slot1] is tinted for the viewer's help-offered-card author reaction.
   final CoordinationResponseType? slot1ResponseType;
 
   /// When set, [slot1] is tinted for the authored card beacon coordination state.
@@ -44,8 +44,8 @@ MyWorkStatusLineData myWorkStatusLine({
     MyWorkCardKind.authoredDraft => _authoredDraft(l10n, vm, clock),
     MyWorkCardKind.authoredActive => _authoredActive(l10n, vm, clock),
     MyWorkCardKind.authoredClosed => _authoredClosed(l10n, vm, clock),
-    MyWorkCardKind.committedActive => _committedActive(l10n, vm, clock),
-    MyWorkCardKind.committedClosed => _committedClosed(l10n, vm, clock),
+    MyWorkCardKind.helpOfferedActive => _helpOfferedActive(l10n, vm, clock),
+    MyWorkCardKind.helpOfferedClosed => _helpOfferedClosed(l10n, vm, clock),
   };
 }
 
@@ -56,11 +56,11 @@ MyWorkStatusLineData _authoredDraft(
 ) {
   final b = vm.beacon;
   final time = _authoredTimeSlot(l10n, b, now);
-  final slot3 = b.commitmentCount == 0
-      ? l10n.myWorkStatusZeroCommitted
-      : (b.commitmentCount == 1
-          ? l10n.myWorkStatusOneCommitted
-          : l10n.myWorkStatusNCommitted(b.commitmentCount));
+  final slot3 = b.helpOfferCount == 0
+      ? l10n.myWorkStatusZeroHelpOffered
+      : (b.helpOfferCount == 1
+          ? l10n.myWorkStatusOneHelpOffered
+          : l10n.myWorkStatusNHelpOffered(b.helpOfferCount));
   return MyWorkStatusLineData(
     slot1: l10n.myWorkStatusDraft,
     slot2: time.text,
@@ -77,7 +77,7 @@ MyWorkStatusLineData _authoredActive(
   final b = vm.beacon;
 
   if (b.lifecycle == BeaconLifecycle.closedReviewOpen) {
-    final n = b.commitmentCount;
+    final n = b.helpOfferCount;
     final slot3 = l10n.myWorkStatusNParticipants(n);
     return MyWorkStatusLineData(
       slot1: l10n.myWorkStatusClosed,
@@ -106,7 +106,7 @@ MyWorkStatusLineData _authoredClosed(
 ) {
   final b = vm.beacon;
   final time = _authoredTimeSlot(l10n, b, now);
-  final n = b.commitmentCount;
+  final n = b.helpOfferCount;
   final slot3 = l10n.myWorkStatusNParticipants(n);
   return MyWorkStatusLineData(
     slot1: l10n.myWorkStatusClosed,
@@ -116,7 +116,7 @@ MyWorkStatusLineData _authoredClosed(
   );
 }
 
-MyWorkStatusLineData _committedActive(
+MyWorkStatusLineData _helpOfferedActive(
   L10n l10n,
   MyWorkCardViewModel vm,
   DateTime now,
@@ -124,7 +124,7 @@ MyWorkStatusLineData _committedActive(
   final b = vm.beacon;
 
   if (vm.showReadyForReviewChip) {
-    final slot1 = _committedSlot1WithOptionalResponse(
+    final slot1 = _helpOfferedSlot1WithOptionalResponse(
       l10n,
       vm,
       l10n.myWorkStatusReadyForReview,
@@ -138,13 +138,13 @@ MyWorkStatusLineData _committedActive(
     );
   }
 
-  final slot1 = _committedSlot1WithOptionalResponse(
+  final slot1 = _helpOfferedSlot1WithOptionalResponse(
     l10n,
     vm,
-    l10n.myWorkStatusCommittedPersonal,
+    l10n.myWorkStatusHelpOfferedPersonal,
   );
-  final time = _committedTimeSlot(l10n, b, now);
-  final slot3 = _committedMirrorRequest(l10n, b);
+  final time = _helpOfferedTimeSlot(l10n, b, now);
+  final slot3 = _helpOfferedMirrorRequest(l10n, b);
   return MyWorkStatusLineData(
     slot1: slot1,
     slot2: time.text,
@@ -154,15 +154,15 @@ MyWorkStatusLineData _committedActive(
   );
 }
 
-MyWorkStatusLineData _committedClosed(
+MyWorkStatusLineData _helpOfferedClosed(
   L10n l10n,
   MyWorkCardViewModel vm,
   DateTime now,
 ) {
   final b = vm.beacon;
-  final time = _committedTimeSlot(l10n, b, now);
-  final slot3 = _committedMirrorRequest(l10n, b);
-  final slot1 = _committedSlot1WithOptionalResponse(
+  final time = _helpOfferedTimeSlot(l10n, b, now);
+  final slot3 = _helpOfferedMirrorRequest(l10n, b);
+  final slot1 = _helpOfferedSlot1WithOptionalResponse(
     l10n,
     vm,
     l10n.myWorkStatusClosed,
@@ -176,65 +176,65 @@ MyWorkStatusLineData _committedClosed(
   );
 }
 
-/// Puts the author's per-commit response in [commitmentStatusLabel] after the
-/// commitment status, e.g. `committed: useful` (lowercased operands, locale-agnostic casing).
-String _committedSlot1WithOptionalResponse(
+/// Puts the author's per-help-offer response in [helpOfferStatusLabel] after the
+/// help offer status, e.g. `help offered: useful` (lowercased operands, locale-agnostic casing).
+String _helpOfferedSlot1WithOptionalResponse(
   L10n l10n,
   MyWorkCardViewModel vm,
-  String commitmentStatusLabel,
+  String helpOfferStatusLabel,
 ) {
   final resp = coordinationResponseLabel(l10n, vm.authorResponseType);
   if (resp == null) {
-    return commitmentStatusLabel;
+    return helpOfferStatusLabel;
   }
-  return l10n.myWorkStatusCommitmentWithResponse(
-    commitmentStatusLabel.toLowerCase(),
+  return l10n.myWorkStatusHelpOfferWithResponse(
+    helpOfferStatusLabel.toLowerCase(),
     resp.toLowerCase(),
   );
 }
 
 String _authoredRequestState(L10n l10n, Beacon b) =>
     switch (b.coordinationStatus) {
-      BeaconCoordinationStatus.noCommitmentsYet => l10n.myWorkStatusNoCommitments,
+      BeaconCoordinationStatus.noHelpOffersYet => l10n.myWorkStatusNoHelpOffers,
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
         l10n.myWorkStatusNeedsMoreHelp,
-      BeaconCoordinationStatus.commitmentsWaitingForReview =>
-        l10n.myWorkStatusReviewingCommitments,
-      BeaconCoordinationStatus.enoughHelpCommitted =>
+      BeaconCoordinationStatus.helpOffersWaitingForReview =>
+        l10n.myWorkStatusReviewingHelpOffers,
+      BeaconCoordinationStatus.enoughHelpOffered =>
         l10n.myWorkStatusEnoughHelp,
     };
 
-/// Authored coverage / gap snapshot (beacon-level only; per-commit labels are
+/// Authored coverage / gap snapshot (beacon-level only; per-help-offer labels are
 /// not available on the My Work fetch).
 String _authoredCoverageSlot(L10n l10n, MyWorkCardViewModel vm) {
   final b = vm.beacon;
-  final n = b.commitmentCount;
-  if (b.coordinationStatus == BeaconCoordinationStatus.enoughHelpCommitted &&
+  final n = b.helpOfferCount;
+  if (b.coordinationStatus == BeaconCoordinationStatus.enoughHelpOffered &&
       n > 0) {
     return l10n.myWorkStatusReadyToClose;
   }
   if (n == 0) {
-    return l10n.myWorkStatusZeroCommitted;
+    return l10n.myWorkStatusZeroHelpOffered;
   }
   if (n == 1) {
-    return l10n.myWorkStatusOneCommitted;
+    return l10n.myWorkStatusOneHelpOffered;
   }
-  return l10n.myWorkStatusNCommitted(n);
+  return l10n.myWorkStatusNHelpOffered(n);
 }
 
-String _committedMirrorRequest(L10n l10n, Beacon b) {
+String _helpOfferedMirrorRequest(L10n l10n, Beacon b) {
   if (b.lifecycle.isClosedSection ||
       b.lifecycle == BeaconLifecycle.closedReviewOpen) {
     return l10n.myWorkStatusMirrorClosed;
   }
   return switch (b.coordinationStatus) {
-    BeaconCoordinationStatus.noCommitmentsYet =>
+    BeaconCoordinationStatus.noHelpOffersYet =>
       l10n.myWorkStatusMirrorNeedsMoreHelp,
     BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
       l10n.myWorkStatusMirrorNeedsMoreHelp,
-    BeaconCoordinationStatus.commitmentsWaitingForReview =>
-      l10n.myWorkStatusMirrorReviewingCommitments,
-    BeaconCoordinationStatus.enoughHelpCommitted =>
+    BeaconCoordinationStatus.helpOffersWaitingForReview =>
+      l10n.myWorkStatusMirrorReviewingHelpOffers,
+    BeaconCoordinationStatus.enoughHelpOffered =>
       l10n.myWorkStatusMirrorEnoughHelp,
   };
 }
@@ -257,7 +257,7 @@ String _committedMirrorRequest(L10n l10n, Beacon b) {
   return (text: l10n.myWorkStatusNoDeadline, overdue: false);
 }
 
-({String text, bool overdue}) _committedTimeSlot(
+({String text, bool overdue}) _helpOfferedTimeSlot(
   L10n l10n,
   Beacon b,
   DateTime now,

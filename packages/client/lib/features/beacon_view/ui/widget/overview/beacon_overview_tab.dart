@@ -370,7 +370,7 @@ class _BeaconOverviewSectionCardState extends State<BeaconOverviewSectionCard> {
 class BeaconStatusDashboard extends StatelessWidget {
   const BeaconStatusDashboard({
     required this.state,
-    required this.onViewAllCommitments,
+    required this.onViewAllHelpOffers,
     required this.onEditTimelineUpdate,
     this.onOpenRoom,
     this.onClosureCloseBeacon,
@@ -382,7 +382,7 @@ class BeaconStatusDashboard extends StatelessWidget {
   });
 
   final BeaconViewState state;
-  final VoidCallback onViewAllCommitments;
+  final VoidCallback onViewAllHelpOffers;
   final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
 
   /// Opens Room surface when viewer has room access (AppBar toggle target).
@@ -405,9 +405,9 @@ class BeaconStatusDashboard extends StatelessWidget {
       dominantResponse: _dominantDiagnosisType(state),
     );
     final latest = latestTimelineUpdate(state.timeline);
-    final active = activeCommitmentCount(state.commitments);
-    final needCoord = _needCoordinationCount(state.commitments);
-    final useful = usefulCommitmentCount(state.commitments);
+    final active = activeHelpOfferCount(state.helpOffers);
+    final needCoord = _needCoordinationCount(state.helpOffers);
+    final useful = usefulHelpOfferCount(state.helpOffers);
     final contextSummary = _contextAttachmentsSummaryLine(l10n, beacon);
 
     final publicFacts = state.factCards
@@ -445,12 +445,12 @@ class BeaconStatusDashboard extends StatelessWidget {
       title: l10n.beaconCoordinationCardTitle,
       summary: _coordinationHeaderSummary(l10n, state),
       summaryColor: coordinationAccent,
-      meta: l10n.beaconOverviewActiveCommitments(active),
+      meta: l10n.beaconOverviewActiveHelpOffers(active),
       icon: Icons.groups_outlined,
       expanded: _CoordinationBody(
         l10n: l10n,
         state: state,
-        onViewAllCommitments: onViewAllCommitments,
+        onViewAllHelpOffers: onViewAllHelpOffers,
         useful: useful,
         needCoordination: needCoord,
         active: active,
@@ -508,7 +508,7 @@ class BeaconStatusDashboard extends StatelessWidget {
 
     final hasOpenBlocker =
         state.beaconRoomCue?.openBlockerTitle?.trim().isNotEmpty ?? false;
-    final hasNeedCoord = state.needCoordinationCommitmentsCount > 0;
+    final hasNeedCoord = state.needCoordinationHelpOffersCount > 0;
     final blockersPanel = hasOpenBlocker || hasNeedCoord
         ? BeaconOverviewSectionCard(
             storageId: 'ov-${beacon.id}-blockers',
@@ -529,7 +529,7 @@ class BeaconStatusDashboard extends StatelessWidget {
                   if (hasOpenBlocker) SizedBox(height: context.tt.rowGap),
                   Text(
                     l10n.beaconHudTokenNeedCoordCount(
-                      state.needCoordinationCommitmentsCount,
+                      state.needCoordinationHelpOffersCount,
                     ),
                     style: TenturaText.body(scheme.onSurfaceVariant),
                   ),
@@ -540,7 +540,7 @@ class BeaconStatusDashboard extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     OutlinedButton(
-                      onPressed: onViewAllCommitments,
+                      onPressed: onViewAllHelpOffers,
                       child: Text(l10n.beaconCloseSheetActionOpenPeople),
                     ),
                     if (onOpenRoom != null && state.canNavigateBeaconRoom)
@@ -551,7 +551,7 @@ class BeaconStatusDashboard extends StatelessWidget {
                     if (hasOpenBlocker &&
                         (onOpenRoom == null || !state.canNavigateBeaconRoom))
                       OutlinedButton(
-                        onPressed: onViewAllCommitments,
+                        onPressed: onViewAllHelpOffers,
                         child: Text(l10n.beaconHudResolveBlocker),
                       ),
                   ],
@@ -618,13 +618,13 @@ class BeaconStatusDashboard extends StatelessWidget {
                 l10n.beaconCloseSheetEvidenceWholeBeaconDone,
                 ok: true,
               ),
-            if (summary.enoughHelpCommitted)
+            if (summary.enoughHelpOffered)
               _closureEvidenceRow(
                 scheme,
                 l10n.beaconCloseSheetEvidenceEnoughHelp,
                 ok: true,
               ),
-            if (summary.hasSuccessfulCommitmentResult)
+            if (summary.hasSuccessfulHelpOfferResult)
               _closureEvidenceRow(
                 scheme,
                 l10n.beaconCloseSheetEvidenceUsefulOrDone,
@@ -638,11 +638,11 @@ class BeaconStatusDashboard extends StatelessWidget {
                 ),
                 ok: false,
               ),
-            if (summary.unansweredCommitmentsCount > 0)
+            if (summary.unansweredHelpOffersCount > 0)
               _closureEvidenceRow(
                 scheme,
                 l10n.beaconCloseSheetEvidenceUnansweredCount(
-                  summary.unansweredCommitmentsCount,
+                  summary.unansweredHelpOffersCount,
                 ),
                 ok: false,
               ),
@@ -830,7 +830,7 @@ class _CoordinationBody extends StatelessWidget {
   const _CoordinationBody({
     required this.l10n,
     required this.state,
-    required this.onViewAllCommitments,
+    required this.onViewAllHelpOffers,
     required this.useful,
     required this.needCoordination,
     required this.active,
@@ -841,7 +841,7 @@ class _CoordinationBody extends StatelessWidget {
 
   final L10n l10n;
   final BeaconViewState state;
-  final VoidCallback onViewAllCommitments;
+  final VoidCallback onViewAllHelpOffers;
   final int useful;
   final int needCoordination;
   final int active;
@@ -895,7 +895,7 @@ class _CoordinationBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    l10n.beaconOverviewActiveCommitments(active),
+                    l10n.beaconOverviewActiveHelpOffers(active),
                     style: sectionHeaderStyle,
                   ),
                   const SizedBox(height: 2),
@@ -910,7 +910,7 @@ class _CoordinationBody extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            for (final u in state.commitments
+            for (final u in state.helpOffers
                 .where((c) => !c.isWithdrawn)
                 .take(3))
               Padding(
@@ -926,8 +926,8 @@ class _CoordinationBody extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: TenturaCommandButton(
-            label: l10n.beaconViewAndCoordinateCommitments,
-            onPressed: onViewAllCommitments,
+            label: l10n.beaconViewAndCoordinateHelpOffers,
+            onPressed: onViewAllHelpOffers,
           ),
         ),
       ],
@@ -1007,10 +1007,10 @@ String _coordinationHeaderSummary(L10n l10n, BeaconViewState state) {
         l10n.beaconOverviewNeedsShortMoreHelp,
         l10n.coordinationNeedDifferentSkill,
       ),
-    BeaconCoordinationStatus.noCommitmentsYet => l10n.coordinationNoCommitments,
-    BeaconCoordinationStatus.commitmentsWaitingForReview =>
+    BeaconCoordinationStatus.noHelpOffersYet => l10n.coordinationNoHelpOffers,
+    BeaconCoordinationStatus.helpOffersWaitingForReview =>
       l10n.coordinationWaitingForReview,
-    BeaconCoordinationStatus.enoughHelpCommitted => l10n.coordinationEnoughHelp,
+    BeaconCoordinationStatus.enoughHelpOffered => l10n.coordinationEnoughHelp,
   };
 }
 
@@ -1038,7 +1038,7 @@ String _coordinationHeaderSummary(L10n l10n, BeaconViewState state) {
 }
 
 CoordinationResponseType? _dominantDiagnosisType(BeaconViewState state) {
-  final active = state.commitments.where((c) => !c.isWithdrawn);
+  final active = state.helpOffers.where((c) => !c.isWithdrawn);
   for (final t in [
     CoordinationResponseType.needDifferentSkill,
     CoordinationResponseType.needCoordination,
@@ -1056,7 +1056,7 @@ CoordinationResponseType? _dominantDiagnosisType(BeaconViewState state) {
   return null;
 }
 
-int _needCoordinationCount(List<TimelineCommitment> commitments) => commitments
+int _needCoordinationCount(List<TimelineHelpOffer> helpOffers) => helpOffers
     .where(
       (c) =>
           !c.isWithdrawn &&

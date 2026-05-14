@@ -1,32 +1,32 @@
-import 'package:tentura_server/domain/use_case/commitment_case.dart';
+import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
-final class MutationCommitment extends GqlNodeBase {
-  MutationCommitment({CommitmentCase? commitmentCase})
-    : _commitmentCase = commitmentCase ?? GetIt.I<CommitmentCase>();
+final class MutationHelpOffer extends GqlNodeBase {
+  MutationHelpOffer({HelpOfferCase? helpOfferCase})
+    : _helpOfferCase = helpOfferCase ?? GetIt.I<HelpOfferCase>();
 
-  final CommitmentCase _commitmentCase;
+  final HelpOfferCase _helpOfferCase;
 
   final _message = InputFieldString(fieldName: 'message');
 
   final _helpTypes = InputFieldStringList(fieldName: 'helpTypes');
 
-  final _uncommitReason = InputFieldString(fieldName: 'uncommitReason');
+  final _withdrawReason = InputFieldString(fieldName: 'withdrawReason');
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [commit, withdraw];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [offerHelp, withdraw];
 
-  GraphQLObjectField<dynamic, dynamic> get commit => GraphQLObjectField(
-    'beaconCommit',
+  GraphQLObjectField<dynamic, dynamic> get offerHelp => GraphQLObjectField(
+    'beaconOfferHelp',
     graphQLBoolean.nonNullable(),
     arguments: [
       InputFieldId.field,
       _message.fieldNullable,
       _helpTypes.fieldNullable,
     ],
-    resolve: (_, args) => _commitmentCase
-        .commit(
+    resolve: (_, args) => _helpOfferCase
+        .offerHelp(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           message: _message.fromArgs(args) ?? '',
@@ -41,14 +41,14 @@ final class MutationCommitment extends GqlNodeBase {
     arguments: [
       InputFieldId.field,
       _message.fieldNullable,
-      _uncommitReason.field,
+      _withdrawReason.field,
     ],
-    resolve: (_, args) => _commitmentCase
+    resolve: (_, args) => _helpOfferCase
         .withdraw(
           beaconId: InputFieldId.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           message: _message.fromArgs(args) ?? '',
-          uncommitReason: _uncommitReason.fromArgsNonNullable(args),
+          withdrawReason: _withdrawReason.fromArgsNonNullable(args),
         )
         .then((_) => true),
   );

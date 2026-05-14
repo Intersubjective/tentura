@@ -59,7 +59,7 @@ void main() {
       tester,
       BeaconStatusDashboard(
         state: viewState(beacon),
-        onViewAllCommitments: () {},
+        onViewAllHelpOffers: () {},
         onEditTimelineUpdate: (_) async {},
       ),
     );
@@ -82,7 +82,7 @@ void main() {
       tester,
       BeaconStatusDashboard(
         state: viewState(beacon),
-        onViewAllCommitments: () {},
+        onViewAllHelpOffers: () {},
         onEditTimelineUpdate: (_) async {},
       ),
     );

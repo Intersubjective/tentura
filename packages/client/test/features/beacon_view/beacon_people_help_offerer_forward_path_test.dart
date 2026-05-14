@@ -22,22 +22,22 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
   Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
 
-/// Records the last `showCommitterForwardPathFor` call so the test can
+/// Records the last `showHelpOffererForwardPathFor` call so the test can
 /// assert routing parameters without spinning up the AutoRoute stack.
 class _RecordingScreenCubit extends ScreenCubit {
   String? lastBeaconId;
-  String? lastCommitterId;
-  String? lastCommitterName;
+  String? lastHelpOffererId;
+  String? lastHelpOffererName;
 
   @override
-  void showCommitterForwardPathFor({
+  void showHelpOffererForwardPathFor({
     required String beaconId,
-    required String committerId,
-    String? committerName,
+    required String helpOffererId,
+    String? helpOffererName,
   }) {
     lastBeaconId = beaconId;
-    lastCommitterId = committerId;
-    lastCommitterName = committerName;
+    lastHelpOffererId = helpOffererId;
+    lastHelpOffererName = helpOffererName;
   }
 }
 
@@ -83,7 +83,7 @@ void main() {
   );
 
   testWidgets(
-    'forward-path button is shown for an active committer who is not the author',
+    'forward-path button is shown for an active help offerer who is not the author',
     (tester) async {
       final screenCubit = _RecordingScreenCubit();
       addTearDown(screenCubit.close);
@@ -93,10 +93,10 @@ void main() {
           BeaconPeopleParticipantCard(
             beacon: beacon,
             participant: _participant(
-              userId: 'committer1',
+              userId: 'helpOfferer1',
               status: BeaconParticipantStatusBits.committed,
             ),
-            commitments: const [],
+            helpOffers: const [],
           ),
           screenCubit: screenCubit,
         ),
@@ -110,12 +110,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(screenCubit.lastBeaconId, 'B-1');
-      expect(screenCubit.lastCommitterId, 'committer1');
-      expect(screenCubit.lastCommitterName, isNotNull);
+      expect(screenCubit.lastHelpOffererId, 'helpOfferer1');
+      expect(screenCubit.lastHelpOffererName, isNotNull);
     },
   );
 
-  testWidgets('forward-path button is hidden for non-committed participants',
+  testWidgets('forward-path button is hidden for non-help-offered participants',
       (tester) async {
     final screenCubit = _RecordingScreenCubit();
     addTearDown(screenCubit.close);
@@ -128,7 +128,7 @@ void main() {
             userId: 'watcher1',
             status: BeaconParticipantStatusBits.watching,
           ),
-          commitments: const [],
+          helpOffers: const [],
         ),
         screenCubit: screenCubit,
       ),
@@ -150,7 +150,7 @@ void main() {
             userId: author.id,
             status: BeaconParticipantStatusBits.committed,
           ),
-          commitments: const [],
+          helpOffers: const [],
         ),
         screenCubit: screenCubit,
       ),
@@ -172,7 +172,7 @@ void main() {
             userId: 'withdrawn1',
             status: BeaconParticipantStatusBits.withdrawn,
           ),
-          commitments: const [],
+          helpOffers: const [],
         ),
         screenCubit: screenCubit,
       ),

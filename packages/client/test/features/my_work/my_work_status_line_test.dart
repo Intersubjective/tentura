@@ -32,12 +32,12 @@ void main() {
 
     final vm = MyWorkCardViewModel(
       beaconId: 'x',
-      role: MyWorkCardRole.committed,
-      kind: MyWorkCardKind.committedActive,
+      role: MyWorkCardRole.helpOffered,
+      kind: MyWorkCardKind.helpOfferedActive,
       beacon: Beacon.empty.copyWith(
         id: 'x',
         lifecycle: BeaconLifecycle.closedReviewOpen,
-        coordinationStatus: BeaconCoordinationStatus.enoughHelpCommitted,
+        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
       ),
       showReadyForReviewChip: true,
       showReviewCta: true,
@@ -70,12 +70,12 @@ void main() {
 
     final vm = MyWorkCardViewModel(
       beaconId: 'c',
-      role: MyWorkCardRole.committed,
-      kind: MyWorkCardKind.committedActive,
+      role: MyWorkCardRole.helpOffered,
+      kind: MyWorkCardKind.helpOfferedActive,
       beacon: Beacon.empty.copyWith(
         id: 'c',
         lifecycle: BeaconLifecycle.open,
-        coordinationStatus: BeaconCoordinationStatus.enoughHelpCommitted,
+        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
       ),
       authorResponseType: CoordinationResponseType.useful,
     );
@@ -83,8 +83,8 @@ void main() {
     expect(line.slot3, l10n.myWorkStatusMirrorEnoughHelp);
     expect(
       line.slot1,
-      l10n.myWorkStatusCommitmentWithResponse(
-        l10n.myWorkStatusCommittedPersonal.toLowerCase(),
+      l10n.myWorkStatusHelpOfferWithResponse(
+        l10n.myWorkStatusHelpOfferedPersonal.toLowerCase(),
         l10n.coordinationUseful.toLowerCase(),
       ),
     );
@@ -116,8 +116,8 @@ void main() {
       beacon: Beacon.empty.copyWith(
         id: 'a',
         lifecycle: BeaconLifecycle.closedReviewOpen,
-        coordinationStatus: BeaconCoordinationStatus.enoughHelpCommitted,
-        commitmentCount: 3,
+        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+        helpOfferCount: 3,
       ),
     );
     final line = myWorkStatusLine(l10n: l10n, vm: vm);

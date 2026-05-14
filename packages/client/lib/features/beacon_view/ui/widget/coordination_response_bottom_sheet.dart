@@ -17,12 +17,12 @@ bool _defaultInviteForCoordination(CoordinationResponseType t) =>
     t == CoordinationResponseType.useful ||
     t == CoordinationResponseType.needCoordination;
 
-/// Author: set per-commit coordination response + Room access (compact sheet).
+/// Author: set per-help-offer coordination response + Room access (compact sheet).
 Future<void> showCoordinationResponseBottomSheet({
   required BuildContext context,
-  required String commitUserTitle,
+  required String offerUserTitle,
   required CoordinationResponseType? initialResponse,
-  required bool commitUserAdmittedToRoom,
+  required bool offerUserAdmittedToRoom,
   required CoordinationSignalSheetSave onSave,
 }) async {
   await showModalBottomSheet<void>(
@@ -34,9 +34,9 @@ Future<void> showCoordinationResponseBottomSheet({
         bottom: MediaQuery.viewInsetsOf(ctx).bottom,
       ),
       child: _CoordinationSignalSheet(
-        commitUserTitle: commitUserTitle,
+        offerUserTitle: offerUserTitle,
         initialResponse: initialResponse,
-        commitUserAdmittedToRoom: commitUserAdmittedToRoom,
+        offerUserAdmittedToRoom: offerUserAdmittedToRoom,
         onSave: onSave,
       ),
     ),
@@ -45,15 +45,15 @@ Future<void> showCoordinationResponseBottomSheet({
 
 class _CoordinationSignalSheet extends StatefulWidget {
   const _CoordinationSignalSheet({
-    required this.commitUserTitle,
+    required this.offerUserTitle,
     required this.initialResponse,
-    required this.commitUserAdmittedToRoom,
+    required this.offerUserAdmittedToRoom,
     required this.onSave,
   });
 
-  final String commitUserTitle;
+  final String offerUserTitle;
   final CoordinationResponseType? initialResponse;
-  final bool commitUserAdmittedToRoom;
+  final bool offerUserAdmittedToRoom;
   final CoordinationSignalSheetSave onSave;
 
   @override
@@ -65,7 +65,7 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
   late CoordinationResponseType _selected =
       widget.initialResponse ?? CoordinationResponseType.useful;
 
-  late bool _admitToRoom = widget.commitUserAdmittedToRoom ||
+  late bool _admitToRoom = widget.offerUserAdmittedToRoom ||
       _defaultInviteForCoordination(_selected);
 
   bool _admitTouched = false;
@@ -75,9 +75,9 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
       await widget.onSave(
         responseTypeSmallint: _selected.smallintValue,
         inviteToRoom:
-            !widget.commitUserAdmittedToRoom && _admitToRoom,
+            !widget.offerUserAdmittedToRoom && _admitToRoom,
         removeFromRoom:
-            widget.commitUserAdmittedToRoom && !_admitToRoom,
+            widget.offerUserAdmittedToRoom && !_admitToRoom,
       );
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -89,7 +89,7 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
   void _onResponseSelected(CoordinationResponseType value) {
     setState(() {
       _selected = value;
-      if (!_admitTouched && !widget.commitUserAdmittedToRoom) {
+      if (!_admitTouched && !widget.offerUserAdmittedToRoom) {
         _admitToRoom = _defaultInviteForCoordination(value);
       }
     });
@@ -115,7 +115,7 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.commitUserTitle,
+                    widget.offerUserTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall,
@@ -189,7 +189,7 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
                               style: TenturaText.body(
                                 _admitToRoom
                                     ? tt.good
-                                    : widget.commitUserAdmittedToRoom
+                                    : widget.offerUserAdmittedToRoom
                                         ? tt.danger
                                         : tt.textMuted,
                               ),
@@ -263,7 +263,7 @@ Future<void> showBeaconCoordinationStatusBottomSheet({
   final l10n = L10n.of(context)!;
   final options = <(int, String)>[
     (
-      BeaconCoordinationStatus.commitmentsWaitingForReview.smallintValue,
+      BeaconCoordinationStatus.helpOffersWaitingForReview.smallintValue,
       l10n.coordinationWaitingForReview,
     ),
     (
@@ -271,7 +271,7 @@ Future<void> showBeaconCoordinationStatusBottomSheet({
       l10n.coordinationMoreHelpNeeded,
     ),
     (
-      BeaconCoordinationStatus.enoughHelpCommitted.smallintValue,
+      BeaconCoordinationStatus.enoughHelpOffered.smallintValue,
       l10n.coordinationEnoughHelp,
     ),
   ];

@@ -2,10 +2,10 @@ import 'package:meta/meta.dart';
 
 import 'user_public_record.dart';
 
-/// One beacon commitment with optional author coordination fields (V2).
+/// One beacon help offer with optional author coordination fields (V2).
 @immutable
-class CommitmentWithCoordinationRow {
-  const CommitmentWithCoordinationRow({
+class HelpOfferWithCoordinationRow {
+  const HelpOfferWithCoordinationRow({
     required this.beaconId,
     required this.userId,
     required this.message,
@@ -14,7 +14,7 @@ class CommitmentWithCoordinationRow {
     required this.updatedAt,
     required this.user,
     this.helpType,
-    this.uncommitReason,
+    this.withdrawReason,
     this.responseType,
     this.responseUpdatedAt,
     this.responseAuthorUserId,
@@ -26,13 +26,13 @@ class CommitmentWithCoordinationRow {
   final String message;
   final String? helpType;
   final int status;
-  final String? uncommitReason;
+  final String? withdrawReason;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int? responseType;
   final DateTime? responseUpdatedAt;
   final String? responseAuthorUserId;
-  /// `beacon_participants.room_access` for this committer, if any row exists.
+  /// `beacon_participants.room_access` for this help offerer, if any row exists.
   final int? roomAccess;
   final UserPublicRecord user;
 }

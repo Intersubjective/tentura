@@ -6,10 +6,10 @@ import '../common_fields.dart';
 import 'beacons.dart';
 import 'users.dart';
 
-class BeaconCommitments extends Table with TimestampsFields {
+class BeaconHelpOffers extends Table with TimestampsFields {
   late final beaconId = text().references(Beacons, #id)();
 
-  @ReferenceName('commitUser')
+  @ReferenceName('helpOfferUser')
   late final userId = text().references(Users, #id)();
 
   late final message = text()
@@ -18,7 +18,7 @@ class BeaconCommitments extends Table with TimestampsFields {
 
   late final helpType = text().nullable()();
 
-  late final uncommitReason = text().nullable()();
+  late final withdrawReason = text().nullable()();
 
   // 0=active, 1=withdrawn
   late final Column<int> status = integer()
@@ -28,7 +28,7 @@ class BeaconCommitments extends Table with TimestampsFields {
   Set<Column<Object>> get primaryKey => {beaconId, userId};
 
   @override
-  String get tableName => 'beacon_commitment';
+  String get tableName => 'beacon_help_offer';
 
   @override
   bool get withoutRowId => true;

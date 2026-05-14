@@ -8,47 +8,47 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.da
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-/// Semantic tone for the operational "anchor" status line (coordination + commitments).
+/// Semantic tone for the operational "anchor" status line (coordination + help offers).
 TenturaTone beaconAnchorStatusTone(BeaconCoordinationStatus s) => switch (s) {
-      BeaconCoordinationStatus.noCommitmentsYet => TenturaTone.neutral,
-      BeaconCoordinationStatus.commitmentsWaitingForReview => TenturaTone.info,
+      BeaconCoordinationStatus.noHelpOffersYet => TenturaTone.neutral,
+      BeaconCoordinationStatus.helpOffersWaitingForReview => TenturaTone.info,
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded => TenturaTone.warn,
-      BeaconCoordinationStatus.enoughHelpCommitted => TenturaTone.good,
+      BeaconCoordinationStatus.enoughHelpOffered => TenturaTone.good,
     };
 
-/// Localized anchor line: coordination label · commitments fragment.
+/// Localized anchor line: coordination label · help offers fragment.
 String beaconAnchorStatusLine(
   L10n l10n,
   Beacon beacon,
-  int activeCommitCount,
+  int activeHelpOfferCount,
 ) {
   final coord = coordinationStatusLabel(l10n, beacon.coordinationStatus);
-  final committedPart = activeCommitCount == 0
-      ? l10n.beaconHeaderNoCommitments
-      : l10n.beaconHeaderCommitmentsCount(activeCommitCount);
-  return '$coord · $committedPart';
+  final helpOfferedPart = activeHelpOfferCount == 0
+      ? l10n.beaconHeaderNoHelpOffers
+      : l10n.beaconHeaderHelpOffersCount(activeHelpOfferCount);
+  return '$coord · $helpOfferedPart';
 }
 
 /// Terse anchor line for compact surfaces (e.g. AppBar): ALL-CAPS code · count.
 String beaconAnchorStatusLineShort(
   Beacon beacon,
-  int activeCommitCount,
+  int activeHelpOfferCount,
 ) =>
     switch (beacon.coordinationStatus) {
-      BeaconCoordinationStatus.noCommitmentsYet => 'IDLE',
-      BeaconCoordinationStatus.commitmentsWaitingForReview =>
-        activeCommitCount > 0 ? 'REVIEW · $activeCommitCount' : 'REVIEW',
+      BeaconCoordinationStatus.noHelpOffersYet => 'IDLE',
+      BeaconCoordinationStatus.helpOffersWaitingForReview =>
+        activeHelpOfferCount > 0 ? 'REVIEW · $activeHelpOfferCount' : 'REVIEW',
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
-        activeCommitCount > 0 ? 'GAP · $activeCommitCount' : 'GAP',
-      BeaconCoordinationStatus.enoughHelpCommitted =>
-        activeCommitCount > 0 ? 'OK · $activeCommitCount' : 'OK',
+        activeHelpOfferCount > 0 ? 'GAP · $activeHelpOfferCount' : 'GAP',
+      BeaconCoordinationStatus.enoughHelpOffered =>
+        activeHelpOfferCount > 0 ? 'OK · $activeHelpOfferCount' : 'OK',
     };
 
 /// Compact state tokens for the beacon HUD (newest / highest-signal first; UI may cap count).
 List<String> buildBeaconHudStateTokens({
   required L10n l10n,
   required Beacon beacon,
-  required int activeCommitCount,
+  required int activeHelpOfferCount,
   required int needCoordinationCount,
   BeaconRoomState? cue,
   BeaconClosureReadiness? authorClosureReadiness,
@@ -88,7 +88,7 @@ List<String> buildBeaconHudStateTokens({
   }
 
   final enough =
-      beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpCommitted;
+      beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpOffered;
   if (enough) {
     out.add(l10n.beaconHudEnoughHelp);
   } else if (!hasBlocker) {
@@ -99,8 +99,8 @@ List<String> buildBeaconHudStateTokens({
     out.add(l10n.beaconHudTokenNeedCoordCount(needCoordinationCount));
   }
 
-  if (activeCommitCount > 0 && !enough) {
-    out.add(l10n.beaconHudTokenCommittedCount(activeCommitCount));
+  if (activeHelpOfferCount > 0 && !enough) {
+    out.add(l10n.beaconHudTokenHelpOfferedCount(activeHelpOfferCount));
   }
 
   final end = beacon.endAt;

@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -15,7 +15,7 @@ import '_use_case_base.dart';
 final class ForwardCase extends UseCaseBase {
   ForwardCase(
     this._forwardEdgeRepository,
-    this._commitmentRepository,
+    this._helpOfferRepository,
     this._inboxRepository,
     this._capabilityCase,
     this._beaconRepository,
@@ -25,7 +25,7 @@ final class ForwardCase extends UseCaseBase {
   });
 
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
-  final CommitmentRepositoryPort _commitmentRepository;
+  final HelpOfferRepositoryPort _helpOfferRepository;
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
   final BeaconRepositoryPort _beaconRepository;
@@ -35,7 +35,7 @@ final class ForwardCase extends UseCaseBase {
   ///
   /// Returns false if the edge does not exist, does not belong to [senderId],
   /// has already been cancelled, has been read by the recipient, has been
-  /// forwarded onward, or if the recipient has an active commitment.
+  /// forwarded onward, or if the recipient has an active help offer.
   Future<bool> cancelForward({
     required String edgeId,
     required String senderId,
@@ -48,11 +48,11 @@ final class ForwardCase extends UseCaseBase {
     final hasChain = await _forwardEdgeRepository.existsWithParent(edgeId);
     if (hasChain) return false;
 
-    final hasCommit = await _commitmentRepository.hasActiveCommitment(
+    final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
       beaconId: edge.beaconId,
       userId: edge.recipientId,
     );
-    if (hasCommit) return false;
+    if (hasOffer) return false;
 
     await _forwardEdgeRepository.cancel(edgeId, senderId);
     await _inboxRepository.markForwardCancelledForRecipient(
@@ -130,11 +130,11 @@ final class ForwardCase extends UseCaseBase {
       context: context,
       parentEdgeId: parentEdgeId,
       onAfterEdgesInserted: () async {
-        final hasCommit = await _commitmentRepository.hasActiveCommitment(
+        final hasOffer = await _helpOfferRepository.hasActiveHelpOffer(
           beaconId: beaconId,
           userId: senderId,
         );
-        if (hasCommit) return;
+        if (hasOffer) return;
         await _inboxRepository.upsertWatchingForSender(
           senderId: senderId,
           beaconId: beaconId,

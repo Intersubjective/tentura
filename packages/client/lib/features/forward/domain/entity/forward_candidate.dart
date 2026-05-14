@@ -32,7 +32,7 @@ abstract class ForwardCandidate with _$ForwardCandidate {
       involvement != CandidateInvolvement.forwardedByMe &&
       involvement != CandidateInvolvement.author &&
       involvement != CandidateInvolvement.declined &&
-      involvement != CandidateInvolvement.committed &&
+      involvement != CandidateInvolvement.helpOffered &&
       involvement != CandidateInvolvement.withdrawn;
 
   bool get isUnseen => involvement == CandidateInvolvement.unseen;

@@ -1,6 +1,6 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
@@ -19,12 +19,12 @@ typedef EvaluationParticipantGraphBundle = ({
 @Injectable(order: 2)
 final class EvaluationParticipantGraphBuilder {
   EvaluationParticipantGraphBuilder(
-    this._commitmentRepository,
+    this._helpOfferRepository,
     this._forwardEdgeRepository,
     this._userRepository,
   );
 
-  final CommitmentRepositoryPort _commitmentRepository;
+  final HelpOfferRepositoryPort _helpOfferRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final UserRepositoryPort _userRepository;
 
@@ -33,13 +33,13 @@ final class EvaluationParticipantGraphBuilder {
     required String authorId,
     required bool preClosure,
   }) async {
-    final commitments = await _commitmentRepository.fetchByBeaconId(beaconId);
+    final helpOffers = await _helpOfferRepository.fetchByBeaconId(beaconId);
     final edges = await _forwardEdgeRepository.fetchByBeaconId(beaconId);
 
-    final committerIds = commitments.map((c) => c.userId).toList();
+    final helpOffererIds = helpOffers.map((c) => c.userId).toList();
 
     final latestEdgeToCommitter = <String, ForwardEdgeEntity>{};
-    for (final c in committerIds) {
+    for (final c in helpOffererIds) {
       final toC = edges.where((e) => e.recipientId == c).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       if (toC.isNotEmpty) {
@@ -68,7 +68,7 @@ final class EvaluationParticipantGraphBuilder {
       ),
     ];
 
-    for (final c in commitments) {
+    for (final c in helpOffers) {
       final localDate = c.createdAt.toLocal();
       final d =
           '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';

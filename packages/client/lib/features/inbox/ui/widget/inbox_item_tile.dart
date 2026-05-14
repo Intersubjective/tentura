@@ -28,7 +28,7 @@ class InboxItemTile extends StatelessWidget {
     this.onStopWatching,
     this.onCantHelp,
     this.onMoveToInbox,
-    this.onCommit,
+    this.onOfferHelp,
     this.showCtaRow = true,
     this.showProvenance = true,
     this.inboxHighlight = InboxRowHighlightKind.none,
@@ -43,8 +43,8 @@ class InboxItemTile extends StatelessWidget {
   final Future<void> Function()? onCantHelp;
   final VoidCallback? onMoveToInbox;
 
-  /// Commit to this beacon (same flow as beacon view); null hides the menu item.
-  final Future<void> Function()? onCommit;
+  /// Offer help for this beacon (same flow as beacon view); null hides the menu item.
+  final Future<void> Function()? onOfferHelp;
 
   /// When false (Watching / Rejected tabs), hide the bottom Forward / secondary
   /// button row; actions remain in the overflow menu.
@@ -118,7 +118,7 @@ class InboxItemTile extends StatelessWidget {
       onTap: onOpenBeacon,
       footer: showCtaRow
           ? InboxCardActionRow(
-              onCommit: onCommit,
+              onOfferHelp: onOfferHelp,
               onForward: onTap,
               secondaryLabel: secondaryLabel,
               secondaryIcon: secondaryIcon,
@@ -135,9 +135,9 @@ class InboxItemTile extends StatelessWidget {
             menu: BeaconOverflowMenu(
               beacon: beacon,
               onOpenBeacon: onOpenBeacon,
-              onCommit: onCommit != null
+              onOfferHelp: onOfferHelp != null
                   ? () async {
-                      await onCommit?.call();
+                      await onOfferHelp?.call();
                     }
                   : null,
               onForward: onTap,

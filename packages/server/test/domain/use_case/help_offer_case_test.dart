@@ -9,19 +9,19 @@ import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart' show BeaconParticipant;
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
-import 'package:tentura_server/domain/use_case/commitment_case.dart';
+import 'package:tentura_server/domain/use_case/help_offer_case.dart';
 
-import 'commitment_case_mocks.mocks.dart';
+import 'help_offer_case_mocks.mocks.dart';
 
 void main() {
   late MockBeaconRepositoryPort beaconRepo;
-  late MockCommitmentRepositoryPort commitmentRepo;
+  late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockCoordinationRepositoryPort coordinationRepo;
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
@@ -30,7 +30,7 @@ void main() {
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
   late MockBeaconRoomPushService roomPush;
   late CapabilityCase capabilityCase;
-  late CommitmentCase case_;
+  late HelpOfferCase case_;
 
   final now = DateTime.utc(2025);
   BeaconEntity beacon({
@@ -55,7 +55,7 @@ void main() {
 
   setUp(() {
     beaconRepo = MockBeaconRepositoryPort();
-    commitmentRepo = MockCommitmentRepositoryPort();
+    helpOfferRepo = MockHelpOfferRepositoryPort();
     coordinationRepo = MockCoordinationRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
@@ -68,8 +68,8 @@ void main() {
       env: Env(environment: Environment.test),
       logger: Logger('CapabilityCaseTest'),
     );
-    case_ = CommitmentCase(
-      commitmentRepo,
+    case_ = HelpOfferCase(
+      helpOfferRepo,
       beaconRepo,
       coordinationRepo,
       inboxRepo,
@@ -79,7 +79,7 @@ void main() {
       forwardEdgeRepo,
       roomPush,
       env: Env(environment: Environment.test),
-      logger: Logger('CommitmentCaseTest'),
+      logger: Logger('HelpOfferCaseTest'),
     );
     // Default: not trusted — no direct forward, no mutual friendship.
     when(
@@ -96,9 +96,9 @@ void main() {
       ),
     ).thenAnswer((_) async => false);
     when(
-      roomPush.notifyCommitToAuthor(
+      roomPush.notifyHelpOfferToAuthor(
         beaconId: anyNamed('beaconId'),
-        committerId: anyNamed('committerId'),
+        helpOffererId: anyNamed('helpOffererId'),
         authorId: anyNamed('authorId'),
       ),
     ).thenAnswer((_) async {});
@@ -112,18 +112,18 @@ void main() {
         case_.withdraw(
           beaconId: 'B1',
           userId: 'U1',
-          uncommitReason: 'other',
+          withdrawReason: 'other',
         ),
         throwsA(
-          isA<CommitmentCoordinationException>().having(
+          isA<HelpOfferCoordinationException>().having(
             (e) =>
-                (e.code as CommitmentCoordinationExceptionCodes).exceptionCode,
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
             'code',
-            CommitmentCoordinationExceptionCode.beaconWithdrawForbidden,
+            HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden,
           ),
         ),
       );
-      verifyZeroInteractions(commitmentRepo);
+      verifyZeroInteractions(helpOfferRepo);
       verifyZeroInteractions(inboxRepo);
     });
 
@@ -134,9 +134,9 @@ void main() {
         case_.withdraw(
           beaconId: 'B1',
           userId: 'U1',
-          uncommitReason: 'other',
+          withdrawReason: 'other',
         ),
-        throwsA(isA<CommitmentCoordinationException>()),
+        throwsA(isA<HelpOfferCoordinationException>()),
       );
     });
 
@@ -147,9 +147,9 @@ void main() {
         case_.withdraw(
           beaconId: 'B1',
           userId: 'U1',
-          uncommitReason: 'other',
+          withdrawReason: 'other',
         ),
-        throwsA(isA<CommitmentCoordinationException>()),
+        throwsA(isA<HelpOfferCoordinationException>()),
       );
     });
 
@@ -160,9 +160,9 @@ void main() {
         case_.withdraw(
           beaconId: 'B1',
           userId: 'U1',
-          uncommitReason: 'other',
+          withdrawReason: 'other',
         ),
-        throwsA(isA<CommitmentCoordinationException>()),
+        throwsA(isA<HelpOfferCoordinationException>()),
       );
     });
 
@@ -172,10 +172,10 @@ void main() {
         coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) => Future.value());
       when(
-        commitmentRepo.withdraw(
+        helpOfferRepo.withdraw(
           beaconId: 'B1',
           userId: 'U1',
-          uncommitReason: 'other',
+          withdrawReason: 'other',
         ),
       ).thenAnswer((_) => Future.value());
       when(
@@ -192,14 +192,14 @@ void main() {
       await case_.withdraw(
         beaconId: 'B1',
         userId: 'U1',
-        uncommitReason: 'other',
+        withdrawReason: 'other',
       );
 
       verify(
-        commitmentRepo.withdraw(
+        helpOfferRepo.withdraw(
           beaconId: 'B1',
           userId: 'U1',
-          uncommitReason: 'other',
+          withdrawReason: 'other',
         ),
       ).called(1);
       verify(
@@ -214,7 +214,7 @@ void main() {
     test('allows PENDING_REVIEW (4) and CLOSED_REVIEW_OPEN (5)', () async {
       for (final state in [4, 5]) {
         reset(beaconRepo);
-        reset(commitmentRepo);
+        reset(helpOfferRepo);
         reset(coordinationRepo);
         reset(inboxRepo);
         stubBeacon(beacon(id: 'B1', state: state));
@@ -222,10 +222,10 @@ void main() {
           coordinationRepo.deleteForCommit(beaconId: 'B1', userId: 'U1'),
         ).thenAnswer((_) => Future.value());
         when(
-          commitmentRepo.withdraw(
+          helpOfferRepo.withdraw(
             beaconId: 'B1',
             userId: 'U1',
-            uncommitReason: 'timing',
+            withdrawReason: 'timing',
           ),
         ).thenAnswer((_) => Future.value());
         when(
@@ -241,13 +241,13 @@ void main() {
         await case_.withdraw(
           beaconId: 'B1',
           userId: 'U1',
-          uncommitReason: 'timing',
+          withdrawReason: 'timing',
         );
         verify(
-          commitmentRepo.withdraw(
+          helpOfferRepo.withdraw(
             beaconId: 'B1',
             userId: 'U1',
-            uncommitReason: 'timing',
+            withdrawReason: 'timing',
           ),
         ).called(1);
         verify(
@@ -260,61 +260,61 @@ void main() {
     });
   });
 
-  group('commit', () {
+  group('offerHelp', () {
     test('rejects when beacon not OPEN', () async {
       stubBeacon(beacon(id: 'B1', state: 1));
 
       await expectLater(
-        case_.commit(beaconId: 'B1', userId: 'U1'),
+        case_.offerHelp(beaconId: 'B1', userId: 'U1'),
         throwsA(
-          isA<CommitmentCoordinationException>().having(
+          isA<HelpOfferCoordinationException>().having(
             (e) =>
-                (e.code as CommitmentCoordinationExceptionCodes).exceptionCode,
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
             'code',
-            CommitmentCoordinationExceptionCode.beaconNotOpen,
+            HelpOfferCoordinationExceptionCode.beaconNotOpen,
           ),
         ),
       );
     });
 
-    test('rejects author on initial commit', () async {
+    test('rejects author on initial offer', () async {
       stubBeacon(beacon(id: 'B1', state: 0));
       when(
-        commitmentRepo.hasActiveCommitment(
+        helpOfferRepo.hasActiveHelpOffer(
           beaconId: 'B1',
           userId: 'Uauth',
         ),
       ).thenAnswer((_) async => false);
 
       await expectLater(
-        case_.commit(beaconId: 'B1', userId: 'Uauth'),
+        case_.offerHelp(beaconId: 'B1', userId: 'Uauth'),
         throwsA(
-          isA<CommitmentCoordinationException>().having(
+          isA<HelpOfferCoordinationException>().having(
             (e) =>
-                (e.code as CommitmentCoordinationExceptionCodes).exceptionCode,
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
             'code',
-            CommitmentCoordinationExceptionCode.authorCannotCommit,
+            HelpOfferCoordinationExceptionCode.authorCannotCommit,
           ),
         ),
       );
       verifyNever(
-        commitmentRepo.upsert(
+        helpOfferRepo.upsert(
           beaconId: 'B1',
           userId: 'Uauth',
         ),
       );
     });
 
-    test('allows upsert when already committed (update note)', () async {
+    test('allows upsert when already offered help (update note)', () async {
       stubBeacon(beacon(id: 'B1', state: 0));
       when(
-        commitmentRepo.hasActiveCommitment(
+        helpOfferRepo.hasActiveHelpOffer(
           beaconId: 'B1',
           userId: 'U1',
         ),
       ).thenAnswer((_) async => true);
       when(
-        commitmentRepo.upsert(
+        helpOfferRepo.upsert(
           beaconId: 'B1',
           userId: 'U1',
           message: 'updated',
@@ -324,10 +324,10 @@ void main() {
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
       ).thenAnswer((_) => Future.value());
 
-      await case_.commit(beaconId: 'B1', userId: 'U1', message: 'updated');
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1', message: 'updated');
 
       verify(
-        commitmentRepo.upsert(
+        helpOfferRepo.upsert(
           beaconId: 'B1',
           userId: 'U1',
           message: 'updated',
@@ -350,7 +350,7 @@ void main() {
     });
   });
 
-  group('auto-admit on new commit', () {
+  group('auto-admit on new help offer', () {
     final epoch = PgDateTime(DateTime.utc(2025));
 
     BeaconParticipant participant({required int roomAccess}) =>
@@ -365,13 +365,13 @@ void main() {
           roomAccess: roomAccess,
         );
 
-    void stubNewCommit() {
+    void stubNewHelpOffer() {
       stubBeacon(beacon(id: 'B1', state: 0));
       when(
-        commitmentRepo.hasActiveCommitment(beaconId: 'B1', userId: 'U1'),
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => false);
       when(
-        commitmentRepo.upsert(beaconId: 'B1', userId: 'U1'),
+        helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async {});
       when(
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
@@ -383,9 +383,9 @@ void main() {
         roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => null);
       when(
-        roomRepo.inviteCommitUserToBeaconRoom(
+        roomRepo.inviteOfferUserToBeaconRoom(
           beaconId: 'B1',
-          commitUserId: 'U1',
+          offerUserId: 'U1',
           authorUserId: 'Uauth',
         ),
       ).thenAnswer((_) => Future.value());
@@ -394,8 +394,8 @@ void main() {
       ).thenAnswer((_) => Future.value());
     }
 
-    test('admits when author directly forwarded beacon to committant', () async {
-      stubNewCommit();
+    test('admits when author directly forwarded beacon to help offerer', () async {
+      stubNewHelpOffer();
       when(
         forwardEdgeRepo.isDirectAuthorForward(
           beaconId: 'B1',
@@ -405,12 +405,12 @@ void main() {
       ).thenAnswer((_) async => true);
       stubAdmitCalls();
 
-      await case_.commit(beaconId: 'B1', userId: 'U1');
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
       verify(
-        roomRepo.inviteCommitUserToBeaconRoom(
+        roomRepo.inviteOfferUserToBeaconRoom(
           beaconId: 'B1',
-          commitUserId: 'U1',
+          offerUserId: 'U1',
           authorUserId: 'Uauth',
         ),
       ).called(1);
@@ -419,9 +419,9 @@ void main() {
       ).called(1);
     });
 
-    test('admits when committant is a mutual (reciprocal) friend of author',
+    test('admits when help offerer is a mutual (reciprocal) friend of author',
         () async {
-      stubNewCommit();
+      stubNewHelpOffer();
       // No direct forward — forward check returns false (default from setUp).
       when(
         friendshipLookup.isReciprocalSubscribe(
@@ -431,12 +431,12 @@ void main() {
       ).thenAnswer((_) async => true);
       stubAdmitCalls();
 
-      await case_.commit(beaconId: 'B1', userId: 'U1');
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
       verify(
-        roomRepo.inviteCommitUserToBeaconRoom(
+        roomRepo.inviteOfferUserToBeaconRoom(
           beaconId: 'B1',
-          commitUserId: 'U1',
+          offerUserId: 'U1',
           authorUserId: 'Uauth',
         ),
       ).called(1);
@@ -444,15 +444,15 @@ void main() {
 
     test('skips admit when only one-way author trust (not mutual, no direct forward)',
         () async {
-      stubNewCommit();
+      stubNewHelpOffer();
       // Both checks return false (defaults from setUp).
 
-      await case_.commit(beaconId: 'B1', userId: 'U1');
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
       verifyNever(
-        roomRepo.inviteCommitUserToBeaconRoom(
+        roomRepo.inviteOfferUserToBeaconRoom(
           beaconId: anyNamed('beaconId'),
-          commitUserId: anyNamed('commitUserId'),
+          offerUserId: anyNamed('offerUserId'),
           authorUserId: anyNamed('authorUserId'),
         ),
       );
@@ -460,7 +460,7 @@ void main() {
 
     test('skips admit when author explicitly revoked access (roomAccess=none)',
         () async {
-      stubNewCommit();
+      stubNewHelpOffer();
       when(
         forwardEdgeRepo.isDirectAuthorForward(
           beaconId: 'B1',
@@ -472,12 +472,12 @@ void main() {
         roomRepo.findParticipant(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => participant(roomAccess: RoomAccessBits.none));
 
-      await case_.commit(beaconId: 'B1', userId: 'U1');
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
       verifyNever(
-        roomRepo.inviteCommitUserToBeaconRoom(
+        roomRepo.inviteOfferUserToBeaconRoom(
           beaconId: anyNamed('beaconId'),
-          commitUserId: anyNamed('commitUserId'),
+          offerUserId: anyNamed('offerUserId'),
           authorUserId: anyNamed('authorUserId'),
         ),
       );
@@ -485,7 +485,7 @@ void main() {
 
     test('re-admits trusted user when participant exists with non-none access',
         () async {
-      stubNewCommit();
+      stubNewHelpOffer();
       when(
         forwardEdgeRepo.isDirectAuthorForward(
           beaconId: 'B1',
@@ -499,9 +499,9 @@ void main() {
         (_) async => participant(roomAccess: RoomAccessBits.requested),
       );
       when(
-        roomRepo.inviteCommitUserToBeaconRoom(
+        roomRepo.inviteOfferUserToBeaconRoom(
           beaconId: 'B1',
-          commitUserId: 'U1',
+          offerUserId: 'U1',
           authorUserId: 'Uauth',
         ),
       ).thenAnswer((_) => Future.value());
@@ -509,26 +509,26 @@ void main() {
         roomPush.notifyRoomAdmitted(receiverId: 'U1', beaconId: 'B1'),
       ).thenAnswer((_) => Future.value());
 
-      await case_.commit(beaconId: 'B1', userId: 'U1');
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
       verify(
-        roomRepo.inviteCommitUserToBeaconRoom(
+        roomRepo.inviteOfferUserToBeaconRoom(
           beaconId: 'B1',
-          commitUserId: 'U1',
+          offerUserId: 'U1',
           authorUserId: 'Uauth',
         ),
       ).called(1);
     });
   });
 
-  group('commitmentsWithCoordination after auto-admit (contract)', () {
+  group('helpOffersWithCoordination after auto-admit (contract)', () {
     test('row may have admitted roomAccess before author coordination response', () {
       const user = UserPublicRecord(
         id: 'U1',
         title: 't',
         description: '',
       );
-      final row = CommitmentWithCoordinationRow(
+      final row = HelpOfferWithCoordinationRow(
         beaconId: 'B1',
         userId: 'U1',
         message: 'm',
@@ -543,52 +543,52 @@ void main() {
     });
   });
 
-  group('commit — author notification', () {
-    void stubNewCommit() {
+  group('offerHelp — author notification', () {
+    void stubNewHelpOffer() {
       stubBeacon(beacon(id: 'B1', state: 0));
       when(
-        commitmentRepo.hasActiveCommitment(beaconId: 'B1', userId: 'U1'),
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => false);
       when(
-        commitmentRepo.upsert(beaconId: 'B1', userId: 'U1'),
+        helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) => Future.value());
       when(
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
       ).thenAnswer((_) => Future.value());
     }
 
-    test('notifies author on initial commit', () async {
-      stubNewCommit();
+    test('notifies author on initial help offer', () async {
+      stubNewHelpOffer();
 
-      await case_.commit(beaconId: 'B1', userId: 'U1');
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
       verify(
-        roomPush.notifyCommitToAuthor(
+        roomPush.notifyHelpOfferToAuthor(
           beaconId: 'B1',
-          committerId: 'U1',
+          helpOffererId: 'U1',
           authorId: 'Uauth',
         ),
       ).called(1);
     });
 
-    test('does NOT notify author on commit update (hasActive=true)', () async {
+    test('does NOT notify author on help offer update (hasActive=true)', () async {
       stubBeacon(beacon(id: 'B1', state: 0));
       when(
-        commitmentRepo.hasActiveCommitment(beaconId: 'B1', userId: 'U1'),
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async => true);
       when(
-        commitmentRepo.upsert(beaconId: 'B1', userId: 'U1'),
+        helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) => Future.value());
       when(
         coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
       ).thenAnswer((_) => Future.value());
 
-      await case_.commit(beaconId: 'B1', userId: 'U1');
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 
       verifyNever(
-        roomPush.notifyCommitToAuthor(
+        roomPush.notifyHelpOfferToAuthor(
           beaconId: anyNamed('beaconId'),
-          committerId: anyNamed('committerId'),
+          helpOffererId: anyNamed('helpOffererId'),
           authorId: anyNamed('authorId'),
         ),
       );

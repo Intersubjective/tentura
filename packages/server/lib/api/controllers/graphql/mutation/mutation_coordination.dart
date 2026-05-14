@@ -10,7 +10,7 @@ final class MutationCoordination extends GqlNodeBase {
 
   final CoordinationCase _coordinationCase;
 
-  final _commitUserId = InputFieldString(fieldName: 'commitUserId');
+  final _offerUserId = InputFieldString(fieldName: 'offerUserId');
 
   final GraphQLFieldInput<int, int> _responseTypeField = GraphQLFieldInput(
     'responseType',
@@ -45,7 +45,7 @@ final class MutationCoordination extends GqlNodeBase {
         gqlTypeCoordinationStatusResult.nonNullable(),
         arguments: [
           InputFieldId.field,
-          _commitUserId.field,
+          _offerUserId.field,
           _responseTypeField,
           _inviteToRoomField,
           _removeFromRoomField,
@@ -54,7 +54,7 @@ final class MutationCoordination extends GqlNodeBase {
           final jwt = getCredentials(args);
           return _coordinationCase.setCoordinationResponse(
             beaconId: InputFieldId.fromArgsNonNullable(args),
-            commitUserId: _commitUserId.fromArgsNonNullable(args),
+            offerUserId: _offerUserId.fromArgsNonNullable(args),
             authorUserId: jwt.sub,
             responseType: args[_responseTypeField.name]! as int,
             inviteToRoom: args[_inviteToRoomField.name]! as bool,

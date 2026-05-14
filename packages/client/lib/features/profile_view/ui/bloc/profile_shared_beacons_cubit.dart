@@ -9,7 +9,7 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export '../../data/repository/profile_shared_beacons_repository.dart'
     show
-        ProfileCoCommittedEntry,
+        ProfileCoHelpOfferedEntry,
         ProfileForwardedBeaconEntry,
         ProfileSharedBeaconsData,
         TargetBeaconReaction;

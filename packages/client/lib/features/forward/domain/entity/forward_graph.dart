@@ -18,9 +18,9 @@ abstract class ForwardGraphEdge with _$ForwardGraphEdge {
 }
 
 /// Result payload for `ForwardRepository.fetchForwardGraph` and
-/// `ForwardRepository.fetchCommitterForwardPath`. [viewerId] is non-null
-/// only for the committer-path query and is used to derive the viewer
-/// role (author / committer / involved-other) when picking the AppBar
+/// `ForwardRepository.fetchHelpOffererForwardPath`. [viewerId] is non-null
+/// only for the help-offerer-path query and is used to derive the viewer
+/// role (author / help offerer / involved-other) when picking the AppBar
 /// title and the focus node on the graph screen.
 @freezed
 abstract class ForwardGraph with _$ForwardGraph {
@@ -28,7 +28,7 @@ abstract class ForwardGraph with _$ForwardGraph {
     required String beaconId,
     required String authorId,
     @Default(<ForwardGraphEdge>[]) List<ForwardGraphEdge> edges,
-    @Default(<String>{}) Set<String> committerIds,
+    @Default(<String>{}) Set<String> helpOffererIds,
     String? viewerId,
   }) = _ForwardGraph;
 

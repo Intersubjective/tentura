@@ -1,4 +1,4 @@
-import 'package:tentura_server/domain/entity/gql_public/commitment_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
@@ -45,15 +45,15 @@ Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'user_presence': userPresenceToGqlMap(u.userPresence),
 };
 
-Map<String, dynamic> commitmentWithCoordinationToGqlMap(
-  CommitmentWithCoordinationRow row,
+Map<String, dynamic> helpOfferWithCoordinationToGqlMap(
+  HelpOfferWithCoordinationRow row,
 ) => {
   'beaconId': row.beaconId,
   'userId': row.userId,
   'message': row.message,
   'helpType': row.helpType,
   'status': row.status,
-  'uncommitReason': row.uncommitReason,
+  'withdrawReason': row.withdrawReason,
   'createdAt': row.createdAt.toUtc().toIso8601String(),
   'updatedAt': row.updatedAt.toUtc().toIso8601String(),
   'responseType': row.responseType,

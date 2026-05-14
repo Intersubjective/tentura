@@ -1,0 +1,23 @@
+# V2: forwards-graph view focused on one active help offerer of the beacon.
+# Returns the union of (a) the help offerer's ancestor closure (the chain that
+# delivered the beacon to them) and (b) the viewer's own forward edges and
+# their ancestor closure, so a viewer who is neither author nor help offerer
+# still sees how they fit between the author and the help offerer. Authorization
+# matches `beaconForwardGraph` (author / has-edge / active help offer).
+
+query BeaconHelpOffererForwardPath($id: String!, $helpOffererId: String!) {
+  beaconHelpOffererForwardPath(id: $id, helpOffererId: $helpOffererId) {
+    beaconId
+    authorId
+    viewerId
+    helpOffererIds
+    edges {
+      id
+      beaconId
+      senderId
+      recipientId
+      parentEdgeId
+      batchId
+    }
+  }
+}

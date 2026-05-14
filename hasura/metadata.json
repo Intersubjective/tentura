@@ -106,12 +106,12 @@
                 }
               },
               {
-                "name": "commitments",
+                "name": "help_offers",
                 "using": {
                   "foreign_key_constraint_on": {
                     "column": "beacon_id",
                     "table": {
-                      "name": "beacon_commitment",
+                      "name": "beacon_help_offer",
                       "schema": "public"
                     }
                   }
@@ -1148,7 +1148,7 @@
           },
           {
             "table": {
-              "name": "beacon_commitment",
+              "name": "beacon_help_offer",
               "schema": "public"
             },
             "object_relationships": [
@@ -1169,12 +1169,12 @@
                 "using": {
                   "manual_configuration": {
                     "column_mapping": {
-                      "beacon_id": "commit_beacon_id",
-                      "user_id": "commit_user_id"
+                      "beacon_id": "offer_beacon_id",
+                      "user_id": "offer_user_id"
                     },
                     "insertion_order": null,
                     "remote_table": {
-                      "name": "beacon_commitment_coordination",
+                      "name": "beacon_help_offer_coordination",
                       "schema": "public"
                     }
                   }
@@ -1208,7 +1208,7 @@
                     "created_at",
                     "updated_at",
                     "help_type",
-                    "uncommit_reason"
+                    "withdraw_reason"
                   ],
                   "filter": {},
                   "allow_aggregations": true
@@ -1440,7 +1440,7 @@
           },
           {
             "table": {
-              "name": "beacon_commitment_coordination",
+              "name": "beacon_help_offer_coordination",
               "schema": "public"
             },
             "object_relationships": [
@@ -1451,16 +1451,16 @@
                 }
               },
               {
-                "name": "commitment",
+                "name": "help_offer",
                 "using": {
                   "manual_configuration": {
                     "column_mapping": {
-                      "commit_beacon_id": "beacon_id",
-                      "commit_user_id": "user_id"
+                      "offer_beacon_id": "beacon_id",
+                      "offer_user_id": "user_id"
                     },
                     "insertion_order": null,
                     "remote_table": {
-                      "name": "beacon_commitment",
+                      "name": "beacon_help_offer",
                       "schema": "public"
                     }
                   }
@@ -1472,8 +1472,8 @@
                 "role": "user",
                 "permission": {
                   "columns": [
-                    "commit_beacon_id",
-                    "commit_user_id",
+                    "offer_beacon_id",
+                    "offer_user_id",
                     "author_user_id",
                     "response_type",
                     "created_at",
@@ -1482,7 +1482,7 @@
                   "filter": {
                     "_or": [
                       {
-                        "commitment": {
+                        "help_offer": {
                           "beacon": {
                             "user_id": {
                               "_eq": "X-Hasura-User-Id"
@@ -1491,7 +1491,7 @@
                         }
                       },
                       {
-                        "commit_user_id": {
+                        "offer_user_id": {
                           "_eq": "X-Hasura-User-Id"
                         }
                       }
@@ -1608,11 +1608,11 @@
                 }
               },
               {
-                "name": "inbox_user_commitment",
+                "name": "inbox_user_help_offer",
                 "using": {
                   "manual_configuration": {
                     "remote_table": {
-                      "name": "beacon_commitment",
+                      "name": "beacon_help_offer",
                       "schema": "public"
                     },
                     "column_mapping": {
@@ -1664,7 +1664,7 @@
                       },
                       {
                         "_not": {
-                          "inbox_user_commitment": {
+                          "inbox_user_help_offer": {
                             "status": {
                               "_eq": 0
                             }

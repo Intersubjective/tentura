@@ -312,12 +312,12 @@ void main() {
 
   setUp(() {
     evalRepo = _FakeEvaluationRepository();
-    final commitmentRepo = EmptyGraphCommitmentRepository();
+    final helpOfferRepo = EmptyGraphHelpOfferRepository();
     final forwardRepo = EmptyGraphForwardEdgeRepository();
     final userRepo = StubUserRepository('User');
 
     final graphBuilder = EvaluationParticipantGraphBuilder(
-      commitmentRepo,
+      helpOfferRepo,
       forwardRepo,
       userRepo,
     );

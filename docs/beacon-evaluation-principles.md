@@ -27,7 +27,7 @@ It is not a public reputation ritual, not a morality scoreboard, and not a perfo
 ## What evaluation is for
 
 * remembering which paths worked
-* remembering which commitments were reliable
+* remembering which help offers were reliable
 * remembering which forwarding was useful or noisy
 * improving future routing and trust calibration
 
@@ -63,7 +63,7 @@ One visible or likable action contaminates the whole judgment.
 
 ### 6. Role flattening
 
-Author, committer, and forwarder get judged on one generic scale despite doing different things.
+Author, helper, and forwarder get judged on one generic scale despite doing different things.
 
 ### 7. Attribution error
 
@@ -112,7 +112,7 @@ Never do any of the following:
 ## Required safeguards
 
 * include “No basis” as an explicit option
-* use role-specific evaluation prompts for author / committer / forwarder
+* use role-specific evaluation prompts for author / helper / forwarder
 * require a reason tag for strong positive and negative ratings
 * keep raw submissions private; show only beacon-local summaries to the evaluated person
 * keep evaluation bounded to a review window after closure

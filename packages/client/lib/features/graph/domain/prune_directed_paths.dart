@@ -50,7 +50,7 @@ Set<String> verticesThatCanReachFocus(Set<EdgeDirected> edges, String focus) {
 /// `v` is in the set of vertices that can reach [focus].
 ///
 /// When there is no directed `root → focus` path (e.g. viewer is the
-/// committer and [focus] is the author), retries with **swapped**
+/// help offerer and [focus] is the author), retries with **swapped**
 /// endpoints so the spine follows the real forward chain
 /// `focus → … → root` in the underlying `sender → recipient` graph.
 Set<EdgeDirected> edgesOnSomeDirectedPath({

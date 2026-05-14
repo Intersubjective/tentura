@@ -1,7 +1,7 @@
 import 'package:mockito/annotations.dart';
 
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -12,7 +12,7 @@ import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 
 @GenerateMocks([
   BeaconRepositoryPort,
-  CommitmentRepositoryPort,
+  HelpOfferRepositoryPort,
   CoordinationRepositoryPort,
   ForwardEdgeRepositoryPort,
   InboxRepositoryPort,

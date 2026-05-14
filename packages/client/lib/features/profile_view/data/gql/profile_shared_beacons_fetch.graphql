@@ -16,7 +16,7 @@ query ProfileForwardedToUser($meId: String!, $targetId: String!) {
     created_at
     beacon {
       ...BeaconModel
-      commitments(where: { user_id: { _eq: $targetId }, status: { _eq: 0 } }) {
+      help_offers(where: { user_id: { _eq: $targetId }, status: { _eq: 0 } }) {
         user_id
       }
       forward_edges(where: { sender_id: { _eq: $targetId } }, limit: 1) {
@@ -30,14 +30,14 @@ query ProfileCoCommitted($meId: String!, $targetId: String!) {
   beacon(
     where: {
       _and: [
-        { commitments: { user_id: { _eq: $meId }, status: { _eq: 0 } } }
-        { commitments: { user_id: { _eq: $targetId }, status: { _eq: 0 } } }
+        { help_offers: { user_id: { _eq: $meId }, status: { _eq: 0 } } }
+        { help_offers: { user_id: { _eq: $targetId }, status: { _eq: 0 } } }
       ]
     }
     order_by: { updated_at: desc }
   ) {
     ...BeaconModel
-    commitments(where: { user_id: { _eq: $targetId }, status: { _eq: 0 } }) {
+    help_offers(where: { user_id: { _eq: $targetId }, status: { _eq: 0 } }) {
       user_id
       message
       help_type

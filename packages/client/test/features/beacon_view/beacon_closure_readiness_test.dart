@@ -17,7 +17,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 Beacon _openBeacon({
   BeaconCoordinationStatus coordinationStatus =
-      BeaconCoordinationStatus.noCommitmentsYet,
+      BeaconCoordinationStatus.noHelpOffersYet,
 }) =>
     Beacon(
       createdAt: DateTime.utc(2025),
@@ -30,7 +30,7 @@ Beacon _openBeacon({
 
 BeaconViewState _baseAuthorState({
   Beacon? beacon,
-  List<TimelineCommitment> commitments = const [],
+  List<TimelineHelpOffer> helpOffers = const [],
   List<BeaconParticipant> roomParticipants = const [],
   BeaconRoomState? beaconRoomCue,
   List<BeaconActivityEvent> roomActivityEvents = const [],
@@ -39,7 +39,7 @@ BeaconViewState _baseAuthorState({
 }) =>
     BeaconViewState(
       beacon: beacon ?? _openBeacon(),
-      commitments: commitments,
+      helpOffers: helpOffers,
       roomParticipants: roomParticipants,
       beaconRoomCue: beaconRoomCue,
       roomActivityEvents: roomActivityEvents,
@@ -47,12 +47,12 @@ BeaconViewState _baseAuthorState({
       status: status,
     );
 
-TimelineCommitment _commit({
+TimelineHelpOffer _helpOffer({
   required String userId,
   CoordinationResponseType? coordinationResponse,
   bool withdrawn = false,
 }) =>
-    TimelineCommitment(
+    TimelineHelpOffer(
       user: Profile(id: userId, title: userId),
       message: '',
       createdAt: DateTime.utc(2025),
@@ -130,10 +130,10 @@ void main() {
     test('enough help alone does not yield readyToClose', () {
       final s = _baseAuthorState(
         beacon: _openBeacon(
-          coordinationStatus: BeaconCoordinationStatus.enoughHelpCommitted,
+          coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
         ),
-        commitments: [
-          _commit(userId: 'h1'),
+        helpOffers: [
+          _helpOffer(userId: 'h1'),
         ],
       );
       expect(computeClosureReadiness(s), isNot(BeaconClosureReadiness.readyToClose));
@@ -142,10 +142,10 @@ void main() {
     test('readyToClose when enoughHelp + useful + all relevant settled', () {
       final s = _baseAuthorState(
         beacon: _openBeacon(
-          coordinationStatus: BeaconCoordinationStatus.enoughHelpCommitted,
+          coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
         ),
-        commitments: [
-          _commit(
+        helpOffers: [
+          _helpOffer(
             userId: 'h1',
             coordinationResponse: CoordinationResponseType.useful,
           ),
@@ -166,15 +166,15 @@ void main() {
       expect(computeClosureReadiness(s), BeaconClosureReadiness.readyToClose);
     });
 
-    test('waitingForReview when commitmentsWaitingForReview and no strong path',
+    test('waitingForReview when helpOffersWaitingForReview and no strong path',
         () {
       final s = _baseAuthorState(
         beacon: _openBeacon(
           coordinationStatus:
-              BeaconCoordinationStatus.commitmentsWaitingForReview,
+              BeaconCoordinationStatus.helpOffersWaitingForReview,
         ),
-        commitments: [
-          _commit(userId: 'h1'),
+        helpOffers: [
+          _helpOffer(userId: 'h1'),
         ],
       );
       expect(
@@ -203,7 +203,7 @@ void main() {
 
     test('helper needsInfo does not block in v1', () {
       final s = _baseAuthorState(
-        commitments: [_commit(userId: 'h1')],
+        helpOffers: [_helpOffer(userId: 'h1')],
         roomParticipants: [
           BeaconParticipant(
             id: 'p1',

@@ -74,7 +74,7 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
                 sliver: ProfileViewBody(),
               ),
 
-              // Shared beacons (forwarded + co-committed)
+              // Shared beacons (forwarded + co-help-offered)
               ProfileSharedBeaconsSliver(),
             ],
           ),

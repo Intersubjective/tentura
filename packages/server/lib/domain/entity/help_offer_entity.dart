@@ -2,11 +2,11 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'user_entity.dart';
 
-part 'commitment_entity.freezed.dart';
+part 'help_offer_entity.freezed.dart';
 
 @freezed
-abstract class CommitmentEntity with _$CommitmentEntity {
-  const factory CommitmentEntity({
+abstract class HelpOfferEntity with _$HelpOfferEntity {
+  const factory HelpOfferEntity({
     required String beaconId,
     required String userId,
     required DateTime createdAt,
@@ -14,11 +14,11 @@ abstract class CommitmentEntity with _$CommitmentEntity {
     @Default('') String message,
     @Default(0) int status,
     String? helpType,
-    String? uncommitReason,
+    String? withdrawReason,
     UserEntity? user,
-  }) = _CommitmentEntity;
+  }) = _HelpOfferEntity;
 
-  const CommitmentEntity._();
+  const HelpOfferEntity._();
 
   bool get isActive => status == 0;
   bool get isWithdrawn => status == 1;

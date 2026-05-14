@@ -47,7 +47,7 @@ List<BeaconParticipant> beaconParticipantsVisibleForViewer({
   return list;
 }
 
-/// Best-effort display name: author, then [userIdToKnownTitle] (e.g. commitments), else id.
+/// Best-effort display name: author, then [userIdToKnownTitle] (e.g. helpOffers), else id.
 String participantDisplayTitle({
   required BeaconParticipant participant,
   required Beacon beacon,

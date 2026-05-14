@@ -572,26 +572,30 @@
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"
   },
-  "committerForwardPathTitleAuthor": "Путь пересылок до {name}",
-  "@committerForwardPathTitleAuthor": {
+  "helpOffererForwardPathTitleAuthor": "Путь пересылок до {name}",
+  "@helpOffererForwardPathTitleAuthor": {
     "context": "ForwardsGraphScreen — viewer is the beacon author",
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
-  "committerForwardPathTitleViewer": "Путь пересылок \u2014 вы \u2192 {name}",
-  "@committerForwardPathTitleViewer": {
+  "helpOffererForwardPathTitleViewer": "Путь пересылок — вы → {name}",
+  "@helpOffererForwardPathTitleViewer": {
     "context": "ForwardsGraphScreen — viewer is an involved-other",
     "placeholders": {
-      "name": { "type": "String" }
+      "name": {
+        "type": "String"
+      }
     }
   },
-  "committerForwardPathTitleSelf": "Ваш путь пересылок",
-  "@committerForwardPathTitleSelf": {
-    "context": "ForwardsGraphScreen — viewer IS the focused committer"
+  "helpOffererForwardPathTitleSelf": "Ваш путь пересылок",
+  "@helpOffererForwardPathTitleSelf": {
+    "context": "ForwardsGraphScreen — viewer IS the focused helper"
   },
-  "committerForwardPathTooltip": "Показать путь пересылок",
-  "@committerForwardPathTooltip": {
+  "helpOffererForwardPathTooltip": "Показать путь пересылок",
+  "@helpOffererForwardPathTooltip": {
     "context": "BeaconPeopleParticipantCard — IconButton tooltip"
   },
   "myField": "Моё поле",
@@ -658,9 +662,9 @@
   "@profileSharedBeaconsForwardedSection": {
     "context": "Profile — shared beacons section header"
   },
-  "profileSharedBeaconsCoCommittedSection": "Совместная работа",
-  "@profileSharedBeaconsCoCommittedSection": {
-    "context": "Profile — co-committed beacons section header"
+  "profileSharedBeaconsCoHelpOfferedSection": "Совместная работа",
+  "@profileSharedBeaconsCoHelpOfferedSection": {
+    "context": "Profile — co-helped beacons section header"
   },
   "showMutualFriends": "Общие друзья",
   "@showMutualFriends": {
@@ -885,13 +889,13 @@
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
   },
-  "newStuffReasonCommitmentUpdated": "Обновлено ваше участие или заметка",
-  "@newStuffReasonCommitmentUpdated": {
-    "context": "NewStuff dot — commitment row changed"
+  "newStuffReasonHelpOfferUpdated": "Обновлено ваше предложение помощи или заметка",
+  "@newStuffReasonHelpOfferUpdated": {
+    "context": "NewStuff dot — help offer row changed"
   },
   "newStuffReasonAuthorResponseChanged": "Автор изменил ответ на ваше участие",
   "@newStuffReasonAuthorResponseChanged": {
-    "context": "NewStuff dot — author coordination response to commitment"
+    "context": "NewStuff dot — author coordination response to help offer"
   },
   "inboxEmpty": "Входящие пусты",
   "@inboxEmpty": {
@@ -1217,18 +1221,18 @@
   "@inboxCategoryGeneral": {
     "context": "InboxItemTile"
   },
-  "inboxCommitmentsCount": "{count} обязательств",
-  "@inboxCommitmentsCount": {
-    "context": "BeaconViewScreen commitments tab label",
+  "inboxHelpOffersCount": "{count} предложений помощи",
+  "@inboxHelpOffersCount": {
+    "context": "BeaconViewScreen help offers tab label",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "beaconCardCommitmentCount": "{count}",
-  "@beaconCardCommitmentCount": {
-    "context": "Beacon list card meta strip (icon conveys commitments)",
+  "beaconCardHelpOfferCount": "{count}",
+  "@beaconCardHelpOfferCount": {
+    "context": "Beacon list card meta strip (icon conveys help offers)",
     "placeholders": {
       "count": {
         "type": "int"
@@ -1329,8 +1333,8 @@
   "@forwardMyNoteShowLess": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardCommitted": "Взяли обязательство",
-  "@forwardCommitted": {
+  "forwardHelpOffered": "Предложили помощь",
+  "@forwardHelpOffered": {
     "context": "ForwardBeaconScreen"
   },
   "forwardWithdrawn": "Отозвали обязательство",
@@ -1448,8 +1452,8 @@
   "@myWorkFilterAuthored": {
     "context": "MyWorkScreen"
   },
-  "myWorkFilterCommitted": "Принятые",
-  "@myWorkFilterCommitted": {
+  "myWorkFilterHelpOffered": "Помощь предложена",
+  "@myWorkFilterHelpOffered": {
     "context": "MyWorkScreen"
   },
   "myWorkFilterArchived": "Архив",
@@ -1476,7 +1480,7 @@
   "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyAll": "Пока нет созданных или принятых дел",
+  "myWorkEmptyAll": "Пока нет созданных дел или предложений помощи",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"
   },
@@ -1484,8 +1488,8 @@
   "@myWorkEmptyAuthored": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyCommitted": "Нет активных обязательств",
-  "@myWorkEmptyCommitted": {
+  "myWorkEmptyHelpOffered": "Нет активных предложений помощи",
+  "@myWorkEmptyHelpOffered": {
     "context": "MyWorkScreen"
   },
   "myWorkEmptyArchived": "Нет архивных записей",
@@ -1504,8 +1508,8 @@
   "@myWorkChipDraft": {
     "context": "MyWorkScreen"
   },
-  "myWorkChipCommitted": "Я принял(а)",
-  "@myWorkChipCommitted": {
+  "myWorkChipHelpOffered": "Я предложил(а) помощь",
+  "@myWorkChipHelpOffered": {
     "context": "MyWorkScreen"
   },
   "myWorkChipReviewPending": "Ожидает проверки",
@@ -1532,16 +1536,16 @@
   "@myWorkStatusDraft": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusNoCommitments": "Нет обязательств",
-  "@myWorkStatusNoCommitments": {
+  "myWorkStatusNoHelpOffers": "Нет предложений помощи",
+  "@myWorkStatusNoHelpOffers": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusNeedsMoreHelp": "Нужна помощь",
   "@myWorkStatusNeedsMoreHelp": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusReviewingCommitments": "Проверяем обязательства",
-  "@myWorkStatusReviewingCommitments": {
+  "myWorkStatusReviewingHelpOffers": "Проверяем предложения помощи",
+  "@myWorkStatusReviewingHelpOffers": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusEnoughHelp": "Помощи достаточно",
@@ -1589,16 +1593,16 @@
   "@myWorkStatusWaitingOnAuthor": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusZeroCommitted": "0 принятых",
-  "@myWorkStatusZeroCommitted": {
+  "myWorkStatusZeroHelpOffered": "0 предложений",
+  "@myWorkStatusZeroHelpOffered": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusOneCommitted": "1 принято",
-  "@myWorkStatusOneCommitted": {
+  "myWorkStatusOneHelpOffered": "1 предложение",
+  "@myWorkStatusOneHelpOffered": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusNCommitted": "{count} принято",
-  "@myWorkStatusNCommitted": {
+  "myWorkStatusNHelpOffered": "{count} предложений",
+  "@myWorkStatusNHelpOffered": {
     "context": "MyWorkScreen",
     "placeholders": {
       "count": {
@@ -1614,16 +1618,16 @@
   "@myWorkStatusReadyForReview": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusCommittedPersonal": "Принято",
-  "@myWorkStatusCommittedPersonal": {
+  "myWorkStatusHelpOfferedPersonal": "Помощь предложена",
+  "@myWorkStatusHelpOfferedPersonal": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusMirrorNeedsMoreHelp": "нужна помощь",
   "@myWorkStatusMirrorNeedsMoreHelp": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusMirrorReviewingCommitments": "проверяем обязательства",
-  "@myWorkStatusMirrorReviewingCommitments": {
+  "myWorkStatusMirrorReviewingHelpOffers": "проверяем предложения помощи",
+  "@myWorkStatusMirrorReviewingHelpOffers": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusMirrorEnoughHelp": "помощи достаточно",
@@ -1638,11 +1642,11 @@
   "@myWorkStatusAcknowledgeContributions": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusCommitmentWithResponse": "{commitment}: {response}",
-  "@myWorkStatusCommitmentWithResponse": {
+  "myWorkStatusHelpOfferWithResponse": "{helpOffer}: {response}",
+  "@myWorkStatusHelpOfferWithResponse": {
     "context": "MyWorkScreen",
     "placeholders": {
-      "commitment": {
+      "helpOffer": {
         "type": "String"
       },
       "response": {
@@ -1659,8 +1663,8 @@
       }
     }
   },
-  "myWorkReviewCommitmentsCta": "Проверить обязательства",
-  "@myWorkReviewCommitmentsCta": {
+  "myWorkReviewHelpOffersCta": "Проверить предложения помощи",
+  "@myWorkReviewHelpOffersCta": {
     "context": "MyWorkScreen"
   },
   "myWorkReviewCta": "Проверить",
@@ -1693,8 +1697,8 @@
       }
     }
   },
-  "myWorkCommitmentsShort": "{count}",
-  "@myWorkCommitmentsShort": {
+  "myWorkHelpOffersShort": "{count}",
+  "@myWorkHelpOffersShort": {
     "context": "MyWorkScreen",
     "placeholders": {
       "count": {
@@ -1787,7 +1791,7 @@
       }
     }
   },
-  "beaconUpdateComposerHint": "Что изменилось? Расскажите участникам и наблюдателям.",
+  "beaconUpdateComposerHint": "Что изменилось? Расскажите помощникам и наблюдателям.",
   "@beaconUpdateComposerHint": {
     "context": "BeaconViewScreen"
   },
@@ -1807,22 +1811,22 @@
   "@beaconUpdateEditExpired": {
     "context": "BeaconViewScreen"
   },
-  "labelCommitted": "Принято",
-  "@labelCommitted": {
+  "labelHelpOffered": "Помощь предложена",
+  "@labelHelpOffered": {
     "context": "BeaconViewScreen"
   },
-  "labelCommit": "Принять",
-  "@labelCommit": {
+  "labelOfferHelp": "Предложить помощь",
+  "@labelOfferHelp": {
     "context": "BeaconViewScreen"
   },
-  "nudgeCommitAfterForward": "Переслано! Закоммитишься тоже?",
-  "@nudgeCommitAfterForward": {
+  "nudgeOfferHelpAfterForward": "Переслано! Предложите свою помощь тоже?",
+  "@nudgeOfferHelpAfterForward": {
     "context": "BeaconViewScreen"
   },
-  "labelCommitAnyway": "Всё равно помочь",
-  "@labelCommitAnyway": {
+  "labelOfferHelpAnyway": "Всё равно предложить помощь",
+  "@labelOfferHelpAnyway": {
     "context": "BeaconViewScreen",
-    "description": "Commit button when coordination status is enough help committed"
+    "description": "Offer help button when coordination status is enough help offered help"
   },
   "labelForward": "Переслать",
   "@labelForward": {
@@ -1844,76 +1848,106 @@
   "@timelineForwarded": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "sender": { "type": "String" },
-      "recipient": { "type": "String" }
+      "sender": {
+        "type": "String"
+      },
+      "recipient": {
+        "type": "String"
+      }
     }
   },
-  "timelineCommitted": "{user} принял(а) участие",
-  "@timelineCommitted": {
+  "timelineHelpOffered": "{user} предложил(а) помощь",
+  "@timelineHelpOffered": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "user": { "type": "String" }
+      "user": {
+        "type": "String"
+      }
     }
   },
-  "timelineCommittedWithMessage": "{user} принял(а) участие: \"{message}\"",
-  "@timelineCommittedWithMessage": {
+  "timelineHelpOfferedWithMessage": "{user} предложил(а) помощь: \"{message}\"",
+  "@timelineHelpOfferedWithMessage": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "user": { "type": "String" },
-      "message": { "type": "String" }
+      "user": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
     }
   },
   "timelineWithdrew": "{user} отказался(-ась)",
   "@timelineWithdrew": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "user": { "type": "String" }
+      "user": {
+        "type": "String"
+      }
     }
   },
   "timelineWithdrewWithMessage": "{user} отказался(-ась): \"{message}\"",
   "@timelineWithdrewWithMessage": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "user": { "type": "String" },
-      "message": { "type": "String" }
+      "user": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
     }
   },
   "labelWithdrawn": "Отказ",
   "@labelWithdrawn": {
     "context": "BeaconViewScreen",
-    "description": "Badge for withdrawn commitment in commitments list"
+    "description": "Badge for withdrawn help offer in help offers list"
   },
   "timelineUpdate": "{author}: {content}",
   "@timelineUpdate": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "author": { "type": "String" },
-      "content": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "content": {
+        "type": "String"
+      }
     }
   },
   "timelineCreated": "{author} создал(а) запрос",
   "@timelineCreated": {
     "context": "BeaconViewScreen",
     "placeholders": {
-      "author": { "type": "String" }
+      "author": {
+        "type": "String"
+      }
     }
   },
-  "timelineCommitmentDetailsUpdated": "{user} обновил(а) участие",
-  "@timelineCommitmentDetailsUpdated": {
+  "timelineHelpOfferDetailsUpdated": "{user} обновил(а) предложение помощи",
+  "@timelineHelpOfferDetailsUpdated": {
     "context": "BeaconViewScreen",
-    "description": "Timeline: committer changed message or help type",
+    "description": "Timeline: helper changed message or help type",
     "placeholders": {
-      "user": { "type": "String" }
+      "user": {
+        "type": "String"
+      }
     }
   },
   "timelineAuthorCoordinationResponseLine": "{author} задал(а) ответ для {committer}: {label}",
   "@timelineAuthorCoordinationResponseLine": {
     "context": "BeaconViewScreen",
-    "description": "Timeline: beacon author coordination response for a commitment",
+    "description": "Timeline: beacon author coordination response for a help offer",
     "placeholders": {
-      "author": { "type": "String" },
-      "committer": { "type": "String" },
-      "label": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "committer": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
     }
   },
   "timelineBeaconLifecycleChanged": "{author} изменил(а) статус маяка на: {status}",
@@ -1921,8 +1955,12 @@
     "context": "BeaconViewScreen",
     "description": "Timeline: beacon lifecycle/state changed",
     "placeholders": {
-      "author": { "type": "String" },
-      "status": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
     }
   },
   "timelineBeaconCoordinationStatusChanged": "{author} изменил(а) координационный статус на: {status}",
@@ -1930,14 +1968,18 @@
     "context": "BeaconViewScreen",
     "description": "Timeline: beacon-level coordination status changed",
     "placeholders": {
-      "author": { "type": "String" },
-      "status": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
     }
   },
-  "labelCommitments": "Люди",
-  "@labelCommitments": {
+  "labelHelpOffers": "Люди",
+  "@labelHelpOffers": {
     "context": "BeaconViewScreen",
-    "description": "Tab title for commitments list"
+    "description": "Tab title for help offers list"
   },
   "labelForwards": "Пересылки",
   "@labelForwards": {
@@ -1984,10 +2026,10 @@
       }
     }
   },
-  "forwardReactionCommitted": "Принял участие",
-  "@forwardReactionCommitted": {
+  "forwardReactionHelpOffered": "Предложил помощь",
+  "@forwardReactionHelpOffered": {
     "context": "BeaconViewScreen",
-    "description": "Label when a forward recipient committed to the beacon"
+    "description": "Label when a forward recipient offered help to the beacon"
   },
   "forwardReactionWatching": "Наблюдает",
   "@forwardReactionWatching": {
@@ -2016,45 +2058,45 @@
       }
     }
   },
-  "dialogCommitTitle": "Принять участие",
-  "@dialogCommitTitle": {
+  "dialogOfferHelpTitle": "Предложить помощь по маяку",
+  "@dialogOfferHelpTitle": {
     "context": "BeaconViewScreen",
-    "description": "Title for commit dialog"
+    "description": "Title for offer help dialog"
   },
-  "dialogCommitAnywayTitle": "Всё равно предложить помощь",
-  "@dialogCommitAnywayTitle": {
+  "dialogOfferHelpAnywayTitle": "Всё равно предложить помощь",
+  "@dialogOfferHelpAnywayTitle": {
     "context": "BeaconViewScreen",
-    "description": "Commit dialog title when beacon shows enough help committed"
+    "description": "Offer help dialog title when beacon shows enough help offered help"
   },
-  "dialogWithdrawTitle": "Отказаться от участия",
-  "@dialogWithdrawTitle": {
+  "dialogWithdrawHelpOfferTitle": "Отозвать предложение помощи",
+  "@dialogWithdrawHelpOfferTitle": {
     "context": "BeaconViewScreen",
     "description": "Title for withdraw dialog"
   },
-  "dialogUpdateCommitTitle": "Изменить участие",
-  "@dialogUpdateCommitTitle": {
+  "dialogUpdateHelpOfferTitle": "Изменить предложение помощи",
+  "@dialogUpdateHelpOfferTitle": {
     "context": "BeaconViewScreen",
-    "description": "Title for edit commitment dialog"
+    "description": "Title for edit help offer dialog"
   },
-  "hintCommitMessage": "Чем вы поможете?",
-  "@hintCommitMessage": {
+  "hintOfferHelpMessage": "Чем вы поможете?",
+  "@hintOfferHelpMessage": {
     "context": "BeaconViewScreen",
-    "description": "Hint text for commit message input"
+    "description": "Hint text for help offer message input"
   },
   "hintWithdrawReason": "Почему вы отказываетесь?",
   "@hintWithdrawReason": {
     "context": "BeaconViewScreen",
     "description": "Hint text for withdraw reason input"
   },
-  "noCommitmentsYet": "Пока никто не участвует",
-  "@noCommitmentsYet": {
+  "noHelpOffersYet": "Пока никто не предложил помощь",
+  "@noHelpOffersYet": {
     "context": "BeaconViewScreen",
-    "description": "Empty state for commitments tab"
+    "description": "Empty state for help offers tab"
   },
   "labelEdited": "изменено",
   "@labelEdited": {
     "context": "BeaconViewScreen",
-    "description": "Label shown on edited commitments"
+    "description": "Label shown on edited help offers"
   },
   "chatPresenceOnline": "В сети",
   "@chatPresenceOnline": {
@@ -2068,28 +2110,36 @@
   "@chatPresenceLastSeenMinutes": {
     "context": "Chat",
     "placeholders": {
-      "minutes": { "type": "int" }
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "chatPresenceLastSeenHours": "Был(а) {hours} ч назад",
   "@chatPresenceLastSeenHours": {
     "context": "Chat",
     "placeholders": {
-      "hours": { "type": "int" }
+      "hours": {
+        "type": "int"
+      }
     }
   },
   "chatPresenceLastSeenDays": "Был(а) {days} дн. назад",
   "@chatPresenceLastSeenDays": {
     "context": "Chat",
     "placeholders": {
-      "days": { "type": "int" }
+      "days": {
+        "type": "int"
+      }
     }
   },
   "profilePresenceLastSeenOnDate": "Был(а) {date}",
   "@profilePresenceLastSeenOnDate": {
     "context": "Profile",
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "evaluationBannerTitle": "Маяк закрыт — отзыв о вкладе",
@@ -2103,12 +2153,14 @@
   "evaluationPrivacyBlock": "Ваш отзыв здесь приватен. Он не будет показан публично, и другие участники маяка по умолчанию не увидят ваши ответы. Он используется только для улучшения вашего локального представления о доверии: кому вы можете больше доверять, кому меньше или через кого маршрутизировать маяки в следующий раз. Проще говоря: ответы помогают Tentura давать вам более точные персональные рекомендации и подбор относительно людей здесь и связанных с ними. Оценивайте только то, что вы реально видели в этом маяке. Если не уверены, выберите «Нет оснований».",
   "evaluationDraftDone": "Готово",
   "evaluationSectionAuthor": "Автор",
-  "evaluationSectionCommitter": "Исполнители",
+  "evaluationSectionHelpOfferer": "Помощники",
   "evaluationSectionForwarder": "Переславшие",
   "evaluationReviewDeadline": "Окно отзывов до {date}",
   "@evaluationReviewDeadline": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "evaluationSubmitFinish": "Отправить и завершить",
@@ -2118,14 +2170,18 @@
   "evaluationProgress": "{reviewed} из {total} оценено",
   "@evaluationProgress": {
     "placeholders": {
-      "reviewed": { "type": "int" },
-      "total": { "type": "int" }
+      "reviewed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "evaluationPrivateHint": "Приватный отзыв только для этого маяка. Ответ используется только для вашей персональной логики доверия и рекомендаций. Это не публичный балл, и другие участники не видят вашу оценку с привязкой к имени.",
   "evaluationPromptAuthor": "Как вклад автора повлиял на этот маяк?",
-  "evaluationPromptCommitter": "Как обязательство этого человека повлияло на маяк?",
-  "evaluationPromptCommitterHandoff": "Как этот человек вёл себя после пересылки маяка ему?",
+  "evaluationPromptHelpOfferer": "Как помощь этого человека повлияла на маяк?",
+  "evaluationPromptHelpOffererHandoff": "Как этот человек вёл себя после пересылки маяка ему?",
   "evaluationPromptForwarder": "Помогла или помешала эта пересылка маяку?",
   "evaluationEmptyTargets": "Пока некого оценивать по этому маяку.",
   "evaluationSave": "Сохранить",
@@ -2139,33 +2195,45 @@
   "evaluationReviewPeriodEndsIn": "Период отзыва закончится через {remaining}.",
   "@evaluationReviewPeriodEndsIn": {
     "placeholders": {
-      "remaining": { "type": "String" }
+      "remaining": {
+        "type": "String"
+      }
     }
   },
   "evaluationReviewDurationDaysHours": "{days} дн. {hours} ч.",
   "@evaluationReviewDurationDaysHours": {
     "placeholders": {
-      "days": { "type": "int" },
-      "hours": { "type": "int" }
+      "days": {
+        "type": "int"
+      },
+      "hours": {
+        "type": "int"
+      }
     }
   },
   "evaluationReviewDurationHoursMinutes": "{hours} ч. {minutes} мин.",
   "@evaluationReviewDurationHoursMinutes": {
     "placeholders": {
-      "hours": { "type": "int" },
-      "minutes": { "type": "int" }
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "evaluationReviewDurationMinutes": "{minutes} мин.",
   "@evaluationReviewDurationMinutes": {
     "placeholders": {
-      "minutes": { "type": "int" }
+      "minutes": {
+        "type": "int"
+      }
     }
   },
   "evaluationReviewDurationLessThanMinute": "<1 мин.",
   "labelHelpTypeOptional": "Тип помощи (необязательно)",
-  "labelUncommitReasonRequired": "Почему вы откладываете участие?",
-  "coordinationNoCommitments": "Пока нет обязательств",
+  "labelWithdrawReasonRequired": "Почему вы отзываете помощь?",
+  "coordinationNoHelpOffers": "Пока нет предложений помощи",
   "coordinationWaitingForReview": "Обязательства ждут просмотра",
   "coordinationMoreHelpNeeded": "Нужна другая или большая помощь",
   "coordinationEnoughHelp": "Достаточно помощи",
@@ -2179,16 +2247,18 @@
   "coordinationInviteToRoomRow": "Допустить в комнату",
   "beaconRoomWaitingForApproval": "Ожидает решения",
   "beaconRoomNoAdmission": "Комната недоступна",
-  "uncommitCantDoIt": "Больше не могу",
-  "uncommitTimingChanged": "Не сходится по времени",
-  "uncommitWrongFit": "Не мой формат",
-  "uncommitSomeoneElseTookOver": "Кто-то другой подхватил",
-  "uncommitOther": "Другое",
+  "withdrawCantDoIt": "Больше не могу",
+  "withdrawTimingChanged": "Не сходится по времени",
+  "withdrawWrongFit": "Не мой формат",
+  "withdrawSomeoneElseTookOver": "Кто-то другой подхватил",
+  "withdrawOther": "Другое",
   "labelCoordinationStatus": "Координация",
-  "labelCommitmentCount": "{count} обязательств",
-  "@labelCommitmentCount": {
+  "labelHelpOfferCount": "{count} предложений помощи",
+  "@labelHelpOfferCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "labelSetCoordinationResponse": "Сигнал координации",
@@ -2213,15 +2283,17 @@
   "beaconHudYouAuthorReview": "Проверить {count} участие(й)",
   "@beaconHudYouAuthorReview": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHudYouAuthorIdle": "Автор · обновите план при необходимости",
   "beaconHudYouAuthorResolveBlocker": "Снимите или обновите блокер",
-  "beaconHudYouCommitted": "Вы участвуете — держите связь с помощниками",
+  "beaconHudYouHelpOffered": "Вы предложили помощь — держите связь с помощниками",
   "beaconHudYouAskedToHelp": "Вас просят помочь — ответьте или наблюдайте",
   "beaconHudYouWatching": "Наблюдаете",
-  "beaconHudYouCanCommit": "Можете присоединиться",
+  "beaconHudYouCanOfferHelp": "Можете предложить помощь",
   "beaconHudYouNoAction": "Нет текущего действия",
   "beaconHudLifecycleActive": "АКТИВЕН",
   "beaconHudLifecycleClosed": "ЗАКРЫТ",
@@ -2231,29 +2303,37 @@
   "beaconHudNowBlocked": "Блокер: {title}",
   "@beaconHudNowBlocked": {
     "placeholders": {
-      "title": { "type": "String" }
+      "title": {
+        "type": "String"
+      }
     }
   },
   "beaconHudBeaconUnavailable": "Маяк недоступен",
   "beaconHudYouNoActionAvailable": "Действий нет",
   "beaconHudYouForward": "Можете переслать",
   "beaconHudReviewOpen": "ОКНО ОЦЕНКИ",
-  "beaconHudTokenCommittedCount": "{count} принято",
-  "@beaconHudTokenCommittedCount": {
+  "beaconHudTokenHelpOfferedCount": "{count} предложений",
+  "@beaconHudTokenHelpOfferedCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHudTokenNeedCoordCount": "{count} нужна координация",
   "@beaconHudTokenNeedCoordCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHudNextMovePrefix": "Дальше: {text}",
   "@beaconHudNextMovePrefix": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "beaconHudClosedSummary": "Закрыт",
@@ -2261,7 +2341,7 @@
   "beaconHudOverflowMore": "Ещё действия",
   "beaconHudOverflowCloseBeacon": "Закрыть маяк…",
   "beaconHudYouAuthorReadyToClose": "Завершите цикл",
-  "beaconHudYouAuthorReviewBeforeClose": "Проверьте участия перед закрытием",
+  "beaconHudYouAuthorReviewBeforeClose": "Проверьте предложения помощи перед закрытием",
   "beaconHudYouAuthorCoordinationActive": "Координация активна — обновите или перешлите",
   "beaconHudTokenReadyToClose": "ГОТОВ К ЗАКРЫТИЮ",
   "beaconHudTokenReviewBeforeClose": "ПРОВЕРКА ПЕРЕД ЗАКРЫТИЕМ",
@@ -2281,16 +2361,20 @@
   "beaconCloseSheetEvidenceWholeBeaconDone": "Маяк целиком отмечен завершённым",
   "beaconCloseSheetEvidenceEnoughHelp": "Отмечено достаточно помощи",
   "beaconCloseSheetEvidenceUsefulOrDone": "Есть полезный или завершённый результат",
-  "beaconCloseSheetEvidenceUnsettledCount": "{count} участие(й) не доведены до ясного статуса",
+  "beaconCloseSheetEvidenceUnsettledCount": "{count} предложение(-й) помощи не доведены до ясного статуса",
   "@beaconCloseSheetEvidenceUnsettledCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
-  "beaconCloseSheetEvidenceUnansweredCount": "{count} участие(й) ждут вашей координации",
+  "beaconCloseSheetEvidenceUnansweredCount": "{count} предложение(-й) помощи ждут вашей координации",
   "@beaconCloseSheetEvidenceUnansweredCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconCloseSheetActionCloseBeacon": "Закрыть маяк",
@@ -2315,64 +2399,80 @@
   "beaconPeopleLensWithdrawnHeading": "Отозваны",
   "beaconPeopleLensNeedsAttentionHeading": "Нужна координация",
   "beaconCtaUpdateStatus": "Статус",
-  "beaconCtaEditCommitment": "Изменить участие",
+  "beaconCtaEditHelpOffer": "Изменить предложение помощи",
   "beaconCtaViewChain": "Цепочка",
   "beaconCtaReadOnly": "Только просмотр",
-  "beaconChipCommitsCount": "{count} участий",
-  "@beaconChipCommitsCount": {
+  "beaconChipHelpOffersCount": "{count} предложений помощи",
+  "@beaconChipHelpOffersCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconChipUsefulCount": "{count} полезных",
   "@beaconChipUsefulCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconChipForwardedBy": "Переслано от {count}",
   "@beaconChipForwardedBy": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconChipYouForwarded": "Вы переслали ×{count}",
   "@beaconChipYouForwarded": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconChipMoreHelpNeeded": "Нужна ещё помощь",
-  "beaconChipReviewingCommitments": "Проверка участий",
+  "beaconChipReviewingHelpOffers": "Проверка предложений помощи",
   "beaconChipEnoughHelp": "Достаточно помощи",
   "beaconChipHelpTypeCommitted": "{type}",
   "@beaconChipHelpTypeCommitted": {
     "placeholders": {
-      "type": { "type": "String" }
+      "type": {
+        "type": "String"
+      }
     }
   },
   "beaconChipDeadlineOn": "До {date}",
   "@beaconChipDeadlineOn": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
-  "beaconHeaderNoCommitments": "Нет принятых",
-  "beaconHeaderCommitmentsCount": "{count} принято",
-  "@beaconHeaderCommitmentsCount": {
+  "beaconHeaderNoHelpOffers": "Нет предложений",
+  "beaconHeaderHelpOffersCount": "{count} предложений",
+  "@beaconHeaderHelpOffersCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHeaderRoomCount": "Комната · {count}",
   "@beaconHeaderRoomCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconHeaderWatch": "Наблюдать",
   "beaconHeaderStopWatching": "Не наблюдать",
-  "beaconHeaderUpdateCommitment": "Изменить отклик",
+  "beaconHeaderUpdateHelpOffer": "Изменить предложение помощи",
   "beaconNeedSummaryTitle": "Потребность",
   "beaconCoordinationCardTitle": "Координация",
   "beaconPublicStatusCardTitle": "Публичный статус",
@@ -2383,8 +2483,8 @@
   "beaconPublicStatusClosed": "Закрыт",
   "beaconPublicStatusNoNote": "Без примечания",
   "beaconYourRelationTitle": "Почему вы это видите",
-  "beaconCommitSnapshotTitle": "Участия",
-  "beaconViewAllCommitments": "Все участия",
+  "beaconHelpOfferSnapshotTitle": "Предложения помощи",
+  "beaconViewAllHelpOffers": "Все предложения помощи",
   "beaconLatestUpdateTitle": "Обновление автора",
   "beaconForwardChainPreview": "Цепочка пересылок",
   "beaconForwardChainTapHint": "Нажмите для графа",
@@ -2406,60 +2506,80 @@
   "beaconDescriptionTooLong": "Описание должно быть не длиннее {max} символов",
   "@beaconDescriptionTooLong": {
     "placeholders": {
-      "max": { "type": "int" }
+      "max": {
+        "type": "int"
+      }
     }
   },
   "beaconShowWithdrawn": "Показать снятые ({count})",
   "@beaconShowWithdrawn": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconNoActivityYetShort": "Пока нет событий",
-  "commitmentsTabAuthorLabelCaption": "метка автора",
-  "commitmentsTabActionEdit": "правка",
-  "commitmentsTabActionWithdraw": "снять",
-  "commitmentsTabSummaryUseful": "{n} полезн.",
-  "@commitmentsTabSummaryUseful": {
+  "helpOffersTabAuthorLabelCaption": "метка автора",
+  "helpOffersTabActionEdit": "правка",
+  "helpOffersTabActionWithdraw": "снять",
+  "helpOffersTabSummaryUseful": "{n} полезн.",
+  "@helpOffersTabSummaryUseful": {
     "placeholders": {
-      "n": { "type": "int" }
+      "n": {
+        "type": "int"
+      }
     }
   },
-  "commitmentsTabSummaryNeedCoordination": "{n} — нужна коорд.",
-  "@commitmentsTabSummaryNeedCoordination": {
+  "helpOffersTabSummaryNeedCoordination": "{n} — нужна коорд.",
+  "@helpOffersTabSummaryNeedCoordination": {
     "placeholders": {
-      "n": { "type": "int" }
+      "n": {
+        "type": "int"
+      }
     }
   },
   "beaconViaChain": "через {chain}",
   "@beaconViaChain": {
     "placeholders": {
-      "chain": { "type": "String" }
+      "chain": {
+        "type": "String"
+      }
     }
   },
   "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок.",
   "beaconOverviewCoordinationHeaderPair": "{a} · {b}",
   "@beaconOverviewCoordinationHeaderPair": {
     "placeholders": {
-      "a": { "type": "String" },
-      "b": { "type": "String" }
+      "a": {
+        "type": "String"
+      },
+      "b": {
+        "type": "String"
+      }
     }
   },
   "beaconOverviewNeedsShortMoreHelp": "Нужна ещё помощь",
-  "beaconOverviewActiveCommitments": "{count, plural, one{1 активное участие} few{{count} активных участия} many{{count} активных участий} other{{count} активных участий}}",
-  "@beaconOverviewActiveCommitments": {
+  "beaconOverviewActiveHelpOffers": "{count, plural, one{1 активное предложение помощи} few{{count} активных предложения помощи} many{{count} активных предложений помощи} other{{count} активных предложений помощи}}",
+  "@beaconOverviewActiveHelpOffers": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewUsefulAndCoord": "{useful} полезн. · {need} — нужна коорд.",
   "@beaconOverviewUsefulAndCoord": {
     "placeholders": {
-      "useful": { "type": "int" },
-      "need": { "type": "int" }
+      "useful": {
+        "type": "int"
+      },
+      "need": {
+        "type": "int"
+      }
     }
   },
-  "beaconViewAndCoordinateCommitments": "Просмотреть и скоординировать участия",
+  "beaconViewAndCoordinateHelpOffers": "Просмотреть и скоординировать предложения помощи",
   "beaconOverviewDiagnosisNeedDifferentSkillBody": "Есть отклики, но они не закрывают оставшийся разрыв.",
   "beaconOverviewDiagnosisNeedCoordinationBody": "Участиям не хватает ясной координации, прежде чем двигаться дальше.",
   "beaconOverviewDiagnosisGenericMoreHelpBody": "Покрытие ещё не соответствует оставшейся потребности.",
@@ -2468,45 +2588,61 @@
   "beaconOverviewNeedMeta": "Создал(а) {author} · {context}",
   "@beaconOverviewNeedMeta": {
     "placeholders": {
-      "author": { "type": "String" },
-      "context": { "type": "String" }
+      "author": {
+        "type": "String"
+      },
+      "context": {
+        "type": "String"
+      }
     }
   },
   "beaconOverviewNeedMetaAuthorOnly": "Создал(а) {author}",
   "@beaconOverviewNeedMetaAuthorOnly": {
     "placeholders": {
-      "author": { "type": "String" }
+      "author": {
+        "type": "String"
+      }
     }
   },
   "beaconOverviewPhotosCount": "{count, plural, one{1 фото} few{{count} фото} many{{count} фото} other{{count} фото}}",
   "@beaconOverviewPhotosCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewDescriptionTextOnly": "Текстовое описание",
   "beaconOverviewActivityEventCount": "{count, plural, one{1 событие} few{{count} события} many{{count} событий} other{{count} событий}}",
   "@beaconOverviewActivityEventCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewForwardAuthorSummary": "{people, plural, one{1 человек в сети пересылок} few{{people} человека в сети пересылок} many{{people} человек в сети пересылок} other{{people} человек в сети пересылок}}",
   "@beaconOverviewForwardAuthorSummary": {
     "placeholders": {
-      "people": { "type": "int" }
+      "people": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewHopsFromAuthor": "{hops, plural, one{1 шаг от автора} few{{hops} шага от автора} many{{hops} шагов от автора} other{{hops} шагов от автора}}",
   "@beaconOverviewHopsFromAuthor": {
     "placeholders": {
-      "hops": { "type": "int" }
+      "hops": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewPeopleInChain": "{people, plural, one{1 человек в цепи} few{{people} человека в цепи} many{{people} человек в цепи} other{{people} человек в цепи}}",
   "@beaconOverviewPeopleInChain": {
     "placeholders": {
-      "people": { "type": "int" }
+      "people": {
+        "type": "int"
+      }
     }
   },
   "beaconOverviewForwardEmpty": "Нет зарегистрированной для вас цепочки",
@@ -2595,14 +2731,20 @@
   "beaconPinnedFactCarouselPositionLabel": "{current} из {total}",
   "@beaconPinnedFactCarouselPositionLabel": {
     "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"}
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "beaconPinnedFactCarouselDotSemanticLabel": "Перейти к факту {index}",
   "@beaconPinnedFactCarouselDotSemanticLabel": {
     "placeholders": {
-      "index": {"type": "int"}
+      "index": {
+        "type": "int"
+      }
     }
   },
   "beaconRoomStripMeaningfulChangeLabel": "Последнее изменение",
@@ -2616,7 +2758,9 @@
   "beaconRoomUnreadDividerCount": "Непрочитанные · {count}",
   "@beaconRoomUnreadDividerCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconRoomScrollToLatestTooltip": "К последним сообщениям",
@@ -2653,14 +2797,18 @@
   "beaconRoomMarkDoneConfirmSingleBlocker": "Снять блокер: {title}",
   "@beaconRoomMarkDoneConfirmSingleBlocker": {
     "placeholders": {
-      "title": { "type": "String" }
+      "title": {
+        "type": "String"
+      }
     }
   },
   "beaconPeopleSectionTitle": "Люди и роли",
   "beaconPeopleParticipantUpdated": "Обновлено {when}",
   "@beaconPeopleParticipantUpdated": {
     "placeholders": {
-      "when": { "type": "String" }
+      "when": {
+        "type": "String"
+      }
     }
   },
   "beaconPeopleRoleAuthor": "Автор",
@@ -2674,9 +2822,9 @@
   "beaconPeopleStatusCandidate": "Кандидат",
   "beaconPeopleStatusAdmitted": "Принят",
   "beaconPeopleStatusChecking": "Связь",
-  "beaconPeopleStatusCommitted": "Обязался",
-  "beaconPeopleStatusCommittedUseful": "Обязался · полезно",
-  "beaconPeopleStatusCommittedNeedCoordination": "Обязался · нужна координация",
+  "beaconPeopleStatusHelpOffered": "Предложил помощь",
+  "beaconPeopleStatusHelpOfferedUseful": "Предложил помощь · полезно",
+  "beaconPeopleStatusHelpOfferedNeedCoordination": "Предложил помощь · нужна координация",
   "beaconPeopleStatusNeedsInfo": "Нужна информация",
   "beaconPeopleStatusBlocked": "Заблокирован",
   "beaconPeopleStatusDone": "Готово",
@@ -2684,43 +2832,57 @@
   "beaconPeopleStatusUnknown": "Статус {code}",
   "@beaconPeopleStatusUnknown": {
     "placeholders": {
-      "code": { "type": "int" }
+      "code": {
+        "type": "int"
+      }
     }
   },
   "inboxCardRoomUnread": "{count, plural, =0{Комната без новых сообщений} one{1 непрочитанное в комнате} few{{count} непрочитанных в комнате} many{{count} непрочитанных в комнате} other{{count} непрочитанных в комнате}}",
   "@inboxCardRoomUnread": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "inboxCardRoomPlan": "План в комнате: {text}",
   "@inboxCardRoomPlan": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "inboxCardRoomNextMove": "Следующий шаг: {text}",
   "@inboxCardRoomNextMove": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "inboxCardRoomLastChange": "Последнее в комнате: {text}",
   "@inboxCardRoomLastChange": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "inboxCardPublicFactLine": "Публичный факт: {text}",
   "@inboxCardPublicFactLine": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "inboxCardOpenBlocker": "Открытый блокер: {text}",
   "@inboxCardOpenBlocker": {
     "placeholders": {
-      "text": { "type": "String" }
+      "text": {
+        "type": "String"
+      }
     }
   },
   "forwardIncludePublicNote": "Включить публичный статус в текст сообщения",
@@ -2732,28 +2894,32 @@
   "beaconRoomAttachmentsTooMany": "Не больше {max} файлов.",
   "@beaconRoomAttachmentsTooMany": {
     "placeholders": {
-      "max": { "type": "int" }
+      "max": {
+        "type": "int"
+      }
     }
   },
   "beaconRoomAttachmentTooLarge": "Каждый файл не больше {maxMb} МБ.",
   "@beaconRoomAttachmentTooLarge": {
     "placeholders": {
-      "maxMb": { "type": "int" }
+      "maxMb": {
+        "type": "int"
+      }
     }
   },
   "beaconRoomAttachmentUntitled": "Файл",
   "beaconRoomAttachmentOpenFailed": "Не удалось открыть вложение.",
   "beaconRoomAttachmentOpenShare": "Поделиться файлом",
-
   "capabilityEditPrivateLabels": "Мои метки",
   "capabilityEditCapabilities": "Редактировать способности",
   "capabilityCueMyLabels": "Мои метки: {tags}",
   "@capabilityCueMyLabels": {
     "placeholders": {
-      "tags": { "type": "String" }
+      "tags": {
+        "type": "String"
+      }
     }
   },
-
   "capabilityGroupLogistics": "Логистика",
   "capabilityGroupCommunication": "Коммуникация",
   "capabilityGroupKnowledge": "Знания",
@@ -2761,7 +2927,6 @@
   "capabilityGroupResources": "Ресурсы",
   "capabilityGroupTechnical": "Техническое",
   "capabilityGroupSpecial": "Другое",
-
   "capabilityTagTransport": "Транспорт",
   "capabilityTagStorage": "Хранение",
   "capabilityTagPickupDelivery": "Доставка",
@@ -2798,27 +2963,32 @@
   "capabilityTagTime": "Время",
   "capabilityTagContact": "Контакт",
   "capabilityTagOther": "Другое",
-
   "forwardReasonPrompt": "Почему вы пересылаете этому человеку?",
   "forwardReasonApplyToAll": "Применить те же причины ко всем",
   "capabilityCueForwardedFor": "Часто пересылаю для: {tags}",
   "@capabilityCueForwardedFor": {
     "placeholders": {
-      "tags": { "type": "String" }
+      "tags": {
+        "type": "String"
+      }
     }
   },
-  "commitRolePrompt": "Как вы помогаете?",
-  "capabilityCueCommitted": "Участвовал: {tags}",
-  "@capabilityCueCommitted": {
+  "helpOfferRolePrompt": "Как вы помогаете?",
+  "capabilityCueHelpOffered": "Предложил помощь: {tags}",
+  "@capabilityCueHelpOffered": {
     "placeholders": {
-      "tags": { "type": "String" }
+      "tags": {
+        "type": "String"
+      }
     }
   },
   "closeAckPrompt": "Чем реально помог этот человек?",
   "capabilityCueAcknowledged": "Помог с: {tags}",
   "@capabilityCueAcknowledged": {
     "placeholders": {
-      "tags": { "type": "String" }
+      "tags": {
+        "type": "String"
+      }
     }
   },
   "beaconRoomCreatePoll": "Создать опрос",
@@ -2826,21 +2996,27 @@
   "beaconRoomPollVotesCount": "{count, plural, =0{Нет голосов} =1{1 голос} few{{count} голоса} other{{count} голосов}}",
   "@beaconRoomPollVotesCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "friendContextInboxCount": "{count} активных маяков переслано ему/ей",
   "@friendContextInboxCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "friendContextSharedCount": "{count} активных маяков видите оба",
   "@friendContextSharedCount": {
     "context": "FriendsScreen / NetworkPersonCard tooltip",
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "beaconRequirementsTitle": "Требования",
@@ -2849,7 +3025,9 @@
   "beaconRequirementsSelectedCount": "{count, plural, =0{Не выбрано} one{Выбран 1 тип} few{Выбрано {count} типа} many{Выбрано {count} типов} other{Выбрано {count} типов}}",
   "@beaconRequirementsSelectedCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   }
 }

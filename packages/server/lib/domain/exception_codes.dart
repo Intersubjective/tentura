@@ -104,26 +104,26 @@ class EvaluationExceptionCodes extends ExceptionCodes {
   int get codeNumber => codeSpace + exceptionCode.index;
 }
 
-// Commitment / overcommit coordination
+// HelpOffer / coordination
 
-enum CommitmentCoordinationExceptionCode {
+enum HelpOfferCoordinationExceptionCode {
   beaconNotOpen,
   notBeaconAuthor,
   invalidHelpType,
-  invalidUncommitReason,
+  invalidWithdrawReason,
   invalidResponseType,
   invalidCoordinationStatus,
-  commitmentNotActive,
+  helpOfferNotActive,
   authorCannotCommit,
   beaconWithdrawForbidden,
 }
 
-class CommitmentCoordinationExceptionCodes extends ExceptionCodes {
+class HelpOfferCoordinationExceptionCodes extends ExceptionCodes {
   static const codeSpace = 1500;
 
-  const CommitmentCoordinationExceptionCodes(this.exceptionCode);
+  const HelpOfferCoordinationExceptionCodes(this.exceptionCode);
 
-  final CommitmentCoordinationExceptionCode exceptionCode;
+  final HelpOfferCoordinationExceptionCode exceptionCode;
 
   @override
   int get codeNumber => codeSpace + exceptionCode.index;

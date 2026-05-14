@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
-import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
 import 'package:tentura_server/domain/coordination/help_type.dart';
-import 'package:tentura_server/domain/coordination/uncommit_reason.dart';
+import 'package:tentura_server/domain/coordination/withdraw_reason.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
@@ -20,9 +20,9 @@ import 'capability_case.dart';
 import '_use_case_base.dart';
 
 @Singleton(order: 2)
-final class CommitmentCase extends UseCaseBase {
-  CommitmentCase(
-    this._commitmentRepository,
+final class HelpOfferCase extends UseCaseBase {
+  HelpOfferCase(
+    this._helpOfferRepository,
     this._beaconRepository,
     this._coordinationRepository,
     this._inboxRepository,
@@ -35,7 +35,7 @@ final class CommitmentCase extends UseCaseBase {
     required super.logger,
   });
 
-  final CommitmentRepositoryPort _commitmentRepository;
+  final HelpOfferRepositoryPort _helpOfferRepository;
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationRepositoryPort _coordinationRepository;
   final InboxRepositoryPort _inboxRepository;
@@ -45,7 +45,7 @@ final class CommitmentCase extends UseCaseBase {
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final BeaconRoomPushService _roomPush;
 
-  Future<void> commit({
+  Future<void> offerHelp({
     required String beaconId,
     required String userId,
     String message = '',
@@ -54,26 +54,24 @@ final class CommitmentCase extends UseCaseBase {
     if (helpTypes != null) {
       for (final type in helpTypes) {
         if (!isAllowedHelpType(type)) {
-          throw CommitmentCoordinationException(
-            coordinationCode: CommitmentCoordinationExceptionCode.invalidHelpType,
+          throw HelpOfferCoordinationException(
+            coordinationCode: HelpOfferCoordinationExceptionCode.invalidHelpType,
           );
         }
       }
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (beacon.state != 0) {
-      throw CommitmentCoordinationException(
-        coordinationCode: CommitmentCoordinationExceptionCode.beaconNotOpen,
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,
       );
     }
-    final hasActive = await _commitmentRepository.hasActiveCommitment(
+    final hasActive = await _helpOfferRepository.hasActiveHelpOffer(
       beaconId: beaconId,
       userId: userId,
     );
-    // Same mutation updates note/help-type when already committed; only the
-    // initial commit is rejected for author / duplicate-active is N/A (upsert).
     if (hasActive) {
-      await _commitmentRepository.upsert(
+      await _helpOfferRepository.upsert(
         beaconId: beaconId,
         userId: userId,
         message: message,
@@ -99,11 +97,11 @@ final class CommitmentCase extends UseCaseBase {
       return;
     }
     if (beacon.author.id == userId) {
-      throw CommitmentCoordinationException(
-        coordinationCode: CommitmentCoordinationExceptionCode.authorCannotCommit,
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.authorCannotCommit,
       );
     }
-    await _commitmentRepository.upsert(
+    await _helpOfferRepository.upsert(
       beaconId: beaconId,
       userId: userId,
       message: message,
@@ -128,55 +126,54 @@ final class CommitmentCase extends UseCaseBase {
     );
     await _autoAdmitIfTrusted(
       beacon: beacon,
-      committantId: userId,
+      helpOffererId: userId,
     );
     unawaited(
-      _roomPush.notifyCommitToAuthor(
+      _roomPush.notifyHelpOfferToAuthor(
         beaconId: beaconId,
-        committerId: userId,
+        helpOffererId: userId,
         authorId: beacon.author.id,
       ).catchError((Object e) {
-        logger.warning('CommitmentCase: failed to enqueue commit notification: $e');
+        logger.warning('HelpOfferCase: failed to enqueue help offer notification: $e');
       }),
     );
   }
 
-  /// Auto-admits [committantId] to the beacon room without waiting for explicit
-  /// author approval when the committing user is "trusted":
+  /// Auto-admits [helpOffererId] to the beacon room without waiting for explicit
+  /// author approval when the offering user is "trusted":
   ///   1. the author directly forwarded this beacon to them, OR
   ///   2. they share a mutual (reciprocal) explicit subscription with the author.
   /// Skipped when the author previously revoked room access for this user.
   Future<void> _autoAdmitIfTrusted({
     required BeaconEntity beacon,
-    required String committantId,
+    required String helpOffererId,
   }) async {
     final isTrusted =
         await _forwardEdgeRepository.isDirectAuthorForward(
           beaconId: beacon.id,
           authorId: beacon.author.id,
-          userId: committantId,
+          userId: helpOffererId,
         ) ||
         await _friendshipLookup.isReciprocalSubscribe(
           viewerId: beacon.author.id,
-          peerId: committantId,
+          peerId: helpOffererId,
         );
     if (!isTrusted) return;
 
     final existing = await _beaconRoomRepository.findParticipant(
       beaconId: beacon.id,
-      userId: committantId,
+      userId: helpOffererId,
     );
-    // Honour explicit author revocation — roomAccess=none means author said no.
     if (existing != null && existing.roomAccess == RoomAccessBits.none) return;
 
-    await _beaconRoomRepository.inviteCommitUserToBeaconRoom(
+    await _beaconRoomRepository.inviteOfferUserToBeaconRoom(
       beaconId: beacon.id,
-      commitUserId: committantId,
+      offerUserId: helpOffererId,
       authorUserId: beacon.author.id,
     );
     unawaited(
       _roomPush.notifyRoomAdmitted(
-        receiverId: committantId,
+        receiverId: helpOffererId,
         beaconId: beacon.id,
       ),
     );
@@ -185,30 +182,30 @@ final class CommitmentCase extends UseCaseBase {
   Future<void> withdraw({
     required String beaconId,
     required String userId,
-    required String uncommitReason,
+    required String withdrawReason,
     String message = '',
   }) async {
-    if (!isAllowedUncommitReason(uncommitReason)) {
-      throw CommitmentCoordinationException(
-        coordinationCode: CommitmentCoordinationExceptionCode.invalidUncommitReason,
+    if (!isAllowedWithdrawReason(withdrawReason)) {
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.invalidWithdrawReason,
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.allowsBeaconWithdraw) {
-      throw CommitmentCoordinationException(
+      throw HelpOfferCoordinationException(
         coordinationCode:
-            CommitmentCoordinationExceptionCode.beaconWithdrawForbidden,
+            HelpOfferCoordinationExceptionCode.beaconWithdrawForbidden,
       );
     }
     await _coordinationRepository.deleteForCommit(
       beaconId: beaconId,
       userId: userId,
     );
-    await _commitmentRepository.withdraw(
+    await _helpOfferRepository.withdraw(
       beaconId: beaconId,
       userId: userId,
       message: message,
-      uncommitReason: uncommitReason,
+      withdrawReason: withdrawReason,
     );
     await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
       beaconId,

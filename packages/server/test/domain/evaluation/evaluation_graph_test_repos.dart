@@ -1,12 +1,12 @@
-import 'package:tentura_server/domain/entity/commitment_entity.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
-import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 /// Minimal fakes so `EvaluationParticipantGraphBuilder` returns an empty graph.
-final class EmptyGraphCommitmentRepository implements CommitmentRepositoryPort {
+final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
   @override
   Future<void> upsert({
     required String beaconId,
@@ -21,24 +21,24 @@ final class EmptyGraphCommitmentRepository implements CommitmentRepositoryPort {
   Future<void> withdraw({
     required String beaconId,
     required String userId,
-    required String uncommitReason,
+    required String withdrawReason,
     String message = '',
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<List<CommitmentEntity>> fetchByBeaconId(String beaconId) async => [];
+  Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async => [];
 
   @override
-  Future<List<CommitmentEntity>> fetchAllByBeaconId(String beaconId) =>
+  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) =>
       throw UnimplementedError();
 
   @override
-  Future<List<CommitmentEntity>> fetchByUserId(String userId) =>
+  Future<List<HelpOfferEntity>> fetchByUserId(String userId) =>
       throw UnimplementedError();
 
   @override
-  Future<bool> hasActiveCommitment({
+  Future<bool> hasActiveHelpOffer({
     required String beaconId,
     required String userId,
   }) =>
@@ -92,9 +92,9 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
   Future<List<ForwardEdgeEntity>> fetchByBeaconId(String beaconId) async => [];
 
   @override
-  Future<List<ForwardEdgeEntity>> fetchCommitterPathChain({
+  Future<List<ForwardEdgeEntity>> fetchHelpOffererPathChain({
     required String beaconId,
-    required String committerId,
+    required String helpOffererId,
     required String viewerId,
   }) async =>
       [];

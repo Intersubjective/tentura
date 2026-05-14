@@ -10,12 +10,12 @@ import 'package:tentura/ui/l10n/l10n.dart';
 // --- Semantic colors (on neutral [ColorScheme.surface] / body text) ------------
 //
 // Beacon coordination (beacon.coordination_status):
-//   noCommitmentsYet          -> onSurfaceVariant  (idle)
-//   commitmentsWaitingForReview -> primary         (action / review)
+//   noHelpOffersYet          -> onSurfaceVariant  (idle)
+//   helpOffersWaitingForReview -> primary         (action / review)
 //   moreOrDifferentHelpNeeded -> error             (gap)
-//   enoughHelpCommitted     -> tertiary           (satisfied)
+//   enoughHelpOffered     -> tertiary           (satisfied)
 //
-// Per-commitment author reaction (response_type):
+// Per-help-offer author reaction (response_type):
 //   useful                  -> tertiary
 //   overlapping             -> secondary
 //   needDifferentSkill      -> error
@@ -28,12 +28,12 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 String coordinationStatusLabel(L10n l10n, BeaconCoordinationStatus s) =>
     switch (s) {
-      BeaconCoordinationStatus.noCommitmentsYet => l10n.coordinationNoCommitments,
-      BeaconCoordinationStatus.commitmentsWaitingForReview =>
+      BeaconCoordinationStatus.noHelpOffersYet => l10n.coordinationNoHelpOffers,
+      BeaconCoordinationStatus.helpOffersWaitingForReview =>
         l10n.coordinationWaitingForReview,
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
         l10n.coordinationMoreHelpNeeded,
-      BeaconCoordinationStatus.enoughHelpCommitted => l10n.coordinationEnoughHelp,
+      BeaconCoordinationStatus.enoughHelpOffered => l10n.coordinationEnoughHelp,
     };
 
 String? coordinationResponseLabel(L10n l10n, CoordinationResponseType? r) {
@@ -54,13 +54,13 @@ Color coordinationStatusOnSurfaceColor(
   BeaconCoordinationStatus s,
 ) =>
     switch (s) {
-      BeaconCoordinationStatus.noCommitmentsYet => scheme.onSurfaceVariant,
-      BeaconCoordinationStatus.commitmentsWaitingForReview => scheme.primary,
+      BeaconCoordinationStatus.noHelpOffersYet => scheme.onSurfaceVariant,
+      BeaconCoordinationStatus.helpOffersWaitingForReview => scheme.primary,
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded => scheme.error,
-      BeaconCoordinationStatus.enoughHelpCommitted => scheme.tertiary,
+      BeaconCoordinationStatus.enoughHelpOffered => scheme.tertiary,
     };
 
-/// Dominant per-commitment response takes precedence; otherwise [beaconStatus].
+/// Dominant per-help-offer response takes precedence; otherwise [beaconStatus].
 Color coordinationContextOnSurfaceColor(
   ColorScheme scheme, {
   required BeaconCoordinationStatus beaconStatus,
@@ -113,21 +113,21 @@ Color coordinationResponseOnSurfaceColor(
         ),
     };
 
-String? uncommitReasonLabel(L10n l10n, String? wireKey) {
+String? withdrawReasonLabel(L10n l10n, String? wireKey) {
   if (wireKey == null || wireKey.isEmpty) return null;
   return switch (wireKey) {
-    'cannot_do_it' => l10n.uncommitCantDoIt,
-    'timing' => l10n.uncommitTimingChanged,
-    'wrong_fit' => l10n.uncommitWrongFit,
-    'someone_else' => l10n.uncommitSomeoneElseTookOver,
-    'other' => l10n.uncommitOther,
+    'cannot_do_it' => l10n.withdrawCantDoIt,
+    'timing' => l10n.withdrawTimingChanged,
+    'wrong_fit' => l10n.withdrawWrongFit,
+    'someone_else' => l10n.withdrawSomeoneElseTookOver,
+    'other' => l10n.withdrawOther,
     _ => wireKey,
   };
 }
 
-/// Parses `beacon_commitment.help_type`: a single slug, or JSON array (server
-/// stores jsonEncode of selected slugs; see server CommitmentRepository).
-List<String> commitmentHelpTypeSlugs(String? wire) {
+/// Parses `beacon_help_offers.help_type`: a single slug, or JSON array (server
+/// stores jsonEncode of selected slugs; see server HelpOfferRepository).
+List<String> helpOfferTypeSlugs(String? wire) {
   final t = wire?.trim() ?? '';
   if (t.isEmpty) return [];
   if (t.startsWith('[')) {
@@ -148,7 +148,7 @@ List<String> commitmentHelpTypeSlugs(String? wire) {
 
 String? helpTypeLabel(L10n l10n, String? wireKey) {
   if (wireKey == null || wireKey.isEmpty) return null;
-  final slugs = commitmentHelpTypeSlugs(wireKey);
+  final slugs = helpOfferTypeSlugs(wireKey);
   if (slugs.isEmpty) return null;
   final parts = <String>[];
   for (final s in slugs) {

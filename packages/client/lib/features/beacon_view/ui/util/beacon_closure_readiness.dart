@@ -41,24 +41,24 @@ class BeaconClosureConfirmationSummary {
   const BeaconClosureConfirmationSummary({
     required this.readiness,
     required this.hasOpenBlocker,
-    required this.unansweredCommitmentsCount,
-    required this.relevantCommitmentsCount,
+    required this.unansweredHelpOffersCount,
+    required this.relevantHelpOffersCount,
     required this.unsettledRelevantCount,
     required this.hasWholeBeaconDoneSignal,
-    required this.enoughHelpCommitted,
-    required this.hasSuccessfulCommitmentResult,
-    required this.commitmentsWaitingForReviewCoordination,
+    required this.enoughHelpOffered,
+    required this.hasSuccessfulHelpOfferResult,
+    required this.helpOffersWaitingForReviewCoordination,
   });
 
   final BeaconClosureReadiness readiness;
   final bool hasOpenBlocker;
-  final int unansweredCommitmentsCount;
-  final int relevantCommitmentsCount;
+  final int unansweredHelpOffersCount;
+  final int relevantHelpOffersCount;
   final int unsettledRelevantCount;
   final bool hasWholeBeaconDoneSignal;
-  final bool enoughHelpCommitted;
-  final bool hasSuccessfulCommitmentResult;
-  final bool commitmentsWaitingForReviewCoordination;
+  final bool enoughHelpOffered;
+  final bool hasSuccessfulHelpOfferResult;
+  final bool helpOffersWaitingForReviewCoordination;
 }
 
 bool closeHardGate(BeaconViewState state) {
@@ -94,13 +94,13 @@ bool _authorParticipantNeedsInfo(BeaconViewState state) {
   return p != null && p.status == BeaconParticipantStatusBits.needsInfo;
 }
 
-bool _isRelevantCommitment(TimelineCommitment c) =>
+bool _isRelevantHelpOffer(TimelineHelpOffer c) =>
     !c.isWithdrawn &&
     c.coordinationResponse != CoordinationResponseType.notSuitable &&
     c.coordinationResponse != CoordinationResponseType.overlapping;
 
-Iterable<TimelineCommitment> relevantCommitments(BeaconViewState state) =>
-    state.commitments.where(_isRelevantCommitment);
+Iterable<TimelineHelpOffer> relevantHelpOffers(BeaconViewState state) =>
+    state.helpOffers.where(_isRelevantHelpOffer);
 
 /// Parsed `beacon_activity_event.diff_json` for whole-beacon done (not message-level).
 ///
@@ -127,8 +127,8 @@ bool hasExplicitWholeBeaconDoneSignal(BeaconViewState state) {
   return false;
 }
 
-bool hasSuccessfulCommitmentResult(BeaconViewState state) {
-  for (final c in relevantCommitments(state)) {
+bool hasSuccessfulHelpOfferResult(BeaconViewState state) {
+  for (final c in relevantHelpOffers(state)) {
     if (c.coordinationResponse == CoordinationResponseType.useful) return true;
     final p = beaconParticipantForUser(state, c.user.id);
     if (p == null) continue;
@@ -140,9 +140,9 @@ bool hasSuccessfulCommitmentResult(BeaconViewState state) {
 
 bool authorMarkedEnoughHelp(BeaconViewState state) =>
     state.beacon.coordinationStatus ==
-    BeaconCoordinationStatus.enoughHelpCommitted;
+    BeaconCoordinationStatus.enoughHelpOffered;
 
-bool commitmentRowSettled(TimelineCommitment c, BeaconViewState state) {
+bool helpOfferRowSettled(TimelineHelpOffer c, BeaconViewState state) {
   final p = beaconParticipantForUser(state, c.user.id);
   if (p != null) {
     if (p.status == BeaconParticipantStatusBits.withdrawn ||
@@ -159,10 +159,10 @@ bool commitmentRowSettled(TimelineCommitment c, BeaconViewState state) {
   return false;
 }
 
-bool allRelevantCommitmentsSettled(BeaconViewState state) {
-  final relevant = relevantCommitments(state).toList();
+bool allRelevantHelpOffersSettled(BeaconViewState state) {
+  final relevant = relevantHelpOffers(state).toList();
   if (relevant.isEmpty) return false;
-  return relevant.every((c) => commitmentRowSettled(c, state));
+  return relevant.every((c) => helpOfferRowSettled(c, state));
 }
 
 bool hasClosureBlockingState(BeaconViewState state) {
@@ -176,7 +176,7 @@ bool hasClosureBlockingState(BeaconViewState state) {
   }
 
   final authorId = state.beacon.author.id;
-  for (final c in relevantCommitments(state)) {
+  for (final c in relevantHelpOffers(state)) {
     final p = beaconParticipantForUser(state, c.user.id);
     if (p == null) continue;
     if (p.status == BeaconParticipantStatusBits.blocked) return true;
@@ -199,9 +199,9 @@ BeaconClosureReadiness computeClosureReadiness(BeaconViewState state) {
   }
 
   final explicitDone = hasExplicitWholeBeaconDoneSignal(state);
-  final successfulResult = hasSuccessfulCommitmentResult(state);
+  final successfulResult = hasSuccessfulHelpOfferResult(state);
   final enoughHelp = authorMarkedEnoughHelp(state);
-  final settled = allRelevantCommitmentsSettled(state);
+  final settled = allRelevantHelpOffersSettled(state);
 
   if (explicitDone) {
     return BeaconClosureReadiness.readyToClose;
@@ -215,7 +215,7 @@ BeaconClosureReadiness computeClosureReadiness(BeaconViewState state) {
       successfulResult ||
       settled ||
       state.beacon.coordinationStatus ==
-          BeaconCoordinationStatus.commitmentsWaitingForReview) {
+          BeaconCoordinationStatus.helpOffersWaitingForReview) {
     return BeaconClosureReadiness.waitingForReview;
   }
 
@@ -246,24 +246,24 @@ BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
   BeaconViewState state,
 ) {
   final readiness = computeClosureReadiness(state);
-  final relevant = relevantCommitments(state).toList();
+  final relevant = relevantHelpOffers(state).toList();
   var unsettled = 0;
   for (final c in relevant) {
-    if (!commitmentRowSettled(c, state)) unsettled++;
+    if (!helpOfferRowSettled(c, state)) unsettled++;
   }
 
   return BeaconClosureConfirmationSummary(
     readiness: readiness,
     hasOpenBlocker: _hasOpenBlocker(state),
-    unansweredCommitmentsCount: state.unansweredCommitmentsCount,
-    relevantCommitmentsCount: relevant.length,
+    unansweredHelpOffersCount: state.unansweredHelpOffersCount,
+    relevantHelpOffersCount: relevant.length,
     unsettledRelevantCount: unsettled,
     hasWholeBeaconDoneSignal: hasExplicitWholeBeaconDoneSignal(state),
-    enoughHelpCommitted: authorMarkedEnoughHelp(state),
-    hasSuccessfulCommitmentResult: hasSuccessfulCommitmentResult(state),
-    commitmentsWaitingForReviewCoordination:
+    enoughHelpOffered: authorMarkedEnoughHelp(state),
+    hasSuccessfulHelpOfferResult: hasSuccessfulHelpOfferResult(state),
+    helpOffersWaitingForReviewCoordination:
         state.beacon.coordinationStatus ==
-        BeaconCoordinationStatus.commitmentsWaitingForReview,
+        BeaconCoordinationStatus.helpOffersWaitingForReview,
   );
 }
 

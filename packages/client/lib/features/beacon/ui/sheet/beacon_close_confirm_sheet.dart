@@ -52,9 +52,9 @@ Future<void> showBeaconCloseConfirmSheet({
     ),
     if (summary.hasWholeBeaconDoneSignal)
       _evidenceRow(scheme, l10n.beaconCloseSheetEvidenceWholeBeaconDone),
-    if (summary.enoughHelpCommitted)
+    if (summary.enoughHelpOffered)
       _evidenceRow(scheme, l10n.beaconCloseSheetEvidenceEnoughHelp),
-    if (summary.hasSuccessfulCommitmentResult)
+    if (summary.hasSuccessfulHelpOfferResult)
       _evidenceRow(scheme, l10n.beaconCloseSheetEvidenceUsefulOrDone),
     if (summary.unsettledRelevantCount > 0)
       _evidenceRow(
@@ -64,11 +64,11 @@ Future<void> showBeaconCloseConfirmSheet({
         ),
         positive: false,
       ),
-    if (summary.unansweredCommitmentsCount > 0)
+    if (summary.unansweredHelpOffersCount > 0)
       _evidenceRow(
         scheme,
         l10n.beaconCloseSheetEvidenceUnansweredCount(
-          summary.unansweredCommitmentsCount,
+          summary.unansweredHelpOffersCount,
         ),
         positive: false,
       ),

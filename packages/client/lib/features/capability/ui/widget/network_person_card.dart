@@ -98,7 +98,7 @@ class NetworkPersonCard extends StatelessWidget {
                     )
                   else if (commitRoleSlugs.isNotEmpty)
                     Text(
-                      l10n.capabilityCueCommitted(
+                      l10n.capabilityCueHelpOffered(
                         commitRoleSlugs.join(' · '),
                       ),
                       maxLines: 1,

@@ -1,13 +1,13 @@
 # import '/data/gql/user_model.graphql'
 
-query CommitmentsFetch($beaconId: String!) {
-  beacon_commitment(
+query HelpOffersFetch($beaconId: String!) {
+  beacon_help_offer(
     where: {beacon_id: {_eq: $beaconId}},
     order_by: {updated_at: desc}
   ) {
     message
     help_type
-    uncommit_reason
+    withdraw_reason
     status
     created_at
     updated_at

@@ -13,14 +13,14 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../bloc/beacon_view_state.dart';
 
-// TODO(contract): [CommitmentState] inProgress / done when backend exposes lifecycle;
-// for now only withdrawn is labeled in-row; active commitments have no status chip.
-// TODO(contract): [CommitmentOfferType] wire keys vs product enum — map helpType strings when schema aligns.
+// TODO(contract): [HelpOfferState] inProgress / done when backend exposes lifecycle;
+// for now only withdrawn is labeled in-row; active helpOffers have no status chip.
+// TODO(contract): [HelpOfferType] wire keys vs product enum — map helpType strings when schema aligns.
 
-/// Compact commitment row: technical / minimal; capability help_type as read-only chips.
-class CommitmentTile extends StatelessWidget {
-  const CommitmentTile({
-    required this.commitment,
+/// Compact helpOffer row: technical / minimal; capability help_type as read-only chips.
+class HelpOfferTile extends StatelessWidget {
+  const HelpOfferTile({
+    required this.helpOffer,
     required this.beaconId,
     required this.beaconAuthorId,
     this.isMine = false,
@@ -31,7 +31,7 @@ class CommitmentTile extends StatelessWidget {
     super.key,
   });
 
-  final TimelineCommitment commitment;
+  final TimelineHelpOffer helpOffer;
   final String beaconId;
   final String beaconAuthorId;
   final bool isMine;
@@ -58,16 +58,16 @@ class CommitmentTile extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;
-    final isWithdrawn = commitment.isWithdrawn;
-    final dateShown = isWithdrawn ? commitment.updatedAt : commitment.createdAt;
+    final isWithdrawn = helpOffer.isWithdrawn;
+    final dateShown = isWithdrawn ? helpOffer.updatedAt : helpOffer.createdAt;
     final coordinationLabel = coordinationResponseLabel(
       l10n,
-      commitment.coordinationResponse,
+      helpOffer.coordinationResponse,
     );
-    final helpTypeSlugs = commitmentHelpTypeSlugs(commitment.helpType);
+    final helpTypeSlugs = helpOfferTypeSlugs(helpOffer.helpType);
     final showHelpTypeChips = helpTypeSlugs.isNotEmpty;
     final showForwardPathButton =
-        !isWithdrawn && commitment.user.id != beaconAuthorId;
+        !isWithdrawn && helpOffer.user.id != beaconAuthorId;
 
     return TenturaTechCardStatic(
       isOwned: isMine && !isWithdrawn,
@@ -84,9 +84,9 @@ class CommitmentTile extends StatelessWidget {
                 onTap: isMine
                     ? null
                     : () => context.read<ScreenCubit>().showProfile(
-                        commitment.user.id,
+                        helpOffer.user.id,
                       ),
-                child: TenturaAvatar(profile: commitment.user),
+                child: TenturaAvatar(profile: helpOffer.user),
               ),
               const SizedBox(width: _contentGap),
               Expanded(
@@ -102,13 +102,13 @@ class CommitmentTile extends StatelessWidget {
                             builder: (context, state) {
                               final titleSmall = theme.textTheme.titleSmall!;
                               final isSelf = SelfUserHighlight.profileIsSelf(
-                                commitment.user,
+                                helpOffer.user,
                                 state.profile.id,
                               );
                               return Text(
                                 SelfUserHighlight.displayName(
                                   l10n,
-                                  commitment.user,
+                                  helpOffer.user,
                                   state.profile.id,
                                 ),
                                 style: isSelf
@@ -126,7 +126,7 @@ class CommitmentTile extends StatelessWidget {
                           const SizedBox(height: 2),
                           TenturaMetaText(
                             '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'
-                            '${commitment.isEdited ? ' · ${l10n.labelEdited}' : ''}',
+                            '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
                           ),
                         ],
                       ),
@@ -140,12 +140,12 @@ class CommitmentTile extends StatelessWidget {
               if (showForwardPathButton)
                 IconButton(
                   icon: const Icon(TenturaIcons.graph),
-                  tooltip: l10n.committerForwardPathTooltip,
+                  tooltip: l10n.helpOffererForwardPathTooltip,
                   onPressed: () =>
-                      context.read<ScreenCubit>().showCommitterForwardPathFor(
+                      context.read<ScreenCubit>().showHelpOffererForwardPathFor(
                         beaconId: beaconId,
-                        committerId: commitment.user.id,
-                        committerName: commitment.user.title,
+                        helpOffererId: helpOffer.user.id,
+                        helpOffererName: helpOffer.user.title,
                       ),
                 ),
             ],
@@ -154,11 +154,11 @@ class CommitmentTile extends StatelessWidget {
             const SizedBox(height: _rowGap),
             ForwardCapabilityChips(slugs: helpTypeSlugs),
           ],
-          if (commitment.message.isNotEmpty) ...[
+          if (helpOffer.message.isNotEmpty) ...[
             if (!showHelpTypeChips) const SizedBox(height: _rowGap),
             if (showHelpTypeChips) const SizedBox(height: 6),
             Text(
-              commitment.message,
+              helpOffer.message,
               style: TenturaText.body(theme.colorScheme.onSurface),
             ),
           ],
@@ -172,11 +172,11 @@ class CommitmentTile extends StatelessWidget {
               l10n: l10n,
               tt: tt,
               coordinationLabel: coordinationLabel,
-              responseType: commitment.coordinationResponse,
-              authorLabelColor: commitment.coordinationResponse != null
+              responseType: helpOffer.coordinationResponse,
+              authorLabelColor: helpOffer.coordinationResponse != null
                   ? _authorLabelColor(
                       tt,
-                      commitment.coordinationResponse!,
+                      helpOffer.coordinationResponse!,
                     )
                   : tt.textMuted,
               isAuthorView: isAuthorView,
@@ -190,14 +190,14 @@ class CommitmentTile extends StatelessWidget {
                 children: [
                   if (onEdit != null)
                     TenturaTextAction(
-                      label: l10n.commitmentsTabActionEdit,
+                      label: l10n.helpOffersTabActionEdit,
                       onPressed: onEdit,
                     ),
                   if (onEdit != null && onWithdraw != null)
                     const SizedBox(width: 4),
                   if (onWithdraw != null)
                     TenturaTextAction(
-                      label: l10n.commitmentsTabActionWithdraw,
+                      label: l10n.helpOffersTabActionWithdraw,
                       onPressed: onWithdraw,
                       tone: TenturaTone.danger,
                     ),
@@ -205,10 +205,10 @@ class CommitmentTile extends StatelessWidget {
               ),
             ),
           if (isWithdrawn &&
-              uncommitReasonLabel(l10n, commitment.uncommitReason) != null) ...[
+              withdrawReasonLabel(l10n, helpOffer.withdrawReason) != null) ...[
             const SizedBox(height: 8),
             Text(
-              uncommitReasonLabel(l10n, commitment.uncommitReason)!,
+              withdrawReasonLabel(l10n, helpOffer.withdrawReason)!,
               style: TenturaText.bodySmall(tt.textMuted),
             ),
           ],
@@ -248,7 +248,7 @@ class _AuthorFooter extends StatelessWidget {
               style: TenturaText.bodySmall(tt.textMuted),
               children: [
                 TextSpan(
-                  text: l10n.commitmentsTabAuthorLabelCaption,
+                  text: l10n.helpOffersTabAuthorLabelCaption,
                 ),
                 if (coordinationLabel != null && responseType != null) ...[
                   const TextSpan(text: '  '),
