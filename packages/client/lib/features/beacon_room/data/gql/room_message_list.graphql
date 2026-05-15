@@ -10,6 +10,15 @@ query RoomMessageList($beaconId: String!, $beforeIso: String) {
     linkedBlockerId
     linkedFactCardId
     linkedPollingId
+    linkedItemId
+    linkedEventKind
+    linkedItemKind
+    linkedItemStatus
+    linkedItemTitle
+    linkedItemBody
+    linkedItemCreatorId
+    linkedItemCreatedAt
+    linkedItemUpdatedAt
     pollDataJson
     systemPayloadJson
     authorTitle

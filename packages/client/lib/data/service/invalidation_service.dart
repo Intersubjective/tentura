@@ -106,6 +106,17 @@ class InvalidationService {
         _beaconRoomChanges.add(
           (beaconId: id, entityType: BeaconRoomEntityType.activityEvent),
         );
+      case 'coordination_item':
+        _beaconRoomChanges.add(
+          (beaconId: id, entityType: BeaconRoomEntityType.coordinationItem),
+        );
+      case 'coordination_item_message':
+        _beaconRoomChanges.add(
+          (
+            beaconId: id,
+            entityType: BeaconRoomEntityType.coordinationItemMessage,
+          ),
+        );
       case 'person_capability_event':
         _capabilityChanges.add(id);
     }

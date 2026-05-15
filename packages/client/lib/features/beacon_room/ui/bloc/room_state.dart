@@ -2,6 +2,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -18,6 +19,8 @@ abstract class RoomState extends StateBase with _$RoomState {
     @Default(<BeaconParticipant>[]) List<BeaconParticipant> participants,
     @Default(<BeaconFactCard>[]) List<BeaconFactCard> factCards,
     BeaconRoomState? roomState,
+    CoordinationItem? openCoordinationBlocker,
+    CoordinationItem? viewerAcceptedAsk,
     @Default(StateIsSuccess()) StateStatus status,
     String? scrollToMessageId,
     String? pendingFactsFocusFactId,

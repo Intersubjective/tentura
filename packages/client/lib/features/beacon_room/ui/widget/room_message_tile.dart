@@ -3,11 +3,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
@@ -18,6 +20,7 @@ import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
+import 'package:tentura/features/coordination_item/ui/widget/item_card_in_room.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -76,11 +79,15 @@ class RoomMessageTile extends StatelessWidget {
       m.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
       m.semanticMarker == BeaconRoomSemanticMarker.done;
 
+  static bool _isLinkedCoordSemantic(RoomMessage m) =>
+      m.linkedItemId != null && m.linkedItemId!.trim().isNotEmpty;
+
   /// True when [a] and [b] must not share a Telegram-style avatar group.
   static bool _groupBreak(RoomMessage? a, RoomMessage? b) {
     if (a == null || b == null) return true;
     if (a.authorId != b.authorId) return true;
     if (_isCoordStateCard(a) || _isCoordStateCard(b)) return true;
+    if (_isLinkedCoordSemantic(a) || _isLinkedCoordSemantic(b)) return true;
     final diff = b.createdAt.difference(a.createdAt).inMinutes.abs();
     return diff > 5;
   }
@@ -159,6 +166,8 @@ class RoomMessageTile extends StatelessWidget {
     final semantic = _semanticShortLabel(l10n, message.semanticMarker);
     final display = _bodyForDisplay(message);
     final isStateCard = _isCoordStateCard(message);
+    final linkedCoord = message.linkedCoordinationItem;
+    final linkedEv = message.linkedEventKind;
 
     final isGroupStart =
         breakGroupAbove || _groupBreak(previousMessage, message);
@@ -346,6 +355,20 @@ class RoomMessageTile extends StatelessWidget {
               style: theme.textTheme.labelMedium?.copyWith(
                 color: scheme.tertiary,
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        if (linkedCoord != null && linkedEv != null)
+          Padding(
+            padding: EdgeInsets.only(top: tt.rowGap / 2),
+            child: Align(
+              alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+              child: ItemCardInRoom(
+                item: linkedCoord,
+                eventKind: CoordinationItemEventKind.fromInt(linkedEv),
+                onTap: () => context.router.push(
+                  ItemDiscussionRoute(item: linkedCoord),
+                ),
               ),
             ),
           ),

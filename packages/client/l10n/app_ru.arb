@@ -2268,6 +2268,9 @@
   "labelBeaconTabStatus": "Статус",
   "labelBeaconTabActivity": "Хронология",
   "labelBeaconTabLog": "Журнал",
+  "labelBeaconTabRoom": "Комната",
+  "labelBeaconTabItems": "Элементы",
+  "beaconItemsEmptyPlaceholder": "Элементов координации пока нет",
   "beaconHudNowLabel": "СЕЙЧАС",
   "beaconHudYouLabel": "ВЫ",
   "beaconHudNoCurrentPlan": "Плана пока нет",
@@ -2395,6 +2398,8 @@
   "beaconClosurePanelBodyBlocked": "Закрытие заблокировано незавершённой координацией.",
   "beaconClosurePanelEvidenceHeading": "Сигналы",
   "beaconPeopleLensAuthorHeading": "Автор",
+  "beaconPeopleLensStewardsHeading": "Стюард",
+  "beaconPeopleLensRoomMembersHeading": "Участники комнаты",
   "beaconPeopleLensActiveHelpersHeading": "Активные помощники",
   "beaconPeopleLensWithdrawnHeading": "Отозваны",
   "beaconPeopleLensNeedsAttentionHeading": "Нужна координация",
@@ -2794,6 +2799,14 @@
   "beaconRoomMarkDoneTitle": "Что сделано?",
   "beaconRoomMarkDoneMessageOnly": "Только это сообщение",
   "beaconRoomMarkDoneResolveBlocker": "Снять связанный блокер",
+  "beaconRoomMarkDoneMyNextStep": "Мой следующий шаг: {text}",
+  "@beaconRoomMarkDoneMyNextStep": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomMarkDoneConfirmSingleBlocker": "Снять блокер: {title}",
   "@beaconRoomMarkDoneConfirmSingleBlocker": {
     "placeholders": {
@@ -3029,5 +3042,28 @@
         "type": "int"
       }
     }
-  }
+  },
+  "coordinationItemCardTitle": "Координация",
+  "coordinationBlockerCardLabel": "Блокер",
+  "coordinationBlockerActionResolve": "Решить",
+  "coordinationBlockerActionCancel": "Отменить",
+  "coordinationBlockerActionDiscuss": "Обсудить",
+  "coordinationItemDiscussionTitle": "Обсуждение",
+  "coordinationItemDiscussionComposerHint": "Добавить в обсуждение…",
+  "coordinationSemanticBlockerOpened": "Блокер создан",
+  "coordinationSemanticBlockerResolved": "Блокер решён",
+  "coordinationSemanticBlockerCancelled": "Блокер отменён",
+  "coordinationMarkBlockerTitle": "Отметить блокер",
+  "coordinationMarkBlockerHint": "Что заблокировано?",
+  "coordinationPromoteSheetTitle": "Повысить сообщение",
+  "coordinationAskCardLabel": "Запрос",
+  "coordinationAskAcceptLabel": "Я сделаю",
+  "coordinationSemanticAskOpened": "Запрос создан",
+  "coordinationSemanticAskAccepted": "Запрос принят",
+  "coordinationSemanticAskResolved": "Запрос выполнен",
+  "coordinationSemanticAskCancelled": "Запрос отменён",
+  "beaconRoomActionMarkAsk": "Создать запрос…",
+  "coordinationMarkAskTitle": "Создать запрос",
+  "coordinationMarkAskHint": "Что нужно сделать?",
+  "beaconRoomYouStripAcceptedAskLabel": "Ваше обязательство"
 }

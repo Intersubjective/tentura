@@ -32,6 +32,7 @@ class BeaconActivityList extends StatelessWidget {
     required this.isAuthorView,
     required this.onEditTimelineUpdate,
     this.roomActivityEvents = const [],
+    this.actorNames = const {},
     super.key,
   });
 
@@ -40,6 +41,9 @@ class BeaconActivityList extends StatelessWidget {
   final bool isAuthorView;
   final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
   final List<BeaconActivityEvent> roomActivityEvents;
+
+  /// Maps actorId → display name for room activity events.
+  final Map<String, String> actorNames;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +69,7 @@ class BeaconActivityList extends StatelessWidget {
         child: ListTile(
           dense: true,
           leading: const Icon(Icons.hub_outlined),
-          title: Text(_coordinationTitle(context, e)),
+          title: Text(_coordinationTitle(context, e, actorNames)),
           subtitle: Text(
             _activityTs(e.createdAt),
             style: Theme.of(context).textTheme.labelSmall,
@@ -230,9 +234,14 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
       TimelineUpdate() => '',
     };
 
-String _coordinationTitle(BuildContext context, BeaconActivityEvent e) {
+String _coordinationTitle(
+  BuildContext context,
+  BeaconActivityEvent e,
+  Map<String, String> actorNames,
+) {
   final l10n = L10n.of(context)!;
-  return switch (e.type) {
+  final actor = e.actorId != null ? (actorNames[e.actorId!] ?? '') : '';
+  var base = switch (e.type) {
     BeaconActivityEventTypeBits.planUpdated => l10n.beaconActivityPlanUpdated,
     BeaconActivityEventTypeBits.factPinned => l10n.beaconActivityFactPinned,
     BeaconActivityEventTypeBits.factVisibilityChanged =>
@@ -246,6 +255,10 @@ String _coordinationTitle(BuildContext context, BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.doneMarked => l10n.beaconActivityDoneMarked,
     _ => l10n.beaconActivityCoordinationFallback,
   };
+  if (actor.isNotEmpty) {
+    base = '$base · $actor';
+  }
+  return base;
 }
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {

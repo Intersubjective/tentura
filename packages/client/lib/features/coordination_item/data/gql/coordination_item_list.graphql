@@ -1,0 +1,34 @@
+query CoordinationItemList(
+  $beaconId: String!
+  $status: Int
+  $kind: Int
+  $acceptedById: String
+  $targetPersonId: String
+) {
+  coordinationItemsByBeacon(
+    beaconId: $beaconId
+    status: $status
+    kind: $kind
+    acceptedById: $acceptedById
+    targetPersonId: $targetPersonId
+  ) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

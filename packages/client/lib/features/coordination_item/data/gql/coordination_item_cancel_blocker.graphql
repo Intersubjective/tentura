@@ -1,0 +1,22 @@
+mutation CoordinationItemCancelBlocker($itemId: String!, $reason: String) {
+  cancelBlocker(itemId: $itemId, reason: $reason) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

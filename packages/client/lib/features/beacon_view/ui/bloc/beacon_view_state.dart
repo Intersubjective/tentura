@@ -268,12 +268,23 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   bool get isRoomAdmissionBlocked =>
       !isBeaconMine && isHelpOffered && !hasRoomAdmission;
 
+  /// True when the viewer has been promoted to Beacon Steward.
+  bool get isSteward => roomParticipants.any(
+    (p) =>
+        p.userId == myProfile.id &&
+        p.role == BeaconParticipantRoleBits.steward &&
+        p.roomAccess == RoomAccessBits.admitted,
+  );
+
+  /// True for the beacon author or a promoted Steward.
+  bool get isAuthorOrSteward => isBeaconMine || isSteward;
+
   /// Room chip only when the viewer may use room APIs (mirrors server: author,
   /// steward, or admitted participant). Non-authors without a help offer or
   /// coordination admission must not navigate — they get [isRoomAdmissionBlocked]
   /// or no room chip.
   bool get canNavigateBeaconRoom =>
-      isBeaconMine || (isHelpOffered && hasRoomAdmission);
+      isBeaconMine || isSteward || (isHelpOffered && hasRoomAdmission);
 
   bool get coordinationDeniesRoomAdmission =>
       myActiveHelpOffer?.coordinationResponse ==

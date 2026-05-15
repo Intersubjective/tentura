@@ -1,0 +1,32 @@
+mutation CoordinationItemMarkBlocker(
+  $beaconId: String!
+  $title: String!
+  $body: String
+  $linkedMessageId: String
+) {
+  markBlocker(
+    beaconId: $beaconId
+    title: $title
+    body: $body
+    linkedMessageId: $linkedMessageId
+  ) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

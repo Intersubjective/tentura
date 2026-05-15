@@ -187,7 +187,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       return _HudActionBundle(specs: out.take(3).toList(), showOverflowClose: false);
     }
 
-    if (state.isBeaconMine) {
+    if (state.isAuthorOrSteward) {
       final cp = state.closureActionPriority;
       final readiness = state.closureReadiness;
       final showResolve = readiness == BeaconClosureReadiness.blocked &&

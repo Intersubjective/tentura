@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
@@ -13,6 +14,7 @@ import '../../data/repository/beacon_blocker_repository.dart';
 import '../../data/repository/beacon_fact_card_repository.dart';
 import '../../data/repository/beacon_room_hints_repository.dart';
 import '../../data/repository/beacon_room_repository.dart';
+import '../../../coordination_item/domain/use_case/coordination_item_case.dart';
 import '../../../polling/data/repository/polling_repository.dart';
 
 @singleton
@@ -22,7 +24,8 @@ final class BeaconRoomCase extends UseCaseBase {
     this._factCards,
     this._blockers,
     this._polling,
-    this._hints, {
+    this._hints,
+    this._coordinationItemCase, {
     required super.env,
     required super.logger,
   });
@@ -36,6 +39,8 @@ final class BeaconRoomCase extends UseCaseBase {
   final PollingRepository _polling;
 
   final BeaconRoomHintsRepository _hints;
+
+  final CoordinationItemCase _coordinationItemCase;
 
   Stream<String> get beaconRoomRefresh => _room.beaconRoomRefresh;
 
@@ -121,6 +126,17 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) =>
       _room.fetchBeaconRoomState(beaconId);
 
+  Future<CoordinationItem?> fetchOpenCoordinationBlocker(
+    String beaconId,
+  ) async {
+    final items = await _coordinationItemCase.listByBeacon(
+      beaconId,
+      status: CoordinationItemStatus.open.value,
+      kind: CoordinationItemKind.blocker.value,
+    );
+    return items.firstOrNull;
+  }
+
   Future<bool> updateRoomPlan({
     required String beaconId,
     required String currentPlan,
@@ -197,20 +213,44 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String messageId,
     required String title,
-    String? affectedParticipantId,
-    String? resolverParticipantId,
-    int? visibility,
   }) =>
-      _blockers
+      _coordinationItemCase
           .markBlocker(
             beaconId: beaconId,
-            messageId: messageId,
             title: title,
-            affectedParticipantId: affectedParticipantId,
-            resolverParticipantId: resolverParticipantId,
-            visibility: visibility,
+            linkedMessageId: messageId,
           )
           .then((_) {});
+
+  Future<void> markAskFromMessage({
+    required String beaconId,
+    required String messageId,
+    required String title,
+    required String targetPersonId,
+    String body = '',
+  }) =>
+      _coordinationItemCase
+          .markAsk(
+            beaconId: beaconId,
+            title: title,
+            targetPersonId: targetPersonId,
+            body: body,
+            linkedMessageId: messageId,
+          )
+          .then((_) {});
+
+  Future<CoordinationItem?> fetchViewerAcceptedAsk({
+    required String beaconId,
+    required String viewerId,
+  }) async {
+    final items = await _coordinationItemCase.listByBeacon(
+      beaconId,
+      kind: CoordinationItemKind.ask.value,
+      status: CoordinationItemStatus.accepted.value,
+      acceptedById: viewerId,
+    );
+    return items.firstOrNull;
+  }
 
   Future<void> needInfoFromMessage({
     required String beaconId,

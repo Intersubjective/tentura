@@ -1,0 +1,25 @@
+mutation CoordinationItemRedirectAsk(
+  $itemId: String!
+  $newTargetPersonId: String!
+) {
+  redirectAsk(itemId: $itemId, newTargetPersonId: $newTargetPersonId) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

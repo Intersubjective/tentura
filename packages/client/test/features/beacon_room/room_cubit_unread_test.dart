@@ -21,6 +21,8 @@ import 'package:tentura/features/polling/data/repository/polling_repository.dart
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'fake_coordination_item_case.dart';
+
 // ---------------------------------------------------------------------------
 // Fakes
 // ---------------------------------------------------------------------------
@@ -139,12 +141,14 @@ RoomMessage _msg(String id, DateTime createdAt, {String authorId = 'other'}) =>
     );
 
 /// Creates a [BeaconRoomCase] backed by [fakeRoom] and minimal stubs.
-BeaconRoomCase _makeCase(_FakeBeaconRoomRepository fakeRoom) => BeaconRoomCase(
+BeaconRoomCase _makeCase(_FakeBeaconRoomRepository fakeRoom) =>
+    BeaconRoomCase(
       fakeRoom,
       _FakeBeaconFactCardRepository(),
       _FakeBeaconBlockerRepository(),
       _FakePollingRepository(),
       _FakeBeaconRoomHintsRepository(),
+      const FakeCoordinationItemCaseForRoom(),
       env: const Env(),
       logger: Logger('test'),
     );

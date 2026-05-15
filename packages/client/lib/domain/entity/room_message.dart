@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 
@@ -23,8 +24,45 @@ abstract class RoomMessage with _$RoomMessage {
     String? linkedFactCardId,
     String? linkedPollingId,
     String? pollDataJson,
+    String? linkedItemId,
+    int? linkedEventKind,
+    int? linkedItemKind,
+    int? linkedItemStatus,
+    String? linkedItemTitle,
+    String? linkedItemBody,
+    String? linkedItemCreatorId,
+    DateTime? linkedItemCreatedAt,
+    DateTime? linkedItemUpdatedAt,
     String? systemPayloadJson,
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
     @Default(<String>[]) List<String> mentions,
   }) = _RoomMessage;
+
+  const RoomMessage._();
+
+  /// When [linkedItemId] is set and snapshot fields are present, reconstructs
+  /// the linked coordination item for navigation / inline cards.
+  CoordinationItem? get linkedCoordinationItem {
+    final lid = linkedItemId;
+    if (lid == null || lid.isEmpty) return null;
+    final k = linkedItemKind;
+    final s = linkedItemStatus;
+    final c = linkedItemCreatorId;
+    final ca = linkedItemCreatedAt;
+    final ua = linkedItemUpdatedAt;
+    if (k == null || s == null || c == null || ca == null || ua == null) {
+      return null;
+    }
+    return CoordinationItem(
+      id: lid,
+      beaconId: beaconId,
+      kind: CoordinationItemKind.fromInt(k),
+      status: CoordinationItemStatus.fromInt(s),
+      creatorId: c,
+      createdAt: ca,
+      updatedAt: ua,
+      title: linkedItemTitle ?? '',
+      body: linkedItemBody ?? '',
+    );
+  }
 }

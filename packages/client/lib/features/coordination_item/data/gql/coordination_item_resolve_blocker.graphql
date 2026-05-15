@@ -1,0 +1,22 @@
+mutation CoordinationItemResolveBlocker($itemId: String!, $note: String) {
+  resolveBlocker(itemId: $itemId, note: $note) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

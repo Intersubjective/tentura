@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -13,10 +14,12 @@ class BeaconRoomYouStrip extends StatelessWidget {
     required this.onEditNextMove,
     required this.collapsed,
     required this.onToggleCollapse,
+    this.viewerAcceptedAsk,
     super.key,
   });
 
   final BeaconParticipant? myParticipant;
+  final CoordinationItem? viewerAcceptedAsk;
   final VoidCallback onEditNextMove;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
@@ -39,7 +42,10 @@ class BeaconRoomYouStrip extends StatelessWidget {
     }
 
     final roleLabel = _roleL10n(l10n, me.role);
-    final next = me.nextMoveText?.trim();
+    final askCommitment = viewerAcceptedAsk?.title.trim();
+    final next = (askCommitment != null && askCommitment.isNotEmpty)
+        ? askCommitment
+        : me.nextMoveText?.trim();
 
     Widget titleRow(TextStyle titleStyle, {required bool trailingChevronDown}) =>
         Row(
@@ -133,7 +139,10 @@ class BeaconRoomYouStrip extends StatelessWidget {
             Text(roleLabel, style: TenturaText.body(scheme.onSurface)),
             const SizedBox(height: kSpacingSmall),
             Text(
-              l10n.beaconRoomYouStripNextMoveLabel,
+              viewerAcceptedAsk != null &&
+                      viewerAcceptedAsk!.title.trim().isNotEmpty
+                  ? l10n.beaconRoomYouStripAcceptedAskLabel
+                  : l10n.beaconRoomYouStripNextMoveLabel,
               style: TenturaText.status(onV),
             ),
             const SizedBox(height: kSpacingSmall / 2),

@@ -1,0 +1,11 @@
+query CoordinationItemMessages($itemId: String!, $limit: Int, $before: String) {
+  coordinationItemMessages(itemId: $itemId, limit: $limit, before: $before) {
+    id
+    itemId
+    beaconId
+    senderId
+    body
+    createdAt
+    editedAt
+  }
+}

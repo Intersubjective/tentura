@@ -95,6 +95,13 @@ class RoomCubit extends Cubit<RoomState> {
           await _case.fetchParticipants(state.beaconId);
       final roomState = await _case.fetchBeaconRoomState(state.beaconId);
       final factCards = await _case.fetchFactCards(state.beaconId);
+      final openCoordinationBlocker =
+          await _case.fetchOpenCoordinationBlocker(state.beaconId);
+      final viewerId = GetIt.I<ProfileCubit>().state.profile.id;
+      final viewerAcceptedAsk = await _case.fetchViewerAcceptedAsk(
+        beaconId: state.beaconId,
+        viewerId: viewerId,
+      );
 
       if (isClosed) return;
 
@@ -116,6 +123,8 @@ class RoomCubit extends Cubit<RoomState> {
             participants: participants,
             factCards: factCards,
             roomState: roomState,
+            openCoordinationBlocker: openCoordinationBlocker,
+            viewerAcceptedAsk: viewerAcceptedAsk,
             unreadAnchorAt: anchor,
             myUserId: GetIt.I<ProfileCubit>().state.profile.id,
             pendingMarkSeen: !_markSeenEmittedThisVisit,
@@ -367,12 +376,30 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  Future<void> markAskFromMessage({
+    required String messageId,
+    required String title,
+    required String targetPersonId,
+    String body = '',
+  }) async {
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      await _case.markAskFromMessage(
+        beaconId: state.beaconId,
+        messageId: messageId,
+        title: title,
+        targetPersonId: targetPersonId,
+        body: body,
+      );
+      await load();
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> markBlockerFromMessage({
     required String messageId,
     required String title,
-    String? affectedParticipantId,
-    String? resolverParticipantId,
-    int? visibility,
   }) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
@@ -380,9 +407,6 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         messageId: messageId,
         title: title,
-        affectedParticipantId: affectedParticipantId,
-        resolverParticipantId: resolverParticipantId,
-        visibility: visibility,
       );
       await load();
     } on Object catch (e) {

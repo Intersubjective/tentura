@@ -11,6 +11,7 @@ import 'query_forward_graph.dart';
 import 'query_forward_reasons.dart';
 import 'query_invitation.dart';
 import 'query_mutual_friends.dart';
+import 'query_coordination_item.dart';
 import 'query_version.dart';
 
 List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
@@ -24,6 +25,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryFactCard().all,
   ...QueryForwardGraph().all,
   ...QueryForwardReasons().all,
+  ...QueryCoordinationItem().all,
   ...QueryMutualFriends().all,
   queryVersion,
 ];

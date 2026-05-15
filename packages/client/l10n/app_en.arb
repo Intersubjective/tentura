@@ -2268,6 +2268,9 @@
   "labelBeaconTabStatus": "Status",
   "labelBeaconTabActivity": "Timeline",
   "labelBeaconTabLog": "Log",
+  "labelBeaconTabRoom": "Room",
+  "labelBeaconTabItems": "Items",
+  "beaconItemsEmptyPlaceholder": "No coordination items yet",
   "beaconHudNowLabel": "NOW",
   "beaconHudYouLabel": "YOU",
   "beaconHudNoCurrentPlan": "No current plan yet",
@@ -2395,6 +2398,8 @@
   "beaconClosurePanelBodyBlocked": "Closure is blocked until unresolved coordination clears.",
   "beaconClosurePanelEvidenceHeading": "Signals",
   "beaconPeopleLensAuthorHeading": "Author",
+  "beaconPeopleLensStewardsHeading": "Steward",
+  "beaconPeopleLensRoomMembersHeading": "Room members",
   "beaconPeopleLensActiveHelpersHeading": "Active helpers",
   "beaconPeopleLensWithdrawnHeading": "Withdrawn",
   "beaconPeopleLensNeedsAttentionHeading": "Needs coordination",
@@ -2812,6 +2817,14 @@
   "beaconRoomMarkDoneTitle": "What is done?",
   "beaconRoomMarkDoneMessageOnly": "Mark this message only",
   "beaconRoomMarkDoneResolveBlocker": "Resolve linked blocker",
+  "beaconRoomMarkDoneMyNextStep": "My next step: {text}",
+  "@beaconRoomMarkDoneMyNextStep": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomMarkDoneConfirmSingleBlocker": "Resolve blocker: {title}",
   "@beaconRoomMarkDoneConfirmSingleBlocker": {
     "placeholders": {
@@ -3047,5 +3060,28 @@
         "type": "int"
       }
     }
-  }
+  },
+  "coordinationItemCardTitle": "Coordination",
+  "coordinationBlockerCardLabel": "Blocker",
+  "coordinationBlockerActionResolve": "Resolve",
+  "coordinationBlockerActionCancel": "Cancel",
+  "coordinationBlockerActionDiscuss": "Discuss",
+  "coordinationItemDiscussionTitle": "Discussion",
+  "coordinationItemDiscussionComposerHint": "Add to discussion…",
+  "coordinationSemanticBlockerOpened": "Blocker raised",
+  "coordinationSemanticBlockerResolved": "Blocker resolved",
+  "coordinationSemanticBlockerCancelled": "Blocker cancelled",
+  "coordinationMarkBlockerTitle": "Mark Blocker",
+  "coordinationMarkBlockerHint": "What is blocked?",
+  "coordinationPromoteSheetTitle": "Promote message",
+  "coordinationAskCardLabel": "Ask",
+  "coordinationAskAcceptLabel": "I'll do this",
+  "coordinationSemanticAskOpened": "Ask raised",
+  "coordinationSemanticAskAccepted": "Ask accepted",
+  "coordinationSemanticAskResolved": "Ask done",
+  "coordinationSemanticAskCancelled": "Ask cancelled",
+  "beaconRoomActionMarkAsk": "Create ask…",
+  "coordinationMarkAskTitle": "Create ask",
+  "coordinationMarkAskHint": "What should they do?",
+  "beaconRoomYouStripAcceptedAskLabel": "Your commitment"
 }
