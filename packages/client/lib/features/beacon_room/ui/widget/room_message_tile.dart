@@ -74,10 +74,12 @@ class RoomMessageTile extends StatelessWidget {
 
   final List<BeaconParticipant> participants;
 
-  static bool _isCoordStateCard(RoomMessage m) =>
-      m.semanticMarker == BeaconRoomSemanticMarker.blocker ||
-      m.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
-      m.semanticMarker == BeaconRoomSemanticMarker.done;
+  static bool _isCoordStateCard(RoomMessage m) {
+    if (_isLinkedCoordSemantic(m)) return false;
+    return m.semanticMarker == BeaconRoomSemanticMarker.blocker ||
+        m.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
+        m.semanticMarker == BeaconRoomSemanticMarker.done;
+  }
 
   static bool _isLinkedCoordSemantic(RoomMessage m) =>
       m.linkedItemId != null && m.linkedItemId!.trim().isNotEmpty;
