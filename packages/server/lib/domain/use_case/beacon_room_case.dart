@@ -13,7 +13,6 @@ import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
-import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 
@@ -240,49 +239,6 @@ final class BeaconRoomCase extends UseCaseBase {
     return out;
   }
 
-  Future<bool> beaconRoomStatePlanUpdate({
-    required String beaconId,
-    required String userId,
-    required String currentPlan,
-  }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
-      );
-    }
-    final plan = currentPlan.trim();
-    await _room.upsertBeaconRoomPlan(
-      beaconId: beaconId,
-      currentPlan: plan,
-      updatedByUserId: userId,
-    );
-    final msg = await _room.insertRoomMessage(
-      beaconId: beaconId,
-      authorId: userId,
-      body: '',
-      semanticMarker: BeaconRoomSemanticMarker.updatePlan,
-      systemPayload: {'currentPlan': plan},
-    );
-    await _room.insertActivityEvent(
-      beaconId: beaconId,
-      visibility: BeaconActivityEventVisibilityBits.room,
-      type: BeaconActivityEventTypeBits.planUpdated,
-      actorId: userId,
-      sourceMessageId: msg.id,
-      diff: <String, Object?>{'currentPlan': plan},
-    );
-    final admitted = await _room.listAdmittedUserIds(beaconId);
-    unawaited(
-      _push.notifyPlanUpdatedToRoom(
-        beaconId: beaconId,
-        actorUserId: userId,
-        admittedUserIds: admitted,
-      ),
-    );
-    return true;
-  }
-
   Future<List<Map<String, Object?>>> listActivityEvents({
     required String beaconId,
     required String userId,
@@ -294,80 +250,6 @@ final class BeaconRoomCase extends UseCaseBase {
       );
     }
     return _room.listActivityEvents(beaconId: beaconId);
-  }
-
-  /// Message → Mark blocker (Phase 5).
-  Future<bool> beaconRoomMessageMarkBlocker({
-    required String beaconId,
-    required String userId,
-    required String messageId,
-    required String title,
-    String? affectedParticipantId,
-    String? resolverParticipantId,
-    int? visibility,
-  }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
-      );
-    }
-    final vis = visibility ?? BeaconFactCardVisibilityBits.room;
-    if (vis == BeaconFactCardVisibilityBits.public) {
-      final author =
-          await _room.isBeaconAuthor(beaconId: beaconId, userId: userId);
-      final steward =
-          await _room.isBeaconSteward(beaconId: beaconId, userId: userId);
-      if (!author && !steward) {
-        throw const UnauthorizedException(
-          description: 'Author or steward only for public blocker',
-        );
-      }
-    }
-    final msg = await _room.getRoomMessageById(messageId);
-    if (msg == null || msg.beaconId != beaconId) {
-      throw IdNotFoundException(
-        id: messageId,
-        description: 'Room message not on this beacon',
-      );
-    }
-    final blockerId = await _room.insertBlockerOpen(
-      beaconId: beaconId,
-      title: title,
-      visibility: vis,
-      openedBy: userId,
-      openedFromMessageId: messageId,
-      affectedParticipantId: affectedParticipantId,
-      resolverParticipantId: resolverParticipantId,
-    );
-    await _room.insertActivityEvent(
-      beaconId: beaconId,
-      visibility: vis == BeaconFactCardVisibilityBits.public
-          ? BeaconActivityEventVisibilityBits.public
-          : BeaconActivityEventVisibilityBits.room,
-      type: BeaconActivityEventTypeBits.blockerOpened,
-      actorId: userId,
-      sourceMessageId: messageId,
-      diff: <String, Object?>{
-        'blockerId': blockerId,
-        'title': title.trim(),
-      },
-    );
-    final notifyIds = await _room.blockerOpenedNotifyUserIds(
-      beaconId: beaconId,
-      openedByUserId: userId,
-      affectedParticipantId: affectedParticipantId,
-      resolverParticipantId: resolverParticipantId,
-    );
-    unawaited(
-      _push.notifyBlockerRoomEvent(
-        beaconId: beaconId,
-        actorUserId: userId,
-        receiverIds: notifyIds,
-        body: 'Blocker opened: ${title.trim()}',
-      ),
-    );
-    return true;
   }
 
   /// Message → Need info (Phase 5).

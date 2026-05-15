@@ -25,8 +25,6 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _emoji = InputFieldString(fieldName: 'emoji');
 
-  final _currentPlan = InputFieldString(fieldName: 'currentPlan');
-
   final _targetUserId = InputFieldString(fieldName: 'targetUserId');
 
   final _nextMoveText = InputFieldString(fieldName: 'nextMoveText');
@@ -35,16 +33,6 @@ final class MutationBeaconRoom extends GqlNodeBase {
       GraphQLFieldInput('nextMoveSource', graphQLInt.nonNullable());
 
   final _nextMoveStatus = InputFieldInt(fieldName: 'nextMoveStatus');
-
-  final _title = InputFieldString(fieldName: 'title');
-
-  final _affectedParticipantId =
-      InputFieldString(fieldName: 'affectedParticipantId');
-
-  final _resolverParticipantId =
-      InputFieldString(fieldName: 'resolverParticipantId');
-
-  final _blockerVisibility = InputFieldInt(fieldName: 'visibility');
 
   final _requestText = InputFieldString(fieldName: 'requestText');
 
@@ -69,9 +57,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
         beaconRoomAdmit,
         beaconStewardPromote,
         roomMessageReactionToggle,
-        beaconRoomStatePlanUpdate,
         beaconParticipantSetNextMove,
-        beaconRoomMessageMarkBlocker,
         beaconRoomMessageNeedInfo,
         roomMessageMarkDone,
         beaconParticipantRoomSeen,
@@ -261,44 +247,6 @@ final class MutationBeaconRoom extends GqlNodeBase {
             nextMoveStatus: _nextMoveStatus.fromArgs(args),
           );
         },
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get beaconRoomStatePlanUpdate =>
-      GraphQLObjectField(
-        'BeaconRoomStatePlanUpdate',
-        graphQLBoolean.nonNullable(),
-        arguments: [
-          _beaconIdStr.field,
-          _currentPlan.field,
-        ],
-        resolve: (_, args) => _case.beaconRoomStatePlanUpdate(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-              currentPlan: _currentPlan.fromArgsNonNullable(args),
-            ),
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get beaconRoomMessageMarkBlocker =>
-      GraphQLObjectField(
-        'BeaconRoomMessageMarkBlocker',
-        graphQLBoolean.nonNullable(),
-        arguments: [
-          _beaconIdStr.field,
-          _messageId.field,
-          _title.field,
-          _affectedParticipantId.fieldNullable,
-          _resolverParticipantId.fieldNullable,
-          _blockerVisibility.fieldNullable,
-        ],
-        resolve: (_, args) => _case.beaconRoomMessageMarkBlocker(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-              messageId: _messageId.fromArgsNonNullable(args),
-              title: _title.fromArgsNonNullable(args),
-              affectedParticipantId: _affectedParticipantId.fromArgs(args),
-              resolverParticipantId: _resolverParticipantId.fromArgs(args),
-              visibility: _blockerVisibility.fromArgs(args),
-            ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get beaconRoomMessageNeedInfo =>

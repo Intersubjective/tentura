@@ -2,7 +2,6 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 
-import '../gql/_g/beacon_room_message_mark_blocker.req.gql.dart';
 import '../gql/_g/beacon_room_message_need_info.req.gql.dart';
 import '../gql/_g/room_message_mark_done.req.gql.dart';
 
@@ -13,32 +12,6 @@ class BeaconBlockerRepository {
   static const _label = 'BeaconBlocker';
 
   final RemoteApiService _remote;
-
-  Future<bool> markBlocker({
-    required String beaconId,
-    required String messageId,
-    required String title,
-    String? affectedParticipantId,
-    String? resolverParticipantId,
-    int? visibility,
-  }) =>
-      _remote
-          .request(
-            GBeaconRoomMessageMarkBlockerReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..messageId = messageId
-                ..title = title
-                ..affectedParticipantId = affectedParticipantId
-                ..resolverParticipantId = resolverParticipantId
-                ..visibility = visibility,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) =>
-                r.dataOrThrow(label: _label).BeaconRoomMessageMarkBlocker,
-          );
 
   Future<bool> needInfo({
     required String beaconId,

@@ -3094,6 +3094,7 @@
   "coordinationResolutionAcceptLabel": "Accept",
   "coordinationResolutionRejectLabel": "Reject",
   "beaconRoomActionCreateResolution": "Propose resolution…",
+  "coordinationMarkResolutionHint": "What is resolved or proposed as done?",
   "coordinationSemanticResolutionOpened": "Resolution proposed",
   "coordinationSemanticResolutionResolved": "Resolution accepted",
   "coordinationSemanticResolutionCancelled": "Resolution rejected"

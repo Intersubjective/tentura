@@ -1012,10 +1012,68 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.fact_check_outlined),
+              title: Text(l10n.beaconRoomActionCreateResolution),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(
+                  _showCreateResolutionSheet(context, cubit, l10n, message),
+                );
+              },
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _showCreateResolutionSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    RoomMessage message,
+  ) async {
+    final text = message.body.trim();
+    final controller = TextEditingController(
+      text: text.isNotEmpty ? text : '',
+    );
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.beaconRoomActionCreateResolution),
+          content: TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              hintText: l10n.coordinationMarkResolutionHint,
+            ),
+            maxLines: 3,
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
+            ),
+          ],
+        ),
+      );
+      if (ok == true && context.mounted) {
+        final title = controller.text.trim();
+        if (title.isEmpty) return;
+        await cubit.createResolutionFromMessage(
+          messageId: message.id,
+          title: title,
+        );
+      }
+    } finally {
+      controller.dispose();
+    }
   }
 
   Future<void> _showUpdatePlanFromMessageSheet(
