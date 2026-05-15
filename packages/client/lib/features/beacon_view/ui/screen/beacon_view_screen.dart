@@ -51,24 +51,21 @@ bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   return s == '1' || s == 'true' || s == 'yes';
 }
 
-/// Beacon view tab indices: room(0), items(1), people(2), log(3).
-const int kBeaconTabRoom = 0;
-const int kBeaconTabItems = 1;
-const int kBeaconTabPeople = 2;
-const int kBeaconTabLog = 3;
-const int _kBeaconTabCount = 4;
+/// Operational tab indices: items(0), people(1), log(2). Room is a separate surface.
+const int kBeaconTabItems = 0;
+const int kBeaconTabPeople = 1;
+const int kBeaconTabLog = 2;
+const int _kBeaconTabCount = 3;
 
-/// Query [kQueryBeaconViewTab]: `room` | `items` | `people` | `log`.
-/// Legacy aliases: `helpOffers` → people, `activity`/`timeline` → log,
-/// `overview`/`details`/`forwards` → room (default).
+/// Query [kQueryBeaconViewTab]: `items` | `people` | `log` (+ legacy aliases).
+/// Room opens via `tab=room` or [kQueryBeaconSurface]=room, not as a segment tab.
 int _beaconViewTabIndex(String? viewTab) {
   switch (viewTab) {
-    case 'room':
-      return kBeaconTabRoom;
     case 'items':
       return kBeaconTabItems;
     case 'people':
     case 'helpOffers':
+    case 'help_offers':
       return kBeaconTabPeople;
     case 'log':
     case 'activity':
@@ -78,7 +75,7 @@ int _beaconViewTabIndex(String? viewTab) {
     case 'forwards':
     case 'overview':
     default:
-      return kBeaconTabRoom;
+      return kBeaconTabItems;
   }
 }
 
@@ -185,7 +182,7 @@ Future<void> _beaconViewRunAuthorCloseSheet({
   required BeaconViewCubit cubit,
   required L10n l10n,
   required void Function() onOpenPeopleTab,
-  required void Function(BeaconViewState state) onToggleRoomSurface,
+  required VoidCallback onEnterRoomSurface,
 }) async {
   if (!context.mounted) return;
   final state = cubit.state;
@@ -213,7 +210,7 @@ Future<void> _beaconViewRunAuthorCloseSheet({
     onResolveRoom: state.canNavigateBeaconRoom
         ? () {
             Navigator.of(context).pop();
-            onToggleRoomSurface(state);
+            onEnterRoomSurface();
           }
         : null,
   );
@@ -360,7 +357,7 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryIsDeepLink) this.isDeepLink,
     @QueryParam(kQueryBeaconViewTab) this.viewTab,
     @QueryParam(kQueryBeaconPeopleTabAttention) this.peopleTabAttention,
-    @Deprecated('Use viewTab=room instead') @QueryParam(kQueryBeaconSurface) this.surface,
+    @QueryParam(kQueryBeaconSurface) this.surface,
     @QueryParam(kQueryBeaconEntry) this.entry,
     super.key,
   });
@@ -369,13 +366,13 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
 
   final String? isDeepLink;
 
-  /// `room` | `items` | `people` | `log` (legacy aliases kept for compat).
+  /// `items` | `people` | `log` (+ legacy aliases). Room: `tab=room` or [surface]=room.
   final String? viewTab;
 
   /// With [viewTab]=`people`, truthy values pulse/highlight the People tab until interaction.
   final String? peopleTabAttention;
 
-  @Deprecated('Use viewTab=room instead')
+  /// `room` opens full-screen room; `status` is the default operational view.
   final String? surface;
 
   /// Entry provenance ([kQueryBeaconEntry]).
@@ -414,13 +411,12 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
 class _BeaconViewScreenState extends State<BeaconViewScreen> {
   late int _tabIndex;
   late bool _peopleTabAttentionActive;
+  late bool _showRoomSurface;
 
   RoomCubit? _roomCubit;
   ItemsTabCubit? _itemsTabCubit;
   bool _didApplyFetchResolution = false;
   String? _bannerMessage;
-
-  bool get _isRoomTab => _tabIndex == kBeaconTabRoom;
 
   BeaconViewEntrySource get _normalizedEntry => normalizeBeaconViewEntry(
     isDeepLink: widget.isDeepLink,
@@ -431,12 +427,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   void initState() {
     super.initState();
     final legacySurface = widget.surface?.trim().toLowerCase();
-    final requestedRoom = legacySurface == 'room' ||
+    _showRoomSurface = legacySurface == kBeaconSurfaceRoomQueryValue ||
         widget.viewTab == 'room' ||
         _normalizedEntry == BeaconViewEntrySource.roomNotification;
-    _tabIndex = requestedRoom
-        ? kBeaconTabRoom
-        : _beaconViewTabIndex(widget.viewTab).clamp(0, _kBeaconTabCount - 1);
+    _tabIndex = _beaconViewTabIndex(widget.viewTab).clamp(
+      0,
+      _kBeaconTabCount - 1,
+    );
     _peopleTabAttentionActive =
         _beaconPeopleTabAttentionQueryTruthy(widget.peopleTabAttention) &&
         _tabIndex == kBeaconTabPeople;
@@ -463,44 +460,44 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   void _applyFetchResolution(BeaconViewState s) {
     if (!s.isSuccess || _didApplyFetchResolution) return;
 
-    final requestedRoom = _tabIndex == kBeaconTabRoom;
-    final roomDenied = !s.canNavigateBeaconRoom && requestedRoom;
+    final roomDenied = _showRoomSurface && !s.canNavigateBeaconRoom;
 
     setState(() {
       if (roomDenied) {
-        _tabIndex = kBeaconTabPeople;
+        _showRoomSurface = false;
         _bannerMessage = L10n.of(context)!.beaconViewRoomAccessUnavailableBanner;
       }
       _didApplyFetchResolution = true;
-      if (_isRoomTab && s.canNavigateBeaconRoom) {
+      if (_showRoomSurface && s.canNavigateBeaconRoom) {
         _roomCubit ??= RoomCubit(beaconId: widget.id);
       }
     });
   }
 
+  void _enterRoomSurface() {
+    if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
+      return;
+    }
+    setState(() {
+      _showRoomSurface = true;
+      _roomCubit ??= RoomCubit(beaconId: widget.id);
+    });
+  }
+
+  void _exitRoomSurface() {
+    if (!_showRoomSurface) return;
+    context.read<BeaconViewCubit>().clearRoomUnread();
+    _releaseEmbeddedRoomCubit();
+    setState(() => _showRoomSurface = false);
+  }
+
   void _switchToTab(int tab) {
-    if (tab == kBeaconTabRoom) {
-      final bvCubit = context.read<BeaconViewCubit>();
-      if (!bvCubit.state.canNavigateBeaconRoom) return;
-    }
-    if (_isRoomTab && tab != kBeaconTabRoom) {
-      context.read<BeaconViewCubit>().clearRoomUnread();
-      _releaseEmbeddedRoomCubit();
-    }
+    if (tab < 0 || tab >= _kBeaconTabCount) return;
     setState(() {
       _tabIndex = tab;
       _bannerMessage = null;
       _peopleTabAttentionActive = false;
-      if (tab == kBeaconTabRoom) {
-        _roomCubit ??= RoomCubit(beaconId: widget.id);
-      }
     });
-  }
-
-  void _onToggleRoomSurface(BeaconViewState beaconState) {
-    _switchToTab(
-      _isRoomTab ? kBeaconTabPeople : kBeaconTabRoom,
-    );
   }
 
   @override
@@ -511,16 +508,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     return BlocListener<BeaconViewCubit, BeaconViewState>(
       listenWhen: (p, c) =>
           (!p.isSuccess && c.isSuccess) ||
-          (_isRoomTab &&
+          (_showRoomSurface &&
               p.canNavigateBeaconRoom &&
               !c.canNavigateBeaconRoom),
       listener: (ctx, s) {
         if (!s.isSuccess) return;
         if (!ctx.mounted) return;
-        if (_isRoomTab && !s.canNavigateBeaconRoom) {
+        if (_showRoomSurface && !s.canNavigateBeaconRoom) {
           _releaseEmbeddedRoomCubit();
           setState(() {
-            _tabIndex = kBeaconTabPeople;
+            _showRoomSurface = false;
             _bannerMessage = L10n.of(
               ctx,
             )!.beaconViewRoomAccessUnavailableBanner;
@@ -553,7 +550,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           final activeHelpOfferCount = state.helpOffers
               .where((c) => !c.isWithdrawn)
               .length;
-          final (appBarStatusLine, appBarStatusTone) = _isRoomTab
+          final (appBarStatusLine, appBarStatusTone) = _showRoomSurface
               ? (state.roomUnreadCount > 0
                     ? (
                         'ROOM · Unread: ${state.roomUnreadCount}',
@@ -573,7 +570,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             body = const Center(
               child: CircularProgressIndicator.adaptive(),
             );
-          } else if (_isRoomTab && state.canNavigateBeaconRoom) {
+          } else if (_showRoomSurface && state.canNavigateBeaconRoom) {
             _roomCubit ??= RoomCubit(beaconId: widget.id);
             body = BlocProvider.value(
               value: _roomCubit!,
@@ -595,14 +592,14 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 onPeopleTabAttentionCleared: () => setState(() {
                   _peopleTabAttentionActive = false;
                 }),
-                onToggleRoomSurface: _onToggleRoomSurface,
+                onEnterRoomSurface: _enterRoomSurface,
                 onAuthorCloseRequested: (ctx) => _beaconViewRunAuthorCloseSheet(
                   context: ctx,
                   cubit: beaconViewCubit,
                   l10n: L10n.of(ctx)!,
                   onOpenPeopleTab: () =>
                       _switchToTab(kBeaconTabPeople),
-                  onToggleRoomSurface: _onToggleRoomSurface,
+                  onEnterRoomSurface: _enterRoomSurface,
                 ),
               ),
             );
@@ -621,8 +618,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   color: scheme.onSurface,
                 ),
                 titleSpacing: 8,
-                leading:
-                    const AutoLeadingWithFallback(fallbackPath: kPathHome),
+                leading: _showRoomSurface
+                    ? BackButton(onPressed: _exitRoomSurface)
+                    : const AutoLeadingWithFallback(
+                        fallbackPath: kPathHome,
+                      ),
                 title: BeaconViewAppBarTitle(
                   beacon: state.beacon,
                   statusLine: appBarStatusLine,
@@ -643,7 +643,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           l10n: l10n,
                           onOpenPeopleTab: () =>
                               _switchToTab(kBeaconTabPeople),
-                          onToggleRoomSurface: _onToggleRoomSurface,
+                          onEnterRoomSurface: _enterRoomSurface,
                         ),
                   ),
                 ],
@@ -684,7 +684,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
     required this.onTabChanged,
     required this.peopleTabAttentionActive,
     required this.onPeopleTabAttentionCleared,
-    required this.onToggleRoomSurface,
+    required this.onEnterRoomSurface,
     required this.onAuthorCloseRequested,
   });
 
@@ -697,7 +697,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
   final bool peopleTabAttentionActive;
   final VoidCallback onPeopleTabAttentionCleared;
 
-  final void Function(BeaconViewState state) onToggleRoomSurface;
+  final VoidCallback onEnterRoomSurface;
 
   final Future<void> Function(BuildContext context) onAuthorCloseRequested;
 
@@ -973,7 +973,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                         : null,
                     onOpenRoomSurface:
                         state.canNavigateBeaconRoom
-                        ? () => onToggleRoomSurface(state)
+                        ? onEnterRoomSurface
                         : null,
                     onOpenReview:
                         state.isBeaconMine &&
@@ -1001,7 +1001,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                         width: double.infinity,
                         child: TenturaUnderlineTabs(
                           tabs: [
-                            l10n.labelBeaconTabRoom,
                             l10n.labelBeaconTabItems,
                             l10n.labelBeaconTabPeople,
                             l10n.labelBeaconTabLog,
@@ -1010,12 +1009,10 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                           onChanged: _setTab,
                           badges: [
                             null,
-                            null,
                             peopleTabBadge,
                             null,
                           ],
                           secondaryBadges: [
-                            null,
                             null,
                             peopleTabSecondaryBadge,
                             null,

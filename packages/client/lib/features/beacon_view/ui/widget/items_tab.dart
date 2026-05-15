@@ -37,62 +37,68 @@ class ItemsTab extends StatelessWidget {
           );
         }
 
-        return ListView(
+        // Parent CustomScrollView owns scrolling; nested ListView caused
+        // parentDataDirty semantics asserts on web.
+        return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          children: [
-            for (final item in openItems)
-              ItemCard(
-                item: item,
-                onResolve: () {
-                  final cubit = context.read<ItemsTabCubit>();
-                  if (item.kind == CoordinationItemKind.plan && item.isPlanStep) {
-                    unawaited(cubit.resolvePlanStep(item.id));
-                  } else if (item.kind == CoordinationItemKind.ask) {
-                    unawaited(cubit.resolveAsk(item.id));
-                  } else {
-                    unawaited(cubit.resolveBlocker(item.id));
-                  }
-                },
-                onCancel: () {
-                  final cubit = context.read<ItemsTabCubit>();
-                  if (item.kind == CoordinationItemKind.ask) {
-                    unawaited(cubit.cancelAsk(item.id));
-                  } else {
-                    unawaited(cubit.cancelBlocker(item.id));
-                  }
-                },
-                onAccept: switch (item.kind) {
-                  CoordinationItemKind.ask => () => unawaited(
-                        context.read<ItemsTabCubit>().acceptAsk(item.id),
-                      ),
-                  CoordinationItemKind.resolution => () => unawaited(
-                        context.read<ItemsTabCubit>().acceptResolution(item.id),
-                      ),
-                  _ => null,
-                },
-                onReject: item.kind == CoordinationItemKind.resolution
-                    ? () => unawaited(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final item in openItems)
+                ItemCard(
+                  item: item,
+                  onResolve: () {
+                    final cubit = context.read<ItemsTabCubit>();
+                    if (item.kind == CoordinationItemKind.plan &&
+                        item.isPlanStep) {
+                      unawaited(cubit.resolvePlanStep(item.id));
+                    } else if (item.kind == CoordinationItemKind.ask) {
+                      unawaited(cubit.resolveAsk(item.id));
+                    } else {
+                      unawaited(cubit.resolveBlocker(item.id));
+                    }
+                  },
+                  onCancel: () {
+                    final cubit = context.read<ItemsTabCubit>();
+                    if (item.kind == CoordinationItemKind.ask) {
+                      unawaited(cubit.cancelAsk(item.id));
+                    } else {
+                      unawaited(cubit.cancelBlocker(item.id));
+                    }
+                  },
+                  onAccept: switch (item.kind) {
+                    CoordinationItemKind.ask => () => unawaited(
+                          context.read<ItemsTabCubit>().acceptAsk(item.id),
+                        ),
+                    CoordinationItemKind.resolution => () => unawaited(
                           context
                               .read<ItemsTabCubit>()
-                              .rejectResolution(item.id),
-                        )
-                    : null,
-              ),
-            if (closedItems.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ExpansionTile(
-                title: Text(
-                  'Closed (${closedItems.length})',
-                  style: Theme.of(context).textTheme.titleSmall,
+                              .acceptResolution(item.id),
+                        ),
+                    _ => null,
+                  },
+                  onReject: item.kind == CoordinationItemKind.resolution
+                      ? () => unawaited(
+                            context
+                                .read<ItemsTabCubit>()
+                                .rejectResolution(item.id),
+                          )
+                      : null,
                 ),
-
-
-                children: [
-                  for (final item in closedItems) ItemCard(item: item),
-                ],
-              ),
+              if (closedItems.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ExpansionTile(
+                  title: Text(
+                    'Closed (${closedItems.length})',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  children: [
+                    for (final item in closedItems) ItemCard(item: item),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         );
       },
     );
