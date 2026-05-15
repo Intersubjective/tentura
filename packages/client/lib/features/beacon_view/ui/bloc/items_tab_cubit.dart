@@ -32,7 +32,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
                   e.entityType == BeaconRoomEntityType.factCard ||
                   e.entityType == BeaconRoomEntityType.blocker),
         )
-        .listen((_) => fetch());
+        .listen((_) => unawaited(fetch(silent: true)));
   }
 
   final String _beaconId;
@@ -40,9 +40,11 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
   final BeaconRoomCase _roomCase;
   late final StreamSubscription<BeaconRoomInvalidation> _invalidationSub;
 
-  Future<void> fetch() async {
+  Future<void> fetch({bool silent = false}) async {
     try {
-      emit(state.copyWith(status: const StateIsLoading()));
+      if (!silent) {
+        emit(state.copyWith(status: const StateIsLoading()));
+      }
       final items = await _case.listByBeacon(_beaconId);
       final viewerId = GetIt.I<ProfileCubit>().state.profile.id;
       final currentPlan = await _case.fetchCurrentRootPlan(_beaconId);
@@ -79,8 +81,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   Future<void> resolveBlocker(String itemId) async {
     try {
+      emit(state.copyWith(status: const StateIsSuccess()));
       await _case.resolveBlocker(itemId: itemId);
-      await fetch();
+      await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -88,8 +91,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   Future<void> cancelBlocker(String itemId) async {
     try {
+      emit(state.copyWith(status: const StateIsSuccess()));
       await _case.cancelBlocker(itemId: itemId);
-      await fetch();
+      await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -97,8 +101,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   Future<void> acceptAsk(String itemId) async {
     try {
+      emit(state.copyWith(status: const StateIsSuccess()));
       await _case.acceptAsk(itemId: itemId);
-      await fetch();
+      await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -106,8 +111,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   Future<void> resolveAsk(String itemId) async {
     try {
+      emit(state.copyWith(status: const StateIsSuccess()));
       await _case.resolveAsk(itemId: itemId);
-      await fetch();
+      await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -115,8 +121,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   Future<void> cancelAsk(String itemId) async {
     try {
+      emit(state.copyWith(status: const StateIsSuccess()));
       await _case.cancelAsk(itemId: itemId);
-      await fetch();
+      await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -124,8 +131,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   Future<void> acceptResolution(String itemId) async {
     try {
+      emit(state.copyWith(status: const StateIsSuccess()));
       await _case.acceptResolution(itemId: itemId);
-      await fetch();
+      await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -133,8 +141,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   Future<void> rejectResolution(String itemId) async {
     try {
+      emit(state.copyWith(status: const StateIsSuccess()));
       await _case.rejectResolution(itemId: itemId);
-      await fetch();
+      await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -142,8 +151,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   Future<void> resolvePlanStep(String itemId) async {
     try {
+      emit(state.copyWith(status: const StateIsSuccess()));
       await _case.resolvePlanStep(itemId: itemId);
-      await fetch();
+      await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
