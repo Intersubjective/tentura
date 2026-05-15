@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
@@ -11,11 +10,9 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -26,25 +23,18 @@ import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../bloc/room_cubit.dart';
-import 'beacon_room_you_strip.dart';
 import 'fact_actions_sheet.dart';
 import 'mention_suggestions_overlay.dart';
 import 'mention_text_controller.dart';
 import 'room_date_separator.dart';
+import 'room_file_attachment_open.dart';
 import 'room_message_tile.dart';
-import 'room_now_strip.dart';
 import 'room_reaction_picker.dart';
 import 'room_unread_divider.dart';
 
-/// Body-only room UI; expects [RoomCubit] above.
+/// Body-only room UI (message list + composer); expects [RoomCubit] above.
 class BeaconRoomBody extends StatefulWidget {
-  const BeaconRoomBody({
-    super.key,
-    this.hideCoordinationStrips = false,
-  });
-
-  /// When true, omits [RoomNowStrip] + [BeaconRoomYouStrip] (embedded beacon view supplies a compact header).
-  final bool hideCoordinationStrips;
+  const BeaconRoomBody({super.key});
 
   @override
   State<BeaconRoomBody> createState() => _BeaconRoomBodyState();
@@ -288,11 +278,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 c.openCoordinationBlocker?.title ||
             p.openCoordinationBlocker?.status !=
                 c.openCoordinationBlocker?.status ||
-            p.viewerAcceptedAsk?.id != c.viewerAcceptedAsk?.id ||
-            p.viewerAcceptedAsk?.title != c.viewerAcceptedAsk?.title ||
-            p.currentCoordinationPlan?.id != c.currentCoordinationPlan?.id ||
-            p.currentCoordinationPlan?.title !=
-                c.currentCoordinationPlan?.title ||
             p.participants.length != c.participants.length ||
             p.participants
                     .map(
@@ -306,8 +291,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.lastSeenRoomAt?.toIso8601String() ?? ''}',
                     )
                     .join() ||
-            p.nowCollapsed != c.nowCollapsed ||
-            p.youCollapsed != c.youCollapsed ||
             p.unreadAnchorAt != c.unreadAnchorAt ||
             p.pendingMarkSeen != c.pendingMarkSeen ||
             p.status != c.status ||
@@ -317,47 +300,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final err = state.status is StateHasError
               ? (state.status as StateHasError).error.toString()
               : '';
-          BeaconParticipant? myRow;
-          for (final pr in state.participants) {
-            if (pr.userId == myProfile.id) {
-              myRow = pr;
-              break;
-            }
-          }
-
           return Column(
             children: [
-              if (!widget.hideCoordinationStrips && state.roomState != null)
-                RoomNowStrip(
-                  roomState: state.roomState!,
-                  factCards: state.factCards,
-                  collapsed: state.nowCollapsed,
-                  onToggleCollapse: cubit.toggleNowCollapsed,
-                  openCoordinationBlocker: state.openCoordinationBlocker,
-                  currentCoordinationPlan: state.currentCoordinationPlan,
-                  onOpenFact: (f) => showFactActionsSheet(
-                    context,
-                    cubit: cubit,
-                    fact: f,
-                  ),
-                  onOpenFileAttachment: (a) =>
-                      _openRoomFileAttachment(context, l10n, a),
-                ),
-              if (!widget.hideCoordinationStrips)
-                BeaconRoomYouStrip(
-                  myParticipant: myRow,
-                  viewerAcceptedAsk: state.viewerAcceptedAsk,
-                  collapsed: state.youCollapsed,
-                  onToggleCollapse: cubit.toggleYouCollapsed,
-                  onEditNextMove: () => unawaited(
-                    _showNextMoveSheet(
-                      context,
-                      cubit,
-                      l10n,
-                      targetUserId: myProfile.id,
-                    ),
-                  ),
-                ),
               Expanded(
                 child: state.hasError && state.messages.isEmpty
                     ? Center(child: Text(err))
@@ -410,7 +354,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                                       emoji: emoji,
                                     ),
                                 onOpenFileAttachment: (a) =>
-                                    _openRoomFileAttachment(
+                                    openRoomFileAttachment(
                                       context,
                                       l10n,
                                       a,
@@ -1447,107 +1391,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     }
   }
 
-  Future<void> _openRoomFileAttachment(
-    BuildContext context,
-    L10n l10n,
-    RoomMessageAttachment attachment,
-  ) async {
-    try {
-      final bytes = await GetIt.I<BeaconRoomCase>().downloadRoomAttachment(
-        attachment.id,
-      );
-      final name = attachment.fileName.trim().isEmpty
-          ? 'file'
-          : attachment.fileName.trim();
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [
-            XFile.fromData(
-              bytes,
-              name: name,
-              mimeType: attachment.mime,
-            ),
-          ],
-        ),
-      );
-    } on Object catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.beaconRoomAttachmentOpenFailed)),
-        );
-      }
-    }
-  }
-
-  Future<void> _showNextMoveSheet(
-    BuildContext context,
-    RoomCubit cubit,
-    L10n l10n, {
-    required String targetUserId,
-  }) async {
-    final controller = TextEditingController();
-    try {
-      final ok = await showModalBottomSheet<bool>(
-        context: context,
-        showDragHandle: true,
-        isScrollControlled: true,
-        builder: (ctx) {
-          final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-          return StatefulBuilder(
-            builder: (ctx, setState) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  left: kSpacingSmall,
-                  right: kSpacingSmall,
-                  top: kSpacingMedium,
-                  bottom: bottom + kSpacingMedium,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      l10n.beaconRoomYouStripEditNextMove,
-                      style: Theme.of(ctx).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: kSpacingSmall),
-                    TextField(
-                      controller: controller,
-                      onChanged: (_) => setState(() {}),
-                      maxLines: 4,
-                      minLines: 2,
-                      decoration: InputDecoration(
-                        hintText: l10n.beaconRoomYouStripNextMoveLabel,
-                      ),
-                      textInputAction: TextInputAction.done,
-                    ),
-                    const SizedBox(height: kSpacingMedium),
-                    FilledButton(
-                      onPressed: controller.text.trim().isEmpty
-                          ? null
-                          : () => Navigator.of(ctx).pop(true),
-                      child: Text(
-                        MaterialLocalizations.of(ctx).saveButtonLabel,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      );
-      if (ok != true || !context.mounted) return;
-      final text = controller.text.trim();
-      if (text.isEmpty) return;
-      await cubit.participantSetNextMove(
-        targetUserId: targetUserId,
-        nextMoveText: text,
-      );
-    } finally {
-      controller.dispose();
-    }
-  }
 }
 
 class BeaconRoomComposer extends StatefulWidget {

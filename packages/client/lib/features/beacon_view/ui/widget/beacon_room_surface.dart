@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 
-/// Room surface embedded under beacon detail.
+/// Room surface embedded under beacon detail (chat only).
 ///
-/// Coordination strips match the standalone room: plan, pinned facts, and
-/// your row stay visible so context is not hidden behind a mode toggle.
+/// NOW/YOU coordination context lives on the beacon Items tab.
 class BeaconRoomSurface extends StatelessWidget {
   const BeaconRoomSurface({super.key});
 

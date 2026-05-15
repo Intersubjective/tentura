@@ -77,14 +77,6 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  void toggleNowCollapsed() {
-    emit(state.copyWith(nowCollapsed: !state.nowCollapsed));
-  }
-
-  void toggleYouCollapsed() {
-    emit(state.copyWith(youCollapsed: !state.youCollapsed));
-  }
-
   Future<void> load() async {
     if (isClosed) return;
     _loadInProgress = true;

@@ -2,7 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_room/ui/widget/beacon_room_next_move_sheet.dart';
+import 'package:tentura/features/beacon_room/ui/widget/beacon_you_section_content.dart';
+import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_file_attachment_open.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_now_section_content.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
@@ -33,6 +42,24 @@ class ItemsTab extends StatelessWidget {
         final openItems = tabState.openItems;
         final closedItems = tabState.closedItems;
         final hasItems = openItems.isNotEmpty || closedItems.isNotEmpty;
+        final beaconId = state.beacon.id;
+
+        BeaconParticipant? myParticipant;
+        for (final p in state.roomParticipants) {
+          if (p.userId == state.myProfile.id) {
+            myParticipant = p;
+            break;
+          }
+        }
+
+        final roomCue = state.beaconRoomCue;
+        final showNow = roomCue != null &&
+            RoomNowSectionContent.hasVisibleContent(
+              roomState: roomCue,
+              factCards: state.factCards,
+              openCoordinationBlocker: state.openCoordinationBlocker,
+              currentCoordinationPlan: tabState.currentCoordinationPlan,
+            );
 
         // Parent CustomScrollView owns scrolling; nested ListView caused
         // parentDataDirty semantics asserts on web.
@@ -42,6 +69,20 @@ class ItemsTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _BeaconDefinitionSection(state: state),
+              if (showNow)
+                _BeaconNowSection(
+                  roomState: roomCue,
+                  factCards: state.factCards,
+                  beaconId: beaconId,
+                  openCoordinationBlocker: state.openCoordinationBlocker,
+                  currentCoordinationPlan: tabState.currentCoordinationPlan,
+                ),
+              _BeaconYouSection(
+                myParticipant: myParticipant,
+                beaconId: beaconId,
+                targetUserId: state.myProfile.id,
+                viewerAcceptedAsk: tabState.viewerAcceptedAsk,
+              ),
               if (!hasItems)
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
@@ -145,5 +186,119 @@ class _BeaconDefinitionSection extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _BeaconNowSection extends StatelessWidget {
+  const _BeaconNowSection({
+    required this.roomState,
+    required this.factCards,
+    required this.beaconId,
+    this.openCoordinationBlocker,
+    this.currentCoordinationPlan,
+  });
+
+  final BeaconRoomState roomState;
+  final List<BeaconFactCard> factCards;
+  final String beaconId;
+  final CoordinationItem? openCoordinationBlocker;
+  final CoordinationItem? currentCoordinationPlan;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+
+    return ExpansionTile(
+      leading: const Icon(Icons.article_outlined),
+      title: Text(
+        l10n.beaconRoomStripNowTitle,
+        style: Theme.of(context).textTheme.titleSmall,
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: RoomNowSectionContent(
+            roomState: roomState,
+            factCards: factCards,
+            openCoordinationBlocker: openCoordinationBlocker,
+            currentCoordinationPlan: currentCoordinationPlan,
+            onOpenFact: (f) => _showFactActionsFromItemsTab(
+              context,
+              beaconId: beaconId,
+              fact: f,
+            ),
+            onOpenFileAttachment: (a) => openRoomFileAttachment(
+              context,
+              L10n.of(context)!,
+              a,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BeaconYouSection extends StatelessWidget {
+  const _BeaconYouSection({
+    required this.myParticipant,
+    required this.beaconId,
+    required this.targetUserId,
+    this.viewerAcceptedAsk,
+  });
+
+  final BeaconParticipant? myParticipant;
+  final String beaconId;
+  final String targetUserId;
+  final CoordinationItem? viewerAcceptedAsk;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+
+    return ExpansionTile(
+      leading: const Icon(Icons.person_outline_rounded),
+      title: Text(
+        l10n.beaconRoomYouStripTitle,
+        style: Theme.of(context).textTheme.titleSmall,
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: BeaconYouSectionContent(
+            myParticipant: myParticipant,
+            viewerAcceptedAsk: viewerAcceptedAsk,
+            onEditNextMove: () => unawaited(
+              showBeaconRoomNextMoveSheet(
+                context,
+                beaconId: beaconId,
+                targetUserId: targetUserId,
+                onSaved: () => context.read<ItemsTabCubit>().fetch(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Future<void> _showFactActionsFromItemsTab(
+  BuildContext context, {
+  required String beaconId,
+  required BeaconFactCard fact,
+}) async {
+  final cubit = RoomCubit(beaconId: beaconId);
+  try {
+    await showFactActionsSheet(
+      context,
+      cubit: cubit,
+      fact: fact,
+    );
+    if (context.mounted) {
+      await context.read<ItemsTabCubit>().fetch();
+    }
+  } finally {
+    await cubit.close();
   }
 }

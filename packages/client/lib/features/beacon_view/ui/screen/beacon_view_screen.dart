@@ -177,6 +177,18 @@ bool _authorLifecycleToggleEnabled(BeaconViewState state) {
   return true;
 }
 
+String _beaconViewRoomAppBarTooltip(BeaconViewState state, L10n l10n) {
+  if (state.canNavigateBeaconRoom) {
+    return l10n.beaconRoomOpen;
+  }
+  if (state.isRoomAdmissionBlocked) {
+    return state.coordinationDeniesRoomAdmission
+        ? l10n.beaconRoomNoAdmission
+        : l10n.beaconRoomWaitingForApproval;
+  }
+  return l10n.beaconViewRoomAccessUnavailableBanner;
+}
+
 Future<void> _beaconViewRunAuthorCloseSheet({
   required BuildContext context,
   required BeaconViewCubit cubit,
@@ -630,6 +642,18 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   l10n: l10n,
                 ),
                 actions: [
+                  if (!showInitialLoading &&
+                      !_showRoomSurface &&
+                      state.canNavigateBeaconRoom)
+                    Badge(
+                      isLabelVisible: state.roomUnreadCount > 0,
+                      label: Text('${state.roomUnreadCount}'),
+                      child: IconButton(
+                        tooltip: _beaconViewRoomAppBarTooltip(state, l10n),
+                        icon: const Icon(Icons.forum_rounded),
+                        onPressed: _enterRoomSurface,
+                      ),
+                    ),
                   _beaconViewAppBarOverflow(
                     context: context,
                     state: state,
