@@ -1,8 +1,6 @@
 import 'dart:async';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -10,12 +8,12 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import 'package:tentura/features/polling/ui/widget/polling_question_input.dart';
 import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
@@ -24,13 +22,8 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../bloc/room_cubit.dart';
 import 'fact_actions_sheet.dart';
-import 'mention_suggestions_overlay.dart';
-import 'mention_text_controller.dart';
-import 'room_date_separator.dart';
 import 'room_file_attachment_open.dart';
-import 'room_message_tile.dart';
 import 'room_reaction_picker.dart';
-import 'room_unread_divider.dart';
 
 /// Body-only room UI (message list + composer); expects [RoomCubit] above.
 class BeaconRoomBody extends StatefulWidget {
@@ -41,119 +34,7 @@ class BeaconRoomBody extends StatefulWidget {
 }
 
 class _BeaconRoomBodyState extends State<BeaconRoomBody> {
-  final Map<String, GlobalKey> _messageKeys = {};
-  final ScrollController _scrollController = ScrollController();
-
-  bool _showJumpFab = false;
-  bool _viewportScrollDone = false;
-
-  GlobalKey _messageKey(String id) =>
-      _messageKeys.putIfAbsent(id, GlobalKey.new);
-
-  void _onMessageListScroll() {
-    if (!mounted || !_scrollController.hasClients) return;
-    final cubit = context.read<RoomCubit>();
-    final pos = _scrollController.position;
-    final fromBottom = pos.maxScrollExtent - pos.pixels;
-    final showJump = fromBottom > 56;
-    if (showJump != _showJumpFab) {
-      setState(() => _showJumpFab = showJump);
-    }
-    if (fromBottom <= 12) {
-      unawaited(cubit.markSeenNowIfNeeded());
-    }
-  }
-
-  void _viewportListener(BuildContext context, RoomCubit cubit) {
-    if (_viewportScrollDone) return;
-    if (cubit.state.status != const StateIsSuccess()) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      await _viewportScrollAttempt(context, cubit, 0);
-    });
-  }
-
-  Future<void> _viewportScrollAttempt(
-    BuildContext context,
-    RoomCubit cubit,
-    int pass,
-  ) async {
-    if (!context.mounted || _viewportScrollDone) return;
-
-    final s = cubit.state;
-    final fid = s.firstUnreadMessageId;
-
-    if (fid != null) {
-      final target = _messageKeys[fid]?.currentContext;
-      if (target != null) {
-        await Scrollable.ensureVisible(
-          target,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOut,
-          alignment: 0.12,
-        );
-        _onMessageListScroll();
-        if (context.mounted) {
-          setState(() => _viewportScrollDone = true);
-        }
-        return;
-      }
-      if (pass < 24) {
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          if (!mounted) return;
-          await _viewportScrollAttempt(context, cubit, pass + 1);
-        });
-      }
-      return;
-    }
-
-    if (s.messages.isEmpty) {
-      setState(() => _viewportScrollDone = true);
-      return;
-    }
-
-    final scrollPos = _scrollController.hasClients
-        ? _scrollController.position
-        : null;
-    if (scrollPos != null && scrollPos.maxScrollExtent >= 0) {
-      _scrollController.jumpTo(scrollPos.maxScrollExtent);
-      _onMessageListScroll();
-      setState(() => _viewportScrollDone = true);
-      return;
-    }
-
-    if (pass < 24) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        await _viewportScrollAttempt(context, cubit, pass + 1);
-      });
-    }
-  }
-
-  Future<void> _jumpToLatest() async {
-    if (!_scrollController.hasClients) return;
-    await _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOut,
-    );
-    _onMessageListScroll();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onMessageListScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _onMessageListScroll());
-  }
-
-  @override
-  void dispose() {
-    _scrollController
-      ..removeListener(_onMessageListScroll)
-      ..dispose();
-    super.dispose();
-  }
+  final _basicChatKey = GlobalKey<BasicChatBodyState>();
 
   bool _roomMessageIsCoordinationStateCard(RoomMessage message) =>
       message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
@@ -202,15 +83,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             if (id == null) return;
             WidgetsBinding.instance.addPostFrameCallback((_) async {
               if (!ctx.mounted) return;
-              final target = _messageKeys[id]?.currentContext;
-              if (target != null) {
-                await Scrollable.ensureVisible(
-                  target,
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOut,
-                  alignment: 0.12,
-                );
-              }
+              await _basicChatKey.currentState?.scrollToMessage(id);
               if (ctx.mounted) {
                 ctx.read<RoomCubit>().clearScrollToMessageTarget();
               }
@@ -245,11 +118,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         ),
         BlocListener<RoomCubit, RoomState>(
           listenWhen: (p, c) =>
-              !_viewportScrollDone &&
               c.status == const StateIsSuccess() &&
               (p.messages != c.messages || p.status != c.status),
           listener: (ctx, s) {
-            _viewportListener(ctx, ctx.read<RoomCubit>());
+            _basicChatKey.currentState?.onRoomDataChangedForViewport(
+              firstUnreadMessageId: s.firstUnreadMessageId,
+              messagesEmpty: s.messages.isEmpty,
+            );
           },
         ),
       ],
@@ -300,152 +175,48 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final err = state.status is StateHasError
               ? (state.status as StateHasError).error.toString()
               : '';
-          return Column(
-            children: [
-              Expanded(
-                child: state.hasError && state.messages.isEmpty
-                    ? Center(child: Text(err))
-                    : Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.only(bottom: 72),
-                            itemCount: state.messages.length,
-                            itemBuilder: (context, i) {
-                              final m = state.messages[i];
-                              final prev = i == 0
-                                  ? null
-                                  : state.messages[i - 1];
-                              final next = i + 1 >= state.messages.length
-                                  ? null
-                                  : state.messages[i + 1];
-                              final dateChanged =
-                                  prev == null ||
-                                  !roomMessageSameLocalDay(
-                                    prev.createdAt,
-                                    m.createdAt,
-                                  );
-                              final idxUnread = state.firstUnreadIndex;
-                              final unreads = state.unreadCount;
-                              final showUnreadBand =
-                                  unreads > 0 &&
-                                  idxUnread >= 0 &&
-                                  i == idxUnread;
-
-                              final messageTile = RoomMessageTile(
-                                key: _messageKey(m.id),
-                                message: m,
-                                myProfile: myProfile,
-                                previousMessage: prev,
-                                nextMessage: next,
-                                breakGroupAbove: dateChanged || showUnreadBand,
-                                onActionsPressed: (msg) =>
-                                    _onMessageActionsPressed(
-                                      context,
-                                      cubit,
-                                      l10n,
-                                      myProfile,
-                                      msg,
-                                    ),
-                                onToggleReaction: (messageId, emoji) =>
-                                    cubit.toggleReaction(
-                                      messageId: messageId,
-                                      emoji: emoji,
-                                    ),
-                                onOpenFileAttachment: (a) =>
-                                    openRoomFileAttachment(
-                                      context,
-                                      l10n,
-                                      a,
-                                    ),
-                                participants: state.participants,
-                                onVotePoll: (pollingId, variantIds, {score}) =>
-                                    cubit.votePoll(
-                                      messageId: m.id,
-                                      pollingId: pollingId,
-                                      variantIds: variantIds,
-                                      score: score,
-                                    ),
-                              );
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (dateChanged)
-                                    RoomDateSeparator(date: m.createdAt),
-                                  if (showUnreadBand)
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                      ),
-                                      child: RoomUnreadDivider(
-                                        unreadCount: unreads,
-                                      ),
-                                    ),
-                                  messageTile,
-                                ],
-                              );
-                            },
-                          ),
-                          if (_showJumpFab)
-                            Positioned(
-                              right: 12,
-                              bottom: 8,
-                              child: Badge(
-                                isLabelVisible: state.unreadCount > 0,
-                                label: Text('${state.unreadCount}'),
-                                child: FloatingActionButton.small(
-                                  heroTag: 'beacon_room_jump_latest',
-                                  tooltip: l10n.beaconRoomScrollToLatestTooltip,
-                                  onPressed: () => unawaited(_jumpToLatest()),
-                                  child: const Icon(
-                                    Icons.arrow_downward_rounded,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-              ),
-              if (state.isLoading && state.messages.isEmpty)
-                const Padding(
-                  padding: kPaddingV,
-                  child: CircularProgressIndicator(),
+          return BasicChatBody(
+            key: _basicChatKey,
+            messages: state.messages,
+            myProfile: myProfile,
+            participants: state.participants,
+            isLoading: state.isLoading,
+            hasError: state.hasError && state.messages.isEmpty,
+            errorText: err,
+            firstUnreadIndex: state.firstUnreadIndex,
+            unreadCount: state.unreadCount,
+            onMarkSeenNearBottom: cubit.markSeenNowIfNeeded,
+            onMessageActions: (msg) => _onMessageActionsPressed(
+              context,
+              cubit,
+              l10n,
+              myProfile,
+              msg,
+            ),
+            onToggleReaction: (messageId, emoji) => cubit.toggleReaction(
+                  messageId: messageId,
+                  emoji: emoji,
                 ),
-              SafeArea(
-                child: Material(
-                  child: Padding(
-                    padding: kPaddingH.add(kPaddingSmallT).add(kPaddingV),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: BeaconRoomComposer(
-                            imageRepository: GetIt.I<ImageRepository>(),
-                            isSending: state.isLoading,
-                            onSend: (body, uploads) => cubit.sendMessage(
-                              body: body,
-                              uploads: uploads,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: L10n.of(context)!.beaconRoomCreatePoll,
-                          icon: const Icon(Icons.poll_outlined),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: state.isLoading
-                              ? null
-                              : () => _showCreatePollSheet(context, cubit),
-                        ),
-                      ],
-                    ),
-                  ),
+            onOpenFileAttachment: (a) => openRoomFileAttachment(
+              context,
+              l10n,
+              a,
+            ),
+            onVotePoll: (messageId, pollingId, variantIds, {score}) =>
+                cubit.votePoll(
+                  messageId: messageId,
+                  pollingId: pollingId,
+                  variantIds: variantIds,
+                  score: score,
                 ),
-              ),
-            ],
+            onSend: (body, uploads) => cubit.sendMessage(
+              body: body,
+              uploads: uploads,
+            ),
+            showPollButton: true,
+            onOpenPollSheet: (ctx) => _showCreatePollSheet(ctx, cubit),
+            imageRepository: GetIt.I<ImageRepository>(),
+            jumpFabHeroTag: 'beacon_room_jump_latest',
           );
         },
       ),
@@ -1393,374 +1164,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
 
 }
 
-class BeaconRoomComposer extends StatefulWidget {
-  const BeaconRoomComposer({
-    required this.imageRepository,
-    required this.isSending,
-    required this.onSend,
-    super.key,
-  });
-
-  final ImageRepository imageRepository;
-
-  final bool isSending;
-
-  final Future<void> Function(String body, List<RoomPendingUpload> uploads)
-  onSend;
-
-  @override
-  State<BeaconRoomComposer> createState() => _BeaconRoomComposerState();
-}
-
-class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
-  final _text = MentionTextController();
-  final _layerLink = LayerLink();
-  OverlayEntry? _overlayEntry;
-
-  final List<RoomPendingUpload> _pending = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _text.addListener(_onTextChanged);
-  }
-
-  @override
-  void dispose() {
-    _text.removeListener(_onTextChanged);
-    _removeOverlay();
-    _text.dispose();
-    super.dispose();
-  }
-
-  void _onTextChanged() {
-    if (!mounted) return;
-    final query = _text.activeMentionQuery;
-    if (query == null) {
-      _removeOverlay();
-      return;
-    }
-    final cubit = context.read<RoomCubit>();
-    final suggestions = cubit.state
-        .participantsMatchingQuery(query)
-        .where((p) => p.handle.isNotEmpty)
-        .take(5)
-        .toList(growable: false);
-    if (suggestions.isEmpty) {
-      _removeOverlay();
-      return;
-    }
-    _showOverlay(suggestions);
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-  }
-
-  void _showOverlay(List<BeaconParticipant> suggestions) {
-    _overlayEntry?.remove();
-    _overlayEntry = OverlayEntry(
-      builder: (_) => MentionSuggestionsOverlay(
-        suggestions: suggestions,
-        layerLink: _layerLink,
-        onDismiss: _removeOverlay,
-        onSelect: (p) {
-          _text.insertMention(p.handle.toLowerCase());
-          _removeOverlay();
-        },
-      ),
-    );
-    Overlay.of(context, rootOverlay: true).insert(_overlayEntry!);
-  }
-
-  int get _remainingSlots => kMaxRoomMessageAttachments - _pending.length;
-
-  void _snack(String message) {
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  bool _withinSize(Uint8List bytes) {
-    if (bytes.length <= kMaxRoomMessageAttachmentBytes) {
-      return true;
-    }
-    const mb = kMaxRoomMessageAttachmentBytes ~/ (1024 * 1024);
-    _snack(L10n.of(context)!.beaconRoomAttachmentTooLarge(mb));
-    return false;
-  }
-
-  void _tryAdd(RoomPendingUpload upload) {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    if (!_withinSize(upload.bytes)) {
-      return;
-    }
-    setState(() => _pending.add(upload));
-  }
-
-  String _mimeFromExtension(String ext) {
-    switch (ext.toLowerCase()) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'png':
-        return 'image/png';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'webp':
-        return 'image/webp';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
-    }
-  }
-
-  Future<void> _pickImages() async {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    final picks = await widget.imageRepository.pickMultipleImages();
-    if (!mounted || picks.isEmpty) {
-      return;
-    }
-    for (final p in picks) {
-      if (_remainingSlots <= 0) {
-        break;
-      }
-      _tryAdd(
-        RoomPendingUpload(
-          bytes: p.bytes,
-          fileName: p.fileName,
-          mimeType: 'image/jpeg',
-        ),
-      );
-    }
-  }
-
-  Future<void> _pickFiles() async {
-    if (_remainingSlots <= 0) {
-      _snack(
-        L10n.of(context)!.beaconRoomAttachmentsTooMany(
-          kMaxRoomMessageAttachments,
-        ),
-      );
-      return;
-    }
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      withData: true,
-    );
-    if (!mounted || result == null || result.files.isEmpty) {
-      return;
-    }
-    for (final pf in result.files) {
-      if (_remainingSlots <= 0) {
-        break;
-      }
-      final bytes = pf.bytes;
-      if (bytes == null) {
-        continue;
-      }
-      var mime = pf.extension != null && pf.extension!.trim().isNotEmpty
-          ? _mimeFromExtension(pf.extension!)
-          : 'application/octet-stream';
-      final sniffed = inferImageMimeFromLeadingBytes(bytes);
-      if (sniffed != null) {
-        mime = sniffed;
-      }
-      _tryAdd(
-        RoomPendingUpload(
-          bytes: bytes,
-          fileName: pf.name,
-          mimeType: mime,
-        ),
-      );
-    }
-  }
-
-  Future<void> _submit() async {
-    final body = _text.text;
-    final uploads = List<RoomPendingUpload>.from(_pending);
-    if (body.trim().isEmpty && uploads.isEmpty) {
-      return;
-    }
-    try {
-      await widget.onSend(body, uploads);
-      if (!mounted) {
-        return;
-      }
-      _removeOverlay();
-      _text.clear();
-      setState(_pending.clear);
-    } on Object catch (_) {}
-  }
-
-  Widget _pendingAttachmentPreview(
-    BuildContext context,
-    ThemeData theme,
-    bool busy,
-    int index,
-  ) {
-    final loc = MaterialLocalizations.of(context);
-    final u = _pending[index];
-    final isImage = u.mimeType.toLowerCase().startsWith('image/');
-    if (!isImage) {
-      return InputChip(
-        label: Text(
-          u.fileName.trim().isEmpty
-              ? L10n.of(context)!.beaconRoomAttachmentUntitled
-              : u.fileName,
-          style: theme.textTheme.labelMedium,
-          overflow: TextOverflow.ellipsis,
-        ),
-        onDeleted: busy ? null : () => setState(() => _pending.removeAt(index)),
-      );
-    }
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            width: 72,
-            height: 72,
-            child: Image.memory(
-              u.bytes,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (_, _, _) => Icon(
-                Icons.broken_image_outlined,
-                color: theme.colorScheme.outline,
-              ),
-            ),
-          ),
-        ),
-        if (!busy)
-          Positioned(
-            top: 0,
-            right: 0,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-              style: IconButton.styleFrom(
-                backgroundColor: theme.colorScheme.surface.withValues(
-                  alpha: 0.92,
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              tooltip: loc.deleteButtonTooltip,
-              iconSize: 20,
-              onPressed: () => setState(() => _pending.removeAt(index)),
-              icon: Icon(Icons.close, color: theme.colorScheme.onSurface),
-            ),
-          ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final busy = widget.isSending;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (_pending.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: kSpacingSmall),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (var i = 0; i < _pending.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(right: kSpacingSmall),
-                      child: _pendingAttachmentPreview(
-                        context,
-                        theme,
-                        busy,
-                        i,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            PopupMenuButton<String>(
-              tooltip: l10n.beaconRoomAttachMenuTooltip,
-              enabled: !busy && _remainingSlots > 0,
-              onSelected: (v) async {
-                if (busy) {
-                  return;
-                }
-                if (v == 'img') {
-                  await _pickImages();
-                } else if (v == 'file') {
-                  await _pickFiles();
-                }
-              },
-              itemBuilder: (ctx) => [
-                PopupMenuItem(
-                  value: 'img',
-                  child: Text(l10n.beaconRoomAttachPickImages),
-                ),
-                PopupMenuItem(
-                  value: 'file',
-                  child: Text(l10n.beaconRoomAttachPickFiles),
-                ),
-              ],
-              icon: const Icon(Icons.attach_file_rounded),
-            ),
-            Expanded(
-              child: CompositedTransformTarget(
-                link: _layerLink,
-                child: TextField(
-                  controller: _text,
-                  decoration: InputDecoration(
-                    hintText: l10n.beaconRoomMessageHint,
-                  ),
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  enabled: !busy,
-                  onSubmitted: (_) => unawaited(_submit()),
-                  onTapOutside: (_) => _removeOverlay(),
-                ),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.send_rounded),
-              onPressed: busy ? null : () => unawaited(_submit()),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
 
 class _PollCreateSheet extends StatefulWidget {
   const _PollCreateSheet({required this.cubit});
