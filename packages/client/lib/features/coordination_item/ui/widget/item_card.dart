@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -54,6 +55,8 @@ class ItemCard extends StatelessWidget {
       _ => Icons.help_outline,
     };
 
+    final actions = _actions(l10n);
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -65,45 +68,18 @@ class ItemCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(statusIcon, size: 14, color: statusColor),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              kindLabel,
-                              style: textTheme.labelSmall?.copyWith(
-                                color: statusColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
+                  Icon(statusIcon, size: 14, color: statusColor),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      kindLabel,
+                      style: TenturaText.typeLabel(statusColor),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (item.isActive)
-                    Flexible(
-                      child: Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        alignment: WrapAlignment.end,
-                        children: _actionChips(l10n),
-                      ),
-                    ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -113,6 +89,13 @@ class ItemCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: actions,
+                ),
+              ],
             ],
           ),
         ),
@@ -120,112 +103,92 @@ class ItemCard extends StatelessWidget {
     );
   }
 
-  List<Widget> _actionChips(L10n l10n) {
+  List<Widget> _actions(L10n l10n) {
+    if (!item.isActive) {
+      return const [];
+    }
+
     if (item.kind == CoordinationItemKind.blocker) {
       return [
-        _ActionChip(
+        TenturaTextAction(
           label: l10n.coordinationBlockerActionResolve,
           onPressed: onResolve,
-          icon: Icons.check,
+          tone: TenturaTone.good,
+          icon: const Icon(Icons.check),
         ),
-        const SizedBox(width: 4),
-        _ActionChip(
+        TenturaTextAction(
           label: l10n.coordinationBlockerActionCancel,
           onPressed: onCancel,
-          icon: Icons.close,
+          tone: TenturaTone.danger,
+          icon: const Icon(Icons.close),
         ),
       ];
     }
     if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
       return [
-        _ActionChip(
+        TenturaTextAction(
           label: l10n.coordinationResolutionAcceptLabel,
           onPressed: onAccept,
-          icon: Icons.check,
+          tone: TenturaTone.good,
+          icon: const Icon(Icons.check),
         ),
-        const SizedBox(width: 4),
-        _ActionChip(
+        TenturaTextAction(
           label: l10n.coordinationResolutionRejectLabel,
           onPressed: onReject ?? onCancel,
-          icon: Icons.close,
+          tone: TenturaTone.danger,
+          icon: const Icon(Icons.close),
         ),
       ];
     }
     if (item.kind == CoordinationItemKind.plan && item.isPlanStep) {
       return [
-        _ActionChip(
+        TenturaTextAction(
           label: l10n.coordinationBlockerActionResolve,
           onPressed: onResolve,
-          icon: Icons.check,
+          tone: TenturaTone.good,
+          icon: const Icon(Icons.check),
         ),
       ];
     }
     if (item.kind == CoordinationItemKind.ask) {
       if (item.isOpen && onAccept != null) {
         return [
-          _ActionChip(
+          TenturaTextAction(
             label: l10n.coordinationAskAcceptLabel,
             onPressed: onAccept,
-            icon: Icons.handshake_outlined,
+            icon: const Icon(Icons.handshake_outlined),
           ),
-          const SizedBox(width: 4),
-          _ActionChip(
+          TenturaTextAction(
             label: l10n.coordinationBlockerActionResolve,
             onPressed: onResolve,
-            icon: Icons.check,
+            tone: TenturaTone.good,
+            icon: const Icon(Icons.check),
           ),
-          const SizedBox(width: 4),
-          _ActionChip(
+          TenturaTextAction(
             label: l10n.coordinationBlockerActionCancel,
             onPressed: onCancel,
-            icon: Icons.close,
+            tone: TenturaTone.danger,
+            icon: const Icon(Icons.close),
           ),
         ];
       }
       if (item.isAccepted) {
         return [
-          _ActionChip(
+          TenturaTextAction(
             label: l10n.coordinationBlockerActionResolve,
             onPressed: onResolve,
-            icon: Icons.check,
+            tone: TenturaTone.good,
+            icon: const Icon(Icons.check),
           ),
-          const SizedBox(width: 4),
-          _ActionChip(
+          TenturaTextAction(
             label: l10n.coordinationBlockerActionCancel,
             onPressed: onCancel,
-            icon: Icons.close,
+            tone: TenturaTone.danger,
+            icon: const Icon(Icons.close),
           ),
         ];
       }
     }
     return const [];
-  }
-}
-
-class _ActionChip extends StatelessWidget {
-  const _ActionChip({
-    required this.label,
-    required this.onPressed,
-    required this.icon,
-  });
-
-  final String label;
-  final VoidCallback? onPressed;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: TextButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16),
-        label: Text(label),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          visualDensity: VisualDensity.compact,
-        ),
-      ),
-    );
   }
 }
