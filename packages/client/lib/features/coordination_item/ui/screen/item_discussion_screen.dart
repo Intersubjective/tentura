@@ -3,8 +3,15 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/coordination_item_message.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import '../bloc/item_discussion_cubit.dart';
 import '../bloc/item_discussion_state.dart';
@@ -31,7 +38,6 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -110,195 +116,136 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Item header
-          BlocBuilder<ItemDiscussionCubit, ItemDiscussionState>(
-            buildWhen: (p, c) => p.item != c.item,
-            builder: (context, state) {
-              final item = state.item;
-              final colorScheme = theme.colorScheme;
-              final statusColor = item.isOpen
-                  ? colorScheme.error
-                  : item.isAccepted
-                      ? colorScheme.primary
-                      : item.isResolved
-                          ? colorScheme.primary
-                          : colorScheme.outline;
-              final kindLabel = switch (item.kind) {
-                CoordinationItemKind.blocker =>
-                  l10n.coordinationBlockerCardLabel,
-                CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
-                _ => l10n.coordinationItemCardTitle,
-              };
-              final headerIcon = switch (item.kind) {
-                CoordinationItemKind.ask => Icons.help_outline,
-                _ => item.isOpen ? Icons.block : Icons.check_circle,
-              };
-              return Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.06),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: statusColor.withValues(alpha: 0.2),
-                    ),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(headerIcon, size: 16, color: statusColor),
-                        const SizedBox(width: 6),
-                        Text(
-                          kindLabel,
-                          style: theme.textTheme.labelMedium
-                              ?.copyWith(color: statusColor),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          item.status.name.toUpperCase(),
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: statusColor),
-                        ),
-                      ],
-                    ),
-                    if (item.body.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(item.body, style: theme.textTheme.bodySmall),
-                    ],
-                  ],
-                ),
+      body: BlocBuilder<ItemDiscussionCubit, ItemDiscussionState>(
+        buildWhen: (p, c) =>
+            p.item != c.item ||
+            p.messages != c.messages ||
+            p.isLoading != c.isLoading ||
+            p.status != c.status,
+        builder: (context, state) {
+          final cubit = context.read<ItemDiscussionCubit>();
+          final theme = Theme.of(context);
+          final sorted = [...state.messages]..sort(
+                (a, b) => a.createdAt.compareTo(b.createdAt),
               );
+          final roomMessages = sorted.map(_itemMessageToRoomMessage).toList();
+          final myProfile = GetIt.I<ProfileCubit>().state.profile;
+          final err = state.status is StateHasError
+              ? (state.status as StateHasError).error.toString()
+              : '';
+
+          return BasicChatBody(
+            messages: roomMessages,
+            myProfile: myProfile,
+            participants: const [],
+            isLoading: state.isLoading,
+            hasError: state.hasError && roomMessages.isEmpty,
+            errorText: err,
+            onSend: (body, _) async {
+              await cubit.sendMessage(body);
             },
-          ),
-          // Messages list
-          Expanded(
-            child: BlocBuilder<ItemDiscussionCubit, ItemDiscussionState>(
-              buildWhen: (p, c) =>
-                  p.messages != c.messages || p.isLoading != c.isLoading,
-              builder: (context, state) {
-                if (state.isLoading && state.messages.isEmpty) {
-                  return const Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  );
-                }
-                if (state.messages.isEmpty) {
-                  return Center(
-                    child: Text(
-                      l10n.coordinationItemDiscussionComposerHint,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: state.messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = state.messages[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            msg.senderId,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(msg.body, style: theme.textTheme.bodyMedium),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+            header: _ItemDiscussionHeader(
+              item: state.item,
+              theme: theme,
+              l10n: l10n,
             ),
-          ),
-          // Composer
-          _Composer(
-            hintText: l10n.coordinationItemDiscussionComposerHint,
-            onSend: (body) =>
-                context.read<ItemDiscussionCubit>().sendMessage(body),
-          ),
-        ],
+            emptyPlaceholder: Center(
+              child: Text(
+                l10n.coordinationItemDiscussionComposerHint,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            imageRepository: GetIt.I<ImageRepository>(),
+            enableComposerAttachments: false,
+            enableParticipantMentions: false,
+            jumpFabHeroTag: 'item_discussion_jump_latest',
+          );
+        },
       ),
     );
   }
 }
 
-class _Composer extends StatefulWidget {
-  const _Composer({required this.hintText, required this.onSend});
-
-  final String hintText;
-  final ValueChanged<String> onSend;
-
-  @override
-  State<_Composer> createState() => _ComposerState();
+RoomMessage _itemMessageToRoomMessage(CoordinationItemMessage m) {
+  return RoomMessage(
+    id: m.id,
+    beaconId: m.beaconId,
+    authorId: m.senderId,
+    body: m.body,
+    createdAt: m.createdAt,
+    editedAt: m.editedAt,
+    author: Profile(id: m.senderId),
+  );
 }
 
-class _ComposerState extends State<_Composer> {
-  final _controller = TextEditingController();
+class _ItemDiscussionHeader extends StatelessWidget {
+  const _ItemDiscussionHeader({
+    required this.item,
+    required this.theme,
+    required this.l10n,
+  });
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final CoordinationItem item;
+  final ThemeData theme;
+  final L10n l10n;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final statusColor = item.isOpen
+        ? colorScheme.error
+        : item.isAccepted
+            ? colorScheme.primary
+            : item.isResolved
+                ? colorScheme.primary
+                : colorScheme.outline;
+    final kindLabel = switch (item.kind) {
+      CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
+      CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+      _ => l10n.coordinationItemCardTitle,
+    };
+    final headerIcon = switch (item.kind) {
+      CoordinationItemKind.ask => Icons.help_outline,
+      _ => item.isOpen ? Icons.block : Icons.check_circle,
+    };
     return Container(
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 4,
-        top: 8,
-        bottom: MediaQuery.of(context).padding.bottom + 8,
-      ),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: statusColor.withValues(alpha: 0.06),
         border: Border(
-          top: BorderSide(color: theme.colorScheme.outlineVariant),
+          bottom: BorderSide(
+            color: statusColor.withValues(alpha: 0.2),
+          ),
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: widget.hintText,
-                border: InputBorder.none,
-                isDense: true,
+          Row(
+            children: [
+              Icon(headerIcon, size: 16, color: statusColor),
+              const SizedBox(width: 6),
+              Text(
+                kindLabel,
+                style:
+                    theme.textTheme.labelMedium?.copyWith(color: statusColor),
               ),
-              minLines: 1,
-              maxLines: 4,
-              textInputAction: TextInputAction.send,
-              onSubmitted: _send,
-            ),
+              const SizedBox(width: 8),
+              Text(
+                item.status.name.toUpperCase(),
+                style: theme.textTheme.labelSmall?.copyWith(color: statusColor),
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: () => _send(_controller.text),
-            icon: const Icon(Icons.send),
-          ),
+          if (item.body.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(item.body, style: theme.textTheme.bodySmall),
+          ],
         ],
       ),
     );
-  }
-
-  void _send(String text) {
-    if (text.trim().isEmpty) return;
-    widget.onSend(text);
-    _controller.clear();
   }
 }
