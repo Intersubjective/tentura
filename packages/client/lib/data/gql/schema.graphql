@@ -2348,7 +2348,6 @@ type mutation_root {
     messageId: String!
     emoji: String!
   ): Boolean!
-  BeaconRoomStatePlanUpdate(beaconId: String!, currentPlan: String!): Boolean!
   BeaconParticipantSetNextMove(
     beaconId: String!
     targetUserId: String!
@@ -2366,15 +2365,6 @@ type mutation_root {
   BeaconFactCardCorrect(beaconId: String!, factCardId: String!, newText: String!): Boolean!
   BeaconFactCardRemove(beaconId: String!, factCardId: String!): Boolean!
   BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
-  """Deprecated: use markBlocker coordination mutation."""
-  BeaconRoomMessageMarkBlocker(
-    beaconId: String!
-    messageId: String!
-    title: String!
-    affectedParticipantId: String
-    resolverParticipantId: String
-    visibility: Int
-  ): Boolean!
   BeaconRoomMessageNeedInfo(
     beaconId: String!
     messageId: String!

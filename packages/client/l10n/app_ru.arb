@@ -3076,6 +3076,7 @@
   "coordinationResolutionAcceptLabel": "Принять",
   "coordinationResolutionRejectLabel": "Отклонить",
   "beaconRoomActionCreateResolution": "Предложить решение…",
+  "coordinationMarkResolutionHint": "Что считается решённым или выполненным?",
   "coordinationSemanticResolutionOpened": "Решение предложено",
   "coordinationSemanticResolutionResolved": "Решение принято",
   "coordinationSemanticResolutionCancelled": "Решение отклонено"

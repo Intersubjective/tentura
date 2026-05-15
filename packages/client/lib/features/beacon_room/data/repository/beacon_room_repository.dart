@@ -24,7 +24,6 @@ import '../gql/_g/beacon_participant_set_next_move.req.gql.dart';
 import '../gql/_g/beacon_participant_offer_help.req.gql.dart';
 import '../gql/_g/beacon_room_admit.req.gql.dart';
 import '../gql/_g/beacon_room_state_get.req.gql.dart';
-import '../gql/_g/beacon_room_state_plan_update.req.gql.dart';
 import '../gql/_g/beacon_steward_promote.req.gql.dart';
 import '../gql/_g/room_message_attachment_add.req.gql.dart';
 import '../gql/_g/room_message_create.req.gql.dart';
@@ -253,20 +252,6 @@ class BeaconRoomRepository {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).BeaconParticipantSetNextMove);
-
-  Future<bool> updateRoomPlan({
-    required String beaconId,
-    required String currentPlan,
-  }) async => _remoteApiService
-      .request(
-        GBeaconRoomStatePlanUpdateReq(
-          (b) => b.vars
-            ..beaconId = beaconId
-            ..currentPlan = currentPlan,
-        ),
-      )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).BeaconRoomStatePlanUpdate);
 
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
     final r = await _remoteApiService
