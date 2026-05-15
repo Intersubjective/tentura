@@ -24,15 +24,26 @@ import '../bloc/items_tab_state.dart';
 import 'beacon_definition_body.dart';
 import 'beacon_prepared_ask_sheet.dart';
 
+BeaconParticipant? _participantForUser(
+  List<BeaconParticipant> participants,
+  String? userId,
+) {
+  if (userId == null || userId.isEmpty) return null;
+  for (final p in participants) {
+    if (p.userId == userId) return p;
+  }
+  return null;
+}
+
 class ItemsTab extends StatelessWidget {
   const ItemsTab({
     required this.state,
-    required this.onOpenRoom,
+    required this.onOpenItemThread,
     super.key,
   });
 
   final BeaconViewState state;
-  final VoidCallback onOpenRoom;
+  final void Function(CoordinationItem item) onOpenItemThread;
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +151,15 @@ class ItemsTab extends StatelessWidget {
                   _ItemCardAnimatedRow(
                     key: ValueKey(item.id),
                     item: item,
-                    onOpenRoom: onOpenRoom,
+                    creatorParticipant: _participantForUser(
+                      state.roomParticipants,
+                      item.creatorId,
+                    ),
+                    targetParticipant: _participantForUser(
+                      state.roomParticipants,
+                      item.targetPersonId,
+                    ),
+                    onOpenItemThread: onOpenItemThread,
                     resolveAction: () async {
                       final cubit = context.read<ItemsTabCubit>();
                       if (item.kind == CoordinationItemKind.plan &&
@@ -187,7 +206,15 @@ class ItemsTab extends StatelessWidget {
                       for (final item in closedItems)
                         ItemCard(
                           item: item,
-                          onOpenRoom: onOpenRoom,
+                          creatorParticipant: _participantForUser(
+                            state.roomParticipants,
+                            item.creatorId,
+                          ),
+                          targetParticipant: _participantForUser(
+                            state.roomParticipants,
+                            item.targetPersonId,
+                          ),
+                          onOpenItemThread: onOpenItemThread,
                         ),
                     ],
                   ),
@@ -204,7 +231,9 @@ class ItemsTab extends StatelessWidget {
 class _ItemCardAnimatedRow extends StatefulWidget {
   const _ItemCardAnimatedRow({
     required this.item,
-    required this.onOpenRoom,
+    required this.creatorParticipant,
+    required this.targetParticipant,
+    required this.onOpenItemThread,
     required this.resolveAction,
     required this.cancelAction,
     this.acceptAction,
@@ -213,7 +242,9 @@ class _ItemCardAnimatedRow extends StatefulWidget {
   });
 
   final CoordinationItem item;
-  final VoidCallback onOpenRoom;
+  final BeaconParticipant? creatorParticipant;
+  final BeaconParticipant? targetParticipant;
+  final void Function(CoordinationItem item) onOpenItemThread;
   final Future<void> Function() resolveAction;
   final Future<void> Function() cancelAction;
   final Future<void> Function()? acceptAction;
@@ -263,7 +294,9 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
         child: _visible
             ? ItemCard(
                 item: widget.item,
-                onOpenRoom: widget.onOpenRoom,
+                creatorParticipant: widget.creatorParticipant,
+                targetParticipant: widget.targetParticipant,
+                onOpenItemThread: widget.onOpenItemThread,
                 onResolve: () => unawaited(
                   _animateThenCall(widget.resolveAction),
                 ),
@@ -450,7 +483,15 @@ class _PreparedDraftAskRow extends StatelessWidget {
       children: [
         ItemCard(
           item: draft,
-          onOpenRoom: () => unawaited(openPublish()),
+          creatorParticipant: _participantForUser(
+            participants,
+            draft.creatorId,
+          ),
+          targetParticipant: _participantForUser(
+            participants,
+            draft.targetPersonId,
+          ),
+          onOpenItemThread: (_) => unawaited(openPublish()),
         ),
         Align(
           alignment: Alignment.centerRight,

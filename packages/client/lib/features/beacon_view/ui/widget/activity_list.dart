@@ -5,11 +5,9 @@ import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/image_entity.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -128,9 +126,6 @@ class BeaconActivityList extends StatelessWidget {
 }
 
 enum _LogTier { high, medium, low }
-
-const _kLogAvatarSize = 20.0;
-const _kLogEventIconSize = 22.0;
 
 _LogTier _logTierFor(BeaconActivityEvent e) {
   if (e.type >= 100 && e.type < 500) return _LogTier.high;
@@ -288,73 +283,6 @@ Color _logIconColor(ThemeData theme, BeaconActivityEvent e) {
   };
 }
 
-Profile _profileFromParticipant(BeaconParticipant p) => Profile(
-      id: p.userId,
-      title: p.userTitle,
-      image: p.userHasPicture
-          ? ImageEntity(
-              id: p.userImageId,
-              authorId: p.userId,
-              blurHash: p.userBlurHash,
-              height: p.userPicHeight,
-              width: p.userPicWidth,
-            )
-          : null,
-    );
-
-/// Leading segment: event icon alone if no actor; otherwise
-/// `[source avatar] [event icon] [target avatar?]` (icon replaces arrow).
-Widget _logLeadSection(
-  ThemeData theme,
-  BeaconActivityEvent event,
-  BeaconParticipant? actor,
-  BeaconParticipant? target,
-) {
-  final iconColor = _logIconColor(theme, event);
-  final eventIcon = Icon(
-    _logIcon(event),
-    size: _kLogEventIconSize,
-    color: iconColor,
-  );
-
-  if (actor == null) return eventIcon;
-
-  final actorProfile = _profileFromParticipant(actor);
-  final actorAvatar = ClipOval(
-    child: AvatarRated(
-      profile: actorProfile,
-      size: _kLogAvatarSize,
-      withRating: false,
-    ),
-  );
-
-  final children = <Widget>[
-    actorAvatar,
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: eventIcon,
-    ),
-  ];
-
-  if (target != null) {
-    final targetProfile = _profileFromParticipant(target);
-    children.add(
-      ClipOval(
-        child: AvatarRated(
-          profile: targetProfile,
-          size: _kLogAvatarSize,
-          withRating: false,
-        ),
-      ),
-    );
-  }
-
-  return Row(
-    mainAxisSize: MainAxisSize.min,
-    children: children,
-  );
-}
-
 class _LogActivityTile extends StatelessWidget {
   const _LogActivityTile({
     required this.event,
@@ -373,7 +301,16 @@ class _LogActivityTile extends StatelessWidget {
     final theme = Theme.of(context);
     final tier = _logTierFor(event);
     final iconColor = _logIconColor(theme, event);
-    final lead = _logLeadSection(theme, event, actor, target);
+    final eventIcon = Icon(
+      _logIcon(event),
+      size: kCoordinationLogEventIconSize,
+      color: iconColor,
+    );
+    final lead = coordinationLogLeadRow(
+      eventIcon: eventIcon,
+      actor: actor,
+      target: target,
+    );
 
     return Padding(
       padding: kPaddingSmallV,
@@ -393,7 +330,7 @@ class _LogActivityTile extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            _activityTs(event.createdAt),
+            coordinationLogTimestampLabel(event.createdAt),
             style: theme.textTheme.labelSmall,
           ),
         ],
@@ -430,7 +367,7 @@ class _ActivityEntryTile extends StatelessWidget {
         final TimelineUpdate u => Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(iconData, size: 22, color: iconColor),
+              Icon(iconData, size: kCoordinationLogEventIconSize, color: iconColor),
               const SizedBox(width: kSpacingSmall),
               Expanded(
                 child: Text(
@@ -451,7 +388,7 @@ class _ActivityEntryTile extends StatelessWidget {
                   onPressed: () => onEditTimelineUpdate(u),
                 ),
               Text(
-                _activityTs(u.timestamp),
+                coordinationLogTimestampLabel(u.timestamp),
                 style: theme.textTheme.labelSmall,
               ),
             ],
@@ -459,7 +396,7 @@ class _ActivityEntryTile extends StatelessWidget {
         _ => Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(iconData, size: 22, color: iconColor),
+              Icon(iconData, size: kCoordinationLogEventIconSize, color: iconColor),
               const SizedBox(width: kSpacingSmall),
               Expanded(
                 child: Text(
@@ -471,7 +408,7 @@ class _ActivityEntryTile extends StatelessWidget {
                 ),
               ),
               Text(
-                _activityTs(entry.timestamp),
+                coordinationLogTimestampLabel(entry.timestamp),
                 style: theme.textTheme.labelSmall,
               ),
             ],
@@ -603,11 +540,6 @@ String _timelineHelpOfferUpdatedLine(L10n l10n, TimelineHelpOfferUpdated e) {
     return '$base · $help';
   }
   return base;
-}
-
-String _activityTs(DateTime utc) {
-  final local = utc.toLocal();
-  return '${dateFormatYMD(local)} ${timeFormatHm(local)}';
 }
 
 const _beaconAuthorUpdateEditWindow = Duration(hours: 1);

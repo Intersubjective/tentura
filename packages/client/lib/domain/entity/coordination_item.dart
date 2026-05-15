@@ -104,6 +104,16 @@ abstract class CoordinationItem with _$CoordinationItem {
   bool get isActive =>
       isOpen || isAccepted;
 
+  /// Room message id to scroll to when opening this item’s thread, when known.
+  String? get threadAnchorMessageId {
+    for (final candidate in [linkedMessageId, targetMessageId]) {
+      if (candidate == null) continue;
+      final t = candidate.trim();
+      if (t.isNotEmpty) return t;
+    }
+    return null;
+  }
+
   static final empty = CoordinationItem(
     id: '',
     beaconId: '',
