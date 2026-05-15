@@ -64,6 +64,59 @@ class CoordinationItemCase {
         linkedMessageId: linkedMessageId,
       );
 
+  Future<CoordinationItem> createSelfAsk({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? linkedMessageId,
+  }) =>
+      _repository.createSelfAsk(
+        beaconId: beaconId,
+        title: title,
+        body: body,
+        linkedMessageId: linkedMessageId,
+      );
+
+  Future<CoordinationItem> createDraftAsk({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? targetPersonId,
+  }) =>
+      _repository.createDraftAsk(
+        beaconId: beaconId,
+        title: title,
+        body: body,
+        targetPersonId: targetPersonId,
+      );
+
+  Future<CoordinationItem> publishDraftAsk({
+    required String itemId,
+    required String targetPersonId,
+  }) =>
+      _repository.publishDraftAsk(
+        itemId: itemId,
+        targetPersonId: targetPersonId,
+      );
+
+  Future<CoordinationItem> updateDraftAsk({
+    required String itemId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
+  }) =>
+      _repository.updateDraftAsk(
+        itemId: itemId,
+        title: title,
+        body: body,
+        targetPersonId: targetPersonId,
+        omitTargetPersonId: omitTargetPersonId,
+      );
+
+  Future<void> deleteDraftAsk({required String itemId}) =>
+      _repository.deleteDraftAsk(itemId: itemId);
+
   Future<CoordinationItem> acceptAsk({required String itemId}) =>
       _repository.acceptAsk(itemId: itemId);
 

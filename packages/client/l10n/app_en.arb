@@ -2763,6 +2763,19 @@
   "beaconRoomYouStripEditNextMove": "Update my next step",
   "beaconRoomYouStripMarkDoneComing": "Mark done — soon",
   "beaconRoomYouStripNoParticipant": "Room access adds your participant row here.",
+  "beaconRoomAddMyNextMove": "Add my next move",
+  "@beaconRoomAddMyNextMove": {
+    "description": "YOU section quick action to create a self-accepted coordination ask"
+  },
+  "beaconRoomSelfAskSheetPrompt": "What will you do?",
+  "beaconRoomSelfAskBodyHintOptional": "Details (optional)",
+  "beaconItemsPreparedDraftsTitle": "Prepared asks (drafts)",
+  "beaconPreparedAskPrepareAction": "Prepare ask",
+  "beaconPreparedAskEditorTitleNew": "Prepare an ask",
+  "beaconPreparedAskEditorTitleEdit": "Edit prepared ask",
+  "beaconPreparedAskPublishSheetTitle": "Who should this ask go to?",
+  "beaconPreparedAskDeleteConfirmTitle": "Delete this draft?",
+  "beaconPreparedAskDeleteConfirmBody": "This cannot be undone.",
   "beaconRoomUnreadDividerCount": "Unread · {count}",
   "@beaconRoomUnreadDividerCount": {
     "placeholders": {
@@ -3081,6 +3094,7 @@
   "coordinationAskAcceptLabel": "I'll do this",
   "coordinationSemanticAskOpened": "Ask raised",
   "coordinationSemanticAskAccepted": "Ask accepted",
+  "coordinationSemanticSelfAskAccepted": "You committed to this step",
   "coordinationSemanticAskResolved": "Ask done",
   "coordinationSemanticAskCancelled": "Ask cancelled",
   "beaconRoomActionMarkAsk": "Create ask…",

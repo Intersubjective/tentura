@@ -2382,6 +2382,11 @@ type mutation_root {
   resolveBlocker(itemId: String!, note: String): CoordinationItemRow!
   cancelBlocker(itemId: String!, reason: String): CoordinationItemRow!
   markAsk(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  createSelfAsk(beaconId: String!, title: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  createDraftAsk(beaconId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
+  publishAsk(itemId: String!, targetPersonId: String!): CoordinationItemRow!
+  updateDraftAsk(itemId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
+  deleteDraftAsk(itemId: String!): Boolean!
   acceptAsk(itemId: String!): CoordinationItemRow!
   resolveAsk(itemId: String!, note: String): CoordinationItemRow!
   cancelAsk(itemId: String!, reason: String): CoordinationItemRow!
@@ -6303,6 +6308,8 @@ type CoordinationItemRow {
   beaconId: String!
   kind: Int!
   status: Int!
+  source: Int!
+  published: Boolean!
   title: String!
   body: String!
   creatorId: String!

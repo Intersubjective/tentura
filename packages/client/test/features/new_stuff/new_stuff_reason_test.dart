@@ -156,7 +156,8 @@ void main() {
       );
     });
 
-    test('author response wins tie with commitment row', () {
+    test('help offer tie: equal help-offer vs author-coord timestamps show response only',
+        () {
       final vm = MyWorkCardViewModel(
         beaconId: 'b1',
         role: MyWorkCardRole.helpOffered,
@@ -174,7 +175,7 @@ void main() {
       );
     });
 
-    test('commitment row when strictly newer than author response', () {
+    test('help offer row newer than author coordination lists both signals', () {
       final vm = MyWorkCardViewModel(
         beaconId: 'b1',
         role: MyWorkCardRole.helpOffered,

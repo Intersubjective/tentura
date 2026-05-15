@@ -12,6 +12,7 @@ class BeaconYouSectionContent extends StatelessWidget {
   const BeaconYouSectionContent({
     required this.myParticipant,
     required this.onEditNextMove,
+    required this.onAddMyNextMove,
     this.viewerAcceptedAsk,
     super.key,
   });
@@ -19,6 +20,7 @@ class BeaconYouSectionContent extends StatelessWidget {
   final BeaconParticipant? myParticipant;
   final CoordinationItem? viewerAcceptedAsk;
   final VoidCallback onEditNextMove;
+  final VoidCallback onAddMyNextMove;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +69,14 @@ class BeaconYouSectionContent extends StatelessWidget {
           spacing: kSpacingSmall,
           runSpacing: kSpacingSmall / 2,
           children: [
+            Semantics(
+              button: true,
+              label: l10n.beaconRoomAddMyNextMove,
+              child: TextButton(
+                onPressed: onAddMyNextMove,
+                child: Text(l10n.beaconRoomAddMyNextMove),
+              ),
+            ),
             TextButton(
               onPressed: onEditNextMove,
               child: Text(l10n.beaconRoomYouStripEditNextMove),

@@ -1,8 +1,8 @@
-mutation CoordinationItemRedirectAsk(
+mutation CoordinationItemPublishAsk(
   $itemId: String!
-  $newTargetPersonId: String!
+  $targetPersonId: String!
 ) {
-  redirectAsk(itemId: $itemId, newTargetPersonId: $newTargetPersonId) {
+  publishAsk(itemId: $itemId, targetPersonId: $targetPersonId) {
     id
     beaconId
     kind

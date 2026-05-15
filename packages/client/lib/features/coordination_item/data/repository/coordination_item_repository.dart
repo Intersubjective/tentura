@@ -10,6 +10,7 @@ import '../gql/_g/coordination_item_mark_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_cancel_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_mark_ask.req.gql.dart';
+import '../gql/_g/coordination_item_create_self_ask.req.gql.dart';
 import '../gql/_g/coordination_item_accept_ask.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_ask.req.gql.dart';
 import '../gql/_g/coordination_item_cancel_ask.req.gql.dart';
@@ -21,6 +22,10 @@ import '../gql/_g/coordination_item_resolve_plan_step.req.gql.dart';
 import '../gql/_g/coordination_item_create_resolution.req.gql.dart';
 import '../gql/_g/coordination_item_accept_resolution.req.gql.dart';
 import '../gql/_g/coordination_item_reject_resolution.req.gql.dart';
+import '../gql/_g/coordination_item_create_draft_ask.req.gql.dart';
+import '../gql/_g/coordination_item_publish_ask.req.gql.dart';
+import '../gql/_g/coordination_item_update_draft_ask.req.gql.dart';
+import '../gql/_g/coordination_item_delete_draft_ask.req.gql.dart';
 import '../model/coordination_item_model.dart';
 
 @lazySingleton
@@ -140,6 +145,95 @@ class CoordinationItemRepository {
           .then((r) => (r.dataOrThrow(label: _label).markAsk
                   as CoordinationItemMarkAskModel)
               .toEntity());
+
+  Future<CoordinationItem> createSelfAsk({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? linkedMessageId,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemCreateSelfAskReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..title = title
+                ..body = body
+                ..linkedMessageId = linkedMessageId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).createSelfAsk
+                  as CoordinationItemCreateSelfAskModel)
+              .toEntity());
+
+  Future<CoordinationItem> createDraftAsk({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? targetPersonId,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemCreateDraftAskReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..title = title
+                ..body = body
+                ..targetPersonId = targetPersonId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).createDraftAsk
+                  as CoordinationItemCreateDraftAskModel)
+              .toEntity());
+
+  Future<CoordinationItem> publishDraftAsk({
+    required String itemId,
+    required String targetPersonId,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemPublishAskReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..targetPersonId = targetPersonId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).publishAsk
+                  as CoordinationItemPublishAskModel)
+              .toEntity());
+
+  Future<CoordinationItem> updateDraftAsk({
+    required String itemId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemUpdateDraftAskReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..title = title
+                ..body = body
+                ..targetPersonId =
+                    omitTargetPersonId ? null : targetPersonId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).updateDraftAsk
+                  as CoordinationItemUpdateDraftAskModel)
+              .toEntity());
+
+  Future<void> deleteDraftAsk({required String itemId}) => _remote
+      .request(
+        GCoordinationItemDeleteDraftAskReq((b) => b.vars..itemId = itemId),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).deleteDraftAsk);
 
   Future<CoordinationItem> acceptAsk({required String itemId}) =>
       _remote

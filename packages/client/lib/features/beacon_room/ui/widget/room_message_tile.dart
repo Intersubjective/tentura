@@ -368,6 +368,7 @@ class RoomMessageTile extends StatelessWidget {
               child: ItemCardInRoom(
                 item: linkedCoord,
                 eventKind: CoordinationItemEventKind.fromInt(linkedEv),
+                timelineAuthorId: message.authorId,
                 onTap: () => context.router.push(
                   ItemDiscussionRoute(item: linkedCoord),
                 ),

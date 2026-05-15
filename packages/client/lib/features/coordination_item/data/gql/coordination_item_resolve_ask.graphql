@@ -4,6 +4,8 @@ mutation CoordinationItemResolveAsk($itemId: String!, $note: String) {
     beaconId
     kind
     status
+    source
+    published
     title
     body
     creatorId

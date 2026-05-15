@@ -68,7 +68,7 @@ class CardTriageActionRow extends StatelessWidget {
       onPressed: () async {
         await onOfferHelp?.call();
       },
-      icon: Icon(Icons.volunteer_activism_outlined, size: 20),
+      icon: const Icon(Icons.volunteer_activism_outlined, size: 20),
       label: Text(
         l10n.labelOfferHelp,
         maxLines: 1,

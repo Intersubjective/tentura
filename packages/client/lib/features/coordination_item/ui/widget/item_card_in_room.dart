@@ -9,12 +9,14 @@ class ItemCardInRoom extends StatelessWidget {
   const ItemCardInRoom({
     required this.item,
     required this.eventKind,
+    this.timelineAuthorId,
     this.onTap,
     super.key,
   });
 
   final CoordinationItem item;
   final CoordinationItemEventKind eventKind;
+  final String? timelineAuthorId;
   final VoidCallback? onTap;
 
   @override
@@ -24,12 +26,19 @@ class ItemCardInRoom extends StatelessWidget {
     final textTheme = theme.textTheme;
     final colorScheme = theme.colorScheme;
 
+    final selfCommitmentAccepted = item.kind == CoordinationItemKind.ask &&
+        eventKind == CoordinationItemEventKind.accepted &&
+        (item.source == 1 ||
+            (timelineAuthorId != null &&
+                timelineAuthorId == item.creatorId));
+
     final label = switch (item.kind) {
       CoordinationItemKind.ask => switch (eventKind) {
           CoordinationItemEventKind.created =>
             l10n.coordinationSemanticAskOpened,
-          CoordinationItemEventKind.accepted =>
-            l10n.coordinationSemanticAskAccepted,
+          CoordinationItemEventKind.accepted => selfCommitmentAccepted
+              ? l10n.coordinationSemanticSelfAskAccepted
+              : l10n.coordinationSemanticAskAccepted,
           CoordinationItemEventKind.resolved =>
             l10n.coordinationSemanticAskResolved,
           CoordinationItemEventKind.cancelled =>
@@ -66,7 +75,6 @@ class ItemCardInRoom extends StatelessWidget {
                 : l10n.coordinationSemanticPlanOpened,
           _ => l10n.coordinationPlanCardLabel,
         },
-      _ => l10n.coordinationItemCardTitle,
     };
 
     final iconData = switch (item.kind) {

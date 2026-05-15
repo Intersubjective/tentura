@@ -1,0 +1,3 @@
+mutation CoordinationItemDeleteDraftAsk($itemId: String!) {
+  deleteDraftAsk(itemId: $itemId)
+}

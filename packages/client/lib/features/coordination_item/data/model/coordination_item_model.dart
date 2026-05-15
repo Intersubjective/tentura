@@ -6,6 +6,7 @@ import '../gql/_g/coordination_item_mark_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_resolve_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_cancel_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_mark_ask.data.gql.dart';
+import '../gql/_g/coordination_item_create_self_ask.data.gql.dart';
 import '../gql/_g/coordination_item_accept_ask.data.gql.dart';
 import '../gql/_g/coordination_item_resolve_ask.data.gql.dart';
 import '../gql/_g/coordination_item_cancel_ask.data.gql.dart';
@@ -18,6 +19,9 @@ import '../gql/_g/coordination_item_resolve_plan_step.data.gql.dart';
 import '../gql/_g/coordination_item_create_resolution.data.gql.dart';
 import '../gql/_g/coordination_item_accept_resolution.data.gql.dart';
 import '../gql/_g/coordination_item_reject_resolution.data.gql.dart';
+import '../gql/_g/coordination_item_create_draft_ask.data.gql.dart';
+import '../gql/_g/coordination_item_publish_ask.data.gql.dart';
+import '../gql/_g/coordination_item_update_draft_ask.data.gql.dart';
 
 extension type const CoordinationItemListModel(GCoordinationItemListData_coordinationItemsByBeacon i) implements GCoordinationItemListData_coordinationItemsByBeacon {
   CoordinationItem toEntity() => CoordinationItem(
@@ -25,6 +29,8 @@ extension type const CoordinationItemListModel(GCoordinationItemListData_coordin
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -48,6 +54,8 @@ extension type const CoordinationItemMarkBlockerModel(GCoordinationItemMarkBlock
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -71,6 +79,8 @@ extension type const CoordinationItemResolveBlockerModel(GCoordinationItemResolv
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -94,6 +104,8 @@ extension type const CoordinationItemCancelBlockerModel(GCoordinationItemCancelB
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -117,6 +129,35 @@ extension type const CoordinationItemMarkAskModel(GCoordinationItemMarkAskData_m
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+      );
+}
+
+extension type const CoordinationItemCreateSelfAskModel(
+    GCoordinationItemCreateSelfAskData_createSelfAsk i)
+    implements GCoordinationItemCreateSelfAskData_createSelfAsk {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -140,6 +181,8 @@ extension type const CoordinationItemAcceptAskModel(GCoordinationItemAcceptAskDa
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -163,6 +206,8 @@ extension type const CoordinationItemResolveAskModel(GCoordinationItemResolveAsk
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -186,6 +231,8 @@ extension type const CoordinationItemCancelAskModel(GCoordinationItemCancelAskDa
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -209,6 +256,8 @@ extension type const CoordinationItemRedirectAskModel(GCoordinationItemRedirectA
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -256,6 +305,8 @@ extension type const CoordinationItemUpdatePlanModel(GCoordinationItemUpdatePlan
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -279,6 +330,8 @@ extension type const CoordinationItemAddPlanStepModel(GCoordinationItemAddPlanSt
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -302,6 +355,8 @@ extension type const CoordinationItemResolvePlanStepModel(GCoordinationItemResol
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -325,6 +380,8 @@ extension type const CoordinationItemCreateResolutionModel(GCoordinationItemCrea
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -348,6 +405,8 @@ extension type const CoordinationItemAcceptResolutionModel(GCoordinationItemAcce
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,
@@ -371,6 +430,89 @@ extension type const CoordinationItemRejectResolutionModel(GCoordinationItemReje
         beaconId: i.beaconId,
         kind: CoordinationItemKind.fromInt(i.kind),
         status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+      );
+}
+
+extension type const CoordinationItemCreateDraftAskModel(
+    GCoordinationItemCreateDraftAskData_createDraftAsk i)
+    implements GCoordinationItemCreateDraftAskData_createDraftAsk {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+      );
+}
+
+extension type const CoordinationItemPublishAskModel(
+    GCoordinationItemPublishAskData_publishAsk i)
+    implements GCoordinationItemPublishAskData_publishAsk {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+      );
+}
+
+extension type const CoordinationItemUpdateDraftAskModel(
+    GCoordinationItemUpdateDraftAskData_updateDraftAsk i)
+    implements GCoordinationItemUpdateDraftAskData_updateDraftAsk {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
         title: i.title,
         body: i.body,
         creatorId: i.creatorId,

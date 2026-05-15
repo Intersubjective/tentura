@@ -17,6 +17,56 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   final TenturaDb _db;
 
   @override
+  Future<CoordinationItem> createSelfAcceptedAsk({
+    required String beaconId,
+    required String creatorId,
+    required String title,
+    String body = '',
+    String? linkedMessageId,
+  }) =>
+      _db.withMutatingUser(creatorId, () async {
+        final id = CoordinationItemEntity.newId;
+        final now = PgDateTime(DateTime.timestamp());
+
+        return _db.transaction(() async {
+          final item =
+              await _db.managers.coordinationItems.createReturning((o) => o(
+                    id: id,
+                    beaconId: beaconId,
+                    kind: coordinationItemKindAsk,
+                    status: const Value(coordinationItemStatusAccepted),
+                    title: Value(title),
+                    body: Value(body),
+                    creatorId: creatorId,
+                    targetPersonId: Value(creatorId),
+                    acceptedById: Value(creatorId),
+                    targetItemId: const Value(null),
+                    targetMessageId: const Value(null),
+                    linkedMessageId: Value(linkedMessageId),
+                    linkedParentItemId: const Value(null),
+                    ordering: const Value(0),
+                    createdAt: Value(now),
+                    updatedAt: Value(now),
+                    resolvedAt: const Value(null),
+                    cancelledAt: const Value(null),
+                    source: const Value(coordinationItemSourceSelfPromise),
+                    published: const Value(true),
+                  ));
+
+          await _emitStatusRoomEvent(
+            existing: item,
+            actorId: creatorId,
+            eventKind: coordinationEventKindAccepted,
+            targetUserId: creatorId,
+          );
+
+          return (_db.select(_db.coordinationItems)
+                ..where((t) => t.id.equals(item.id)))
+              .getSingle();
+        });
+      });
+
+  @override
   Future<CoordinationItem> create({
     required String beaconId,
     required int kind,
@@ -55,6 +105,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
                     updatedAt: Value(now),
                     resolvedAt: const Value(null),
                     cancelledAt: const Value(null),
+                    source: const Value(coordinationItemSourceDefault),
+                    published: const Value(true),
                   ));
 
           final roomMsgId = generateId('R');
@@ -253,6 +305,190 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   }
 
   @override
+  Future<CoordinationItem> createDraftAsk({
+    required String beaconId,
+    required String creatorId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+  }) =>
+      _db.withMutatingUser(creatorId, () async {
+        final id = CoordinationItemEntity.newId;
+        final now = PgDateTime(DateTime.timestamp());
+        return _db.managers.coordinationItems.createReturning(
+          (o) => o(
+            id: id,
+            beaconId: beaconId,
+            kind: coordinationItemKindAsk,
+            status: const Value(coordinationItemStatusOpen),
+            title: Value(title),
+            body: Value(body),
+            creatorId: creatorId,
+            targetPersonId: Value(targetPersonId),
+            acceptedById: const Value(null),
+            targetItemId: const Value(null),
+            targetMessageId: const Value(null),
+            linkedMessageId: const Value(null),
+            linkedParentItemId: const Value(null),
+            ordering: const Value(0),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            resolvedAt: const Value(null),
+            cancelledAt: const Value(null),
+            source: const Value(coordinationItemSourceDefault),
+            published: const Value(false),
+          ),
+        );
+      });
+
+  @override
+  Future<CoordinationItem> publishDraft({
+    required String id,
+    required String actorId,
+    required String targetPersonId,
+  }) =>
+      _db.withMutatingUser(actorId, () async {
+        return _db.transaction(() async {
+          final rows =
+              await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).get();
+          if (rows.isEmpty) {
+            throw StateError('CoordinationItem not found: $id');
+          }
+          final row = rows.first;
+          if (row.published) {
+            throw StateError('Coordination item is already published');
+          }
+          if (row.creatorId != actorId) {
+            throw StateError('Only the creator may publish this draft');
+          }
+          if (row.kind != coordinationItemKindAsk) {
+            throw StateError('Only ask drafts may be published');
+          }
+          final now = PgDateTime(DateTime.timestamp());
+          final self = targetPersonId == row.creatorId;
+
+          await (_db.update(_db.coordinationItems)..where((t) => t.id.equals(id))).write(
+            CoordinationItemsCompanion(
+              published: const Value(true),
+              targetPersonId: Value(targetPersonId),
+              updatedAt: Value(now),
+              status: self
+                  ? const Value(coordinationItemStatusAccepted)
+                  : const Value.absent(),
+              acceptedById: self ? Value(actorId) : const Value.absent(),
+              source: self
+                  ? const Value(coordinationItemSourceSelfPromise)
+                  : const Value.absent(),
+            ),
+          );
+
+          final updated =
+              await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle();
+
+          if (self) {
+            await _emitStatusRoomEvent(
+              existing: updated,
+              actorId: actorId,
+              eventKind: coordinationEventKindAccepted,
+              targetUserId: targetPersonId,
+            );
+          } else {
+            final roomMsgId = generateId('R');
+            await _db.managers.beaconRoomMessages.createReturning((o) => o(
+                  id: roomMsgId,
+                  beaconId: updated.beaconId,
+                  authorId: actorId,
+                  body: const Value(''),
+                  semanticMarker: const Value(null),
+                  linkedBlockerId: const Value(null),
+                  linkedNextMoveId: const Value(null),
+                  linkedFactCardId: const Value(null),
+                  linkedPollingId: const Value(null),
+                  linkedItemId: Value(id),
+                  linkedEventKind: const Value(coordinationEventKindCreated),
+                  systemPayload: const Value(null),
+                  mentions: const Value([]),
+                  createdAt: const Value.absent(),
+                ));
+
+            await _db.managers.beaconActivityEvents.create(
+              (o) => o(
+                id: Value(BeaconActivityEventEntity.newId),
+                beaconId: updated.beaconId,
+                visibility: 1,
+                type: _activityEventTypeForKind(
+                  updated.kind,
+                  coordinationEventKindCreated,
+                ),
+                actorId: Value(actorId),
+                targetUserId: Value(targetPersonId),
+                sourceMessageId: Value(roomMsgId),
+                diff: const Value(null),
+                createdAt: const Value.absent(),
+              ),
+            );
+          }
+
+          return (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle();
+        });
+      });
+
+  @override
+  Future<CoordinationItem> updateDraftAsk({
+    required String id,
+    required String actorId,
+    required String title,
+    String body = '',
+    bool updateTargetPersonId = false,
+    String? targetPersonId,
+  }) =>
+      _db.withMutatingUser(actorId, () async {
+        final rows =
+            await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).get();
+        if (rows.isEmpty) {
+          throw StateError('CoordinationItem not found: $id');
+        }
+        final row = rows.first;
+        if (row.published) {
+          throw StateError('Only unpublished drafts may be edited');
+        }
+        if (row.creatorId != actorId) {
+          throw StateError('Only the creator may edit this draft');
+        }
+        final now = PgDateTime(DateTime.timestamp());
+        await (_db.update(_db.coordinationItems)..where((t) => t.id.equals(id))).write(
+          CoordinationItemsCompanion(
+            title: Value(title),
+            body: Value(body),
+            targetPersonId: updateTargetPersonId
+                ? Value(targetPersonId)
+                : const Value.absent(),
+            updatedAt: Value(now),
+          ),
+        );
+        return (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle();
+      });
+
+  @override
+  Future<void> deleteDraftAsk({
+    required String id,
+    required String actorId,
+  }) =>
+      _db.withMutatingUser(actorId, () async {
+        final deleted = await (_db.delete(_db.coordinationItems)
+              ..where(
+                (t) =>
+                    t.id.equals(id) &
+                    t.published.equals(false) &
+                    t.creatorId.equals(actorId),
+              ))
+            .go();
+        if (deleted == 0) {
+          throw StateError('Draft not found or not deletable');
+        }
+      });
+
+  @override
   Future<CoordinationItem?> getById(String id) =>
       (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id)))
           .getSingleOrNull();
@@ -260,6 +496,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   @override
   Future<List<CoordinationItem>> listByBeacon(
     String beaconId, {
+    required String viewerUserId,
     int? status,
     int? kind,
     String? acceptedById,
@@ -269,6 +506,11 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   }) {
     final q = _db.select(_db.coordinationItems)
       ..where((t) => t.beaconId.equals(beaconId))
+      ..where(
+        (t) =>
+            t.published.equals(true) |
+            t.creatorId.equals(viewerUserId),
+      )
       ..orderBy([
         (t) => OrderingTerm(expression: t.ordering),
         (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
