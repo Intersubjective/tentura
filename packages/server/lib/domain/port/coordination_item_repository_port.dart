@@ -44,6 +44,26 @@ abstract class CoordinationItemRepositoryPort {
     int? kind,
     String? acceptedById,
     String? targetPersonId,
+    String? linkedParentItemId,
+    bool rootOnly = false,
+  });
+
+  /// Supersedes open root plans and creates a new root plan item.
+  Future<CoordinationItem> publishRootPlan({
+    required String beaconId,
+    required String creatorId,
+    required String title,
+    String body = '',
+    String? linkedMessageId,
+    String? syncCurrentPlanText,
+  });
+
+  /// Child plan step under [parentItemId].
+  Future<CoordinationItem> addPlanStep({
+    required String parentItemId,
+    required String creatorId,
+    required String title,
+    String body = '',
   });
 
   Future<CoordinationItemMessage> appendMessage({

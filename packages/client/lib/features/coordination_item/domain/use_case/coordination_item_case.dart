@@ -17,6 +17,8 @@ class CoordinationItemCase {
     int? kind,
     String? acceptedById,
     String? targetPersonId,
+    String? linkedParentItemId,
+    bool? rootOnly,
   }) =>
       _repository.listByBeacon(
         beaconId,
@@ -24,6 +26,8 @@ class CoordinationItemCase {
         kind: kind,
         acceptedById: acceptedById,
         targetPersonId: targetPersonId,
+        linkedParentItemId: linkedParentItemId,
+        rootOnly: rootOnly,
       );
 
   Future<CoordinationItem> markBlocker({
@@ -77,6 +81,45 @@ class CoordinationItemCase {
         itemId: itemId,
         newTargetPersonId: newTargetPersonId,
       );
+
+  Future<CoordinationItem> updatePlan({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? linkedMessageId,
+  }) =>
+      _repository.updatePlan(
+        beaconId: beaconId,
+        title: title,
+        body: body,
+        linkedMessageId: linkedMessageId,
+      );
+
+  Future<CoordinationItem> addPlanStep({
+    required String parentItemId,
+    required String title,
+    String? body,
+  }) =>
+      _repository.addPlanStep(
+        parentItemId: parentItemId,
+        title: title,
+        body: body,
+      );
+
+  Future<CoordinationItem> resolvePlanStep({required String itemId}) =>
+      _repository.resolvePlanStep(itemId: itemId);
+
+  Future<CoordinationItem?> fetchCurrentRootPlan(String beaconId) async {
+    final open = await listByBeacon(
+      beaconId,
+      kind: CoordinationItemKind.plan.value,
+      status: CoordinationItemStatus.open.value,
+      rootOnly: true,
+    );
+    if (open.isEmpty) return null;
+    open.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return open.first;
+  }
 
   Future<List<CoordinationItemMessage>> listMessages(
     String itemId, {

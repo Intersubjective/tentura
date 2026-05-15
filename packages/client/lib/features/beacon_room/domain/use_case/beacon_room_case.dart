@@ -137,11 +137,21 @@ final class BeaconRoomCase extends UseCaseBase {
     return items.firstOrNull;
   }
 
-  Future<bool> updateRoomPlan({
+  Future<void> updateRoomPlan({
     required String beaconId,
     required String currentPlan,
+    String? linkedMessageId,
   }) =>
-      _room.updateRoomPlan(beaconId: beaconId, currentPlan: currentPlan);
+      _coordinationItemCase
+          .updatePlan(
+            beaconId: beaconId,
+            title: currentPlan,
+            linkedMessageId: linkedMessageId,
+          )
+          .then((_) {});
+
+  Future<CoordinationItem?> fetchCurrentCoordinationPlan(String beaconId) =>
+      _coordinationItemCase.fetchCurrentRootPlan(beaconId);
 
   Future<bool> participantSetNextMove({
     required String beaconId,

@@ -21,6 +21,7 @@ abstract class RoomState extends StateBase with _$RoomState {
     BeaconRoomState? roomState,
     CoordinationItem? openCoordinationBlocker,
     CoordinationItem? viewerAcceptedAsk,
+    CoordinationItem? currentCoordinationPlan,
     @Default(StateIsSuccess()) StateStatus status,
     String? scrollToMessageId,
     String? pendingFactsFocusFactId,

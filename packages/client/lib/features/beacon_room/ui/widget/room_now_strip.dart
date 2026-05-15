@@ -19,6 +19,7 @@ class RoomNowStrip extends StatelessWidget {
     required this.collapsed,
     required this.onToggleCollapse,
     this.openCoordinationBlocker,
+    this.currentCoordinationPlan,
     this.onOpenFact,
     this.onOpenFileAttachment,
     super.key,
@@ -31,6 +32,7 @@ class RoomNowStrip extends StatelessWidget {
 
   /// Open Blocker from coordination items (preferred over legacy room state).
   final CoordinationItem? openCoordinationBlocker;
+  final CoordinationItem? currentCoordinationPlan;
 
   /// Opens fact actions (room only).
   final Future<void> Function(BeaconFactCard fact)? onOpenFact;
@@ -56,7 +58,10 @@ class RoomNowStrip extends StatelessWidget {
         },
       );
 
-    final plan = roomState.currentPlan.trim();
+    final planFromItem = currentCoordinationPlan?.title.trim() ?? '';
+    final plan = planFromItem.isNotEmpty
+        ? planFromItem
+        : roomState.currentPlan.trim();
     final change = roomState.lastRoomMeaningfulChange?.trim() ?? '';
     final blockerFromCoord = openCoordinationBlocker;
     final hasBlocker = (blockerFromCoord != null && blockerFromCoord.isOpen) ||

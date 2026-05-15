@@ -264,10 +264,13 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     int? kind,
     String? acceptedById,
     String? targetPersonId,
+    String? linkedParentItemId,
+    bool rootOnly = false,
   }) {
     final q = _db.select(_db.coordinationItems)
       ..where((t) => t.beaconId.equals(beaconId))
       ..orderBy([
+        (t) => OrderingTerm(expression: t.ordering),
         (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
       ]);
     if (status != null) {
@@ -282,7 +285,93 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     if (targetPersonId != null) {
       q.where((t) => t.targetPersonId.equals(targetPersonId));
     }
+    if (linkedParentItemId != null) {
+      q.where((t) => t.linkedParentItemId.equals(linkedParentItemId));
+    }
+    if (rootOnly) {
+      q.where((t) => t.linkedParentItemId.isNull());
+    }
     return q.get();
+  }
+
+  @override
+  Future<CoordinationItem> publishRootPlan({
+    required String beaconId,
+    required String creatorId,
+    required String title,
+    String body = '',
+    String? linkedMessageId,
+    String? syncCurrentPlanText,
+  }) async {
+    final openRootPlans = await (_db.select(_db.coordinationItems)
+          ..where((t) => t.beaconId.equals(beaconId))
+          ..where((t) => t.kind.equals(coordinationItemKindPlan))
+          ..where((t) => t.linkedParentItemId.isNull())
+          ..where((t) => t.status.equals(coordinationItemStatusOpen)))
+        .get();
+    for (final existing in openRootPlans) {
+      await updateStatus(
+        id: existing.id,
+        newStatus: coordinationItemStatusSuperseded,
+        actorId: creatorId,
+      );
+    }
+
+    final item = await create(
+      beaconId: beaconId,
+      kind: coordinationItemKindPlan,
+      creatorId: creatorId,
+      title: title,
+      body: body,
+      linkedMessageId: linkedMessageId,
+    );
+
+    final planText = (syncCurrentPlanText ?? title).trim();
+    if (planText.isNotEmpty) {
+      await _db.withMutatingUser(creatorId, () async {
+        await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
+              BeaconRoomStatesCompanion.insert(
+                beaconId: beaconId,
+                currentPlan: Value(planText),
+                updatedBy: Value(creatorId),
+                updatedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
+      });
+    }
+    return item;
+  }
+
+  @override
+  Future<CoordinationItem> addPlanStep({
+    required String parentItemId,
+    required String creatorId,
+    required String title,
+    String body = '',
+  }) async {
+    final parent = await getById(parentItemId);
+    if (parent == null) {
+      throw StateError('CoordinationItem not found: $parentItemId');
+    }
+    if (parent.kind != coordinationItemKindPlan) {
+      throw StateError('Parent is not a plan item');
+    }
+    final siblings = await (_db.select(_db.coordinationItems)
+          ..where((t) => t.linkedParentItemId.equals(parentItemId)))
+        .get();
+    var maxOrder = 0;
+    for (final s in siblings) {
+      if (s.ordering > maxOrder) maxOrder = s.ordering;
+    }
+    return create(
+      beaconId: parent.beaconId,
+      kind: coordinationItemKindPlan,
+      creatorId: creatorId,
+      title: title,
+      body: body,
+      linkedParentItemId: parentItemId,
+      ordering: maxOrder + 1,
+    );
   }
 
   @override

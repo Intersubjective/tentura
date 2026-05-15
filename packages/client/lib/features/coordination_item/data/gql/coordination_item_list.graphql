@@ -4,6 +4,8 @@ query CoordinationItemList(
   $kind: Int
   $acceptedById: String
   $targetPersonId: String
+  $linkedParentItemId: String
+  $rootOnly: Boolean
 ) {
   coordinationItemsByBeacon(
     beaconId: $beaconId
@@ -11,6 +13,8 @@ query CoordinationItemList(
     kind: $kind
     acceptedById: $acceptedById
     targetPersonId: $targetPersonId
+    linkedParentItemId: $linkedParentItemId
+    rootOnly: $rootOnly
   ) {
     id
     beaconId

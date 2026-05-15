@@ -1,0 +1,26 @@
+mutation CoordinationItemAddPlanStep(
+  $parentItemId: String!
+  $title: String!
+  $body: String
+) {
+  addPlanStep(parentItemId: $parentItemId, title: $title, body: $body) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

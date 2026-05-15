@@ -90,6 +90,13 @@ abstract class CoordinationItem with _$CoordinationItem {
   bool get isAccepted => status == CoordinationItemStatus.accepted;
   bool get isResolved => status == CoordinationItemStatus.resolved;
   bool get isCancelled => status == CoordinationItemStatus.cancelled;
+  bool get isSuperseded => status == CoordinationItemStatus.superseded;
+
+  bool get isRootPlan =>
+      kind == CoordinationItemKind.plan && linkedParentItemId == null;
+
+  bool get isPlanStep =>
+      kind == CoordinationItemKind.plan && linkedParentItemId != null;
 
   /// Open or accepted — still active on the Items tab.
   bool get isActive =>

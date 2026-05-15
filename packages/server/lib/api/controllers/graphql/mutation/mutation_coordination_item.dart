@@ -8,6 +8,9 @@ import 'package:tentura_server/domain/use_case/coordination_item/accept_ask_case
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/cancel_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/redirect_ask_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/update_plan_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/add_plan_step_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/resolve_plan_step_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -24,6 +27,9 @@ final class MutationCoordinationItem extends GqlNodeBase {
     ResolveAskCase? resolveAskCase,
     CancelAskCase? cancelAskCase,
     RedirectAskCase? redirectAskCase,
+    UpdatePlanCase? updatePlanCase,
+    AddPlanStepCase? addPlanStepCase,
+    ResolvePlanStepCase? resolvePlanStepCase,
   }) : _markBlockerCase = markBlockerCase ?? GetIt.I<MarkBlockerCase>(),
        _resolveBlockerCase =
            resolveBlockerCase ?? GetIt.I<ResolveBlockerCase>(),
@@ -34,7 +40,11 @@ final class MutationCoordinationItem extends GqlNodeBase {
        _acceptAskCase = acceptAskCase ?? GetIt.I<AcceptAskCase>(),
        _resolveAskCase = resolveAskCase ?? GetIt.I<ResolveAskCase>(),
        _cancelAskCase = cancelAskCase ?? GetIt.I<CancelAskCase>(),
-       _redirectAskCase = redirectAskCase ?? GetIt.I<RedirectAskCase>();
+       _redirectAskCase = redirectAskCase ?? GetIt.I<RedirectAskCase>(),
+       _updatePlanCase = updatePlanCase ?? GetIt.I<UpdatePlanCase>(),
+       _addPlanStepCase = addPlanStepCase ?? GetIt.I<AddPlanStepCase>(),
+       _resolvePlanStepCase =
+           resolvePlanStepCase ?? GetIt.I<ResolvePlanStepCase>();
 
   final MarkBlockerCase _markBlockerCase;
   final ResolveBlockerCase _resolveBlockerCase;
@@ -45,8 +55,12 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final ResolveAskCase _resolveAskCase;
   final CancelAskCase _cancelAskCase;
   final RedirectAskCase _redirectAskCase;
+  final UpdatePlanCase _updatePlanCase;
+  final AddPlanStepCase _addPlanStepCase;
+  final ResolvePlanStepCase _resolvePlanStepCase;
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
+  final _parentItemId = InputFieldString(fieldName: 'parentItemId');
   final _title = InputFieldString(fieldName: 'title');
   final _body = InputFieldString(fieldName: 'body');
   final _itemId = InputFieldString(fieldName: 'itemId');
@@ -66,6 +80,9 @@ final class MutationCoordinationItem extends GqlNodeBase {
         resolveAsk,
         cancelAsk,
         redirectAsk,
+        updateCoordinationPlan,
+        addPlanStep,
+        resolvePlanStep,
       ];
 
   GraphQLObjectField<dynamic, dynamic> get markBlocker => GraphQLObjectField(
@@ -233,6 +250,66 @@ final class MutationCoordinationItem extends GqlNodeBase {
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
             newTargetPersonId: _newTargetPersonId.fromArgsNonNullable(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get updateCoordinationPlan =>
+      GraphQLObjectField(
+        'updateCoordinationPlan',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _beaconId.field,
+          _title.field,
+          _body.fieldNullable,
+          _linkedMessageId.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _updatePlanCase.call(
+            userId: userId,
+            beaconId: _beaconId.fromArgsNonNullable(args),
+            title: _title.fromArgsNonNullable(args),
+            body: _body.fromArgs(args) ?? '',
+            linkedMessageId: _linkedMessageId.fromArgs(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get addPlanStep => GraphQLObjectField(
+        'addPlanStep',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _parentItemId.field,
+          _title.field,
+          _body.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _addPlanStepCase.call(
+            userId: userId,
+            parentItemId: _parentItemId.fromArgsNonNullable(args),
+            title: _title.fromArgsNonNullable(args),
+            body: _body.fromArgs(args) ?? '',
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get resolvePlanStep =>
+      GraphQLObjectField(
+        'resolvePlanStep',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _itemId.field,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _resolvePlanStepCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
           );
           return _coordinationItemToMap(item);
         },

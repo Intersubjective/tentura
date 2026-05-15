@@ -19,6 +19,8 @@ final class QueryCoordinationItem extends GqlNodeBase {
   final _kindFilter = InputFieldInt(fieldName: 'kind');
   final _acceptedById = InputFieldString(fieldName: 'acceptedById');
   final _targetPersonId = InputFieldString(fieldName: 'targetPersonId');
+  final _linkedParentItemId = InputFieldString(fieldName: 'linkedParentItemId');
+  final _rootOnly = InputFieldBool(fieldName: 'rootOnly');
   final _limit = InputFieldInt(fieldName: 'limit');
   final _before = InputFieldString(fieldName: 'before');
 
@@ -37,6 +39,8 @@ final class QueryCoordinationItem extends GqlNodeBase {
           _kindFilter.fieldNullable,
           _acceptedById.fieldNullable,
           _targetPersonId.fieldNullable,
+          _linkedParentItemId.fieldNullable,
+          _rootOnly.fieldNullable,
         ],
         resolve: (_, args) async {
           getCredentials(args);
@@ -49,6 +53,8 @@ final class QueryCoordinationItem extends GqlNodeBase {
             kind: kind,
             acceptedById: _acceptedById.fromArgs(args),
             targetPersonId: _targetPersonId.fromArgs(args),
+            linkedParentItemId: _linkedParentItemId.fromArgs(args),
+            rootOnly: _rootOnly.fromArgs(args) ?? false,
           );
           return items.map(_coordinationItemToMap).toList();
         },

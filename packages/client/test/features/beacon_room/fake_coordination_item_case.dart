@@ -13,8 +13,34 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     int? kind,
     String? acceptedById,
     String? targetPersonId,
+    String? linkedParentItemId,
+    bool? rootOnly,
   }) async =>
       const [];
+
+  @override
+  Future<CoordinationItem?> fetchCurrentRootPlan(String beaconId) async => null;
+
+  @override
+  Future<CoordinationItem> updatePlan({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? linkedMessageId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> addPlanStep({
+    required String parentItemId,
+    required String title,
+    String? body,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> resolvePlanStep({required String itemId}) =>
+      throw UnimplementedError();
 
   @override
   Future<CoordinationItemMessage> appendMessage({
