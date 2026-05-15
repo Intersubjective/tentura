@@ -45,7 +45,9 @@ class ItemsTab extends StatelessWidget {
                 item: item,
                 onResolve: () {
                   final cubit = context.read<ItemsTabCubit>();
-                  if (item.kind == CoordinationItemKind.ask) {
+                  if (item.kind == CoordinationItemKind.plan && item.isPlanStep) {
+                    unawaited(cubit.resolvePlanStep(item.id));
+                  } else if (item.kind == CoordinationItemKind.ask) {
                     unawaited(cubit.resolveAsk(item.id));
                   } else {
                     unawaited(cubit.resolveBlocker(item.id));

@@ -15,6 +15,9 @@ import '../gql/_g/coordination_item_resolve_ask.req.gql.dart';
 import '../gql/_g/coordination_item_cancel_ask.req.gql.dart';
 import '../gql/_g/coordination_item_redirect_ask.req.gql.dart';
 import '../gql/_g/coordination_item_append_message.req.gql.dart';
+import '../gql/_g/coordination_item_update_plan.req.gql.dart';
+import '../gql/_g/coordination_item_add_plan_step.req.gql.dart';
+import '../gql/_g/coordination_item_resolve_plan_step.req.gql.dart';
 import '../model/coordination_item_model.dart';
 
 @lazySingleton
@@ -31,6 +34,8 @@ class CoordinationItemRepository {
     int? kind,
     String? acceptedById,
     String? targetPersonId,
+    String? linkedParentItemId,
+    bool? rootOnly,
   }) =>
       _remote
           .request(
@@ -40,7 +45,9 @@ class CoordinationItemRepository {
                 ..status = status
                 ..kind = kind
                 ..acceptedById = acceptedById
-                ..targetPersonId = targetPersonId,
+                ..targetPersonId = targetPersonId
+                ..linkedParentItemId = linkedParentItemId
+                ..rootOnly = rootOnly,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -212,6 +219,56 @@ class CoordinationItemRepository {
               .coordinationItemMessages
               .map((e) => (e as CoordinationItemMessageListModel).toEntity())
               .toList());
+
+  Future<CoordinationItem> updatePlan({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? linkedMessageId,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemUpdatePlanReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..title = title
+                ..body = body
+                ..linkedMessageId = linkedMessageId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).updateCoordinationPlan
+                  as CoordinationItemUpdatePlanModel)
+              .toEntity());
+
+  Future<CoordinationItem> addPlanStep({
+    required String parentItemId,
+    required String title,
+    String? body,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemAddPlanStepReq(
+              (b) => b.vars
+                ..parentItemId = parentItemId
+                ..title = title
+                ..body = body,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).addPlanStep
+                  as CoordinationItemAddPlanStepModel)
+              .toEntity());
+
+  Future<CoordinationItem> resolvePlanStep({required String itemId}) =>
+      _remote
+          .request(
+            GCoordinationItemResolvePlanStepReq((b) => b.vars..itemId = itemId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).resolvePlanStep
+                  as CoordinationItemResolvePlanStepModel)
+              .toEntity());
 
   Future<CoordinationItemMessage> appendMessage({
     required String itemId,

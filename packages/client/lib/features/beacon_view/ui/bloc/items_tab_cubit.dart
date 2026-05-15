@@ -102,6 +102,15 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
     }
   }
 
+  Future<void> resolvePlanStep(String itemId) async {
+    try {
+      await _case.resolvePlanStep(itemId: itemId);
+      await fetch();
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   @override
   Future<void> close() async {
     await _invalidationSub.cancel();

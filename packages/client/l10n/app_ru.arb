@@ -3065,5 +3065,11 @@
   "beaconRoomActionMarkAsk": "Создать запрос…",
   "coordinationMarkAskTitle": "Создать запрос",
   "coordinationMarkAskHint": "Что нужно сделать?",
-  "beaconRoomYouStripAcceptedAskLabel": "Ваше обязательство"
+  "beaconRoomYouStripAcceptedAskLabel": "Ваше обязательство",
+  "coordinationPlanCardLabel": "План",
+  "coordinationPlanStepCardLabel": "Шаг плана",
+  "coordinationSemanticPlanOpened": "План обновлён",
+  "coordinationSemanticPlanSuperseded": "План заменён",
+  "coordinationSemanticPlanStepResolved": "Шаг плана выполнен",
+  "beaconRoomActionUpdatePlanFromMessage": "Обновить план из сообщения…"
 }

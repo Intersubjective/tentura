@@ -290,6 +290,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 c.openCoordinationBlocker?.status ||
             p.viewerAcceptedAsk?.id != c.viewerAcceptedAsk?.id ||
             p.viewerAcceptedAsk?.title != c.viewerAcceptedAsk?.title ||
+            p.currentCoordinationPlan?.id != c.currentCoordinationPlan?.id ||
+            p.currentCoordinationPlan?.title !=
+                c.currentCoordinationPlan?.title ||
             p.participants.length != c.participants.length ||
             p.participants
                     .map(
@@ -331,6 +334,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   collapsed: state.nowCollapsed,
                   onToggleCollapse: cubit.toggleNowCollapsed,
                   openCoordinationBlocker: state.openCoordinationBlocker,
+                  currentCoordinationPlan: state.currentCoordinationPlan,
                   onOpenFact: (f) => showFactActionsSheet(
                     context,
                     cubit: cubit,
@@ -993,10 +997,65 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.edit_note_outlined),
+              title: Text(l10n.beaconRoomActionUpdatePlanFromMessage),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(
+                  _showUpdatePlanFromMessageSheet(
+                    context,
+                    cubit,
+                    l10n,
+                    message,
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _showUpdatePlanFromMessageSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    RoomMessage message,
+  ) async {
+    final text = message.body.trim();
+    if (text.isEmpty) return;
+    final controller = TextEditingController(text: text);
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.beaconRoomActionUpdatePlan),
+          content: TextField(
+            controller: controller,
+            maxLines: 4,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
+            ),
+          ],
+        ),
+      );
+      if (ok == true && context.mounted) {
+        final plan = controller.text.trim();
+        if (plan.isEmpty) return;
+        await cubit.updatePlan(plan, linkedMessageId: message.id);
+      }
+    } finally {
+      controller.dispose();
+    }
   }
 
   Future<void> _showMarkAskSheet(

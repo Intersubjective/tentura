@@ -2395,6 +2395,9 @@ type mutation_root {
   resolveAsk(itemId: String!, note: String): CoordinationItemRow!
   cancelAsk(itemId: String!, reason: String): CoordinationItemRow!
   redirectAsk(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
+  updateCoordinationPlan(beaconId: String!, title: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  addPlanStep(parentItemId: String!, title: String!, body: String): CoordinationItemRow!
+  resolvePlanStep(itemId: String!): CoordinationItemRow!
   appendCoordinationItemMessage(itemId: String!, body: String!): CoordinationItemMessageRow!
 
   """
@@ -3622,7 +3625,7 @@ type query_root {
   BeaconParticipantList(beaconId: String!): [BeaconParticipantRow!]!
   BeaconRoomStateGet(beaconId: String!): BeaconRoomStateRow!
   BeaconActivityEventList(beaconId: String!): [BeaconActivityEventRow!]!
-  coordinationItemsByBeacon(beaconId: String!, status: Int, kind: Int, acceptedById: String, targetPersonId: String): [CoordinationItemRow!]!
+  coordinationItemsByBeacon(beaconId: String!, status: Int, kind: Int, acceptedById: String, targetPersonId: String, linkedParentItemId: String, rootOnly: Boolean): [CoordinationItemRow!]!
   coordinationItemMessages(itemId: String!, limit: Int, before: String): [CoordinationItemMessageRow!]!
   InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
   BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!

@@ -37,6 +37,9 @@ class ItemCard extends StatelessWidget {
     final kindLabel = switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
       CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+      CoordinationItemKind.plan => item.isPlanStep
+          ? l10n.coordinationPlanStepCardLabel
+          : l10n.coordinationPlanCardLabel,
       _ => l10n.coordinationItemCardTitle,
     };
 
@@ -112,6 +115,15 @@ class ItemCard extends StatelessWidget {
           label: l10n.coordinationBlockerActionCancel,
           onPressed: onCancel,
           icon: Icons.close,
+        ),
+      ];
+    }
+    if (item.kind == CoordinationItemKind.plan && item.isPlanStep) {
+      return [
+        _ActionChip(
+          label: l10n.coordinationBlockerActionResolve,
+          onPressed: onResolve,
+          icon: Icons.check,
         ),
       ];
     }

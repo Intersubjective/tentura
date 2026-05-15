@@ -102,6 +102,8 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         viewerId: viewerId,
       );
+      final currentCoordinationPlan =
+          await _case.fetchCurrentCoordinationPlan(state.beaconId);
 
       if (isClosed) return;
 
@@ -125,6 +127,7 @@ class RoomCubit extends Cubit<RoomState> {
             roomState: roomState,
             openCoordinationBlocker: openCoordinationBlocker,
             viewerAcceptedAsk: viewerAcceptedAsk,
+            currentCoordinationPlan: currentCoordinationPlan,
             unreadAnchorAt: anchor,
             myUserId: GetIt.I<ProfileCubit>().state.profile.id,
             pendingMarkSeen: !_markSeenEmittedThisVisit,
@@ -141,12 +144,13 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> updatePlan(String currentPlan) async {
+  Future<void> updatePlan(String currentPlan, {String? linkedMessageId}) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.updateRoomPlan(
         beaconId: state.beaconId,
         currentPlan: currentPlan,
+        linkedMessageId: linkedMessageId,
       );
       await load();
     } on Object catch (e) {

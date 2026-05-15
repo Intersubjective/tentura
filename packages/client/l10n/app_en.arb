@@ -3083,5 +3083,11 @@
   "beaconRoomActionMarkAsk": "Create ask…",
   "coordinationMarkAskTitle": "Create ask",
   "coordinationMarkAskHint": "What should they do?",
-  "beaconRoomYouStripAcceptedAskLabel": "Your commitment"
+  "beaconRoomYouStripAcceptedAskLabel": "Your commitment",
+  "coordinationPlanCardLabel": "Plan",
+  "coordinationPlanStepCardLabel": "Plan step",
+  "coordinationSemanticPlanOpened": "Plan updated",
+  "coordinationSemanticPlanSuperseded": "Plan superseded",
+  "coordinationSemanticPlanStepResolved": "Plan step done",
+  "beaconRoomActionUpdatePlanFromMessage": "Update plan from message…"
 }
