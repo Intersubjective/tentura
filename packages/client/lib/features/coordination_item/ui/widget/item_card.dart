@@ -44,7 +44,6 @@ class ItemCard extends StatelessWidget {
           ? l10n.coordinationPlanStepCardLabel
           : l10n.coordinationPlanCardLabel,
       CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
-      _ => l10n.coordinationItemCardTitle,
     };
 
     final statusIcon = switch (item.status) {
@@ -91,8 +90,10 @@ class ItemCard extends StatelessWidget {
               ),
               if (actions.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 4,
+                  runSpacing: 2,
                   children: actions,
                 ),
               ],
@@ -104,6 +105,9 @@ class ItemCard extends StatelessWidget {
   }
 
   List<Widget> _actions(L10n l10n) {
+    if (!item.published) {
+      return const [];
+    }
     if (!item.isActive) {
       return const [];
     }
