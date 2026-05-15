@@ -249,6 +249,21 @@ final class BeaconRoomCase extends UseCaseBase {
           )
           .then((_) {});
 
+  Future<void> createSelfAsk({
+    required String beaconId,
+    required String title,
+    String body = '',
+    String? linkedMessageId,
+  }) =>
+      _coordinationItemCase
+          .createSelfAsk(
+            beaconId: beaconId,
+            title: title,
+            body: body,
+            linkedMessageId: linkedMessageId,
+          )
+          .then((_) {});
+
   Future<void> createResolutionFromMessage({
     required String beaconId,
     required String messageId,

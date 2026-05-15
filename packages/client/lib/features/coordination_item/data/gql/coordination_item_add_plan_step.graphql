@@ -8,6 +8,8 @@ mutation CoordinationItemAddPlanStep(
     beaconId
     kind
     status
+    source
+    published
     title
     body
     creatorId

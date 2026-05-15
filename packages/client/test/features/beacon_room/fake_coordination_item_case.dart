@@ -72,12 +72,51 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
       throw UnimplementedError();
 
   @override
+  Future<CoordinationItem> createSelfAsk({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? linkedMessageId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<CoordinationItem> markBlocker({
     required String beaconId,
     required String title,
     String? body,
     String? linkedMessageId,
   }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> createDraftAsk({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? targetPersonId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> publishDraftAsk({
+    required String itemId,
+    required String targetPersonId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> updateDraftAsk({
+    required String itemId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deleteDraftAsk({required String itemId}) =>
       throw UnimplementedError();
 
   @override

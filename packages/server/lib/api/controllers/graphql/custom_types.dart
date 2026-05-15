@@ -571,6 +571,8 @@ final gqlTypeCoordinationItemRow =
         field('updatedAt', graphQLString.nonNullable()),
         field('resolvedAt', graphQLString),
         field('cancelledAt', graphQLString),
+        field('source', graphQLInt.nonNullable()),
+        field('published', graphQLBoolean.nonNullable()),
       ]);
 
 /// `coordination_item_message` row projection (V2).

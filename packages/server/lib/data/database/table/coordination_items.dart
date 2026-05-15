@@ -19,6 +19,12 @@ class CoordinationItems extends Table {
   late final linkedMessageId = text().nullable()();
   late final linkedParentItemId = text().nullable()();
   late final Column<int> ordering = integer().withDefault(const Constant(0))();
+  /// 0 = default, 1 = self_promise (viewer-created ask accepted by self in one step).
+  late final Column<int> source = integer().withDefault(const Constant(0))();
+
+  /// false = draft ask (owner-only), true = live item.
+  late final Column<bool> published =
+      boolean().withDefault(const Constant(true))();
   late final createdAt = customType(PgTypes.timestampWithTimezone).clientDefault(() => PgDateTime(DateTime.timestamp()))();
   late final updatedAt = customType(PgTypes.timestampWithTimezone).clientDefault(() => PgDateTime(DateTime.timestamp()))();
   late final resolvedAt = customType(PgTypes.timestampWithTimezone).nullable()();

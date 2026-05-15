@@ -1,8 +1,10 @@
-mutation CoordinationItemRedirectAsk(
+mutation CoordinationItemUpdateDraftAsk(
   $itemId: String!
-  $newTargetPersonId: String!
+  $title: String!
+  $body: String
+  $targetPersonId: String
 ) {
-  redirectAsk(itemId: $itemId, newTargetPersonId: $newTargetPersonId) {
+  updateDraftAsk(itemId: $itemId, title: $title, body: $body, targetPersonId: $targetPersonId) {
     id
     beaconId
     kind

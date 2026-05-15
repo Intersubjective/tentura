@@ -18,6 +18,8 @@ mutation CoordinationItemCreateResolution(
     beaconId
     kind
     status
+    source
+    published
     title
     body
     creatorId

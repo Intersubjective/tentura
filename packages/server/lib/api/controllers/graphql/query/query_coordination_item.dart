@@ -43,12 +43,13 @@ final class QueryCoordinationItem extends GqlNodeBase {
           _rootOnly.fieldNullable,
         ],
         resolve: (_, args) async {
-          getCredentials(args);
+          final viewerUserId = getCredentials(args).sub;
           final beaconId = _beaconId.fromArgsNonNullable(args);
           final status = _statusFilter.fromArgs(args);
           final kind = _kindFilter.fromArgs(args);
           final items = await _itemRepository.listByBeacon(
             beaconId,
+            viewerUserId: viewerUserId,
             status: status,
             kind: kind,
             acceptedById: _acceptedById.fromArgs(args),
@@ -105,6 +106,8 @@ Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
       'updatedAt': item.updatedAt.dateTime.toIso8601String(),
       'resolvedAt': item.resolvedAt?.dateTime.toIso8601String(),
       'cancelledAt': item.cancelledAt?.dateTime.toIso8601String(),
+      'source': item.source,
+      'published': item.published,
     };
 
 Map<String, Object?> _coordinationItemMessageToMap(

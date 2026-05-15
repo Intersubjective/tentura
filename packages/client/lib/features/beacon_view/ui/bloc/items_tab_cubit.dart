@@ -52,7 +52,12 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       );
       final open = <CoordinationItem>[];
       final closed = <CoordinationItem>[];
+      final drafts = <CoordinationItem>[];
       for (final item in items) {
+        if (!item.published && item.kind == CoordinationItemKind.ask) {
+          drafts.add(item);
+          continue;
+        }
         if (item.isActive) {
           open.add(item);
         } else {
@@ -62,6 +67,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       emit(state.copyWith(
         openItems: open,
         closedItems: closed,
+        draftAskItems: drafts,
         currentCoordinationPlan: currentPlan,
         viewerAcceptedAsk: viewerAcceptedAsk,
         status: const StateIsSuccess(),

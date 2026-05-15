@@ -72,6 +72,8 @@ abstract class CoordinationItem with _$CoordinationItem {
     required String creatorId,
     required DateTime createdAt,
     required DateTime updatedAt,
+    @Default(0) int source,
+    @Default(true) bool published,
     @Default('') String title,
     @Default('') String body,
     String? targetPersonId,

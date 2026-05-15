@@ -4,6 +4,8 @@ mutation CoordinationItemCancelBlocker($itemId: String!, $reason: String) {
     beaconId
     kind
     status
+    source
+    published
     title
     body
     creatorId

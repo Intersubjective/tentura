@@ -157,11 +157,13 @@ BeaconRoomCase _makeCase(_FakeBeaconRoomRepository fakeRoom) =>
 void _registerProfileCubit(String userId) {
   final getIt = GetIt.instance;
   if (getIt.isRegistered<ProfileCubit>()) {
+    // ignore: discarded_futures -- GetIt.unregister returns FutureOr; unregister is best-effort before re-register.
     getIt.unregister<ProfileCubit>();
   }
   getIt.registerSingleton<ProfileCubit>(_MockProfileCubit(userId));
   addTearDown(() {
     if (getIt.isRegistered<ProfileCubit>()) {
+      // ignore: discarded_futures -- GetIt.unregister returns FutureOr; teardown does not need to await dispose.
       getIt.unregister<ProfileCubit>();
     }
   });
@@ -266,8 +268,9 @@ void main() {
 
       // Gate the next load on a completer so we can interleave calls.
       final gate = Completer<void>();
-      fakeRoom.fetchMessagesCompleter = gate;
-      fakeRoom.markRoomSeenCalled = false;
+      fakeRoom
+        ..fetchMessagesCompleter = gate
+        ..markRoomSeenCalled = false;
 
       unawaited(cubit.load()); // starts load, blocks at fetchMessages
 

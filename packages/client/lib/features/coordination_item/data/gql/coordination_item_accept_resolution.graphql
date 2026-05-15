@@ -4,6 +4,8 @@ mutation CoordinationItemAcceptResolution($itemId: String!) {
     beaconId
     kind
     status
+    source
+    published
     title
     body
     creatorId

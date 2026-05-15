@@ -2,7 +2,7 @@ part of '_migrations.dart';
 
 /// Backfill coordination_item rows from legacy room semantics and link messages.
 final m0065 = Migration('0065', [
-  r'''
+  '''
 INSERT INTO public.coordination_item (
   id, beacon_id, kind, status, title, body, creator_id,
   linked_message_id, created_at, updated_at
@@ -27,7 +27,7 @@ WHERE m.semantic_marker = 5
     WHERE ci.linked_message_id = m.id
   );
 ''',
-  r'''
+  '''
 UPDATE public.beacon_room_message m
 SET linked_item_id = ci.id,
     linked_event_kind = 1
@@ -35,7 +35,7 @@ FROM public.coordination_item ci
 WHERE ci.linked_message_id = m.id
   AND m.linked_item_id IS NULL;
 ''',
-  r'''
+  '''
 INSERT INTO public.coordination_item (
   id, beacon_id, kind, status, title, body, creator_id, created_at, updated_at
 )

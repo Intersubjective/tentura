@@ -1,8 +1,15 @@
-mutation CoordinationItemRedirectAsk(
-  $itemId: String!
-  $newTargetPersonId: String!
+mutation CoordinationItemCreateSelfAsk(
+  $beaconId: String!
+  $title: String!
+  $body: String
+  $linkedMessageId: String
 ) {
-  redirectAsk(itemId: $itemId, newTargetPersonId: $newTargetPersonId) {
+  createSelfAsk(
+    beaconId: $beaconId
+    title: $title
+    body: $body
+    linkedMessageId: $linkedMessageId
+  ) {
     id
     beaconId
     kind
