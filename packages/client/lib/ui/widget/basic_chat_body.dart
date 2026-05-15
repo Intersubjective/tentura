@@ -136,16 +136,59 @@ class BasicChatBodyState extends State<BasicChatBody> {
     });
   }
 
-  Future<void> scrollToMessage(String id) async {
-    final target = _messageKeys[id]?.currentContext;
-    if (target != null) {
-      await Scrollable.ensureVisible(
-        target,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOut,
-        alignment: 0.12,
+  static const int _kScrollToMessageMaxPasses = 48;
+
+  /// Scrolls so the row with [id] is on screen. Off-screen rows may not be
+  /// built yet, so we jump `ScrollController` to an estimated offset and
+  /// retry across frames (same idea as [_viewportScrollAttempt]).
+  Future<bool> scrollToMessage(String id) async {
+    for (var pass = 0; pass < _kScrollToMessageMaxPasses; pass++) {
+      if (!mounted) {
+        return false;
+      }
+      final ctx = _messageKeys[id]?.currentContext;
+      if (ctx != null && ctx.mounted) {
+        await Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOut,
+          alignment: 0.12,
+        );
+        return true;
+      }
+
+      final idx = widget.messages.indexWhere((m) => m.id == id);
+      if (idx < 0) {
+        return false;
+      }
+
+      if (!_scrollController.hasClients) {
+        await WidgetsBinding.instance.endOfFrame;
+        continue;
+      }
+
+      final pos = _scrollController.position;
+      final n = widget.messages.length;
+      final denom = n <= 1 ? 1.0 : (n - 1).toDouble();
+      final targetPx = ((idx / denom) * pos.maxScrollExtent).clamp(
+        pos.minScrollExtent,
+        pos.maxScrollExtent,
       );
+
+      if ((pos.pixels - targetPx).abs() > 6) {
+        _scrollController.jumpTo(targetPx);
+      } else {
+        final up = (pos.pixels - pos.viewportDimension * 0.2).clamp(
+          pos.minScrollExtent,
+          pos.maxScrollExtent,
+        );
+        if (up < pos.pixels - 1) {
+          _scrollController.jumpTo(up);
+        }
+      }
+      await WidgetsBinding.instance.endOfFrame;
     }
+    return false;
   }
 
   void _onMessageListScroll() {

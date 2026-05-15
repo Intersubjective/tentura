@@ -20,6 +20,7 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
@@ -195,7 +196,7 @@ Future<void> _beaconViewRunAuthorCloseSheet({
   required BeaconViewCubit cubit,
   required L10n l10n,
   required void Function() onOpenPeopleTab,
-  required VoidCallback onEnterRoomSurface,
+  required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
 }) async {
   if (!context.mounted) return;
   final state = cubit.state;
@@ -498,7 +499,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     });
   }
 
-  void _enterRoomSurface() {
+  void _enterRoomSurface([CoordinationItem? focusItem]) {
     if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
       return;
     }
@@ -506,6 +507,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _showRoomSurface = true;
       _roomCubit ??= RoomCubit(beaconId: widget.id);
     });
+    final c = _roomCubit;
+    if (c == null || c.isClosed) return;
+    if (focusItem == null || focusItem.id.isEmpty) {
+      c.prepareThreadScroll();
+      return;
+    }
+    c.prepareThreadScroll(
+      messageId: focusItem.threadAnchorMessageId,
+      coordinationItemId: focusItem.id,
+    );
   }
 
   void _exitRoomSurface() {
@@ -733,7 +744,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
   final bool peopleTabAttentionActive;
   final VoidCallback onPeopleTabAttentionCleared;
 
-  final VoidCallback onEnterRoomSurface;
+  final void Function([CoordinationItem? focusItem]) onEnterRoomSurface;
 
   final Future<void> Function(BuildContext context) onAuthorCloseRequested;
 
@@ -907,7 +918,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
         final tabBody = switch (idx) {
           kBeaconTabItems => ItemsTab(
             state: state,
-            onOpenRoom: onEnterRoomSurface,
+            onOpenItemThread: onEnterRoomSurface,
           ),
           kBeaconTabPeople => _HelpOffersTabBody(
             state: state,

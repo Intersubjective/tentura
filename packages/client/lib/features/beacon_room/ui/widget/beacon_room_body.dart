@@ -83,8 +83,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             if (id == null) return;
             WidgetsBinding.instance.addPostFrameCallback((_) async {
               if (!ctx.mounted) return;
-              await _basicChatKey.currentState?.scrollToMessage(id);
-              if (ctx.mounted) {
+              final ok = await (_basicChatKey.currentState?.scrollToMessage(id) ??
+                  Future.value(false));
+              if (ctx.mounted && ok) {
                 ctx.read<RoomCubit>().clearScrollToMessageTarget();
               }
             });

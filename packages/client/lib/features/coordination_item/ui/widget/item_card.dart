@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
 /// Accent color for a coordination item — shared with log tab styling.
 Color coordinationItemColor(
@@ -29,10 +31,34 @@ enum _ItemMenuAction {
   reject,
 }
 
+/// Mirrors beacon activity log tiers — drives header label weight only.
+enum _ItemHeaderTier { high, medium, low }
+
+_ItemHeaderTier _itemHeaderTier(CoordinationItem item) {
+  if (item.isCancelled || item.isSuperseded) return _ItemHeaderTier.low;
+  if (item.isResolved) return _ItemHeaderTier.high;
+  if (item.kind == CoordinationItemKind.blocker && item.isOpen) {
+    return _ItemHeaderTier.high;
+  }
+  if (item.kind == CoordinationItemKind.ask && item.isOpen) {
+    return _ItemHeaderTier.high;
+  }
+  if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
+    return _ItemHeaderTier.medium;
+  }
+  if (item.kind == CoordinationItemKind.ask && item.isAccepted) {
+    return _ItemHeaderTier.medium;
+  }
+  if (item.kind == CoordinationItemKind.plan) return _ItemHeaderTier.medium;
+  return _ItemHeaderTier.low;
+}
+
 class ItemCard extends StatelessWidget {
   const ItemCard({
     required this.item,
-    this.onOpenRoom,
+    this.creatorParticipant,
+    this.targetParticipant,
+    this.onOpenItemThread,
     this.onResolve,
     this.onCancel,
     this.onAccept,
@@ -42,8 +68,12 @@ class ItemCard extends StatelessWidget {
 
   final CoordinationItem item;
 
-  /// Primary card tap — typically opens the beacon room.
-  final VoidCallback? onOpenRoom;
+  /// When set, log-style leading avatars match the Log tab ([coordinationLogLeadRow]).
+  final BeaconParticipant? creatorParticipant;
+  final BeaconParticipant? targetParticipant;
+
+  /// Primary card tap — opens the beacon room scrolled to this item’s thread.
+  final void Function(CoordinationItem item)? onOpenItemThread;
   final VoidCallback? onResolve;
   final VoidCallback? onCancel;
   final VoidCallback? onAccept;
@@ -82,11 +112,23 @@ class ItemCard extends StatelessWidget {
 
     final showMenu = item.published && item.isActive;
     final menuEntries = _menuEntries(l10n);
+    final headerTier = _itemHeaderTier(item);
+    final eventIcon = Icon(
+      statusIcon,
+      size: kCoordinationLogEventIconSize,
+      color: statusColor,
+    );
+    final lead = coordinationLogLeadRow(
+      eventIcon: eventIcon,
+      actor: creatorParticipant,
+      target: targetParticipant,
+    );
+    final tsLabel = coordinationLogTimestampLabel(item.updatedAt.toUtc());
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onOpenRoom,
+        onTap: onOpenItemThread == null ? null : () => onOpenItemThread!(item),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
@@ -96,14 +138,16 @@ class ItemCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(statusIcon, size: 16, color: statusColor),
+                  lead,
                   const SizedBox(width: kSpacingSmall),
                   Expanded(
                     child: Text(
                       kindLabel,
                       style: textTheme.bodySmall?.copyWith(
                         color: statusColor,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: headerTier == _ItemHeaderTier.high
+                            ? FontWeight.w600
+                            : null,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -133,6 +177,11 @@ class ItemCard extends StatelessWidget {
                           (onReject ?? onCancel)?.call(),
                       },
                     ),
+                  const SizedBox(width: 4),
+                  Text(
+                    tsLabel,
+                    style: textTheme.labelSmall,
+                  ),
                 ],
               ),
               const SizedBox(height: 4),

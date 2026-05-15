@@ -208,12 +208,17 @@ class RoomMessageTile extends StatelessWidget {
               ? CoordinationItemKind.fromInt(message.linkedItemKind!)
               : null);
       final kindLabel = _coordKindShortLabel(l10n, kind);
+      final pinTopPad = topPad / 2;
+      final pinBottomPad = bottomPad / 2;
+      final hInset = tt.screenHPadding;
+      const innerV = 4.0;
+      const innerH = 8.0;
       return Padding(
         padding: EdgeInsets.fromLTRB(
-          tt.screenHPadding,
-          topPad,
-          tt.screenHPadding,
-          bottomPad,
+          hInset,
+          pinTopPad,
+          hInset,
+          pinBottomPad,
         ),
         child: BlocBuilder<ProfileCubit, ProfileState>(
           buildWhen: (p, c) => p.profile.id != c.profile.id,
@@ -236,23 +241,29 @@ class RoomMessageTile extends StatelessWidget {
                   label: line,
                   hint: l10n.beaconRoomPromotePinAccessibilityHint,
                   child: Padding(
-                    padding: tt.cardPadding,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: innerH,
+                      vertical: innerV,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.push_pin_outlined,
-                          size: 18,
+                          size: 14,
                           color: scheme.onSurfaceVariant,
                         ),
-                        SizedBox(width: tt.iconTextGap),
+                        SizedBox(width: tt.iconTextGap / 2),
                         Flexible(
                           child: Text(
                             line,
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.labelMedium?.copyWith(
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
                               color: scheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
+                              height: 1.15,
                             ),
                           ),
                         ),

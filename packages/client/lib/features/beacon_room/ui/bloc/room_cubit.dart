@@ -37,6 +37,9 @@ class RoomCubit extends Cubit<RoomState> {
 
   late final StreamSubscription<String> _refreshSub;
 
+  String? _pendingThreadMessageId;
+  String? _pendingThreadItemId;
+
   bool _markSeenEmittedThisVisit = false;
   bool _loadInProgress = false;
 
@@ -61,6 +64,54 @@ class RoomCubit extends Cubit<RoomState> {
 
   void requestScrollToMessage(String messageId) {
     emit(state.copyWith(scrollToMessageId: messageId));
+  }
+
+  /// Queues scrolling to a coordination item’s room thread after messages load
+  /// (or immediately if messages are already present). Cleared when applied.
+  void prepareThreadScroll({
+    String? messageId,
+    String? coordinationItemId,
+  }) {
+    _pendingThreadMessageId = _trimOrNull(messageId);
+    _pendingThreadItemId = _trimOrNull(coordinationItemId);
+    if (state.messages.isNotEmpty &&
+        (_pendingThreadMessageId != null || _pendingThreadItemId != null)) {
+      _applyPendingThreadScroll(state.messages);
+    }
+  }
+
+  static String? _trimOrNull(String? s) {
+    if (s == null) return null;
+    final t = s.trim();
+    return t.isEmpty ? null : t;
+  }
+
+  void _applyPendingThreadScroll(List<RoomMessage> messages) {
+    if (_pendingThreadMessageId == null && _pendingThreadItemId == null) {
+      return;
+    }
+    var target = _pendingThreadMessageId;
+    if (target == null || !messages.any((m) => m.id == target)) {
+      target = null;
+      final iid = _pendingThreadItemId;
+      if (iid != null) {
+        for (final m in messages) {
+          if (m.linkedItemId == iid) {
+            target = m.id;
+            break;
+          }
+        }
+      }
+    }
+    if (target == null) {
+      return;
+    }
+    _pendingThreadMessageId = null;
+    _pendingThreadItemId = null;
+    emit(state.copyWith(scrollToMessageId: null));
+    if (!isClosed) {
+      emit(state.copyWith(scrollToMessageId: target));
+    }
   }
 
   Future<void> markSeenNowIfNeeded() async {
@@ -126,6 +177,9 @@ class RoomCubit extends Cubit<RoomState> {
             status: const StateIsSuccess(),
           ),
         );
+        if (!isClosed) {
+          _applyPendingThreadScroll(messages);
+        }
       }
     } on Object catch (e) {
       if (!isClosed) {
