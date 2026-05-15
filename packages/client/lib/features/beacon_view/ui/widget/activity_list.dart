@@ -33,6 +33,7 @@ class BeaconActivityList extends StatelessWidget {
     required this.onEditTimelineUpdate,
     this.roomActivityEvents = const [],
     this.actorNames = const {},
+    this.coordinationLogOnly = false,
     super.key,
   });
 
@@ -45,10 +46,30 @@ class BeaconActivityList extends StatelessWidget {
   /// Maps actorId → display name for room activity events.
   final Map<String, String> actorNames;
 
+  /// When true (Log tab), show only semantic/coordination room events.
+  final bool coordinationLogOnly;
+
+  static bool _isCoordinationLogEvent(BeaconActivityEvent e) {
+    if (e.type >= 100 && e.type < 500) return true;
+    return switch (e.type) {
+      BeaconActivityEventTypeBits.planUpdated => true,
+      BeaconActivityEventTypeBits.blockerOpened => true,
+      BeaconActivityEventTypeBits.blockerResolved => true,
+      BeaconActivityEventTypeBits.needInfoOpened => true,
+      BeaconActivityEventTypeBits.doneMarked => true,
+      BeaconActivityEventTypeBits.factPinned => true,
+      BeaconActivityEventTypeBits.factVisibilityChanged => true,
+      _ => false,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    if (timeline.isEmpty && roomActivityEvents.isEmpty) {
+    final roomEvents = coordinationLogOnly
+        ? roomActivityEvents.where(_isCoordinationLogEvent).toList()
+        : roomActivityEvents;
+    if (timeline.isEmpty && roomEvents.isEmpty) {
       return Padding(
         padding: kPaddingSmallV,
         child: Text(
@@ -62,7 +83,7 @@ class BeaconActivityList extends StatelessWidget {
 
     var tie = 0;
     final rows = <({DateTime t, int tie, Widget child})>[];
-    for (final e in roomActivityEvents) {
+    for (final e in roomEvents) {
       rows.add((
         t: e.createdAt.toUtc(),
         tie: tie++,
@@ -241,6 +262,42 @@ String _coordinationTitle(
 ) {
   final l10n = L10n.of(context)!;
   final actor = e.actorId != null ? (actorNames[e.actorId!] ?? '') : '';
+  if (e.type >= 100 && e.type < 500) {
+    final kind = e.type ~/ 100;
+    final ev = e.type % 100;
+    final base = switch (kind) {
+      1 => switch (ev) {
+          1 => l10n.coordinationSemanticPlanOpened,
+          5 => l10n.coordinationSemanticPlanOpened,
+          6 => l10n.coordinationSemanticPlanSuperseded,
+          3 => l10n.coordinationSemanticPlanStepResolved,
+          _ => l10n.coordinationPlanCardLabel,
+        },
+      2 => switch (ev) {
+          1 => l10n.coordinationSemanticAskOpened,
+          2 => l10n.coordinationSemanticAskAccepted,
+          3 => l10n.coordinationSemanticAskResolved,
+          4 => l10n.coordinationSemanticAskCancelled,
+          _ => l10n.coordinationAskCardLabel,
+        },
+      3 => switch (ev) {
+          1 => l10n.coordinationSemanticBlockerOpened,
+          3 => l10n.coordinationSemanticBlockerResolved,
+          4 => l10n.coordinationSemanticBlockerCancelled,
+          _ => l10n.coordinationBlockerCardLabel,
+        },
+      4 => switch (ev) {
+          1 => l10n.coordinationSemanticResolutionOpened,
+          3 => l10n.coordinationSemanticResolutionResolved,
+          4 => l10n.coordinationSemanticResolutionCancelled,
+          _ => l10n.coordinationResolutionCardLabel,
+        },
+      _ => l10n.beaconActivityCoordinationFallback,
+    };
+    if (actor.isNotEmpty) return '$base · $actor';
+    return base;
+  }
+
   var base = switch (e.type) {
     BeaconActivityEventTypeBits.planUpdated => l10n.beaconActivityPlanUpdated,
     BeaconActivityEventTypeBits.factPinned => l10n.beaconActivityFactPinned,

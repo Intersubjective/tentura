@@ -876,11 +876,12 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             l10n: l10n,
           ),
           kBeaconTabLog => BeaconActivityList(
-            timeline: state.timeline,
+            timeline: const [],
             beacon: state.beacon,
             isAuthorView: state.isBeaconMine,
             onEditTimelineUpdate: editUpdate,
             roomActivityEvents: state.roomActivityEvents,
+            coordinationLogOnly: true,
             actorNames: {
               for (final p in state.roomParticipants)
                 if (p.userTitle.isNotEmpty) p.userId: p.userTitle,
