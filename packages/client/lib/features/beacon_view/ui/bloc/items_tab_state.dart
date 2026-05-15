@@ -8,6 +8,8 @@ abstract class ItemsTabState extends StateBase with _$ItemsTabState {
   const factory ItemsTabState({
     @Default([]) List<CoordinationItem> openItems,
     @Default([]) List<CoordinationItem> closedItems,
+    CoordinationItem? currentCoordinationPlan,
+    CoordinationItem? viewerAcceptedAsk,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ItemsTabState;
 

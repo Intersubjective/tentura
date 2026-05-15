@@ -39,10 +39,8 @@ void main() {
     expect(s.firstUnreadIndex, 2);
   });
 
-  test('defaults: strips start expanded; pending mark-seen default', () {
+  test('defaults: pending mark-seen default', () {
     const s = RoomState();
-    expect(s.nowCollapsed, false);
-    expect(s.youCollapsed, false);
     expect(s.pendingMarkSeen, true);
     expect(s.myUserId, '');
     expect(s.unreadAnchorAt, null);
