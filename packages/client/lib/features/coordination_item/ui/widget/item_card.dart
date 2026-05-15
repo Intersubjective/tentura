@@ -54,7 +54,7 @@ class ItemCard extends StatelessWidget {
       _ => Icons.help_outline,
     };
 
-    final actions = _actions(l10n);
+    final actionRow = _buildActionRow(context, l10n);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -88,14 +88,9 @@ class ItemCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              if (actions.isNotEmpty) ...[
+              if (actionRow != null) ...[
                 const SizedBox(height: 4),
-                Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: 4,
-                  runSpacing: 2,
-                  children: actions,
-                ),
+                actionRow,
               ],
             ],
           ),
@@ -104,95 +99,142 @@ class ItemCard extends StatelessWidget {
     );
   }
 
-  List<Widget> _actions(L10n l10n) {
+  Widget? _buildActionRow(BuildContext context, L10n l10n) {
     if (!item.published) {
-      return const [];
+      return null;
     }
     if (!item.isActive) {
-      return const [];
+      return null;
     }
 
     if (item.kind == CoordinationItemKind.blocker) {
-      return [
-        TenturaTextAction(
-          label: l10n.coordinationBlockerActionResolve,
-          onPressed: onResolve,
-          tone: TenturaTone.good,
-          icon: const Icon(Icons.check),
-        ),
-        TenturaTextAction(
-          label: l10n.coordinationBlockerActionCancel,
-          onPressed: onCancel,
-          tone: TenturaTone.danger,
-          icon: const Icon(Icons.close),
-        ),
-      ];
+      return Row(
+        children: [
+          Expanded(
+            child: TenturaTextAction(
+              label: l10n.coordinationBlockerActionResolve,
+              onPressed: onResolve,
+              tone: TenturaTone.good,
+              icon: const Icon(Icons.check),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: TenturaTextAction(
+              label: l10n.coordinationBlockerActionCancel,
+              onPressed: onCancel,
+              tone: TenturaTone.danger,
+              icon: const Icon(Icons.close),
+            ),
+          ),
+        ],
+      );
     }
     if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
-      return [
-        TenturaTextAction(
-          label: l10n.coordinationResolutionAcceptLabel,
-          onPressed: onAccept,
-          tone: TenturaTone.good,
-          icon: const Icon(Icons.check),
-        ),
-        TenturaTextAction(
-          label: l10n.coordinationResolutionRejectLabel,
-          onPressed: onReject ?? onCancel,
-          tone: TenturaTone.danger,
-          icon: const Icon(Icons.close),
-        ),
-      ];
+      return Row(
+        children: [
+          Expanded(
+            child: TenturaTextAction(
+              label: l10n.coordinationResolutionAcceptLabel,
+              onPressed: onAccept,
+              tone: TenturaTone.good,
+              icon: const Icon(Icons.check),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: TenturaTextAction(
+              label: l10n.coordinationResolutionRejectLabel,
+              onPressed: onReject ?? onCancel,
+              tone: TenturaTone.danger,
+              icon: const Icon(Icons.close),
+            ),
+          ),
+        ],
+      );
     }
     if (item.kind == CoordinationItemKind.plan && item.isPlanStep) {
-      return [
-        TenturaTextAction(
-          label: l10n.coordinationBlockerActionResolve,
-          onPressed: onResolve,
-          tone: TenturaTone.good,
-          icon: const Icon(Icons.check),
-        ),
-      ];
+      return Row(
+        children: [
+          Expanded(
+            child: TenturaTextAction(
+              label: l10n.coordinationBlockerActionResolve,
+              onPressed: onResolve,
+              tone: TenturaTone.good,
+              icon: const Icon(Icons.check),
+            ),
+          ),
+        ],
+      );
     }
     if (item.kind == CoordinationItemKind.ask) {
+      final tt = context.tt;
       if (item.isOpen && onAccept != null) {
-        return [
-          TenturaTextAction(
-            label: l10n.coordinationAskAcceptLabel,
-            onPressed: onAccept,
-            icon: const Icon(Icons.handshake_outlined),
-          ),
-          TenturaTextAction(
-            label: l10n.coordinationBlockerActionResolve,
-            onPressed: onResolve,
-            tone: TenturaTone.good,
-            icon: const Icon(Icons.check),
-          ),
-          TenturaTextAction(
-            label: l10n.coordinationBlockerActionCancel,
-            onPressed: onCancel,
-            tone: TenturaTone.danger,
-            icon: const Icon(Icons.close),
-          ),
-        ];
+        return Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onAccept,
+                icon: const Icon(Icons.handshake_outlined, size: 16),
+                label: Text(
+                  l10n.coordinationAskAcceptLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                style: FilledButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              onPressed: onResolve,
+              icon: Icon(Icons.check, color: tt.good),
+              tooltip: l10n.coordinationBlockerActionResolve,
+              style: IconButton.styleFrom(
+                minimumSize: const Size(44, 44),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            IconButton(
+              onPressed: onCancel,
+              icon: Icon(Icons.close, color: tt.danger),
+              tooltip: l10n.coordinationBlockerActionCancel,
+              style: IconButton.styleFrom(
+                minimumSize: const Size(44, 44),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        );
       }
       if (item.isAccepted) {
-        return [
-          TenturaTextAction(
-            label: l10n.coordinationBlockerActionResolve,
-            onPressed: onResolve,
-            tone: TenturaTone.good,
-            icon: const Icon(Icons.check),
-          ),
-          TenturaTextAction(
-            label: l10n.coordinationBlockerActionCancel,
-            onPressed: onCancel,
-            tone: TenturaTone.danger,
-            icon: const Icon(Icons.close),
-          ),
-        ];
+        return Row(
+          children: [
+            Expanded(
+              child: TenturaTextAction(
+                label: l10n.coordinationBlockerActionResolve,
+                onPressed: onResolve,
+                tone: TenturaTone.good,
+                icon: const Icon(Icons.check),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: TenturaTextAction(
+                label: l10n.coordinationBlockerActionCancel,
+                onPressed: onCancel,
+                tone: TenturaTone.danger,
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ],
+        );
       }
     }
-    return const [];
+    return null;
   }
 }

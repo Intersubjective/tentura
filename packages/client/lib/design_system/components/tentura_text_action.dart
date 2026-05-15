@@ -35,18 +35,23 @@ class TenturaTextAction extends StatelessWidget {
           ? Text(
               label,
               style: TenturaText.command(color),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             )
           : Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 IconTheme(
                   data: IconThemeData(size: 14, color: color),
                   child: icon!,
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TenturaText.command(color),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TenturaText.command(color),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
