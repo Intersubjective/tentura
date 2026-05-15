@@ -869,7 +869,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
         );
 
         final tabBody = switch (idx) {
-          kBeaconTabItems => const ItemsTab(),
+          kBeaconTabItems => ItemsTab(state: state),
           kBeaconTabPeople => _HelpOffersTabBody(
             state: state,
             beaconViewCubit: beaconViewCubit,
@@ -882,9 +882,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             onEditTimelineUpdate: editUpdate,
             roomActivityEvents: state.roomActivityEvents,
             coordinationLogOnly: true,
-            actorNames: {
-              for (final p in state.roomParticipants)
-                if (p.userTitle.isNotEmpty) p.userId: p.userTitle,
+            actors: {
+              for (final p in state.roomParticipants) p.userId: p,
             },
           ),
           _ => const SizedBox.shrink(),

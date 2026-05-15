@@ -4,8 +4,12 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/avatar_rated.dart';
 
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 
@@ -32,7 +36,7 @@ class BeaconActivityList extends StatelessWidget {
     required this.isAuthorView,
     required this.onEditTimelineUpdate,
     this.roomActivityEvents = const [],
-    this.actorNames = const {},
+    this.actors = const {},
     this.coordinationLogOnly = false,
     super.key,
   });
@@ -43,8 +47,8 @@ class BeaconActivityList extends StatelessWidget {
   final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
   final List<BeaconActivityEvent> roomActivityEvents;
 
-  /// Maps actorId → display name for room activity events.
-  final Map<String, String> actorNames;
+  /// Maps userId → participant for room activity event actors/targets.
+  final Map<String, BeaconParticipant> actors;
 
   /// When true (Log tab), show only semantic/coordination room events.
   final bool coordinationLogOnly;
@@ -87,14 +91,11 @@ class BeaconActivityList extends StatelessWidget {
       rows.add((
         t: e.createdAt.toUtc(),
         tie: tie++,
-        child: ListTile(
-          dense: true,
-          leading: const Icon(Icons.hub_outlined),
-          title: Text(_coordinationTitle(context, e, actorNames)),
-          subtitle: Text(
-            _activityTs(e.createdAt),
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
+        child: _LogActivityTile(
+          event: e,
+          label: _coordinationEventLabel(context, e),
+          actor: e.actorId != null ? actors[e.actorId!] : null,
+          target: e.targetUserId != null ? actors[e.targetUserId!] : null,
         ),
       ));
     }
@@ -120,6 +121,192 @@ class BeaconActivityList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [for (final r in rows) r.child],
+    );
+  }
+}
+
+enum _LogTier { high, medium, low }
+
+const _kLogAvatarSize = 20.0;
+const _kLogEventIconSize = 22.0;
+
+_LogTier _logTierFor(BeaconActivityEvent e) {
+  if (e.type >= 100 && e.type < 500) return _LogTier.high;
+  return switch (e.type) {
+    BeaconActivityEventTypeBits.blockerOpened ||
+    BeaconActivityEventTypeBits.blockerResolved ||
+    BeaconActivityEventTypeBits.doneMarked =>
+      _LogTier.high,
+    BeaconActivityEventTypeBits.planUpdated ||
+    BeaconActivityEventTypeBits.factPinned ||
+    BeaconActivityEventTypeBits.needInfoOpened =>
+      _LogTier.medium,
+    _ => _LogTier.low,
+  };
+}
+
+IconData _logIcon(BeaconActivityEvent e) {
+  if (e.type >= 100 && e.type < 500) {
+    final kind = e.type ~/ 100;
+    final ev = e.type % 100;
+    return switch (kind) {
+      1 => switch (ev) {
+          6 => Icons.swap_horiz,
+          3 => Icons.check_box_outlined,
+          _ => Icons.checklist_rtl_rounded,
+        },
+      2 => switch (ev) {
+          2 => Icons.thumb_up_alt_outlined,
+          3 => Icons.check_circle_outline,
+          4 => Icons.cancel_outlined,
+          _ => Icons.contact_support_outlined,
+        },
+      3 => switch (ev) {
+          3 => Icons.lock_open_outlined,
+          4 => Icons.cancel_outlined,
+          _ => Icons.warning_amber_rounded,
+        },
+      4 => switch (ev) {
+          3 => Icons.task_alt,
+          4 => Icons.highlight_off,
+          _ => Icons.lightbulb_outline,
+        },
+      _ => Icons.hub_outlined,
+    };
+  }
+  return switch (e.type) {
+    BeaconActivityEventTypeBits.planUpdated => Icons.edit_note,
+    BeaconActivityEventTypeBits.factPinned => Icons.push_pin_outlined,
+    BeaconActivityEventTypeBits.blockerOpened => Icons.warning_amber_rounded,
+    BeaconActivityEventTypeBits.blockerResolved => Icons.lock_open_outlined,
+    BeaconActivityEventTypeBits.needInfoOpened => Icons.help_outline,
+    BeaconActivityEventTypeBits.doneMarked => Icons.task_alt,
+    BeaconActivityEventTypeBits.factVisibilityChanged =>
+      Icons.visibility_outlined,
+    _ => Icons.hub_outlined,
+  };
+}
+
+Color _logIconColor(ThemeData theme, BeaconActivityEvent e) {
+  if (_logTierFor(e) == _LogTier.high) {
+    return theme.colorScheme.primary;
+  }
+  final ev = e.type % 100;
+  if (e.type >= 200 && e.type < 500 && ev == 4) {
+    return theme.colorScheme.error;
+  }
+  return switch (e.type) {
+    BeaconActivityEventTypeBits.blockerOpened => theme.colorScheme.error,
+    BeaconActivityEventTypeBits.doneMarked => theme.colorScheme.tertiary,
+    _ => theme.colorScheme.onSurfaceVariant,
+  };
+}
+
+Profile _profileFromParticipant(BeaconParticipant p) => Profile(
+      id: p.userId,
+      title: p.userTitle,
+      image: p.userHasPicture
+          ? ImageEntity(
+              id: p.userImageId,
+              authorId: p.userId,
+              blurHash: p.userBlurHash,
+              height: p.userPicHeight,
+              width: p.userPicWidth,
+            )
+          : null,
+    );
+
+Widget? _logActorsMini(
+  ThemeData theme,
+  BeaconParticipant? actor,
+  BeaconParticipant? target,
+) {
+  if (actor == null) return null;
+
+  final actorProfile = _profileFromParticipant(actor);
+  final actorAvatar = ClipOval(
+    child: AvatarRated(
+      profile: actorProfile,
+      size: _kLogAvatarSize,
+      withRating: false,
+    ),
+  );
+
+  if (target == null) return actorAvatar;
+
+  final targetProfile = _profileFromParticipant(target);
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      actorAvatar,
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Icon(
+          Icons.arrow_forward,
+          size: 12,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      ClipOval(
+        child: AvatarRated(
+          profile: targetProfile,
+          size: _kLogAvatarSize,
+          withRating: false,
+        ),
+      ),
+    ],
+  );
+}
+
+class _LogActivityTile extends StatelessWidget {
+  const _LogActivityTile({
+    required this.event,
+    required this.label,
+    required this.actor,
+    required this.target,
+  });
+
+  final BeaconActivityEvent event;
+  final String label;
+  final BeaconParticipant? actor;
+  final BeaconParticipant? target;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tier = _logTierFor(event);
+    final iconColor = _logIconColor(theme, event);
+    final actorsMini = _logActorsMini(theme, actor, target);
+
+    return Padding(
+      padding: kPaddingSmallV,
+      child: Row(
+        children: [
+          Icon(
+            _logIcon(event),
+            size: _kLogEventIconSize,
+            color: iconColor,
+          ),
+          if (actorsMini != null) ...[
+            const SizedBox(width: kSpacingSmall),
+            actorsMini,
+          ],
+          const SizedBox(width: kSpacingSmall),
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: tier == _LogTier.high ? FontWeight.w600 : null,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            _activityTs(event.createdAt),
+            style: theme.textTheme.labelSmall,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -255,17 +442,12 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
       TimelineUpdate() => '',
     };
 
-String _coordinationTitle(
-  BuildContext context,
-  BeaconActivityEvent e,
-  Map<String, String> actorNames,
-) {
+String _coordinationEventLabel(BuildContext context, BeaconActivityEvent e) {
   final l10n = L10n.of(context)!;
-  final actor = e.actorId != null ? (actorNames[e.actorId!] ?? '') : '';
   if (e.type >= 100 && e.type < 500) {
     final kind = e.type ~/ 100;
     final ev = e.type % 100;
-    final base = switch (kind) {
+    return switch (kind) {
       1 => switch (ev) {
           1 => l10n.coordinationSemanticPlanOpened,
           5 => l10n.coordinationSemanticPlanOpened,
@@ -294,11 +476,9 @@ String _coordinationTitle(
         },
       _ => l10n.beaconActivityCoordinationFallback,
     };
-    if (actor.isNotEmpty) return '$base · $actor';
-    return base;
   }
 
-  var base = switch (e.type) {
+  return switch (e.type) {
     BeaconActivityEventTypeBits.planUpdated => l10n.beaconActivityPlanUpdated,
     BeaconActivityEventTypeBits.factPinned => l10n.beaconActivityFactPinned,
     BeaconActivityEventTypeBits.factVisibilityChanged =>
@@ -312,10 +492,6 @@ String _coordinationTitle(
     BeaconActivityEventTypeBits.doneMarked => l10n.beaconActivityDoneMarked,
     _ => l10n.beaconActivityCoordinationFallback,
   };
-  if (actor.isNotEmpty) {
-    base = '$base · $actor';
-  }
-  return base;
 }
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
