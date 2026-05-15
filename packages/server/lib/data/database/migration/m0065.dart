@@ -46,7 +46,7 @@ SELECT
   0,
   left(trim(rs.current_plan), 500),
   '',
-  COALESCE(rs.updated_by, (SELECT author_id FROM public.beacon b WHERE b.id = rs.beacon_id LIMIT 1)),
+  COALESCE(rs.updated_by, (SELECT user_id FROM public.beacon b WHERE b.id = rs.beacon_id LIMIT 1)),
   COALESCE(rs.updated_at, now()),
   COALESCE(rs.updated_at, now())
 FROM public.beacon_room_state rs

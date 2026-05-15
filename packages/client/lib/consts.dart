@@ -46,13 +46,15 @@ const kQueryBeaconDraftId = 'draft_id';
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 
-/// Optional initial tab on beacon detail: `timeline`, `help_offers`, or `details`.
+/// Optional initial operational tab: `items`, `people`, `log` (+ legacy aliases).
+/// Room: use `tab=room` or [kQueryBeaconSurface]=`room` (not a segment tab).
 const kQueryBeaconViewTab = 'tab';
 
 /// When truthy with [kQueryBeaconViewTab]=`help_offers`, pulse/highlight the People tab until interaction.
 const kQueryBeaconPeopleTabAttention = 'people_tab_attention';
 
-/// Initial beacon detail surface: `status` (default) | `room`.
+/// Full-screen room vs operational beacon view: `status` (default) | `room`.
+/// Same effect as `?tab=room` on [kQueryBeaconViewTab].
 const kQueryBeaconSurface = 'surface';
 
 /// Entry provenance for beacon view resolution (`my_work`, `inbox`, …).
