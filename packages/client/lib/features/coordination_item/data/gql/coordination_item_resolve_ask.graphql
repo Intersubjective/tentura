@@ -1,0 +1,22 @@
+mutation CoordinationItemResolveAsk($itemId: String!, $note: String) {
+  resolveAsk(itemId: $itemId, note: $note) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

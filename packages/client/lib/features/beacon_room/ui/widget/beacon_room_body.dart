@@ -283,6 +283,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 c.roomState?.lastRoomMeaningfulChange ||
             p.roomState?.openBlockerId != c.roomState?.openBlockerId ||
             p.roomState?.openBlockerTitle != c.roomState?.openBlockerTitle ||
+            p.openCoordinationBlocker?.id != c.openCoordinationBlocker?.id ||
+            p.openCoordinationBlocker?.title !=
+                c.openCoordinationBlocker?.title ||
+            p.openCoordinationBlocker?.status !=
+                c.openCoordinationBlocker?.status ||
+            p.viewerAcceptedAsk?.id != c.viewerAcceptedAsk?.id ||
+            p.viewerAcceptedAsk?.title != c.viewerAcceptedAsk?.title ||
             p.participants.length != c.participants.length ||
             p.participants
                     .map(
@@ -323,6 +330,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   factCards: state.factCards,
                   collapsed: state.nowCollapsed,
                   onToggleCollapse: cubit.toggleNowCollapsed,
+                  openCoordinationBlocker: state.openCoordinationBlocker,
                   onOpenFact: (f) => showFactActionsSheet(
                     context,
                     cubit: cubit,
@@ -334,6 +342,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
               if (!widget.hideCoordinationStrips)
                 BeaconRoomYouStrip(
                   myParticipant: myRow,
+                  viewerAcceptedAsk: state.viewerAcceptedAsk,
                   collapsed: state.youCollapsed,
                   onToggleCollapse: cubit.toggleYouCollapsed,
                   onEditNextMove: () => unawaited(
@@ -687,12 +696,18 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       },
                     ),
                   ListTile(
-                    leading: const Icon(Icons.report_problem_outlined),
-                    title: Text(l10n.beaconRoomActionMarkBlocker),
+                    leading: const Icon(Icons.vertical_align_top_outlined),
+                    title: Text(l10n.coordinationPromoteSheetTitle),
                     onTap: () {
                       Navigator.pop(ctx);
                       unawaited(
-                        _showMarkBlockerSheet(context, cubit, l10n, message),
+                        _showPromoteSheet(
+                          context,
+                          cubit,
+                          l10n,
+                          viewer,
+                          message,
+                        ),
                       );
                     },
                   ),
@@ -936,6 +951,145 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
   }
 
+  Future<void> _showPromoteSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile viewer,
+    RoomMessage message,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: kPaddingH.add(kPaddingSmallT),
+              child: Text(
+                l10n.coordinationPromoteSheetTitle,
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.report_problem_outlined),
+              title: Text(l10n.beaconRoomActionMarkBlocker),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(
+                  _showMarkBlockerSheet(context, cubit, l10n, message),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.help_outline),
+              title: Text(l10n.beaconRoomActionMarkAsk),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(
+                  _showMarkAskSheet(context, cubit, l10n, viewer, message),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showMarkAskSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile viewer,
+    RoomMessage message,
+  ) async {
+    final myUserId = cubit.state.myUserId;
+    final myParticipantRole = cubit.state.participants
+        .where((p) => p.userId == myUserId)
+        .firstOrNull
+        ?.role;
+    final isAuthorOrSteward = myParticipantRole ==
+            BeaconParticipantRoleBits.author ||
+        myParticipantRole == BeaconParticipantRoleBits.steward;
+    final admitted = isAuthorOrSteward
+        ? cubit.state.participants
+            .where((p) =>
+                p.roomAccess == RoomAccessBits.admitted ||
+                p.status == BeaconParticipantStatusBits.candidate ||
+                p.status == BeaconParticipantStatusBits.offeredHelp)
+            .toList()
+        : cubit.state.participants
+            .where((p) => p.roomAccess == RoomAccessBits.admitted)
+            .toList();
+    if (admitted.isEmpty) return;
+    final titleController = TextEditingController();
+    var targetUserId = admitted.first.userId;
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setState) => AlertDialog(
+            title: Text(l10n.coordinationMarkAskTitle),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  key: ValueKey<String>(targetUserId),
+                  initialValue: targetUserId,
+                  decoration: InputDecoration(
+                    labelText: l10n.beaconRoomNeedInfoPickTarget,
+                  ),
+                  items: [
+                    for (final p in admitted)
+                      DropdownMenuItem(
+                        value: p.userId,
+                        child: Text(
+                          _needInfoTargetLabel(l10n, viewer, p),
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => targetUserId = v ?? targetUserId),
+                ),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    hintText: l10n.coordinationMarkAskHint,
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (ok == true && context.mounted) {
+        final title = titleController.text.trim();
+        if (title.isEmpty) return;
+        await cubit.markAskFromMessage(
+          messageId: message.id,
+          title: title,
+          targetPersonId: targetUserId,
+        );
+      }
+    } finally {
+      titleController.dispose();
+    }
+  }
+
   Future<void> _showMarkBlockerSheet(
     BuildContext context,
     RoomCubit cubit,
@@ -984,9 +1138,23 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     Profile viewer,
     RoomMessage message,
   ) async {
-    final admitted = cubit.state.participants
-        .where((p) => p.roomAccess == RoomAccessBits.admitted)
-        .toList();
+    final myUserId = cubit.state.myUserId;
+    final myParticipantRole = cubit.state.participants
+        .where((p) => p.userId == myUserId)
+        .firstOrNull
+        ?.role;
+    final isAuthorOrSteward = myParticipantRole == BeaconParticipantRoleBits.author ||
+        myParticipantRole == BeaconParticipantRoleBits.steward;
+    final admitted = isAuthorOrSteward
+        ? cubit.state.participants
+            .where((p) =>
+                p.roomAccess == RoomAccessBits.admitted ||
+                p.status == BeaconParticipantStatusBits.candidate ||
+                p.status == BeaconParticipantStatusBits.offeredHelp)
+            .toList()
+        : cubit.state.participants
+            .where((p) => p.roomAccess == RoomAccessBits.admitted)
+            .toList();
     if (admitted.isEmpty) return;
     final requestController = TextEditingController();
     var targetUserId = admitted.first.userId;
@@ -1075,9 +1243,17 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomMessage message,
   ) async {
     final rs = cubit.state.roomState;
-    final onlyBlocker =
+    final hasBlocker =
         rs?.openBlockerId != null && rs!.openBlockerId!.isNotEmpty;
-    var resolveBlocker = onlyBlocker;
+    final myUserId = cubit.state.myUserId;
+    final myParticipant = cubit.state.participants
+        .where((p) => p.userId == myUserId)
+        .firstOrNull;
+    final ownNextMove = myParticipant?.nextMoveText?.trim() ?? '';
+    final hasOwnNextMove = ownNextMove.isNotEmpty;
+
+    // Selection: 0=messageOnly, 1=resolveBlocker, 2=myNextStep
+    var selection = hasBlocker ? 1 : 0;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -1086,31 +1262,42 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                title: Text(l10n.beaconRoomMarkDoneMessageOnly),
-                leading: Icon(
-                  resolveBlocker
-                      ? Icons.radio_button_off
-                      : Icons.radio_button_checked,
+              if (hasOwnNextMove)
+                ListTile(
+                  title: Text(l10n.beaconRoomMarkDoneMyNextStep(ownNextMove)),
+                  leading: Icon(
+                    selection == 2
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                  ),
+                  onTap: () => setState(() => selection = 2),
                 ),
-                onTap: () => setState(() => resolveBlocker = false),
-              ),
               ListTile(
                 title: Text(
-                  onlyBlocker && (rs.openBlockerTitle ?? '').trim().isNotEmpty
+                  hasBlocker &&
+                          (rs.openBlockerTitle ?? '').trim().isNotEmpty
                       ? l10n.beaconRoomMarkDoneConfirmSingleBlocker(
                           rs.openBlockerTitle!.trim(),
                         )
                       : l10n.beaconRoomMarkDoneResolveBlocker,
                 ),
                 leading: Icon(
-                  resolveBlocker
+                  selection == 1
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
                 ),
-                onTap: message.linkedBlockerId == null && !onlyBlocker
+                onTap: message.linkedBlockerId == null && !hasBlocker
                     ? null
-                    : () => setState(() => resolveBlocker = true),
+                    : () => setState(() => selection = 1),
+              ),
+              ListTile(
+                title: Text(l10n.beaconRoomMarkDoneMessageOnly),
+                leading: Icon(
+                  selection == 0
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                ),
+                onTap: () => setState(() => selection = 0),
               ),
             ],
           ),
@@ -1128,10 +1315,18 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     );
     if (ok == true && context.mounted) {
-      await cubit.markMessageDone(
-        messageId: message.id,
-        resolveBlocker: resolveBlocker,
-      );
+      if (selection == 2 && hasOwnNextMove) {
+        await cubit.participantSetNextMove(
+          targetUserId: myUserId,
+          nextMoveText: ownNextMove,
+          nextMoveStatus: BeaconNextMoveStatusBits.done,
+        );
+      } else {
+        await cubit.markMessageDone(
+          messageId: message.id,
+          resolveBlocker: selection == 1,
+        );
+      }
     }
   }
 

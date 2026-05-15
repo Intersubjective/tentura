@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart'
     show BeaconFactCardStatusBits;
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -17,6 +18,7 @@ class RoomNowStrip extends StatelessWidget {
     required this.factCards,
     required this.collapsed,
     required this.onToggleCollapse,
+    this.openCoordinationBlocker,
     this.onOpenFact,
     this.onOpenFileAttachment,
     super.key,
@@ -26,6 +28,9 @@ class RoomNowStrip extends StatelessWidget {
   final List<BeaconFactCard> factCards;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
+
+  /// Open Blocker from coordination items (preferred over legacy room state).
+  final CoordinationItem? openCoordinationBlocker;
 
   /// Opens fact actions (room only).
   final Future<void> Function(BeaconFactCard fact)? onOpenFact;
@@ -53,9 +58,14 @@ class RoomNowStrip extends StatelessWidget {
 
     final plan = roomState.currentPlan.trim();
     final change = roomState.lastRoomMeaningfulChange?.trim() ?? '';
-    final hasBlocker = roomState.openBlockerId != null &&
-        roomState.openBlockerId!.isNotEmpty;
-    final blockerTitle = roomState.openBlockerTitle?.trim() ?? '';
+    final blockerFromCoord = openCoordinationBlocker;
+    final hasBlocker = (blockerFromCoord != null && blockerFromCoord.isOpen) ||
+        (roomState.openBlockerId != null &&
+            roomState.openBlockerId!.isNotEmpty);
+    final blockerTitle = (blockerFromCoord != null &&
+            blockerFromCoord.title.trim().isNotEmpty)
+        ? blockerFromCoord.title.trim()
+        : (roomState.openBlockerTitle?.trim() ?? '');
 
     final hasContent = plan.isNotEmpty ||
         pinnedFacts.isNotEmpty ||

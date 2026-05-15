@@ -1,50 +1,34 @@
-# Tentura Beacon Room — Feature Specification for LLM Implementation
+# Tentura Beacon Room — Design & Implementation Specification
 
-## Context
+## Purpose
 
-The current Beacon screen has this high-level structure:
+Tentura is a feedless, trust-scoped coordination substrate. It is not a social network, messenger, project-management board, or generic task app.
 
-```text
-Beacon (single)
-│
-├─ Orientation
-│  ├─ What it is (title, identity)
-│  ├─ Who’s behind it (author → profile)
-│  └─ Why it exists (need / context at a glance)
-│
-├─ Relationship & state
-│  └─ “Where I stand” strip (commit / watch / inbox / coordination cues)
-│
-├─ Primary actions
-│  ├─ Author: status / post update
-│  ├─ Participant: commit · withdraw (rules)
-│  └─ Everyone: forward · view chain (when relevant)
-│
-├─ Deep actions (overflow / dialogs)
-│  ├─ Author: edit · close/unlist · delete · share
-│  ├─ Participant: inbox paths (watch / stop / can’t help / unreject)
-│  └─ Escalations: complaint · graphs
-│
-└─ Three lenses (same beacon, different depth)
-   ├─ Overview      → need · coordination story · context & media
-   ├─ People        → who’s in · roles · statuses · expected moves
-   └─ Activity      → timeline of what changed
-```
+A Beacon turns a situated need into a temporary coordination cell. The Beacon Room provides warm human communication, but important messages can be promoted into typed coordination objects that mutate shared state.
 
-The new feature adds a **Room screen/mode**, not a fourth tab. The existing Beacon screen keeps its three tabs: **Overview**, **People**, and **Activity**. Room is opened from the Beacon screen as a separate coordination mode.
-
-The purpose is not to turn Beacon into a forum. The purpose is to prevent coordination from escaping into Telegram/WhatsApp while preserving Beacon as a coordination object.
-
-Core product idea:
+Core product rule:
 
 ```text
-Beacon = visible coordination object
-Room = involved-only coordination mode
-Public entries = visible to everyone who can see the Beacon
-Room entries = visible only to involved/admitted people
-Semantic actions = explicit user actions that mutate Beacon/Room/People state
-Activity = clean history of meaningful state changes, respecting visibility
+Chat remains easy.
+State remains explicit.
+Important work lives in typed objects, not in scrollback.
 ```
+
+## Core screen model
+
+```text
+Beacon
+├─ Orientation      // what it is, who's behind it, why it exists
+├─ Relationship     // "where I stand" strip
+├─ Primary actions  // role-specific actions
+├─ Deep actions     // overflow / dialogs
+└─ Three tabs
+   ├─ Overview      // public need · coordination story · context & media
+   ├─ People        // who's in · roles · statuses · expected moves
+   └─ Activity      // timeline of what changed
+```
+
+Room is a **separate screen/mode** opened from the Beacon screen, not a fourth tab.
 
 ## Product principle
 
@@ -62,7 +46,7 @@ What is publicly known?
 Am I involved or merely seeing/forwarding it?
 If involved, what is the current plan?
 What is expected of me?
-What changed because of my / others’ actions?
+What changed because of my / others' actions?
 ```
 
 The Room supports normal emotional/social chat, but the state layer prevents important coordination facts from being buried.
@@ -90,7 +74,7 @@ Public media/context chosen by author
 Public Activity events
 ```
 
-Public does **not** mean Internet-public. It means visible to the Beacon’s normal audience: recipients, visible path actors, and users who can see the Beacon under existing MR/path visibility rules.
+Public does **not** mean Internet-public. It means visible to the Beacon's normal audience: recipients, visible path actors, and users who can see the Beacon under existing MR/path visibility rules.
 
 ### 2. Room / involved-visible
 
@@ -185,21 +169,14 @@ Candidate helper cannot see Room-private content until admitted.
 
 A person who can see or forward the Beacon but is not involved in Room coordination.
 
-## Commit / help model
+## Help offer / admission model
 
-The old “commit is open” model must be adjusted because Room access is private and involved-only.
-
-New minimal rule:
-
-```text
-Offering help is open.
-Becoming offered help/involved requires approval by Author or Beacon Steward.
-```
+Offering help is open. Becoming involved requires approval by Author or Beacon Steward.
 
 Use this flow:
 
 ```text
-User taps Offer help / Commit
+User taps Offer help
 ├─ enters short note: what they can do
 ├─ becomes Candidate helper
 ├─ Author/Steward receives approval prompt
@@ -216,13 +193,34 @@ User taps Offer help / Commit
 
 Avoid heavy approval UX. This should feel like admitting someone into the working room, not like bureaucratic permissioning.
 
+Naming rules:
+
+```text
+Beacon-level action: OfferHelp
+Do NOT use: Commit, Commitment, TaskCommit, BeaconCommit, Assignment
+```
+
+User-facing labels:
+
+```text
+Beacon CTA:  Offer help
+Ask CTA:     I'll do this  (future / v2+)
+```
+
+Rule:
+
+```text
+AcceptAsk (future) implies BeaconParticipation.
+OfferHelp does not imply AcceptAsk.
+```
+
 ## Public outward state vs Room internal state
 
-To avoid leaking private coordination details, maintain two state layers.
+Maintain two state layers to avoid leaking private coordination details.
 
 ### Public Beacon status / outward signal
 
-Visible to Beacon-visible users.
+Visible to Beacon-visible users. Stored in `Beacon.publicStatus` (int) and `Beacon.coordinationStatus` (`BeaconCoordinationStatus`).
 
 Minimal values:
 
@@ -244,7 +242,7 @@ Use `Blocked` publicly only if the author/steward explicitly chooses to expose t
 
 ### Room internal state
 
-Visible only to Room members.
+Visible only to Room members. Stored in `BeaconRoomState`.
 
 ```text
 current_plan
@@ -264,7 +262,7 @@ Room is entered through explicit affordances:
 ```text
 Open Room button, for admitted Room members
 Room access pending cue, for candidates
-Unread/needs-me cue in “Where I stand” strip, for Room members
+Unread/needs-me cue in "Where I stand" strip, for Room members
 Latest Room cue in Overview, for Room members only
 Person actions in People: mention in room / ask info, for Room members
 Notification deep link, for Room members
@@ -279,7 +277,7 @@ Beacon (single)
 │  │  ├─ icon / image / media cue
 │  │  └─ public status: open / coordinating / more help / enough help / closed
 │  │
-│  ├─ Who’s behind it
+│  ├─ Who's behind it
 │  │  └─ author → profile
 │  │
 │  └─ Why it exists
@@ -287,7 +285,7 @@ Beacon (single)
 │     └─ public fact highlights, if any
 │
 ├─ Relationship & state
-│  ├─ “Where I stand” strip
+│  ├─ "Where I stand" strip
 │  │  ├─ my relation: recipient / watching / candidate / involved / author / steward
 │  │  ├─ room access: none / requested / admitted / muted
 │  │  ├─ my next expected move, if admitted
@@ -339,7 +337,7 @@ Beacon (single)
 │  ├─ Participant
 │  │  ├─ watch
 │  │  ├─ stop
-│  │  ├─ can’t help
+│  │  ├─ can't help
 │  │  ├─ unreject
 │  │  ├─ leave room
 │  │  └─ mute room
@@ -348,44 +346,34 @@ Beacon (single)
 │     ├─ complaint
 │     └─ graphs
 │
-├─ Three tabs
-│  ├─ Overview
-│  │  ├─ public need
-│  │  ├─ public status / outward signal
-│  │  ├─ public fact cards
-│  │  ├─ context & media
-│  │  ├─ latest Room cue only for Room members
-│  │  └─ open/request room CTA depending on access
-│  │
-│  ├─ People
-│  │  ├─ author
-│  │  ├─ steward(s)
-│  │  ├─ public visible people / provenance
-│  │  ├─ candidates / offers, visible to author/steward
-│  │  ├─ involved people, visible to Room members
-│  │  └─ room access state, respecting visibility
-│  │
-│  └─ Activity
-│     ├─ public timeline for non-room viewers
-│     ├─ public facts pinned
-│     ├─ public status updated
-│     ├─ forwarded
-│     ├─ offer submitted / admitted, if visibility permits
-│     ├─ closed / review opened
-│     └─ Room-private activity visible only to Room members
-│
-└─ Separate Room mode / screen
-   ├─ opened from Beacon
-   ├─ compact Beacon header
-   ├─ Room-private NOW/YOU strips
-   ├─ involved-only chat
-   ├─ semantic message actions
-   ├─ public/private fact pinning
-   ├─ blocker / next-move cards
-   └─ returns back to same Beacon tab/state
+└─ Three tabs
+   ├─ Overview
+   │  ├─ public need
+   │  ├─ public status / outward signal
+   │  ├─ public fact cards
+   │  ├─ context & media
+   │  ├─ latest Room cue only for Room members
+   │  └─ open/request room CTA depending on access
+   │
+   ├─ People
+   │  ├─ author
+   │  ├─ steward(s)
+   │  ├─ public visible people / provenance
+   │  ├─ candidates / offers, visible to author/steward
+   │  ├─ involved people, visible to Room members
+   │  └─ room access state, respecting visibility
+   │
+   └─ Activity
+      ├─ public timeline for non-room viewers
+      ├─ public facts pinned
+      ├─ public status updated
+      ├─ forwarded
+      ├─ offer submitted / admitted, if visibility permits
+      ├─ closed / review opened
+      └─ Room-private activity visible only to Room members
 ```
 
-## Room mode purpose
+## Room mode
 
 The Room is the involved-only coordination mode attached to a Beacon. It lets admitted people talk, attach media, ask questions, pin facts, update the private plan, and convert important messages into state.
 
@@ -403,7 +391,7 @@ separate from public Activity
 
 The Room should feel like chat, but with a small number of state-changing affordances.
 
-## Room screen/mode structure
+### Room screen/mode structure
 
 Room opens as a full-screen route or modal mode from Beacon. It preserves enough Beacon context at the top, but optimizes the rest of the screen for chat.
 
@@ -422,7 +410,7 @@ Room Screen/Mode
 │  ├─ public status: open / coordinating / more help / enough help / closed
 │  └─ tap → full Beacon screen
 │
-├─ Room NOW strip
+├─ Room NOW strip  (BeaconRoomState)
 │  ├─ private current plan
 │  ├─ open private blocker, if any
 │  ├─ key private/public facts
@@ -434,10 +422,10 @@ Room Screen/Mode
 │  └─ quick action, if any
 │
 ├─ Chat Stream
-│  ├─ user messages
+│  ├─ user messages  (RoomMessage)
 │  ├─ photo/file attachments
 │  ├─ emoji reactions
-│  ├─ fact cards
+│  ├─ fact cards  (BeaconFactCard)
 │  ├─ blocker / next-move cards
 │  └─ system state-change inserts
 │
@@ -470,7 +458,7 @@ Candidate offer card for Author/Steward:
 
 ```text
 Alex offered help
-“I can fly on Apr 19 and take the cat in cabin.”
+"I can fly on Apr 19 and take the cat in cabin."
 [Admit to room] [Ask clarification] [Not needed now]
 ```
 
@@ -484,14 +472,14 @@ Ask clarification
 
 ## Minimal semantic actions
 
-Semantic actions in v1:
+Semantic actions in v1 (`BeaconRoomSemanticMarker`):
 
 ```text
-Update plan
-Pin fact card
-Mark blocker
-Mark done
-Need info
+Update plan          (updatePlan = 1)
+Pin fact card        (pinFactPublic = 2 / pinFactPrivate = 3)
+Mark blocker         (blocker = 5)
+Mark done            (done = 7)
+Need info            (needInfo = 6)
 ```
 
 `Pin fact card` has two visibility variants:
@@ -521,13 +509,13 @@ Message stream = what people said
 State stream = what changed in Beacon/Room/People state
 ```
 
-Normal message:
+Normal message (`RoomMessage`):
 
 ```text
 Room message created
 Unread badge updates for Room members
 No BeaconState mutation
-No ParticipantState mutation
+No participant status mutation
 No Activity event, except optional unread/message count
 ```
 
@@ -535,96 +523,100 @@ Semantic action:
 
 ```text
 Room message created or selected
-Semantic action applied
+Semantic action applied (RoomMessage.semanticMarker set)
 Public or private visibility selected when relevant
-BeaconState / RoomState / ParticipantState / FactCard mutates
-ActivityEvent created with matching visibility
+BeaconRoomState / BeaconParticipant / BeaconFactCard mutates
+BeaconActivityEvent created with matching visibility
 Screens update according to visibility
 ```
 
 ## State objects
 
-### BeaconPublicState
+### Beacon public state
+
+Stored as fields on the `Beacon` entity (no separate `BeaconPublicState` entity).
+
+```text
+Beacon.publicStatus: int          // outward Room / Forward-facing status
+Beacon.coordinationStatus: BeaconCoordinationStatus
+  noHelpOffersYet
+  helpOffersWaitingForReview
+  moreOrDifferentHelpNeeded
+  enoughHelpOffered
+Beacon.lifecycle: BeaconLifecycle  // open / closed / etc.
+```
 
 Visible to Beacon-visible users.
 
-```text
-BeaconPublicState
-├─ status: open | coordinating | more_help_needed | enough_help | closed
-├─ public_summary?: string
-├─ last_public_meaningful_change?: string
-├─ public_fact_count
-├─ updated_at
-└─ updated_by
-```
-
-### RoomState
+### BeaconRoomState
 
 Visible only to Room members.
 
 ```text
-RoomState
-├─ beacon_id
-├─ current_plan: string
-├─ open_blocker_id?: string
-├─ last_room_meaningful_change?: string
-├─ updated_at
-└─ updated_by
+BeaconRoomState
+├─ beaconId
+├─ currentPlan: string
+├─ openBlockerId?: string
+├─ openBlockerTitle?: string
+├─ lastRoomMeaningfulChange?: string
+├─ updatedAt
+└─ updatedBy?
 ```
 
-### ParticipantState
+### BeaconParticipant
 
 ```text
-ParticipantState
-├─ beacon_id
-├─ user_id
-├─ role
-│  ├─ author
-│  ├─ steward
-│  ├─ helper
-│  ├─ candidate
-│  ├─ verifier
-│  ├─ forwarder
-│  ├─ watcher
-│  └─ domain-specific role, e.g. carrier / adopter / driver
+BeaconParticipant
+├─ id
+├─ beaconId
+├─ userId
+├─ role: int  (BeaconParticipantRoleBits)
+│  ├─ author     = 0
+│  ├─ steward    = 1
+│  ├─ helper     = 2
+│  ├─ candidate  = 3
+│  ├─ watcher    = 4
+│  └─ forwarder  = 5
 │
-├─ status
-│  ├─ watching
-│  ├─ offered_help
-│  ├─ candidate
-│  ├─ admitted
-│  ├─ checking
-│  ├─ offered help
-│  ├─ needs_info
-│  ├─ blocked
-│  ├─ done
-│  └─ withdrawn
+├─ status: int  (BeaconParticipantStatusBits)
+│  ├─ watching      = 0
+│  ├─ offeredHelp   = 1
+│  ├─ candidate     = 2
+│  ├─ admitted      = 3
+│  ├─ checking      = 4
+│  ├─ committed     = 5
+│  ├─ needsInfo     = 6
+│  ├─ blocked       = 7
+│  ├─ done          = 8
+│  └─ withdrawn     = 9
 │
-├─ next_move_text?
-├─ next_move_source
-│  ├─ self
-│  ├─ request_from_other
-│  ├─ author_suggestion
-│  ├─ steward_suggestion
-│  └─ system_default
+├─ roomAccess: int  (RoomAccessBits)
+│  ├─ none      = 0
+│  ├─ requested = 1
+│  ├─ invited   = 2
+│  ├─ admitted  = 3
+│  ├─ muted     = 4
+│  └─ left      = 5
 │
-├─ next_move_status
-│  ├─ active
-│  ├─ requested
-│  ├─ done
-│  ├─ declined
-│  └─ obsolete
+├─ offerNote?
+├─ nextMoveText?
+├─ nextMoveStatus?: int  (BeaconNextMoveStatusBits)
+│  ├─ active    = 0
+│  ├─ requested = 1
+│  ├─ done      = 2
+│  ├─ declined  = 3
+│  └─ obsolete  = 4
 │
-├─ linked_message_id?
-├─ room_access_state
-│  ├─ none
-│  ├─ requested
-│  ├─ invited
-│  ├─ admitted
-│  ├─ muted
-│  └─ left
+├─ nextMoveSource?: int  (BeaconNextMoveSourceBits)
+│  ├─ unspecified     = 0
+│  ├─ self            = 1
+│  └─ stewardOrAuthor = 2
 │
-└─ updated_at
+├─ linkedMessageId?
+├─ lastSeenRoomAt?
+├─ helpType?
+├─ createdAt
+└─ updatedAt
 ```
 
 ### RoomMessage
@@ -634,98 +626,118 @@ Visible only to Room members.
 ```text
 RoomMessage
 ├─ id
-├─ beacon_id
-├─ author_id
-├─ text
-├─ attachments[]
-├─ created_at
-├─ reply_to_message_id?
-├─ linked_blocker_id?
-├─ linked_next_move_id?
-├─ linked_fact_card_id?
-└─ semantic_marker?
-   ├─ update_plan
-   ├─ pin_fact_public
-   ├─ pin_fact_private
-   ├─ blocker
-   ├─ done
-   └─ need_info
+├─ beaconId
+├─ authorId
+├─ body
+├─ createdAt
+├─ editedAt?
+├─ author: Profile
+├─ reactionCounts: Map<emoji, count>
+├─ myReaction?
+├─ reactors: Map<emoji, List<Profile>>
+├─ semanticMarker?: int  (BeaconRoomSemanticMarker)
+│  ├─ updatePlan             = 1
+│  ├─ pinFactPublic          = 2
+│  ├─ pinFactPrivate         = 3
+│  ├─ participantStatusChanged = 4
+│  ├─ blocker                = 5
+│  ├─ needInfo               = 6
+│  ├─ done                   = 7
+│  └─ poll                   = 8
+│
+├─ linkedBlockerId?
+├─ linkedFactCardId?
+├─ linkedPollingId?
+├─ pollDataJson?
+├─ systemPayloadJson?
+├─ attachments: List<RoomMessageAttachment>
+└─ mentions: List<userId>
 ```
 
-### FactCard
+### BeaconFactCard
 
 A pinned operational fact. Can be public or private.
 
 ```text
-FactCard
+BeaconFactCard
 ├─ id
-├─ beacon_id
-├─ text
-├─ visibility: public | room
-├─ pinned_by
-├─ source_message_id?
-├─ created_at
-├─ updated_at?
-└─ status: active | corrected | removed
+├─ beaconId
+├─ factText
+├─ visibility: int  (BeaconFactCardVisibilityBits)
+│  ├─ public = 0
+│  └─ room   = 1
+│
+├─ pinnedBy
+├─ sourceMessageId?
+├─ createdAt
+├─ updatedAt?
+├─ status: int  (BeaconFactCardStatusBits)
+│  ├─ active    = 0
+│  ├─ corrected = 1
+│  └─ removed   = 2
+│
+├─ pinnedByTitle
+└─ attachments: List<RoomMessageAttachment>
 ```
 
 Public fact cards appear in Overview, Forward screen, public Activity, and public Beacon-visible surfaces.
 
 Private fact cards appear only inside Room and Room-visible state surfaces.
 
-### Blocker
+### beacon_blocker (table)
 
 Room-private by default.
 
 ```text
-Blocker
+beacon_blocker
 ├─ id
-├─ beacon_id
+├─ beaconId
 ├─ title
-├─ status: open | resolved | cancelled
-├─ visibility: room
-├─ opened_by
-├─ opened_from_message_id
-├─ affected_participant_id?
-├─ resolver_participant_id?
-├─ resolved_by?
-├─ resolved_from_message_id?
-└─ created_at / resolved_at
+├─ status: int  (BeaconBlockerStatusBits)
+│  ├─ open      = 0
+│  ├─ resolved  = 1
+│  └─ cancelled = 2
+│
+├─ visibility: int
+│  ├─ public = 0
+│  └─ room   = 1  (default)
+│
+├─ openedBy
+├─ openedFromMessageId?
+├─ affectedParticipantId?
+├─ resolverParticipantId?
+├─ resolvedBy?
+├─ resolvedFromMessageId?
+├─ createdAt
+└─ resolvedAt?
 ```
 
 Do not expose blocker details publicly unless separately converted into a public fact or public status update by Author/Steward.
 
-### ActivityEvent
+### BeaconActivityEvent
 
 ```text
-ActivityEvent
+BeaconActivityEvent
 ├─ id
-├─ beacon_id
-├─ visibility: public | room
-├─ type
-│  ├─ public_status_updated
-│  ├─ plan_updated
-│  ├─ fact_pinned
-│  ├─ fact_corrected
-│  ├─ fact_visibility_changed
-│  ├─ blocker_opened
-│  ├─ blocker_resolved
-│  ├─ need_info_opened
-│  ├─ need_info_answered
-│  ├─ participant_status_changed
-│  ├─ offer_submitted
-│  ├─ candidate_admitted
-│  ├─ done_marked
-│  ├─ withdrawn
-│  ├─ forwarded
-│  ├─ closed
-│  └─ review_opened
+├─ beaconId
+├─ visibility: int  (BeaconActivityEventVisibilityBits)
+│  ├─ public = 0
+│  └─ room   = 1
 │
-├─ actor_id
-├─ target_user_id?
-├─ source_message_id?
-├─ diff
-└─ created_at
+├─ type: int  (BeaconActivityEventTypeBits)
+│  ├─ planUpdated              = 1
+│  ├─ factPinned               = 2
+│  ├─ blockerOpened            = 10
+│  ├─ blockerResolved          = 11
+│  ├─ needInfoOpened           = 12
+│  ├─ doneMarked               = 13
+│  └─ factVisibilityChanged    = 14
+│
+├─ actorId?
+├─ targetUserId?
+├─ sourceMessageId?
+├─ diffJson?
+└─ createdAt
 ```
 
 ## Current plan visibility
@@ -755,7 +767,7 @@ For Room members, show the private plan in:
 
 ```text
 Room NOW strip
-Beacon “Where I stand” strip
+Beacon "Where I stand" strip
 My Work card
 People lens participant context
 Room-private Activity
@@ -787,15 +799,15 @@ Select Room message → Pin fact card → Public
 ├─ compact edit dialog
 ├─ user writes/edits fact text
 ├─ save
-└─ creates public FactCard + public ActivityEvent(fact_pinned)
+└─ creates public BeaconFactCard + public BeaconActivityEvent(factPinned)
 ```
 
 Effects:
 
 ```text
 Room:
-  message gets “Public fact” marker
-  system insert: “Public fact pinned by X”
+  message gets "Public fact" marker
+  system insert: "Public fact pinned by X"
 
 Overview:
   public fact card appears
@@ -807,7 +819,7 @@ Inbox:
   public fact may affect card summary only if chosen for highlight
 
 Activity:
-  public fact_pinned event appears
+  public factPinned event appears
 ```
 
 ### Pin private fact
@@ -831,14 +843,14 @@ Select Room message → Pin fact card → Private
 ├─ compact edit dialog
 ├─ user writes/edits fact text
 ├─ save
-└─ creates room-visible FactCard + room ActivityEvent(fact_pinned)
+└─ creates room-visible BeaconFactCard + room BeaconActivityEvent(factPinned)
 ```
 
 Effects:
 
 ```text
 Room:
-  message gets “Private fact” marker
+  message gets "Private fact" marker
   private fact card appears in Room
 
 Room NOW strip:
@@ -854,9 +866,21 @@ Activity:
   visible only to Room members
 ```
 
+### Fact card actions
+
+From the Room facts sheet (AppBar) or the message menu, admitted members can:
+
+```text
+Edit fact text (correct) — BeaconActivityEvent(factCorrected)
+Toggle visibility public ↔ room-only — BeaconActivityEvent(factVisibilityChanged)
+Jump to source Room message
+Copy fact text
+Remove (unpin) fact — clears message link; server enforces one active fact per source message
+```
+
 ## Next expected move
 
-“Next expected move” is not a hard task assignment. It is a visible coordination hint.
+"Next expected move" is not a hard task assignment. It is a visible coordination hint.
 
 Definition:
 
@@ -921,21 +945,21 @@ Flow:
 Select Room message → Update plan
 ├─ show compact edit dialog
 ├─ prefill from selected message if feasible through manual selection/copy, not AI
-├─ user edits RoomState.current_plan
+├─ user edits BeaconRoomState.currentPlan
 ├─ save
-└─ emit room ActivityEvent(plan_updated)
+└─ emit room BeaconActivityEvent(planUpdated)
 ```
 
 Effects:
 
 ```text
 Room:
-  message gets “Plan updated” marker
-  system insert appears: “Plan updated by X”
+  message gets "Plan updated" marker (semanticMarker = updatePlan)
+  system insert appears: "Plan updated by X"
 
 Room NOW strip:
-  current_plan updates
-  last_room_meaningful_change updates
+  currentPlan updates
+  lastRoomMeaningfulChange updates
 
 Overview:
   no public plan update for non-room viewers
@@ -946,7 +970,7 @@ Inbox:
   Room members may see private plan snippet in My Work / needs-me context
 
 Activity:
-  plan_updated event appears only for Room members
+  planUpdated event appears only for Room members
 
 Notifications:
   notify Room members if relevant; do not notify passive non-room viewers
@@ -965,7 +989,7 @@ Select Room message → Pin fact card
 │  └─ Private fact
 ├─ compact edit dialog
 ├─ save
-└─ emit ActivityEvent(fact_pinned) with matching visibility
+└─ emit BeaconActivityEvent(factPinned) with matching visibility
 ```
 
 Rules:
@@ -977,17 +1001,7 @@ Any admitted Room member may pin public or private facts.
 Duplicate pin for the same source message is rejected (one active fact per message).
 ```
 
-### Fact card actions
-
-From the Room facts sheet (AppBar) or the message menu, admitted members can:
-
-```text
-Edit fact text (correct) — ActivityEvent(fact_corrected)
-Toggle visibility public ↔ room-only — ActivityEvent(fact_visibility_changed)
-Jump to source Room message
-Copy fact text
-Remove (unpin) fact — clears message link; server enforces one active fact per source message
-```
+### Mark blocker
 
 Purpose: make an obstacle visible and actionable inside the Room.
 
@@ -999,18 +1013,18 @@ Select Room message → Mark blocker
 ├─ optional affected person
 ├─ optional who can resolve it
 ├─ save
-└─ emit room ActivityEvent(blocker_opened)
+└─ emit room BeaconActivityEvent(blockerOpened)
 ```
 
 Effects:
 
 ```text
 Room:
-  message gets “Blocker” marker
+  message gets "Blocker" marker (semanticMarker = blocker)
   blocker card appears in stream
 
 Room NOW strip:
-  open_blocker = new blocker
+  openBlockerId = new blocker
 
 Room internal status:
   status may become blocked
@@ -1020,7 +1034,7 @@ Public Beacon status:
   Author/Steward may separately set public status to More / different help needed or Blocked
 
 People:
-  affected Room member may move to blocked / needs_info
+  affected Room member may move to blocked / needsInfo
   next expected move may be requested if resolver is selected
 
 Inbox/My Work:
@@ -1041,7 +1055,7 @@ Flow:
 
 ```text
 Select Room message → Mark done
-├─ show picker: “What is done?”
+├─ show picker: "What is done?"
 │  ├─ My next step
 │  ├─ Blocker: [open blocker 1]
 │  ├─ Blocker: [open blocker 2]
@@ -1049,7 +1063,7 @@ Select Room message → Mark done
 │  └─ Just mark this message as done
 ├─ user selects target
 ├─ save
-└─ emit room ActivityEvent(done_marked / blocker_resolved / participant_status_changed)
+└─ emit room BeaconActivityEvent(doneMarked / blockerResolved / participantStatusChanged)
 ```
 
 If there is exactly one open blocker, preselect it but still require confirmation:
@@ -1078,14 +1092,14 @@ Select message → Need info
 ├─ choose target person
 ├─ write short request
 ├─ save
-└─ emit ActivityEvent(need_info_opened) with room visibility by default
+└─ emit BeaconActivityEvent(needInfoOpened) with room visibility by default
 ```
 
 Target user sees:
 
 ```text
 Asked of you: [request]
-[Answer] [Can’t] [Not me]
+[Answer] [Can't] [Not me]
 ```
 
 Effects:
@@ -1098,14 +1112,14 @@ YOU strip for target:
   shows requested next move
 
 People:
-  target status = needs_info
-  target next_move_status = requested
+  target status = needsInfo
+  target nextMoveStatus = requested
 
 Inbox/My Work for target:
-  card shows “Needs me” if target is admitted
+  card shows "Needs me" if target is admitted
 
 Activity:
-  need_info_opened event appears with room visibility
+  needInfoOpened event appears with room visibility
 
 Notifications:
   notify target person
@@ -1174,7 +1188,7 @@ Interactions:
 
 ```text
 Reply:
-  composer links message to blocker_id
+  composer links message to linkedBlockerId
 
 Resolve:
   closes blocker after confirmation
@@ -1221,9 +1235,9 @@ Alex marked next step done
 
 System inserts should be visually quieter than user messages but more visible than tiny metadata.
 
-## People lens changes
+## People lens
 
-The People lens replaces the previous “Help offers” lens. It should contain all relevant people, but visibility depends on viewer access.
+The People lens contains all relevant people, but visibility depends on viewer access.
 
 ```text
 People
@@ -1272,21 +1286,6 @@ People
    └─ room access state if visible
 ```
 
-Person statuses:
-
-```text
-watching
-offered_help
-candidate
-admitted
-checking
-offered help
-needs_info
-blocked
-done
-withdrawn
-```
-
 People lens should answer:
 
 ```text
@@ -1302,11 +1301,11 @@ For Author/Steward:
 
 For Room members:
   Who is involved?
-  What is each person’s role/status?
+  What is each person's role/status?
   Who is waiting on whom?
 ```
 
-## Overview lens changes
+## Overview lens
 
 Overview remains non-chatty. It summarizes public Beacon state and provides Room entry points where allowed.
 
@@ -1324,11 +1323,9 @@ Do not show private plan in Overview for non-room viewers.
 
 Do not display full Room inside Overview.
 
-## Activity lens changes
+## Activity lens
 
-Activity remains the clean history of meaningful changes.
-
-It should respect event visibility.
+Activity remains the clean history of meaningful changes. It respects event visibility.
 
 ```text
 Activity
@@ -1576,64 +1573,95 @@ Room message
 └─ updates Room unread state for Room members only
 
 Room message + Update plan
-├─ updates RoomState.current_plan
+├─ updates BeaconRoomState.currentPlan
 ├─ updates Room NOW strip
-├─ updates Room members’ My Work snippets if relevant
-└─ creates room ActivityEvent(plan_updated)
+├─ updates Room members' My Work snippets if relevant
+└─ creates room BeaconActivityEvent(planUpdated)
 
 Room message + Pin public fact
-├─ creates public FactCard
+├─ creates public BeaconFactCard
 ├─ updates Overview public fact list
 ├─ updates Forward screen public fact list
 ├─ may update Inbox public summary
-└─ creates public ActivityEvent(fact_pinned)
+└─ creates public BeaconActivityEvent(factPinned)
 
 Room message + Pin private fact
-├─ creates room FactCard
+├─ creates room BeaconFactCard
 ├─ updates Room NOW strip / Room fact cards
-└─ creates room ActivityEvent(fact_pinned)
+└─ creates room BeaconActivityEvent(factPinned)
 
 Room message + Mark blocker
-├─ creates room-private Blocker
+├─ creates room-private beacon_blocker
 ├─ updates Room NOW strip
 ├─ updates People affected participant, if selected and visible
-├─ updates Room members’ My Work state
+├─ updates Room members' My Work state
 ├─ sends targeted notifications
-└─ creates room ActivityEvent(blocker_opened)
+└─ creates room BeaconActivityEvent(blockerOpened)
 
 Author/Steward public status update
-├─ updates BeaconPublicState.status
+├─ updates Beacon.publicStatus
 ├─ updates Overview
 ├─ updates Inbox / Forward public status
-└─ creates public ActivityEvent(public_status_updated)
+└─ creates public BeaconActivityEvent(publicStatusUpdated)
 
 Room message + Need info
-├─ creates requested next move for target
-├─ updates target ParticipantState.status = needs_info
+├─ creates requested next move for target (BeaconParticipant.nextMoveStatus = requested)
+├─ updates target BeaconParticipant.status = needsInfo
 ├─ updates target YOU strip
 ├─ updates People card where visible
-├─ makes Beacon “Needs me” for target if admitted
+├─ makes Beacon "Needs me" for target if admitted
 ├─ sends target notification
-└─ creates room ActivityEvent(need_info_opened)
+└─ creates room BeaconActivityEvent(needInfoOpened)
 
 Room message + Mark done
 ├─ asks user what is done
-├─ if blocker selected: resolves that blocker
+├─ if blocker selected: resolves that blocker (beacon_blocker.status = resolved)
 ├─ if own next move selected: marks own next move done
 ├─ updates People status where visible
-├─ updates Room members’ My Work responsibility state
-└─ creates room ActivityEvent(done_marked / blocker_resolved / participant_status_changed)
+├─ updates Room members' My Work responsibility state
+└─ creates room BeaconActivityEvent(doneMarked / blockerResolved / participantStatusChanged)
 
 Offer help
-├─ creates Candidate helper state
+├─ creates Candidate helper state (BeaconParticipant.status = offeredHelp or candidate)
 ├─ notifies Author/Steward
 ├─ appears in People for Author/Steward
-└─ if approved: grants Room access and creates candidate_admitted event
+└─ if approved: grants Room access and creates candidateAdmitted event
 ```
 
-## UX writing examples
+## UI language
 
-Use human, non-managerial phrasing.
+Use social, non-managerial wording.
+
+Prefer:
+
+```text
+Offer help
+I'll do this
+Asked of you
+Waiting on
+Can you?
+You offered to
+No longer needed
+Resolved
+Withdraw
+```
+
+Avoid:
+
+```text
+Assigned to you
+Task owner
+Overdue
+Failed
+Required
+Must
+Manager
+Ticket
+```
+
+Reason: Tentura should create clarity without managerial authority.
+
+## UX writing examples
 
 Good:
 
@@ -1650,8 +1678,8 @@ Next: confirm cabin slot or mark blocked.
 
 ```text
 Asked of you
-Can you provide the cat’s exact weight?
-[Answer] [Can’t] [Not me]
+Can you provide the cat's exact weight?
+[Answer] [Can't] [Not me]
 ```
 
 ```text
@@ -1675,6 +1703,128 @@ Mandatory action required
 Rejected as not useful
 ```
 
+## Failure modes to design against
+
+### 1. Telegram-with-forms
+
+Symptom: users still coordinate in main chat; semantic items are after-the-fact bureaucracy.
+
+Countermeasure: one-tap promotion, item threads, NOW/YOU summaries.
+
+### 2. Slack-clone drift
+
+Symptom: channels, threads, tasks, AI summaries, but no primary coordination object.
+
+Countermeasure: Beacon and semantic actions are primary; chat is attached.
+
+### 3. Thread burial
+
+Symptom: details are contained but shared state is invisible.
+
+Countermeasure: every semantic action updates NOW/YOU/People/Activity through state deltas.
+
+### 4. Jira-ification
+
+Symptom: people feel assigned, monitored, and judged.
+
+Countermeasure: use Ask/Offer/Resolve language, not task/assignment language.
+
+### 5. Ambiguous acceptance
+
+Symptom: "ok" could mean seen, understood, accepted, or done.
+
+Countermeasure: model participant next-move and response states explicitly.
+
+### 6. Stale object rot
+
+Symptom: blockers and need-info remain open forever.
+
+Countermeasure: stale reminders, cancel/supersede paths, explicit resolve required.
+
+### 7. False urgency / panic abuse
+
+Symptom: "everything broken, urgent" later turns out to be minor.
+
+Countermeasure: blockers require scope/evidence/workaround and can resolve as false alarm.
+
+### 8. External-channel leakage
+
+Symptom: people say "let's just do this in Telegram."
+
+Countermeasure: preserve warm chat, photos, files, and social repair, but make operational consequences easier inside Tentura.
+
+### 9. Ontology creep
+
+Symptom: every edge case becomes a new object type.
+
+Countermeasure: keep v1 to Update plan / Pin fact / Mark blocker / Mark done / Need info.
+
+### 10. Review anxiety
+
+Symptom: users fear hidden scoring.
+
+Countermeasure: private, local, contribution-oriented acknowledgement; no public reputation surfaces.
+
+## Post-close review
+
+After successful or partial closure, optionally open a private contribution acknowledgement flow.
+
+Rules:
+
+```text
+local to beacon
+private by default
+role-specific prompts
+No basis distinct from neutral
+strong ratings require reason tag
+no public score
+no leaderboard
+```
+
+Frame as:
+
+```text
+Acknowledge contributions / Close the loop
+```
+
+not:
+
+```text
+Reputation review / 360 rating
+```
+
+## Hard constraints for implementation
+
+Do:
+
+```text
+- Treat Beacon as the temporary coordination cell.
+- Treat semantic actions on RoomMessages as the core Room state mechanism.
+- Keep Update plan / Pin fact / Mark blocker / Mark done / Need info as the only v1 semantic actions.
+- Promote only semantic deltas to main Activity.
+- Keep all state changes explicit, attributed, and reversible/supersedable.
+- Use OfferHelp for beacon-level participation.
+- Keep ordinary chat available.
+- Keep BeaconRoomState.currentPlan Room-private.
+- Respect the two-layer visibility model at every screen boundary.
+```
+
+Do not:
+
+```text
+- Use "Commit" or "Commitment" language for help offers.
+- Create persisted draft items.
+- Build generic DM outside beacon context.
+- Make the Room a general channel.
+- Add public reputation or leaderboards.
+- Silently infer obligations from text.
+- Dump all messages into Activity.
+- Add heavy task-management vocabulary.
+- Add many semantic action types in v1.
+- Auto-promote private facts or plan to public surfaces.
+- Add Room as a fourth Beacon tab.
+```
+
 ## Minimal implementation order
 
 ### Phase 1 — Room as admitted chat
@@ -1690,8 +1840,8 @@ Rejected as not useful
 
 ### Phase 2 — Public/private visibility split
 
-* Add BeaconPublicState.
-* Add RoomState.
+* Add Beacon.publicStatus.
+* Add BeaconRoomState.
 * Ensure plan is Room-private.
 * Ensure Overview/Forward show only public facts/status.
 * Add public/private Activity visibility.
@@ -1717,7 +1867,7 @@ Rejected as not useful
 * Add Need info.
 * Add Mark done with explicit target picker.
 * Add blocker / need-info cards.
-* Add Activity events for semantic changes.
+* Add BeaconActivityEvent records for semantic changes.
 
 ### Phase 6 — Propagation
 
@@ -1748,6 +1898,10 @@ automatic private-to-public promotion
 complex role hierarchy beyond Author + Steward
 ```
 
+## Coordination items (typed objects)
+
+Room messages can reference a `coordination_item` row via `linked_item_id` + `linked_event_kind` on `beacon_room_message` (semantic inserts). **Blocker** is the first shipped kind (PR1): create/mark flows go through V2 GraphQL (`markBlocker`, `resolveBlocker`, `cancelBlocker`, `appendCoordinationItemMessage`, `coordinationItemsByBeacon`, `coordinationItemMessages`) and fan out on `coordination_item` / `coordination_item_message` invalidations. The Items tab lists open/closed items; each item has a dedicated discussion thread. Legacy `semanticMarker` blocker rows remain until PR6 migration/backfill.
+
 ## Acceptance criteria
 
 A successful implementation should satisfy:
@@ -1757,7 +1911,7 @@ A successful implementation should satisfy:
 2. Room opens as a separate screen/mode.
 3. Users who can see the Beacon do not automatically see the Room.
 4. Room admission is controlled by Author and/or Beacon Steward.
-5. Offering help is open, but becoming offered help/involved requires approval.
+5. Offering help is open, but becoming involved requires approval.
 6. The current plan is visible only to Room members.
 7. Public fact cards are visible on public Beacon surfaces.
 8. Private fact cards are visible only in Room.
@@ -1784,3 +1938,6 @@ Author/Steward admit people and control public state.
 Semantic actions reduce ambiguity without turning chat into bureaucracy.
 ```
 
+## One-sentence product definition
+
+Tentura Beacon Room is a warm chat surface wrapped around lightweight semantic state actions, where Update plan, Pin fact, Mark blocker, Mark done, and Need info maintain a shared operational picture without turning cooperation into bureaucracy.

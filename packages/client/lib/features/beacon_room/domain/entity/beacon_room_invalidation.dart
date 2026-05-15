@@ -6,6 +6,8 @@ enum BeaconRoomEntityType {
   participant,
   factCard,
   blocker,
+  coordinationItem,
+  coordinationItemMessage,
 }
 
 /// One debounced invalidation for the current user's beacon room slice.

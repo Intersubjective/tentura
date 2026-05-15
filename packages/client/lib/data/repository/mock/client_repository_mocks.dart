@@ -14,6 +14,7 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
 
 import 'package:tentura/features/complaint/data/repository/complaint_repository.dart';
+import 'package:tentura/features/coordination_item/data/repository/coordination_item_repository.dart';
 import 'package:tentura/features/context/data/repository/context_repository.dart';
 
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
@@ -122,3 +123,6 @@ class MutualFriendsRepositoryMock extends Mock implements MutualFriendsRepositor
 
 @Injectable(as: FcmRemoteRepositoryPort, env: [Environment.test], order: 1)
 class FcmRemoteRepositoryMock extends Mock implements FcmRemoteRepositoryPort {}
+
+@Injectable(as: CoordinationItemRepository, env: [Environment.test], order: 1)
+class CoordinationItemRepositoryMock extends Mock implements CoordinationItemRepository {}

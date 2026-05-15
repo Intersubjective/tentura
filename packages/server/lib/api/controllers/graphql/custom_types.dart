@@ -40,6 +40,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardReasonRow,
   gqlTypePersonTopCapabilities,
   gqlTypePersonFriendContext,
+  gqlTypeCoordinationItemRow,
+  gqlTypeCoordinationItemMessageRow,
 ];
 
 /// Payload returned by `RoomMessageCreate`.
@@ -63,6 +65,15 @@ final gqlTypeRoomMessageRow =
         field('linkedBlockerId', graphQLString),
         field('linkedFactCardId', graphQLString),
         field('linkedPollingId', graphQLString),
+        field('linkedItemId', graphQLString),
+        field('linkedEventKind', graphQLInt),
+        field('linkedItemKind', graphQLInt),
+        field('linkedItemStatus', graphQLInt),
+        field('linkedItemTitle', graphQLString),
+        field('linkedItemBody', graphQLString),
+        field('linkedItemCreatorId', graphQLString),
+        field('linkedItemCreatedAt', graphQLString),
+        field('linkedItemUpdatedAt', graphQLString),
         field('pollDataJson', graphQLString),
         field('systemPayloadJson', graphQLString),
         field('authorTitle', graphQLString.nonNullable()),
@@ -536,4 +547,41 @@ final gqlTypePersonCapabilityCuesPayload =
           'viewerVisible',
           GraphQLListType(gqlTypeCapabilityForViewer.nonNullable()),
         ),
+      ]);
+
+/// `coordination_item` row projection (V2).
+final gqlTypeCoordinationItemRow =
+    GraphQLObjectType('CoordinationItemRow', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+        field('kind', graphQLInt.nonNullable()),
+        field('status', graphQLInt.nonNullable()),
+        field('title', graphQLString.nonNullable()),
+        field('body', graphQLString.nonNullable()),
+        field('creatorId', graphQLString.nonNullable()),
+        field('targetPersonId', graphQLString),
+        field('acceptedById', graphQLString),
+        field('targetItemId', graphQLString),
+        field('targetMessageId', graphQLString),
+        field('linkedMessageId', graphQLString),
+        field('linkedParentItemId', graphQLString),
+        field('ordering', graphQLInt.nonNullable()),
+        field('createdAt', graphQLString.nonNullable()),
+        field('updatedAt', graphQLString.nonNullable()),
+        field('resolvedAt', graphQLString),
+        field('cancelledAt', graphQLString),
+      ]);
+
+/// `coordination_item_message` row projection (V2).
+final gqlTypeCoordinationItemMessageRow =
+    GraphQLObjectType('CoordinationItemMessageRow', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('itemId', graphQLString.nonNullable()),
+        field('beaconId', graphQLString.nonNullable()),
+        field('senderId', graphQLString.nonNullable()),
+        field('body', graphQLString.nonNullable()),
+        field('createdAt', graphQLString.nonNullable()),
+        field('editedAt', graphQLString),
       ]);

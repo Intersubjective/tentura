@@ -1,0 +1,11 @@
+mutation CoordinationItemAppendMessage($itemId: String!, $body: String!) {
+  appendCoordinationItemMessage(itemId: $itemId, body: $body) {
+    id
+    itemId
+    beaconId
+    senderId
+    body
+    createdAt
+    editedAt
+  }
+}

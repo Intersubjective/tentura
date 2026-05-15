@@ -2387,6 +2387,15 @@ type mutation_root {
   capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
   capabilitySetViewerVisible(subjectUserId: String!, slugs: [String!]!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
+  markBlocker(beaconId: String!, title: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  resolveBlocker(itemId: String!, note: String): CoordinationItemRow!
+  cancelBlocker(itemId: String!, reason: String): CoordinationItemRow!
+  markAsk(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  acceptAsk(itemId: String!): CoordinationItemRow!
+  resolveAsk(itemId: String!, note: String): CoordinationItemRow!
+  cancelAsk(itemId: String!, reason: String): CoordinationItemRow!
+  redirectAsk(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
+  appendCoordinationItemMessage(itemId: String!, body: String!): CoordinationItemMessageRow!
 
   """
   delete data from the table: "beacon_pinned"
@@ -3613,6 +3622,8 @@ type query_root {
   BeaconParticipantList(beaconId: String!): [BeaconParticipantRow!]!
   BeaconRoomStateGet(beaconId: String!): BeaconRoomStateRow!
   BeaconActivityEventList(beaconId: String!): [BeaconActivityEventRow!]!
+  coordinationItemsByBeacon(beaconId: String!, status: Int, kind: Int, acceptedById: String, targetPersonId: String): [CoordinationItemRow!]!
+  coordinationItemMessages(itemId: String!, limit: Int, before: String): [CoordinationItemMessageRow!]!
   InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
   BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
   myPrivateLabelsForUser(subjectUserId: String!): [String!]!
@@ -5439,6 +5450,15 @@ type RoomMessageRow {
   linkedBlockerId: String
   linkedFactCardId: String
   linkedPollingId: String
+  linkedItemId: String
+  linkedEventKind: Int
+  linkedItemKind: Int
+  linkedItemStatus: Int
+  linkedItemTitle: String
+  linkedItemBody: String
+  linkedItemCreatorId: String
+  linkedItemCreatedAt: String
+  linkedItemUpdatedAt: String
   pollDataJson: String
   systemPayloadJson: String
   authorTitle: String!
@@ -6279,5 +6299,36 @@ type v2_PersonFriendContext {
   subjectId: String!
   activeForwardsToCount: Int!
   coInvolvedBeaconsCount: Int!
+}
+
+type CoordinationItemRow {
+  id: String!
+  beaconId: String!
+  kind: Int!
+  status: Int!
+  title: String!
+  body: String!
+  creatorId: String!
+  targetPersonId: String
+  acceptedById: String
+  targetItemId: String
+  targetMessageId: String
+  linkedMessageId: String
+  linkedParentItemId: String
+  ordering: Int!
+  createdAt: String!
+  updatedAt: String!
+  resolvedAt: String
+  cancelledAt: String
+}
+
+type CoordinationItemMessageRow {
+  id: String!
+  itemId: String!
+  beaconId: String!
+  senderId: String!
+  body: String!
+  createdAt: String!
+  editedAt: String
 }
 

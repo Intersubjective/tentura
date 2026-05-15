@@ -201,11 +201,17 @@ class RootRouter extends RootStackRouter {
           return BeaconViewRoute(
             id: id,
             isDeepLink: 'true',
-            surface: kBeaconSurfaceRoomQueryValue,
+            viewTab: 'room',
             entry: kBeaconEntryDeepLink,
           );
         }),
       ],
+    ),
+
+    AutoRoute(
+      usesPathAsKey: true,
+      page: ItemDiscussionRoute.page,
+      path: '/item-discussion',
     ),
 
     AutoRoute(
@@ -285,7 +291,7 @@ class RootRouter extends RootStackRouter {
                 queryParameters: {
                   kQueryIsDeepLink: 'true',
                   if (uri.queryParameters['dest'] == 'room') ...{
-                    kQueryBeaconSurface: kBeaconSurfaceRoomQueryValue,
+                    kQueryBeaconViewTab: 'room',
                     kQueryBeaconEntry: kBeaconEntryDeepLink,
                   },
                 },

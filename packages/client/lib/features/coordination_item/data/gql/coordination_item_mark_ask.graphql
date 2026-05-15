@@ -1,0 +1,34 @@
+mutation CoordinationItemMarkAsk(
+  $beaconId: String!
+  $title: String!
+  $targetPersonId: String!
+  $body: String
+  $linkedMessageId: String
+) {
+  markAsk(
+    beaconId: $beaconId
+    title: $title
+    targetPersonId: $targetPersonId
+    body: $body
+    linkedMessageId: $linkedMessageId
+  ) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

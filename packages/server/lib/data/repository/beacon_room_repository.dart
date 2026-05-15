@@ -292,6 +292,21 @@ class BeaconRoomRepository {
       viewerUserId: viewerUserId,
     );
 
+    final linkedItemIds = <String>{
+      for (final m in msgs)
+        if ((m.linkedItemId ?? '').isNotEmpty) m.linkedItemId!,
+    }.toList();
+
+    final linkedCoordinationItemById = <String, CoordinationItem>{};
+    if (linkedItemIds.isNotEmpty) {
+      final itemRows = await (_db.select(_db.coordinationItems)
+            ..where((t) => t.id.isIn(linkedItemIds)))
+          .get();
+      for (final row in itemRows) {
+        linkedCoordinationItemById[row.id] = row;
+      }
+    }
+
     return msgs.map((m) {
       final id = m.id;
       final userRow = userById[m.authorId];
@@ -304,6 +319,10 @@ class BeaconRoomRepository {
       final authorBlurHash = image?.hash ?? '';
       final authorImageId = image != null ? image.id.toString() : '';
 
+      final linkedId = m.linkedItemId;
+      final linkedRow =
+          linkedId != null ? linkedCoordinationItemById[linkedId] : null;
+
       return <String, Object?>{
         'id': id,
         'beaconId': m.beaconId,
@@ -315,6 +334,19 @@ class BeaconRoomRepository {
         'linkedBlockerId': m.linkedBlockerId,
         'linkedFactCardId': m.linkedFactCardId,
         'linkedPollingId': m.linkedPollingId,
+        'linkedItemId': linkedId,
+        'linkedEventKind': m.linkedEventKind,
+        if (linkedRow != null) ...<String, Object?>{
+          'linkedItemKind': linkedRow.kind,
+          'linkedItemStatus': linkedRow.status,
+          'linkedItemTitle': linkedRow.title,
+          'linkedItemBody': linkedRow.body,
+          'linkedItemCreatorId': linkedRow.creatorId,
+          'linkedItemCreatedAt':
+              linkedRow.createdAt.dateTime.toUtc().toIso8601String(),
+          'linkedItemUpdatedAt':
+              linkedRow.updatedAt.dateTime.toUtc().toIso8601String(),
+        },
         'pollDataJson': pollDataJsonByMid[id],
         'systemPayloadJson': encodeSystemPayload(m.systemPayload),
         'authorTitle': title,

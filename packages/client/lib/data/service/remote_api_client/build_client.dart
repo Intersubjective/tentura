@@ -179,6 +179,17 @@ class _V2RoutingLink extends Link {
     'PersonCapabilityCues',
     'PersonFriendContextBatch',
     'PersonTopCapabilitiesBatch',
+    'CoordinationItemList',
+    'CoordinationItemMessages',
+    'CoordinationItemMarkBlocker',
+    'CoordinationItemResolveBlocker',
+    'CoordinationItemCancelBlocker',
+    'CoordinationItemMarkAsk',
+    'CoordinationItemAcceptAsk',
+    'CoordinationItemResolveAsk',
+    'CoordinationItemCancelAsk',
+    'CoordinationItemRedirectAsk',
+    'CoordinationItemAppendMessage',
   };
 
   @override

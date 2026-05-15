@@ -187,6 +187,19 @@ class BeaconRoomRepository {
           linkedBlockerId: m.linkedBlockerId,
           linkedFactCardId: m.linkedFactCardId,
           linkedPollingId: m.linkedPollingId,
+          linkedItemId: m.linkedItemId,
+          linkedEventKind: m.linkedEventKind,
+          linkedItemKind: m.linkedItemKind,
+          linkedItemStatus: m.linkedItemStatus,
+          linkedItemTitle: m.linkedItemTitle,
+          linkedItemBody: m.linkedItemBody,
+          linkedItemCreatorId: m.linkedItemCreatorId,
+          linkedItemCreatedAt: m.linkedItemCreatedAt != null
+              ? DateTime.parse(m.linkedItemCreatedAt!)
+              : null,
+          linkedItemUpdatedAt: m.linkedItemUpdatedAt != null
+              ? DateTime.parse(m.linkedItemUpdatedAt!)
+              : null,
           pollDataJson: m.pollDataJson,
           systemPayloadJson: m.systemPayloadJson,
           attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
