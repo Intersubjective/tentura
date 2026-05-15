@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -223,6 +224,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// From V2 room APIs when the viewer has room access (else empty / null).
     @Default([]) List<BeaconParticipant> roomParticipants,
     BeaconRoomState? beaconRoomCue,
+    CoordinationItem? openCoordinationBlocker,
 
     /// Server-backed coordination events (Phase 5+); empty when no room API access.
     @Default([]) List<BeaconActivityEvent> roomActivityEvents,

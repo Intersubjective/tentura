@@ -193,6 +193,9 @@ class _V2RoutingLink extends Link {
     'CoordinationItemUpdatePlan',
     'CoordinationItemAddPlanStep',
     'CoordinationItemResolvePlanStep',
+    'CoordinationItemCreateResolution',
+    'CoordinationItemAcceptResolution',
+    'CoordinationItemRejectResolution',
   };
 
   @override

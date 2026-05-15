@@ -15,6 +15,9 @@ import '../gql/_g/coordination_item_append_message.data.gql.dart';
 import '../gql/_g/coordination_item_update_plan.data.gql.dart';
 import '../gql/_g/coordination_item_add_plan_step.data.gql.dart';
 import '../gql/_g/coordination_item_resolve_plan_step.data.gql.dart';
+import '../gql/_g/coordination_item_create_resolution.data.gql.dart';
+import '../gql/_g/coordination_item_accept_resolution.data.gql.dart';
+import '../gql/_g/coordination_item_reject_resolution.data.gql.dart';
 
 extension type const CoordinationItemListModel(GCoordinationItemListData_coordinationItemsByBeacon i) implements GCoordinationItemListData_coordinationItemsByBeacon {
   CoordinationItem toEntity() => CoordinationItem(
@@ -294,6 +297,75 @@ extension type const CoordinationItemAddPlanStepModel(GCoordinationItemAddPlanSt
 }
 
 extension type const CoordinationItemResolvePlanStepModel(GCoordinationItemResolvePlanStepData_resolvePlanStep i) implements GCoordinationItemResolvePlanStepData_resolvePlanStep {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+      );
+}
+
+extension type const CoordinationItemCreateResolutionModel(GCoordinationItemCreateResolutionData_createResolution i) implements GCoordinationItemCreateResolutionData_createResolution {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+      );
+}
+
+extension type const CoordinationItemAcceptResolutionModel(GCoordinationItemAcceptResolutionData_acceptResolution i) implements GCoordinationItemAcceptResolutionData_acceptResolution {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+      );
+}
+
+extension type const CoordinationItemRejectResolutionModel(GCoordinationItemRejectResolutionData_rejectResolution i) implements GCoordinationItemRejectResolutionData_rejectResolution {
   CoordinationItem toEntity() => CoordinationItem(
         id: i.id,
         beaconId: i.beaconId,

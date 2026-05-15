@@ -461,6 +461,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final beaconRoomCue = results[6] as BeaconRoomState?;
       final roomActivityEvents = results[7]! as List<BeaconActivityEvent>;
       final roomUnreadCount = results[8]! as int;
+      final openCoordinationBlocker = beaconRoomCue != null
+          ? await _case.fetchOpenCoordinationBlocker(beaconId)
+          : null;
 
       final isHelpOffered = helpOffers
           .where((c) => c.status == 0)
@@ -537,6 +540,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           factCards: factCards,
           roomParticipants: roomParticipants,
           beaconRoomCue: beaconRoomCue,
+          openCoordinationBlocker: openCoordinationBlocker,
           roomActivityEvents: roomActivityEvents,
           showDraftEvaluationCta: showDraftEvaluationCta,
           roomUnreadCount: roomUnreadCount,

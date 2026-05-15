@@ -1,0 +1,36 @@
+mutation CoordinationItemCreateResolution(
+  $beaconId: String!
+  $title: String!
+  $body: String
+  $targetItemId: String
+  $targetMessageId: String
+  $linkedMessageId: String
+) {
+  createResolution(
+    beaconId: $beaconId
+    title: $title
+    body: $body
+    targetItemId: $targetItemId
+    targetMessageId: $targetMessageId
+    linkedMessageId: $linkedMessageId
+  ) {
+    id
+    beaconId
+    kind
+    status
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+  }
+}

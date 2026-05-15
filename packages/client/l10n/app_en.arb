@@ -3089,5 +3089,12 @@
   "coordinationSemanticPlanOpened": "Plan updated",
   "coordinationSemanticPlanSuperseded": "Plan superseded",
   "coordinationSemanticPlanStepResolved": "Plan step done",
-  "beaconRoomActionUpdatePlanFromMessage": "Update plan from message…"
+  "beaconRoomActionUpdatePlanFromMessage": "Update plan from message…",
+  "coordinationResolutionCardLabel": "Resolution",
+  "coordinationResolutionAcceptLabel": "Accept",
+  "coordinationResolutionRejectLabel": "Reject",
+  "beaconRoomActionCreateResolution": "Propose resolution…",
+  "coordinationSemanticResolutionOpened": "Resolution proposed",
+  "coordinationSemanticResolutionResolved": "Resolution accepted",
+  "coordinationSemanticResolutionCancelled": "Resolution rejected"
 }
