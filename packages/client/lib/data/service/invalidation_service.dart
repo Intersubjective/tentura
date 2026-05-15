@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -74,8 +76,8 @@ class InvalidationService {
       .asBroadcastStream();
 
   void _onInvalidation(Map<String, dynamic> msg) {
-    final payload = msg['payload'];
-    if (payload is! Map<String, dynamic>) return;
+    final payload = _normalizeJsonObject(msg['payload']);
+    if (payload == null) return;
     final id = payload['id'] as String?;
     if (id == null) return;
 
@@ -88,37 +90,68 @@ class InvalidationService {
         _forwardChanges.add(id);
       case 'room_message':
         _beaconRoomChanges.add(
-          (beaconId: id, entityType: BeaconRoomEntityType.roomMessage),
+          BeaconRoomInvalidation(
+            beaconId: id,
+            entityType: BeaconRoomEntityType.roomMessage,
+          ),
         );
       case 'participant':
         _beaconRoomChanges.add(
-          (beaconId: id, entityType: BeaconRoomEntityType.participant),
+          BeaconRoomInvalidation(
+            beaconId: id,
+            entityType: BeaconRoomEntityType.participant,
+          ),
         );
       case 'fact_card':
         _beaconRoomChanges.add(
-          (beaconId: id, entityType: BeaconRoomEntityType.factCard),
+          BeaconRoomInvalidation(
+            beaconId: id,
+            entityType: BeaconRoomEntityType.factCard,
+          ),
         );
       case 'blocker':
         _beaconRoomChanges.add(
-          (beaconId: id, entityType: BeaconRoomEntityType.blocker),
+          BeaconRoomInvalidation(
+            beaconId: id,
+            entityType: BeaconRoomEntityType.blocker,
+          ),
         );
       case 'activity_event':
         _beaconRoomChanges.add(
-          (beaconId: id, entityType: BeaconRoomEntityType.activityEvent),
+          BeaconRoomInvalidation(
+            beaconId: id,
+            entityType: BeaconRoomEntityType.activityEvent,
+          ),
         );
       case 'coordination_item':
         _beaconRoomChanges.add(
-          (beaconId: id, entityType: BeaconRoomEntityType.coordinationItem),
+          BeaconRoomInvalidation(
+            beaconId: id,
+            entityType: BeaconRoomEntityType.coordinationItem,
+          ),
         );
       case 'coordination_item_message':
         _beaconRoomChanges.add(
-          (
+          BeaconRoomInvalidation(
             beaconId: id,
             entityType: BeaconRoomEntityType.coordinationItemMessage,
           ),
         );
       case 'person_capability_event':
         _capabilityChanges.add(id);
+    }
+  }
+
+  /// WebSocket `jsonDecode` may retain JS-backed values; round-trip so
+  /// `payload['entity']` / `id` are plain Dart strings for the switch above.
+  static Map<String, dynamic>? _normalizeJsonObject(Object? value) {
+    if (value == null) return null;
+    try {
+      final decoded = jsonDecode(jsonEncode(value));
+      if (decoded is! Map) return null;
+      return Map<String, dynamic>.from(decoded);
+    } on Object {
+      return null;
     }
   }
 
