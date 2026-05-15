@@ -37,6 +37,14 @@ class ItemsTab extends StatelessWidget {
     final l10n = L10n.of(context)!;
 
     return BlocBuilder<ItemsTabCubit, ItemsTabState>(
+      buildWhen: (prev, curr) {
+        if (curr.isLoading) {
+          return prev.openItems.isEmpty &&
+              prev.closedItems.isEmpty &&
+              prev.draftAskItems.isEmpty;
+        }
+        return true;
+      },
       builder: (context, tabState) {
         if (tabState.isLoading) {
           return const Center(child: CircularProgressIndicator.adaptive());
@@ -146,44 +154,42 @@ class ItemsTab extends StatelessWidget {
               else ...[
                 const SizedBox(height: 8),
                 for (final item in openItems)
-                  ItemCard(
+                  _ItemCardAnimatedRow(
+                    key: ValueKey(item.id),
                     item: item,
-                    onResolve: () {
+                    resolveAction: () async {
                       final cubit = context.read<ItemsTabCubit>();
                       if (item.kind == CoordinationItemKind.plan &&
                           item.isPlanStep) {
-                        unawaited(cubit.resolvePlanStep(item.id));
+                        await cubit.resolvePlanStep(item.id);
                       } else if (item.kind == CoordinationItemKind.ask) {
-                        unawaited(cubit.resolveAsk(item.id));
+                        await cubit.resolveAsk(item.id);
                       } else {
-                        unawaited(cubit.resolveBlocker(item.id));
+                        await cubit.resolveBlocker(item.id);
                       }
                     },
-                    onCancel: () {
+                    cancelAction: () async {
                       final cubit = context.read<ItemsTabCubit>();
                       if (item.kind == CoordinationItemKind.ask) {
-                        unawaited(cubit.cancelAsk(item.id));
+                        await cubit.cancelAsk(item.id);
                       } else {
-                        unawaited(cubit.cancelBlocker(item.id));
+                        await cubit.cancelBlocker(item.id);
                       }
                     },
-                    onAccept: switch (item.kind) {
-                      CoordinationItemKind.ask => () => unawaited(
-                            context.read<ItemsTabCubit>().acceptAsk(item.id),
-                          ),
-                      CoordinationItemKind.resolution => () => unawaited(
-                            context
-                                .read<ItemsTabCubit>()
-                                .acceptResolution(item.id),
-                          ),
+                    acceptAction: switch (item.kind) {
+                      CoordinationItemKind.ask => () =>
+                          context.read<ItemsTabCubit>().acceptAsk(item.id),
+                      CoordinationItemKind.resolution => () =>
+                          context.read<ItemsTabCubit>().acceptResolution(
+                                item.id,
+                              ),
                       _ => null,
                     },
-                    onReject: item.kind == CoordinationItemKind.resolution
-                        ? () => unawaited(
-                              context
-                                  .read<ItemsTabCubit>()
-                                  .rejectResolution(item.id),
-                            )
+                    rejectAction: item.kind == CoordinationItemKind.resolution
+                        ? () =>
+                            context.read<ItemsTabCubit>().rejectResolution(
+                                  item.id,
+                                )
                         : null,
                   ),
                 if (closedItems.isNotEmpty) ...[
@@ -203,6 +209,89 @@ class ItemsTab extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ItemCardAnimatedRow extends StatefulWidget {
+  const _ItemCardAnimatedRow({
+    required this.item,
+    required this.resolveAction,
+    required this.cancelAction,
+    this.acceptAction,
+    this.rejectAction,
+    super.key,
+  });
+
+  final CoordinationItem item;
+  final Future<void> Function() resolveAction;
+  final Future<void> Function() cancelAction;
+  final Future<void> Function()? acceptAction;
+  final Future<void> Function()? rejectAction;
+
+  @override
+  State<_ItemCardAnimatedRow> createState() => _ItemCardAnimatedRowState();
+}
+
+class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
+  bool _visible = true;
+  bool _entered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() => _entered = true);
+      }
+    });
+  }
+
+  Future<void> _animateThenCall(Future<void> Function() action) async {
+    setState(() => _visible = false);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    if (!mounted) {
+      return;
+    }
+    await action();
+    if (!mounted) {
+      return;
+    }
+    if (context.read<ItemsTabCubit>().state.hasError) {
+      setState(() => _visible = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      child: AnimatedOpacity(
+        opacity: _visible && _entered ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 150),
+        child: _visible
+            ? ItemCard(
+                item: widget.item,
+                onResolve: () => unawaited(
+                  _animateThenCall(widget.resolveAction),
+                ),
+                onCancel: () => unawaited(
+                  _animateThenCall(widget.cancelAction),
+                ),
+                onAccept: widget.acceptAction == null
+                    ? null
+                    : () => unawaited(
+                          _animateThenCall(widget.acceptAction!),
+                        ),
+                onReject: widget.rejectAction == null
+                    ? null
+                    : () => unawaited(
+                          _animateThenCall(widget.rejectAction!),
+                        ),
+              )
+            : const SizedBox.shrink(),
+      ),
     );
   }
 }
