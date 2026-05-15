@@ -217,6 +217,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             onOpenPollSheet: (ctx) => _showCreatePollSheet(ctx, cubit),
             imageRepository: GetIt.I<ImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
+            onScrollToPromoteSource: cubit.requestScrollToMessage,
           );
         },
       ),

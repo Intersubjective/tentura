@@ -109,24 +109,73 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
                     published: const Value(true),
                   ));
 
-          final roomMsgId = generateId('R');
-          await _db.managers.beaconRoomMessages.createReturning((o) => o(
-                id: roomMsgId,
-                beaconId: beaconId,
-                authorId: creatorId,
-                body: const Value(''),
-                semanticMarker: const Value(null),
-                linkedBlockerId: const Value(null),
-                linkedNextMoveId: const Value(null),
-                linkedFactCardId: const Value(null),
-                linkedPollingId: const Value(null),
+          final trimmedLinkedMessageId = linkedMessageId?.trim();
+          final String roomMsgIdForActivity;
+          if (trimmedLinkedMessageId != null &&
+              trimmedLinkedMessageId.isNotEmpty) {
+            final srcRows = await (_db.select(_db.beaconRoomMessages)
+                  ..where((t) => t.id.equals(trimmedLinkedMessageId)))
+                .get();
+            if (srcRows.isEmpty) {
+              throw StateError(
+                'Linked room message not found: $trimmedLinkedMessageId',
+              );
+            }
+            if (srcRows.first.beaconId != beaconId) {
+              throw StateError(
+                'Linked message $trimmedLinkedMessageId is not in beacon $beaconId',
+              );
+            }
+            await (_db.update(_db.beaconRoomMessages)
+                  ..where((t) => t.id.equals(trimmedLinkedMessageId)))
+                .write(
+              BeaconRoomMessagesCompanion(
                 linkedItemId: Value(id),
-                linkedEventKind:
-                    const Value(coordinationEventKindCreated),
-                systemPayload: const Value(null),
-                mentions: const Value([]),
-                createdAt: const Value.absent(),
-              ));
+                linkedEventKind: const Value(coordinationEventKindCreated),
+              ),
+            );
+            final notifyId = generateId('R');
+            await _db.managers.beaconRoomMessages.createReturning((o) => o(
+                  id: notifyId,
+                  beaconId: beaconId,
+                  authorId: creatorId,
+                  body: const Value(''),
+                  semanticMarker: const Value(null),
+                  linkedBlockerId: const Value(null),
+                  linkedNextMoveId: const Value(null),
+                  linkedFactCardId: const Value(null),
+                  linkedPollingId: const Value(null),
+                  linkedItemId: Value(id),
+                  linkedEventKind:
+                      const Value(coordinationEventKindCreated),
+                  systemPayload: Value(<String, Object?>{
+                    'sourceMessageId': trimmedLinkedMessageId,
+                  }),
+                  mentions: const Value([]),
+                  createdAt: const Value.absent(),
+                ));
+            roomMsgIdForActivity = notifyId;
+          } else {
+            final roomMsgId = generateId('R');
+            await _db.managers.beaconRoomMessages.createReturning((o) => o(
+                  id: roomMsgId,
+                  beaconId: beaconId,
+                  authorId: creatorId,
+                  body: const Value(''),
+                  semanticMarker: const Value(null),
+                  linkedBlockerId: const Value(null),
+                  linkedNextMoveId: const Value(null),
+                  linkedFactCardId: const Value(null),
+                  linkedPollingId: const Value(null),
+                  linkedItemId: Value(id),
+                  linkedEventKind:
+                      const Value(coordinationEventKindCreated),
+                  systemPayload: const Value(null),
+                  mentions: const Value([]),
+                  createdAt: const Value.absent(),
+                ));
+            roomMsgIdForActivity = roomMsgId;
+          }
 
           await _db.managers.beaconActivityEvents.create(
             (o) => o(
@@ -136,7 +185,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               type: _activityEventTypeForKind(kind, coordinationEventKindCreated),
               actorId: Value(creatorId),
               targetUserId: Value(targetPersonId),
-              sourceMessageId: Value(roomMsgId),
+              sourceMessageId: Value(roomMsgIdForActivity),
               diff: const Value(null),
               createdAt: const Value.absent(),
             ),
