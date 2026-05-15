@@ -9,6 +9,7 @@ class ItemCard extends StatelessWidget {
     this.onResolve,
     this.onCancel,
     this.onAccept,
+    this.onReject,
     this.onTap,
     super.key,
   });
@@ -17,6 +18,7 @@ class ItemCard extends StatelessWidget {
   final VoidCallback? onResolve;
   final VoidCallback? onCancel;
   final VoidCallback? onAccept;
+  final VoidCallback? onReject;
   final VoidCallback? onTap;
 
   @override
@@ -40,6 +42,7 @@ class ItemCard extends StatelessWidget {
       CoordinationItemKind.plan => item.isPlanStep
           ? l10n.coordinationPlanStepCardLabel
           : l10n.coordinationPlanCardLabel,
+      CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
       _ => l10n.coordinationItemCardTitle,
     };
 
@@ -114,6 +117,21 @@ class ItemCard extends StatelessWidget {
         _ActionChip(
           label: l10n.coordinationBlockerActionCancel,
           onPressed: onCancel,
+          icon: Icons.close,
+        ),
+      ];
+    }
+    if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
+      return [
+        _ActionChip(
+          label: l10n.coordinationResolutionAcceptLabel,
+          onPressed: onAccept,
+          icon: Icons.check,
+        ),
+        const SizedBox(width: 4),
+        _ActionChip(
+          label: l10n.coordinationResolutionRejectLabel,
+          onPressed: onReject ?? onCancel,
           icon: Icons.close,
         ),
       ];

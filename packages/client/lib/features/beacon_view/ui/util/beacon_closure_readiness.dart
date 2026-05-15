@@ -83,6 +83,8 @@ BeaconParticipant? beaconParticipantForUser(
 }
 
 bool _hasOpenBlocker(BeaconViewState state) {
+  final coord = state.openCoordinationBlocker;
+  if (coord != null && coord.isOpen) return true;
   final t = state.beaconRoomCue?.openBlockerTitle?.trim();
   return t != null && t.isNotEmpty;
 }

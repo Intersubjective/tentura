@@ -45,6 +45,15 @@ class ItemCardInRoom extends StatelessWidget {
             l10n.coordinationSemanticBlockerCancelled,
           _ => l10n.coordinationBlockerCardLabel,
         },
+      CoordinationItemKind.resolution => switch (eventKind) {
+          CoordinationItemEventKind.created =>
+            l10n.coordinationSemanticResolutionOpened,
+          CoordinationItemEventKind.resolved =>
+            l10n.coordinationSemanticResolutionResolved,
+          CoordinationItemEventKind.cancelled =>
+            l10n.coordinationSemanticResolutionCancelled,
+          _ => l10n.coordinationResolutionCardLabel,
+        },
       CoordinationItemKind.plan => switch (eventKind) {
           CoordinationItemEventKind.created ||
           CoordinationItemEventKind.updated =>

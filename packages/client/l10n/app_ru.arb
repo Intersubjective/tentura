@@ -3071,5 +3071,12 @@
   "coordinationSemanticPlanOpened": "План обновлён",
   "coordinationSemanticPlanSuperseded": "План заменён",
   "coordinationSemanticPlanStepResolved": "Шаг плана выполнен",
-  "beaconRoomActionUpdatePlanFromMessage": "Обновить план из сообщения…"
+  "beaconRoomActionUpdatePlanFromMessage": "Обновить план из сообщения…",
+  "coordinationResolutionCardLabel": "Решение",
+  "coordinationResolutionAcceptLabel": "Принять",
+  "coordinationResolutionRejectLabel": "Отклонить",
+  "beaconRoomActionCreateResolution": "Предложить решение…",
+  "coordinationSemanticResolutionOpened": "Решение предложено",
+  "coordinationSemanticResolutionResolved": "Решение принято",
+  "coordinationSemanticResolutionCancelled": "Решение отклонено"
 }

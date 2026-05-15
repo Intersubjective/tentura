@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -163,6 +164,9 @@ final class BeaconViewCase extends UseCaseBase {
   }
 
   /// Latest private room state slice; `null` when the viewer cannot use the room API.
+  Future<CoordinationItem?> fetchOpenCoordinationBlocker(String beaconId) =>
+      _beaconRoomCase.fetchOpenCoordinationBlocker(beaconId);
+
   Future<BeaconRoomState?> fetchRoomStateIfAllowed(String beaconId) async {
     try {
       return await _beaconRoomCase.fetchBeaconRoomState(beaconId);

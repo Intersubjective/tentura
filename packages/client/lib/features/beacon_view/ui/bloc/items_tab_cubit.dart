@@ -102,6 +102,24 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
     }
   }
 
+  Future<void> acceptResolution(String itemId) async {
+    try {
+      await _case.acceptResolution(itemId: itemId);
+      await fetch();
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> rejectResolution(String itemId) async {
+    try {
+      await _case.rejectResolution(itemId: itemId);
+      await fetch();
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> resolvePlanStep(String itemId) async {
     try {
       await _case.resolvePlanStep(itemId: itemId);

@@ -109,6 +109,41 @@ class CoordinationItemCase {
   Future<CoordinationItem> resolvePlanStep({required String itemId}) =>
       _repository.resolvePlanStep(itemId: itemId);
 
+  Future<CoordinationItem?> fetchOpenBlocker(String beaconId) async {
+    final items = await listByBeacon(
+      beaconId,
+      status: CoordinationItemStatus.open.value,
+      kind: CoordinationItemKind.blocker.value,
+    );
+    return items.firstOrNull;
+  }
+
+  Future<CoordinationItem> createResolution({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? targetItemId,
+    String? targetMessageId,
+    String? linkedMessageId,
+  }) =>
+      _repository.createResolution(
+        beaconId: beaconId,
+        title: title,
+        body: body,
+        targetItemId: targetItemId,
+        targetMessageId: targetMessageId,
+        linkedMessageId: linkedMessageId,
+      );
+
+  Future<CoordinationItem> acceptResolution({required String itemId}) =>
+      _repository.acceptResolution(itemId: itemId);
+
+  Future<CoordinationItem> rejectResolution({
+    required String itemId,
+    String? reason,
+  }) =>
+      _repository.rejectResolution(itemId: itemId, reason: reason);
+
   Future<CoordinationItem?> fetchCurrentRootPlan(String beaconId) async {
     final open = await listByBeacon(
       beaconId,

@@ -18,6 +18,9 @@ import '../gql/_g/coordination_item_append_message.req.gql.dart';
 import '../gql/_g/coordination_item_update_plan.req.gql.dart';
 import '../gql/_g/coordination_item_add_plan_step.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_plan_step.req.gql.dart';
+import '../gql/_g/coordination_item_create_resolution.req.gql.dart';
+import '../gql/_g/coordination_item_accept_resolution.req.gql.dart';
+import '../gql/_g/coordination_item_reject_resolution.req.gql.dart';
 import '../model/coordination_item_model.dart';
 
 @lazySingleton
@@ -268,6 +271,58 @@ class CoordinationItemRepository {
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then((r) => (r.dataOrThrow(label: _label).resolvePlanStep
                   as CoordinationItemResolvePlanStepModel)
+              .toEntity());
+
+  Future<CoordinationItem> createResolution({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? targetItemId,
+    String? targetMessageId,
+    String? linkedMessageId,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemCreateResolutionReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..title = title
+                ..body = body
+                ..targetItemId = targetItemId
+                ..targetMessageId = targetMessageId
+                ..linkedMessageId = linkedMessageId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).createResolution
+                  as CoordinationItemCreateResolutionModel)
+              .toEntity());
+
+  Future<CoordinationItem> acceptResolution({required String itemId}) =>
+      _remote
+          .request(
+            GCoordinationItemAcceptResolutionReq((b) => b.vars..itemId = itemId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).acceptResolution
+                  as CoordinationItemAcceptResolutionModel)
+              .toEntity());
+
+  Future<CoordinationItem> rejectResolution({
+    required String itemId,
+    String? reason,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemRejectResolutionReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..reason = reason,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).rejectResolution
+                  as CoordinationItemRejectResolutionModel)
               .toEntity());
 
   Future<CoordinationItemMessage> appendMessage({

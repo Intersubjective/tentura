@@ -52,7 +52,10 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
               return PopupMenuButton<String>(
                 onSelected: (v) {
                   final cubit = context.read<ItemDiscussionCubit>();
-                  if (item.kind == CoordinationItemKind.ask) {
+                  if (item.kind == CoordinationItemKind.resolution) {
+                    if (v == 'accept') unawaited(cubit.acceptResolution());
+                    if (v == 'reject') unawaited(cubit.rejectResolution());
+                  } else if (item.kind == CoordinationItemKind.ask) {
                     if (v == 'accept') unawaited(cubit.acceptAsk());
                     if (v == 'resolve') unawaited(cubit.resolveAsk());
                     if (v == 'cancel') unawaited(cubit.cancelAsk());
@@ -62,6 +65,18 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                   }
                 },
                 itemBuilder: (_) {
+                  if (item.kind == CoordinationItemKind.resolution) {
+                    return [
+                      PopupMenuItem(
+                        value: 'accept',
+                        child: Text(l10n.coordinationResolutionAcceptLabel),
+                      ),
+                      PopupMenuItem(
+                        value: 'reject',
+                        child: Text(l10n.coordinationResolutionRejectLabel),
+                      ),
+                    ];
+                  }
                   if (item.kind == CoordinationItemKind.ask) {
                     return [
                       if (item.isOpen)

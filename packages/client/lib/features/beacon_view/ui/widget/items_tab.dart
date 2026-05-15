@@ -61,9 +61,20 @@ class ItemsTab extends StatelessWidget {
                     unawaited(cubit.cancelBlocker(item.id));
                   }
                 },
-                onAccept: item.kind == CoordinationItemKind.ask
+                onAccept: switch (item.kind) {
+                  CoordinationItemKind.ask => () => unawaited(
+                        context.read<ItemsTabCubit>().acceptAsk(item.id),
+                      ),
+                  CoordinationItemKind.resolution => () => unawaited(
+                        context.read<ItemsTabCubit>().acceptResolution(item.id),
+                      ),
+                  _ => null,
+                },
+                onReject: item.kind == CoordinationItemKind.resolution
                     ? () => unawaited(
-                          context.read<ItemsTabCubit>().acceptAsk(item.id),
+                          context
+                              .read<ItemsTabCubit>()
+                              .rejectResolution(item.id),
                         )
                     : null,
               ),

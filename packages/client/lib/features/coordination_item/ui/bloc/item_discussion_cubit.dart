@@ -103,6 +103,24 @@ class ItemDiscussionCubit extends Cubit<ItemDiscussionState> {
     }
   }
 
+  Future<void> acceptResolution() async {
+    try {
+      final updated = await _case.acceptResolution(itemId: state.item.id);
+      emit(state.copyWith(item: updated));
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> rejectResolution() async {
+    try {
+      final updated = await _case.rejectResolution(itemId: state.item.id);
+      emit(state.copyWith(item: updated));
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   @override
   Future<void> close() async {
     await _invalidationSub.cancel();
