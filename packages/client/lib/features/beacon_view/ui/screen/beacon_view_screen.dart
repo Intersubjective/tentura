@@ -42,6 +42,7 @@ import '../widget/beacon_people_participant_card.dart';
 import '../widget/help_offer_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 import '../util/help_offer_types_wire.dart';
+import '../widget/beacon_prepared_ask_sheet.dart';
 import '../widget/items_tab.dart';
 import '../widget/unified_forward_row.dart';
 
@@ -269,6 +270,17 @@ Widget _beaconViewAppBarOverflow({
           ? () => unawaited(
               context.router.pushPath(
                 '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
+              ),
+            )
+          : null,
+      onPrepareAsk: b.lifecycle == BeaconLifecycle.open
+          ? () => unawaited(
+              showPreparedAskEditorSheet(
+                context,
+                beaconId: beaconId,
+                onSaved: () => unawaited(
+                  context.read<ItemsTabCubit>().fetch(),
+                ),
               ),
             )
           : null,
@@ -893,7 +905,10 @@ class _BeaconOperationalScrollView extends StatelessWidget {
         );
 
         final tabBody = switch (idx) {
-          kBeaconTabItems => ItemsTab(state: state),
+          kBeaconTabItems => ItemsTab(
+            state: state,
+            onOpenRoom: onEnterRoomSurface,
+          ),
           kBeaconTabPeople => _HelpOffersTabBody(
             state: state,
             beaconViewCubit: beaconViewCubit,

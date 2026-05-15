@@ -11,7 +11,9 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
+import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 
 import '../bloc/beacon_view_state.dart';
 
@@ -187,18 +189,102 @@ IconData _logIcon(BeaconActivityEvent e) {
   };
 }
 
+Color _coordinationSemanticAccentColor(ColorScheme cs, int type) {
+  final kind = type ~/ 100;
+  final ev = type % 100;
+  return switch (kind) {
+    1 => switch (ev) {
+        1 ||
+        5 =>
+          coordinationItemColor(cs, CoordinationItemKind.plan, CoordinationItemStatus.open),
+        3 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.plan,
+              CoordinationItemStatus.resolved,
+            ),
+        6 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.plan,
+              CoordinationItemStatus.superseded,
+            ),
+        _ => coordinationItemColor(cs, CoordinationItemKind.plan, CoordinationItemStatus.open),
+      },
+    2 => switch (ev) {
+        1 => coordinationItemColor(cs, CoordinationItemKind.ask, CoordinationItemStatus.open),
+        2 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.ask,
+              CoordinationItemStatus.accepted,
+            ),
+        3 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.ask,
+              CoordinationItemStatus.resolved,
+            ),
+        4 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.ask,
+              CoordinationItemStatus.cancelled,
+            ),
+        _ => coordinationItemColor(cs, CoordinationItemKind.ask, CoordinationItemStatus.open),
+      },
+    3 => switch (ev) {
+        1 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.blocker,
+              CoordinationItemStatus.open,
+            ),
+        3 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.blocker,
+              CoordinationItemStatus.resolved,
+            ),
+        4 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.blocker,
+              CoordinationItemStatus.cancelled,
+            ),
+        _ => coordinationItemColor(
+              cs,
+              CoordinationItemKind.blocker,
+              CoordinationItemStatus.open,
+            ),
+      },
+    4 => switch (ev) {
+        1 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.resolution,
+              CoordinationItemStatus.open,
+            ),
+        3 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.resolution,
+              CoordinationItemStatus.resolved,
+            ),
+        4 => coordinationItemColor(
+              cs,
+              CoordinationItemKind.resolution,
+              CoordinationItemStatus.cancelled,
+            ),
+        _ => coordinationItemColor(
+              cs,
+              CoordinationItemKind.resolution,
+              CoordinationItemStatus.open,
+            ),
+      },
+    _ => cs.onSurfaceVariant,
+  };
+}
+
 Color _logIconColor(ThemeData theme, BeaconActivityEvent e) {
-  if (_logTierFor(e) == _LogTier.high) {
-    return theme.colorScheme.primary;
-  }
-  final ev = e.type % 100;
-  if (e.type >= 200 && e.type < 500 && ev == 4) {
-    return theme.colorScheme.error;
+  final cs = theme.colorScheme;
+  if (e.type >= 100 && e.type < 500) {
+    return _coordinationSemanticAccentColor(cs, e.type);
   }
   return switch (e.type) {
-    BeaconActivityEventTypeBits.blockerOpened => theme.colorScheme.error,
-    BeaconActivityEventTypeBits.doneMarked => theme.colorScheme.tertiary,
-    _ => theme.colorScheme.onSurfaceVariant,
+    BeaconActivityEventTypeBits.blockerOpened => cs.error,
+    BeaconActivityEventTypeBits.doneMarked => cs.tertiary,
+    _ => cs.onSurfaceVariant,
   };
 }
 
@@ -216,12 +302,22 @@ Profile _profileFromParticipant(BeaconParticipant p) => Profile(
           : null,
     );
 
-Widget? _logActorsMini(
+/// Leading segment: event icon alone if no actor; otherwise
+/// `[source avatar] [event icon] [target avatar?]` (icon replaces arrow).
+Widget _logLeadSection(
   ThemeData theme,
+  BeaconActivityEvent event,
   BeaconParticipant? actor,
   BeaconParticipant? target,
 ) {
-  if (actor == null) return null;
+  final iconColor = _logIconColor(theme, event);
+  final eventIcon = Icon(
+    _logIcon(event),
+    size: _kLogEventIconSize,
+    color: iconColor,
+  );
+
+  if (actor == null) return eventIcon;
 
   final actorProfile = _profileFromParticipant(actor);
   final actorAvatar = ClipOval(
@@ -232,21 +328,17 @@ Widget? _logActorsMini(
     ),
   );
 
-  if (target == null) return actorAvatar;
+  final children = <Widget>[
+    actorAvatar,
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: eventIcon,
+    ),
+  ];
 
-  final targetProfile = _profileFromParticipant(target);
-  return Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      actorAvatar,
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Icon(
-          Icons.arrow_forward,
-          size: 12,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
+  if (target != null) {
+    final targetProfile = _profileFromParticipant(target);
+    children.add(
       ClipOval(
         child: AvatarRated(
           profile: targetProfile,
@@ -254,7 +346,12 @@ Widget? _logActorsMini(
           withRating: false,
         ),
       ),
-    ],
+    );
+  }
+
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: children,
   );
 }
 
@@ -276,27 +373,21 @@ class _LogActivityTile extends StatelessWidget {
     final theme = Theme.of(context);
     final tier = _logTierFor(event);
     final iconColor = _logIconColor(theme, event);
-    final actorsMini = _logActorsMini(theme, actor, target);
+    final lead = _logLeadSection(theme, event, actor, target);
 
     return Padding(
       padding: kPaddingSmallV,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            _logIcon(event),
-            size: _kLogEventIconSize,
-            color: iconColor,
-          ),
-          if (actorsMini != null) ...[
-            const SizedBox(width: kSpacingSmall),
-            actorsMini,
-          ],
+          lead,
           const SizedBox(width: kSpacingSmall),
           Expanded(
             child: Text(
               label,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: tier == _LogTier.high ? FontWeight.w600 : null,
+                color: iconColor,
               ),
             ),
           ),
