@@ -1,26 +1,53 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
+
+/// Accent color for a coordination item — shared with log tab styling.
+Color coordinationItemColor(
+  ColorScheme cs,
+  CoordinationItemKind kind,
+  CoordinationItemStatus status,
+) =>
+    switch (status) {
+      CoordinationItemStatus.open
+          when kind == CoordinationItemKind.ask ||
+              kind == CoordinationItemKind.blocker =>
+        cs.error,
+      CoordinationItemStatus.open => cs.primary,
+      CoordinationItemStatus.accepted => cs.primary,
+      CoordinationItemStatus.resolved => cs.tertiary,
+      CoordinationItemStatus.cancelled => cs.outline,
+      CoordinationItemStatus.superseded => cs.outline,
+    };
+
+enum _ItemMenuAction {
+  accept,
+  resolve,
+  cancel,
+  reject,
+}
 
 class ItemCard extends StatelessWidget {
   const ItemCard({
     required this.item,
+    this.onOpenRoom,
     this.onResolve,
     this.onCancel,
     this.onAccept,
     this.onReject,
-    this.onTap,
     super.key,
   });
 
   final CoordinationItem item;
+
+  /// Primary card tap — typically opens the beacon room.
+  final VoidCallback? onOpenRoom;
   final VoidCallback? onResolve;
   final VoidCallback? onCancel;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -29,13 +56,11 @@ class ItemCard extends StatelessWidget {
     final textTheme = theme.textTheme;
     final colorScheme = theme.colorScheme;
 
-    final statusColor = switch (item.status) {
-      CoordinationItemStatus.open => colorScheme.error,
-      CoordinationItemStatus.accepted => colorScheme.primary,
-      CoordinationItemStatus.resolved => colorScheme.primary,
-      CoordinationItemStatus.cancelled => colorScheme.outline,
-      _ => colorScheme.secondary,
-    };
+    final statusColor = coordinationItemColor(
+      colorScheme,
+      item.kind,
+      item.status,
+    );
 
     final kindLabel = switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
@@ -50,16 +75,18 @@ class ItemCard extends StatelessWidget {
       CoordinationItemStatus.accepted => Icons.check_circle_outline,
       CoordinationItemStatus.resolved => Icons.check_circle,
       CoordinationItemStatus.cancelled => Icons.cancel_outlined,
+      CoordinationItemStatus.superseded => Icons.swap_horiz,
       _ when item.kind == CoordinationItemKind.blocker => Icons.block,
       _ => Icons.help_outline,
     };
 
-    final actionRow = _buildActionRow(context, l10n);
+    final showMenu = item.published && item.isActive;
+    final menuEntries = _menuEntries(l10n);
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: onOpenRoom,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
@@ -67,18 +94,45 @@ class ItemCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(statusIcon, size: 14, color: statusColor),
-                  const SizedBox(width: 4),
-                  Flexible(
+                  Icon(statusIcon, size: 16, color: statusColor),
+                  const SizedBox(width: kSpacingSmall),
+                  Expanded(
                     child: Text(
                       kindLabel,
-                      style: TenturaText.typeLabel(statusColor),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (showMenu && menuEntries.isNotEmpty)
+                    PopupMenuButton<_ItemMenuAction>(
+                      tooltip: l10n.beaconHudOverflowMore,
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.more_vert, size: 18),
+                      constraints: const BoxConstraints(
+                        minWidth: 44,
+                        minHeight: 44,
+                      ),
+                      itemBuilder: (ctx) => [
+                        for (final e in menuEntries)
+                          PopupMenuItem<_ItemMenuAction>(
+                            value: e.$1,
+                            child: Text(e.$2),
+                          ),
+                      ],
+                      onSelected: (action) => switch (action) {
+                        _ItemMenuAction.accept => onAccept?.call(),
+                        _ItemMenuAction.resolve => onResolve?.call(),
+                        _ItemMenuAction.cancel => onCancel?.call(),
+                        _ItemMenuAction.reject =>
+                          (onReject ?? onCancel)?.call(),
+                      },
+                    ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -88,10 +142,6 @@ class ItemCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              if (actionRow != null) ...[
-                const SizedBox(height: 4),
-                actionRow,
-              ],
             ],
           ),
         ),
@@ -99,142 +149,55 @@ class ItemCard extends StatelessWidget {
     );
   }
 
-  Widget? _buildActionRow(BuildContext context, L10n l10n) {
-    if (!item.published) {
-      return null;
-    }
-    if (!item.isActive) {
-      return null;
+  List<(_ItemMenuAction, String)> _menuEntries(L10n l10n) {
+    if (!item.published || !item.isActive) {
+      return const [];
     }
 
     if (item.kind == CoordinationItemKind.blocker) {
-      return Row(
-        children: [
-          Expanded(
-            child: TenturaTextAction(
-              label: l10n.coordinationBlockerActionResolve,
-              onPressed: onResolve,
-              tone: TenturaTone.good,
-              icon: const Icon(Icons.check),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: TenturaTextAction(
-              label: l10n.coordinationBlockerActionCancel,
-              onPressed: onCancel,
-              tone: TenturaTone.danger,
-              icon: const Icon(Icons.close),
-            ),
-          ),
-        ],
-      );
+      return [
+        if (onResolve != null)
+          (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
+        if (onCancel != null)
+          (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
+      ];
     }
     if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
-      return Row(
-        children: [
-          Expanded(
-            child: TenturaTextAction(
-              label: l10n.coordinationResolutionAcceptLabel,
-              onPressed: onAccept,
-              tone: TenturaTone.good,
-              icon: const Icon(Icons.check),
-            ),
+      return [
+        if (onAccept != null)
+          (_ItemMenuAction.accept, l10n.coordinationResolutionAcceptLabel),
+        if (onReject != null || onCancel != null)
+          (
+            _ItemMenuAction.reject,
+            l10n.coordinationResolutionRejectLabel,
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: TenturaTextAction(
-              label: l10n.coordinationResolutionRejectLabel,
-              onPressed: onReject ?? onCancel,
-              tone: TenturaTone.danger,
-              icon: const Icon(Icons.close),
-            ),
-          ),
-        ],
-      );
+      ];
     }
     if (item.kind == CoordinationItemKind.plan && item.isPlanStep) {
-      return Row(
-        children: [
-          Expanded(
-            child: TenturaTextAction(
-              label: l10n.coordinationBlockerActionResolve,
-              onPressed: onResolve,
-              tone: TenturaTone.good,
-              icon: const Icon(Icons.check),
-            ),
-          ),
-        ],
-      );
+      return [
+        if (onResolve != null)
+          (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
+      ];
     }
     if (item.kind == CoordinationItemKind.ask) {
-      final tt = context.tt;
       if (item.isOpen && onAccept != null) {
-        return Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: onAccept,
-                icon: const Icon(Icons.handshake_outlined, size: 16),
-                label: Text(
-                  l10n.coordinationAskAcceptLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                style: FilledButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              onPressed: onResolve,
-              icon: Icon(Icons.check, color: tt.good),
-              tooltip: l10n.coordinationBlockerActionResolve,
-              style: IconButton.styleFrom(
-                minimumSize: const Size(44, 44),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-            IconButton(
-              onPressed: onCancel,
-              icon: Icon(Icons.close, color: tt.danger),
-              tooltip: l10n.coordinationBlockerActionCancel,
-              style: IconButton.styleFrom(
-                minimumSize: const Size(44, 44),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ],
-        );
+        return [
+          (_ItemMenuAction.accept, l10n.coordinationAskAcceptLabel),
+          if (onResolve != null)
+            (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
+          if (onCancel != null)
+            (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
+        ];
       }
       if (item.isAccepted) {
-        return Row(
-          children: [
-            Expanded(
-              child: TenturaTextAction(
-                label: l10n.coordinationBlockerActionResolve,
-                onPressed: onResolve,
-                tone: TenturaTone.good,
-                icon: const Icon(Icons.check),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: TenturaTextAction(
-                label: l10n.coordinationBlockerActionCancel,
-                onPressed: onCancel,
-                tone: TenturaTone.danger,
-                icon: const Icon(Icons.close),
-              ),
-            ),
-          ],
-        );
+        return [
+          if (onResolve != null)
+            (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
+          if (onCancel != null)
+            (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
+        ];
       }
     }
-    return null;
+    return const [];
   }
 }

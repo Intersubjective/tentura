@@ -27,10 +27,12 @@ import 'beacon_prepared_ask_sheet.dart';
 class ItemsTab extends StatelessWidget {
   const ItemsTab({
     required this.state,
+    required this.onOpenRoom,
     super.key,
   });
 
   final BeaconViewState state;
+  final VoidCallback onOpenRoom;
 
   @override
   Widget build(BuildContext context) {
@@ -97,25 +99,6 @@ class ItemsTab extends StatelessWidget {
                 targetUserId: state.myProfile.id,
                 viewerAcceptedAsk: tabState.viewerAcceptedAsk,
               ),
-              if (isOwner) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.tonalIcon(
-                    onPressed: () => unawaited(
-                      showPreparedAskEditorSheet(
-                        context,
-                        beaconId: beaconId,
-                        onSaved: () => unawaited(
-                          context.read<ItemsTabCubit>().fetch(),
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(Icons.edit_note_outlined),
-                    label: Text(l10n.beaconPreparedAskPrepareAction),
-                  ),
-                ),
-              ],
               if (isOwner && draftAskItems.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 ExpansionTile(
@@ -157,6 +140,7 @@ class ItemsTab extends StatelessWidget {
                   _ItemCardAnimatedRow(
                     key: ValueKey(item.id),
                     item: item,
+                    onOpenRoom: onOpenRoom,
                     resolveAction: () async {
                       final cubit = context.read<ItemsTabCubit>();
                       if (item.kind == CoordinationItemKind.plan &&
@@ -200,7 +184,11 @@ class ItemsTab extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     children: [
-                      for (final item in closedItems) ItemCard(item: item),
+                      for (final item in closedItems)
+                        ItemCard(
+                          item: item,
+                          onOpenRoom: onOpenRoom,
+                        ),
                     ],
                   ),
                 ],
@@ -216,6 +204,7 @@ class ItemsTab extends StatelessWidget {
 class _ItemCardAnimatedRow extends StatefulWidget {
   const _ItemCardAnimatedRow({
     required this.item,
+    required this.onOpenRoom,
     required this.resolveAction,
     required this.cancelAction,
     this.acceptAction,
@@ -224,6 +213,7 @@ class _ItemCardAnimatedRow extends StatefulWidget {
   });
 
   final CoordinationItem item;
+  final VoidCallback onOpenRoom;
   final Future<void> Function() resolveAction;
   final Future<void> Function() cancelAction;
   final Future<void> Function()? acceptAction;
@@ -273,6 +263,7 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
         child: _visible
             ? ItemCard(
                 item: widget.item,
+                onOpenRoom: widget.onOpenRoom,
                 onResolve: () => unawaited(
                   _animateThenCall(widget.resolveAction),
                 ),
@@ -459,7 +450,7 @@ class _PreparedDraftAskRow extends StatelessWidget {
       children: [
         ItemCard(
           item: draft,
-          onTap: () => unawaited(openPublish()),
+          onOpenRoom: () => unawaited(openPublish()),
         ),
         Align(
           alignment: Alignment.centerRight,
