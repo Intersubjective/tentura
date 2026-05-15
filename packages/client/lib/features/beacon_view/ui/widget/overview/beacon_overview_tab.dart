@@ -705,7 +705,7 @@ class BeaconStatusDashboard extends StatelessWidget {
           title: l10n.beaconNeedCardTitle,
           summary: '',
           icon: Icons.track_changes_outlined,
-          expanded: _NeedSectionBody(l10n: l10n, beacon: beacon),
+          expanded: BeaconNeedSectionBody(l10n: l10n, beacon: beacon),
         ),
         const SizedBox(height: _kOverviewSectionGap),
         coordinationCard,
@@ -756,10 +756,11 @@ class BeaconStatusDashboard extends StatelessWidget {
   }
 }
 
-class _NeedSectionBody extends StatelessWidget {
-  const _NeedSectionBody({
+class BeaconNeedSectionBody extends StatelessWidget {
+  const BeaconNeedSectionBody({
     required this.l10n,
     required this.beacon,
+    super.key,
   });
 
   final L10n l10n;
