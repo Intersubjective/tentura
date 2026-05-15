@@ -3114,5 +3114,18 @@
   "coordinationMarkResolutionHint": "What is resolved or proposed as done?",
   "coordinationSemanticResolutionOpened": "Resolution proposed",
   "coordinationSemanticResolutionResolved": "Resolution accepted",
-  "coordinationSemanticResolutionCancelled": "Resolution rejected"
+  "coordinationSemanticResolutionCancelled": "Resolution rejected",
+  "beaconRoomPromotePinLine": "{author} marked a message · {kind}",
+  "@beaconRoomPromotePinLine": {
+    "description": "Compact pin-style bar when a room chat message is promoted to a coordination item (tap goes to source message).",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomPromotePinAccessibilityHint": "Jump to the linked message"
 }

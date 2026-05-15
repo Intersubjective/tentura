@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -39,6 +41,22 @@ abstract class RoomMessage with _$RoomMessage {
   }) = _RoomMessage;
 
   const RoomMessage._();
+
+  /// Server `beacon_room_message.system_payload`: promote pin line contains
+  /// `{"sourceMessageId":"<id>"}` pointing at the in-place linked message.
+  String? get sourceMessageId {
+    final raw = systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final id = decoded['sourceMessageId'];
+      if (id is String && id.trim().isNotEmpty) return id.trim();
+      return null;
+    } on Object {
+      return null;
+    }
+  }
 
   /// When [linkedItemId] is set and snapshot fields are present, reconstructs
   /// the linked coordination item for navigation / inline cards.

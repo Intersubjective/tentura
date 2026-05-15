@@ -47,6 +47,7 @@ class BasicChatBody extends StatefulWidget {
     this.enableComposerAttachments = true,
     this.enableParticipantMentions = true,
     this.jumpFabHeroTag = 'basic_chat_jump_latest',
+    this.onScrollToPromoteSource,
     super.key,
   });
 
@@ -103,6 +104,9 @@ class BasicChatBody extends StatefulWidget {
   /// Distinct [FloatingActionButton.small] hero tag when multiple chat bodies
   /// might exist in the same navigator context.
   final String jumpFabHeroTag;
+
+  /// Telegram-style promote pin row → scrolls to the linked source message.
+  final void Function(String messageId)? onScrollToPromoteSource;
 
   @override
   State<BasicChatBody> createState() => BasicChatBodyState();
@@ -305,6 +309,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                         variantIds,
                                         score: score,
                                       ),
+                              onScrollToPromoteSource: widget.onScrollToPromoteSource,
                             );
 
                             return Column(

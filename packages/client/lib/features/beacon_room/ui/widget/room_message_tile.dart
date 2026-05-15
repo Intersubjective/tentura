@@ -41,6 +41,7 @@ class RoomMessageTile extends StatelessWidget {
     this.nextMessage,
     this.breakGroupAbove = false,
     this.participants = const [],
+    this.onScrollToPromoteSource,
     super.key,
   });
 
@@ -59,6 +60,9 @@ class RoomMessageTile extends StatelessWidget {
   /// Open actions for this message (tap / secondary tap on bubble).
   final void Function(RoomMessage message)? onActionsPressed;
 
+  /// Jumps the chat viewport to the source message (promote pin bar).
+  final void Function(String messageId)? onScrollToPromoteSource;
+
   /// Member-only file attachments (download + share flow).
   final Future<void> Function(RoomMessageAttachment attachment)?
   onOpenFileAttachment;
@@ -73,6 +77,25 @@ class RoomMessageTile extends StatelessWidget {
   onVotePoll;
 
   final List<BeaconParticipant> participants;
+
+  /// Compact Telegram-style bar: server `system_payload` includes sourceMessageId.
+  static bool isPromotePinNotification(RoomMessage m) {
+    final src = m.sourceMessageId;
+    final lid = m.linkedItemId;
+    return src != null &&
+        src.trim().isNotEmpty &&
+        lid != null &&
+        lid.trim().isNotEmpty;
+  }
+
+  static String _coordKindShortLabel(L10n l10n, CoordinationItemKind? k) =>
+      switch (k) {
+        CoordinationItemKind.plan => l10n.coordinationPlanCardLabel,
+        CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+        CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
+        CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
+        null => l10n.coordinationItemCardTitle,
+      };
 
   static bool _isCoordStateCard(RoomMessage m) {
     if (_isLinkedCoordSemantic(m)) return false;
@@ -177,6 +200,72 @@ class RoomMessageTile extends StatelessWidget {
 
     final topPad = isGroupStart ? tt.sectionGap : tt.rowGap / 2;
     final bottomPad = isGroupEnd ? tt.sectionGap : tt.rowGap / 2;
+
+    if (isPromotePinNotification(message)) {
+      final srcId = message.sourceMessageId!;
+      final kind = message.linkedCoordinationItem?.kind ??
+          (message.linkedItemKind != null
+              ? CoordinationItemKind.fromInt(message.linkedItemKind!)
+              : null);
+      final kindLabel = _coordKindShortLabel(l10n, kind);
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          topPad,
+          tt.screenHPadding,
+          bottomPad,
+        ),
+        child: BlocBuilder<ProfileCubit, ProfileState>(
+          buildWhen: (p, c) => p.profile.id != c.profile.id,
+          builder: (context, state) {
+            final authorName = SelfUserHighlight.displayName(
+              l10n,
+              message.author,
+              state.profile.id,
+            );
+            final line = l10n.beaconRoomPromotePinLine(authorName, kindLabel);
+            return Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onScrollToPromoteSource == null
+                    ? null
+                    : () => onScrollToPromoteSource!(srcId),
+                borderRadius: BorderRadius.circular(tt.cardRadius),
+                child: Semantics(
+                  button: true,
+                  label: line,
+                  hint: l10n.beaconRoomPromotePinAccessibilityHint,
+                  child: Padding(
+                    padding: tt.cardPadding,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.push_pin_outlined,
+                          size: 18,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        SizedBox(width: tt.iconTextGap),
+                        Flexible(
+                          child: Text(
+                            line,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
 
     final viewerReactions = _viewerReactionEmojiSet(message);
 

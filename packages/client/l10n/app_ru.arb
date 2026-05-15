@@ -3093,5 +3093,18 @@
   "coordinationMarkResolutionHint": "Что считается решённым или выполненным?",
   "coordinationSemanticResolutionOpened": "Решение предложено",
   "coordinationSemanticResolutionResolved": "Решение принято",
-  "coordinationSemanticResolutionCancelled": "Решение отклонено"
+  "coordinationSemanticResolutionCancelled": "Решение отклонено",
+  "beaconRoomPromotePinLine": "{author} отметил(а) сообщение · {kind}",
+  "@beaconRoomPromotePinLine": {
+    "description": "Компактная строка «как закреп» при повышении сообщения до элемента координации.",
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconRoomPromotePinAccessibilityHint": "Перейти к связанному сообщению"
 }
