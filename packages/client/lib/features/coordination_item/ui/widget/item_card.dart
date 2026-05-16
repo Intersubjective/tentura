@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
@@ -106,6 +107,7 @@ class _ItemCardState extends State<ItemCard> {
     final item = widget.item;
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final tt = context.tt;
     final textTheme = theme.textTheme;
     final colorScheme = theme.colorScheme;
 
@@ -167,7 +169,6 @@ class _ItemCardState extends State<ItemCard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   eventIcon,
                   const SizedBox(width: 6),
@@ -199,6 +200,31 @@ class _ItemCardState extends State<ItemCard> {
                       ],
                     ),
                   ),
+                  if (item.messageCount > 0) ...[
+                    const SizedBox(width: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: 14,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        TenturaCountBadge(
+                          count: item.messageCount,
+                          backgroundColor: colorScheme.surfaceContainerHighest,
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (item.unreadCount > 0 && item.isActive) ...[
+                    const SizedBox(width: 6),
+                    TenturaCountBadge(
+                      count: item.unreadCount,
+                      backgroundColor: tt.info,
+                    ),
+                  ],
                   if (hasAvatarTrail) avatarTrail,
                   if (hasAvatarTrail &&
                       showMenu &&

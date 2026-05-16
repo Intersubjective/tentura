@@ -199,6 +199,8 @@ class _V2RoutingLink extends Link {
     'CoordinationItemCreateResolution',
     'CoordinationItemAcceptResolution',
     'CoordinationItemRejectResolution',
+    'CoordinationItemMarkSeen',
+    'MyWorkCoordinationItemActivity',
   };
 
   @override

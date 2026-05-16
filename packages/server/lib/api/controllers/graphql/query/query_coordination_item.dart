@@ -1,4 +1,5 @@
 import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 
 import '../custom_types.dart';
@@ -23,10 +24,12 @@ final class QueryCoordinationItem extends GqlNodeBase {
   final _rootOnly = InputFieldBool(fieldName: 'rootOnly');
   final _limit = InputFieldInt(fieldName: 'limit');
   final _before = InputFieldString(fieldName: 'before');
+  final _beaconIds = InputFieldStringList(fieldName: 'beaconIds');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
         coordinationItemsByBeacon,
         coordinationItemMessages,
+        myWorkCoordinationItemActivity,
       ];
 
   GraphQLObjectField<dynamic, dynamic> get coordinationItemsByBeacon =>
@@ -85,9 +88,38 @@ final class QueryCoordinationItem extends GqlNodeBase {
           return messages.map(_coordinationItemMessageToMap).toList();
         },
       );
+
+  GraphQLObjectField<dynamic, dynamic> get myWorkCoordinationItemActivity =>
+      GraphQLObjectField(
+        'myWorkCoordinationItemActivity',
+        GraphQLListType(
+          gqlTypeMyWorkBeaconCoordinationActivityRow.nonNullable(),
+        ),
+        arguments: [_beaconIds.field],
+        resolve: (_, args) async {
+          final viewerUserId = getCredentials(args).sub;
+          final beaconIds = _beaconIds.fromArgsNonNullable(args);
+          final byBeacon = await _itemRepository
+              .lastCoordinationItemMessageAtByBeaconIds(
+            beaconIds: beaconIds,
+            viewerUserId: viewerUserId,
+          );
+          return beaconIds
+              .map(
+                (id) => {
+                  'beaconId': id,
+                  'lastCoordinationItemMessageAt':
+                      byBeacon[id]?.toUtc().toIso8601String(),
+                },
+              )
+              .toList();
+        },
+      );
 }
 
-Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
+Map<String, Object?> _coordinationItemToMap(CoordinationItemWithCounts row) {
+  final item = row.item;
+  return {
       'id': item.id,
       'beaconId': item.beaconId,
       'kind': item.kind,
@@ -109,7 +141,11 @@ Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
       'staleAt': item.staleAt?.dateTime.toIso8601String(),
       'source': item.source,
       'published': item.published,
+      'messageCount': row.messageCount,
+      'unreadCount': row.unreadCount,
+      'lastSeenAt': row.lastSeenAt?.toUtc().toIso8601String(),
     };
+}
 
 Map<String, Object?> _coordinationItemMessageToMap(
   CoordinationItemMessage msg,

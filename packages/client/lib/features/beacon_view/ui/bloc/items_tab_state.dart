@@ -14,4 +14,11 @@ abstract class ItemsTabState extends StateBase with _$ItemsTabState {
   }) = _ItemsTabState;
 
   const ItemsTabState._();
+
+  int get unreadDiscussionCount => openItems.fold(
+        0,
+        (sum, item) => sum + item.unreadCount,
+      );
+
+  bool get hasUnreadItems => unreadDiscussionCount > 0;
 }

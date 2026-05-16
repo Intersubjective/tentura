@@ -46,6 +46,10 @@ extension type const CoordinationItemListModel(GCoordinationItemListData_coordin
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
         staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+        messageCount: i.messageCount,
+        unreadCount: i.unreadCount,
+        lastSeenAt:
+            i.lastSeenAt == null ? null : DateTime.parse(i.lastSeenAt!),
       );
 }
 

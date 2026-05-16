@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'tentura_count_badge.dart';
 import '../tentura_text.dart';
 import '../tentura_tokens.dart';
 
@@ -261,14 +262,14 @@ class _TabCell extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (hasPrimaryBadge)
-                              _BadgeBubble(
+                              TenturaCountBadge(
                                 count: badge!,
                                 backgroundColor: tt.info,
                               ),
                             if (hasPrimaryBadge && hasSecondaryBadge)
                               const SizedBox(width: 6),
                             if (hasSecondaryBadge)
-                              _BadgeBubble(
+                              TenturaCountBadge(
                                 count: secondaryBadge!,
                                 backgroundColor: tt.warn,
                               ),
@@ -294,41 +295,6 @@ class _TabCell extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BadgeBubble extends StatelessWidget {
-  const _BadgeBubble({
-    required this.count,
-    required this.backgroundColor,
-  });
-
-  final int count;
-  final Color backgroundColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(9),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5),
-          child: Center(
-            child: Text(
-              '$count',
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: TenturaText.labelSmall(Colors.white),
-            ),
-          ),
-        ),
       ),
     );
   }

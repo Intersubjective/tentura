@@ -42,6 +42,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonFriendContext,
   gqlTypeCoordinationItemRow,
   gqlTypeCoordinationItemMessageRow,
+  gqlTypeMyWorkBeaconCoordinationActivityRow,
 ];
 
 /// Payload returned by `RoomMessageCreate`.
@@ -574,6 +575,17 @@ final gqlTypeCoordinationItemRow =
         field('staleAt', graphQLString),
         field('source', graphQLInt.nonNullable()),
         field('published', graphQLBoolean.nonNullable()),
+        field('messageCount', graphQLInt.nonNullable()),
+        field('unreadCount', graphQLInt.nonNullable()),
+        field('lastSeenAt', graphQLString),
+      ]);
+
+/// Per-beacon latest active item-discussion activity (My Work dot).
+final gqlTypeMyWorkBeaconCoordinationActivityRow =
+    GraphQLObjectType('MyWorkBeaconCoordinationActivityRow', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('lastCoordinationItemMessageAt', graphQLString),
       ]);
 
 /// `coordination_item_message` row projection (V2).

@@ -85,9 +85,14 @@ abstract class CoordinationItem with _$CoordinationItem {
     DateTime? resolvedAt,
     DateTime? cancelledAt,
     DateTime? staleAt,
+    @Default(0) int messageCount,
+    @Default(0) int unreadCount,
+    DateTime? lastSeenAt,
   }) = _CoordinationItem;
 
   const CoordinationItem._();
+
+  bool get hasUnread => unreadCount > 0;
 
   bool get isOpen => status == CoordinationItemStatus.open;
   bool get isAccepted => status == CoordinationItemStatus.accepted;

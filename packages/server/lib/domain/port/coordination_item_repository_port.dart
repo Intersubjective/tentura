@@ -1,4 +1,5 @@
 import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 
 // TODO(contract): Phase-2 DTO migration — replace Drift types with domain DTOs.
 abstract class CoordinationItemRepositoryPort {
@@ -47,7 +48,7 @@ abstract class CoordinationItemRepositoryPort {
 
   Future<CoordinationItem?> getById(String id);
 
-  Future<List<CoordinationItem>> listByBeacon(
+  Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {
     required String viewerUserId,
     int? status,
@@ -56,6 +57,18 @@ abstract class CoordinationItemRepositoryPort {
     String? targetPersonId,
     String? linkedParentItemId,
     bool rootOnly = false,
+  });
+
+  Future<void> markItemSeen({
+    required String userId,
+    required String itemId,
+    required DateTime at,
+  });
+
+  /// Latest item-discussion message time per beacon (active items only).
+  Future<Map<String, DateTime>> lastCoordinationItemMessageAtByBeaconIds({
+    required List<String> beaconIds,
+    required String viewerUserId,
   });
 
   /// Supersedes open root plans and creates a new root plan item.

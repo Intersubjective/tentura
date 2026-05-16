@@ -8,6 +8,7 @@ import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 
 import '../../domain/entity/my_work_fetch_types.dart';
+import '../gql/_g/my_work_coordination_activity.req.gql.dart';
 import '../gql/_g/my_work_fetch.data.gql.dart';
 import '../gql/_g/my_work_fetch.req.gql.dart';
 
@@ -30,6 +31,11 @@ class MyWorkRepository {
         .timeout(_kNetworkTimeout)
         .first;
     final d = r.dataOrThrow(label: _label);
+    final beaconIds = <String>{
+      for (final e in d.authoredNonClosed) e.id,
+      for (final e in d.helpOfferedNonClosed) e.beacon.id,
+    }.toList();
+    final itemActivity = await _fetchItemDiscussionActivity(beaconIds);
     return (
       authoredNonClosed: d.authoredNonClosed
           .map((e) => BeaconModel(e).toEntity())
@@ -39,7 +45,33 @@ class MyWorkRepository {
       authoredClosedIds: d.authoredClosedIds.map((e) => e.id).toList(),
       helpOfferedClosedIds:
           d.helpOfferedClosedIds.map((e) => e.beacon.id).toList(),
+      lastItemDiscussionMessageAtByBeaconId: itemActivity,
     );
+  }
+
+  Future<Map<String, DateTime>> _fetchItemDiscussionActivity(
+    List<String> beaconIds,
+  ) async {
+    if (beaconIds.isEmpty) {
+      return const {};
+    }
+    final r = await _remoteApiService
+        .request(
+          GMyWorkCoordinationItemActivityReq(
+            (b) => b.vars.beaconIds.replace(beaconIds),
+          ),
+        )
+        .timeout(_kNetworkTimeout)
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    final rows = r.dataOrThrow(label: _label).myWorkCoordinationItemActivity;
+    final out = <String, DateTime>{};
+    for (final row in rows) {
+      final at = row.lastCoordinationItemMessageAt;
+      if (at != null && at.isNotEmpty) {
+        out[row.beaconId] = DateTime.parse(at);
+      }
+    }
+    return out;
   }
 
   Future<MyWorkClosedResult> fetchClosed({required String userId}) async {

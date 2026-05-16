@@ -26,6 +26,7 @@ import '../gql/_g/coordination_item_create_draft_ask.req.gql.dart';
 import '../gql/_g/coordination_item_publish_ask.req.gql.dart';
 import '../gql/_g/coordination_item_update_draft_ask.req.gql.dart';
 import '../gql/_g/coordination_item_delete_draft_ask.req.gql.dart';
+import '../gql/_g/coordination_item_mark_seen.req.gql.dart';
 import '../model/coordination_item_model.dart';
 
 @lazySingleton
@@ -436,4 +437,13 @@ class CoordinationItemRepository {
               (r.dataOrThrow(label: _label).appendCoordinationItemMessage
                       as CoordinationItemAppendMessageModel)
                   .toEntity());
+
+  Future<void> markSeen({required String itemId}) async {
+    await _remote
+        .request(
+          GCoordinationItemMarkSeenReq((b) => b.vars.itemId = itemId),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).markCoordinationItemSeen);
+  }
 }

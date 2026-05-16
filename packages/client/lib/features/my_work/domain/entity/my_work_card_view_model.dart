@@ -62,6 +62,9 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
     /// Help-offered cards: `beacon_help_offer_coordinations.updated_at`.
     DateTime? authorCoordinationUpdatedAt,
+
+    /// Latest message on an active item discussion thread for this beacon.
+    DateTime? lastCoordinationItemMessageAt,
   }) = _MyWorkCardViewModel;
 
   const MyWorkCardViewModel._();
@@ -90,6 +93,10 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
       if (ar != null && ar > max) {
         max = ar;
       }
+    }
+    final itemMsg = lastCoordinationItemMessageAt?.millisecondsSinceEpoch;
+    if (itemMsg != null && itemMsg > max) {
+      max = itemMsg;
     }
     return max;
   }

@@ -2398,6 +2398,7 @@ type mutation_root {
   acceptResolution(itemId: String!): CoordinationItemRow!
   rejectResolution(itemId: String!, reason: String): CoordinationItemRow!
   appendCoordinationItemMessage(itemId: String!, body: String!): CoordinationItemMessageRow!
+  markCoordinationItemSeen(itemId: String!): Boolean!
 
   """
   delete data from the table: "beacon_pinned"
@@ -3626,6 +3627,7 @@ type query_root {
   BeaconActivityEventList(beaconId: String!): [BeaconActivityEventRow!]!
   coordinationItemsByBeacon(beaconId: String!, status: Int, kind: Int, acceptedById: String, targetPersonId: String, linkedParentItemId: String, rootOnly: Boolean): [CoordinationItemRow!]!
   coordinationItemMessages(itemId: String!, limit: Int, before: String): [CoordinationItemMessageRow!]!
+  myWorkCoordinationItemActivity(beaconIds: [String!]!): [MyWorkBeaconCoordinationActivityRow!]!
   InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
   BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
   myPrivateLabelsForUser(subjectUserId: String!): [String!]!
@@ -6325,6 +6327,14 @@ type CoordinationItemRow {
   resolvedAt: String
   cancelledAt: String
   staleAt: String
+  messageCount: Int!
+  unreadCount: Int!
+  lastSeenAt: String
+}
+
+type MyWorkBeaconCoordinationActivityRow {
+  beaconId: String!
+  lastCoordinationItemMessageAt: String
 }
 
 type CoordinationItemMessageRow {
