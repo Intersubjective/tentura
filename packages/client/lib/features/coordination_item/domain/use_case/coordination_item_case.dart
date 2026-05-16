@@ -221,4 +221,10 @@ class CoordinationItemCase {
     required String body,
   }) =>
       _repository.appendMessage(itemId: itemId, body: body);
+
+  Future<void> markItemSeenIfAllowed(String itemId) async {
+    try {
+      await _repository.markSeen(itemId: itemId);
+    } on Object catch (_) {}
+  }
 }

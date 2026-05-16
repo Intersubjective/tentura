@@ -43,11 +43,18 @@ Plan: `/home/vader/.claude/plans/beacon-screen-items-tab-memoized-blanket.md`
 - [x] `build_runner` client; analyze: errors fixed (surfaceMuted → surfaceContainerHighest)
 
 ### Tests (plan optional)
-- [ ] `item_discussion_cubit_unread_test.dart` — deferred
+- [x] `item_discussion_cubit_unread_test.dart` — 4 tests, mirrors room cubit unread suite
+
+## Follow-up (2026-05-16)
+
+- [x] `ItemDiscussionCubit`: room-style anchor snapshot; `pendingMarkSeen` on fetch; post-send `lastSeenAt` + anchor update
+- [x] `listenToInvalidation` flag for tests
+- [x] Staged previously untracked implementation files (`git add`)
+- [ ] Run m0070 on dev DB (requires local Postgres / compose — not run in agent env)
 
 ## Current subtask
 
-**DONE** — run migration on dev DB when deploying; manual E2E per plan verification section.
+**DONE** — deploy m0070 on dev; manual E2E per plan verification section.
 
 ## Notes for next reads
 
@@ -59,7 +66,5 @@ Plan: `/home/vader/.claude/plans/beacon-screen-items-tab-memoized-blanket.md`
 
 ## Open todos
 
-1. After server codegen: verify `coordination_item_user_seen` in generated drift schema.
-2. Register `MarkItemSeenCase` in injectable (annotate `@Singleton` — codegen picks up).
-3. Wire `myWorkCoordinationItemActivity` in `_queries_all.dart`.
-4. Update `derive_my_work_cards` / cubit if cards need `lastCoordinationItemMessageAt` passed from fetch types.
+1. Apply migration **0070** on dev/prod Postgres before testing unread in the wild.
+2. Manual E2E checklist in plan § Verification (two accounts).

@@ -166,4 +166,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     String? reason,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<void> markItemSeenIfAllowed(String itemId) async {}
 }

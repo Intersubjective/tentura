@@ -121,7 +121,8 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
             p.item != c.item ||
             p.messages != c.messages ||
             p.isLoading != c.isLoading ||
-            p.status != c.status,
+            p.status != c.status ||
+            p.unreadAnchorAt != c.unreadAnchorAt,
         builder: (context, state) {
           final cubit = context.read<ItemDiscussionCubit>();
           final theme = Theme.of(context);
@@ -133,6 +134,8 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
           final err = state.status is StateHasError
               ? (state.status as StateHasError).error.toString()
               : '';
+          final firstUnreadIndex =
+              state.firstUnreadIndexInRoomMessages(roomMessages);
 
           return BasicChatBody(
             messages: roomMessages,
@@ -141,6 +144,9 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
             isLoading: state.isLoading,
             hasError: state.hasError && roomMessages.isEmpty,
             errorText: err,
+            firstUnreadIndex: firstUnreadIndex,
+            unreadCount: state.unreadCount,
+            onMarkSeenNearBottom: cubit.markSeenNowIfNeeded,
             onSend: (body, _) async {
               await cubit.sendMessage(body);
             },

@@ -142,7 +142,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       final nonArchived = buildNonArchivedViewModels(
         authoredNonClosed: init.authoredNonClosed,
         helpOfferedNonClosed: init.helpOfferedNonClosed,
-      );
+      ).map((c) {
+        final at = init.lastItemDiscussionMessageAtByBeaconId[c.beaconId];
+        return at == null
+            ? c
+            : c.copyWith(lastCoordinationItemMessageAt: at);
+      }).toList();
       final hints = await _roomHints.fetchByBeaconIds(
         nonArchived.map((c) => c.beaconId),
       );

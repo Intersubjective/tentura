@@ -5,7 +5,9 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/coordination_item_entity.dart';
 import 'package:tentura_server/domain/entity/coordination_item_message_entity.dart';
+import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
@@ -543,7 +545,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           .getSingleOrNull();
 
   @override
-  Future<List<CoordinationItem>> listByBeacon(
+  Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {
     required String viewerUserId,
     int? status,
@@ -552,7 +554,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String? targetPersonId,
     String? linkedParentItemId,
     bool rootOnly = false,
-  }) {
+  }) async {
     final q = _db.select(_db.coordinationItems)
       ..where((t) => t.beaconId.equals(beaconId))
       ..where(
@@ -582,7 +584,119 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     if (rootOnly) {
       q.where((t) => t.linkedParentItemId.isNull());
     }
-    return q.get();
+    final items = await q.get();
+    if (items.isEmpty) {
+      return const [];
+    }
+
+    final countRows = await _db.customSelect(
+      r'''
+      SELECT ci.id AS item_id,
+        (SELECT COUNT(*)::bigint FROM coordination_item_message m
+         WHERE m.item_id = ci.id) AS message_count,
+        (SELECT COUNT(*)::bigint FROM coordination_item_message m
+         WHERE m.item_id = ci.id
+           AND m.sender_id <> $2
+           AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at)
+        ) AS unread_count
+      FROM coordination_item ci
+      LEFT JOIN coordination_item_user_seen s
+        ON s.item_id = ci.id AND s.user_id = $2
+      WHERE ci.id = ANY($1::text[])
+      ''',
+      variables: [
+        Variable(TypedValue(Type.textArray, items.map((e) => e.id).toList())),
+        Variable<String>(viewerUserId),
+      ],
+    ).get();
+
+    final itemIds = items.map((e) => e.id).toList();
+    final seenRows = await (_db.select(_db.coordinationItemUserSeen)
+          ..where((t) => t.userId.equals(viewerUserId))
+          ..where((t) => t.itemId.isIn(itemIds)))
+        .get();
+    final lastSeenByItemId = {
+      for (final row in seenRows) row.itemId: row.lastSeenAt.dateTime,
+    };
+
+    final countsByItemId = <String, ({int messageCount, int unreadCount})>{};
+    for (final row in countRows) {
+      countsByItemId[row.read<String>('item_id')] = (
+        messageCount: row.read<int>('message_count'),
+        unreadCount: row.read<int>('unread_count'),
+      );
+    }
+
+    return [
+      for (final item in items)
+        CoordinationItemWithCounts(
+          item: item,
+          messageCount: countsByItemId[item.id]?.messageCount ?? 0,
+          unreadCount: countsByItemId[item.id]?.unreadCount ?? 0,
+          lastSeenAt: lastSeenByItemId[item.id],
+        ),
+    ];
+  }
+
+  @override
+  Future<void> markItemSeen({
+    required String userId,
+    required String itemId,
+    required DateTime at,
+  }) =>
+      _db.withMutatingUser(userId, () async {
+        final seenAt = PgDateTime(at);
+        await _db.into(_db.coordinationItemUserSeen).insert(
+              CoordinationItemUserSeenCompanion(
+                userId: Value(userId),
+                itemId: Value(itemId),
+                lastSeenAt: Value(seenAt),
+              ),
+              onConflict: DoUpdate(
+                (_) => CoordinationItemUserSeenCompanion(
+                  lastSeenAt: Value(seenAt),
+                ),
+              ),
+            );
+      });
+
+  @override
+  Future<Map<String, DateTime>> lastCoordinationItemMessageAtByBeaconIds({
+    required List<String> beaconIds,
+    required String viewerUserId,
+  }) async {
+    if (beaconIds.isEmpty) {
+      return const {};
+    }
+    // Aggregates only scalars drift can read from customSelect (int/bigint).
+    // Timestamptz columns must use typed table reads (see beacon_mapper .dateTime).
+    final rows = await _db.customSelect(
+      r'''
+      SELECT ci.beacon_id AS beacon_id,
+        floor(extract(epoch from max(cim.created_at)) * 1000)::bigint
+          AS last_at_ms
+      FROM coordination_item ci
+      INNER JOIN coordination_item_message cim ON cim.item_id = ci.id
+      WHERE ci.beacon_id = ANY($1::text[])
+        AND ci.status IN ($3, $4)
+        AND (ci.published = true OR ci.creator_id = $2)
+      GROUP BY ci.beacon_id
+      ''',
+      variables: [
+        Variable(TypedValue(Type.textArray, beaconIds)),
+        Variable<String>(viewerUserId),
+        Variable<int>(coordinationItemStatusOpen),
+        Variable<int>(coordinationItemStatusAccepted),
+      ],
+    ).get();
+
+    return {
+      for (final row in rows)
+        row.read<String>('beacon_id'): DateTime.fromMillisecondsSinceEpoch(
+          row.read<int>('last_at_ms'),
+          isUtc: true,
+        ),
+    };
   }
 
   @override

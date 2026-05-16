@@ -23,6 +23,9 @@ typedef MyWorkInitResult = ({
   List<MyWorkHelpOfferedRow> helpOfferedNonClosed,
   List<String> authoredClosedIds,
   List<String> helpOfferedClosedIds,
+
+  /// Latest message on active coordination items per beacon (V2).
+  Map<String, DateTime> lastItemDiscussionMessageAtByBeaconId,
 });
 
 /// Result of My Work fetch closed (full closed rows).

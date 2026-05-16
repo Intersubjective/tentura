@@ -5,6 +5,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_view_entry_source.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -1085,26 +1086,38 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                     child: Align(
                       child: SizedBox(
                         width: double.infinity,
-                        child: TenturaUnderlineTabs(
-                          tabs: [
-                            l10n.labelBeaconTabItems,
-                            l10n.labelBeaconTabPeople,
-                            l10n.labelBeaconTabLog,
-                          ],
-                          selectedIndex: idx,
-                          onChanged: _setTab,
-                          badges: [
-                            null,
-                            peopleTabBadge,
-                            null,
-                          ],
-                          secondaryBadges: [
-                            null,
-                            peopleTabSecondaryBadge,
-                            null,
-                          ],
-                          attentionIndex: kBeaconTabPeople,
-                          attentionActive: peopleTabAttentionActive,
+                        child: BlocBuilder<ItemsTabCubit, ItemsTabState>(
+                          buildWhen: (p, c) =>
+                              p.openItems != c.openItems ||
+                              p.unreadDiscussionCount !=
+                                  c.unreadDiscussionCount,
+                          builder: (context, itemsTabState) {
+                            final itemsTabBadge =
+                                itemsTabState.unreadDiscussionCount > 0
+                                ? itemsTabState.unreadDiscussionCount
+                                : null;
+                            return TenturaUnderlineTabs(
+                              tabs: [
+                                l10n.labelBeaconTabItems,
+                                l10n.labelBeaconTabPeople,
+                                l10n.labelBeaconTabLog,
+                              ],
+                              selectedIndex: idx,
+                              onChanged: _setTab,
+                              badges: [
+                                itemsTabBadge,
+                                peopleTabBadge,
+                                null,
+                              ],
+                              secondaryBadges: [
+                                null,
+                                peopleTabSecondaryBadge,
+                                null,
+                              ],
+                              attentionIndex: kBeaconTabPeople,
+                              attentionActive: peopleTabAttentionActive,
+                            );
+                          },
                         ),
                       ),
                     ),

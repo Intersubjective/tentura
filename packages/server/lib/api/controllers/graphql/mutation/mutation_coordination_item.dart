@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/use_case/coordination_item/resolve_plan_st
 import 'package:tentura_server/domain/use_case/coordination_item/create_resolution_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/accept_resolution_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/reject_resolution_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/mark_item_seen_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -46,6 +47,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
     PublishDraftAskCase? publishDraftAskCase,
     UpdateDraftAskCase? updateDraftAskCase,
     DeleteDraftAskCase? deleteDraftAskCase,
+    MarkItemSeenCase? markItemSeenCase,
   }) : _markBlockerCase = markBlockerCase ?? GetIt.I<MarkBlockerCase>(),
        _resolveBlockerCase =
            resolveBlockerCase ?? GetIt.I<ResolveBlockerCase>(),
@@ -76,7 +78,8 @@ final class MutationCoordinationItem extends GqlNodeBase {
        _updateDraftAskCase =
            updateDraftAskCase ?? GetIt.I<UpdateDraftAskCase>(),
        _deleteDraftAskCase =
-           deleteDraftAskCase ?? GetIt.I<DeleteDraftAskCase>();
+           deleteDraftAskCase ?? GetIt.I<DeleteDraftAskCase>(),
+       _markItemSeenCase = markItemSeenCase ?? GetIt.I<MarkItemSeenCase>();
 
   final MarkBlockerCase _markBlockerCase;
   final ResolveBlockerCase _resolveBlockerCase;
@@ -98,6 +101,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final PublishDraftAskCase _publishDraftAskCase;
   final UpdateDraftAskCase _updateDraftAskCase;
   final DeleteDraftAskCase _deleteDraftAskCase;
+  final MarkItemSeenCase _markItemSeenCase;
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
   final _targetItemId = InputFieldString(fieldName: 'targetItemId');
@@ -133,6 +137,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
         createResolution,
         acceptResolution,
         rejectResolution,
+        markCoordinationItemSeen,
       ];
 
   GraphQLObjectField<dynamic, dynamic> get markBlocker => GraphQLObjectField(
@@ -529,6 +534,20 @@ final class MutationCoordinationItem extends GqlNodeBase {
             reason: _reason.fromArgs(args) ?? '',
           );
           return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get markCoordinationItemSeen =>
+      GraphQLObjectField(
+        'markCoordinationItemSeen',
+        graphQLBoolean.nonNullable(),
+        arguments: [_itemId.field],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          return _markItemSeenCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+          );
         },
       );
 }
