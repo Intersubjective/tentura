@@ -2271,6 +2271,8 @@
   "labelBeaconTabRoom": "Room",
   "labelBeaconTabItems": "Items",
   "beaconItemsEmptyPlaceholder": "No coordination items yet",
+  "itemsTabCreatePlanCta": "Create a plan",
+  "itemsTabCreatePlanSheetPrompt": "What is the plan?",
   "beaconHudNowLabel": "NOW",
   "beaconHudYouLabel": "YOU",
   "beaconHudNoCurrentPlan": "No current plan yet",

@@ -159,6 +159,16 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
     }
   }
 
+  Future<void> createPlan(String title) async {
+    try {
+      emit(state.copyWith(status: const StateIsSuccess()));
+      await _case.updatePlan(beaconId: _beaconId, title: title);
+      await fetch(silent: true);
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   @override
   Future<void> close() async {
     await _invalidationSub.cancel();

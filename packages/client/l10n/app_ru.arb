@@ -2271,6 +2271,8 @@
   "labelBeaconTabRoom": "Комната",
   "labelBeaconTabItems": "Элементы",
   "beaconItemsEmptyPlaceholder": "Элементов координации пока нет",
+  "itemsTabCreatePlanCta": "Создать план",
+  "itemsTabCreatePlanSheetPrompt": "Какой план?",
   "beaconHudNowLabel": "СЕЙЧАС",
   "beaconHudYouLabel": "ВЫ",
   "beaconHudNoCurrentPlan": "Плана пока нет",
