@@ -1,0 +1,6 @@
+query MyWorkCoordinationItemActivity($beaconIds: [String!]!) {
+  myWorkCoordinationItemActivity(beaconIds: $beaconIds) {
+    beaconId
+    lastCoordinationItemMessageAt
+  }
+}
