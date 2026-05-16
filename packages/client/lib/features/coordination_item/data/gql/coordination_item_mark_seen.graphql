@@ -1,0 +1,3 @@
+mutation CoordinationItemMarkSeen($itemId: String!) {
+  markCoordinationItemSeen(itemId: $itemId)
+}
