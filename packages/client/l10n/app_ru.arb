@@ -2272,6 +2272,7 @@
   "labelBeaconTabItems": "Элементы",
   "beaconItemsEmptyPlaceholder": "Элементов координации пока нет",
   "itemsTabCreatePlanCta": "Создать план",
+  "beaconItemsFactsFoldTitle": "Закреплённые факты",
   "itemsTabCreatePlanSheetPrompt": "Какой план?",
   "beaconHudNowLabel": "СЕЙЧАС",
   "beaconHudYouLabel": "ВЫ",

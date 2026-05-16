@@ -156,56 +156,89 @@ Future<void> _showEditFactSheet(
   BeaconFactCard fact,
 ) async {
   final l10n = L10n.of(context)!;
-  final controller = TextEditingController(text: fact.factText);
-  try {
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-        return Padding(
-          padding: EdgeInsets.only(
-            left: kSpacingMedium,
-            right: kSpacingMedium,
-            top: kSpacingMedium,
-            bottom: bottom + kSpacingMedium,
+  final newText = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (ctx) => _EditFactSheet(
+      initialText: fact.factText,
+      l10n: l10n,
+    ),
+  );
+  if (newText == null || !context.mounted) return;
+  await cubit.correctFact(factCardId: fact.id, newText: newText);
+}
+
+/// Keeps [TextEditingController] alive until the sheet route is torn down.
+class _EditFactSheet extends StatefulWidget {
+  const _EditFactSheet({
+    required this.initialText,
+    required this.l10n,
+  });
+
+  final String initialText;
+  final L10n l10n;
+
+  @override
+  State<_EditFactSheet> createState() => _EditFactSheetState();
+}
+
+class _EditFactSheetState extends State<_EditFactSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final t = _controller.text.trim();
+    if (t.isEmpty) return;
+    Navigator.of(context).pop(t);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: kSpacingMedium,
+        right: kSpacingMedium,
+        top: kSpacingMedium,
+        bottom: bottom + kSpacingMedium,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.l10n.beaconRoomFactCardEditTitle,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(l10n.beaconRoomFactCardEditTitle, style: Theme.of(ctx).textTheme.titleMedium),
-              const SizedBox(height: kSpacingMedium),
-              TextField(
-                controller: controller,
-                minLines: 3,
-                maxLines: 10,
-                maxLength: 8000,
-                decoration: InputDecoration(
-                  hintText: l10n.beaconRoomFactCardEditHint,
-                ),
-              ),
-              const SizedBox(height: kSpacingMedium),
-              FilledButton(
-                onPressed: () {
-                  final t = controller.text.trim();
-                  if (t.isEmpty) return;
-                  Navigator.of(ctx).pop(true);
-                },
-                child: Text(MaterialLocalizations.of(ctx).saveButtonLabel),
-              ),
-            ],
+          const SizedBox(height: kSpacingMedium),
+          TextField(
+            controller: _controller,
+            minLines: 3,
+            maxLines: 10,
+            maxLength: 8000,
+            decoration: InputDecoration(
+              hintText: widget.l10n.beaconRoomFactCardEditHint,
+            ),
           ),
-        );
-      },
+          const SizedBox(height: kSpacingMedium),
+          FilledButton(
+            onPressed: _save,
+            child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+          ),
+        ],
+      ),
     );
-    if (ok == true && context.mounted) {
-      final t = controller.text.trim();
-      if (t.isEmpty) return;
-      await cubit.correctFact(factCardId: fact.id, newText: t);
-    }
-  } finally {
-    controller.dispose();
   }
 }

@@ -2272,6 +2272,7 @@
   "labelBeaconTabItems": "Items",
   "beaconItemsEmptyPlaceholder": "No coordination items yet",
   "itemsTabCreatePlanCta": "Create a plan",
+  "beaconItemsFactsFoldTitle": "Pinned facts",
   "itemsTabCreatePlanSheetPrompt": "What is the plan?",
   "beaconHudNowLabel": "NOW",
   "beaconHudYouLabel": "YOU",
