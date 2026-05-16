@@ -281,19 +281,6 @@ final class BeaconRoomCase extends UseCaseBase {
           )
           .then((_) {});
 
-  Future<CoordinationItem?> fetchViewerAcceptedAsk({
-    required String beaconId,
-    required String viewerId,
-  }) async {
-    final items = await _coordinationItemCase.listByBeacon(
-      beaconId,
-      kind: CoordinationItemKind.ask.value,
-      status: CoordinationItemStatus.accepted.value,
-      acceptedById: viewerId,
-    );
-    return items.firstOrNull;
-  }
-
   Future<void> needInfoFromMessage({
     required String beaconId,
     required String messageId,

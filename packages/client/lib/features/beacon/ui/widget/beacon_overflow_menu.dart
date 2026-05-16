@@ -31,6 +31,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onToggleLifecycle,
     this.onEdit,
     this.onPrepareAsk,
+    this.onSelfAsk,
     this.onOfferHelp,
     this.onWithdraw,
     this.onForward,
@@ -55,6 +56,7 @@ class BeaconOverflowMenu extends StatelessWidget {
   final Future<void> Function()? onToggleLifecycle;
   final VoidCallback? onEdit;
   final VoidCallback? onPrepareAsk;
+  final VoidCallback? onSelfAsk;
   final Future<void> Function()? onOfferHelp;
   final Future<void> Function()? onWithdraw;
   final VoidCallback? onForward;
@@ -119,6 +121,13 @@ class BeaconOverflowMenu extends StatelessWidget {
         'prepare_ask',
         Icons.edit_note_outlined,
         l10n.beaconPreparedAskPrepareAction,
+      );
+    }
+    if (onSelfAsk != null) {
+      add(
+        'self_ask',
+        Icons.assignment_ind_outlined,
+        l10n.beaconRoomAddMyNextMove,
       );
     }
     if (onOfferHelp != null) {
@@ -206,6 +215,7 @@ class BeaconOverflowMenu extends StatelessWidget {
           ),
           'edit' => onEdit?.call(),
           'prepare_ask' => _deferSync(context, onPrepareAsk),
+          'self_ask' => _deferSync(context, onSelfAsk),
           'offerHelp' => unawaited(_deferPopupAction(context, onOfferHelp)),
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
           'forward' => onForward?.call(),

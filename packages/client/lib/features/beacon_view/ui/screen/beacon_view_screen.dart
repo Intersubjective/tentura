@@ -27,6 +27,7 @@ import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
+import 'package:tentura/features/beacon_room/ui/widget/beacon_room_self_ask_sheet.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
@@ -230,6 +231,12 @@ Future<void> _beaconViewRunAuthorCloseSheet({
   );
 }
 
+bool _canShowSelfAsk(BeaconViewState state) {
+  final b = state.beacon;
+  if (b.lifecycle != BeaconLifecycle.open) return false;
+  return state.isAuthorOrSteward || state.hasRoomAdmission;
+}
+
 Widget _beaconViewAppBarOverflow({
   required BuildContext context,
   required BeaconViewState state,
@@ -285,6 +292,17 @@ Widget _beaconViewAppBarOverflow({
               ),
             )
           : null,
+      onSelfAsk: _canShowSelfAsk(state)
+          ? () => unawaited(
+              showBeaconRoomSelfAskSheet(
+                context,
+                beaconId: beaconId,
+                onSaved: () => unawaited(
+                  context.read<ItemsTabCubit>().fetch(),
+                ),
+              ),
+            )
+          : null,
       onForward: () => unawaited(
         _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
       ),
@@ -308,6 +326,17 @@ Widget _beaconViewAppBarOverflow({
 
   return BeaconOverflowMenu(
     beacon: b,
+    onSelfAsk: _canShowSelfAsk(state)
+        ? () => unawaited(
+            showBeaconRoomSelfAskSheet(
+              context,
+              beaconId: beaconId,
+              onSaved: () => unawaited(
+                context.read<ItemsTabCubit>().fetch(),
+              ),
+            ),
+          )
+        : null,
     onOfferHelp:
         !hideOfferHelpWithdraw &&
             !state.isHelpOffered &&

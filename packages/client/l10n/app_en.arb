@@ -2490,7 +2490,6 @@
   "beaconPublicStatusEnoughHelp": "Enough help",
   "beaconPublicStatusClosed": "Closed",
   "beaconPublicStatusNoNote": "No public note",
-  "beaconYourRelationTitle": "Your relation",
   "beaconHelpOfferSnapshotTitle": "Help offers",
   "beaconViewAllHelpOffers": "View all help offers",
   "beaconLatestUpdateTitle": "Latest author update",
@@ -2760,15 +2759,9 @@
   },
   "beaconRoomStripMeaningfulChangeLabel": "Latest change",
   "beaconRoomStripOpenBlockerHint": "A blocker is open in the room (details in chat).",
-  "beaconRoomYouStripTitle": "You",
-  "beaconRoomYouStripRoleLabel": "Role",
-  "beaconRoomYouStripNextMoveLabel": "Next step",
-  "beaconRoomYouStripEditNextMove": "Update my next step",
-  "beaconRoomYouStripMarkDoneComing": "Mark done — soon",
-  "beaconRoomYouStripNoParticipant": "Room access adds your participant row here.",
   "beaconRoomAddMyNextMove": "Add my next move",
   "@beaconRoomAddMyNextMove": {
-    "description": "YOU section quick action to create a self-accepted coordination ask"
+    "description": "Beacon overflow menu action to create a self-accepted coordination ask"
   },
   "beaconRoomSelfAskSheetPrompt": "What will you do?",
   "beaconRoomSelfAskBodyHintOptional": "Details (optional)",
@@ -3103,7 +3096,6 @@
   "beaconRoomActionMarkAsk": "Create ask…",
   "coordinationMarkAskTitle": "Create ask",
   "coordinationMarkAskHint": "What should they do?",
-  "beaconRoomYouStripAcceptedAskLabel": "Your commitment",
   "coordinationPlanCardLabel": "Plan",
   "coordinationPlanStepCardLabel": "Plan step",
   "coordinationSemanticPlanOpened": "Plan updated",

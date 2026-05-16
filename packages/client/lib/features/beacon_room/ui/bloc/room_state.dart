@@ -20,7 +20,6 @@ abstract class RoomState extends StateBase with _$RoomState {
     @Default(<BeaconFactCard>[]) List<BeaconFactCard> factCards,
     BeaconRoomState? roomState,
     CoordinationItem? openCoordinationBlocker,
-    CoordinationItem? viewerAcceptedAsk,
     CoordinationItem? currentCoordinationPlan,
     @Default(StateIsSuccess()) StateStatus status,
     String? scrollToMessageId,

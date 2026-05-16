@@ -9,9 +9,6 @@ import 'package:tentura/domain/entity/beacon_fact_card_consts.dart'
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
-import 'package:tentura/features/beacon_room/ui/widget/beacon_room_next_move_sheet.dart';
-import 'package:tentura/features/beacon_room/ui/widget/beacon_room_self_ask_sheet.dart';
-import 'package:tentura/features/beacon_room/ui/widget/beacon_you_section_content.dart';
 import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_file_attachment_open.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -116,12 +113,6 @@ class ItemsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _BeaconYouSection(
-                myParticipant: myParticipant,
-                beaconId: beaconId,
-                targetUserId: state.myProfile.id,
-                viewerAcceptedAsk: tabState.viewerAcceptedAsk,
-              ),
               if (isOwner && draftAskItems.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 ExpansionTile(
@@ -443,57 +434,6 @@ class _BeaconFactsSection extends StatelessWidget {
               context,
               l10n,
               a,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BeaconYouSection extends StatelessWidget {
-  const _BeaconYouSection({
-    required this.myParticipant,
-    required this.beaconId,
-    required this.targetUserId,
-    this.viewerAcceptedAsk,
-  });
-
-  final BeaconParticipant? myParticipant;
-  final String beaconId;
-  final String targetUserId;
-  final CoordinationItem? viewerAcceptedAsk;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-
-    return ExpansionTile(
-      leading: const Icon(Icons.person_outline_rounded),
-      title: Text(
-        l10n.beaconRoomYouStripTitle,
-        style: Theme.of(context).textTheme.titleSmall,
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: BeaconYouSectionContent(
-            myParticipant: myParticipant,
-            viewerAcceptedAsk: viewerAcceptedAsk,
-            onAddMyNextMove: () => unawaited(
-              showBeaconRoomSelfAskSheet(
-                context,
-                beaconId: beaconId,
-                onSaved: () => context.read<ItemsTabCubit>().fetch(),
-              ),
-            ),
-            onEditNextMove: () => unawaited(
-              showBeaconRoomNextMoveSheet(
-                context,
-                beaconId: beaconId,
-                targetUserId: targetUserId,
-                onSaved: () => context.read<ItemsTabCubit>().fetch(),
-              ),
             ),
           ),
         ),

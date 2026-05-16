@@ -10,7 +10,6 @@ abstract class ItemsTabState extends StateBase with _$ItemsTabState {
     @Default([]) List<CoordinationItem> closedItems,
     @Default([]) List<CoordinationItem> draftAskItems,
     CoordinationItem? currentCoordinationPlan,
-    CoordinationItem? viewerAcceptedAsk,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _ItemsTabState;
 
