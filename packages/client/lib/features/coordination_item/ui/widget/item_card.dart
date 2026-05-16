@@ -167,36 +167,43 @@ class _ItemCardState extends State<ItemCard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (hasAvatarTrail) ...[
-                    avatarTrail,
-                    const SizedBox(width: 6),
-                  ],
                   eventIcon,
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      kindLabel,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: statusColor,
-                        fontWeight: headerTier == _ItemHeaderTier.high
-                            ? FontWeight.w600
-                            : null,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            kindLabel,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: statusColor,
+                              fontWeight: headerTier == _ItemHeaderTier.high
+                                  ? FontWeight.w600
+                                  : null,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (staleLabel != null) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            staleLabel,
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
-                  if (staleLabel != null) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      staleLabel,
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                  if (hasAvatarTrail) avatarTrail,
+                  if (hasAvatarTrail &&
+                      showMenu &&
+                      menuEntries.isNotEmpty)
+                    const SizedBox(width: 8),
                   if (showMenu && menuEntries.isNotEmpty)
                     PopupMenuButton<_ItemMenuAction>(
                       tooltip: l10n.beaconHudOverflowMore,
