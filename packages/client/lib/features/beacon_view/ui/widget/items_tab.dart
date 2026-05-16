@@ -21,8 +21,18 @@ import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import '../bloc/beacon_view_state.dart';
 import '../bloc/items_tab_cubit.dart';
 import '../bloc/items_tab_state.dart';
+import 'beacon_create_plan_sheet.dart';
 import 'beacon_definition_body.dart';
 import 'beacon_prepared_ask_sheet.dart';
+
+List<CoordinationItem> _planFirst(List<CoordinationItem> items) {
+  final copy = [...items];
+  copy.sort((a, b) {
+    if (a.isRootPlan == b.isRootPlan) return 0;
+    return a.isRootPlan ? -1 : 1;
+  });
+  return copy;
+}
 
 BeaconParticipant? _participantForUser(
   List<BeaconParticipant> participants,
@@ -79,6 +89,11 @@ class ItemsTab extends StatelessWidget {
           }
         }
 
+        final canCreatePlan = isOwner || myParticipant != null;
+        final showActiveFold = canCreatePlan || openItems.isNotEmpty;
+        final showClosedFold = closedItems.isNotEmpty &&
+            (canCreatePlan || openItems.isNotEmpty);
+
         final roomCue = state.beaconRoomCue;
         final showNow = roomCue != null &&
             RoomNowSectionContent.hasVisibleContent(
@@ -132,7 +147,7 @@ class ItemsTab extends StatelessWidget {
                   ],
                 ),
               ],
-              if (!hasItems)
+              if (!hasItems && !showActiveFold)
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
                   child: Center(
@@ -145,57 +160,76 @@ class ItemsTab extends StatelessWidget {
                     ),
                   ),
                 )
-              else ...[
-                const SizedBox(height: 8),
-                for (final item in openItems)
-                  _ItemCardAnimatedRow(
-                    key: ValueKey(item.id),
-                    item: item,
-                    creatorParticipant: _participantForUser(
-                      state.roomParticipants,
-                      item.creatorId,
+              else if (showActiveFold || showClosedFold) ...[
+                if (showActiveFold) ...[
+                  const SizedBox(height: 8),
+                  ExpansionTile(
+                    initiallyExpanded: true,
+                    title: Text(
+                      'Active (${openItems.length})',
+                      style: Theme.of(context).textTheme.titleSmall,
                     ),
-                    targetParticipant: _participantForUser(
-                      state.roomParticipants,
-                      item.targetPersonId,
-                    ),
-                    onOpenItemThread: onOpenItemThread,
-                    resolveAction: () async {
-                      final cubit = context.read<ItemsTabCubit>();
-                      if (item.kind == CoordinationItemKind.plan &&
-                          item.isPlanStep) {
-                        await cubit.resolvePlanStep(item.id);
-                      } else if (item.kind == CoordinationItemKind.ask) {
-                        await cubit.resolveAsk(item.id);
-                      } else {
-                        await cubit.resolveBlocker(item.id);
-                      }
-                    },
-                    cancelAction: () async {
-                      final cubit = context.read<ItemsTabCubit>();
-                      if (item.kind == CoordinationItemKind.ask) {
-                        await cubit.cancelAsk(item.id);
-                      } else {
-                        await cubit.cancelBlocker(item.id);
-                      }
-                    },
-                    acceptAction: switch (item.kind) {
-                      CoordinationItemKind.ask => () =>
-                          context.read<ItemsTabCubit>().acceptAsk(item.id),
-                      CoordinationItemKind.resolution => () =>
-                          context.read<ItemsTabCubit>().acceptResolution(
-                                item.id,
-                              ),
-                      _ => null,
-                    },
-                    rejectAction: item.kind == CoordinationItemKind.resolution
-                        ? () =>
-                            context.read<ItemsTabCubit>().rejectResolution(
-                                  item.id,
-                                )
-                        : null,
+                    leading: const Icon(Icons.bolt_outlined),
+                    children: [
+                      if (openItems.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 12),
+                          child: _CreatePlanCta(),
+                        )
+                      else
+                        for (final item in _planFirst(openItems))
+                          _ItemCardAnimatedRow(
+                            key: ValueKey(item.id),
+                            item: item,
+                            creatorParticipant: _participantForUser(
+                              state.roomParticipants,
+                              item.creatorId,
+                            ),
+                            targetParticipant: _participantForUser(
+                              state.roomParticipants,
+                              item.targetPersonId,
+                            ),
+                            onOpenItemThread: onOpenItemThread,
+                            resolveAction: () async {
+                              final cubit = context.read<ItemsTabCubit>();
+                              if (item.kind == CoordinationItemKind.plan &&
+                                  item.isPlanStep) {
+                                await cubit.resolvePlanStep(item.id);
+                              } else if (item.kind ==
+                                  CoordinationItemKind.ask) {
+                                await cubit.resolveAsk(item.id);
+                              } else {
+                                await cubit.resolveBlocker(item.id);
+                              }
+                            },
+                            cancelAction: () async {
+                              final cubit = context.read<ItemsTabCubit>();
+                              if (item.kind == CoordinationItemKind.ask) {
+                                await cubit.cancelAsk(item.id);
+                              } else {
+                                await cubit.cancelBlocker(item.id);
+                              }
+                            },
+                            acceptAction: switch (item.kind) {
+                              CoordinationItemKind.ask => () => context
+                                  .read<ItemsTabCubit>()
+                                  .acceptAsk(item.id),
+                              CoordinationItemKind.resolution => () => context
+                                  .read<ItemsTabCubit>()
+                                  .acceptResolution(item.id),
+                              _ => null,
+                            },
+                            rejectAction:
+                                item.kind == CoordinationItemKind.resolution
+                                    ? () => context
+                                        .read<ItemsTabCubit>()
+                                        .rejectResolution(item.id)
+                                    : null,
+                          ),
+                    ],
                   ),
-                if (closedItems.isNotEmpty) ...[
+                ],
+                if (showClosedFold) ...[
                   const SizedBox(height: 8),
                   ExpansionTile(
                     title: Text(
@@ -203,7 +237,7 @@ class ItemsTab extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     children: [
-                      for (final item in closedItems)
+                      for (final item in _planFirst(closedItems))
                         ItemCard(
                           item: item,
                           creatorParticipant: _participantForUser(
@@ -224,6 +258,25 @@ class ItemsTab extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _CreatePlanCta extends StatelessWidget {
+  const _CreatePlanCta();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+
+    return FilledButton.tonal(
+      onPressed: () => unawaited(
+        showBeaconCreatePlanSheet(
+          context,
+          onSaved: () => context.read<ItemsTabCubit>().fetch(),
+        ),
+      ),
+      child: Text(l10n.itemsTabCreatePlanCta),
     );
   }
 }
