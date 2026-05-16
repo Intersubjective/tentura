@@ -25,5 +25,6 @@ mutation CoordinationItemUpdateDraftAsk(
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

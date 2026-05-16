@@ -20,5 +20,6 @@ mutation CoordinationItemCancelBlocker($itemId: String!, $reason: String) {
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

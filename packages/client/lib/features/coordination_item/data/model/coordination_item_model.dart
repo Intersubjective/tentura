@@ -45,6 +45,7 @@ extension type const CoordinationItemListModel(GCoordinationItemListData_coordin
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -70,6 +71,7 @@ extension type const CoordinationItemMarkBlockerModel(GCoordinationItemMarkBlock
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -95,6 +97,7 @@ extension type const CoordinationItemResolveBlockerModel(GCoordinationItemResolv
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -120,6 +123,7 @@ extension type const CoordinationItemCancelBlockerModel(GCoordinationItemCancelB
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -145,6 +149,7 @@ extension type const CoordinationItemMarkAskModel(GCoordinationItemMarkAskData_m
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -172,6 +177,7 @@ extension type const CoordinationItemCreateSelfAskModel(
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -197,6 +203,7 @@ extension type const CoordinationItemAcceptAskModel(GCoordinationItemAcceptAskDa
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -222,6 +229,7 @@ extension type const CoordinationItemResolveAskModel(GCoordinationItemResolveAsk
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -247,6 +255,7 @@ extension type const CoordinationItemCancelAskModel(GCoordinationItemCancelAskDa
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -272,6 +281,7 @@ extension type const CoordinationItemRedirectAskModel(GCoordinationItemRedirectA
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -321,6 +331,7 @@ extension type const CoordinationItemUpdatePlanModel(GCoordinationItemUpdatePlan
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -346,6 +357,7 @@ extension type const CoordinationItemAddPlanStepModel(GCoordinationItemAddPlanSt
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -371,6 +383,7 @@ extension type const CoordinationItemResolvePlanStepModel(GCoordinationItemResol
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -396,6 +409,7 @@ extension type const CoordinationItemCreateResolutionModel(GCoordinationItemCrea
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -421,6 +435,7 @@ extension type const CoordinationItemAcceptResolutionModel(GCoordinationItemAcce
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -446,6 +461,7 @@ extension type const CoordinationItemRejectResolutionModel(GCoordinationItemReje
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -473,6 +489,7 @@ extension type const CoordinationItemCreateDraftAskModel(
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -500,6 +517,7 @@ extension type const CoordinationItemPublishAskModel(
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }
 
@@ -527,5 +545,6 @@ extension type const CoordinationItemUpdateDraftAskModel(
         resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
       );
 }

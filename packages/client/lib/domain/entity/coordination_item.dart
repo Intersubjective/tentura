@@ -84,6 +84,7 @@ abstract class CoordinationItem with _$CoordinationItem {
     String? linkedParentItemId,
     DateTime? resolvedAt,
     DateTime? cancelledAt,
+    DateTime? staleAt,
   }) = _CoordinationItem;
 
   const CoordinationItem._();

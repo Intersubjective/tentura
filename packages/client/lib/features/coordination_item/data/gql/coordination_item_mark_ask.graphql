@@ -32,5 +32,6 @@ mutation CoordinationItemMarkAsk(
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

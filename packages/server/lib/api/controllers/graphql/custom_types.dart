@@ -571,6 +571,7 @@ final gqlTypeCoordinationItemRow =
         field('updatedAt', graphQLString.nonNullable()),
         field('resolvedAt', graphQLString),
         field('cancelledAt', graphQLString),
+        field('staleAt', graphQLString),
         field('source', graphQLInt.nonNullable()),
         field('published', graphQLBoolean.nonNullable()),
       ]);

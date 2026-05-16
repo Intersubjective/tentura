@@ -106,6 +106,7 @@ Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
       'updatedAt': item.updatedAt.dateTime.toIso8601String(),
       'resolvedAt': item.resolvedAt?.dateTime.toIso8601String(),
       'cancelledAt': item.cancelledAt?.dateTime.toIso8601String(),
+      'staleAt': item.staleAt?.dateTime.toIso8601String(),
       'source': item.source,
       'published': item.published,
     };
