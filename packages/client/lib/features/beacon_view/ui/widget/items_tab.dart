@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_fact_card_consts.dart'
+    show BeaconFactCardStatusBits;
 import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_next_move_sheet.dart';
@@ -13,8 +14,8 @@ import 'package:tentura/features/beacon_room/ui/widget/beacon_room_self_ask_shee
 import 'package:tentura/features/beacon_room/ui/widget/beacon_you_section_content.dart';
 import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_file_attachment_open.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_now_section_content.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
 
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 
@@ -24,6 +25,17 @@ import '../bloc/items_tab_state.dart';
 import 'beacon_create_plan_sheet.dart';
 import 'beacon_definition_body.dart';
 import 'beacon_prepared_ask_sheet.dart';
+
+List<BeaconFactCard> _pinnedFactsForCarousel(List<BeaconFactCard> factCards) {
+  return factCards
+      .where((f) => f.status != BeaconFactCardStatusBits.removed)
+      .toList(growable: false)
+    ..sort((a, b) {
+      final ta = a.updatedAt ?? a.createdAt;
+      final tb = b.updatedAt ?? b.createdAt;
+      return tb.compareTo(ta);
+    });
+}
 
 List<CoordinationItem> _planFirst(List<CoordinationItem> items) {
   final copy = [...items];
@@ -94,14 +106,8 @@ class ItemsTab extends StatelessWidget {
         final showClosedFold = closedItems.isNotEmpty &&
             (canCreatePlan || openItems.isNotEmpty);
 
-        final roomCue = state.beaconRoomCue;
-        final showNow = roomCue != null &&
-            RoomNowSectionContent.hasVisibleContent(
-              roomState: roomCue,
-              factCards: state.factCards,
-              openCoordinationBlocker: state.openCoordinationBlocker,
-              currentCoordinationPlan: tabState.currentCoordinationPlan,
-            );
+        final pinnedFacts = _pinnedFactsForCarousel(state.factCards);
+        final showFacts = pinnedFacts.isNotEmpty;
 
         // Parent CustomScrollView owns scrolling; nested ListView caused
         // parentDataDirty semantics asserts on web.
@@ -110,15 +116,6 @@ class ItemsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _BeaconDefinitionSection(state: state),
-              if (showNow)
-                _BeaconNowSection(
-                  roomState: roomCue,
-                  factCards: state.factCards,
-                  beaconId: beaconId,
-                  openCoordinationBlocker: state.openCoordinationBlocker,
-                  currentCoordinationPlan: tabState.currentCoordinationPlan,
-                ),
               _BeaconYouSection(
                 myParticipant: myParticipant,
                 beaconId: beaconId,
@@ -254,6 +251,15 @@ class ItemsTab extends StatelessWidget {
                   ),
                 ],
               ],
+              if (showFacts) ...[
+                const SizedBox(height: 8),
+                _BeaconFactsSection(
+                  pinnedFacts: pinnedFacts,
+                  beaconId: beaconId,
+                ),
+              ],
+              const SizedBox(height: 8),
+              _BeaconDefinitionSection(state: state),
             ],
           ),
         );
@@ -402,47 +408,40 @@ class _BeaconDefinitionSection extends StatelessWidget {
   }
 }
 
-class _BeaconNowSection extends StatelessWidget {
-  const _BeaconNowSection({
-    required this.roomState,
-    required this.factCards,
+class _BeaconFactsSection extends StatelessWidget {
+  const _BeaconFactsSection({
+    required this.pinnedFacts,
     required this.beaconId,
-    this.openCoordinationBlocker,
-    this.currentCoordinationPlan,
   });
 
-  final BeaconRoomState roomState;
-  final List<BeaconFactCard> factCards;
+  final List<BeaconFactCard> pinnedFacts;
   final String beaconId;
-  final CoordinationItem? openCoordinationBlocker;
-  final CoordinationItem? currentCoordinationPlan;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
 
     return ExpansionTile(
       leading: const Icon(Icons.article_outlined),
       title: Text(
-        l10n.beaconRoomStripNowTitle,
+        l10n.beaconItemsFactsFoldTitle,
         style: Theme.of(context).textTheme.titleSmall,
       ),
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: RoomNowSectionContent(
-            roomState: roomState,
-            factCards: factCards,
-            openCoordinationBlocker: openCoordinationBlocker,
-            currentCoordinationPlan: currentCoordinationPlan,
-            onOpenFact: (f) => _showFactActionsFromItemsTab(
+          child: BeaconPinnedFactCarousel(
+            facts: pinnedFacts,
+            factTextStyle: TenturaText.body(scheme.onSurface),
+            onManageOverflow: (f) => _showFactActionsFromItemsTab(
               context,
               beaconId: beaconId,
               fact: f,
             ),
             onOpenFileAttachment: (a) => openRoomFileAttachment(
               context,
-              L10n.of(context)!,
+              l10n,
               a,
             ),
           ),
