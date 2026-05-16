@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
 /// Accent color for a coordination item — shared with log tab styling.
@@ -82,7 +83,7 @@ class ItemCard extends StatefulWidget {
 
   final CoordinationItem item;
 
-  /// When set, log-style leading avatars match the Log tab ([coordinationLogLeadRow]).
+  /// Source/target participants for the header avatar trail ([coordinationItemCardAvatarTrail]).
   final BeaconParticipant? creatorParticipant;
   final BeaconParticipant? targetParticipant;
 
@@ -140,11 +141,11 @@ class _ItemCardState extends State<ItemCard> {
       size: kCoordinationLogEventIconSize,
       color: statusColor,
     );
-    final lead = coordinationLogLeadRow(
-      eventIcon: eventIcon,
-      actor: widget.creatorParticipant,
+    final avatarTrail = coordinationItemCardAvatarTrail(
+      source: widget.creatorParticipant,
       target: widget.targetParticipant,
     );
+    final hasSourceAvatar = widget.creatorParticipant != null;
     final staleLabel = _formatStaleRemaining(l10n, item.staleAt);
     final createdLabel =
         coordinationLogTimestampLabel(item.createdAt.toUtc());
@@ -165,9 +166,9 @@ class _ItemCardState extends State<ItemCard> {
             children: [
               Row(
                 children: [
-                  lead,
-                  const SizedBox(width: 8),
-                  Expanded(
+                  eventIcon,
+                  const SizedBox(width: 6),
+                  Flexible(
                     child: Text(
                       kindLabel,
                       style: textTheme.bodySmall?.copyWith(
@@ -180,6 +181,11 @@ class _ItemCardState extends State<ItemCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (hasSourceAvatar) ...[
+                    const SizedBox(width: 6),
+                    avatarTrail,
+                  ],
+                  const Spacer(),
                   if (staleLabel != null) ...[
                     const SizedBox(width: 6),
                     Text(

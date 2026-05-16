@@ -306,10 +306,14 @@ class _LogActivityTile extends StatelessWidget {
       size: kCoordinationLogEventIconSize,
       color: iconColor,
     );
-    final lead = coordinationLogLeadRow(
+    final lead = coordinationLogTabLeadRow(
       eventIcon: eventIcon,
       actor: actor,
       target: target,
+    );
+    final bodySnippet = coordinationLogEventBodySnippet(
+      event: event,
+      fallback: label,
     );
 
     return Padding(
@@ -321,11 +325,12 @@ class _LogActivityTile extends StatelessWidget {
           const SizedBox(width: kSpacingSmall),
           Expanded(
             child: Text(
-              label,
+              bodySnippet,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: tier == _LogTier.high ? FontWeight.w600 : null,
-                color: iconColor,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 4),
