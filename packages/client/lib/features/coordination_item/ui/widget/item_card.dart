@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
 /// Accent color for a coordination item — shared with log tab styling.
@@ -34,6 +33,8 @@ enum _ItemMenuAction {
 /// Mirrors beacon activity log tiers — drives header label weight only.
 enum _ItemHeaderTier { high, medium, low }
 
+const _bodyPreviewThreshold = 60;
+
 _ItemHeaderTier _itemHeaderTier(CoordinationItem item) {
   if (item.isCancelled || item.isSuperseded) return _ItemHeaderTier.low;
   if (item.isResolved) return _ItemHeaderTier.high;
@@ -53,7 +54,20 @@ _ItemHeaderTier _itemHeaderTier(CoordinationItem item) {
   return _ItemHeaderTier.low;
 }
 
-class ItemCard extends StatelessWidget {
+String? _formatStaleRemaining(L10n l10n, DateTime? staleAt) {
+  if (staleAt == null) return null;
+  final diff = staleAt.difference(DateTime.now());
+  if (diff.isNegative) return l10n.itemStaleOverdue;
+  if (diff.inDays >= 1) {
+    return '${diff.inDays}d ${diff.inHours.remainder(24)}h';
+  }
+  if (diff.inHours >= 1) {
+    return '${diff.inHours}h ${diff.inMinutes.remainder(60)}m';
+  }
+  return '${diff.inMinutes}m';
+}
+
+class ItemCard extends StatefulWidget {
   const ItemCard({
     required this.item,
     this.creatorParticipant,
@@ -80,7 +94,15 @@ class ItemCard extends StatelessWidget {
   final VoidCallback? onReject;
 
   @override
+  State<ItemCard> createState() => _ItemCardState();
+}
+
+class _ItemCardState extends State<ItemCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final item = widget.item;
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
@@ -120,15 +142,21 @@ class ItemCard extends StatelessWidget {
     );
     final lead = coordinationLogLeadRow(
       eventIcon: eventIcon,
-      actor: creatorParticipant,
-      target: targetParticipant,
+      actor: widget.creatorParticipant,
+      target: widget.targetParticipant,
     );
-    final tsLabel = coordinationLogTimestampLabel(item.updatedAt.toUtc());
+    final staleLabel = _formatStaleRemaining(l10n, item.staleAt);
+    final createdLabel =
+        coordinationLogTimestampLabel(item.createdAt.toUtc());
+    final body = item.body.trim();
+    final showBodyToggle = body.length > _bodyPreviewThreshold;
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onOpenItemThread == null ? null : () => onOpenItemThread!(item),
+        onTap: widget.onOpenItemThread == null
+            ? null
+            : () => widget.onOpenItemThread!(item),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
@@ -136,10 +164,9 @@ class ItemCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   lead,
-                  const SizedBox(width: kSpacingSmall),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       kindLabel,
@@ -153,6 +180,15 @@ class ItemCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  if (staleLabel != null) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      staleLabel,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                   if (showMenu && menuEntries.isNotEmpty)
                     PopupMenuButton<_ItemMenuAction>(
                       tooltip: l10n.beaconHudOverflowMore,
@@ -170,26 +206,49 @@ class ItemCard extends StatelessWidget {
                           ),
                       ],
                       onSelected: (action) => switch (action) {
-                        _ItemMenuAction.accept => onAccept?.call(),
-                        _ItemMenuAction.resolve => onResolve?.call(),
-                        _ItemMenuAction.cancel => onCancel?.call(),
+                        _ItemMenuAction.accept => widget.onAccept?.call(),
+                        _ItemMenuAction.resolve => widget.onResolve?.call(),
+                        _ItemMenuAction.cancel => widget.onCancel?.call(),
                         _ItemMenuAction.reject =>
-                          (onReject ?? onCancel)?.call(),
+                          (widget.onReject ?? widget.onCancel)?.call(),
                       },
-                    ),
-                  const SizedBox(width: 4),
-                  Text(
-                    tsLabel,
-                    style: textTheme.labelSmall,
-                  ),
+                    )
+                  else
+                    const SizedBox(width: 44, height: 44),
                 ],
               ),
+              if (body.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: textTheme.bodyMedium,
+                  maxLines: _expanded ? null : 1,
+                  overflow:
+                      _expanded ? null : TextOverflow.ellipsis,
+                ),
+              ],
               const SizedBox(height: 4),
-              Text(
-                item.title,
-                style: textTheme.bodyMedium,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Text(
+                    createdLabel,
+                    style: textTheme.labelSmall,
+                  ),
+                  const Spacer(),
+                  if (showBodyToggle)
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: const Size(44, 36),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () =>
+                          setState(() => _expanded = !_expanded),
+                      child: Text(
+                        _expanded ? l10n.itemShowLess : l10n.itemShowMore,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -199,23 +258,24 @@ class ItemCard extends StatelessWidget {
   }
 
   List<(_ItemMenuAction, String)> _menuEntries(L10n l10n) {
+    final item = widget.item;
     if (!item.published || !item.isActive) {
       return const [];
     }
 
     if (item.kind == CoordinationItemKind.blocker) {
       return [
-        if (onResolve != null)
+        if (widget.onResolve != null)
           (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-        if (onCancel != null)
+        if (widget.onCancel != null)
           (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
       ];
     }
     if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
       return [
-        if (onAccept != null)
+        if (widget.onAccept != null)
           (_ItemMenuAction.accept, l10n.coordinationResolutionAcceptLabel),
-        if (onReject != null || onCancel != null)
+        if (widget.onReject != null || widget.onCancel != null)
           (
             _ItemMenuAction.reject,
             l10n.coordinationResolutionRejectLabel,
@@ -224,25 +284,25 @@ class ItemCard extends StatelessWidget {
     }
     if (item.kind == CoordinationItemKind.plan && item.isPlanStep) {
       return [
-        if (onResolve != null)
+        if (widget.onResolve != null)
           (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
       ];
     }
     if (item.kind == CoordinationItemKind.ask) {
-      if (item.isOpen && onAccept != null) {
+      if (item.isOpen && widget.onAccept != null) {
         return [
           (_ItemMenuAction.accept, l10n.coordinationAskAcceptLabel),
-          if (onResolve != null)
+          if (widget.onResolve != null)
             (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-          if (onCancel != null)
+          if (widget.onCancel != null)
             (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
         ];
       }
       if (item.isAccepted) {
         return [
-          if (onResolve != null)
+          if (widget.onResolve != null)
             (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-          if (onCancel != null)
+          if (widget.onCancel != null)
             (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
         ];
       }

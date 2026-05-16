@@ -3122,5 +3122,17 @@
       }
     }
   },
-  "beaconRoomPromotePinAccessibilityHint": "Jump to the linked message"
+  "beaconRoomPromotePinAccessibilityHint": "Jump to the linked message",
+  "itemStaleOverdue": "overdue",
+  "@itemStaleOverdue": {
+    "description": "Label when a coordination item staleAt deadline has passed"
+  },
+  "itemShowMore": "show more",
+  "@itemShowMore": {
+    "description": "Expand coordination item body on Items tab card"
+  },
+  "itemShowLess": "show less",
+  "@itemShowLess": {
+    "description": "Collapse coordination item body on Items tab card"
+  }
 }

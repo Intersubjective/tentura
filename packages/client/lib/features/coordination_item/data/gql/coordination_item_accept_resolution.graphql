@@ -20,5 +20,6 @@ mutation CoordinationItemAcceptResolution($itemId: String!) {
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

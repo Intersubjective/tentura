@@ -3101,5 +3101,8 @@
       }
     }
   },
-  "beaconRoomPromotePinAccessibilityHint": "Перейти к связанному сообщению"
+  "beaconRoomPromotePinAccessibilityHint": "Перейти к связанному сообщению",
+  "itemStaleOverdue": "просрочено",
+  "itemShowMore": "ещё",
+  "itemShowLess": "свернуть"
 }

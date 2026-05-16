@@ -30,5 +30,6 @@ mutation CoordinationItemCreateSelfAsk(
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

@@ -6324,6 +6324,7 @@ type CoordinationItemRow {
   updatedAt: String!
   resolvedAt: String
   cancelledAt: String
+  staleAt: String
 }
 
 type CoordinationItemMessageRow {

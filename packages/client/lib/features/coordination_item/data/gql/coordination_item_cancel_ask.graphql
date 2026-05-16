@@ -20,5 +20,6 @@ mutation CoordinationItemCancelAsk($itemId: String!, $reason: String) {
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

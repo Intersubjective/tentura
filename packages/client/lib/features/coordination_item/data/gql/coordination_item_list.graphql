@@ -36,5 +36,6 @@ query CoordinationItemList(
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

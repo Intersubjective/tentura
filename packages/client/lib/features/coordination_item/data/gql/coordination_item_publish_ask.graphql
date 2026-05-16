@@ -23,5 +23,6 @@ mutation CoordinationItemPublishAsk(
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

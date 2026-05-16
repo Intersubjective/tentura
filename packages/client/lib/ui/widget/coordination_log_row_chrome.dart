@@ -45,11 +45,10 @@ Widget coordinationLogLeadRow({
   );
 
   final children = <Widget>[
+    eventIcon,
+    const SizedBox(width: 2),
     actorAvatar,
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: eventIcon,
-    ),
+    const Icon(Icons.arrow_right_alt, size: kCoordinationLogAvatarSize),
   ];
 
   if (target != null) {

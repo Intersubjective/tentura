@@ -23,5 +23,6 @@ mutation CoordinationItemRedirectAsk(
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

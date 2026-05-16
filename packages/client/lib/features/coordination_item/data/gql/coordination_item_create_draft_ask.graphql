@@ -30,5 +30,6 @@ mutation CoordinationItemCreateDraftAsk(
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }

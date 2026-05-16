@@ -30,5 +30,6 @@ mutation CoordinationItemMarkBlocker(
     updatedAt
     resolvedAt
     cancelledAt
+    staleAt
   }
 }
