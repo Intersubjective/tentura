@@ -548,6 +548,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
   }
 
+  void _openItemDiscussion(CoordinationItem item) {
+    unawaited(context.router.push(ItemDiscussionRoute(item: item)));
+  }
+
   void _exitRoomSurface() {
     if (!_showRoomSurface) return;
     context.read<BeaconViewCubit>().clearRoomUnread();
@@ -657,6 +661,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   _peopleTabAttentionActive = false;
                 }),
                 onEnterRoomSurface: _enterRoomSurface,
+                onOpenItemDiscussion: _openItemDiscussion,
                 onAuthorCloseRequested: (ctx) => _beaconViewRunAuthorCloseSheet(
                   context: ctx,
                   cubit: beaconViewCubit,
@@ -761,6 +766,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
     required this.peopleTabAttentionActive,
     required this.onPeopleTabAttentionCleared,
     required this.onEnterRoomSurface,
+    required this.onOpenItemDiscussion,
     required this.onAuthorCloseRequested,
   });
 
@@ -774,6 +780,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
   final VoidCallback onPeopleTabAttentionCleared;
 
   final void Function([CoordinationItem? focusItem]) onEnterRoomSurface;
+
+  final void Function(CoordinationItem item) onOpenItemDiscussion;
 
   final Future<void> Function(BuildContext context) onAuthorCloseRequested;
 
@@ -947,7 +955,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
         final tabBody = switch (idx) {
           kBeaconTabItems => ItemsTab(
             state: state,
-            onOpenItemThread: onEnterRoomSurface,
+            onOpenItemThread: onOpenItemDiscussion,
           ),
           kBeaconTabPeople => _HelpOffersTabBody(
             state: state,
