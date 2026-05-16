@@ -1,11 +1,11 @@
 import 'dart:async';
 
+import 'package:get_it/get_it.dart';
+
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
-import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'items_tab_state.dart';
@@ -16,11 +16,9 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
   ItemsTabCubit({
     required String beaconId,
     CoordinationItemCase? coordinationItemCase,
-    BeaconRoomCase? beaconRoomCase,
     InvalidationService? invalidationService,
   })  : _beaconId = beaconId,
         _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
-        _roomCase = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
         super(const ItemsTabState()) {
     _invalidationSub = (invalidationService ?? GetIt.I<InvalidationService>())
         .beaconRoomInvalidations
@@ -37,7 +35,6 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
 
   final String _beaconId;
   final CoordinationItemCase _case;
-  final BeaconRoomCase _roomCase;
   late final StreamSubscription<BeaconRoomInvalidation> _invalidationSub;
 
   Future<void> fetch({bool silent = false}) async {
@@ -46,12 +43,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
         emit(state.copyWith(status: const StateIsLoading()));
       }
       final items = await _case.listByBeacon(_beaconId);
-      final viewerId = GetIt.I<ProfileCubit>().state.profile.id;
       final currentPlan = await _case.fetchCurrentRootPlan(_beaconId);
-      final viewerAcceptedAsk = await _roomCase.fetchViewerAcceptedAsk(
-        beaconId: _beaconId,
-        viewerId: viewerId,
-      );
       final open = <CoordinationItem>[];
       final closed = <CoordinationItem>[];
       final drafts = <CoordinationItem>[];
@@ -71,7 +63,6 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
         closedItems: closed,
         draftAskItems: drafts,
         currentCoordinationPlan: currentPlan,
-        viewerAcceptedAsk: viewerAcceptedAsk,
         status: const StateIsSuccess(),
       ));
     } on Object catch (e) {

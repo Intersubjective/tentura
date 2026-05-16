@@ -140,11 +140,6 @@ class RoomCubit extends Cubit<RoomState> {
       final factCards = await _case.fetchFactCards(state.beaconId);
       final openCoordinationBlocker =
           await _case.fetchOpenCoordinationBlocker(state.beaconId);
-      final viewerId = GetIt.I<ProfileCubit>().state.profile.id;
-      final viewerAcceptedAsk = await _case.fetchViewerAcceptedAsk(
-        beaconId: state.beaconId,
-        viewerId: viewerId,
-      );
       final currentCoordinationPlan =
           await _case.fetchCurrentCoordinationPlan(state.beaconId);
 
@@ -169,7 +164,6 @@ class RoomCubit extends Cubit<RoomState> {
             factCards: factCards,
             roomState: roomState,
             openCoordinationBlocker: openCoordinationBlocker,
-            viewerAcceptedAsk: viewerAcceptedAsk,
             currentCoordinationPlan: currentCoordinationPlan,
             unreadAnchorAt: anchor,
             myUserId: GetIt.I<ProfileCubit>().state.profile.id,
