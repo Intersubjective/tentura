@@ -105,6 +105,13 @@ abstract class CoordinationItem with _$CoordinationItem {
   bool get isActive =>
       isOpen || isAccepted;
 
+  /// Primary text for list cards: [body] when set, otherwise [title].
+  String get contentPreview {
+    final trimmedBody = body.trim();
+    if (trimmedBody.isNotEmpty) return trimmedBody;
+    return title.trim();
+  }
+
   /// Room message id to scroll to when opening this item’s thread, when known.
   String? get threadAnchorMessageId {
     for (final candidate in [linkedMessageId, targetMessageId]) {

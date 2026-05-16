@@ -145,12 +145,14 @@ class _ItemCardState extends State<ItemCard> {
       source: widget.creatorParticipant,
       target: widget.targetParticipant,
     );
-    final hasSourceAvatar = widget.creatorParticipant != null;
+    final hasAvatarTrail =
+        widget.creatorParticipant != null ||
+        widget.targetParticipant != null;
     final staleLabel = _formatStaleRemaining(l10n, item.staleAt);
     final createdLabel =
         coordinationLogTimestampLabel(item.createdAt.toUtc());
-    final body = item.body.trim();
-    final showBodyToggle = body.length > _bodyPreviewThreshold;
+    final contentPreview = item.contentPreview;
+    final showBodyToggle = contentPreview.length > _bodyPreviewThreshold;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -161,14 +163,19 @@ class _ItemCardState extends State<ItemCard> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (hasAvatarTrail) ...[
+                    avatarTrail,
+                    const SizedBox(width: 6),
+                  ],
                   eventIcon,
                   const SizedBox(width: 6),
-                  Flexible(
+                  Expanded(
                     child: Text(
                       kindLabel,
                       style: textTheme.bodySmall?.copyWith(
@@ -181,11 +188,6 @@ class _ItemCardState extends State<ItemCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (hasSourceAvatar) ...[
-                    const SizedBox(width: 6),
-                    avatarTrail,
-                  ],
-                  const Spacer(),
                   if (staleLabel != null) ...[
                     const SizedBox(width: 6),
                     Text(
@@ -218,15 +220,13 @@ class _ItemCardState extends State<ItemCard> {
                         _ItemMenuAction.reject =>
                           (widget.onReject ?? widget.onCancel)?.call(),
                       },
-                    )
-                  else
-                    const SizedBox(width: 44, height: 44),
+                    ),
                 ],
               ),
-              if (body.isNotEmpty) ...[
+              if (contentPreview.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
-                  body,
+                  contentPreview,
                   style: textTheme.bodyMedium,
                   maxLines: _expanded ? null : 1,
                   overflow:

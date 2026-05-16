@@ -3,22 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
-/// Items tab card: `[src avatar] [→] [dst avatar?]` after icon and type label.
+/// Items tab card header lead: `[dst avatar?] [←] [src avatar]`.
 Widget coordinationItemCardAvatarTrail({
   BeaconParticipant? source,
   BeaconParticipant? target,
 }) {
-  if (source == null) return const SizedBox.shrink();
+  if (source == null && target == null) return const SizedBox.shrink();
 
-  final children = <Widget>[
-    coordinationLogParticipantAvatar(source),
-  ];
+  final children = <Widget>[];
   if (target != null) {
+    children.add(coordinationLogParticipantAvatar(target));
+  }
+  if (target != null && source != null) {
     children.addAll([
       const SizedBox(width: 2),
-      const Icon(Icons.arrow_right_alt, size: kCoordinationLogAvatarSize),
-      coordinationLogParticipantAvatar(target),
+      const Icon(Icons.arrow_left_alt, size: kCoordinationLogAvatarSize),
     ]);
+  }
+  if (source != null) {
+    children.add(coordinationLogParticipantAvatar(source));
   }
 
   return Row(
