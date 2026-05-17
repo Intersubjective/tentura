@@ -13,6 +13,7 @@ Future<void> showBeaconCreatePlanSheet(
   VoidCallback? onSaved,
 }) async {
   final l10n = L10n.of(context)!;
+  final itemsTabCubit = context.read<ItemsTabCubit>();
   final titleController = TextEditingController();
   try {
     var submitting = false;
@@ -58,9 +59,9 @@ Future<void> showBeaconCreatePlanSheet(
                         : () async {
                             setState(() => submitting = true);
                             try {
-                              await ctx
-                                  .read<ItemsTabCubit>()
-                                  .createPlan(titleController.text.trim());
+                              await itemsTabCubit.createPlan(
+                                titleController.text.trim(),
+                              );
                               if (ctx.mounted) {
                                 Navigator.of(ctx).pop(true);
                               }

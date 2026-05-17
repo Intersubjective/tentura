@@ -200,7 +200,7 @@ class BeaconRoomRepository {
       final title = userRow?.title ?? '';
       final imgUuid = userRow?.imageId;
       final image = imgUuid != null ? imageByUuid[imgUuid] : null;
-      final hasPicture = imgUuid != null;
+      final hasPicture = imgUuid != null && image != null;
       final picHeight = image?.height ?? 0;
       final picWidth = image?.width ?? 0;
       final blurHash = image?.hash ?? '';
@@ -313,7 +313,7 @@ class BeaconRoomRepository {
       final title = userRow?.title ?? '';
       final imgUuid = userRow?.imageId;
       final image = imgUuid != null ? imageByUuid[imgUuid] : null;
-      final authorHasPicture = imgUuid != null;
+      final authorHasPicture = imgUuid != null && image != null;
       final authorPicHeight = image?.height ?? 0;
       final authorPicWidth = image?.width ?? 0;
       final authorBlurHash = image?.hash ?? '';

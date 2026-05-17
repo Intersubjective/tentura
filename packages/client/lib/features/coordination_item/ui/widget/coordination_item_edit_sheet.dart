@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-
-import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
 
 String _editSheetTitle(L10n l10n, CoordinationItem item) => switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
@@ -22,6 +22,7 @@ Future<void> showCoordinationItemEditSheet(
   VoidCallback? onSaved,
 }) async {
   final l10n = L10n.of(context)!;
+  final coordinationCase = GetIt.I<CoordinationItemCase>();
   final ok = await showModalBottomSheet<bool>(
     context: context,
     showDragHandle: true,
@@ -29,6 +30,7 @@ Future<void> showCoordinationItemEditSheet(
     builder: (ctx) => _CoordinationItemEditSheetBody(
       item: item,
       l10n: l10n,
+      coordinationCase: coordinationCase,
     ),
   );
   if (ok == true && context.mounted) {
@@ -40,10 +42,12 @@ class _CoordinationItemEditSheetBody extends StatefulWidget {
   const _CoordinationItemEditSheetBody({
     required this.item,
     required this.l10n,
+    required this.coordinationCase,
   });
 
   final CoordinationItem item;
   final L10n l10n;
+  final CoordinationItemCase coordinationCase;
 
   @override
   State<_CoordinationItemEditSheetBody> createState() =>
@@ -115,7 +119,7 @@ class _CoordinationItemEditSheetBodyState
                 : () async {
                     setState(() => _submitting = true);
                     try {
-                      await context.read<ItemsTabCubit>().updateItem(
+                      await widget.coordinationCase.updateItem(
                             itemId: widget.item.id,
                             title: _titleController.text.trim(),
                             body: _bodyController.text.trim(),

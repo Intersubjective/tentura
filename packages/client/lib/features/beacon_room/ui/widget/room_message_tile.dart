@@ -336,83 +336,85 @@ class RoomMessageTile extends StatelessWidget {
 
     Widget reactionsAndTime() => Padding(
       padding: EdgeInsets.only(top: tt.rowGap / 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Flexible(
-            child: Wrap(
-              spacing: kSpacingSmall,
-              runSpacing: kSpacingSmall / 2,
-              alignment: WrapAlignment.start,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                for (final entry in _sortedReactionEntries(message))
-                  InkWell(
-                    key: ValueKey('${message.id}-re-${entry.key}'),
-                    onTap: () => unawaited(
-                      onToggleReaction(message.id, entry.key),
-                    ),
-                    onLongPress:
-                        (message.reactors[entry.key]?.isNotEmpty ?? false)
-                        ? () => unawaited(
-                            showReactionSendersSheet(
-                              context,
-                              reactors: message.reactors,
-                              reactionCounts: message.reactionCounts,
-                              initialEmoji: entry.key,
+      child: SizedBox(
+        width: double.infinity,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Wrap(
+                spacing: kSpacingSmall,
+                runSpacing: kSpacingSmall / 2,
+                alignment: WrapAlignment.start,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  for (final entry in _sortedReactionEntries(message))
+                    InkWell(
+                      key: ValueKey('${message.id}-re-${entry.key}'),
+                      onTap: () => unawaited(
+                        onToggleReaction(message.id, entry.key),
+                      ),
+                      onLongPress:
+                          (message.reactors[entry.key]?.isNotEmpty ?? false)
+                          ? () => unawaited(
+                              showReactionSendersSheet(
+                                context,
+                                reactors: message.reactors,
+                                reactionCounts: message.reactionCounts,
+                                initialEmoji: entry.key,
+                              ),
+                            )
+                          : null,
+                      borderRadius: BorderRadius.circular(18),
+                      child: Padding(
+                        padding: kPaddingSmallH.add(
+                          const EdgeInsets.symmetric(vertical: 6),
+                        ),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: viewerReactions.contains(entry.key)
+                                ? scheme.primaryContainer
+                                : scheme.surfaceContainerHighest.withValues(
+                                    alpha: 0.75,
+                                  ),
+                            borderRadius: BorderRadius.circular(999),
+                            border: viewerReactions.contains(entry.key)
+                                ? Border.all(color: scheme.primary)
+                                : null,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: kSpacingSmall,
+                              vertical: 2,
                             ),
-                          )
-                        : null,
-                    borderRadius: BorderRadius.circular(18),
-                    child: Padding(
-                      padding: kPaddingSmallH.add(
-                        const EdgeInsets.symmetric(vertical: 6),
-                      ),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: viewerReactions.contains(entry.key)
-                              ? scheme.primaryContainer
-                              : scheme.surfaceContainerHighest.withValues(
-                                  alpha: 0.75,
-                                ),
-                          borderRadius: BorderRadius.circular(999),
-                          border: viewerReactions.contains(entry.key)
-                              ? Border.all(color: scheme.primary)
-                              : null,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: kSpacingSmall,
-                            vertical: 2,
-                          ),
-                          child: _RoomReactionChipPill(
-                            emoji: entry.key,
-                            count: entry.value,
-                            reactors: message.reactors[entry.key] ?? const [],
+                            child: _RoomReactionChipPill(
+                              emoji: entry.key,
+                              count: entry.value,
+                              reactors:
+                                  message.reactors[entry.key] ?? const [],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Spacer(),
-          Padding(
-            padding: EdgeInsets.only(
-              left: tt.iconTextGap,
-              bottom: 2,
+            Padding(
+              padding: EdgeInsets.only(
+                left: tt.iconTextGap,
+                bottom: 2,
+              ),
+              child: Text(
+                [
+                  _formatTime(message.createdAt),
+                  if (message.editedAt != null) l10n.beaconRoomMessageEdited,
+                ].join(' · '),
+                style: theme.textTheme.labelSmall,
+              ),
             ),
-            child: Text(
-              [
-                _formatTime(message.createdAt),
-                if (message.editedAt != null) l10n.beaconRoomMessageEdited,
-              ].join(' · '),
-              textAlign: TextAlign.end,
-              style: theme.textTheme.labelSmall,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
