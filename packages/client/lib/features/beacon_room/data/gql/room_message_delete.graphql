@@ -1,0 +1,3 @@
+mutation RoomMessageDelete($beaconId: String!, $messageId: String!) {
+  RoomMessageDelete(beaconId: $beaconId, messageId: $messageId)
+}

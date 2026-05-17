@@ -2819,6 +2819,10 @@
   "@beaconRoomActionEditMessage": {
     "description": "Menu action to edit an existing beacon room message"
   },
+  "beaconRoomActionDeleteMessage": "Delete message",
+  "beaconRoomDeleteMessageConfirmTitle": "Delete message?",
+  "beaconRoomDeleteMessageConfirmBody": "This message will be permanently deleted.",
+  "beaconRoomDeleteMessageConfirmAction": "Delete",
   "beaconRoomMessageEdited": "Edited",
   "@beaconRoomMessageEdited": {
     "description": "Shown next to the message time when the message text was edited"

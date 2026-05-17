@@ -420,6 +420,23 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
+  Future<void> deleteMessage({required String messageId}) async {
+    final previousMessages = List<RoomMessage>.from(state.messages);
+    emit(
+      state.copyWith(
+        messages: state.messages.where((m) => m.id != messageId).toList(),
+      ),
+    );
+    try {
+      await _case.deleteMessage(
+        beaconId: state.beaconId,
+        messageId: messageId,
+      );
+    } on Object catch (e) {
+      emit(state.copyWith(messages: previousMessages, status: StateHasError(e)));
+    }
+  }
+
   Future<void> createResolutionFromMessage({
     required String messageId,
     required String title,

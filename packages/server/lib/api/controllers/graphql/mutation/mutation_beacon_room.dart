@@ -53,6 +53,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
         roomMessageCreate,
         roomMessageAttachmentAdd,
         roomMessageEdit,
+        roomMessageDelete,
         participantOfferHelp,
         beaconRoomAdmit,
         beaconStewardPromote,
@@ -153,6 +154,21 @@ final class MutationBeaconRoom extends GqlNodeBase {
               newBody: _body.fromArgsNonNullable(args),
             )
             .then((_) => true),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get roomMessageDelete =>
+      GraphQLObjectField(
+        'RoomMessageDelete',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _messageId.field,
+        ],
+        resolve: (_, args) => _case.deleteMessage(
+              beaconId: _beaconIdStr.fromArgsNonNullable(args),
+              messageId: _messageId.fromArgsNonNullable(args),
+              userId: getCredentials(args).sub,
+            ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get participantOfferHelp =>

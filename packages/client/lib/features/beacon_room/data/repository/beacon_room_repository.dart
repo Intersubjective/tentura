@@ -27,6 +27,7 @@ import '../gql/_g/beacon_room_state_get.req.gql.dart';
 import '../gql/_g/beacon_steward_promote.req.gql.dart';
 import '../gql/_g/room_message_attachment_add.req.gql.dart';
 import '../gql/_g/room_message_create.req.gql.dart';
+import '../gql/_g/room_message_delete.req.gql.dart';
 import '../gql/_g/room_message_edit.req.gql.dart';
 import '../gql/_g/room_message_list.req.gql.dart';
 import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
@@ -361,6 +362,22 @@ class BeaconRoomRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).RoomMessageEdit);
+  }
+
+  Future<void> deleteMessage({
+    required String beaconId,
+    required String messageId,
+  }) async {
+    await _remoteApiService
+        .request(
+          GRoomMessageDeleteReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..messageId = messageId,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).RoomMessageDelete);
   }
 
   Future<Uint8List> downloadRoomAttachmentBytes(String attachmentId) =>

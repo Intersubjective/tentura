@@ -233,6 +233,12 @@ class CoordinationItemCase {
   }) =>
       _repository.appendMessage(itemId: itemId, body: body);
 
+  Future<void> deleteMessage({
+    required String itemId,
+    required String messageId,
+  }) =>
+      _repository.deleteMessage(itemId: itemId, messageId: messageId);
+
   Future<void> markItemSeenIfAllowed(String itemId) async {
     try {
       await _repository.markSeen(itemId: itemId);

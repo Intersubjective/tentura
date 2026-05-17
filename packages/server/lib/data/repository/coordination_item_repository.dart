@@ -843,6 +843,18 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   }
 
   @override
+  Future<CoordinationItemMessage?> getMessageById(String messageId) =>
+      _db.managers.coordinationItemMessages
+          .filter((m) => m.id.equals(messageId))
+          .getSingleOrNull();
+
+  @override
+  Future<void> deleteMessage({required String messageId}) =>
+      _db.managers.coordinationItemMessages
+          .filter((m) => m.id.equals(messageId))
+          .delete();
+
+  @override
   Future<CoordinationItemMessage> appendMessage({
     required String itemId,
     required String senderId,

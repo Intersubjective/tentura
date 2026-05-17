@@ -16,6 +16,7 @@ import '../gql/_g/coordination_item_resolve_ask.req.gql.dart';
 import '../gql/_g/coordination_item_cancel_ask.req.gql.dart';
 import '../gql/_g/coordination_item_redirect_ask.req.gql.dart';
 import '../gql/_g/coordination_item_append_message.req.gql.dart';
+import '../gql/_g/coordination_item_delete_message.req.gql.dart';
 import '../gql/_g/coordination_item_update_plan.req.gql.dart';
 import '../gql/_g/coordination_item_add_plan_step.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_plan_step.req.gql.dart';
@@ -439,6 +440,21 @@ class CoordinationItemRepository {
           .then((r) => (r.dataOrThrow(label: _label).rejectResolution
                   as CoordinationItemRejectResolutionModel)
               .toEntity());
+
+  Future<void> deleteMessage({
+    required String itemId,
+    required String messageId,
+  }) =>
+      _remote
+          .request(
+            GDeleteCoordinationItemMessageReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..messageId = messageId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r.dataOrThrow(label: _label).deleteCoordinationItemMessage);
 
   Future<CoordinationItemMessage> appendMessage({
     required String itemId,
