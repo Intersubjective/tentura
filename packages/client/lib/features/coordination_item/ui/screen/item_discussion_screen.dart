@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -191,23 +193,21 @@ class _ItemDiscussionHeader extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final colorScheme = theme.colorScheme;
-    final statusColor = item.isOpen
-        ? colorScheme.error
-        : item.isAccepted
-            ? colorScheme.primary
-            : item.isResolved
-                ? colorScheme.primary
-                : colorScheme.outline;
+    final tt = context.tt;
+    final statusColor = coordinationItemColor(tt, item.kind, item.status);
     final kindLabel = switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
       CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
-      _ => l10n.coordinationItemCardTitle,
+      CoordinationItemKind.plan => item.isPlanStep
+          ? l10n.coordinationPlanStepCardLabel
+          : l10n.coordinationPlanCardLabel,
+      CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
     };
-    final headerIcon = switch (item.kind) {
-      CoordinationItemKind.ask => Icons.help_outline,
-      _ => item.isOpen ? Icons.block : Icons.check_circle,
-    };
+    final headerIcon = coordinationItemIcon(
+      item.kind,
+      item.status,
+      isPlanStep: item.isPlanStep,
+    );
     final body = item.body.trim();
     final title = item.title.trim();
 

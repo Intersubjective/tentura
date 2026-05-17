@@ -26,7 +26,84 @@ Color coordinationItemColor(
         _ => tt.warn,
       },
     CoordinationItemKind.resolution => tt.info,
-    CoordinationItemKind.plan => tt.textMuted,
+    CoordinationItemKind.plan => tt.info,
+  };
+}
+
+/// Header / card icon for a coordination item (status-aware).
+IconData coordinationItemIcon(
+  CoordinationItemKind kind,
+  CoordinationItemStatus status, {
+  bool isPlanStep = false,
+}) {
+  return switch (status) {
+    CoordinationItemStatus.accepted => Icons.check_circle_outline,
+    CoordinationItemStatus.resolved => Icons.check_circle,
+    CoordinationItemStatus.cancelled => Icons.cancel_outlined,
+    CoordinationItemStatus.superseded => Icons.swap_horiz,
+    _ => switch (kind) {
+        CoordinationItemKind.blocker => Icons.block,
+        CoordinationItemKind.ask => Icons.help_outline,
+        CoordinationItemKind.plan =>
+          isPlanStep ? Icons.checklist : Icons.edit_note,
+        CoordinationItemKind.resolution => Icons.handshake_outlined,
+      },
+  };
+}
+
+/// Accent for room-timeline item events.
+Color coordinationItemEventColor(
+  TenturaTokens tt,
+  CoordinationItemKind kind,
+  CoordinationItemEventKind eventKind,
+) {
+  return switch (eventKind) {
+    CoordinationItemEventKind.resolved =>
+      coordinationItemColor(tt, kind, CoordinationItemStatus.resolved),
+    CoordinationItemEventKind.cancelled ||
+    CoordinationItemEventKind.superseded =>
+      coordinationItemColor(tt, kind, CoordinationItemStatus.cancelled),
+    CoordinationItemEventKind.accepted =>
+      coordinationItemColor(tt, kind, CoordinationItemStatus.accepted),
+    _ => coordinationItemColor(tt, kind, CoordinationItemStatus.open),
+  };
+}
+
+/// Icon for room-timeline item events.
+IconData coordinationItemEventIcon(
+  CoordinationItemKind kind,
+  CoordinationItemEventKind eventKind, {
+  bool isPlanStep = false,
+}) {
+  return switch (kind) {
+    CoordinationItemKind.ask => switch (eventKind) {
+        CoordinationItemEventKind.created => Icons.help_outline,
+        CoordinationItemEventKind.accepted => Icons.handshake_outlined,
+        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
+        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
+        _ => Icons.help_outline,
+      },
+    CoordinationItemKind.plan => switch (eventKind) {
+        CoordinationItemEventKind.created ||
+        CoordinationItemEventKind.updated =>
+          isPlanStep ? Icons.checklist : Icons.edit_note,
+        CoordinationItemEventKind.superseded => Icons.swap_horiz,
+        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
+        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
+        _ => Icons.edit_note,
+      },
+    CoordinationItemKind.resolution => switch (eventKind) {
+        CoordinationItemEventKind.created => Icons.handshake_outlined,
+        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
+        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
+        _ => Icons.handshake_outlined,
+      },
+    CoordinationItemKind.blocker => switch (eventKind) {
+        CoordinationItemEventKind.created => Icons.block,
+        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
+        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
+        _ => Icons.block,
+      },
   };
 }
 
@@ -130,14 +207,11 @@ class _ItemCardState extends State<ItemCard> {
       CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
     };
 
-    final statusIcon = switch (item.status) {
-      CoordinationItemStatus.accepted => Icons.check_circle_outline,
-      CoordinationItemStatus.resolved => Icons.check_circle,
-      CoordinationItemStatus.cancelled => Icons.cancel_outlined,
-      CoordinationItemStatus.superseded => Icons.swap_horiz,
-      _ when item.kind == CoordinationItemKind.blocker => Icons.block,
-      _ => Icons.help_outline,
-    };
+    final statusIcon = coordinationItemIcon(
+      item.kind,
+      item.status,
+      isPlanStep: item.isPlanStep,
+    );
 
     final statusEntries = _statusMenuEntries(l10n);
     final menuEntries = _allMenuEntries(l10n, statusEntries);
