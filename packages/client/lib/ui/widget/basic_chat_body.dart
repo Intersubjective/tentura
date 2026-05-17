@@ -310,7 +310,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                       children: [
                         ListView.builder(
                           controller: _scrollController,
-                          padding: const EdgeInsets.only(bottom: 72),
+                          padding: EdgeInsets.zero,
                           itemCount: messages.length,
                           itemBuilder: (context, i) {
                             final m = messages[i];

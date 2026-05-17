@@ -576,6 +576,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
       return;
     }
+    // Push a dedicated `?tab=room` route instead of also embedding room on the
+    // route below — otherwise back pops the top route but leaves a live
+    // [RoomCubit] + `_showRoomSurface` on the underlying beacon view.
+    if (!_roomFromRouteParams(widget)) {
+      unawaited(
+        context.router.pushPath(_beaconViewPath(viewTab: 'room')),
+      );
+      return;
+    }
     _applyRoomSurfaceState(open: true);
     final c = _roomCubit;
     if (c == null || c.isClosed) return;
@@ -587,11 +596,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         coordinationItemId: focusItem.id,
       );
     }
-    if (!_roomFromRouteParams(widget)) {
-      unawaited(
-        context.router.pushPath(_beaconViewPath(viewTab: 'room')),
-      );
-    }
   }
 
   void _openItemDiscussion(CoordinationItem item) {
@@ -599,16 +603,24 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   void _exitRoomSurface({bool fromRouteSync = false}) {
-    if (!_showRoomSurface) return;
     final router = context.router;
     final urlHasRoom =
         router.currentUrl.contains('$kQueryBeaconViewTab=room') ||
         router.currentUrl.contains('$kQueryBeaconSurface=room');
-    if (!fromRouteSync && (urlHasRoom || _roomFromRouteParams(widget))) {
-      unawaited(router.maybePop());
+
+    if (fromRouteSync) {
+      if (_showRoomSurface) {
+        _applyRoomSurfaceState(open: false);
+      }
       return;
     }
-    _applyRoomSurfaceState(open: false);
+
+    if (_showRoomSurface) {
+      _applyRoomSurfaceState(open: false);
+    }
+    if (urlHasRoom || _roomFromRouteParams(widget)) {
+      unawaited(router.maybePop());
+    }
   }
 
   void _switchToTab(int tab) {

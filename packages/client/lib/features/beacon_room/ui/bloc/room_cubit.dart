@@ -42,6 +42,7 @@ class RoomCubit extends Cubit<RoomState> {
 
   bool _markSeenEmittedThisVisit = false;
   bool _loadInProgress = false;
+  bool _loadQueued = false;
 
   void _onRemoteRefresh(String id) {
     if (isClosed) return;
@@ -130,6 +131,10 @@ class RoomCubit extends Cubit<RoomState> {
 
   Future<void> load() async {
     if (isClosed) return;
+    if (_loadInProgress) {
+      _loadQueued = true;
+      return;
+    }
     _loadInProgress = true;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
@@ -181,6 +186,10 @@ class RoomCubit extends Cubit<RoomState> {
       }
     } finally {
       _loadInProgress = false;
+      if (_loadQueued && !isClosed) {
+        _loadQueued = false;
+        unawaited(load());
+      }
     }
   }
 
