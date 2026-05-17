@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
@@ -184,102 +185,103 @@ IconData _logIcon(BeaconActivityEvent e) {
   };
 }
 
-Color _coordinationSemanticAccentColor(ColorScheme cs, int type) {
+Color _coordinationSemanticAccentColor(TenturaTokens tt, int type) {
   final kind = type ~/ 100;
   final ev = type % 100;
   return switch (kind) {
     1 => switch (ev) {
         1 ||
         5 =>
-          coordinationItemColor(cs, CoordinationItemKind.plan, CoordinationItemStatus.open),
+          coordinationItemColor(tt, CoordinationItemKind.plan, CoordinationItemStatus.open),
         3 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.plan,
               CoordinationItemStatus.resolved,
             ),
         6 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.plan,
               CoordinationItemStatus.superseded,
             ),
-        _ => coordinationItemColor(cs, CoordinationItemKind.plan, CoordinationItemStatus.open),
+        _ => coordinationItemColor(tt, CoordinationItemKind.plan, CoordinationItemStatus.open),
       },
     2 => switch (ev) {
-        1 => coordinationItemColor(cs, CoordinationItemKind.ask, CoordinationItemStatus.open),
+        1 => coordinationItemColor(tt, CoordinationItemKind.ask, CoordinationItemStatus.open),
         2 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.ask,
               CoordinationItemStatus.accepted,
             ),
         3 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.ask,
               CoordinationItemStatus.resolved,
             ),
         4 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.ask,
               CoordinationItemStatus.cancelled,
             ),
-        _ => coordinationItemColor(cs, CoordinationItemKind.ask, CoordinationItemStatus.open),
+        _ => coordinationItemColor(tt, CoordinationItemKind.ask, CoordinationItemStatus.open),
       },
     3 => switch (ev) {
         1 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.blocker,
               CoordinationItemStatus.open,
             ),
         3 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.blocker,
               CoordinationItemStatus.resolved,
             ),
         4 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.blocker,
               CoordinationItemStatus.cancelled,
             ),
         _ => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.blocker,
               CoordinationItemStatus.open,
             ),
       },
     4 => switch (ev) {
         1 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.resolution,
               CoordinationItemStatus.open,
             ),
         3 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.resolution,
               CoordinationItemStatus.resolved,
             ),
         4 => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.resolution,
               CoordinationItemStatus.cancelled,
             ),
         _ => coordinationItemColor(
-              cs,
+              tt,
               CoordinationItemKind.resolution,
               CoordinationItemStatus.open,
             ),
       },
-    _ => cs.onSurfaceVariant,
+    _ => tt.textMuted,
   };
 }
 
 Color _logIconColor(ThemeData theme, BeaconActivityEvent e) {
-  final cs = theme.colorScheme;
+  final tt = theme.extension<TenturaTokens>()!;
   if (e.type >= 100 && e.type < 500) {
-    return _coordinationSemanticAccentColor(cs, e.type);
+    return _coordinationSemanticAccentColor(tt, e.type);
   }
   return switch (e.type) {
-    BeaconActivityEventTypeBits.blockerOpened => cs.error,
-    BeaconActivityEventTypeBits.doneMarked => cs.tertiary,
-    _ => cs.onSurfaceVariant,
+    BeaconActivityEventTypeBits.blockerOpened => tt.danger,
+    BeaconActivityEventTypeBits.needInfoOpened => tt.warn,
+    BeaconActivityEventTypeBits.doneMarked => tt.good,
+    _ => tt.textMuted,
   };
 }
 
@@ -327,6 +329,7 @@ class _LogActivityTile extends StatelessWidget {
             child: Text(
               bodySnippet,
               style: theme.textTheme.bodySmall?.copyWith(
+                color: iconColor,
                 fontWeight: tier == _LogTier.high ? FontWeight.w600 : null,
               ),
               maxLines: 1,

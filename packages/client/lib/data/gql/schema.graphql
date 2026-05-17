@@ -2391,6 +2391,7 @@ type mutation_root {
   resolveAsk(itemId: String!, note: String): CoordinationItemRow!
   cancelAsk(itemId: String!, reason: String): CoordinationItemRow!
   redirectAsk(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
+  updateCoordinationItem(itemId: String!, title: String!, body: String): CoordinationItemRow!
   updateCoordinationPlan(beaconId: String!, title: String!, body: String, linkedMessageId: String): CoordinationItemRow!
   addPlanStep(parentItemId: String!, title: String!, body: String): CoordinationItemRow!
   resolvePlanStep(itemId: String!): CoordinationItemRow!

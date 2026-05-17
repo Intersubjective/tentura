@@ -25,6 +25,7 @@ import '../gql/_g/coordination_item_reject_resolution.req.gql.dart';
 import '../gql/_g/coordination_item_create_draft_ask.req.gql.dart';
 import '../gql/_g/coordination_item_publish_ask.req.gql.dart';
 import '../gql/_g/coordination_item_update_draft_ask.req.gql.dart';
+import '../gql/_g/coordination_item_update.req.gql.dart';
 import '../gql/_g/coordination_item_delete_draft_ask.req.gql.dart';
 import '../gql/_g/coordination_item_mark_seen.req.gql.dart';
 import '../model/coordination_item_model.dart';
@@ -317,6 +318,25 @@ class CoordinationItemRepository {
               .coordinationItemMessages
               .map((e) => (e as CoordinationItemMessageListModel).toEntity())
               .toList());
+
+  Future<CoordinationItem> updateItem({
+    required String itemId,
+    required String title,
+    String? body,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemUpdateReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..title = title
+                ..body = body,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).updateCoordinationItem
+                  as CoordinationItemUpdateModel)
+              .toEntity());
 
   Future<CoordinationItem> updatePlan({
     required String beaconId,

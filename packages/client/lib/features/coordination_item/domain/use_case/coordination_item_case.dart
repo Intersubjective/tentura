@@ -135,6 +135,17 @@ class CoordinationItemCase {
         newTargetPersonId: newTargetPersonId,
       );
 
+  Future<CoordinationItem> updateItem({
+    required String itemId,
+    required String title,
+    String? body,
+  }) =>
+      _repository.updateItem(
+        itemId: itemId,
+        title: title,
+        body: body,
+      );
+
   Future<CoordinationItem> updatePlan({
     required String beaconId,
     required String title,

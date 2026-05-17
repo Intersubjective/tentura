@@ -193,6 +193,7 @@ class _V2RoutingLink extends Link {
     'CoordinationItemCancelAsk',
     'CoordinationItemRedirectAsk',
     'CoordinationItemAppendMessage',
+    'CoordinationItemUpdate',
     'CoordinationItemUpdatePlan',
     'CoordinationItemAddPlanStep',
     'CoordinationItemResolvePlanStep',

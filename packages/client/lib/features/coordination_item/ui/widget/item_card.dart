@@ -7,25 +7,31 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
-/// Accent color for a coordination item — shared with log tab styling.
+/// Accent color for a coordination item — shared with beacon Items / Log tabs.
 Color coordinationItemColor(
-  ColorScheme cs,
+  TenturaTokens tt,
   CoordinationItemKind kind,
   CoordinationItemStatus status,
-) =>
-    switch (status) {
-      CoordinationItemStatus.open
-          when kind == CoordinationItemKind.ask ||
-              kind == CoordinationItemKind.blocker =>
-        cs.error,
-      CoordinationItemStatus.open => cs.primary,
-      CoordinationItemStatus.accepted => cs.primary,
-      CoordinationItemStatus.resolved => cs.tertiary,
-      CoordinationItemStatus.cancelled => cs.outline,
-      CoordinationItemStatus.superseded => cs.outline,
-    };
+) {
+  if (status == CoordinationItemStatus.resolved ||
+      status == CoordinationItemStatus.cancelled ||
+      status == CoordinationItemStatus.superseded) {
+    return tt.textMuted;
+  }
+
+  return switch (kind) {
+    CoordinationItemKind.blocker => tt.danger,
+    CoordinationItemKind.ask => switch (status) {
+        CoordinationItemStatus.accepted => tt.good,
+        _ => tt.warn,
+      },
+    CoordinationItemKind.resolution => tt.info,
+    CoordinationItemKind.plan => tt.textMuted,
+  };
+}
 
 enum _ItemMenuAction {
+  edit,
   accept,
   resolve,
   cancel,
@@ -79,6 +85,7 @@ class ItemCard extends StatefulWidget {
     this.onCancel,
     this.onAccept,
     this.onReject,
+    this.onEdit,
     super.key,
   });
 
@@ -94,6 +101,7 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onCancel;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
+  final VoidCallback? onEdit;
 
   @override
   State<ItemCard> createState() => _ItemCardState();
@@ -111,11 +119,7 @@ class _ItemCardState extends State<ItemCard> {
     final textTheme = theme.textTheme;
     final colorScheme = theme.colorScheme;
 
-    final statusColor = coordinationItemColor(
-      colorScheme,
-      item.kind,
-      item.status,
-    );
+    final statusColor = coordinationItemColor(tt, item.kind, item.status);
 
     final kindLabel = switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
@@ -135,8 +139,10 @@ class _ItemCardState extends State<ItemCard> {
       _ => Icons.help_outline,
     };
 
-    final showMenu = item.published && item.isActive;
-    final menuEntries = _menuEntries(l10n);
+    final statusEntries = _statusMenuEntries(l10n);
+    final menuEntries = _allMenuEntries(l10n, statusEntries);
+    final showMenu = widget.onEdit != null ||
+        (item.published && statusEntries.isNotEmpty);
     final headerTier = _itemHeaderTier(item);
     final eventIcon = Icon(
       statusIcon,
@@ -151,8 +157,6 @@ class _ItemCardState extends State<ItemCard> {
         widget.creatorParticipant != null ||
         widget.targetParticipant != null;
     final staleLabel = _formatStaleRemaining(l10n, item.staleAt);
-    final createdLabel =
-        coordinationLogTimestampLabel(item.createdAt.toUtc());
     final contentPreview = item.contentPreview;
     final showBodyToggle = contentPreview.length > _bodyPreviewThreshold;
 
@@ -226,11 +230,8 @@ class _ItemCardState extends State<ItemCard> {
                     ),
                   ],
                   if (hasAvatarTrail) avatarTrail,
-                  if (hasAvatarTrail &&
-                      showMenu &&
-                      menuEntries.isNotEmpty)
-                    const SizedBox(width: 8),
-                  if (showMenu && menuEntries.isNotEmpty)
+                  if (hasAvatarTrail && showMenu) const SizedBox(width: 8),
+                  if (showMenu)
                     PopupMenuButton<_ItemMenuAction>(
                       tooltip: l10n.beaconHudOverflowMore,
                       padding: EdgeInsets.zero,
@@ -247,6 +248,7 @@ class _ItemCardState extends State<ItemCard> {
                           ),
                       ],
                       onSelected: (action) => switch (action) {
+                        _ItemMenuAction.edit => widget.onEdit?.call(),
                         _ItemMenuAction.accept => widget.onAccept?.call(),
                         _ItemMenuAction.resolve => widget.onResolve?.call(),
                         _ItemMenuAction.cancel => widget.onCancel?.call(),
@@ -266,29 +268,23 @@ class _ItemCardState extends State<ItemCard> {
                       _expanded ? null : TextOverflow.ellipsis,
                 ),
               ],
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Text(
-                    createdLabel,
-                    style: textTheme.labelSmall,
-                  ),
-                  const Spacer(),
-                  if (showBodyToggle)
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        minimumSize: const Size(44, 36),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: () =>
-                          setState(() => _expanded = !_expanded),
-                      child: Text(
-                        _expanded ? l10n.itemShowLess : l10n.itemShowMore,
-                      ),
+              if (showBodyToggle) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(44, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                ],
-              ),
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    child: Text(
+                      _expanded ? l10n.itemShowLess : l10n.itemShowMore,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -296,7 +292,19 @@ class _ItemCardState extends State<ItemCard> {
     );
   }
 
-  List<(_ItemMenuAction, String)> _menuEntries(L10n l10n) {
+  List<(_ItemMenuAction, String)> _allMenuEntries(
+    L10n l10n,
+    List<(_ItemMenuAction, String)> statusEntries,
+  ) {
+    final entries = <(_ItemMenuAction, String)>[];
+    if (widget.onEdit != null) {
+      entries.add((_ItemMenuAction.edit, l10n.helpOffersTabActionEdit));
+    }
+    entries.addAll(statusEntries);
+    return entries;
+  }
+
+  List<(_ItemMenuAction, String)> _statusMenuEntries(L10n l10n) {
     final item = widget.item;
     if (!item.published || !item.isActive) {
       return const [];
