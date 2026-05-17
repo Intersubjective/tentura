@@ -22,6 +22,14 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
   Future<CoordinationItem?> fetchCurrentRootPlan(String beaconId) async => null;
 
   @override
+  Future<CoordinationItem> updateItem({
+    required String itemId,
+    required String title,
+    String? body,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<CoordinationItem> updatePlan({
     required String beaconId,
     required String title,

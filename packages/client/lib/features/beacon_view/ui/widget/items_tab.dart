@@ -6,8 +6,10 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart'
     show BeaconFactCardStatusBits;
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/features/coordination_item/ui/widget/coordination_item_edit_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_file_attachment_open.dart';
@@ -52,6 +54,46 @@ BeaconParticipant? _participantForUser(
     if (p.userId == userId) return p;
   }
   return null;
+}
+
+VoidCallback? _itemsTabEditHandler(
+  BuildContext context, {
+  required CoordinationItem item,
+  required BeaconViewState state,
+}) {
+  if (state.beacon.lifecycle != BeaconLifecycle.open) {
+    return null;
+  }
+  final myId = state.myProfile.id;
+  final isOwner = state.beacon.author.id == myId;
+  final isParticipant =
+      state.roomParticipants.any((p) => p.userId == myId);
+  if (!isOwner && !isParticipant) {
+    return null;
+  }
+
+  if (!item.published && item.kind == CoordinationItemKind.ask) {
+    return () => unawaited(
+          showPreparedAskEditorSheet(
+            context,
+            beaconId: state.beacon.id,
+            onSaved: () => context.read<ItemsTabCubit>().fetch(),
+            existing: item,
+          ),
+        );
+  }
+
+  if (!item.published || !item.isActive) {
+    return null;
+  }
+
+  return () => unawaited(
+        showCoordinationItemEditSheet(
+          context,
+          item: item,
+          onSaved: () => context.read<ItemsTabCubit>().fetch(),
+        ),
+      );
 }
 
 class ItemsTab extends StatelessWidget {
@@ -166,53 +208,62 @@ class ItemsTab extends StatelessWidget {
                         )
                       else
                         for (final item in _planFirst(openItems))
-                          _ItemCardAnimatedRow(
-                            key: ValueKey(item.id),
-                            item: item,
-                            creatorParticipant: _participantForUser(
-                              state.roomParticipants,
-                              item.creatorId,
-                            ),
-                            targetParticipant: _participantForUser(
-                              state.roomParticipants,
-                              item.targetPersonId,
-                            ),
-                            onOpenItemThread: onOpenItemThread,
-                            resolveAction: () async {
-                              final cubit = context.read<ItemsTabCubit>();
-                              if (item.kind == CoordinationItemKind.plan &&
-                                  item.isPlanStep) {
-                                await cubit.resolvePlanStep(item.id);
-                              } else if (item.kind ==
-                                  CoordinationItemKind.ask) {
-                                await cubit.resolveAsk(item.id);
-                              } else {
-                                await cubit.resolveBlocker(item.id);
-                              }
-                            },
-                            cancelAction: () async {
-                              final cubit = context.read<ItemsTabCubit>();
-                              if (item.kind == CoordinationItemKind.ask) {
-                                await cubit.cancelAsk(item.id);
-                              } else {
-                                await cubit.cancelBlocker(item.id);
-                              }
-                            },
-                            acceptAction: switch (item.kind) {
-                              CoordinationItemKind.ask => () => context
-                                  .read<ItemsTabCubit>()
-                                  .acceptAsk(item.id),
-                              CoordinationItemKind.resolution => () => context
-                                  .read<ItemsTabCubit>()
-                                  .acceptResolution(item.id),
-                              _ => null,
-                            },
-                            rejectAction:
-                                item.kind == CoordinationItemKind.resolution
-                                    ? () => context
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _ItemCardAnimatedRow(
+                              key: ValueKey(item.id),
+                              item: item,
+                              creatorParticipant: _participantForUser(
+                                state.roomParticipants,
+                                item.creatorId,
+                              ),
+                              targetParticipant: _participantForUser(
+                                state.roomParticipants,
+                                item.targetPersonId,
+                              ),
+                              onEdit: _itemsTabEditHandler(
+                                context,
+                                item: item,
+                                state: state,
+                              ),
+                              onOpenItemThread: onOpenItemThread,
+                              resolveAction: () async {
+                                final cubit = context.read<ItemsTabCubit>();
+                                if (item.kind == CoordinationItemKind.plan &&
+                                    item.isPlanStep) {
+                                  await cubit.resolvePlanStep(item.id);
+                                } else if (item.kind ==
+                                    CoordinationItemKind.ask) {
+                                  await cubit.resolveAsk(item.id);
+                                } else {
+                                  await cubit.resolveBlocker(item.id);
+                                }
+                              },
+                              cancelAction: () async {
+                                final cubit = context.read<ItemsTabCubit>();
+                                if (item.kind == CoordinationItemKind.ask) {
+                                  await cubit.cancelAsk(item.id);
+                                } else {
+                                  await cubit.cancelBlocker(item.id);
+                                }
+                              },
+                              acceptAction: switch (item.kind) {
+                                CoordinationItemKind.ask => () => context
+                                    .read<ItemsTabCubit>()
+                                    .acceptAsk(item.id),
+                                CoordinationItemKind.resolution => () =>
+                                    context
                                         .read<ItemsTabCubit>()
-                                        .rejectResolution(item.id)
-                                    : null,
+                                        .acceptResolution(item.id),
+                                _ => null,
+                              },
+                              rejectAction:
+                                  item.kind == CoordinationItemKind.resolution
+                                      ? () => context
+                                          .read<ItemsTabCubit>()
+                                          .rejectResolution(item.id)
+                                      : null,
+                            ),
                           ),
                     ],
                   ),
@@ -226,17 +277,25 @@ class ItemsTab extends StatelessWidget {
                     ),
                     children: [
                       for (final item in _planFirst(closedItems))
-                        ItemCard(
-                          item: item,
-                          creatorParticipant: _participantForUser(
-                            state.roomParticipants,
-                            item.creatorId,
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: ItemCard(
+                            item: item,
+                            creatorParticipant: _participantForUser(
+                              state.roomParticipants,
+                              item.creatorId,
+                            ),
+                            targetParticipant: _participantForUser(
+                              state.roomParticipants,
+                              item.targetPersonId,
+                            ),
+                            onEdit: _itemsTabEditHandler(
+                              context,
+                              item: item,
+                              state: state,
+                            ),
+                            onOpenItemThread: onOpenItemThread,
                           ),
-                          targetParticipant: _participantForUser(
-                            state.roomParticipants,
-                            item.targetPersonId,
-                          ),
-                          onOpenItemThread: onOpenItemThread,
                         ),
                     ],
                   ),
@@ -288,6 +347,7 @@ class _ItemCardAnimatedRow extends StatefulWidget {
     required this.cancelAction,
     this.acceptAction,
     this.rejectAction,
+    this.onEdit,
     super.key,
   });
 
@@ -295,6 +355,7 @@ class _ItemCardAnimatedRow extends StatefulWidget {
   final BeaconParticipant? creatorParticipant;
   final BeaconParticipant? targetParticipant;
   final void Function(CoordinationItem item) onOpenItemThread;
+  final VoidCallback? onEdit;
   final Future<void> Function() resolveAction;
   final Future<void> Function() cancelAction;
   final Future<void> Function()? acceptAction;
@@ -347,6 +408,7 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
                 creatorParticipant: widget.creatorParticipant,
                 targetParticipant: widget.targetParticipant,
                 onOpenItemThread: widget.onOpenItemThread,
+                onEdit: widget.onEdit,
                 onResolve: () => unawaited(
                   _animateThenCall(widget.resolveAction),
                 ),
@@ -483,6 +545,14 @@ class _PreparedDraftAskRow extends StatelessWidget {
             participants,
             draft.targetPersonId,
           ),
+          onEdit: () => unawaited(
+                showPreparedAskEditorSheet(
+                  context,
+                  beaconId: beaconId,
+                  onSaved: refresh,
+                  existing: draft,
+                ),
+              ),
           onOpenItemThread: (_) => unawaited(openPublish()),
         ),
         Align(

@@ -126,6 +126,14 @@ abstract class CoordinationItemRepositoryPort {
     String? targetPersonId,
   });
 
+  /// In-place title/body update for a published item (open or accepted).
+  Future<CoordinationItem> updatePublishedItem({
+    required String id,
+    required String actorId,
+    required String title,
+    String body = '',
+  });
+
   /// Hard-delete draft row owned by creator; no-op/error if not draft.
   Future<void> deleteDraftAsk({
     required String id,

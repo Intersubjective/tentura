@@ -521,6 +521,69 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       });
 
   @override
+  Future<CoordinationItem> updatePublishedItem({
+    required String id,
+    required String actorId,
+    required String title,
+    String body = '',
+  }) =>
+      _db.withMutatingUser(actorId, () async {
+        return _db.transaction(() async {
+          final rows = await (_db.select(_db.coordinationItems)
+                ..where((t) => t.id.equals(id)))
+              .get();
+          if (rows.isEmpty) {
+            throw StateError('CoordinationItem not found: $id');
+          }
+          final existing = rows.first;
+          if (!existing.published) {
+            throw StateError('Only published items may be edited in place');
+          }
+          if (existing.status != coordinationItemStatusOpen &&
+              existing.status != coordinationItemStatusAccepted) {
+            throw StateError('Item is not editable');
+          }
+          final now = PgDateTime(DateTime.timestamp());
+          await (_db.update(_db.coordinationItems)
+                ..where((t) => t.id.equals(id)))
+              .write(
+            CoordinationItemsCompanion(
+              title: Value(title),
+              body: Value(body),
+              updatedAt: Value(now),
+            ),
+          );
+
+          await _emitStatusRoomEvent(
+            existing: existing,
+            actorId: actorId,
+            eventKind: coordinationEventKindUpdated,
+            targetUserId: existing.targetPersonId,
+          );
+
+          if (existing.kind == coordinationItemKindPlan &&
+              existing.linkedParentItemId == null &&
+              existing.status == coordinationItemStatusOpen) {
+            final planText = title.trim();
+            if (planText.isNotEmpty) {
+              await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
+                    BeaconRoomStatesCompanion.insert(
+                      beaconId: existing.beaconId,
+                      currentPlan: Value(planText),
+                      updatedBy: Value(actorId),
+                      updatedAt: Value(now),
+                    ),
+                  );
+            }
+          }
+
+          return (_db.select(_db.coordinationItems)
+                ..where((t) => t.id.equals(id)))
+              .getSingle();
+        });
+      });
+
+  @override
   Future<void> deleteDraftAsk({
     required String id,
     required String actorId,
