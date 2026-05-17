@@ -3,18 +3,13 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_item_message.dart';
-import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/basic_chat_body.dart';
 
-import '../bloc/item_discussion_cubit.dart';
-import '../bloc/item_discussion_state.dart';
+import '../bloc/item_actions_cubit.dart';
+import '../bloc/item_actions_state.dart';
 
 @RoutePage()
 class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -26,12 +21,19 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
   final CoordinationItem item;
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider(
-        create: (_) {
-          final cubit = ItemDiscussionCubit(item: item);
-          unawaited(cubit.fetchMessages());
-          return cubit;
-        },
+  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => RoomCubit(
+              beaconId: item.beaconId,
+              threadItemId: item.id,
+              initialUnreadAnchorAt: item.lastSeenAt,
+            ),
+          ),
+          BlocProvider(
+            create: (_) => ItemActionsCubit(item: item),
+          ),
+        ],
         child: this,
       );
 
@@ -41,7 +43,7 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
 
     return Scaffold(
       appBar: AppBar(
-        title: BlocBuilder<ItemDiscussionCubit, ItemDiscussionState>(
+        title: BlocBuilder<ItemActionsCubit, ItemActionsState>(
           buildWhen: (p, c) => p.item != c.item,
           builder: (context, state) => Text(
             state.item.title.isEmpty
@@ -50,7 +52,7 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
         ),
         actions: [
-          BlocBuilder<ItemDiscussionCubit, ItemDiscussionState>(
+          BlocBuilder<ItemActionsCubit, ItemActionsState>(
             buildWhen: (p, c) =>
                 p.item.status != c.item.status ||
                 p.pendingResolution != c.pendingResolution,
@@ -58,6 +60,7 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
               if (!state.item.isActive) return const SizedBox.shrink();
               final item = state.item;
               final hasPendingResolution = state.pendingResolution != null;
+              final actionsCubit = context.read<ItemActionsCubit>();
               final canProposeResolution =
                   !hasPendingResolution &&
                   (item.kind == CoordinationItemKind.blocker ||
@@ -71,18 +74,23 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
 
               return PopupMenuButton<String>(
                 onSelected: (v) {
-                  final cubit = context.read<ItemDiscussionCubit>();
                   if (v == 'propose_resolution') {
-                    unawaited(_showProposeResolutionSheet(context, cubit, l10n));
+                    unawaited(
+                      _showProposeResolutionSheet(
+                        context,
+                        actionsCubit,
+                        l10n,
+                      ),
+                    );
                     return;
                   }
                   if (item.kind == CoordinationItemKind.ask) {
-                    if (v == 'accept') unawaited(cubit.acceptAsk());
-                    if (v == 'resolve') unawaited(cubit.resolveAsk());
-                    if (v == 'cancel') unawaited(cubit.cancelAsk());
+                    if (v == 'accept') unawaited(actionsCubit.acceptAsk());
+                    if (v == 'resolve') unawaited(actionsCubit.resolveAsk());
+                    if (v == 'cancel') unawaited(actionsCubit.cancelAsk());
                   } else {
-                    if (v == 'resolve') unawaited(cubit.resolveBlocker());
-                    if (v == 'cancel') unawaited(cubit.cancelBlocker());
+                    if (v == 'resolve') unawaited(actionsCubit.resolveBlocker());
+                    if (v == 'cancel') unawaited(actionsCubit.cancelBlocker());
                   }
                 },
                 itemBuilder: (_) {
@@ -129,98 +137,40 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
         ],
       ),
-      body: BlocBuilder<ItemDiscussionCubit, ItemDiscussionState>(
+      body: BlocBuilder<ItemActionsCubit, ItemActionsState>(
         buildWhen: (p, c) =>
-            p.item != c.item ||
-            p.messages != c.messages ||
-            p.isLoading != c.isLoading ||
-            p.status != c.status ||
-            p.unreadAnchorAt != c.unreadAnchorAt ||
-            p.pendingResolution != c.pendingResolution,
-        builder: (context, state) {
-          final cubit = context.read<ItemDiscussionCubit>();
+            p.item != c.item || p.pendingResolution != c.pendingResolution,
+        builder: (context, actionsState) {
           final theme = Theme.of(context);
-          final sorted = [...state.messages]..sort(
-                (a, b) => a.createdAt.compareTo(b.createdAt),
-              );
-          final roomMessages = sorted.map(_itemMessageToRoomMessage).toList();
-          final myProfile = GetIt.I<ProfileCubit>().state.profile;
-          final err = state.status is StateHasError
-              ? (state.status as StateHasError).error.toString()
-              : '';
-          final firstUnreadIndex =
-              state.firstUnreadIndexInRoomMessages(roomMessages);
-          final pendingResolution = state.pendingResolution;
-
-          return BasicChatBody(
-            messages: roomMessages,
-            myProfile: myProfile,
-            participants: const [],
-            isLoading: state.isLoading,
-            hasError: state.hasError && roomMessages.isEmpty,
-            errorText: err,
-            firstUnreadIndex: firstUnreadIndex,
-            unreadCount: state.unreadCount,
-            onMarkSeenNearBottom: cubit.markSeenNowIfNeeded,
-            onMessageActions: (msg) {
-              if (msg.authorId != myProfile.id) return;
-              unawaited(
-                _confirmDeleteItemMessage(context, cubit, l10n, msg),
-              );
-            },
-            onSend: pendingResolution != null
-                ? null
-                : (body, _) async {
-                    await cubit.sendMessage(body);
-                  },
-            header: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ItemDiscussionHeader(
-                  item: state.item,
+          final actionsCubit = context.read<ItemActionsCubit>();
+          final pendingResolution = actionsState.pendingResolution;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ItemDiscussionHeader(
+                item: actionsState.item,
+                theme: theme,
+                l10n: l10n,
+              ),
+              if (pendingResolution != null)
+                _PendingResolutionBanner(
+                  resolution: pendingResolution,
                   theme: theme,
                   l10n: l10n,
+                  onAccept: () => unawaited(actionsCubit.acceptResolution()),
+                  onReject: () => unawaited(actionsCubit.rejectResolution()),
                 ),
-                if (pendingResolution != null)
-                  _PendingResolutionBanner(
-                    resolution: pendingResolution,
-                    theme: theme,
-                    l10n: l10n,
-                    onAccept: () => unawaited(cubit.acceptResolution()),
-                    onReject: () => unawaited(cubit.rejectResolution()),
-                  ),
-              ],
-            ),
-            emptyPlaceholder: Center(
-              child: Text(
-                l10n.coordinationItemDiscussionComposerHint,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              Expanded(
+                child: BeaconRoomBody(
+                  enableComposer: pendingResolution == null,
                 ),
               ),
-            ),
-            imageRepository: GetIt.I<ImageRepository>(),
-            enableComposerAttachments: false,
-            enableParticipantMentions: false,
-            jumpFabHeroTag: 'item_discussion_jump_latest',
+            ],
           );
         },
       ),
     );
   }
-}
-
-RoomMessage _itemMessageToRoomMessage(CoordinationItemMessage m) {
-  return RoomMessage(
-    id: m.id,
-    beaconId: m.beaconId,
-    authorId: m.senderId,
-    body: m.body,
-    createdAt: m.createdAt,
-    editedAt: m.editedAt,
-    author: Profile(id: m.senderId),
-  );
 }
 
 class _ItemDiscussionHeader extends StatelessWidget {
@@ -401,7 +351,7 @@ class _PendingResolutionBanner extends StatelessWidget {
 
 Future<void> _showProposeResolutionSheet(
   BuildContext context,
-  ItemDiscussionCubit cubit,
+  ItemActionsCubit cubit,
   L10n l10n,
 ) async {
   final titleController = TextEditingController();
@@ -440,33 +390,3 @@ Future<void> _showProposeResolutionSheet(
   }
 }
 
-Future<void> _confirmDeleteItemMessage(
-  BuildContext context,
-  ItemDiscussionCubit cubit,
-  L10n l10n,
-  RoomMessage message,
-) async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
-      content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(ctx).colorScheme.error,
-          ),
-          onPressed: () => Navigator.pop(ctx, true),
-          child: Text(l10n.beaconRoomDeleteMessageConfirmAction),
-        ),
-      ],
-    ),
-  );
-  if (ok == true && context.mounted) {
-    await cubit.deleteMessage(messageId: message.id);
-  }
-}

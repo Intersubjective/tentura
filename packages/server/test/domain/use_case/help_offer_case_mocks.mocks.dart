@@ -1117,12 +1117,14 @@ class MockBeaconRoomRepository extends _i1.Mock
   @override
   _i6.Future<List<_i4.BeaconRoomMessage>> listMessages({
     required String? beaconId,
+    String? threadItemId,
     DateTime? before,
     int? limit = 50,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#listMessages, [], {
               #beaconId: beaconId,
+              #threadItemId: threadItemId,
               #before: before,
               #limit: limit,
             }),
@@ -1148,6 +1150,7 @@ class MockBeaconRoomRepository extends _i1.Mock
   _i6.Future<List<Map<String, Object?>>> listMessagesEnriched({
     required String? beaconId,
     required String? viewerUserId,
+    String? threadItemId,
     DateTime? before,
     int? limit = 50,
   }) =>
@@ -1155,6 +1158,7 @@ class MockBeaconRoomRepository extends _i1.Mock
             Invocation.method(#listMessagesEnriched, [], {
               #beaconId: beaconId,
               #viewerUserId: viewerUserId,
+              #threadItemId: threadItemId,
               #before: before,
               #limit: limit,
             }),
@@ -1170,6 +1174,7 @@ class MockBeaconRoomRepository extends _i1.Mock
     required String? authorId,
     required String? body,
     String? replyToMessageId,
+    String? threadItemId,
     String? linkedParticipantId,
     String? linkedPollingId,
     int? semanticMarker,
@@ -1182,6 +1187,7 @@ class MockBeaconRoomRepository extends _i1.Mock
               #authorId: authorId,
               #body: body,
               #replyToMessageId: replyToMessageId,
+              #threadItemId: threadItemId,
               #linkedParticipantId: linkedParticipantId,
               #linkedPollingId: linkedPollingId,
               #semanticMarker: semanticMarker,
@@ -1196,6 +1202,7 @@ class MockBeaconRoomRepository extends _i1.Mock
                   #authorId: authorId,
                   #body: body,
                   #replyToMessageId: replyToMessageId,
+                  #threadItemId: threadItemId,
                   #linkedParticipantId: linkedParticipantId,
                   #linkedPollingId: linkedPollingId,
                   #semanticMarker: semanticMarker,
@@ -1541,6 +1548,55 @@ class MockBeaconRoomRepository extends _i1.Mock
             returnValue: _i6.Future<String?>.value(),
           )
           as _i6.Future<String?>);
+
+  @override
+  _i6.Future<void> markBeaconRoomSeen({
+    required String? userId,
+    required String? beaconId,
+    required String? threadItemId,
+    required DateTime? at,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#markBeaconRoomSeen, [], {
+              #userId: userId,
+              #beaconId: beaconId,
+              #threadItemId: threadItemId,
+              #at: at,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<DateTime?> getMainRoomLastSeen({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getMainRoomLastSeen, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i6.Future<DateTime?>.value(),
+          )
+          as _i6.Future<DateTime?>);
+
+  @override
+  _i6.Future<Map<String, DateTime>> mainRoomLastSeenByUserIds({
+    required String? beaconId,
+    required List<String>? userIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#mainRoomLastSeenByUserIds, [], {
+              #beaconId: beaconId,
+              #userIds: userIds,
+            }),
+            returnValue: _i6.Future<Map<String, DateTime>>.value(
+              <String, DateTime>{},
+            ),
+          )
+          as _i6.Future<Map<String, DateTime>>);
 
   @override
   _i6.Future<void> markParticipantRoomSeen({

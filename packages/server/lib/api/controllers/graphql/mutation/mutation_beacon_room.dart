@@ -17,6 +17,8 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _replyToMessageId = InputFieldString(fieldName: 'replyToMessageId');
 
+  final _threadItemId = InputFieldString(fieldName: 'threadItemId');
+
   final _participantUserId = InputFieldString(fieldName: 'participantUserId');
 
   final _stewardUserId = InputFieldString(fieldName: 'stewardUserId');
@@ -62,6 +64,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
         beaconRoomMessageNeedInfo,
         roomMessageMarkDone,
         beaconParticipantRoomSeen,
+        markBeaconRoomSeen,
         roomPollCreate,
       ];
 
@@ -73,6 +76,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
           _beaconIdStr.field,
           _body.field,
           _replyToMessageId.fieldNullable,
+          _threadItemId.fieldNullable,
           InputFieldUpload.fieldNullable,
         ],
         resolve: (_, args) async {
@@ -85,6 +89,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
                 userId: getCredentials(args).sub,
                 body: _body.fromArgs(args) ?? '',
                 replyToMessageId: _replyToMessageId.fromArgs(args),
+                threadItemId: _threadItemId.fromArgs(args),
                 attachmentBytes: InputFieldUpload.fromArgs(args),
                 attachmentFilename:
                     rawName is String && rawName.trim().isNotEmpty
@@ -311,6 +316,21 @@ final class MutationBeaconRoom extends GqlNodeBase {
         resolve: (_, args) => _case.beaconParticipantRoomSeen(
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
+            ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get markBeaconRoomSeen =>
+      GraphQLObjectField(
+        'MarkBeaconRoomSeen',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _threadItemId.fieldNullable,
+        ],
+        resolve: (_, args) => _case.markBeaconRoomSeen(
+              beaconId: _beaconIdStr.fromArgsNonNullable(args),
+              userId: getCredentials(args).sub,
+              threadItemId: _threadItemId.fromArgs(args),
             ),
       );
 

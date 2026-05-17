@@ -1,5 +1,4 @@
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_item_message.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 
 /// Test double for room cubit tests (coordination list returns empty).
@@ -49,13 +48,6 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
 
   @override
   Future<CoordinationItem> resolvePlanStep({required String itemId}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<CoordinationItemMessage> appendMessage({
-    required String itemId,
-    required String body,
-  }) =>
       throw UnimplementedError();
 
   @override
@@ -155,14 +147,6 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
       throw UnimplementedError();
 
   @override
-  Future<List<CoordinationItemMessage>> listMessages(
-    String itemId, {
-    int? limit,
-    String? before,
-  }) =>
-      throw UnimplementedError();
-
-  @override
   Future<CoordinationItem> redirectAsk({
     required String itemId,
     required String newTargetPersonId,
@@ -209,13 +193,4 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
   }) async =>
       null;
 
-  @override
-  Future<void> deleteMessage({
-    required String itemId,
-    required String messageId,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<void> markItemSeenIfAllowed(String itemId) async {}
 }

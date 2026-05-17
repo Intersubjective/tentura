@@ -20,6 +20,7 @@ import 'package:tentura/domain/entity/room_pending_upload.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
 import '../gql/_g/beacon_participant_room_seen.req.gql.dart';
+import '../gql/_g/mark_beacon_room_seen.req.gql.dart';
 import '../gql/_g/beacon_participant_set_next_move.req.gql.dart';
 import '../gql/_g/beacon_participant_offer_help.req.gql.dart';
 import '../gql/_g/beacon_room_admit.req.gql.dart';
@@ -126,13 +127,15 @@ class BeaconRoomRepository {
   Future<List<RoomMessage>> fetchMessages({
     required String beaconId,
     String? beforeIso,
+    String? threadItemId,
   }) async {
     final r = await _remoteApiService
         .request(
           GRoomMessageListReq(
             (b) => b.vars
               ..beaconId = beaconId
-              ..beforeIso = beforeIso,
+              ..beforeIso = beforeIso
+              ..threadItemId = threadItemId,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);
@@ -204,6 +207,7 @@ class BeaconRoomRepository {
           systemPayloadJson: m.systemPayloadJson,
           attachments: parseRoomMessageAttachmentsJson(m.attachmentsJson),
           mentions: m.mentions.toList(),
+          threadItemId: m.threadItemId,
         );
       },
     ).toList();
@@ -225,13 +229,29 @@ class BeaconRoomRepository {
     );
   }
 
-  Future<void> markRoomSeen({required String beaconId}) async {
+  Future<void> markRoomSeen({
+    required String beaconId,
+    String? threadItemId,
+  }) async {
+    if (threadItemId == null) {
+      await _remoteApiService
+          .request(
+            GBeaconParticipantRoomSeenReq((b) => b.vars.beaconId = beaconId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r.dataOrThrow(label: _label).BeaconParticipantRoomSeen);
+      return;
+    }
     await _remoteApiService
         .request(
-          GBeaconParticipantRoomSeenReq((b) => b.vars.beaconId = beaconId),
+          GMarkBeaconRoomSeenReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..threadItemId = threadItemId,
+          ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).BeaconParticipantRoomSeen);
+        .then((r) => r.dataOrThrow(label: _label).MarkBeaconRoomSeen);
   }
 
   Future<bool> participantSetNextMove({
@@ -298,6 +318,7 @@ class BeaconRoomRepository {
     required String beaconId,
     required String body,
     String? replyToMessageId,
+    String? threadItemId,
     RoomPendingUpload? firstAttachment,
   }) async {
     final multipart = firstAttachment == null
@@ -315,6 +336,7 @@ class BeaconRoomRepository {
               ..beaconId = beaconId
               ..body = body
               ..replyToMessageId = replyToMessageId
+              ..threadItemId = threadItemId
               ..file = multipart,
           ),
         )

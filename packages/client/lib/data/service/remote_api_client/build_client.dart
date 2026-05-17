@@ -166,6 +166,7 @@ class _V2RoutingLink extends Link {
     'RoomMessageEdit',
     'RoomMessageDelete',
     'BeaconParticipantRoomSeen',
+    'MarkBeaconRoomSeen',
     'BeaconPublicStatusUpdate',
     'BeaconFactCardList',
     'BeaconFactCardPin',
@@ -179,7 +180,6 @@ class _V2RoutingLink extends Link {
     'PersonFriendContextBatch',
     'PersonTopCapabilitiesBatch',
     'CoordinationItemList',
-    'CoordinationItemMessages',
     'CoordinationItemMarkBlocker',
     'CoordinationItemResolveBlocker',
     'CoordinationItemCancelBlocker',
@@ -197,8 +197,6 @@ class _V2RoutingLink extends Link {
     'CoordinationItemResolveAsk',
     'CoordinationItemCancelAsk',
     'CoordinationItemRedirectAsk',
-    'CoordinationItemAppendMessage',
-    'DeleteCoordinationItemMessage',
     'CoordinationItemUpdate',
     'CoordinationItemUpdatePlan',
     'CoordinationItemAddPlanStep',
@@ -206,7 +204,6 @@ class _V2RoutingLink extends Link {
     'CoordinationItemCreateResolution',
     'CoordinationItemAcceptResolution',
     'CoordinationItemRejectResolution',
-    'CoordinationItemMarkSeen',
     'MyWorkCoordinationItemActivity',
   };
 

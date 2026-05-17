@@ -1,8 +1,6 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_item_message.dart';
-
 import '../../data/repository/coordination_item_repository.dart';
 
 @singleton
@@ -269,28 +267,4 @@ class CoordinationItemCase {
     return open.first;
   }
 
-  Future<List<CoordinationItemMessage>> listMessages(
-    String itemId, {
-    int? limit,
-    String? before,
-  }) =>
-      _repository.listMessages(itemId, limit: limit, before: before);
-
-  Future<CoordinationItemMessage> appendMessage({
-    required String itemId,
-    required String body,
-  }) =>
-      _repository.appendMessage(itemId: itemId, body: body);
-
-  Future<void> deleteMessage({
-    required String itemId,
-    required String messageId,
-  }) =>
-      _repository.deleteMessage(itemId: itemId, messageId: messageId);
-
-  Future<void> markItemSeenIfAllowed(String itemId) async {
-    try {
-      await _repository.markSeen(itemId: itemId);
-    } on Object catch (_) {}
-  }
 }

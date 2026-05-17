@@ -130,13 +130,6 @@ class InvalidationService {
             entityType: BeaconRoomEntityType.coordinationItem,
           ),
         );
-      case 'coordination_item_message':
-        _beaconRoomChanges.add(
-          BeaconRoomInvalidation(
-            beaconId: id,
-            entityType: BeaconRoomEntityType.coordinationItemMessage,
-          ),
-        );
       case 'person_capability_event':
         _capabilityChanges.add(id);
     }

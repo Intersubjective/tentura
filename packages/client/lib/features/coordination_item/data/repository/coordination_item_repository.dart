@@ -2,10 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_item_message.dart';
-
 import '../gql/_g/coordination_item_list.req.gql.dart';
-import '../gql/_g/coordination_item_messages.req.gql.dart';
 import '../gql/_g/coordination_item_mark_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_cancel_blocker.req.gql.dart';
@@ -15,8 +12,6 @@ import '../gql/_g/coordination_item_accept_ask.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_ask.req.gql.dart';
 import '../gql/_g/coordination_item_cancel_ask.req.gql.dart';
 import '../gql/_g/coordination_item_redirect_ask.req.gql.dart';
-import '../gql/_g/coordination_item_append_message.req.gql.dart';
-import '../gql/_g/coordination_item_delete_message.req.gql.dart';
 import '../gql/_g/coordination_item_update_plan.req.gql.dart';
 import '../gql/_g/coordination_item_add_plan_step.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_plan_step.req.gql.dart';
@@ -32,7 +27,6 @@ import '../gql/_g/coordination_item_create_draft_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_publish_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_update_draft_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_delete_draft_blocker.req.gql.dart';
-import '../gql/_g/coordination_item_mark_seen.req.gql.dart';
 import '../model/coordination_item_model.dart';
 
 @lazySingleton
@@ -364,27 +358,6 @@ class CoordinationItemRepository {
                   as CoordinationItemRedirectAskModel)
               .toEntity());
 
-  Future<List<CoordinationItemMessage>> listMessages(
-    String itemId, {
-    int? limit,
-    String? before,
-  }) =>
-      _remote
-          .request(
-            GCoordinationItemMessagesReq(
-              (b) => b.vars
-                ..itemId = itemId
-                ..limit = limit
-                ..before = before,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r
-              .dataOrThrow(label: _label)
-              .coordinationItemMessages
-              .map((e) => (e as CoordinationItemMessageListModel).toEntity())
-              .toList());
-
   Future<CoordinationItem> updateItem({
     required String itemId,
     required String title,
@@ -508,45 +481,4 @@ class CoordinationItemRepository {
                   as CoordinationItemRejectResolutionModel)
               .toEntity());
 
-  Future<void> deleteMessage({
-    required String itemId,
-    required String messageId,
-  }) =>
-      _remote
-          .request(
-            GDeleteCoordinationItemMessageReq(
-              (b) => b.vars
-                ..itemId = itemId
-                ..messageId = messageId,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).deleteCoordinationItemMessage);
-
-  Future<CoordinationItemMessage> appendMessage({
-    required String itemId,
-    required String body,
-  }) =>
-      _remote
-          .request(
-            GCoordinationItemAppendMessageReq(
-              (b) => b.vars
-                ..itemId = itemId
-                ..body = body,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) =>
-              (r.dataOrThrow(label: _label).appendCoordinationItemMessage
-                      as CoordinationItemAppendMessageModel)
-                  .toEntity());
-
-  Future<void> markSeen({required String itemId}) async {
-    await _remote
-        .request(
-          GCoordinationItemMarkSeenReq((b) => b.vars.itemId = itemId),
-        )
-        .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).markCoordinationItemSeen);
-  }
 }

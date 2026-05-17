@@ -41,7 +41,6 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonTopCapabilities,
   gqlTypePersonFriendContext,
   gqlTypeCoordinationItemRow,
-  gqlTypeCoordinationItemMessageRow,
   gqlTypeMyWorkBeaconCoordinationActivityRow,
 ];
 
@@ -91,6 +90,7 @@ final gqlTypeRoomMessageRow =
           'mentions',
           GraphQLListType(graphQLString.nonNullable()),
         ),
+        field('threadItemId', graphQLString),
       ]);
 
 /// `beacon_room_state` row — one per beacon.
@@ -588,15 +588,3 @@ final gqlTypeMyWorkBeaconCoordinationActivityRow =
         field('lastCoordinationItemMessageAt', graphQLString),
       ]);
 
-/// `coordination_item_message` row projection (V2).
-final gqlTypeCoordinationItemMessageRow =
-    GraphQLObjectType('CoordinationItemMessageRow', null)
-      ..fields.addAll([
-        field('id', graphQLString.nonNullable()),
-        field('itemId', graphQLString.nonNullable()),
-        field('beaconId', graphQLString.nonNullable()),
-        field('senderId', graphQLString.nonNullable()),
-        field('body', graphQLString.nonNullable()),
-        field('createdAt', graphQLString.nonNullable()),
-        field('editedAt', graphQLString),
-      ]);

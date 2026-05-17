@@ -46,6 +46,7 @@ class _FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
   Future<List<RoomMessage>> fetchMessages({
     required String beaconId,
     String? beforeIso,
+    String? threadItemId,
   }) async {
     final gate = fetchMessagesCompleter;
     if (gate != null) {
@@ -78,7 +79,10 @@ class _FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
       BeaconRoomState(beaconId: beaconId, updatedAt: DateTime.utc(2026));
 
   @override
-  Future<void> markRoomSeen({required String beaconId}) async {
+  Future<void> markRoomSeen({
+    required String beaconId,
+    String? threadItemId,
+  }) async {
     markRoomSeenCalled = true;
     participantLastSeenRoomAt = DateTime.timestamp();
   }
@@ -88,6 +92,7 @@ class _FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
     required String beaconId,
     required String body,
     String? replyToMessageId,
+    String? threadItemId,
     RoomPendingUpload? firstAttachment,
   }) async =>
       'msg-created';

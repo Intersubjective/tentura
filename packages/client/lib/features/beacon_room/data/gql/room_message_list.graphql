@@ -1,5 +1,13 @@
-query RoomMessageList($beaconId: String!, $beforeIso: String) {
-  RoomMessageList(beaconId: $beaconId, beforeIso: $beforeIso) {
+query RoomMessageList(
+  $beaconId: String!
+  $beforeIso: String
+  $threadItemId: String
+) {
+  RoomMessageList(
+    beaconId: $beaconId
+    beforeIso: $beforeIso
+    threadItemId: $threadItemId
+  ) {
     id
     beaconId
     authorId
@@ -32,5 +40,6 @@ query RoomMessageList($beaconId: String!, $beforeIso: String) {
     reactorsJson
     attachmentsJson
     mentions
+    threadItemId
   }
 }

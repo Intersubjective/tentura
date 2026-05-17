@@ -1,5 +1,4 @@
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_item_message.dart';
 
 import '../gql/_g/coordination_item_list.data.gql.dart';
 import '../gql/_g/coordination_item_mark_blocker.data.gql.dart';
@@ -11,8 +10,6 @@ import '../gql/_g/coordination_item_accept_ask.data.gql.dart';
 import '../gql/_g/coordination_item_resolve_ask.data.gql.dart';
 import '../gql/_g/coordination_item_cancel_ask.data.gql.dart';
 import '../gql/_g/coordination_item_redirect_ask.data.gql.dart';
-import '../gql/_g/coordination_item_messages.data.gql.dart';
-import '../gql/_g/coordination_item_append_message.data.gql.dart';
 import '../gql/_g/coordination_item_update_plan.data.gql.dart';
 import '../gql/_g/coordination_item_add_plan_step.data.gql.dart';
 import '../gql/_g/coordination_item_resolve_plan_step.data.gql.dart';
@@ -290,30 +287,6 @@ extension type const CoordinationItemRedirectAskModel(GCoordinationItemRedirectA
         cancelledAt:
             i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
         staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-      );
-}
-
-extension type const CoordinationItemMessageListModel(GCoordinationItemMessagesData_coordinationItemMessages i) implements GCoordinationItemMessagesData_coordinationItemMessages {
-  CoordinationItemMessage toEntity() => CoordinationItemMessage(
-        id: i.id,
-        itemId: i.itemId,
-        beaconId: i.beaconId,
-        senderId: i.senderId,
-        body: i.body,
-        createdAt: DateTime.parse(i.createdAt),
-        editedAt: i.editedAt == null ? null : DateTime.parse(i.editedAt!),
-      );
-}
-
-extension type const CoordinationItemAppendMessageModel(GCoordinationItemAppendMessageData_appendCoordinationItemMessage i) implements GCoordinationItemAppendMessageData_appendCoordinationItemMessage {
-  CoordinationItemMessage toEntity() => CoordinationItemMessage(
-        id: i.id,
-        itemId: i.itemId,
-        beaconId: i.beaconId,
-        senderId: i.senderId,
-        body: i.body,
-        createdAt: DateTime.parse(i.createdAt),
-        editedAt: i.editedAt == null ? null : DateTime.parse(i.editedAt!),
       );
 }
 

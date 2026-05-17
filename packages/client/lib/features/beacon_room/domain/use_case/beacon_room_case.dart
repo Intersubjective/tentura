@@ -47,8 +47,13 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<List<RoomMessage>> fetchMessages({
     required String beaconId,
     String? beforeIso,
+    String? threadItemId,
   }) =>
-      _room.fetchMessages(beaconId: beaconId, beforeIso: beforeIso);
+      _room.fetchMessages(
+        beaconId: beaconId,
+        beforeIso: beforeIso,
+        threadItemId: threadItemId,
+      );
 
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) =>
       _room.fetchParticipants(beaconId);
@@ -57,6 +62,7 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String body,
     String? replyToMessageId,
+    String? threadItemId,
     List<RoomPendingUpload> uploads = const [],
   }) async {
     if (body.trim().isEmpty && uploads.isEmpty) {
@@ -69,6 +75,7 @@ final class BeaconRoomCase extends UseCaseBase {
       beaconId: beaconId,
       body: body,
       replyToMessageId: replyToMessageId,
+      threadItemId: threadItemId,
       firstAttachment: first,
     );
     for (final u in extras) {
@@ -225,9 +232,15 @@ final class BeaconRoomCase extends UseCaseBase {
         visibility: visibility,
       );
 
-  Future<void> markRoomSeenIfAllowed(String beaconId) async {
+  Future<void> markRoomSeenIfAllowed({
+    required String beaconId,
+    String? threadItemId,
+  }) async {
     try {
-      await _room.markRoomSeen(beaconId: beaconId);
+      await _room.markRoomSeen(
+        beaconId: beaconId,
+        threadItemId: threadItemId,
+      );
       _hints.notifyRoomSeen(beaconId);
     } on Object catch (_) {}
   }

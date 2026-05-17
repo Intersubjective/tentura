@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
@@ -20,11 +22,15 @@ export 'room_state.dart';
 class RoomCubit extends Cubit<RoomState> {
   RoomCubit({
     required String beaconId,
+    String? threadItemId,
+    DateTime? initialUnreadAnchorAt,
     BeaconRoomCase? beaconRoomCase,
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
        super(
          RoomState(
            beaconId: beaconId,
+           threadItemId: threadItemId,
+           unreadAnchorAt: initialUnreadAnchorAt,
            myUserId: GetIt.I<ProfileCubit>().state.profile.id,
            status: const StateIsLoading(),
          ),
@@ -119,7 +125,10 @@ class RoomCubit extends Cubit<RoomState> {
     if (_markSeenEmittedThisVisit) return;
     if (_loadInProgress) return;
     try {
-      await _case.markRoomSeenIfAllowed(state.beaconId);
+      await _case.markRoomSeenIfAllowed(
+        beaconId: state.beaconId,
+        threadItemId: state.threadItemId,
+      );
       _markSeenEmittedThisVisit = true;
       if (!isClosed) {
         emit(state.copyWith(pendingMarkSeen: false));
@@ -138,20 +147,30 @@ class RoomCubit extends Cubit<RoomState> {
     _loadInProgress = true;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
-      final messages = await _case.fetchMessages(beaconId: state.beaconId);
-      final participants =
-          await _case.fetchParticipants(state.beaconId);
-      final roomState = await _case.fetchBeaconRoomState(state.beaconId);
-      final factCards = await _case.fetchFactCards(state.beaconId);
-      final openCoordinationBlocker =
-          await _case.fetchOpenCoordinationBlocker(state.beaconId);
-      final currentCoordinationPlan =
-          await _case.fetchCurrentCoordinationPlan(state.beaconId);
+      final inThread = state.threadItemId != null;
+      final messages = await _case.fetchMessages(
+        beaconId: state.beaconId,
+        threadItemId: state.threadItemId,
+      );
+      final participants = inThread
+          ? const <BeaconParticipant>[]
+          : await _case.fetchParticipants(state.beaconId);
+      final roomState = inThread
+          ? null
+          : await _case.fetchBeaconRoomState(state.beaconId);
+      final factCards =
+          inThread ? const <BeaconFactCard>[] : await _case.fetchFactCards(state.beaconId);
+      final openCoordinationBlocker = inThread
+          ? null
+          : await _case.fetchOpenCoordinationBlocker(state.beaconId);
+      final currentCoordinationPlan = inThread
+          ? null
+          : await _case.fetchCurrentCoordinationPlan(state.beaconId);
 
       if (isClosed) return;
 
       var anchor = state.unreadAnchorAt;
-      if (anchor == null) {
+      if (!inThread && anchor == null) {
         final myId = GetIt.I<ProfileCubit>().state.profile.id;
         for (final p in participants) {
           if (p.userId == myId) {
@@ -370,6 +389,7 @@ class RoomCubit extends Cubit<RoomState> {
       await _case.createMessage(
         beaconId: state.beaconId,
         body: trimmed,
+        threadItemId: state.threadItemId,
         uploads: uploads,
       );
       _markSeenEmittedThisVisit = false;

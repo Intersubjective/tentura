@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:drift_postgres/drift_postgres.dart';
 
 import '../common_fields.dart';
 import 'beacons.dart';
@@ -30,10 +29,6 @@ class BeaconParticipants extends Table with TimestampsFields {
   late final linkedMessageId = text().nullable()();
 
   late final offerNote = text().nullable()();
-
-  /// When the user last opened/read the Room (Phase 6 unread).
-  late final lastSeenRoomAt =
-      customType(PgTypes.timestampWithTimezone).nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

@@ -22,12 +22,21 @@ class BeaconRoomRepository {
 
   Future<List<BeaconRoomMessage>> listMessages({
     required String beaconId,
+    String? threadItemId,
     DateTime? before,
     int limit = 50,
   }) async {
+    Expression<bool> threadFilter($BeaconRoomMessagesTable m) {
+      final tid = threadItemId;
+      if (tid == null) {
+        return m.threadItemId.isNull();
+      }
+      return m.threadItemId.equals(tid);
+    }
+
     if (before == null) {
       return (_db.select(_db.beaconRoomMessages)
-            ..where((m) => m.beaconId.equals(beaconId))
+            ..where((m) => m.beaconId.equals(beaconId) & threadFilter(m))
             ..orderBy([
               (m) => OrderingTerm(
                     expression: m.createdAt,
@@ -40,6 +49,7 @@ class BeaconRoomRepository {
     return (_db.select(_db.beaconRoomMessages)
           ..where((m) =>
               m.beaconId.equals(beaconId) &
+              threadFilter(m) &
               m.createdAt.isSmallerThanValue(PgDateTime(before)))
           ..orderBy([
             (m) =>
@@ -141,11 +151,13 @@ class BeaconRoomRepository {
   Future<List<Map<String, Object?>>> listMessagesEnriched({
     required String beaconId,
     required String viewerUserId,
+    String? threadItemId,
     DateTime? before,
     int limit = 50,
   }) async {
     final msgs = await listMessages(
       beaconId: beaconId,
+      threadItemId: threadItemId,
       before: before,
       limit: limit,
     );
@@ -362,6 +374,7 @@ class BeaconRoomRepository {
             attachmentsJsonByMid[id] ?? '[]',
         // GraphQL `[String!]` — never emit null/empty slots (see migration 0060).
         'mentions': m.mentions.where((id) => id.isNotEmpty).toList(),
+        'threadItemId': m.threadItemId,
       };
     }).toList();
   }
@@ -490,6 +503,7 @@ class BeaconRoomRepository {
     required String authorId,
     required String body,
     String? replyToMessageId,
+    String? threadItemId,
     String? linkedParticipantId,
     String? linkedPollingId,
     int? semanticMarker,
@@ -504,6 +518,7 @@ class BeaconRoomRepository {
               authorId: authorId,
               body: Value(body),
               replyToMessageId: Value(replyToMessageId),
+              threadItemId: Value(threadItemId),
               linkedBlockerId: const Value.absent(),
               linkedNextMoveId: Value(linkedParticipantId),
               linkedFactCardId: const Value.absent(),
@@ -920,39 +935,74 @@ class BeaconRoomRepository {
           .getSingleOrNull()
           .then((r) => r?.title);
 
+  Future<void> markBeaconRoomSeen({
+    required String userId,
+    required String beaconId,
+    required String? threadItemId,
+    required DateTime at,
+  }) =>
+      _db.withMutatingUser(userId, () async {
+        final seenAt = PgDateTime(at);
+        if (threadItemId == null) {
+          await _db.customStatement(
+            'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+            'VALUES (?1, ?2, NULL, ?3) '
+            'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
+            'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
+            [userId, beaconId, seenAt],
+          );
+        } else {
+          await _db.customStatement(
+            'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+            'VALUES (?1, ?2, ?3, ?4) '
+            'ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL '
+            'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
+            [userId, beaconId, threadItemId, seenAt],
+          );
+        }
+      });
+
+  Future<DateTime?> getMainRoomLastSeen({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final map = await mainRoomLastSeenByUserIds(
+      beaconId: beaconId,
+      userIds: [userId],
+    );
+    return map[userId];
+  }
+
+  Future<Map<String, DateTime>> mainRoomLastSeenByUserIds({
+    required String beaconId,
+    required List<String> userIds,
+  }) async {
+    if (userIds.isEmpty) {
+      return const {};
+    }
+    final rows = await (_db.select(_db.beaconRoomSeen)
+          ..where(
+            (s) =>
+                s.beaconId.equals(beaconId) &
+                s.userId.isIn(userIds) &
+                s.threadItemId.isNull(),
+          ))
+        .get();
+    return {
+      for (final row in rows) row.userId: row.lastSeenAt.dateTime,
+    };
+  }
+
   Future<void> markParticipantRoomSeen({
     required String beaconId,
     required String userId,
   }) =>
-      _db.withMutatingUser(userId, () async {
-        final now = PgDateTime(DateTime.timestamp());
-        final updated = await _db.managers.beaconParticipants
-            .filter(
-              (r) => r.beaconId.id(beaconId) & r.userId.id(userId),
-            )
-            .update(
-              (u) => u(
-                lastSeenRoomAt: Value(now),
-                updatedAt: Value(now),
-              ),
-            );
-        if (updated == 0) {
-          // Author/steward has no participant row — create a minimal one so
-          // lastSeenRoomAt is persisted and returned by listParticipants.
-          await _db.managers.beaconParticipants.create(
-            (o) => o(
-              createdAt: const Value.absent(),
-              updatedAt: const Value.absent(),
-              id: generateId('P'),
-              beaconId: beaconId,
-              userId: userId,
-              role: BeaconParticipantRoleBits.watcher,
-              roomAccess: const Value(RoomAccessBits.admitted),
-              lastSeenRoomAt: Value(now),
-            ),
-          );
-        }
-      });
+      markBeaconRoomSeen(
+        userId: userId,
+        beaconId: beaconId,
+        threadItemId: null,
+        at: DateTime.timestamp(),
+      );
 
   /// Upserts coordinated plan text (`beacon_room_state.current_plan`).
   Future<void> upsertBeaconRoomPlan({
@@ -1280,7 +1330,8 @@ class BeaconRoomRepository {
     if (after == null) {
       final rows = await (_db.select(_db.beaconRoomMessages)
             ..where((m) {
-              var cond = m.beaconId.equals(beaconId);
+              var cond =
+                  m.beaconId.equals(beaconId) & m.threadItemId.isNull();
               if (excludeSelf) {
                 // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
                 cond = cond & m.authorId.equals(exclude).not();
@@ -1293,6 +1344,7 @@ class BeaconRoomRepository {
     final rows = await (_db.select(_db.beaconRoomMessages)
           ..where((m) {
             var cond = m.beaconId.equals(beaconId) &
+                m.threadItemId.isNull() &
                 m.createdAt.isBiggerThanValue(PgDateTime(after));
             if (excludeSelf) {
               // Postgres rejects Drift's `IS NOT $n` from [isNotValue]; use NOT (=).
