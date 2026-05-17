@@ -22,6 +22,9 @@ import '../gql/_g/coordination_item_reject_resolution.data.gql.dart';
 import '../gql/_g/coordination_item_create_draft_ask.data.gql.dart';
 import '../gql/_g/coordination_item_publish_ask.data.gql.dart';
 import '../gql/_g/coordination_item_update_draft_ask.data.gql.dart';
+import '../gql/_g/coordination_item_create_draft_blocker.data.gql.dart';
+import '../gql/_g/coordination_item_publish_blocker.data.gql.dart';
+import '../gql/_g/coordination_item_update_draft_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_update.data.gql.dart';
 
 extension type const CoordinationItemListModel(GCoordinationItemListData_coordinationItemsByBeacon i) implements GCoordinationItemListData_coordinationItemsByBeacon {
@@ -555,6 +558,90 @@ extension type const CoordinationItemPublishAskModel(
 extension type const CoordinationItemUpdateDraftAskModel(
     GCoordinationItemUpdateDraftAskData_updateDraftAsk i)
     implements GCoordinationItemUpdateDraftAskData_updateDraftAsk {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemCreateDraftBlockerModel(
+    GCoordinationItemCreateDraftBlockerData_createDraftBlocker i)
+    implements GCoordinationItemCreateDraftBlockerData_createDraftBlocker {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemPublishBlockerModel(
+    GCoordinationItemPublishBlockerData_publishBlocker i)
+    implements GCoordinationItemPublishBlockerData_publishBlocker {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemUpdateDraftBlockerModel(
+    GCoordinationItemUpdateDraftBlockerData_updateDraftBlocker i)
+    implements GCoordinationItemUpdateDraftBlockerData_updateDraftBlocker {
   CoordinationItem toEntity() => CoordinationItem(
         id: i.id,
         beaconId: i.beaconId,

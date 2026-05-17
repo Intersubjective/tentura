@@ -8,6 +8,14 @@
   "@labelTitle": {
     "context": "Utils"
   },
+  "labelTitleOptional": "Название (необязательно)",
+  "@labelTitleOptional": {
+    "context": "Utils"
+  },
+  "labelBody": "Подробности",
+  "@labelBody": {
+    "context": "Utils"
+  },
   "labelDescription": "Описание",
   "@labelDescription": {
     "context": "Utils"
@@ -2761,7 +2769,9 @@
   "beaconRoomStripOpenBlockerHint": "Открыт блокер (подробности в чате комнаты).",
   "beaconRoomAddMyNextMove": "Добавить мой следующий шаг",
   "beaconRoomSelfAskSheetPrompt": "Что вы сделаете?",
-  "beaconRoomSelfAskBodyHintOptional": "Подробности (необязательно)",
+  "beaconRoomSelfAskFromMessage": "Мой следующий шаг из сообщения",
+  "beaconPreparedAskFromMessage": "Подготовить просьбу из сообщения",
+  "coordinationAskFromMessagePreview": "Из сообщения",
   "beaconItemsPreparedDraftsTitle": "Подготовленные просьбы (черновики)",
   "beaconPreparedAskPrepareAction": "Подготовить просьбу",
   "beaconPreparedAskEditorTitleNew": "Подготовить просьбу",
@@ -2769,6 +2779,12 @@
   "beaconPreparedAskPublishSheetTitle": "Кому адресовать эту просьбу?",
   "beaconPreparedAskDeleteConfirmTitle": "Удалить черновик?",
   "beaconPreparedAskDeleteConfirmBody": "Это действие нельзя отменить.",
+  "beaconPreparedBlockerPrepareAction": "Подготовить блокер",
+  "beaconPreparedBlockerEditorTitleNew": "Подготовить блокер",
+  "beaconPreparedBlockerEditorTitleEdit": "Изменить черновик блокера",
+  "beaconPreparedBlockerPublishSheetTitle": "Опубликовать этот блокер?",
+  "beaconPreparedBlockerDeleteConfirmTitle": "Удалить черновик?",
+  "beaconPreparedBlockerDeleteConfirmBody": "Это действие нельзя отменить.",
   "beaconRoomUnreadDividerCount": "Непрочитанные · {count}",
   "@beaconRoomUnreadDividerCount": {
     "placeholders": {
@@ -3069,6 +3085,8 @@
   "coordinationMarkBlockerTitle": "Отметить блокер",
   "coordinationMarkBlockerHint": "Что заблокировано?",
   "coordinationPromoteSheetTitle": "Повысить сообщение",
+  "coordinationPromoteTitleHint": "Заголовок (необязательно)",
+  "coordinationPromoteBodyHint": "Текст",
   "coordinationAskCardLabel": "Запрос",
   "coordinationAskAcceptLabel": "Я сделаю",
   "coordinationSemanticAskOpened": "Запрос создан",

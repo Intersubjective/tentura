@@ -34,6 +34,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
     String? linkedMessageId,
   }) =>
       throw UnimplementedError();
@@ -93,6 +94,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
     String? linkedMessageId,
   }) =>
       throw UnimplementedError();
@@ -103,6 +105,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     required String title,
     String? body,
     String? targetPersonId,
+    String? linkedMessageId,
   }) =>
       throw UnimplementedError();
 
@@ -125,6 +128,30 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
 
   @override
   Future<void> deleteDraftAsk({required String itemId}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> createDraftBlocker({
+    required String beaconId,
+    required String title,
+    String? body,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> publishDraftBlocker({required String itemId}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> updateDraftBlocker({
+    required String itemId,
+    required String title,
+    String body = '',
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deleteDraftBlocker({required String itemId}) =>
       throw UnimplementedError();
 
   @override

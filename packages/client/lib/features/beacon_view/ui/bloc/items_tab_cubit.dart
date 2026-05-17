@@ -48,10 +48,15 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       final currentPlan = await _case.fetchCurrentRootPlan(_beaconId);
       final open = <CoordinationItem>[];
       final closed = <CoordinationItem>[];
-      final drafts = <CoordinationItem>[];
+      final draftAsks = <CoordinationItem>[];
+      final draftBlockers = <CoordinationItem>[];
       for (final item in items) {
         if (!item.published && item.kind == CoordinationItemKind.ask) {
-          drafts.add(item);
+          draftAsks.add(item);
+          continue;
+        }
+        if (!item.published && item.kind == CoordinationItemKind.blocker) {
+          draftBlockers.add(item);
           continue;
         }
         if (item.isActive) {
@@ -63,7 +68,8 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       emit(state.copyWith(
         openItems: open,
         closedItems: closed,
-        draftAskItems: drafts,
+        draftAskItems: draftAsks,
+        draftBlockerItems: draftBlockers,
         currentCoordinationPlan: currentPlan,
         status: const StateIsSuccess(),
       ));

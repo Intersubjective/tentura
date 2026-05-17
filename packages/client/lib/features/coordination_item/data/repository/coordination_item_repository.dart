@@ -28,6 +28,10 @@ import '../gql/_g/coordination_item_publish_ask.req.gql.dart';
 import '../gql/_g/coordination_item_update_draft_ask.req.gql.dart';
 import '../gql/_g/coordination_item_update.req.gql.dart';
 import '../gql/_g/coordination_item_delete_draft_ask.req.gql.dart';
+import '../gql/_g/coordination_item_create_draft_blocker.req.gql.dart';
+import '../gql/_g/coordination_item_publish_blocker.req.gql.dart';
+import '../gql/_g/coordination_item_update_draft_blocker.req.gql.dart';
+import '../gql/_g/coordination_item_delete_draft_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_mark_seen.req.gql.dart';
 import '../model/coordination_item_model.dart';
 
@@ -72,6 +76,7 @@ class CoordinationItemRepository {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
     String? linkedMessageId,
   }) =>
       _remote
@@ -81,6 +86,7 @@ class CoordinationItemRepository {
                 ..beaconId = beaconId
                 ..title = title
                 ..body = body
+                ..targetPersonId = targetPersonId
                 ..linkedMessageId = linkedMessageId,
             ),
           )
@@ -175,6 +181,7 @@ class CoordinationItemRepository {
     required String title,
     String? body,
     String? targetPersonId,
+    String? linkedMessageId,
   }) =>
       _remote
           .request(
@@ -183,7 +190,8 @@ class CoordinationItemRepository {
                 ..beaconId = beaconId
                 ..title = title
                 ..body = body
-                ..targetPersonId = targetPersonId,
+                ..targetPersonId = targetPersonId
+                ..linkedMessageId = linkedMessageId,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -237,6 +245,63 @@ class CoordinationItemRepository {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).deleteDraftAsk);
+
+  Future<CoordinationItem> createDraftBlocker({
+    required String beaconId,
+    required String title,
+    String? body,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemCreateDraftBlockerReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..title = title
+                ..body = body,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).createDraftBlocker
+                  as CoordinationItemCreateDraftBlockerModel)
+              .toEntity());
+
+  Future<CoordinationItem> publishDraftBlocker({required String itemId}) =>
+      _remote
+          .request(
+            GCoordinationItemPublishBlockerReq(
+              (b) => b.vars..itemId = itemId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).publishBlocker
+                  as CoordinationItemPublishBlockerModel)
+              .toEntity());
+
+  Future<CoordinationItem> updateDraftBlocker({
+    required String itemId,
+    required String title,
+    String body = '',
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemUpdateDraftBlockerReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..title = title
+                ..body = body,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).updateDraftBlocker
+                  as CoordinationItemUpdateDraftBlockerModel)
+              .toEntity());
+
+  Future<void> deleteDraftBlocker({required String itemId}) => _remote
+      .request(
+        GCoordinationItemDeleteDraftBlockerReq((b) => b.vars..itemId = itemId),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).deleteDraftBlocker);
 
   Future<CoordinationItem> acceptAsk({required String itemId}) =>
       _remote
@@ -343,6 +408,7 @@ class CoordinationItemRepository {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
     String? linkedMessageId,
   }) =>
       _remote
@@ -352,6 +418,7 @@ class CoordinationItemRepository {
                 ..beaconId = beaconId
                 ..title = title
                 ..body = body
+                ..targetPersonId = targetPersonId
                 ..linkedMessageId = linkedMessageId,
             ),
           )

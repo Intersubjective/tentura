@@ -89,12 +89,13 @@ void main() {
     );
   });
 
-  test('throws when title is empty', () async {
+  test('throws when body is empty', () async {
     expect(
       () => sut.call(
         userId: 'Uaaaaaaaaaaaa',
         beaconId: beacons.entity.id,
-        title: '   ',
+        title: 'Bring cookies',
+        body: '   ',
       ),
       throwsA(isA<BeaconCreateException>()),
     );
@@ -107,32 +108,48 @@ void main() {
       () => sut.call(
         userId: 'Uaaaaaaaaaaaa',
         beaconId: beacons.entity.id,
-        title: 'Bring cookies',
+        title: '',
+        body: 'Do the thing',
       ),
       throwsA(isA<BeaconCreateException>()),
     );
     expect(items.calls, isEmpty);
   });
 
-  test('calls createSelfAcceptedAsk with trimmed title and body', () async {
+  test('calls createSelfAcceptedAsk with trimmed body and optional title', () async {
     const uid = 'Uaaaaaaaaaaaa';
     items.nextReturn = _sampleItem(beaconId: beacons.entity.id, creatorId: uid);
 
     final out = await sut.call(
       userId: uid,
       beaconId: beacons.entity.id,
-      title: '  Bring cookies ',
+      title: '',
       body: '  oven ',
       linkedMessageId: 'Rmsg1',
     );
 
     expect(out.id, items.nextReturn!.id);
     expect(items.calls, hasLength(1));
-    expect(items.calls.single.title, 'Bring cookies');
+    expect(items.calls.single.title, '');
     expect(items.calls.single.body, 'oven');
     expect(items.calls.single.linkedMessageId, 'Rmsg1');
     expect(items.calls.single.creatorId, uid);
     expect(items.calls.single.beaconId, beacons.entity.id);
+  });
+
+  test('trims non-empty title when provided', () async {
+    const uid = 'Uaaaaaaaaaaaa';
+    items.nextReturn = _sampleItem(beaconId: beacons.entity.id, creatorId: uid);
+
+    await sut.call(
+      userId: uid,
+      beaconId: beacons.entity.id,
+      title: '  Bring cookies ',
+      body: 'oven',
+    );
+
+    expect(items.calls.single.title, 'Bring cookies');
+    expect(items.calls.single.body, 'oven');
   });
 }
 

@@ -193,12 +193,19 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> updatePlan(String currentPlan, {String? linkedMessageId}) async {
+  Future<void> updatePlan(
+    String currentPlan, {
+    String body = '',
+    String? targetPersonId,
+    String? linkedMessageId,
+  }) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.updateRoomPlan(
         beaconId: state.beaconId,
         currentPlan: currentPlan,
+        body: body,
+        targetPersonId: targetPersonId,
         linkedMessageId: linkedMessageId,
       );
       await load();
@@ -489,6 +496,8 @@ class RoomCubit extends Cubit<RoomState> {
   Future<void> markBlockerFromMessage({
     required String messageId,
     required String title,
+    String body = '',
+    String? targetPersonId,
   }) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
@@ -496,6 +505,8 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         messageId: messageId,
         title: title,
+        body: body,
+        targetPersonId: targetPersonId,
       );
       await load();
     } on Object catch (e) {

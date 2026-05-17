@@ -14,6 +14,10 @@ import 'package:tentura_server/domain/use_case/coordination_item/create_draft_as
 import 'package:tentura_server/domain/use_case/coordination_item/publish_draft_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/update_draft_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_ask_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/create_draft_blocker_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/publish_draft_blocker_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/update_draft_blocker_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/update_plan_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/add_plan_step_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_plan_step_case.dart';
@@ -50,6 +54,10 @@ final class MutationCoordinationItem extends GqlNodeBase {
     PublishDraftAskCase? publishDraftAskCase,
     UpdateDraftAskCase? updateDraftAskCase,
     DeleteDraftAskCase? deleteDraftAskCase,
+    CreateDraftBlockerCase? createDraftBlockerCase,
+    PublishDraftBlockerCase? publishDraftBlockerCase,
+    UpdateDraftBlockerCase? updateDraftBlockerCase,
+    DeleteDraftBlockerCase? deleteDraftBlockerCase,
     MarkItemSeenCase? markItemSeenCase,
     UpdateCoordinationItemCase? updateCoordinationItemCase,
   }) : _markBlockerCase = markBlockerCase ?? GetIt.I<MarkBlockerCase>(),
@@ -85,6 +93,14 @@ final class MutationCoordinationItem extends GqlNodeBase {
            updateDraftAskCase ?? GetIt.I<UpdateDraftAskCase>(),
        _deleteDraftAskCase =
            deleteDraftAskCase ?? GetIt.I<DeleteDraftAskCase>(),
+       _createDraftBlockerCase =
+           createDraftBlockerCase ?? GetIt.I<CreateDraftBlockerCase>(),
+       _publishDraftBlockerCase =
+           publishDraftBlockerCase ?? GetIt.I<PublishDraftBlockerCase>(),
+       _updateDraftBlockerCase =
+           updateDraftBlockerCase ?? GetIt.I<UpdateDraftBlockerCase>(),
+       _deleteDraftBlockerCase =
+           deleteDraftBlockerCase ?? GetIt.I<DeleteDraftBlockerCase>(),
        _markItemSeenCase = markItemSeenCase ?? GetIt.I<MarkItemSeenCase>(),
        _updateCoordinationItemCase =
            updateCoordinationItemCase ?? GetIt.I<UpdateCoordinationItemCase>();
@@ -110,6 +126,10 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final PublishDraftAskCase _publishDraftAskCase;
   final UpdateDraftAskCase _updateDraftAskCase;
   final DeleteDraftAskCase _deleteDraftAskCase;
+  final CreateDraftBlockerCase _createDraftBlockerCase;
+  final PublishDraftBlockerCase _publishDraftBlockerCase;
+  final UpdateDraftBlockerCase _updateDraftBlockerCase;
+  final DeleteDraftBlockerCase _deleteDraftBlockerCase;
   final MarkItemSeenCase _markItemSeenCase;
   final UpdateCoordinationItemCase _updateCoordinationItemCase;
 
@@ -139,6 +159,10 @@ final class MutationCoordinationItem extends GqlNodeBase {
         publishAsk,
         updateDraftAsk,
         deleteDraftAsk,
+        createDraftBlocker,
+        publishBlocker,
+        updateDraftBlocker,
+        deleteDraftBlocker,
         acceptAsk,
         resolveAsk,
         cancelAsk,
@@ -160,6 +184,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _beaconId.field,
           _title.field,
           _body.fieldNullable,
+          _targetPersonId.fieldNullable,
           _linkedMessageId.fieldNullable,
         ],
         resolve: (_, args) async {
@@ -169,6 +194,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             beaconId: _beaconId.fromArgsNonNullable(args),
             title: _title.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
+            targetPersonId: _targetPersonId.fromArgs(args),
             linkedMessageId: _linkedMessageId.fromArgs(args),
           );
           return _coordinationItemToMap(item);
@@ -302,6 +328,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _title.field,
           _body.fieldNullable,
           _targetPersonId.fieldNullable,
+          _linkedMessageId.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -311,6 +338,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             title: _title.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
             targetPersonId: _targetPersonId.fromArgs(args),
+            linkedMessageId: _linkedMessageId.fromArgs(args),
           );
           return _coordinationItemToMap(item);
         },
@@ -367,6 +395,78 @@ final class MutationCoordinationItem extends GqlNodeBase {
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
           final ok = await _deleteDraftAskCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+          );
+          return ok;
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get createDraftBlocker =>
+      GraphQLObjectField(
+        'createDraftBlocker',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _beaconId.field,
+          _title.field,
+          _body.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _createDraftBlockerCase.call(
+            userId: userId,
+            beaconId: _beaconId.fromArgsNonNullable(args),
+            title: _title.fromArgsNonNullable(args),
+            body: _body.fromArgs(args) ?? '',
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get publishBlocker =>
+      GraphQLObjectField(
+        'publishBlocker',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [_itemId.field],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _publishDraftBlockerCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get updateDraftBlocker =>
+      GraphQLObjectField(
+        'updateDraftBlocker',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _itemId.field,
+          _title.field,
+          _body.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _updateDraftBlockerCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+            title: _title.fromArgsNonNullable(args),
+            body: _body.fromArgs(args) ?? '',
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get deleteDraftBlocker =>
+      GraphQLObjectField(
+        'deleteDraftBlocker',
+        graphQLBoolean.nonNullable(),
+        arguments: [_itemId.field],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final ok = await _deleteDraftBlockerCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
           );
@@ -471,6 +571,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _beaconId.field,
           _title.field,
           _body.fieldNullable,
+          _targetPersonId.fieldNullable,
           _linkedMessageId.fieldNullable,
         ],
         resolve: (_, args) async {
@@ -480,6 +581,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             beaconId: _beaconId.fromArgsNonNullable(args),
             title: _title.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
+            targetPersonId: _targetPersonId.fromArgs(args),
             linkedMessageId: _linkedMessageId.fromArgs(args),
           );
           return _coordinationItemToMap(item);

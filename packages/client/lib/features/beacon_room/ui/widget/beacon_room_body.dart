@@ -20,7 +20,11 @@ import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
 
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_ask_sheet.dart';
+import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
+
 import '../bloc/room_cubit.dart';
+import 'beacon_room_self_ask_sheet.dart';
 import 'fact_actions_sheet.dart';
 import 'room_file_attachment_open.dart';
 import 'room_reaction_picker.dart';
@@ -176,8 +180,10 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final err = state.status is StateHasError
               ? (state.status as StateHasError).error.toString()
               : '';
+          final plan = state.roomState?.currentPlan.trim() ?? '';
           return BasicChatBody(
             key: _basicChatKey,
+            header: plan.isEmpty ? null : _PinnedPlanCard(plan: plan),
             messages: state.messages,
             myProfile: myProfile,
             participants: state.participants,
@@ -644,6 +650,34 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
   }
 
+  bool _roomCanSelfAsk(RoomCubit cubit) {
+    final myUserId = cubit.state.myUserId;
+    if (myUserId.isEmpty) return false;
+    BeaconParticipant? myParticipant;
+    for (final p in cubit.state.participants) {
+      if (p.userId == myUserId) {
+        myParticipant = p;
+        break;
+      }
+    }
+    if (myParticipant == null) return false;
+    if (myParticipant.role == BeaconParticipantRoleBits.author ||
+        myParticipant.role == BeaconParticipantRoleBits.steward) {
+      return true;
+    }
+    return myParticipant.roomAccess == RoomAccessBits.admitted;
+  }
+
+  bool _roomIsBeaconAuthor(RoomCubit cubit) {
+    final myUserId = cubit.state.myUserId;
+    for (final p in cubit.state.participants) {
+      if (p.userId == myUserId && p.role == BeaconParticipantRoleBits.author) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Future<void> _showPromoteSheet(
     BuildContext context,
     RoomCubit cubit,
@@ -651,6 +685,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     Profile viewer,
     RoomMessage message,
   ) async {
+    final canSelfAsk = _roomCanSelfAsk(cubit);
+    final isAuthor = _roomIsBeaconAuthor(cubit);
+    final askSeed = AskComposerSeed.fromMessage(
+      messageId: message.id,
+      messageBody: message.body,
+    );
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -666,13 +706,44 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 style: Theme.of(ctx).textTheme.titleMedium,
               ),
             ),
+            if (canSelfAsk)
+              ListTile(
+                leading: const Icon(Icons.task_alt_outlined),
+                title: Text(l10n.beaconRoomSelfAskFromMessage),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  unawaited(
+                    showBeaconRoomSelfAskSheet(
+                      context,
+                      beaconId: cubit.state.beaconId,
+                      seed: askSeed,
+                    ),
+                  );
+                },
+              ),
+            if (isAuthor)
+              ListTile(
+                leading: const Icon(Icons.drafts_outlined),
+                title: Text(l10n.beaconPreparedAskFromMessage),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  unawaited(
+                    showPreparedAskEditorSheet(
+                      context,
+                      beaconId: cubit.state.beaconId,
+                      seed: askSeed,
+                      onSaved: () {},
+                    ),
+                  );
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.report_problem_outlined),
               title: Text(l10n.beaconRoomActionMarkBlocker),
               onTap: () {
                 Navigator.pop(ctx);
                 unawaited(
-                  _showMarkBlockerSheet(context, cubit, l10n, message),
+                  _showMarkBlockerSheet(context, cubit, l10n, viewer, message),
                 );
               },
             ),
@@ -696,6 +767,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     context,
                     cubit,
                     l10n,
+                    viewer,
                     message,
                   ),
                 );
@@ -765,53 +837,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     }
   }
 
-  Future<void> _showUpdatePlanFromMessageSheet(
-    BuildContext context,
-    RoomCubit cubit,
-    L10n l10n,
-    RoomMessage message,
-  ) async {
-    final text = message.body.trim();
-    if (text.isEmpty) return;
-    final controller = TextEditingController(text: text);
-    try {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.beaconRoomActionUpdatePlan),
-          content: TextField(
-            controller: controller,
-            maxLines: 4,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
-            ),
-          ],
-        ),
-      );
-      if (ok == true && context.mounted) {
-        final plan = controller.text.trim();
-        if (plan.isEmpty) return;
-        await cubit.updatePlan(plan, linkedMessageId: message.id);
-      }
-    } finally {
-      controller.dispose();
-    }
-  }
-
-  Future<void> _showMarkAskSheet(
-    BuildContext context,
-    RoomCubit cubit,
-    L10n l10n,
-    Profile viewer,
-    RoomMessage message,
-  ) async {
+  List<BeaconParticipant> _admittedParticipantsForPromote(RoomCubit cubit) {
     final myUserId = cubit.state.myUserId;
     final myParticipantRole = cubit.state.participants
         .where((p) => p.userId == myUserId)
@@ -820,7 +846,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final isAuthorOrSteward = myParticipantRole ==
             BeaconParticipantRoleBits.author ||
         myParticipantRole == BeaconParticipantRoleBits.steward;
-    final admitted = isAuthorOrSteward
+    return isAuthorOrSteward
         ? cubit.state.participants
             .where((p) =>
                 p.roomAccess == RoomAccessBits.admitted ||
@@ -830,44 +856,74 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         : cubit.state.participants
             .where((p) => p.roomAccess == RoomAccessBits.admitted)
             .toList();
-    if (admitted.isEmpty) return;
+  }
+
+  Future<({String title, String body, String targetUserId})?>
+      _showPromoteFieldsDialog({
+    required BuildContext context,
+    required L10n l10n,
+    required Profile viewer,
+    required RoomCubit cubit,
+    required String dialogTitle,
+    required String messageBody,
+  }) async {
+    final admitted = _admittedParticipantsForPromote(cubit);
+    if (admitted.isEmpty) return null;
+
     final titleController = TextEditingController();
-    var targetUserId = admitted.first.userId;
+    final bodyController = TextEditingController(text: messageBody);
+    var targetUserId = viewer.id;
+    if (!admitted.any((p) => p.userId == targetUserId)) {
+      targetUserId = admitted.first.userId;
+    }
+
     try {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setState) => AlertDialog(
-            title: Text(l10n.coordinationMarkAskTitle),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  key: ValueKey<String>(targetUserId),
-                  initialValue: targetUserId,
-                  decoration: InputDecoration(
-                    labelText: l10n.beaconRoomNeedInfoPickTarget,
+            title: Text(dialogTitle),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: InputDecoration(
+                      hintText: l10n.coordinationPromoteTitleHint,
+                    ),
+                    textInputAction: TextInputAction.next,
                   ),
-                  items: [
-                    for (final p in admitted)
-                      DropdownMenuItem(
-                        value: p.userId,
-                        child: Text(
-                          _needInfoTargetLabel(l10n, viewer, p),
+                  const SizedBox(height: kSpacingSmall),
+                  TextField(
+                    controller: bodyController,
+                    decoration: InputDecoration(
+                      hintText: l10n.coordinationPromoteBodyHint,
+                    ),
+                    maxLines: 4,
+                    autofocus: messageBody.isEmpty,
+                  ),
+                  const SizedBox(height: kSpacingSmall),
+                  DropdownButtonFormField<String>(
+                    key: ValueKey<String>(targetUserId),
+                    initialValue: targetUserId,
+                    decoration: InputDecoration(
+                      labelText: l10n.beaconRoomNeedInfoPickTarget,
+                    ),
+                    items: [
+                      for (final p in admitted)
+                        DropdownMenuItem(
+                          value: p.userId,
+                          child: Text(
+                            _needInfoTargetLabel(l10n, viewer, p),
+                          ),
                         ),
-                      ),
-                  ],
-                  onChanged: (v) =>
-                      setState(() => targetUserId = v ?? targetUserId),
-                ),
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    hintText: l10n.coordinationMarkAskHint,
+                    ],
+                    onChanged: (v) =>
+                        setState(() => targetUserId = v ?? targetUserId),
                   ),
-                  maxLines: 2,
-                ),
-              ],
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -882,59 +938,88 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           ),
         ),
       );
-      if (ok == true && context.mounted) {
-        final title = titleController.text.trim();
-        if (title.isEmpty) return;
-        await cubit.markAskFromMessage(
-          messageId: message.id,
-          title: title,
-          targetPersonId: targetUserId,
-        );
-      }
+      if (ok != true) return null;
+      final body = bodyController.text.trim();
+      if (body.isEmpty) return null;
+      final titleRaw = titleController.text.trim();
+      final title = titleRaw.isEmpty ? body : titleRaw;
+      return (title: title, body: body, targetUserId: targetUserId);
     } finally {
       titleController.dispose();
+      bodyController.dispose();
     }
+  }
+
+  Future<void> _showUpdatePlanFromMessageSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile viewer,
+    RoomMessage message,
+  ) async {
+    final fields = await _showPromoteFieldsDialog(
+      context: context,
+      l10n: l10n,
+      viewer: viewer,
+      cubit: cubit,
+      dialogTitle: l10n.beaconRoomActionUpdatePlan,
+      messageBody: message.body.trim(),
+    );
+    if (fields == null || !context.mounted) return;
+    await cubit.updatePlan(
+      fields.title,
+      body: fields.body,
+      targetPersonId: fields.targetUserId,
+      linkedMessageId: message.id,
+    );
+  }
+
+  Future<void> _showMarkAskSheet(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    Profile viewer,
+    RoomMessage message,
+  ) async {
+    final fields = await _showPromoteFieldsDialog(
+      context: context,
+      l10n: l10n,
+      viewer: viewer,
+      cubit: cubit,
+      dialogTitle: l10n.coordinationMarkAskTitle,
+      messageBody: message.body.trim(),
+    );
+    if (fields == null || !context.mounted) return;
+    await cubit.markAskFromMessage(
+      messageId: message.id,
+      title: fields.title,
+      targetPersonId: fields.targetUserId,
+      body: fields.body,
+    );
   }
 
   Future<void> _showMarkBlockerSheet(
     BuildContext context,
     RoomCubit cubit,
     L10n l10n,
+    Profile viewer,
     RoomMessage message,
   ) async {
-    final controller = TextEditingController();
-    try {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l10n.beaconRoomActionMarkBlocker),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(
-              hintText: l10n.beaconRoomBlockerTitleHint,
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
-            ),
-          ],
-        ),
-      );
-      if (ok == true && context.mounted) {
-        final t = controller.text.trim();
-        if (t.isEmpty) return;
-        await cubit.markBlockerFromMessage(messageId: message.id, title: t);
-      }
-    } finally {
-      controller.dispose();
-    }
+    final fields = await _showPromoteFieldsDialog(
+      context: context,
+      l10n: l10n,
+      viewer: viewer,
+      cubit: cubit,
+      dialogTitle: l10n.beaconRoomActionMarkBlocker,
+      messageBody: message.body.trim(),
+    );
+    if (fields == null || !context.mounted) return;
+    await cubit.markBlockerFromMessage(
+      messageId: message.id,
+      title: fields.title,
+      body: fields.body,
+      targetPersonId: fields.targetUserId,
+    );
   }
 
   Future<void> _showNeedInfoSheet(
@@ -1346,6 +1431,42 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PinnedPlanCard extends StatelessWidget {
+  const _PinnedPlanCard({required this.plan});
+
+  final String plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = L10n.of(context)!;
+    final accent = theme.colorScheme.primary;
+    return ExpansionTile(
+      initiallyExpanded: false,
+      leading: Container(width: 3, color: accent),
+      title: Text(
+        plan,
+        style: theme.textTheme.bodySmall,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        l10n.beaconRoomStripPlanLabel,
+        style: theme.textTheme.labelSmall?.copyWith(color: accent),
+      ),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(plan, style: theme.textTheme.bodySmall),
+          ),
+        ),
+      ],
     );
   }
 }

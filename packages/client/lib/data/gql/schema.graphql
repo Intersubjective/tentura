@@ -2379,7 +2379,7 @@ type mutation_root {
   capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
   capabilitySetViewerVisible(subjectUserId: String!, slugs: [String!]!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
-  markBlocker(beaconId: String!, title: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  markBlocker(beaconId: String!, title: String!, body: String, targetPersonId: String, linkedMessageId: String): CoordinationItemRow!
   resolveBlocker(itemId: String!, note: String): CoordinationItemRow!
   cancelBlocker(itemId: String!, reason: String): CoordinationItemRow!
   markAsk(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String): CoordinationItemRow!
@@ -2388,12 +2388,16 @@ type mutation_root {
   publishAsk(itemId: String!, targetPersonId: String!): CoordinationItemRow!
   updateDraftAsk(itemId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
   deleteDraftAsk(itemId: String!): Boolean!
+  createDraftBlocker(beaconId: String!, title: String!, body: String): CoordinationItemRow!
+  publishBlocker(itemId: String!): CoordinationItemRow!
+  updateDraftBlocker(itemId: String!, title: String!, body: String): CoordinationItemRow!
+  deleteDraftBlocker(itemId: String!): Boolean!
   acceptAsk(itemId: String!): CoordinationItemRow!
   resolveAsk(itemId: String!, note: String): CoordinationItemRow!
   cancelAsk(itemId: String!, reason: String): CoordinationItemRow!
   redirectAsk(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
   updateCoordinationItem(itemId: String!, title: String!, body: String): CoordinationItemRow!
-  updateCoordinationPlan(beaconId: String!, title: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  updateCoordinationPlan(beaconId: String!, title: String!, body: String, targetPersonId: String, linkedMessageId: String): CoordinationItemRow!
   addPlanStep(parentItemId: String!, title: String!, body: String): CoordinationItemRow!
   resolvePlanStep(itemId: String!): CoordinationItemRow!
   createResolution(beaconId: String!, title: String!, body: String, targetItemId: String, targetMessageId: String, linkedMessageId: String): CoordinationItemRow!
