@@ -473,18 +473,35 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   bool _didApplyFetchResolution = false;
   String? _bannerMessage;
 
-  BeaconViewEntrySource get _normalizedEntry => normalizeBeaconViewEntry(
-    isDeepLink: widget.isDeepLink,
-    rawFromQuery: BeaconViewEntrySourceWire.parseQuery(widget.entry),
-  );
+  bool _roomFromRouteParams(BeaconViewScreen w) {
+    final legacySurface = w.surface?.trim().toLowerCase();
+    return legacySurface == kBeaconSurfaceRoomQueryValue ||
+        w.viewTab == 'room' ||
+        normalizeBeaconViewEntry(
+              isDeepLink: w.isDeepLink,
+              rawFromQuery: BeaconViewEntrySourceWire.parseQuery(w.entry),
+            ) ==
+            BeaconViewEntrySource.roomNotification;
+  }
+
+  String _beaconViewPath({String? viewTab}) {
+    final q = <String, String>{};
+    if (viewTab != null && viewTab.isNotEmpty) {
+      q[kQueryBeaconViewTab] = viewTab;
+    }
+    final entry = widget.entry?.trim();
+    if (entry != null && entry.isNotEmpty) {
+      q[kQueryBeaconEntry] = entry;
+    }
+    final base = '$kPathBeaconView/${widget.id}';
+    if (q.isEmpty) return base;
+    return '$base?${Uri(queryParameters: q).query}';
+  }
 
   @override
   void initState() {
     super.initState();
-    final legacySurface = widget.surface?.trim().toLowerCase();
-    _showRoomSurface = legacySurface == kBeaconSurfaceRoomQueryValue ||
-        widget.viewTab == 'room' ||
-        _normalizedEntry == BeaconViewEntrySource.roomNotification;
+    _showRoomSurface = _roomFromRouteParams(widget);
     _tabIndex = _beaconViewTabIndex(widget.viewTab).clamp(
       0,
       _kBeaconTabCount - 1,
@@ -502,6 +519,18 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     _roomCubit = null;
     if (!c.isClosed) {
       unawaited(c.close());
+    }
+  }
+
+  @override
+  void didUpdateWidget(BeaconViewScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final wasRoom = _roomFromRouteParams(oldWidget);
+    final isRoom = _roomFromRouteParams(widget);
+    if (wasRoom && !isRoom && _showRoomSurface) {
+      _exitRoomSurface(fromRouteSync: true);
+    } else if (!wasRoom && isRoom && !_showRoomSurface) {
+      _applyRoomSurfaceState(open: true);
     }
   }
 
@@ -529,35 +558,57 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     });
   }
 
+  void _applyRoomSurfaceState({required bool open}) {
+    if (open) {
+      setState(() {
+        _showRoomSurface = true;
+        _roomCubit ??= RoomCubit(beaconId: widget.id);
+      });
+    } else {
+      if (!_showRoomSurface) return;
+      context.read<BeaconViewCubit>().clearRoomUnread();
+      _releaseEmbeddedRoomCubit();
+      setState(() => _showRoomSurface = false);
+    }
+  }
+
   void _enterRoomSurface([CoordinationItem? focusItem]) {
     if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
       return;
     }
-    setState(() {
-      _showRoomSurface = true;
-      _roomCubit ??= RoomCubit(beaconId: widget.id);
-    });
+    _applyRoomSurfaceState(open: true);
     final c = _roomCubit;
     if (c == null || c.isClosed) return;
     if (focusItem == null || focusItem.id.isEmpty) {
       c.prepareThreadScroll();
-      return;
+    } else {
+      c.prepareThreadScroll(
+        messageId: focusItem.threadAnchorMessageId,
+        coordinationItemId: focusItem.id,
+      );
     }
-    c.prepareThreadScroll(
-      messageId: focusItem.threadAnchorMessageId,
-      coordinationItemId: focusItem.id,
-    );
+    if (!_roomFromRouteParams(widget)) {
+      unawaited(
+        context.router.pushPath(_beaconViewPath(viewTab: 'room')),
+      );
+    }
   }
 
   void _openItemDiscussion(CoordinationItem item) {
     unawaited(context.router.push(ItemDiscussionRoute(item: item)));
   }
 
-  void _exitRoomSurface() {
+  void _exitRoomSurface({bool fromRouteSync = false}) {
     if (!_showRoomSurface) return;
-    context.read<BeaconViewCubit>().clearRoomUnread();
-    _releaseEmbeddedRoomCubit();
-    setState(() => _showRoomSurface = false);
+    final router = context.router;
+    final urlHasRoom =
+        router.currentUrl.contains('$kQueryBeaconViewTab=room') ||
+        router.currentUrl.contains('$kQueryBeaconSurface=room');
+    if (!fromRouteSync && (urlHasRoom || _roomFromRouteParams(widget))) {
+      unawaited(router.maybePop());
+      return;
+    }
+    _applyRoomSurfaceState(open: false);
   }
 
   void _switchToTab(int tab) {
@@ -675,7 +726,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             );
           }
 
-          return Scaffold(
+          return PopScope(
+            canPop: !_showRoomSurface,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              _exitRoomSurface();
+            },
+            child: Scaffold(
               appBar: AppBar(
                 backgroundColor: scheme.surface,
                 surfaceTintColor: Colors.transparent,
@@ -751,6 +808,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   Expanded(child: body),
                 ],
               ),
+            ),
           );
         },
       ),
