@@ -51,5 +51,13 @@ void main() {
         expect(e.value.label, isNotEmpty, reason: 'key ${e.key}');
       }
     });
+
+    test('tentura brand icon in Tech category', () {
+      final def = kBeaconIdentityIcons['tentura'];
+      expect(def, isNotNull);
+      expect(def!.category, BeaconIdentityCategory.tech);
+      expect(def.icon.fontFamily, 'Tentura');
+      expect(def.icon.codePoint, 0xe908);
+    });
   });
 }

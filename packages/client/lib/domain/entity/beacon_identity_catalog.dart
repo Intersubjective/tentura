@@ -520,6 +520,12 @@ const Map<String, BeaconIconDefinition> kBeaconIdentityIcons = {
     category: BeaconIdentityCategory.tech,
     label: 'Settings',
   ),
+  'tentura': BeaconIconDefinition(
+    // Same glyph as TenturaIcons.graph (custom font; not Material Icons).
+    icon: IconData(0xe908, fontFamily: 'Tentura'),
+    category: BeaconIdentityCategory.tech,
+    label: 'Tentura',
+  ),
 
   // Nature
   'agriculture': BeaconIconDefinition(
