@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -28,6 +29,22 @@ import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:readmore/readmore.dart';
+
+/// Room inline plan plaques (created / updated / superseded) are informational;
+/// navigation to item discussion is handled from Items tab, not the timeline.
+@visibleForTesting
+bool planLifecyclePlaqueSuppressesDiscussion(
+  CoordinationItem item,
+  CoordinationItemEventKind eventKind,
+) =>
+    item.kind == CoordinationItemKind.plan &&
+    switch (eventKind) {
+      CoordinationItemEventKind.created ||
+      CoordinationItemEventKind.updated ||
+      CoordinationItemEventKind.superseded =>
+        true,
+      _ => false,
+    };
 
 class RoomMessageTile extends StatelessWidget {
   const RoomMessageTile({
@@ -193,6 +210,15 @@ class RoomMessageTile extends StatelessWidget {
     final isStateCard = _isCoordStateCard(message);
     final linkedCoord = message.linkedCoordinationItem;
     final linkedEv = message.linkedEventKind;
+    final linkedEventKind = linkedEv != null && linkedCoord != null
+        ? CoordinationItemEventKind.fromInt(linkedEv)
+        : null;
+    final suppressPlanDiscussion = linkedCoord != null &&
+        linkedEventKind != null &&
+        planLifecyclePlaqueSuppressesDiscussion(
+          linkedCoord,
+          linkedEventKind,
+        );
 
     final isGroupStart =
         breakGroupAbove || _groupBreak(previousMessage, message);
@@ -457,18 +483,20 @@ class RoomMessageTile extends StatelessWidget {
               ),
             ),
           ),
-        if (linkedCoord != null && linkedEv != null)
+        if (linkedCoord != null && linkedEventKind != null)
           Padding(
             padding: EdgeInsets.only(top: tt.rowGap / 2),
             child: Align(
               alignment: Alignment.centerLeft,
               child: ItemCardInRoom(
                 item: linkedCoord,
-                eventKind: CoordinationItemEventKind.fromInt(linkedEv),
+                eventKind: linkedEventKind,
                 timelineAuthorId: message.authorId,
-                onTap: () => context.router.push(
-                  ItemDiscussionRoute(item: linkedCoord),
-                ),
+                onTap: suppressPlanDiscussion
+                    ? null
+                    : () => context.router.push(
+                          ItemDiscussionRoute(item: linkedCoord),
+                        ),
               ),
             ),
           ),
@@ -496,7 +524,6 @@ class RoomMessageTile extends StatelessWidget {
             child: Wrap(
               spacing: kSpacingSmall,
               runSpacing: kSpacingSmall,
-              alignment: WrapAlignment.start,
               children: [
                 for (final a in fileAttachments)
                   ActionChip(
