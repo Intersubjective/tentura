@@ -578,9 +578,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       });
     } else {
       if (!_showRoomSurface) return;
-      context.read<BeaconViewCubit>().clearRoomUnread();
-      _releaseEmbeddedRoomCubit();
+      // Hide room before [clearRoomUnread] — its emit rebuilds this screen and
+      // build() must not recreate [RoomCubit] via `_roomCubit ??=` while exiting.
       setState(() => _showRoomSurface = false);
+      _releaseEmbeddedRoomCubit();
+      context.read<BeaconViewCubit>().clearRoomUnread();
     }
   }
 
@@ -630,8 +632,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (_showRoomSurface) {
       _applyRoomSurfaceState(open: false);
     }
-    if (urlHasRoom || _roomFromRouteParams(widget)) {
+    if (!urlHasRoom && !_roomFromRouteParams(widget)) {
+      return;
+    }
+    // [usesPathAsKey] beacon view often updates query in place; prefer history
+    // pop when we pushed `?tab=room`, otherwise replace URL so back stays on
+    // the operational beacon instead of leaving the screen.
+    if (router.canPop()) {
       unawaited(router.maybePop());
+    } else {
+      unawaited(router.replacePath(_beaconViewPath()));
     }
   }
 
@@ -715,11 +725,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               child: CircularProgressIndicator.adaptive(),
             );
           } else if (_showRoomSurface && state.canNavigateBeaconRoom) {
-            _roomCubit ??= RoomCubit(beaconId: widget.id);
-            body = BlocProvider.value(
-              value: _roomCubit!,
-              child: const BeaconRoomSurface(),
-            );
+            final roomCubit = _roomCubit;
+            body = roomCubit == null || roomCubit.isClosed
+                ? const Center(child: CircularProgressIndicator.adaptive())
+                : BlocProvider.value(
+                    value: roomCubit,
+                    child: const BeaconRoomSurface(),
+                  );
           } else {
             if (_itemsTabCubit == null) {
               _itemsTabCubit = ItemsTabCubit(beaconId: widget.id);
