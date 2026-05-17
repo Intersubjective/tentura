@@ -149,12 +149,16 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<void> updateRoomPlan({
     required String beaconId,
     required String currentPlan,
+    String body = '',
+    String? targetPersonId,
     String? linkedMessageId,
   }) =>
       _coordinationItemCase
           .updatePlan(
             beaconId: beaconId,
             title: currentPlan,
+            body: body,
+            targetPersonId: targetPersonId,
             linkedMessageId: linkedMessageId,
           )
           .then((_) {});
@@ -232,11 +236,15 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String messageId,
     required String title,
+    String body = '',
+    String? targetPersonId,
   }) =>
       _coordinationItemCase
           .markBlocker(
             beaconId: beaconId,
             title: title,
+            body: body,
+            targetPersonId: targetPersonId,
             linkedMessageId: messageId,
           )
           .then((_) {});

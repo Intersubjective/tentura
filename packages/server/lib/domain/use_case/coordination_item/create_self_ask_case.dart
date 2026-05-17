@@ -26,10 +26,10 @@ final class CreateSelfAskCase extends UseCaseBase {
     String body = '',
     String? linkedMessageId,
   }) async {
-    final trimmed = title.trim();
-    if (trimmed.isEmpty) {
-      throw const BeaconCreateException(description: 'Ask title is required');
+    if (body.trim().isEmpty) {
+      throw const BeaconCreateException(description: 'Ask body is required');
     }
+    final trimmed = title.trim();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.isActive) {
       throw const BeaconCreateException(description: 'Beacon is not open');

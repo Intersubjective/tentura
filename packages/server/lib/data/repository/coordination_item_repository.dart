@@ -362,6 +362,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String title,
     String body = '',
     String? targetPersonId,
+    String? linkedMessageId,
   }) =>
       _db.withMutatingUser(creatorId, () async {
         final id = CoordinationItemEntity.newId;
@@ -379,7 +380,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             acceptedById: const Value(null),
             targetItemId: const Value(null),
             targetMessageId: const Value(null),
-            linkedMessageId: const Value(null),
+            linkedMessageId: Value(linkedMessageId),
             linkedParentItemId: const Value(null),
             ordering: const Value(0),
             createdAt: Value(now),
@@ -603,6 +604,175 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       });
 
   @override
+  Future<CoordinationItem> createDraftBlocker({
+    required String beaconId,
+    required String creatorId,
+    required String title,
+    String body = '',
+  }) =>
+      _db.withMutatingUser(creatorId, () async {
+        final id = CoordinationItemEntity.newId;
+        final now = PgDateTime(DateTime.timestamp());
+        return _db.managers.coordinationItems.createReturning(
+          (o) => o(
+            id: id,
+            beaconId: beaconId,
+            kind: coordinationItemKindBlocker,
+            status: const Value(coordinationItemStatusOpen),
+            title: Value(title),
+            body: Value(body),
+            creatorId: creatorId,
+            targetPersonId: const Value(null),
+            acceptedById: const Value(null),
+            targetItemId: const Value(null),
+            targetMessageId: const Value(null),
+            linkedMessageId: const Value(null),
+            linkedParentItemId: const Value(null),
+            ordering: const Value(0),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            resolvedAt: const Value(null),
+            cancelledAt: const Value(null),
+            source: const Value(coordinationItemSourceDefault),
+            published: const Value(false),
+          ),
+        );
+      });
+
+  @override
+  Future<CoordinationItem> publishDraftBlocker({
+    required String id,
+    required String actorId,
+  }) =>
+      _db.withMutatingUser(actorId, () async {
+        return _db.transaction(() async {
+          final rows = await (_db.select(_db.coordinationItems)
+                ..where((t) => t.id.equals(id)))
+              .get();
+          if (rows.isEmpty) {
+            throw StateError('CoordinationItem not found: $id');
+          }
+          final row = rows.first;
+          if (row.published) {
+            throw StateError('Coordination item is already published');
+          }
+          if (row.creatorId != actorId) {
+            throw StateError('Only the creator may publish this draft');
+          }
+          if (row.kind != coordinationItemKindBlocker) {
+            throw StateError('Only blocker drafts may be published');
+          }
+          final now = PgDateTime(DateTime.timestamp());
+
+          await (_db.update(_db.coordinationItems)..where((t) => t.id.equals(id)))
+              .write(
+            CoordinationItemsCompanion(
+              published: const Value(true),
+              updatedAt: Value(now),
+            ),
+          );
+
+          final updated = await (_db.select(_db.coordinationItems)
+                ..where((t) => t.id.equals(id)))
+              .getSingle();
+
+          final roomMsgId = generateId('R');
+          await _db.managers.beaconRoomMessages.createReturning((o) => o(
+                id: roomMsgId,
+                beaconId: updated.beaconId,
+                authorId: actorId,
+                body: const Value(''),
+                semanticMarker: const Value(null),
+                linkedBlockerId: const Value(null),
+                linkedNextMoveId: const Value(null),
+                linkedFactCardId: const Value(null),
+                linkedPollingId: const Value(null),
+                linkedItemId: Value(id),
+                linkedEventKind: const Value(coordinationEventKindCreated),
+                systemPayload: const Value(null),
+                mentions: const Value([]),
+                createdAt: const Value.absent(),
+              ));
+
+          await _db.managers.beaconActivityEvents.create(
+            (o) => o(
+              id: Value(BeaconActivityEventEntity.newId),
+              beaconId: updated.beaconId,
+              visibility: 1,
+              type: _activityEventTypeForKind(
+                updated.kind,
+                coordinationEventKindCreated,
+              ),
+              actorId: Value(actorId),
+              targetUserId: const Value(null),
+              sourceMessageId: Value(roomMsgId),
+              diff: const Value(null),
+              createdAt: const Value.absent(),
+            ),
+          );
+
+          return updated;
+        });
+      });
+
+  @override
+  Future<CoordinationItem> updateDraftBlocker({
+    required String id,
+    required String actorId,
+    required String title,
+    String body = '',
+  }) =>
+      _db.withMutatingUser(actorId, () async {
+        final rows = await (_db.select(_db.coordinationItems)
+              ..where((t) => t.id.equals(id)))
+            .get();
+        if (rows.isEmpty) {
+          throw StateError('CoordinationItem not found: $id');
+        }
+        final row = rows.first;
+        if (row.published) {
+          throw StateError('Only unpublished drafts may be edited');
+        }
+        if (row.creatorId != actorId) {
+          throw StateError('Only the creator may edit this draft');
+        }
+        if (row.kind != coordinationItemKindBlocker) {
+          throw StateError('Only blocker drafts may be edited');
+        }
+        final now = PgDateTime(DateTime.timestamp());
+        await (_db.update(_db.coordinationItems)..where((t) => t.id.equals(id)))
+            .write(
+          CoordinationItemsCompanion(
+            title: Value(title),
+            body: Value(body),
+            updatedAt: Value(now),
+          ),
+        );
+        return (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id)))
+            .getSingle();
+      });
+
+  @override
+  Future<void> deleteDraftBlocker({
+    required String id,
+    required String actorId,
+  }) =>
+      _db.withMutatingUser(actorId, () async {
+        final deleted = await (_db.delete(_db.coordinationItems)
+              ..where(
+                (t) =>
+                    t.id.equals(id) &
+                    t.kind.equals(coordinationItemKindBlocker) &
+                    t.published.equals(false) &
+                    t.creatorId.equals(actorId),
+              ))
+            .go();
+        if (deleted == 0) {
+          throw StateError('Draft not found or not deletable');
+        }
+      });
+
+  @override
   Future<CoordinationItem?> getById(String id) =>
       (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id)))
           .getSingleOrNull();
@@ -748,8 +918,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       variables: [
         Variable(TypedValue(Type.textArray, beaconIds)),
         Variable<String>(viewerUserId),
-        Variable<int>(coordinationItemStatusOpen),
-        Variable<int>(coordinationItemStatusAccepted),
+        const Variable<int>(coordinationItemStatusOpen),
+        const Variable<int>(coordinationItemStatusAccepted),
       ],
     ).get();
 
@@ -768,6 +938,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String creatorId,
     required String title,
     String body = '',
+    String? targetPersonId,
     String? linkedMessageId,
     String? syncCurrentPlanText,
   }) async {
@@ -791,6 +962,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       creatorId: creatorId,
       title: title,
       body: body,
+      targetPersonId: targetPersonId,
       linkedMessageId: linkedMessageId,
     );
 

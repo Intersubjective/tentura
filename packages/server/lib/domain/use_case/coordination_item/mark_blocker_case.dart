@@ -25,6 +25,7 @@ final class MarkBlockerCase extends UseCaseBase {
     required String beaconId,
     required String title,
     String body = '',
+    String? targetPersonId,
     String? linkedMessageId,
   }) async {
     final trimmed = title.trim();
@@ -43,6 +44,7 @@ final class MarkBlockerCase extends UseCaseBase {
       creatorId: userId,
       title: trimmed,
       body: body.trim(),
+      targetPersonId: targetPersonId,
       linkedMessageId: linkedMessageId,
     );
   }

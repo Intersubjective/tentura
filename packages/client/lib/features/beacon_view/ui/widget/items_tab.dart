@@ -24,6 +24,7 @@ import '../bloc/items_tab_state.dart';
 import 'beacon_create_plan_sheet.dart';
 import 'beacon_definition_body.dart';
 import 'beacon_prepared_ask_sheet.dart';
+import 'beacon_prepared_blocker_sheet.dart';
 
 List<BeaconFactCard> _pinnedFactsForCarousel(List<BeaconFactCard> factCards) {
   return factCards
@@ -83,6 +84,17 @@ VoidCallback? _itemsTabEditHandler(
         );
   }
 
+  if (!item.published && item.kind == CoordinationItemKind.blocker) {
+    return () => unawaited(
+          showPreparedBlockerEditorSheet(
+            context,
+            beaconId: state.beacon.id,
+            onSaved: () => context.read<ItemsTabCubit>().fetch(),
+            existing: item,
+          ),
+        );
+  }
+
   if (!item.published || !item.isActive) {
     return null;
   }
@@ -115,7 +127,8 @@ class ItemsTab extends StatelessWidget {
         if (curr.isLoading) {
           return prev.openItems.isEmpty &&
               prev.closedItems.isEmpty &&
-              prev.draftAskItems.isEmpty;
+              prev.draftAskItems.isEmpty &&
+              prev.draftBlockerItems.isEmpty;
         }
         return true;
       },
@@ -127,8 +140,11 @@ class ItemsTab extends StatelessWidget {
         final openItems = tabState.openItems;
         final closedItems = tabState.closedItems;
         final draftAskItems = tabState.draftAskItems;
-        final hasItems =
-            openItems.isNotEmpty || closedItems.isNotEmpty || draftAskItems.isNotEmpty;
+        final draftBlockerItems = tabState.draftBlockerItems;
+        final draftCount = draftAskItems.length + draftBlockerItems.length;
+        final hasItems = openItems.isNotEmpty ||
+            closedItems.isNotEmpty ||
+            draftCount > 0;
         final beaconId = state.beacon.id;
         final isOwner = state.beacon.author.id == state.myProfile.id;
 
@@ -155,11 +171,11 @@ class ItemsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (isOwner && draftAskItems.isNotEmpty) ...[
+              if (isOwner && draftCount > 0) ...[
                 const SizedBox(height: 8),
                 ExpansionTile(
                   title: Text(
-                    '${l10n.myWorkSectionDrafts} (${draftAskItems.length})',
+                    '${l10n.myWorkSectionDrafts} ($draftCount)',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                   leading: const Icon(Icons.drafts_outlined),
@@ -172,6 +188,15 @@ class ItemsTab extends StatelessWidget {
                           beaconId: beaconId,
                           participants: state.roomParticipants,
                           beaconAuthorId: state.beacon.author.id,
+                        ),
+                      ),
+                    for (final draft in draftBlockerItems)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _PreparedDraftBlockerRow(
+                          draft: draft,
+                          beaconId: beaconId,
+                          participants: state.roomParticipants,
                         ),
                       ),
                   ],
@@ -497,6 +522,93 @@ class _BeaconFactsSection extends StatelessWidget {
               l10n,
               a,
             ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PreparedDraftBlockerRow extends StatelessWidget {
+  const _PreparedDraftBlockerRow({
+    required this.draft,
+    required this.beaconId,
+    required this.participants,
+  });
+
+  final CoordinationItem draft;
+  final String beaconId;
+  final List<BeaconParticipant> participants;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final cubit = context.read<ItemsTabCubit>();
+
+    Future<void> refresh() => cubit.fetch();
+
+    Future<void> openPublish() => showPreparedBlockerPublishSheet(
+          context,
+          draft: draft,
+          onSaved: refresh,
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ItemCard(
+          item: draft,
+          creatorParticipant: _participantForUser(
+            participants,
+            draft.creatorId,
+          ),
+          onEdit: () => unawaited(
+            showPreparedBlockerEditorSheet(
+              context,
+              beaconId: beaconId,
+              onSaved: refresh,
+              existing: draft,
+            ),
+          ),
+          onOpenItemThread: (_) => unawaited(openPublish()),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            alignment: WrapAlignment.end,
+            children: [
+              TenturaTextAction(
+                label: l10n.buttonPublish,
+                icon: const Icon(Icons.send_outlined),
+                onPressed: () => unawaited(openPublish()),
+              ),
+              TenturaTextAction(
+                label: l10n.myWorkEditDraft,
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () => unawaited(
+                  showPreparedBlockerEditorSheet(
+                    context,
+                    beaconId: beaconId,
+                    onSaved: refresh,
+                    existing: draft,
+                  ),
+                ),
+              ),
+              TenturaTextAction(
+                label: l10n.buttonDelete,
+                tone: TenturaTone.danger,
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => unawaited(
+                  confirmDeletePreparedBlocker(
+                    context,
+                    itemId: draft.id,
+                    onDeleted: refresh,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

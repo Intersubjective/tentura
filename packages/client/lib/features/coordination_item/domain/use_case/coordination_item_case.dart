@@ -34,12 +34,14 @@ class CoordinationItemCase {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
     String? linkedMessageId,
   }) =>
       _repository.markBlocker(
         beaconId: beaconId,
         title: title,
         body: body,
+        targetPersonId: targetPersonId,
         linkedMessageId: linkedMessageId,
       );
 
@@ -82,12 +84,14 @@ class CoordinationItemCase {
     required String title,
     String? body,
     String? targetPersonId,
+    String? linkedMessageId,
   }) =>
       _repository.createDraftAsk(
         beaconId: beaconId,
         title: title,
         body: body,
         targetPersonId: targetPersonId,
+        linkedMessageId: linkedMessageId,
       );
 
   Future<CoordinationItem> publishDraftAsk({
@@ -116,6 +120,34 @@ class CoordinationItemCase {
 
   Future<void> deleteDraftAsk({required String itemId}) =>
       _repository.deleteDraftAsk(itemId: itemId);
+
+  Future<CoordinationItem> createDraftBlocker({
+    required String beaconId,
+    required String title,
+    String? body,
+  }) =>
+      _repository.createDraftBlocker(
+        beaconId: beaconId,
+        title: title,
+        body: body,
+      );
+
+  Future<CoordinationItem> publishDraftBlocker({required String itemId}) =>
+      _repository.publishDraftBlocker(itemId: itemId);
+
+  Future<CoordinationItem> updateDraftBlocker({
+    required String itemId,
+    required String title,
+    String body = '',
+  }) =>
+      _repository.updateDraftBlocker(
+        itemId: itemId,
+        title: title,
+        body: body,
+      );
+
+  Future<void> deleteDraftBlocker({required String itemId}) =>
+      _repository.deleteDraftBlocker(itemId: itemId);
 
   Future<CoordinationItem> acceptAsk({required String itemId}) =>
       _repository.acceptAsk(itemId: itemId);
@@ -150,12 +182,14 @@ class CoordinationItemCase {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
     String? linkedMessageId,
   }) =>
       _repository.updatePlan(
         beaconId: beaconId,
         title: title,
         body: body,
+        targetPersonId: targetPersonId,
         linkedMessageId: linkedMessageId,
       );
 

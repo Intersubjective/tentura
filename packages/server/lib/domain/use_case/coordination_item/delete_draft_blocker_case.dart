@@ -1,6 +1,6 @@
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -8,8 +8,8 @@ import 'package:tentura_server/domain/port/coordination_item_repository_port.dar
 import '../_use_case_base.dart';
 
 @Singleton(order: 2)
-final class UpdateDraftAskCase extends UseCaseBase {
-  UpdateDraftAskCase(
+final class DeleteDraftBlockerCase extends UseCaseBase {
+  DeleteDraftBlockerCase(
     this._beaconRepository,
     this._itemRepository, {
     required super.env,
@@ -19,25 +19,22 @@ final class UpdateDraftAskCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
 
-  Future<CoordinationItem> call({
+  Future<bool> call({
     required String userId,
     required String itemId,
-    required String title,
-    String body = '',
-    bool updateTargetPersonId = false,
-    String? targetPersonId,
   }) async {
-    if (body.trim().isEmpty) {
-      throw const BeaconCreateException(description: 'Ask body is required');
-    }
-    final trimmed = title.trim();
     final existing = await _itemRepository.getById(itemId);
     if (existing == null) {
-      throw const BeaconCreateException(description: 'Ask not found');
+      throw const BeaconCreateException(description: 'Blocker not found');
+    }
+    if (existing.kind != coordinationItemKindBlocker) {
+      throw const BeaconCreateException(
+        description: 'Only blocker drafts may be deleted here',
+      );
     }
     if (existing.creatorId != userId) {
       throw const BeaconCreateException(
-        description: 'Only the draft author can edit this ask',
+        description: 'Only the draft author can delete this blocker',
       );
     }
     final beacon =
@@ -45,13 +42,7 @@ final class UpdateDraftAskCase extends UseCaseBase {
     if (!beacon.isActive) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
-    return _itemRepository.updateDraftAsk(
-      id: itemId,
-      actorId: userId,
-      title: trimmed,
-      body: body.trim(),
-      updateTargetPersonId: updateTargetPersonId,
-      targetPersonId: targetPersonId,
-    );
+    await _itemRepository.deleteDraftBlocker(id: itemId, actorId: userId);
+    return true;
   }
 }

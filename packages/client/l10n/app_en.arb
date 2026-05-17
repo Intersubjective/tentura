@@ -8,6 +8,14 @@
   "@labelTitle": {
     "context": "Utils"
   },
+  "labelTitleOptional": "Title (optional)",
+  "@labelTitleOptional": {
+    "context": "Utils"
+  },
+  "labelBody": "Details",
+  "@labelBody": {
+    "context": "Utils"
+  },
   "labelDescription": "Description",
   "@labelDescription": {
     "context": "Utils"
@@ -2764,7 +2772,9 @@
     "description": "Beacon overflow menu action to create a self-accepted coordination ask"
   },
   "beaconRoomSelfAskSheetPrompt": "What will you do?",
-  "beaconRoomSelfAskBodyHintOptional": "Details (optional)",
+  "beaconRoomSelfAskFromMessage": "Add my next move from message",
+  "beaconPreparedAskFromMessage": "Prepare ask from message",
+  "coordinationAskFromMessagePreview": "From message",
   "beaconItemsPreparedDraftsTitle": "Prepared asks (drafts)",
   "beaconPreparedAskPrepareAction": "Prepare ask",
   "beaconPreparedAskEditorTitleNew": "Prepare an ask",
@@ -2772,6 +2782,12 @@
   "beaconPreparedAskPublishSheetTitle": "Who should this ask go to?",
   "beaconPreparedAskDeleteConfirmTitle": "Delete this draft?",
   "beaconPreparedAskDeleteConfirmBody": "This cannot be undone.",
+  "beaconPreparedBlockerPrepareAction": "Prepare blocker",
+  "beaconPreparedBlockerEditorTitleNew": "Prepare a blocker",
+  "beaconPreparedBlockerEditorTitleEdit": "Edit prepared blocker",
+  "beaconPreparedBlockerPublishSheetTitle": "Publish this blocker?",
+  "beaconPreparedBlockerDeleteConfirmTitle": "Delete this draft?",
+  "beaconPreparedBlockerDeleteConfirmBody": "This cannot be undone.",
   "beaconRoomUnreadDividerCount": "Unread · {count}",
   "@beaconRoomUnreadDividerCount": {
     "placeholders": {
@@ -3090,6 +3106,8 @@
   "coordinationMarkBlockerTitle": "Mark Blocker",
   "coordinationMarkBlockerHint": "What is blocked?",
   "coordinationPromoteSheetTitle": "Promote message",
+  "coordinationPromoteTitleHint": "Title (optional)",
+  "coordinationPromoteBodyHint": "Text",
   "coordinationAskCardLabel": "Ask",
   "coordinationAskAcceptLabel": "I'll do this",
   "coordinationSemanticAskOpened": "Ask raised",

@@ -2,12 +2,14 @@ mutation CoordinationItemUpdatePlan(
   $beaconId: String!
   $title: String!
   $body: String
+  $targetPersonId: String
   $linkedMessageId: String
 ) {
   updateCoordinationPlan(
     beaconId: $beaconId
     title: $title
     body: $body
+    targetPersonId: $targetPersonId
     linkedMessageId: $linkedMessageId
   ) {
     id

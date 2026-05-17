@@ -46,6 +46,7 @@ import '../widget/help_offer_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 import '../util/help_offer_types_wire.dart';
 import '../widget/beacon_prepared_ask_sheet.dart';
+import '../widget/beacon_prepared_blocker_sheet.dart';
 import '../widget/items_tab.dart';
 import '../widget/unified_forward_row.dart';
 
@@ -285,6 +286,17 @@ Widget _beaconViewAppBarOverflow({
       onPrepareAsk: b.lifecycle == BeaconLifecycle.open
           ? () => unawaited(
               showPreparedAskEditorSheet(
+                context,
+                beaconId: beaconId,
+                onSaved: () => unawaited(
+                  context.read<ItemsTabCubit>().fetch(),
+                ),
+              ),
+            )
+          : null,
+      onPrepareBlocker: b.lifecycle == BeaconLifecycle.open
+          ? () => unawaited(
+              showPreparedBlockerEditorSheet(
                 context,
                 beaconId: beaconId,
                 onSaved: () => unawaited(

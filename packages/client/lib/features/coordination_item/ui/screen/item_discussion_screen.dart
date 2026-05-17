@@ -205,6 +205,11 @@ class _ItemDiscussionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final preview = item.contentPreview;
+    if (preview.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final colorScheme = theme.colorScheme;
     final statusColor = item.isOpen
         ? colorScheme.error
@@ -222,28 +227,35 @@ class _ItemDiscussionHeader extends StatelessWidget {
       CoordinationItemKind.ask => Icons.help_outline,
       _ => item.isOpen ? Icons.block : Icons.check_circle,
     };
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.06),
-        border: Border(
-          bottom: BorderSide(
-            color: statusColor.withValues(alpha: 0.2),
+    final body = item.body.trim();
+    final title = item.title.trim();
+
+    return Material(
+      color: statusColor.withValues(alpha: 0.06),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: statusColor.withValues(alpha: 0.2),
+            ),
           ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          leading: Container(width: 3, color: statusColor),
+          title: Text(
+            preview,
+            style: theme.textTheme.bodySmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Row(
             children: [
               Icon(headerIcon, size: 16, color: statusColor),
               const SizedBox(width: 6),
               Text(
                 kindLabel,
-                style:
-                    theme.textTheme.labelMedium?.copyWith(color: statusColor),
+                style: theme.textTheme.labelSmall?.copyWith(color: statusColor),
               ),
               const SizedBox(width: 8),
               Text(
@@ -252,11 +264,31 @@ class _ItemDiscussionHeader extends StatelessWidget {
               ),
             ],
           ),
-          if (item.body.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(item.body, style: theme.textTheme.bodySmall),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title.isNotEmpty && title != preview)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        title,
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                  if (body.isNotEmpty)
+                    Text(body, style: theme.textTheme.bodySmall)
+                  else if (title.isNotEmpty)
+                    Text(title, style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
           ],
-        ],
+        ),
       ),
     );
   }

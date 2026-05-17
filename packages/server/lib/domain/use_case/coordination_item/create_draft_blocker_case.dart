@@ -8,8 +8,8 @@ import 'package:tentura_server/domain/port/coordination_item_repository_port.dar
 import '../_use_case_base.dart';
 
 @Singleton(order: 2)
-final class UpdatePlanCase extends UseCaseBase {
-  UpdatePlanCase(
+final class CreateDraftBlockerCase extends UseCaseBase {
+  CreateDraftBlockerCase(
     this._beaconRepository,
     this._itemRepository, {
     required super.env,
@@ -24,25 +24,25 @@ final class UpdatePlanCase extends UseCaseBase {
     required String beaconId,
     required String title,
     String body = '',
-    String? targetPersonId,
-    String? linkedMessageId,
   }) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) {
-      throw const BeaconCreateException(description: 'Plan text is required');
+      throw const BeaconCreateException(description: 'Blocker title is required');
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.isActive) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
-    return _itemRepository.publishRootPlan(
+    if (beacon.author.id != userId) {
+      throw const BeaconCreateException(
+        description: 'Only the beacon owner can prepare blockers',
+      );
+    }
+    return _itemRepository.createDraftBlocker(
       beaconId: beaconId,
       creatorId: userId,
       title: trimmed,
       body: body.trim(),
-      targetPersonId: targetPersonId,
-      linkedMessageId: linkedMessageId,
-      syncCurrentPlanText: trimmed,
     );
   }
 }

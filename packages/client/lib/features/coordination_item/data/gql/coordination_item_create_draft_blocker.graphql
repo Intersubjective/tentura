@@ -1,16 +1,12 @@
-mutation CoordinationItemCreateDraftAsk(
+mutation CoordinationItemCreateDraftBlocker(
   $beaconId: String!
   $title: String!
   $body: String
-  $targetPersonId: String
-  $linkedMessageId: String
 ) {
-  createDraftAsk(
+  createDraftBlocker(
     beaconId: $beaconId
     title: $title
     body: $body
-    targetPersonId: $targetPersonId
-    linkedMessageId: $linkedMessageId
   ) {
     id
     beaconId

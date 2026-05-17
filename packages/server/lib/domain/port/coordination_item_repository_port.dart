@@ -77,6 +77,7 @@ abstract class CoordinationItemRepositoryPort {
     required String creatorId,
     required String title,
     String body = '',
+    String? targetPersonId,
     String? linkedMessageId,
     String? syncCurrentPlanText,
   });
@@ -112,6 +113,7 @@ abstract class CoordinationItemRepositoryPort {
     required String title,
     String body = '',
     String? targetPersonId,
+    String? linkedMessageId,
   });
 
   /// Publishes a draft ask: sets [targetPersonId], published=true, emits room+activity (or self-accept path).
@@ -140,6 +142,32 @@ abstract class CoordinationItemRepositoryPort {
 
   /// Hard-delete draft row owned by creator; no-op/error if not draft.
   Future<void> deleteDraftAsk({
+    required String id,
+    required String actorId,
+  });
+
+  /// Draft blocker (published=false): no room message or activity until [publishDraftBlocker].
+  Future<CoordinationItem> createDraftBlocker({
+    required String beaconId,
+    required String creatorId,
+    required String title,
+    String body = '',
+  });
+
+  /// Publishes a draft blocker: published=true, emits room+activity.
+  Future<CoordinationItem> publishDraftBlocker({
+    required String id,
+    required String actorId,
+  });
+
+  Future<CoordinationItem> updateDraftBlocker({
+    required String id,
+    required String actorId,
+    required String title,
+    String body = '',
+  });
+
+  Future<void> deleteDraftBlocker({
     required String id,
     required String actorId,
   });
