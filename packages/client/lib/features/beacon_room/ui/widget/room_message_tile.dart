@@ -524,6 +524,7 @@ class RoomMessageTile extends StatelessWidget {
             child: Wrap(
               spacing: kSpacingSmall,
               runSpacing: kSpacingSmall,
+              alignment: WrapAlignment.start,
               children: [
                 for (final a in fileAttachments)
                   ActionChip(
