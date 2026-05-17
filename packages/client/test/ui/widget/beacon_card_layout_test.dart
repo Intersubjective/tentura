@@ -103,6 +103,12 @@ void main() {
                       height: 1.15,
                       fontWeight: FontWeight.w400,
                     ),
+                    updatedLineStyle: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 11,
+                      height: 1.15,
+                      fontWeight: FontWeight.w400,
+                    ),
                     category: category,
                     updatedLine: updatedLine,
                   ),

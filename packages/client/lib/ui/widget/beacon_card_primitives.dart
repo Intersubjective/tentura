@@ -33,13 +33,29 @@ TextStyle beaconCardMetadataStripTextStyle(ThemeData theme) {
   );
 }
 
-/// Typography for the full-width author / context / updated line.
+/// Typography for the author + category row on list cards.
 TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
   final scheme = theme.colorScheme;
   return theme.textTheme.bodySmall!.copyWith(
     height: 1.15,
     // [outline] is for borders; on light surfaces it reads as illegible "ghost" text.
     color: scheme.onSurfaceVariant,
+    fontWeight: FontWeight.w400,
+  );
+}
+
+/// Typography for the updated-at line (My Work + inbox): muted gray in dark,
+/// lighter gray in light — secondary to [beaconCardMetadataLineTextStyle].
+TextStyle beaconCardUpdatedLineTextStyle(ThemeData theme) {
+  final tt = theme.extension<TenturaTokens>();
+  final scheme = theme.colorScheme;
+  final isDark = scheme.brightness == Brightness.dark;
+  final color = isDark
+      ? (tt?.textMuted ?? scheme.onSurfaceVariant)
+      : (tt?.textFaint ?? scheme.onSurfaceVariant);
+  return theme.textTheme.bodySmall!.copyWith(
+    height: 1.15,
+    color: color,
     fontWeight: FontWeight.w400,
   );
 }
@@ -178,6 +194,7 @@ class BeaconCardMetadataBlock extends StatelessWidget {
     required this.name,
     required this.nameStyle,
     required this.baseStyle,
+    required this.updatedLineStyle,
     required this.category,
     required this.updatedLine,
     super.key,
@@ -187,6 +204,7 @@ class BeaconCardMetadataBlock extends StatelessWidget {
   final String name;
   final TextStyle nameStyle;
   final TextStyle baseStyle;
+  final TextStyle updatedLineStyle;
   final String category;
   final String? updatedLine;
 
@@ -248,7 +266,7 @@ class BeaconCardMetadataBlock extends StatelessWidget {
               Expanded(
                 child: Text(
                   updated,
-                  style: baseStyle,
+                  style: updatedLineStyle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -276,6 +294,7 @@ class BeaconCardMetadataLine extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final base = beaconCardMetadataLineTextStyle(theme);
+    final updatedStyle = beaconCardUpdatedLineTextStyle(theme);
     return BlocBuilder<ProfileCubit, ProfileState>(
       buildWhen: (p, c) => p.profile.id != c.profile.id,
       builder: (context, state) {
@@ -295,6 +314,7 @@ class BeaconCardMetadataLine extends StatelessWidget {
           name: name,
           nameStyle: nameStyle,
           baseStyle: base,
+          updatedLineStyle: updatedStyle,
           category: category,
           updatedLine: updatedLine,
         );
