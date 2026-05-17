@@ -503,57 +503,18 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomCubit cubit,
     L10n l10n,
   ) async {
-    final controller = TextEditingController(
-      text: cubit.state.roomState?.currentPlan ?? '',
+    final plan = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => _BeaconRoomTextBottomSheet(
+        title: l10n.beaconRoomActionUpdatePlan,
+        hintText: l10n.beaconRoomStripPlanLabel,
+        initialText: cubit.state.roomState?.currentPlan ?? '',
+      ),
     );
-    try {
-      final ok = await showModalBottomSheet<bool>(
-        context: context,
-        showDragHandle: true,
-        isScrollControlled: true,
-        builder: (ctx) {
-          final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-          return Padding(
-            padding: EdgeInsets.only(
-              left: kSpacingSmall,
-              right: kSpacingSmall,
-              top: kSpacingMedium,
-              bottom: bottom + kSpacingMedium,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  l10n.beaconRoomActionUpdatePlan,
-                  style: Theme.of(ctx).textTheme.titleMedium,
-                ),
-                const SizedBox(height: kSpacingSmall),
-                TextField(
-                  controller: controller,
-                  maxLines: 6,
-                  minLines: 3,
-                  decoration: InputDecoration(
-                    hintText: l10n.beaconRoomStripPlanLabel,
-                  ),
-                ),
-                const SizedBox(height: kSpacingMedium),
-                FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: Text(MaterialLocalizations.of(ctx).saveButtonLabel),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-      if (ok == true && context.mounted) {
-        final t = controller.text.trim();
-        await cubit.updatePlan(t);
-      }
-    } finally {
-      controller.dispose();
-    }
+    if (plan == null || !context.mounted) return;
+    await cubit.updatePlan(plan);
   }
 
   Future<void> _showEditMessageSheet(
@@ -562,60 +523,23 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     L10n l10n,
     RoomMessage message,
   ) async {
-    final controller = TextEditingController(text: message.body);
-    try {
-      final ok = await showModalBottomSheet<bool>(
-        context: context,
-        showDragHandle: true,
-        isScrollControlled: true,
-        builder: (ctx) {
-          final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-          return Padding(
-            padding: EdgeInsets.only(
-              left: kSpacingSmall,
-              right: kSpacingSmall,
-              top: kSpacingMedium,
-              bottom: bottom + kSpacingMedium,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  l10n.beaconRoomActionEditMessage,
-                  style: Theme.of(ctx).textTheme.titleMedium,
-                ),
-                const SizedBox(height: kSpacingSmall),
-                TextField(
-                  controller: controller,
-                  maxLines: 6,
-                  minLines: 3,
-                  decoration: InputDecoration(
-                    hintText: l10n.beaconRoomMessageHint,
-                  ),
-                ),
-                const SizedBox(height: kSpacingMedium),
-                FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: Text(MaterialLocalizations.of(ctx).saveButtonLabel),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-      if (ok == true && context.mounted) {
-        final newBody = controller.text.trim();
-        if (newBody.isEmpty) return;
-        if (newBody == message.body) return;
-        await cubit.editMessage(
-          messageId: message.id,
-          newBody: newBody,
-        );
-      }
-    } finally {
-      controller.dispose();
-    }
+    final newBody = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) => _BeaconRoomTextBottomSheet(
+        title: l10n.beaconRoomActionEditMessage,
+        hintText: l10n.beaconRoomMessageHint,
+        initialText: message.body,
+      ),
+    );
+    if (newBody == null || !context.mounted) return;
+    if (newBody.isEmpty) return;
+    if (newBody == message.body) return;
+    await cubit.editMessage(
+      messageId: message.id,
+      newBody: newBody,
+    );
   }
 
   Future<void> _showPinFactChoices(
@@ -1166,6 +1090,74 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
 
 }
 
+class _BeaconRoomTextBottomSheet extends StatefulWidget {
+  const _BeaconRoomTextBottomSheet({
+    required this.title,
+    required this.hintText,
+    this.initialText = '',
+  });
+
+  final String title;
+  final String hintText;
+  final String initialText;
+
+  @override
+  State<_BeaconRoomTextBottomSheet> createState() =>
+      _BeaconRoomTextBottomSheetState();
+}
+
+class _BeaconRoomTextBottomSheetState extends State<_BeaconRoomTextBottomSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: kSpacingSmall,
+        right: kSpacingSmall,
+        top: kSpacingMedium,
+        bottom: bottom + kSpacingMedium,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            widget.title,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: kSpacingSmall),
+          TextField(
+            controller: _controller,
+            maxLines: 6,
+            minLines: 3,
+            decoration: InputDecoration(
+              hintText: widget.hintText,
+            ),
+          ),
+          const SizedBox(height: kSpacingMedium),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+            child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _PollCreateSheet extends StatefulWidget {
   const _PollCreateSheet({required this.cubit});
