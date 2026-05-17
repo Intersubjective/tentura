@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/use_case/coordination_item/mark_blocker_ca
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/cancel_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/append_item_message_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/delete_item_message_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/mark_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_self_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/accept_ask_case.dart';
@@ -32,6 +33,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
     ResolveBlockerCase? resolveBlockerCase,
     CancelBlockerCase? cancelBlockerCase,
     AppendItemMessageCase? appendItemMessageCase,
+    DeleteItemMessageCase? deleteItemMessageCase,
     MarkAskCase? markAskCase,
     CreateSelfAskCase? createSelfAskCase,
     AcceptAskCase? acceptAskCase,
@@ -56,6 +58,8 @@ final class MutationCoordinationItem extends GqlNodeBase {
        _cancelBlockerCase = cancelBlockerCase ?? GetIt.I<CancelBlockerCase>(),
        _appendItemMessageCase =
            appendItemMessageCase ?? GetIt.I<AppendItemMessageCase>(),
+       _deleteItemMessageCase =
+           deleteItemMessageCase ?? GetIt.I<DeleteItemMessageCase>(),
        _markAskCase = markAskCase ?? GetIt.I<MarkAskCase>(),
        _createSelfAskCase =
            createSelfAskCase ?? GetIt.I<CreateSelfAskCase>(),
@@ -89,6 +93,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final ResolveBlockerCase _resolveBlockerCase;
   final CancelBlockerCase _cancelBlockerCase;
   final AppendItemMessageCase _appendItemMessageCase;
+  final DeleteItemMessageCase _deleteItemMessageCase;
   final MarkAskCase _markAskCase;
   final CreateSelfAskCase _createSelfAskCase;
   final AcceptAskCase _acceptAskCase;
@@ -116,6 +121,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final _body = InputFieldString(fieldName: 'body');
   final _itemId = InputFieldString(fieldName: 'itemId');
   final _linkedMessageId = InputFieldString(fieldName: 'linkedMessageId');
+  final _messageId = InputFieldString(fieldName: 'messageId');
   final _targetPersonId = InputFieldString(fieldName: 'targetPersonId');
   final _newTargetPersonId = InputFieldString(fieldName: 'newTargetPersonId');
   final _note = InputFieldString(fieldName: 'note');
@@ -126,6 +132,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
         resolveBlocker,
         cancelBlocker,
         appendCoordinationItemMessage,
+        deleteCoordinationItemMessage,
         markAsk,
         createSelfAsk,
         createDraftAsk,
@@ -222,6 +229,21 @@ final class MutationCoordinationItem extends GqlNodeBase {
           );
           return _coordinationItemMessageToMap(msg);
         },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get deleteCoordinationItemMessage =>
+      GraphQLObjectField(
+        'deleteCoordinationItemMessage',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          _itemId.field,
+          _messageId.field,
+        ],
+        resolve: (_, args) => _deleteItemMessageCase.call(
+              userId: getCredentials(args).sub,
+              itemId: _itemId.fromArgsNonNullable(args),
+              messageId: _messageId.fromArgsNonNullable(args),
+            ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get markAsk => GraphQLObjectField(

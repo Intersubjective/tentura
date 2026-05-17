@@ -84,6 +84,23 @@ class ItemDiscussionCubit extends Cubit<ItemDiscussionState> {
     }
   }
 
+  Future<void> deleteMessage({required String messageId}) async {
+    final previous = List.of(state.messages);
+    emit(
+      state.copyWith(
+        messages: state.messages.where((m) => m.id != messageId).toList(),
+      ),
+    );
+    try {
+      await _case.deleteMessage(
+        itemId: state.item.id,
+        messageId: messageId,
+      );
+    } on Object catch (e) {
+      emit(state.copyWith(messages: previous, status: StateHasError(e)));
+    }
+  }
+
   Future<void> sendMessage(String body) async {
     final trimmed = body.trim();
     if (trimmed.isEmpty) return;

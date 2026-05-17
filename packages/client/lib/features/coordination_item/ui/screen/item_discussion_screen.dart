@@ -147,6 +147,12 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
             firstUnreadIndex: firstUnreadIndex,
             unreadCount: state.unreadCount,
             onMarkSeenNearBottom: cubit.markSeenNowIfNeeded,
+            onMessageActions: (msg) {
+              if (msg.authorId != myProfile.id) return;
+              unawaited(
+                _confirmDeleteItemMessage(context, cubit, l10n, msg),
+              );
+            },
             onSend: (body, _) async {
               await cubit.sendMessage(body);
             },
@@ -253,5 +259,36 @@ class _ItemDiscussionHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+Future<void> _confirmDeleteItemMessage(
+  BuildContext context,
+  ItemDiscussionCubit cubit,
+  L10n l10n,
+  RoomMessage message,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
+      content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(ctx).colorScheme.error,
+          ),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: Text(l10n.beaconRoomDeleteMessageConfirmAction),
+        ),
+      ],
+    ),
+  );
+  if (ok == true && context.mounted) {
+    await cubit.deleteMessage(messageId: message.id);
   }
 }

@@ -354,6 +354,23 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         );
                       },
                     ),
+                  if (isOwnMessage && showFactInMenu)
+                    ListTile(
+                      leading: Icon(
+                        Icons.delete_outline,
+                        color: theme.colorScheme.error,
+                      ),
+                      title: Text(
+                        l10n.beaconRoomActionDeleteMessage,
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          _confirmDeleteMessage(context, cubit, l10n, message),
+                        );
+                      },
+                    ),
                   ListTile(
                     leading: const Icon(Icons.edit_note_outlined),
                     title: Text(l10n.beaconRoomActionUpdatePlan),
@@ -495,6 +512,37 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
     if (ok == true && context.mounted) {
       await cubit.removeFact(factCardId: fact.id);
+    }
+  }
+
+  Future<void> _confirmDeleteMessage(
+    BuildContext context,
+    RoomCubit cubit,
+    L10n l10n,
+    RoomMessage message,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.beaconRoomDeleteMessageConfirmTitle),
+        content: Text(l10n.beaconRoomDeleteMessageConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.beaconRoomDeleteMessageConfirmAction),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) {
+      await cubit.deleteMessage(messageId: message.id);
     }
   }
 

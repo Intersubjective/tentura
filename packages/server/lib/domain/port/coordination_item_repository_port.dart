@@ -95,6 +95,10 @@ abstract class CoordinationItemRepositoryPort {
     required String body,
   });
 
+  Future<CoordinationItemMessage?> getMessageById(String messageId);
+
+  Future<void> deleteMessage({required String messageId});
+
   Future<List<CoordinationItemMessage>> listMessages(
     String itemId, {
     int? limit,

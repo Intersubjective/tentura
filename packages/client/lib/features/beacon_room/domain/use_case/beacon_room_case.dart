@@ -91,6 +91,15 @@ final class BeaconRoomCase extends UseCaseBase {
         body: body,
       );
 
+  Future<void> deleteMessage({
+    required String beaconId,
+    required String messageId,
+  }) =>
+      _room.deleteMessage(
+        beaconId: beaconId,
+        messageId: messageId,
+      );
+
   Future<Uint8List> downloadRoomAttachment(String attachmentId) =>
       _room.downloadRoomAttachmentBytes(attachmentId);
 

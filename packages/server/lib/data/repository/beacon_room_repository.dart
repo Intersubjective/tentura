@@ -572,6 +572,11 @@ class BeaconRoomRepository {
         );
   }
 
+  Future<void> deleteRoomMessage({required String messageId}) =>
+      _db.managers.beaconRoomMessages
+          .filter((m) => m.id.equals(messageId))
+          .delete();
+
   Future<BeaconParticipant?> findParticipant({
     required String beaconId,
     required String userId,

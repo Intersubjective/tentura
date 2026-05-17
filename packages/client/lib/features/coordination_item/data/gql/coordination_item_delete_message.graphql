@@ -1,0 +1,3 @@
+mutation DeleteCoordinationItemMessage($itemId: String!, $messageId: String!) {
+  deleteCoordinationItemMessage(itemId: $itemId, messageId: $messageId)
+}
