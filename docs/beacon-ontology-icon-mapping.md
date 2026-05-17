@@ -113,6 +113,7 @@ In the client catalog (`kBeaconIdentityIcons`), persisted `icon_code` keys are s
 | Tech → Internet | `Icons.wifi_rounded` |
 | Tech → Phone | `Icons.smartphone_rounded` |
 | Tech → Settings | `Icons.settings_rounded` |
+| Tech → Tentura | custom Tentura font (graph, 0xe908) |
 | Culture → Art | `Icons.palette_rounded` |
 | Culture → Celebration | `Icons.celebration_rounded` |
 | Culture → Museum | `Icons.museum_rounded` |
