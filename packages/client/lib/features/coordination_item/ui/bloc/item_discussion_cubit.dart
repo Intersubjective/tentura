@@ -63,16 +63,26 @@ class ItemDiscussionCubit extends Cubit<ItemDiscussionState> {
     _loadInProgress = true;
     try {
       emit(state.copyWith(status: const StateIsLoading()));
-      final messages = await _case.listMessages(state.item.id);
+      final item = state.item;
+      final fetchPending = item.kind == CoordinationItemKind.blocker ||
+          item.kind == CoordinationItemKind.ask;
+      final messages = await _case.listMessages(item.id);
+      final pendingResolution = fetchPending
+          ? await _case.fetchPendingResolutionForItem(
+              beaconId: item.beaconId,
+              targetItemId: item.id,
+            )
+          : state.pendingResolution;
       if (isClosed) return;
 
       var anchor = state.unreadAnchorAt;
       if (anchor == null) {
-        anchor = state.item.lastSeenAt;
+        anchor = item.lastSeenAt;
       }
 
       emit(state.copyWith(
         messages: messages,
+        pendingResolution: pendingResolution,
         unreadAnchorAt: anchor,
         pendingMarkSeen: !_markSeenEmittedThisVisit,
         status: const StateIsSuccess(),
@@ -168,19 +178,40 @@ class ItemDiscussionCubit extends Cubit<ItemDiscussionState> {
     }
   }
 
-  Future<void> acceptResolution() async {
+  Future<void> promoteResolution({
+    required String title,
+    String body = '',
+  }) async {
     try {
-      final updated = await _case.acceptResolution(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      final resolution = await _case.createResolution(
+        beaconId: state.item.beaconId,
+        title: title,
+        body: body,
+        targetItemId: state.item.id,
+      );
+      if (!isClosed) emit(state.copyWith(pendingResolution: resolution));
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> acceptResolution() async {
+    final resolutionId = state.pendingResolution?.id;
+    if (resolutionId == null) return;
+    try {
+      await _case.acceptResolution(itemId: resolutionId);
+      await fetchMessages();
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
 
   Future<void> rejectResolution() async {
+    final resolutionId = state.pendingResolution?.id;
+    if (resolutionId == null) return;
     try {
-      final updated = await _case.rejectResolution(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      await _case.rejectResolution(itemId: resolutionId);
+      if (!isClosed) emit(state.copyWith(pendingResolution: null));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

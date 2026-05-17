@@ -203,5 +203,19 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
       throw UnimplementedError();
 
   @override
+  Future<CoordinationItem?> fetchPendingResolutionForItem({
+    required String beaconId,
+    required String targetItemId,
+  }) async =>
+      null;
+
+  @override
+  Future<void> deleteMessage({
+    required String itemId,
+    required String messageId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> markItemSeenIfAllowed(String itemId) async {}
 }

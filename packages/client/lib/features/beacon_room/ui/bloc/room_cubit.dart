@@ -453,25 +453,6 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> createResolutionFromMessage({
-    required String messageId,
-    required String title,
-    String? targetItemId,
-  }) async {
-    emit(state.copyWith(status: const StateIsLoading()));
-    try {
-      await _case.createResolutionFromMessage(
-        beaconId: state.beaconId,
-        messageId: messageId,
-        title: title,
-        targetItemId: targetItemId,
-      );
-      await load();
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
-
   Future<void> markAskFromMessage({
     required String messageId,
     required String title,
