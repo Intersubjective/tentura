@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -485,6 +486,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   bool _didApplyFetchResolution = false;
   String? _bannerMessage;
 
+  /// True after the user leaves the room surface until they open it again.
+  /// Prevents [didUpdateWidget] from re-opening room while `?tab=room` is still
+  /// on the URL briefly after [replacePath] / history sync.
+  bool _userDismissedRoomSurface = false;
+
+  bool _roomExitInProgress = false;
+
   bool _roomFromRouteParams(BeaconViewScreen w) {
     final legacySurface = w.surface?.trim().toLowerCase();
     return legacySurface == kBeaconSurfaceRoomQueryValue ||
@@ -537,11 +545,18 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   @override
   void didUpdateWidget(BeaconViewScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id) {
+      _userDismissedRoomSurface = false;
+      _roomExitInProgress = false;
+    }
     final wasRoom = _roomFromRouteParams(oldWidget);
     final isRoom = _roomFromRouteParams(widget);
     if (wasRoom && !isRoom && _showRoomSurface) {
       _exitRoomSurface(fromRouteSync: true);
-    } else if (!wasRoom && isRoom && !_showRoomSurface) {
+    } else if (!wasRoom &&
+        isRoom &&
+        !_showRoomSurface &&
+        !_userDismissedRoomSurface) {
       _applyRoomSurfaceState(open: true);
     }
   }
@@ -570,20 +585,37 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     });
   }
 
-  void _applyRoomSurfaceState({required bool open}) {
+  void _applyRoomSurfaceState({
+    required bool open,
+    bool fromRouteSync = false,
+  }) {
     if (open) {
       setState(() {
+        _userDismissedRoomSurface = false;
         _showRoomSurface = true;
         _roomCubit ??= RoomCubit(beaconId: widget.id);
       });
     } else {
       if (!_showRoomSurface) return;
+      if (!fromRouteSync) {
+        _userDismissedRoomSurface = true;
+      }
       // Hide room before [clearRoomUnread] — its emit rebuilds this screen and
       // build() must not recreate [RoomCubit] via `_roomCubit ??=` while exiting.
       setState(() => _showRoomSurface = false);
       _releaseEmbeddedRoomCubit();
       context.read<BeaconViewCubit>().clearRoomUnread();
     }
+  }
+
+  bool _urlIndicatesRoom() {
+    final url = context.router.currentUrl;
+    return url.contains('$kQueryBeaconViewTab=room') ||
+        url.contains('$kQueryBeaconSurface=room');
+  }
+
+  Future<void> _stripRoomFromUrl() {
+    return context.router.replacePath(_beaconViewPath());
   }
 
   void _enterRoomSurface([CoordinationItem? focusItem]) {
@@ -594,8 +626,14 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     // route below — otherwise back pops the top route but leaves a live
     // [RoomCubit] + `_showRoomSurface` on the underlying beacon view.
     if (!_roomFromRouteParams(widget)) {
+      _userDismissedRoomSurface = false;
+      final roomPath = _beaconViewPath(viewTab: 'room');
+      // Web: replace in place so browser back + PopScope do not fight a pushed
+      // history entry ([usesPathAsKey] keeps one stack page for this beacon).
       unawaited(
-        context.router.pushPath(_beaconViewPath(viewTab: 'room')),
+        kIsWeb
+            ? context.router.replacePath(roomPath)
+            : context.router.pushPath(roomPath),
       );
       return;
     }
@@ -617,32 +655,43 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   void _exitRoomSurface({bool fromRouteSync = false}) {
-    final router = context.router;
-    final urlHasRoom =
-        router.currentUrl.contains('$kQueryBeaconViewTab=room') ||
-        router.currentUrl.contains('$kQueryBeaconSurface=room');
+    if (_roomExitInProgress) return;
 
     if (fromRouteSync) {
       if (_showRoomSurface) {
-        _applyRoomSurfaceState(open: false);
+        _applyRoomSurfaceState(open: false, fromRouteSync: true);
       }
       return;
     }
 
+    _roomExitInProgress = true;
     if (_showRoomSurface) {
       _applyRoomSurfaceState(open: false);
     }
-    if (!urlHasRoom && !_roomFromRouteParams(widget)) {
+
+    // Never [maybePop] here — with [usesPathAsKey] and PopScope vetoing browser
+    // back, maybePop fights popstate and can freeze the tab. Strip `?tab=room`
+    // via replacePath so the user stays on the operational beacon view.
+    final needsUrlSync =
+        _urlIndicatesRoom() || _roomFromRouteParams(widget);
+    if (!needsUrlSync) {
+      _roomExitInProgress = false;
       return;
     }
-    // [usesPathAsKey] beacon view often updates query in place; prefer history
-    // pop when we pushed `?tab=room`, otherwise replace URL so back stays on
-    // the operational beacon instead of leaving the screen.
-    if (router.canPop()) {
-      unawaited(router.maybePop());
-    } else {
-      unawaited(router.replacePath(_beaconViewPath()));
-    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        _roomExitInProgress = false;
+        return;
+      }
+      unawaited(
+        _stripRoomFromUrl().whenComplete(() {
+          if (mounted) {
+            _roomExitInProgress = false;
+          }
+        }),
+      );
+    });
   }
 
   void _switchToTab(int tab) {
@@ -766,6 +815,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             canPop: !_showRoomSurface,
             onPopInvokedWithResult: (didPop, _) {
               if (didPop) return;
+              // Browser/system back: URL sync only — do not maybePop (see
+              // [_exitRoomSurface]).
               _exitRoomSurface();
             },
             child: Scaffold(
