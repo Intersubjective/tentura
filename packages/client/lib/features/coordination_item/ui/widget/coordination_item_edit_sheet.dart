@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -24,94 +22,123 @@ Future<void> showCoordinationItemEditSheet(
   VoidCallback? onSaved,
 }) async {
   final l10n = L10n.of(context)!;
-  final titleController = TextEditingController(text: item.title);
-  final bodyController = TextEditingController(text: item.body);
-  try {
-    var submitting = false;
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setState) {
-            final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
-            final canSubmit =
-                titleController.text.trim().isNotEmpty && !submitting;
-            return Padding(
-              padding: EdgeInsets.only(
-                left: kSpacingSmall,
-                right: kSpacingSmall,
-                top: kSpacingMedium,
-                bottom: bottom + kSpacingMedium,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    _editSheetTitle(l10n, item),
-                    style: Theme.of(ctx).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: kSpacingSmall),
-                  TextField(
-                    controller: titleController,
-                    onChanged: (_) => setState(() {}),
-                    maxLines: 2,
-                    minLines: 1,
-                    textInputAction: TextInputAction.next,
-                    enabled: !submitting,
-                    autofocus: true,
-                  ),
-                  const SizedBox(height: kSpacingSmall),
-                  TextField(
-                    controller: bodyController,
-                    onChanged: (_) => setState(() {}),
-                    maxLines: 6,
-                    minLines: 3,
-                    enabled: !submitting,
-                  ),
-                  const SizedBox(height: kSpacingMedium),
-                  FilledButton(
-                    onPressed: !canSubmit
-                        ? null
-                        : () async {
-                            setState(() => submitting = true);
-                            try {
-                              await ctx.read<ItemsTabCubit>().updateItem(
-                                    itemId: item.id,
-                                    title: titleController.text.trim(),
-                                    body: bodyController.text.trim(),
-                                  );
-                              if (ctx.mounted) {
-                                Navigator.of(ctx).pop(true);
-                              }
-                            } on Object catch (_) {
-                              if (ctx.mounted) {
-                                setState(() => submitting = false);
-                              }
-                            }
-                          },
-                    child: submitting
-                        ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(MaterialLocalizations.of(ctx).saveButtonLabel),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+  final ok = await showModalBottomSheet<bool>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (ctx) => _CoordinationItemEditSheetBody(
+      item: item,
+      l10n: l10n,
+    ),
+  );
+  if (ok == true && context.mounted) {
+    onSaved?.call();
+  }
+}
+
+class _CoordinationItemEditSheetBody extends StatefulWidget {
+  const _CoordinationItemEditSheetBody({
+    required this.item,
+    required this.l10n,
+  });
+
+  final CoordinationItem item;
+  final L10n l10n;
+
+  @override
+  State<_CoordinationItemEditSheetBody> createState() =>
+      _CoordinationItemEditSheetBodyState();
+}
+
+class _CoordinationItemEditSheetBodyState
+    extends State<_CoordinationItemEditSheetBody> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _bodyController;
+  var _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.item.title);
+    _bodyController = TextEditingController(text: widget.item.body);
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    final canSubmit =
+        _titleController.text.trim().isNotEmpty && !_submitting;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: kSpacingSmall,
+        right: kSpacingSmall,
+        top: kSpacingMedium,
+        bottom: bottom + kSpacingMedium,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            _editSheetTitle(widget.l10n, widget.item),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: kSpacingSmall),
+          TextField(
+            controller: _titleController,
+            onChanged: (_) => setState(() {}),
+            maxLines: 2,
+            minLines: 1,
+            textInputAction: TextInputAction.next,
+            enabled: !_submitting,
+            autofocus: true,
+          ),
+          const SizedBox(height: kSpacingSmall),
+          TextField(
+            controller: _bodyController,
+            onChanged: (_) => setState(() {}),
+            maxLines: 6,
+            minLines: 3,
+            enabled: !_submitting,
+          ),
+          const SizedBox(height: kSpacingMedium),
+          FilledButton(
+            onPressed: !canSubmit
+                ? null
+                : () async {
+                    setState(() => _submitting = true);
+                    try {
+                      await context.read<ItemsTabCubit>().updateItem(
+                            itemId: widget.item.id,
+                            title: _titleController.text.trim(),
+                            body: _bodyController.text.trim(),
+                          );
+                      if (context.mounted) {
+                        Navigator.of(context).pop(true);
+                      }
+                    } on Object catch (_) {
+                      if (context.mounted) {
+                        setState(() => _submitting = false);
+                      }
+                    }
+                  },
+            child: _submitting
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(MaterialLocalizations.of(context).saveButtonLabel),
+          ),
+        ],
+      ),
     );
-    if (ok == true && context.mounted) {
-      onSaved?.call();
-    }
-  } finally {
-    titleController.dispose();
-    bodyController.dispose();
   }
 }
