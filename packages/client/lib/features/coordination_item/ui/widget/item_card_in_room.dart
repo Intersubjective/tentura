@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -25,6 +26,7 @@ class ItemCardInRoom extends StatelessWidget {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
     final colorScheme = theme.colorScheme;
+    final tt = context.tt;
 
     final selfCommitmentAccepted = item.kind == CoordinationItemKind.ask &&
         eventKind == CoordinationItemEventKind.accepted &&
@@ -97,7 +99,7 @@ class ItemCardInRoom extends StatelessWidget {
       CoordinationItemEventKind.created => colorScheme.error,
       CoordinationItemEventKind.accepted => colorScheme.primary,
       CoordinationItemEventKind.resolved => colorScheme.primary,
-      CoordinationItemEventKind.cancelled => colorScheme.outline,
+      CoordinationItemEventKind.cancelled => tt.textMuted,
       _ => colorScheme.secondary,
     };
 
