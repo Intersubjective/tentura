@@ -198,8 +198,8 @@ class RoomMessageTile extends StatelessWidget {
         breakGroupAbove || _groupBreak(previousMessage, message);
     final isGroupEnd = _groupBreak(message, nextMessage);
 
-    final topPad = isGroupStart ? tt.sectionGap : tt.rowGap / 2;
-    final bottomPad = isGroupEnd ? tt.sectionGap : tt.rowGap / 2;
+    final topPad = (isGroupStart ? tt.sectionGap : tt.rowGap / 2) / 2;
+    final bottomPad = (isGroupEnd ? tt.sectionGap : tt.rowGap / 2) / 2;
 
     if (isPromotePinNotification(message)) {
       final srcId = message.sourceMessageId!;
@@ -338,15 +338,12 @@ class RoomMessageTile extends StatelessWidget {
       padding: EdgeInsets.only(top: tt.rowGap / 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisAlignment: isMine
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
         children: [
           Flexible(
             child: Wrap(
               spacing: kSpacingSmall,
               runSpacing: kSpacingSmall / 2,
-              alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
+              alignment: WrapAlignment.start,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 for (final entry in _sortedReactionEntries(message))
@@ -400,10 +397,10 @@ class RoomMessageTile extends StatelessWidget {
               ],
             ),
           ),
+          const Spacer(),
           Padding(
             padding: EdgeInsets.only(
-              left: isMine ? 0 : tt.iconTextGap,
-              right: isMine ? tt.iconTextGap : 0,
+              left: tt.iconTextGap,
               bottom: 2,
             ),
             child: Text(
@@ -411,7 +408,7 @@ class RoomMessageTile extends StatelessWidget {
                 _formatTime(message.createdAt),
                 if (message.editedAt != null) l10n.beaconRoomMessageEdited,
               ].join(' · '),
-              textAlign: isMine ? TextAlign.end : TextAlign.start,
+              textAlign: TextAlign.end,
               style: theme.textTheme.labelSmall,
             ),
           ),
@@ -421,9 +418,7 @@ class RoomMessageTile extends StatelessWidget {
 
     Widget coreColumn({required bool showNameHeader}) => Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: isMine
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showNameHeader)
           BlocBuilder<ProfileCubit, ProfileState>(
@@ -439,10 +434,10 @@ class RoomMessageTile extends StatelessWidget {
                   message.author,
                   state.profile.id,
                 ),
-                textAlign: isMine ? TextAlign.end : TextAlign.start,
+                textAlign: TextAlign.start,
                 style: SelfUserHighlight.nameStyle(
                   theme,
-                  theme.textTheme.headlineMedium,
+                  theme.textTheme.labelMedium,
                   isSelf,
                 ),
               );
@@ -453,7 +448,7 @@ class RoomMessageTile extends StatelessWidget {
             padding: EdgeInsets.only(top: tt.iconTextGap / 2),
             child: Text(
               semantic,
-              textAlign: isMine ? TextAlign.end : TextAlign.start,
+              textAlign: TextAlign.start,
               style: theme.textTheme.labelMedium?.copyWith(
                 color: scheme.tertiary,
                 fontWeight: FontWeight.w600,
@@ -464,7 +459,7 @@ class RoomMessageTile extends StatelessWidget {
           Padding(
             padding: EdgeInsets.only(top: tt.rowGap / 2),
             child: Align(
-              alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+              alignment: Alignment.centerLeft,
               child: ItemCardInRoom(
                 item: linkedCoord,
                 eventKind: CoordinationItemEventKind.fromInt(linkedEv),
@@ -483,7 +478,7 @@ class RoomMessageTile extends StatelessWidget {
               style: ShowMoreText.buildTextStyle(context),
               colorClickableText: scheme.primary,
               annotations: mentionAnnotations,
-              textAlign: isMine ? TextAlign.end : TextAlign.start,
+              textAlign: TextAlign.start,
             ),
           ),
         if (imageAttachments.isNotEmpty)
@@ -499,7 +494,7 @@ class RoomMessageTile extends StatelessWidget {
             child: Wrap(
               spacing: kSpacingSmall,
               runSpacing: kSpacingSmall,
-              alignment: isMine ? WrapAlignment.end : WrapAlignment.start,
+              alignment: WrapAlignment.start,
               children: [
                 for (final a in fileAttachments)
                   ActionChip(
@@ -686,7 +681,7 @@ class RoomMessageTile extends StatelessWidget {
                           children: [
                             SelfAwarePlainMiniAvatar(profile: message.author),
                             if (authorCapabilityIcons.isNotEmpty) ...[
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 1),
                               SizedBox(
                                 width: AvatarRated.sizeSmall,
                                 child: Wrap(
@@ -709,7 +704,7 @@ class RoomMessageTile extends StatelessWidget {
                       )
                     : const SizedBox.shrink()),
         ),
-        SizedBox(width: tt.avatarTextGap),
+        SizedBox(width: tt.avatarTextGap / 2),
         Expanded(child: bubbleSlot),
       ],
     );
