@@ -29,7 +29,7 @@ class BasicChatBody extends StatefulWidget {
     required this.myProfile,
     required this.participants,
     required this.isLoading,
-    required this.onSend,
+    this.onSend,
     this.hasError = false,
     this.errorText = '',
     this.firstUnreadIndex = -1,
@@ -84,7 +84,7 @@ class BasicChatBody extends StatefulWidget {
     int? score,
   })? onVotePoll;
 
-  final Future<void> Function(String body, List<RoomPendingUpload> uploads)
+  final Future<void> Function(String body, List<RoomPendingUpload> uploads)?
       onSend;
 
   final bool showPollButton;
@@ -403,7 +403,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
   Widget _buildComposerRow(BuildContext context) {
     final l10n = L10n.of(context)!;
     final repo = widget.imageRepository;
-    final canCompose = repo != null;
+    final onSend = widget.onSend;
+    final canCompose = repo != null && onSend != null;
 
     return SafeArea(
       child: Material(
@@ -417,7 +418,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                     ? BeaconRoomComposer(
                         imageRepository: repo,
                         isSending: widget.isLoading,
-                        onSend: widget.onSend,
+                        onSend: onSend,
                         enableAttachments: widget.enableComposerAttachments,
                         enableParticipantMentions:
                             widget.enableParticipantMentions,

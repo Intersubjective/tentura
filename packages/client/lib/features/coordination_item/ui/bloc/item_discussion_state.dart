@@ -19,6 +19,9 @@ abstract class ItemDiscussionState extends StateBase
 
     /// Cleared after mark-seen is flushed this session.
     @Default(true) bool pendingMarkSeen,
+
+    /// Open resolution item targeting this item, if any.
+    CoordinationItem? pendingResolution,
   }) = _ItemDiscussionState;
 
   const ItemDiscussionState._();

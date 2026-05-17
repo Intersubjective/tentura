@@ -281,23 +281,6 @@ final class BeaconRoomCase extends UseCaseBase {
           )
           .then((_) {});
 
-  Future<void> createResolutionFromMessage({
-    required String beaconId,
-    required String messageId,
-    required String title,
-    String? targetItemId,
-    String? targetMessageId,
-  }) =>
-      _coordinationItemCase
-          .createResolution(
-            beaconId: beaconId,
-            title: title,
-            targetItemId: targetItemId,
-            targetMessageId: targetMessageId ?? messageId,
-            linkedMessageId: messageId,
-          )
-          .then((_) {});
-
   Future<void> needInfoFromMessage({
     required String beaconId,
     required String messageId,

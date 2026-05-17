@@ -207,6 +207,21 @@ class CoordinationItemCase {
   Future<CoordinationItem> resolvePlanStep({required String itemId}) =>
       _repository.resolvePlanStep(itemId: itemId);
 
+  Future<CoordinationItem?> fetchPendingResolutionForItem({
+    required String beaconId,
+    required String targetItemId,
+  }) async {
+    final items = await listByBeacon(
+      beaconId,
+      status: CoordinationItemStatus.open.value,
+      kind: CoordinationItemKind.resolution.value,
+    );
+    for (final i in items) {
+      if (i.targetItemId == targetItemId) return i;
+    }
+    return null;
+  }
+
   Future<CoordinationItem?> fetchOpenBlocker(String beaconId) async {
     final items = await listByBeacon(
       beaconId,

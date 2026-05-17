@@ -51,17 +51,32 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
         ),
         actions: [
           BlocBuilder<ItemDiscussionCubit, ItemDiscussionState>(
-            buildWhen: (p, c) => p.item.status != c.item.status,
+            buildWhen: (p, c) =>
+                p.item.status != c.item.status ||
+                p.pendingResolution != c.pendingResolution,
             builder: (context, state) {
               if (!state.item.isActive) return const SizedBox.shrink();
               final item = state.item;
+              final hasPendingResolution = state.pendingResolution != null;
+              final canProposeResolution =
+                  !hasPendingResolution &&
+                  (item.kind == CoordinationItemKind.blocker ||
+                      item.kind == CoordinationItemKind.ask);
+
+              // Resolution items manage accept/reject via the pending banner
+              // inside the parent item's discussion — not via this overflow menu.
+              if (item.kind == CoordinationItemKind.resolution) {
+                return const SizedBox.shrink();
+              }
+
               return PopupMenuButton<String>(
                 onSelected: (v) {
                   final cubit = context.read<ItemDiscussionCubit>();
-                  if (item.kind == CoordinationItemKind.resolution) {
-                    if (v == 'accept') unawaited(cubit.acceptResolution());
-                    if (v == 'reject') unawaited(cubit.rejectResolution());
-                  } else if (item.kind == CoordinationItemKind.ask) {
+                  if (v == 'propose_resolution') {
+                    unawaited(_showProposeResolutionSheet(context, cubit, l10n));
+                    return;
+                  }
+                  if (item.kind == CoordinationItemKind.ask) {
                     if (v == 'accept') unawaited(cubit.acceptAsk());
                     if (v == 'resolve') unawaited(cubit.resolveAsk());
                     if (v == 'cancel') unawaited(cubit.cancelAsk());
@@ -71,18 +86,6 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                   }
                 },
                 itemBuilder: (_) {
-                  if (item.kind == CoordinationItemKind.resolution) {
-                    return [
-                      PopupMenuItem(
-                        value: 'accept',
-                        child: Text(l10n.coordinationResolutionAcceptLabel),
-                      ),
-                      PopupMenuItem(
-                        value: 'reject',
-                        child: Text(l10n.coordinationResolutionRejectLabel),
-                      ),
-                    ];
-                  }
                   if (item.kind == CoordinationItemKind.ask) {
                     return [
                       if (item.isOpen)
@@ -98,6 +101,11 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                         value: 'cancel',
                         child: Text(l10n.coordinationBlockerActionCancel),
                       ),
+                      if (canProposeResolution)
+                        PopupMenuItem(
+                          value: 'propose_resolution',
+                          child: Text(l10n.beaconRoomActionCreateResolution),
+                        ),
                     ];
                   }
                   return [
@@ -109,6 +117,11 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                       value: 'cancel',
                       child: Text(l10n.coordinationBlockerActionCancel),
                     ),
+                    if (canProposeResolution)
+                      PopupMenuItem(
+                        value: 'propose_resolution',
+                        child: Text(l10n.beaconRoomActionCreateResolution),
+                      ),
                   ];
                 },
               );
@@ -122,7 +135,8 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
             p.messages != c.messages ||
             p.isLoading != c.isLoading ||
             p.status != c.status ||
-            p.unreadAnchorAt != c.unreadAnchorAt,
+            p.unreadAnchorAt != c.unreadAnchorAt ||
+            p.pendingResolution != c.pendingResolution,
         builder: (context, state) {
           final cubit = context.read<ItemDiscussionCubit>();
           final theme = Theme.of(context);
@@ -136,6 +150,7 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
               : '';
           final firstUnreadIndex =
               state.firstUnreadIndexInRoomMessages(roomMessages);
+          final pendingResolution = state.pendingResolution;
 
           return BasicChatBody(
             messages: roomMessages,
@@ -153,13 +168,29 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                 _confirmDeleteItemMessage(context, cubit, l10n, msg),
               );
             },
-            onSend: (body, _) async {
-              await cubit.sendMessage(body);
-            },
-            header: _ItemDiscussionHeader(
-              item: state.item,
-              theme: theme,
-              l10n: l10n,
+            onSend: pendingResolution != null
+                ? null
+                : (body, _) async {
+                    await cubit.sendMessage(body);
+                  },
+            header: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ItemDiscussionHeader(
+                  item: state.item,
+                  theme: theme,
+                  l10n: l10n,
+                ),
+                if (pendingResolution != null)
+                  _PendingResolutionBanner(
+                    resolution: pendingResolution,
+                    theme: theme,
+                    l10n: l10n,
+                    onAccept: () => unawaited(cubit.acceptResolution()),
+                    onReject: () => unawaited(cubit.rejectResolution()),
+                  ),
+              ],
             ),
             emptyPlaceholder: Center(
               child: Text(
@@ -291,6 +322,121 @@ class _ItemDiscussionHeader extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _PendingResolutionBanner extends StatelessWidget {
+  const _PendingResolutionBanner({
+    required this.resolution,
+    required this.theme,
+    required this.l10n,
+    required this.onAccept,
+    required this.onReject,
+  });
+
+  final CoordinationItem resolution;
+  final ThemeData theme;
+  final L10n l10n;
+  final VoidCallback onAccept;
+  final VoidCallback onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = theme.colorScheme;
+    return Material(
+      color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: colorScheme.primary.withValues(alpha: 0.2),
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.fact_check_outlined,
+                    size: 16,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    l10n.coordinationSemanticResolutionOpened,
+                    style: theme.textTheme.labelMedium
+                        ?.copyWith(color: colorScheme.primary),
+                  ),
+                ],
+              ),
+              if (resolution.title.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(resolution.title, style: theme.textTheme.bodySmall),
+              ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  FilledButton(
+                    onPressed: onAccept,
+                    child: Text(l10n.coordinationResolutionAcceptLabel),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: onReject,
+                    child: Text(l10n.coordinationResolutionRejectLabel),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showProposeResolutionSheet(
+  BuildContext context,
+  ItemDiscussionCubit cubit,
+  L10n l10n,
+) async {
+  final titleController = TextEditingController();
+  try {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.beaconRoomActionCreateResolution),
+        content: TextField(
+          controller: titleController,
+          decoration: InputDecoration(
+            hintText: l10n.coordinationMarkResolutionHint,
+          ),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(MaterialLocalizations.of(ctx).okButtonLabel),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) {
+      final title = titleController.text.trim();
+      if (title.isEmpty) return;
+      await cubit.promoteResolution(title: title);
+    }
+  } finally {
+    titleController.dispose();
   }
 }
 
