@@ -1,0 +1,3 @@
+mutation MarkBeaconRoomSeen($beaconId: String!, $threadItemId: String) {
+  MarkBeaconRoomSeen(beaconId: $beaconId, threadItemId: $threadItemId)
+}

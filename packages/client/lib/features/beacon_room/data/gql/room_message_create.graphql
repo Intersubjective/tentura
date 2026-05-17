@@ -2,12 +2,14 @@ mutation RoomMessageCreate(
   $beaconId: String!
   $body: String!
   $replyToMessageId: String
+  $threadItemId: String
   $file: v2_Upload = {}
 ) {
   RoomMessageCreate(
     beaconId: $beaconId
     body: $body
     replyToMessageId: $replyToMessageId
+    threadItemId: $threadItemId
     file: $file
   ) {
     id

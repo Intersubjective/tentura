@@ -4,8 +4,10 @@ import 'dart:typed_data';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/data/repository/polling_repository.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/data/storage/remote_storage.dart';
@@ -31,6 +33,7 @@ import '_use_case_base.dart';
 final class BeaconRoomCase extends UseCaseBase {
   BeaconRoomCase(
     this._room,
+    this._items,
     this._factCards,
     this._push,
     this._imageRepository,
@@ -42,6 +45,8 @@ final class BeaconRoomCase extends UseCaseBase {
   });
 
   final BeaconRoomRepository _room;
+
+  final CoordinationItemRepositoryPort _items;
 
   final BeaconFactCardRepository _factCards;
 
@@ -70,20 +75,87 @@ final class BeaconRoomCase extends UseCaseBase {
     return p?.roomAccess == RoomAccessBits.admitted;
   }
 
+  bool _isItemParticipant(CoordinationItem item, String userId) =>
+      item.creatorId == userId ||
+      item.targetPersonId == userId ||
+      item.acceptedById == userId;
+
+  Future<bool> _canAccessThread({
+    required String beaconId,
+    required String userId,
+    required String threadItemId,
+  }) async {
+    if (await _canUseRoom(beaconId: beaconId, userId: userId)) {
+      return true;
+    }
+    final item = await _items.getById(threadItemId);
+    if (item == null || item.beaconId != beaconId) {
+      return false;
+    }
+    return _isItemParticipant(item, userId);
+  }
+
+  Future<bool> _canMutateMessage({
+    required String beaconId,
+    required String userId,
+    required BeaconRoomMessage msg,
+  }) async {
+    final tid = msg.threadItemId;
+    if (tid == null || tid.isEmpty) {
+      return _canUseRoom(beaconId: beaconId, userId: userId);
+    }
+    return _canAccessThread(
+      beaconId: beaconId,
+      userId: userId,
+      threadItemId: tid,
+    );
+  }
+
   Future<Map<String, Object?>> createMessage({
     required String beaconId,
     required String userId,
     required String body,
     String? replyToMessageId,
+    String? threadItemId,
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
+    final tid = threadItemId?.trim();
+    final inThread = tid != null && tid.isNotEmpty;
+    if (inThread) {
+      final allowed = await _canAccessThread(
+        beaconId: beaconId,
+        userId: userId,
+        threadItemId: tid,
       );
+      if (!allowed) {
+        throw const UnauthorizedException(
+          description: 'Room or item thread access required',
+        );
+      }
+      final item = await _items.getById(tid);
+      if (item == null || item.beaconId != beaconId) {
+        throw IdNotFoundException(
+          id: tid,
+          description: 'Coordination item not found',
+        );
+      }
+      if (replyToMessageId != null && replyToMessageId.isNotEmpty) {
+        final reply = await _room.getRoomMessageById(replyToMessageId);
+        if (reply == null || reply.threadItemId != tid) {
+          throw const IdWrongException(
+            description: 'Reply must reference a message in the same thread',
+          );
+        }
+      }
+    } else {
+      final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+      if (!allowed) {
+        throw const UnauthorizedException(
+          description: 'Room access required',
+        );
+      }
     }
     final trimmed = body.trim();
     Uint8List? payload;
@@ -112,6 +184,7 @@ final class BeaconRoomCase extends UseCaseBase {
       authorId: userId,
       body: trimmed,
       replyToMessageId: replyToMessageId,
+      threadItemId: inThread ? tid : null,
       mentions: mentionIds,
     );
     if (payload != null) {
@@ -132,18 +205,35 @@ final class BeaconRoomCase extends UseCaseBase {
     required String beaconId,
     required String userId,
     String? beforeIso,
+    String? threadItemId,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
+    final tid = threadItemId?.trim();
+    final inThread = tid != null && tid.isNotEmpty;
+    if (inThread) {
+      final allowed = await _canAccessThread(
+        beaconId: beaconId,
+        userId: userId,
+        threadItemId: tid,
       );
+      if (!allowed) {
+        throw const UnauthorizedException(
+          description: 'Room or item thread access required',
+        );
+      }
+    } else {
+      final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+      if (!allowed) {
+        throw const UnauthorizedException(
+          description: 'Room access required',
+        );
+      }
     }
     final before =
         beforeIso != null ? DateTime.tryParse(beforeIso) : null;
     return _room.listMessagesEnriched(
       beaconId: beaconId,
       viewerUserId: userId,
+      threadItemId: inThread ? tid : null,
       before: before,
     );
   }
@@ -214,14 +304,15 @@ final class BeaconRoomCase extends UseCaseBase {
       }
       final p = await _room.findParticipant(beaconId: bid, userId: userId);
       final st = await _room.getBeaconRoomState(bid);
-      final seenAt = p?.lastSeenRoomAt?.dateTime;
-      final unread = p == null
-          ? 0
-          : await _room.countRoomMessagesAfter(
-              beaconId: bid,
-              after: seenAt,
-              excludeAuthorId: userId,
-            );
+      final seenAt = await _room.getMainRoomLastSeen(
+        beaconId: bid,
+        userId: userId,
+      );
+      final unread = await _room.countRoomMessagesAfter(
+        beaconId: bid,
+        after: seenAt,
+        excludeAuthorId: userId,
+      );
       final blockerTitle = st?.openBlockerId == null
           ? null
           : await _room.getBlockerTitle(st!.openBlockerId!);
@@ -391,22 +482,46 @@ final class BeaconRoomCase extends UseCaseBase {
     return true;
   }
 
-  Future<bool> beaconParticipantRoomSeen({
+  Future<bool> markBeaconRoomSeen({
     required String beaconId,
     required String userId,
+    String? threadItemId,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
+    final tid = threadItemId?.trim();
+    final inThread = tid != null && tid.isNotEmpty;
+    if (inThread) {
+      final allowed = await _canAccessThread(
+        beaconId: beaconId,
+        userId: userId,
+        threadItemId: tid,
       );
+      if (!allowed) {
+        throw const UnauthorizedException(
+          description: 'Room or item thread access required',
+        );
+      }
+    } else {
+      final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+      if (!allowed) {
+        throw const UnauthorizedException(
+          description: 'Room access required',
+        );
+      }
     }
-    await _room.markParticipantRoomSeen(
-      beaconId: beaconId,
+    await _room.markBeaconRoomSeen(
       userId: userId,
+      beaconId: beaconId,
+      threadItemId: inThread ? tid : null,
+      at: DateTime.timestamp(),
     );
     return true;
   }
+
+  Future<bool> beaconParticipantRoomSeen({
+    required String beaconId,
+    required String userId,
+  }) =>
+      markBeaconRoomSeen(beaconId: beaconId, userId: userId);
 
   /// Room members (same visibility envelope as chat): author, steward, or
   /// admitted participants.
@@ -422,6 +537,10 @@ final class BeaconRoomCase extends UseCaseBase {
     }
     final rows = await _room.listParticipants(beaconId);
     final userIds = rows.map((r) => r.userId).toSet().toList();
+    final lastSeenByUserId = await _room.mainRoomLastSeenByUserIds(
+      beaconId: beaconId,
+      userIds: userIds,
+    );
     final titlesByUserId =
         userIds.isEmpty ? <String, String>{} : await _room.userTitlesByIds(userIds);
 
@@ -452,8 +571,8 @@ final class BeaconRoomCase extends UseCaseBase {
             'nextMoveStatus': r.nextMoveStatus,
             'nextMoveSource': r.nextMoveSource,
             'linkedMessageId': r.linkedMessageId,
-            'lastSeenRoomAt': r.lastSeenRoomAt?.dateTime
-                .toUtc()
+            'lastSeenRoomAt': lastSeenByUserId[r.userId]
+                ?.toUtc()
                 .toIso8601String(),
             'helpType': helpTypesByUserId[r.userId],
             'createdAt': r.createdAt.dateTime.toIso8601String(),
@@ -538,7 +657,18 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String emoji,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
+    final msg = await _room.getRoomMessageById(messageId);
+    if (msg == null || msg.beaconId != beaconId) {
+      throw IdNotFoundException(
+        id: messageId,
+        description: 'Room message not found',
+      );
+    }
+    final allowed = await _canMutateMessage(
+      beaconId: beaconId,
+      userId: userId,
+      msg: msg,
+    );
     if (!allowed) {
       throw const UnauthorizedException(
         description: 'Room access required',
@@ -644,16 +774,20 @@ final class BeaconRoomCase extends UseCaseBase {
     String? attachmentFilename,
     String? attachmentMimeType,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(description: 'Room access required');
-    }
     final msg = await _room.getRoomMessageById(messageId);
     if (msg == null || msg.beaconId != beaconId) {
       throw IdNotFoundException(
         id: messageId,
         description: 'Room message not found',
       );
+    }
+    final canMutate = await _canMutateMessage(
+      beaconId: beaconId,
+      userId: userId,
+      msg: msg,
+    );
+    if (!canMutate) {
+      throw const UnauthorizedException(description: 'Room access required');
     }
     if (msg.authorId != userId) {
       throw const UnauthorizedException(
@@ -684,16 +818,20 @@ final class BeaconRoomCase extends UseCaseBase {
     required String messageId,
     required String userId,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(description: 'Room access required');
-    }
     final msg = await _room.getRoomMessageById(messageId);
     if (msg == null || msg.beaconId != beaconId) {
       throw IdNotFoundException(
         id: messageId,
         description: 'Room message not found',
       );
+    }
+    final allowed = await _canMutateMessage(
+      beaconId: beaconId,
+      userId: userId,
+      msg: msg,
+    );
+    if (!allowed) {
+      throw const UnauthorizedException(description: 'Room access required');
     }
     if (msg.authorId != userId) {
       throw const UnauthorizedException(
@@ -710,16 +848,20 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String newBody,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(description: 'Room access required');
-    }
     final msg = await _room.getRoomMessageById(messageId);
     if (msg == null || msg.beaconId != beaconId) {
       throw IdNotFoundException(
         id: messageId,
         description: 'Room message not found',
       );
+    }
+    final allowed = await _canMutateMessage(
+      beaconId: beaconId,
+      userId: userId,
+      msg: msg,
+    );
+    if (!allowed) {
+      throw const UnauthorizedException(description: 'Room access required');
     }
     if (msg.authorId != userId) {
       throw const UnauthorizedException(
@@ -769,7 +911,11 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Message missing',
       );
     }
-    final roomOk = await _canUseRoom(beaconId: msg.beaconId, userId: userId);
+    final roomOk = await _canMutateMessage(
+      beaconId: msg.beaconId,
+      userId: userId,
+      msg: msg,
+    );
     if (!roomOk) {
       throw const UnauthorizedException(description: 'Room access required');
     }

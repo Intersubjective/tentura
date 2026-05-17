@@ -14,6 +14,8 @@ final class QueryBeaconRoom extends GqlNodeBase {
 
   final _beforeIso = InputFieldString(fieldName: 'beforeIso');
 
+  final _threadItemId = InputFieldString(fieldName: 'threadItemId');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all =>
       [
         roomMessageList,
@@ -30,11 +32,13 @@ final class QueryBeaconRoom extends GqlNodeBase {
         arguments: [
           _beaconIdStr.field,
           _beforeIso.fieldNullable,
+          _threadItemId.fieldNullable,
         ],
         resolve: (_, args) => _case.listMessages(
           beaconId: _beaconIdStr.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
           beforeIso: _beforeIso.fromArgs(args),
+          threadItemId: _threadItemId.fromArgs(args),
         ),
       );
 

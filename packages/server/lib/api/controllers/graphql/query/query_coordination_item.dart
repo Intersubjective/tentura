@@ -1,4 +1,3 @@
-import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 
@@ -15,20 +14,16 @@ final class QueryCoordinationItem extends GqlNodeBase {
   final CoordinationItemRepositoryPort _itemRepository;
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
-  final _itemId = InputFieldString(fieldName: 'itemId');
   final _statusFilter = InputFieldInt(fieldName: 'status');
   final _kindFilter = InputFieldInt(fieldName: 'kind');
   final _acceptedById = InputFieldString(fieldName: 'acceptedById');
   final _targetPersonId = InputFieldString(fieldName: 'targetPersonId');
   final _linkedParentItemId = InputFieldString(fieldName: 'linkedParentItemId');
   final _rootOnly = InputFieldBool(fieldName: 'rootOnly');
-  final _limit = InputFieldInt(fieldName: 'limit');
-  final _before = InputFieldString(fieldName: 'before');
   final _beaconIds = InputFieldStringList(fieldName: 'beaconIds');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
         coordinationItemsByBeacon,
-        coordinationItemMessages,
         myWorkCoordinationItemActivity,
       ];
 
@@ -61,31 +56,6 @@ final class QueryCoordinationItem extends GqlNodeBase {
             rootOnly: _rootOnly.fromArgs(args) ?? false,
           );
           return items.map(_coordinationItemToMap).toList();
-        },
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get coordinationItemMessages =>
-      GraphQLObjectField(
-        'coordinationItemMessages',
-        GraphQLListType(
-          gqlTypeCoordinationItemMessageRow.nonNullable(),
-        ),
-        arguments: [
-          _itemId.field,
-          _limit.fieldNullable,
-          _before.fieldNullable,
-        ],
-        resolve: (_, args) async {
-          getCredentials(args);
-          final itemId = _itemId.fromArgsNonNullable(args);
-          final limit = _limit.fromArgs(args);
-          final before = _before.fromArgs(args);
-          final messages = await _itemRepository.listMessages(
-            itemId,
-            limit: limit,
-            before: before,
-          );
-          return messages.map(_coordinationItemMessageToMap).toList();
         },
       );
 
@@ -146,16 +116,3 @@ Map<String, Object?> _coordinationItemToMap(CoordinationItemWithCounts row) {
       'lastSeenAt': row.lastSeenAt?.toUtc().toIso8601String(),
     };
 }
-
-Map<String, Object?> _coordinationItemMessageToMap(
-  CoordinationItemMessage msg,
-) =>
-    {
-      'id': msg.id,
-      'itemId': msg.itemId,
-      'beaconId': msg.beaconId,
-      'senderId': msg.senderId,
-      'body': msg.body,
-      'createdAt': msg.createdAt.dateTime.toIso8601String(),
-      'editedAt': msg.editedAt?.dateTime.toIso8601String(),
-    };

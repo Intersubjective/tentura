@@ -2333,6 +2333,7 @@ type mutation_root {
     beaconId: String!
     body: String!
     replyToMessageId: String
+    threadItemId: String
     file: v2_Upload = {}
   ): RoomMessageCreatePayload!
   RoomMessageAttachmentAdd(
@@ -2375,6 +2376,7 @@ type mutation_root {
   RoomMessageEdit(beaconId: String!, messageId: String!, body: String!): Boolean!
   RoomMessageDelete(beaconId: String!, messageId: String!): Boolean!
   BeaconParticipantRoomSeen(beaconId: String!): Boolean!
+  MarkBeaconRoomSeen(beaconId: String!, threadItemId: String): Boolean!
   RoomPollCreate(beaconId: String!, question: String!, variants: [String!]!, pollType: String, isAnonymous: Boolean, allowRevote: Boolean): RoomMessageRow!
   capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
   capabilitySetViewerVisible(subjectUserId: String!, slugs: [String!]!): Boolean!
@@ -2403,10 +2405,6 @@ type mutation_root {
   createResolution(beaconId: String!, title: String!, body: String, targetItemId: String, targetMessageId: String, linkedMessageId: String): CoordinationItemRow!
   acceptResolution(itemId: String!): CoordinationItemRow!
   rejectResolution(itemId: String!, reason: String): CoordinationItemRow!
-  appendCoordinationItemMessage(itemId: String!, body: String!): CoordinationItemMessageRow!
-  deleteCoordinationItemMessage(itemId: String!, messageId: String!): Boolean!
-  markCoordinationItemSeen(itemId: String!): Boolean!
-
   """
   delete data from the table: "beacon_pinned"
   """
@@ -3628,12 +3626,11 @@ type query_root {
   evaluationDrafts(id: String!): [v2_EvaluationDraftRow!]
   evaluationParticipants(id: String!): [v2_EvaluationParticipant!]
   evaluationSummary(id: String!): v2_EvaluationSummary!
-  RoomMessageList(beaconId: String!, beforeIso: String): [RoomMessageRow!]!
+  RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [RoomMessageRow!]!
   BeaconParticipantList(beaconId: String!): [BeaconParticipantRow!]!
   BeaconRoomStateGet(beaconId: String!): BeaconRoomStateRow!
   BeaconActivityEventList(beaconId: String!): [BeaconActivityEventRow!]!
   coordinationItemsByBeacon(beaconId: String!, status: Int, kind: Int, acceptedById: String, targetPersonId: String, linkedParentItemId: String, rootOnly: Boolean): [CoordinationItemRow!]!
-  coordinationItemMessages(itemId: String!, limit: Int, before: String): [CoordinationItemMessageRow!]!
   myWorkCoordinationItemActivity(beaconIds: [String!]!): [MyWorkBeaconCoordinationActivityRow!]!
   InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
   BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
@@ -5483,6 +5480,7 @@ type RoomMessageRow {
   reactorsJson: String
   attachmentsJson: String!
   mentions: [String!]!
+  threadItemId: String
 }
 
 type BeaconRoomStateRow {
@@ -6342,15 +6340,5 @@ type CoordinationItemRow {
 type MyWorkBeaconCoordinationActivityRow {
   beaconId: String!
   lastCoordinationItemMessageAt: String
-}
-
-type CoordinationItemMessageRow {
-  id: String!
-  itemId: String!
-  beaconId: String!
-  senderId: String!
-  body: String!
-  createdAt: String!
-  editedAt: String
 }
 

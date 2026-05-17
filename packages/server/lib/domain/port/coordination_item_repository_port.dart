@@ -59,12 +59,6 @@ abstract class CoordinationItemRepositoryPort {
     bool rootOnly = false,
   });
 
-  Future<void> markItemSeen({
-    required String userId,
-    required String itemId,
-    required DateTime at,
-  });
-
   /// Latest item-discussion message time per beacon (active items only).
   Future<Map<String, DateTime>> lastCoordinationItemMessageAtByBeaconIds({
     required List<String> beaconIds,
@@ -88,22 +82,6 @@ abstract class CoordinationItemRepositoryPort {
     required String creatorId,
     required String title,
     String body = '',
-  });
-
-  Future<CoordinationItemMessage> appendMessage({
-    required String itemId,
-    required String senderId,
-    required String body,
-  });
-
-  Future<CoordinationItemMessage?> getMessageById(String messageId);
-
-  Future<void> deleteMessage({required String messageId});
-
-  Future<List<CoordinationItemMessage>> listMessages(
-    String itemId, {
-    int? limit,
-    String? before,
   });
 
   /// Draft ask (published=false): no room message or activity until [publishDraft].

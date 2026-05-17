@@ -53,6 +53,11 @@ class BeaconRoomMessages extends Table {
     const Constant(<String>[], kMentionsTextArrayType),
   )();
 
+  /// NULL = main beacon room; non-null = coordination item thread.
+  late final threadItemId = text()
+      .nullable()
+      .references(CoordinationItems, #id, onDelete: KeyAction.cascade)();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

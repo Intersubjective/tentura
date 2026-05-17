@@ -31,7 +31,12 @@ import 'room_reaction_picker.dart';
 
 /// Body-only room UI (message list + composer); expects [RoomCubit] above.
 class BeaconRoomBody extends StatefulWidget {
-  const BeaconRoomBody({super.key});
+  const BeaconRoomBody({
+    super.key,
+    this.enableComposer = true,
+  });
+
+  final bool enableComposer;
 
   @override
   State<BeaconRoomBody> createState() => _BeaconRoomBodyState();
@@ -177,13 +182,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.hasError != c.hasError,
         builder: (context, state) {
           final cubit = context.read<RoomCubit>();
+          final isThreadMode = state.threadItemId != null;
           final err = state.status is StateHasError
               ? (state.status as StateHasError).error.toString()
               : '';
           final plan = state.roomState?.currentPlan.trim() ?? '';
           return BasicChatBody(
             key: _basicChatKey,
-            header: plan.isEmpty ? null : _PinnedPlanCard(plan: plan),
+            header: isThreadMode || plan.isEmpty
+                ? null
+                : _PinnedPlanCard(plan: plan),
             messages: state.messages,
             myProfile: myProfile,
             participants: state.participants,
@@ -199,6 +207,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
               l10n,
               myProfile,
               msg,
+              isThreadMode: isThreadMode,
             ),
             onToggleReaction: (messageId, emoji) => cubit.toggleReaction(
                   messageId: messageId,
@@ -216,12 +225,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                   variantIds: variantIds,
                   score: score,
                 ),
-            onSend: (body, uploads) => cubit.sendMessage(
-              body: body,
-              uploads: uploads,
-            ),
-            showPollButton: true,
-            onOpenPollSheet: (ctx) => _showCreatePollSheet(ctx, cubit),
+            onSend: widget.enableComposer
+                ? (body, uploads) => cubit.sendMessage(
+                      body: body,
+                      uploads: uploads,
+                    )
+                : null,
+            showPollButton: !isThreadMode,
+            onOpenPollSheet: isThreadMode
+                ? null
+                : (ctx) => _showCreatePollSheet(ctx, cubit),
             imageRepository: GetIt.I<ImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
             onScrollToPromoteSource: cubit.requestScrollToMessage,
@@ -283,10 +296,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomCubit cubit,
     L10n l10n,
     Profile viewer,
-    RoomMessage message,
-  ) {
+    RoomMessage message, {
+    bool isThreadMode = false,
+  }) {
     final pf = cubit.state.factForRoomMessage(message);
-    final showFactInMenu = !_roomMessageIsCoordinationStateCard(message);
+    final showFactInMenu =
+        !isThreadMode && !_roomMessageIsCoordinationStateCard(message);
     final isOwnMessage = message.authorId == viewer.id;
     final viewerReactions = _viewerReactionEmojis(message);
     unawaited(
@@ -377,14 +392,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         );
                       },
                     ),
-                  ListTile(
-                    leading: const Icon(Icons.edit_note_outlined),
-                    title: Text(l10n.beaconRoomActionUpdatePlan),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      unawaited(_showPlanUpdateSheet(context, cubit, l10n));
-                    },
-                  ),
+                  if (!isThreadMode)
+                    ListTile(
+                      leading: const Icon(Icons.edit_note_outlined),
+                      title: Text(l10n.beaconRoomActionUpdatePlan),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(_showPlanUpdateSheet(context, cubit, l10n));
+                      },
+                    ),
                   if (showFactInMenu && pf == null)
                     ListTile(
                       leading: const Icon(Icons.fact_check_outlined),
@@ -439,40 +455,43 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         );
                       },
                     ),
-                  ListTile(
-                    leading: const Icon(Icons.vertical_align_top_outlined),
-                    title: Text(l10n.coordinationPromoteSheetTitle),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      unawaited(
-                        _showPromoteSheet(
-                          context,
-                          cubit,
-                          l10n,
-                          viewer,
-                          message,
-                        ),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.help_outline),
-                    title: Text(l10n.beaconRoomActionNeedInfo),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      unawaited(
-                        _showNeedInfoSheet(
-                          context,
-                          cubit,
-                          l10n,
-                          viewer,
-                          message,
-                        ),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.task_alt_outlined),
+                  if (!isThreadMode)
+                    ListTile(
+                      leading: const Icon(Icons.vertical_align_top_outlined),
+                      title: Text(l10n.coordinationPromoteSheetTitle),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          _showPromoteSheet(
+                            context,
+                            cubit,
+                            l10n,
+                            viewer,
+                            message,
+                          ),
+                        );
+                      },
+                    ),
+                  if (!isThreadMode)
+                    ListTile(
+                      leading: const Icon(Icons.help_outline),
+                      title: Text(l10n.beaconRoomActionNeedInfo),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          _showNeedInfoSheet(
+                            context,
+                            cubit,
+                            l10n,
+                            viewer,
+                            message,
+                          ),
+                        );
+                      },
+                    ),
+                  if (!isThreadMode)
+                    ListTile(
+                      leading: const Icon(Icons.task_alt_outlined),
                     title: Text(l10n.beaconRoomActionMarkDone),
                     onTap: () {
                       Navigator.pop(ctx);

@@ -26,8 +26,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
           (e) =>
               e.beaconId == beaconId &&
               (e.entityType == BeaconRoomEntityType.coordinationItem ||
-                  e.entityType ==
-                      BeaconRoomEntityType.coordinationItemMessage ||
+                  e.entityType == BeaconRoomEntityType.roomMessage ||
                   e.entityType == BeaconRoomEntityType.participant ||
                   e.entityType == BeaconRoomEntityType.factCard ||
                   e.entityType == BeaconRoomEntityType.blocker),

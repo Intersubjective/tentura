@@ -38,6 +38,7 @@ abstract class RoomMessage with _$RoomMessage {
     String? systemPayloadJson,
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
     @Default(<String>[]) List<String> mentions,
+    String? threadItemId,
   }) = _RoomMessage;
 
   const RoomMessage._();

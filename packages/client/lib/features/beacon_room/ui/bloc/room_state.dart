@@ -13,6 +13,9 @@ abstract class RoomState extends StateBase with _$RoomState {
   const factory RoomState({
     @Default('') String beaconId,
 
+    /// Non-null when viewing a coordination item thread (not main room).
+    String? threadItemId,
+
     /// Viewer user id; own-authored messages never count as unread.
     @Default('') String myUserId,
     @Default(<RoomMessage>[]) List<RoomMessage> messages,
