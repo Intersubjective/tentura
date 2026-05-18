@@ -33,9 +33,25 @@ This project uses GitHub Actions for automated builds and deployments. The CI/CD
 
 ## Required Secrets
 
-Configure these secrets in GitHub repository settings (Settings > Secrets and variables > Actions):
+Configure secrets under **Settings → Environments** (per environment) and **Settings → Secrets and variables → Actions** (repo-wide) as needed.
 
-### Per Environment (dev/stage/prod)
+### `dev` environment (web build on push to `main`)
+
+- `CLIENT_DART_DEFINES`: Multiline `.env` blob for Flutter `--dart-define-from-file` (Firebase client compile-time config). One secret instead of per-key vars. Example content (same keys as local `packages/client/env/dev-web.env`):
+
+  ```
+  FB_SENDER_ID=...
+  FB_PROJECT_ID=...
+  FB_AUTH_DOMAIN=...
+  FB_STORAGE_BUCKET=...
+  FB_API_KEY=...
+  FB_APP_ID=...
+  FB_VAPID_KEY=...
+  ```
+
+  CI writes this to repo-root `.env` before `flutter build web`; `SERVER_NAME` and `IMAGE_SERVER` still come from environment **variables** and override via `--dart-define`.
+
+### Per Environment (dev/stage/prod) — deploy
 
 - `VPS_HOST`: Target server hostname or IP address
 - `VPS_SSH_KEY`: SSH private key for deployment (must have access to deploy user)
