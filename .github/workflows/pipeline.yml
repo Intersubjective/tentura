@@ -87,6 +87,7 @@ jobs:
               cd packages/client && flutter gen-l10n && dart run build_runner build -d
               if [ -f /app/.env ]; then
                 flutter build web \\
+                  --profile \\
                   --wasm \\
                   --pwa-strategy=none \\
                   --source-maps \\
@@ -96,6 +97,7 @@ jobs:
                   --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
               else
                 flutter build web \\
+                  --profile \\
                   --wasm \\
                   --pwa-strategy=none \\
                   --source-maps \\
