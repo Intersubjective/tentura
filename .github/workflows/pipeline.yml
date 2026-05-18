@@ -78,6 +78,7 @@ jobs:
             exit 0
           fi
           printf '%s\n' "$CLIENT_DART_DEFINES" > .env
+          bash scripts/validate_client_firebase_env.sh .env
           echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
 
       - name: Build dev web in builder container

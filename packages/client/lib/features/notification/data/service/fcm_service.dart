@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:tentura/env.dart';
+import 'package:tentura/data/service/firebase_client_config.dart';
 import 'package:tentura/data/service/service_base.dart';
 
 import '../../domain/entity/notification_permissions.dart';
@@ -20,18 +21,15 @@ class FcmService extends ServiceBase {
     required Env env,
     required Logger logger,
   }) {
-    if (env.firebaseApiKey.isEmpty) {
+    logFirebaseClientConfig(env);
+    if (!isFirebaseClientConfigValid(env)) {
       logger.info('Firebase Messaging configured with fake service');
       fcmLog(
-        'FcmService: using fake (FB_API_KEY empty) — no real push on client',
+        'FcmService: using fake — ${firebaseClientConfigIssue(env) ?? 'FB_API_KEY empty'}',
       );
       return const _FcmServiceFake();
     }
-    fcmLog(
-      'FcmService: real Firebase Messaging '
-      'projectId=${env.firebaseProjectId} '
-      'vapidKeySet=${env.firebaseVapidKey.isNotEmpty}',
-    );
+    fcmLog('FcmService: real Firebase Messaging');
     return FcmService._(
       env: env,
       logger: logger,

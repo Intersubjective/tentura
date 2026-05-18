@@ -49,7 +49,11 @@ Configure secrets under **Settings → Environments** (per environment) and **Se
   FB_VAPID_KEY=...
   ```
 
-  CI writes this to repo-root `.env` before `flutter build web`; `SERVER_NAME` and `IMAGE_SERVER` still come from environment **variables** and override via `--dart-define`.
+  **`FB_APP_ID` must be the Firebase Web App ID** from Project settings → Your apps (format `1:123456789:web:abc…`). **Do not** paste `FB_API_KEY` (`AIza…`) into `FB_APP_ID` — that causes `firebaseinstallations.googleapis.com` **400** in the browser.
+
+  CI writes this to repo-root `.env` before `flutter build web` and runs `scripts/validate_client_firebase_env.sh`. `SERVER_NAME` and `IMAGE_SERVER` still come from environment **variables** and override via `--dart-define`.
+
+  **Server vs client:** `FB_APP_ID` on the VPS (service worker via Tentura API) and in `CLIENT_DART_DEFINES` (compiled into the Flutter web app) must both be correct. Redeploying the API alone does not fix a bad web build — push to `main` must rebuild web after updating the secret.
 
 ### Per Environment (dev/stage/prod) — deploy
 
