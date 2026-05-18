@@ -8,7 +8,7 @@ import 'package:tentura/features/settings/domain/port/settings_repository_port.d
 import '../port/fcm_local_repository_port.dart';
 import '../port/fcm_remote_repository_port.dart';
 import '../entity/notification_permissions.dart';
-import '../fcm_debug_log.dart';
+import 'package:tentura/features/notification/fcm_debug_log.dart';
 
 @singleton
 class FcmCase {
