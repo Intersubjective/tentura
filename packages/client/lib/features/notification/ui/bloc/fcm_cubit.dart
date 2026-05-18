@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/app/platform/platform_info.dart';
 
 import '../../domain/use_case/fcm_case.dart';
+import '../../fcm_debug_log.dart';
 import 'fcm_state.dart';
 
 /// Global Cubit
@@ -12,8 +14,21 @@ class FcmCubit extends Cubit<FcmState> {
   FcmCubit(
     this._fcmCase,
   ) : super(const FcmState()) {
+    fcmLog('FcmCubit: constructed platform=$platformName');
     _tokenRefreshSubscription = _fcmCase.onTokenRefresh.listen(
-      _registerFcmToken,
+      (token) {
+        fcmLog(
+          'FcmCubit: onTokenRefresh fingerprint=${fcmTokenFingerprint(token)}',
+        );
+        unawaited(() async {
+          try {
+            await _registerFcmToken(token);
+          } catch (e, st) {
+            fcmLog('FcmCubit: token refresh register failed: $e');
+            fcmLog('FcmCubit: stack: $st');
+          }
+        }());
+      },
       cancelOnError: false,
     );
     _currentAccountChangesSubscription = _fcmCase.currentAccountChanges.listen(
@@ -32,6 +47,7 @@ class FcmCubit extends Cubit<FcmState> {
   @override
   @disposeMethod
   Future<void> close() async {
+    fcmLog('FcmCubit: closing');
     await _currentAccountChangesSubscription.cancel();
     await _tokenRefreshSubscription.cancel();
     return super.close();
@@ -41,8 +57,11 @@ class FcmCubit extends Cubit<FcmState> {
   //
   Future<void> _onAccountChanges(String accountId) async {
     if (accountId.isEmpty) {
+      fcmLog('FcmCubit: account cleared, skipping FCM');
       return;
     }
+
+    fcmLog('FcmCubit: account changed accountId=$accountId');
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
@@ -52,11 +71,22 @@ class FcmCubit extends Cubit<FcmState> {
           permissions: permissions,
         ),
       );
-      if (permissions.authorized &&
-          await _fcmCase.checkIfRegistrationNeeded()) {
-        await _registerFcmToken();
+      fcmLog(
+        'FcmCubit: permission authorized=${permissions.authorized}',
+      );
+      if (!permissions.authorized) {
+        return;
       }
-    } catch (e) {
+      final needsRegistration = await _fcmCase.checkIfRegistrationNeeded();
+      fcmLog('FcmCubit: registration needed=$needsRegistration');
+      if (needsRegistration) {
+        await _registerFcmToken();
+      } else {
+        fcmLog('FcmCubit: skip register (fresh token on server)');
+      }
+    } catch (e, st) {
+      fcmLog('FcmCubit: account FCM setup failed: $e');
+      fcmLog('FcmCubit: stack: $st');
       emit(state.copyWith(status: StateHasError(e)));
     }
   }
@@ -64,16 +94,31 @@ class FcmCubit extends Cubit<FcmState> {
   //
   //
   Future<void> _registerFcmToken([String? token]) async {
-    final appId = await _fcmCase.registerFcmToken(
-      token: token,
-      platform: platformName,
+    fcmLog(
+      'FcmCubit: register start platform=$platformName '
+      'incoming=${fcmTokenFingerprint(token)}',
     );
-    emit(
-      state.copyWith(
-        appId: appId,
+    try {
+      final appId = await _fcmCase.registerFcmToken(
         token: token,
-        status: StateStatus.isSuccess,
-      ),
-    );
+        platform: platformName,
+      );
+      final resolved = token ?? state.token;
+      fcmLog(
+        'FcmCubit: register done appId=$appId '
+        'token=${fcmTokenFingerprint(resolved)}',
+      );
+      emit(
+        state.copyWith(
+          appId: appId,
+          token: resolved,
+          status: StateStatus.isSuccess,
+        ),
+      );
+    } catch (e, st) {
+      fcmLog('FcmCubit: register failed: $e');
+      fcmLog('FcmCubit: stack: $st');
+      rethrow;
+    }
   }
 }

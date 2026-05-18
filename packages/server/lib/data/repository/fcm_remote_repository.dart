@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -25,11 +26,14 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
   FcmRemoteRepository(
     this._env,
     this._fcmService,
+    this._logger,
   );
 
   final Env _env;
 
   final FcmService _fcmService;
+
+  final Logger _logger;
 
   late final _timeLag = _env.fbAccessTokenExpiresIn.inSeconds ~/ 100;
 
@@ -76,7 +80,12 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
     final accessToken = await _getAccessToken();
     final results = <Exception>[];
 
-    for (final fcmToken in fcmTokens) {
+    final tokenList = fcmTokens.toList();
+    _logger.info(
+      '[FCM] sendChatNotification devices=${tokenList.length} '
+      'title="${message.title}"',
+    );
+    for (final fcmToken in tokenList) {
       try {
         await _fcmService.sendFcmMessage(
           ttlInSeconds: ttlInSeconds,
@@ -86,6 +95,9 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
           webConfig: webConfig,
           fcmToken: fcmToken,
           message: message,
+        );
+        _logger.info(
+          '[FCM] FCM HTTP 200 token=…${fcmToken.length > 8 ? fcmToken.substring(fcmToken.length - 8) : fcmToken}',
         );
       } on FcmUnauthorizedException catch (e) {
         print(e);

@@ -8,6 +8,7 @@ import 'package:tentura/features/settings/domain/port/settings_repository_port.d
 import '../port/fcm_local_repository_port.dart';
 import '../port/fcm_remote_repository_port.dart';
 import '../entity/notification_permissions.dart';
+import '../fcm_debug_log.dart';
 
 @singleton
 class FcmCase {
@@ -32,17 +33,24 @@ class FcmCase {
       _authLocalRepository.currentAccountChanges();
 
   ///
-  Future<NotificationPermissions> requestPermission() =>
-      _fcmLocalRepository.requestPermission();
+  Future<NotificationPermissions> requestPermission() {
+    fcmLog('FcmCase: requestPermission');
+    return _fcmLocalRepository.requestPermission();
+  }
 
   ///
   Future<bool> checkIfRegistrationNeeded() async {
     final fcmLastRegistrationAt =
         (await _authLocalRepository.getCurrentAccount())?.fcmTokenUpdatedAt;
-    return fcmLastRegistrationAt == null ||
+    final needed = fcmLastRegistrationAt == null ||
         fcmLastRegistrationAt
             .add(const Duration(days: 30))
             .isBefore(DateTime.timestamp());
+    fcmLog(
+      'FcmCase: checkIfRegistrationNeeded=$needed '
+      'lastRegisteredAt=$fcmLastRegistrationAt',
+    );
+    return needed;
   }
 
   ///
@@ -50,21 +58,29 @@ class FcmCase {
     required String platform,
     String? token,
   }) async {
+    fcmLog('FcmCase: registerFcmToken platform=$platform');
     token ??=
         await _fcmLocalRepository.getToken() ??
         (throw Exception('[FcmCase] No FCM token!'));
+    fcmLog('FcmCase: token ${fcmTokenFingerprint(token)}');
+
     var appId = await _settingsRepository.getAppId();
 
     if (appId == null) {
       appId = const Uuid().v4();
       await _settingsRepository.setAppId(appId);
+      fcmLog('FcmCase: created new appId=$appId');
+    } else {
+      fcmLog('FcmCase: reusing appId=$appId');
     }
 
+    fcmLog('FcmCase: calling server fcmTokenRegister');
     await _fcmRemoteRepository.registerToken(
       appId: appId,
       token: token,
       platform: platform,
     );
+    fcmLog('FcmCase: server fcmTokenRegister OK');
 
     final currentAccount = await _authLocalRepository.getCurrentAccount();
     if (currentAccount == null) {
@@ -75,6 +91,7 @@ class FcmCase {
         fcmTokenUpdatedAt: DateTime.timestamp(),
       ),
     );
+    fcmLog('FcmCase: updated local fcmTokenUpdatedAt');
     return appId;
   }
 }

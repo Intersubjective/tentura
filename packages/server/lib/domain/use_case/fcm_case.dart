@@ -29,9 +29,13 @@ final class FcmCase extends UseCaseBase {
         token: token,
         platform: platform,
       );
+      logger.info(
+        '[FCM] fcmTokenRegister stored userId=$userId platform=$platform '
+        'appId=$appId tokenLen=${token.length}',
+      );
       return true;
-    } catch (e) {
-      print(e);
+    } catch (e, st) {
+      logger.warning('[FCM] fcmTokenRegister failed userId=$userId: $e', e, st);
       return false;
     }
   }
