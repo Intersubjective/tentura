@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/notification/fcm_debug_log.dart';
 
+import 'firebase_client_config.dart';
 import 'service_base.dart';
 
 @singleton
@@ -19,7 +20,8 @@ class FirebaseService extends ServiceBase {
     required Env env,
     required Logger logger,
   }) async {
-    if (env.firebaseApiKey.isNotEmpty) {
+    logFirebaseClientConfig(env);
+    if (isFirebaseClientConfigValid(env)) {
       fcmLog('FirebaseService: initializing Firebase app');
       await Firebase.initializeApp(
         options: FirebaseOptions(
@@ -33,7 +35,10 @@ class FirebaseService extends ServiceBase {
       );
       fcmLog('FirebaseService: Firebase.initializeApp OK');
     } else {
-      fcmLog('FirebaseService: skip init (FB_API_KEY empty)');
+      fcmLog(
+        'FirebaseService: skip init '
+        '(${firebaseClientConfigIssue(env) ?? 'FB_API_KEY empty'})',
+      );
     }
     return FirebaseService(
       env: env,
