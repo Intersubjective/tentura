@@ -44,14 +44,15 @@ TextStyle beaconCardMetadataLineTextStyle(ThemeData theme) {
   );
 }
 
-/// Typography for the updated-at line (My Work + inbox): muted gray in dark,
-/// lighter gray in light — secondary to [beaconCardMetadataLineTextStyle].
+/// Typography for the updated-at line (My Work + inbox): secondary to
+/// [beaconCardMetadataLineTextStyle] — faint slate in light, softened primary
+/// in dark (avoids [TenturaTokens.textMuted] on card surfaces).
 TextStyle beaconCardUpdatedLineTextStyle(ThemeData theme) {
   final tt = theme.extension<TenturaTokens>();
   final scheme = theme.colorScheme;
   final isDark = scheme.brightness == Brightness.dark;
   final color = isDark
-      ? (tt?.textMuted ?? scheme.onSurfaceVariant)
+      ? scheme.onSurface.withValues(alpha: 0.72)
       : (tt?.textFaint ?? scheme.onSurfaceVariant);
   return theme.textTheme.bodySmall!.copyWith(
     height: 1.15,
