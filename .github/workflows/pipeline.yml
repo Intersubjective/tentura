@@ -66,6 +66,20 @@ jobs:
               cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && dart run custom_lint && flutter test --dart-define=ENV=test
             '
 
+      # Multiline .env blob (FB_* dart-defines) — same format as packages/client/env/dev-web.env
+      - name: Write client dart-define file
+        if: matrix.task == 'build-web'
+        env:
+          CLIENT_DART_DEFINES: ${{ secrets.CLIENT_DART_DEFINES }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLIENT_DART_DEFINES}" ]; then
+            echo "CLIENT_DART_DEFINES not set on dev environment; web build will omit Firebase dart-defines."
+            exit 0
+          fi
+          printf '%s\n' "$CLIENT_DART_DEFINES" > .env
+          echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
+
       - name: Build dev web in builder container
         if: matrix.task == 'build-web'
         env:
