@@ -22,6 +22,7 @@ Future<void> showFactActionsSheet(
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    useRootNavigator: true,
     builder: (ctx) => SafeArea(
       child: SingleChildScrollView(
         child: Column(
@@ -160,6 +161,7 @@ Future<void> _showEditFactSheet(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
+    useRootNavigator: true,
     builder: (ctx) => _EditFactSheet(
       initialText: fact.factText,
       l10n: l10n,

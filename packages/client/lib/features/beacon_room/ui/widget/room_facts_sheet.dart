@@ -64,6 +64,7 @@ Future<void> showRoomFactsSheet(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
+    useRootNavigator: true,
     builder: (ctx) => DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.55,

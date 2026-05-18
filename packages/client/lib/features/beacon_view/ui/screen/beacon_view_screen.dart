@@ -557,6 +557,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         isRoom &&
         !_showRoomSurface &&
         !_userDismissedRoomSurface) {
+      // URL moved to ?tab=room while room is closed — treat this as an entry
+      // signal and clear any stale exit-in-progress flag for the same reason
+      // as in _enterRoomSurface above.
+      _roomExitInProgress = false;
       _applyRoomSurfaceState(open: true);
     }
   }
@@ -619,6 +623,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   void _enterRoomSurface([CoordinationItem? focusItem]) {
+    // Reset the exit-in-progress flag unconditionally on any user-initiated
+    // entry.  The flag is set synchronously by _exitRoomSurface but cleared
+    // only inside an async whenComplete callback (_stripRoomFromUrl).  If the
+    // user re-enters before that callback fires (e.g. by quickly tapping the
+    // chat icon after backing out), the flag stays true and the very next call
+    // to _exitRoomSurface returns early, stranding the room open.
+    _roomExitInProgress = false;
     if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
       return;
     }
