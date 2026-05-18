@@ -73,11 +73,62 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
       throw UnimplementedError();
 
   @override
-  Future<CoordinationItem> createSelfAsk({
+  Future<CoordinationItem> createPromise({
+    required String beaconId,
+    required String title,
+    required String targetPersonId,
+    String? body,
+    String? linkedMessageId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> createDraftPromise({
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
     String? linkedMessageId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> publishDraftPromise({
+    required String itemId,
+    required String targetPersonId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> updateDraftPromise({
+    required String itemId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> deleteDraftPromise({required String itemId}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> acceptPromise({required String itemId}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> resolvePromise({required String itemId, String? note}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> cancelPromise({required String itemId, String? reason}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<CoordinationItem> redirectPromise({
+    required String itemId,
+    required String newTargetPersonId,
   }) =>
       throw UnimplementedError();
 

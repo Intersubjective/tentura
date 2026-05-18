@@ -7,7 +7,15 @@ import '../gql/_g/coordination_item_mark_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_cancel_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_mark_ask.req.gql.dart';
-import '../gql/_g/coordination_item_create_self_ask.req.gql.dart';
+import '../gql/_g/coordination_item_create_promise.req.gql.dart';
+import '../gql/_g/coordination_item_create_draft_promise.req.gql.dart';
+import '../gql/_g/coordination_item_publish_promise.req.gql.dart';
+import '../gql/_g/coordination_item_update_draft_promise.req.gql.dart';
+import '../gql/_g/coordination_item_delete_draft_promise.req.gql.dart';
+import '../gql/_g/coordination_item_accept_promise.req.gql.dart';
+import '../gql/_g/coordination_item_resolve_promise.req.gql.dart';
+import '../gql/_g/coordination_item_cancel_promise.req.gql.dart';
+import '../gql/_g/coordination_item_redirect_promise.req.gql.dart';
 import '../gql/_g/coordination_item_accept_ask.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_ask.req.gql.dart';
 import '../gql/_g/coordination_item_cancel_ask.req.gql.dart';
@@ -149,25 +157,158 @@ class CoordinationItemRepository {
                   as CoordinationItemMarkAskModel)
               .toEntity());
 
-  Future<CoordinationItem> createSelfAsk({
+  Future<CoordinationItem> createPromise({
     required String beaconId,
     required String title,
+    required String targetPersonId,
     String? body,
     String? linkedMessageId,
   }) =>
       _remote
           .request(
-            GCoordinationItemCreateSelfAskReq(
+            GCoordinationItemCreatePromiseReq(
               (b) => b.vars
                 ..beaconId = beaconId
                 ..title = title
+                ..targetPersonId = targetPersonId
                 ..body = body
                 ..linkedMessageId = linkedMessageId,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => (r.dataOrThrow(label: _label).createSelfAsk
-                  as CoordinationItemCreateSelfAskModel)
+          .then((r) => (r.dataOrThrow(label: _label).createPromise
+                  as CoordinationItemCreatePromiseModel)
+              .toEntity());
+
+  Future<CoordinationItem> createDraftPromise({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? targetPersonId,
+    String? linkedMessageId,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemCreateDraftPromiseReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..title = title
+                ..body = body
+                ..targetPersonId = targetPersonId
+                ..linkedMessageId = linkedMessageId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).createDraftPromise
+                  as CoordinationItemCreateDraftPromiseModel)
+              .toEntity());
+
+  Future<CoordinationItem> publishDraftPromise({
+    required String itemId,
+    required String targetPersonId,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemPublishPromiseReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..targetPersonId = targetPersonId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).publishPromise
+                  as CoordinationItemPublishPromiseModel)
+              .toEntity());
+
+  Future<CoordinationItem> updateDraftPromise({
+    required String itemId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemUpdateDraftPromiseReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..title = title
+                ..body = body
+                ..targetPersonId =
+                    omitTargetPersonId ? null : targetPersonId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).updateDraftPromise
+                  as CoordinationItemUpdateDraftPromiseModel)
+              .toEntity());
+
+  Future<void> deleteDraftPromise({required String itemId}) => _remote
+      .request(
+        GCoordinationItemDeleteDraftPromiseReq((b) => b.vars..itemId = itemId),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).deleteDraftPromise);
+
+  Future<CoordinationItem> acceptPromise({required String itemId}) =>
+      _remote
+          .request(
+            GCoordinationItemAcceptPromiseReq((b) => b.vars..itemId = itemId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).acceptPromise
+                  as CoordinationItemAcceptPromiseModel)
+              .toEntity());
+
+  Future<CoordinationItem> resolvePromise({
+    required String itemId,
+    String? note,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemResolvePromiseReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..note = note,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).resolvePromise
+                  as CoordinationItemResolvePromiseModel)
+              .toEntity());
+
+  Future<CoordinationItem> cancelPromise({
+    required String itemId,
+    String? reason,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemCancelPromiseReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..reason = reason,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).cancelPromise
+                  as CoordinationItemCancelPromiseModel)
+              .toEntity());
+
+  Future<CoordinationItem> redirectPromise({
+    required String itemId,
+    required String newTargetPersonId,
+  }) =>
+      _remote
+          .request(
+            GCoordinationItemRedirectPromiseReq(
+              (b) => b.vars
+                ..itemId = itemId
+                ..newTargetPersonId = newTargetPersonId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r.dataOrThrow(label: _label).redirectPromise
+                  as CoordinationItemRedirectPromiseModel)
               .toEntity());
 
   Future<CoordinationItem> createDraftAsk({

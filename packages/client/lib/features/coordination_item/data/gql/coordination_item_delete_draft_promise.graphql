@@ -1,0 +1,3 @@
+mutation CoordinationItemDeleteDraftPromise($itemId: String!) {
+  deleteDraftPromise(itemId: $itemId)
+}

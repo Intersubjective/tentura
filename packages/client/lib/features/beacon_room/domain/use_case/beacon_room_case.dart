@@ -279,16 +279,18 @@ final class BeaconRoomCase extends UseCaseBase {
           )
           .then((_) {});
 
-  Future<void> createSelfAsk({
+  Future<void> createPromise({
     required String beaconId,
     required String title,
+    required String targetPersonId,
     String body = '',
     String? linkedMessageId,
   }) =>
       _coordinationItemCase
-          .createSelfAsk(
+          .createPromise(
             beaconId: beaconId,
             title: title,
+            targetPersonId: targetPersonId,
             body: body,
             linkedMessageId: linkedMessageId,
           )

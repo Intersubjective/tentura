@@ -1,0 +1,30 @@
+mutation CoordinationItemUpdateDraftPromise(
+  $itemId: String!
+  $title: String!
+  $body: String
+  $targetPersonId: String
+) {
+  updateDraftPromise(itemId: $itemId, title: $title, body: $body, targetPersonId: $targetPersonId) {
+    id
+    beaconId
+    kind
+    status
+    source
+    published
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+    staleAt
+  }
+}

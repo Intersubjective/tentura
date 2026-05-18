@@ -124,6 +124,33 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
     }
   }
 
+  Future<void> acceptPromise() async {
+    try {
+      final updated = await _case.acceptPromise(itemId: state.item.id);
+      emit(state.copyWith(item: updated));
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> resolvePromise() async {
+    try {
+      final updated = await _case.resolvePromise(itemId: state.item.id);
+      emit(state.copyWith(item: updated));
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> cancelPromise() async {
+    try {
+      final updated = await _case.cancelPromise(itemId: state.item.id);
+      emit(state.copyWith(item: updated));
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> acceptResolution() async {
     final resolutionId = state.pendingResolution?.id;
     if (resolutionId == null) return;

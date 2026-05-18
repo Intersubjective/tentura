@@ -1,12 +1,12 @@
 // Coordination item source (origin); persisted on `coordination_item.source`.
 const int coordinationItemSourceDefault = 0;
-const int coordinationItemSourceSelfPromise = 1;
 
 // Coordination item kind values.
 const int coordinationItemKindPlan = 1;
 const int coordinationItemKindAsk = 2;
 const int coordinationItemKindBlocker = 3;
 const int coordinationItemKindResolution = 4;
+const int coordinationItemKindPromise = 5;
 
 // Coordination item status values.
 const int coordinationItemStatusOpen = 0;

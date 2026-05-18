@@ -5,7 +5,14 @@ import '../gql/_g/coordination_item_mark_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_resolve_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_cancel_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_mark_ask.data.gql.dart';
-import '../gql/_g/coordination_item_create_self_ask.data.gql.dart';
+import '../gql/_g/coordination_item_create_promise.data.gql.dart';
+import '../gql/_g/coordination_item_create_draft_promise.data.gql.dart';
+import '../gql/_g/coordination_item_publish_promise.data.gql.dart';
+import '../gql/_g/coordination_item_update_draft_promise.data.gql.dart';
+import '../gql/_g/coordination_item_accept_promise.data.gql.dart';
+import '../gql/_g/coordination_item_resolve_promise.data.gql.dart';
+import '../gql/_g/coordination_item_cancel_promise.data.gql.dart';
+import '../gql/_g/coordination_item_redirect_promise.data.gql.dart';
 import '../gql/_g/coordination_item_accept_ask.data.gql.dart';
 import '../gql/_g/coordination_item_resolve_ask.data.gql.dart';
 import '../gql/_g/coordination_item_cancel_ask.data.gql.dart';
@@ -158,9 +165,205 @@ extension type const CoordinationItemMarkAskModel(GCoordinationItemMarkAskData_m
       );
 }
 
-extension type const CoordinationItemCreateSelfAskModel(
-    GCoordinationItemCreateSelfAskData_createSelfAsk i)
-    implements GCoordinationItemCreateSelfAskData_createSelfAsk {
+extension type const CoordinationItemCreatePromiseModel(
+    GCoordinationItemCreatePromiseData_createPromise i)
+    implements GCoordinationItemCreatePromiseData_createPromise {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemCreateDraftPromiseModel(
+    GCoordinationItemCreateDraftPromiseData_createDraftPromise i)
+    implements GCoordinationItemCreateDraftPromiseData_createDraftPromise {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemPublishPromiseModel(
+    GCoordinationItemPublishPromiseData_publishPromise i)
+    implements GCoordinationItemPublishPromiseData_publishPromise {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemUpdateDraftPromiseModel(
+    GCoordinationItemUpdateDraftPromiseData_updateDraftPromise i)
+    implements GCoordinationItemUpdateDraftPromiseData_updateDraftPromise {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemAcceptPromiseModel(
+    GCoordinationItemAcceptPromiseData_acceptPromise i)
+    implements GCoordinationItemAcceptPromiseData_acceptPromise {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemResolvePromiseModel(
+    GCoordinationItemResolvePromiseData_resolvePromise i)
+    implements GCoordinationItemResolvePromiseData_resolvePromise {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemCancelPromiseModel(
+    GCoordinationItemCancelPromiseData_cancelPromise i)
+    implements GCoordinationItemCancelPromiseData_cancelPromise {
+  CoordinationItem toEntity() => CoordinationItem(
+        id: i.id,
+        beaconId: i.beaconId,
+        kind: CoordinationItemKind.fromInt(i.kind),
+        status: CoordinationItemStatus.fromInt(i.status),
+        source: i.source,
+        published: i.published,
+        title: i.title,
+        body: i.body,
+        creatorId: i.creatorId,
+        targetPersonId: i.targetPersonId,
+        acceptedById: i.acceptedById,
+        targetItemId: i.targetItemId,
+        targetMessageId: i.targetMessageId,
+        linkedMessageId: i.linkedMessageId,
+        linkedParentItemId: i.linkedParentItemId,
+        createdAt: DateTime.parse(i.createdAt),
+        updatedAt: DateTime.parse(i.updatedAt),
+        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
+        cancelledAt:
+            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
+        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
+      );
+}
+
+extension type const CoordinationItemRedirectPromiseModel(
+    GCoordinationItemRedirectPromiseData_redirectPromise i)
+    implements GCoordinationItemRedirectPromiseData_redirectPromise {
   CoordinationItem toEntity() => CoordinationItem(
         id: i.id,
         beaconId: i.beaconId,

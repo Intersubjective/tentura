@@ -32,7 +32,8 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onEdit,
     this.onPrepareAsk,
     this.onPrepareBlocker,
-    this.onSelfAsk,
+    this.onPreparePromise,
+    this.onCreatePromise,
     this.onOfferHelp,
     this.onWithdraw,
     this.onForward,
@@ -58,7 +59,8 @@ class BeaconOverflowMenu extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onPrepareAsk;
   final VoidCallback? onPrepareBlocker;
-  final VoidCallback? onSelfAsk;
+  final VoidCallback? onPreparePromise;
+  final VoidCallback? onCreatePromise;
   final Future<void> Function()? onOfferHelp;
   final Future<void> Function()? onWithdraw;
   final VoidCallback? onForward;
@@ -132,11 +134,18 @@ class BeaconOverflowMenu extends StatelessWidget {
         l10n.beaconPreparedBlockerPrepareAction,
       );
     }
-    if (onSelfAsk != null) {
+    if (onPreparePromise != null) {
       add(
-        'self_ask',
-        Icons.assignment_ind_outlined,
-        l10n.beaconRoomAddMyNextMove,
+        'prepare_promise',
+        Icons.edit_note_outlined,
+        l10n.beaconPreparedPromisePrepareAction,
+      );
+    }
+    if (onCreatePromise != null) {
+      add(
+        'create_promise',
+        Icons.front_hand_outlined,
+        l10n.coordinationCreatePromiseAction,
       );
     }
     if (onOfferHelp != null) {
@@ -225,7 +234,8 @@ class BeaconOverflowMenu extends StatelessWidget {
           'edit' => onEdit?.call(),
           'prepare_ask' => _deferSync(context, onPrepareAsk),
           'prepare_blocker' => _deferSync(context, onPrepareBlocker),
-          'self_ask' => _deferSync(context, onSelfAsk),
+          'prepare_promise' => _deferSync(context, onPreparePromise),
+          'create_promise' => _deferSync(context, onCreatePromise),
           'offerHelp' => unawaited(_deferPopupAction(context, onOfferHelp)),
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
           'forward' => onForward?.call(),

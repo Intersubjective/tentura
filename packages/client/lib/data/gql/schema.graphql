@@ -2385,7 +2385,15 @@ type mutation_root {
   resolveBlocker(itemId: String!, note: String): CoordinationItemRow!
   cancelBlocker(itemId: String!, reason: String): CoordinationItemRow!
   markAsk(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String): CoordinationItemRow!
-  createSelfAsk(beaconId: String!, title: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  createPromise(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String): CoordinationItemRow!
+  createDraftPromise(beaconId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
+  publishPromise(itemId: String!, targetPersonId: String!): CoordinationItemRow!
+  updateDraftPromise(itemId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
+  deleteDraftPromise(itemId: String!): Boolean!
+  acceptPromise(itemId: String!): CoordinationItemRow!
+  resolvePromise(itemId: String!, note: String): CoordinationItemRow!
+  cancelPromise(itemId: String!, reason: String): CoordinationItemRow!
+  redirectPromise(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
   createDraftAsk(beaconId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
   publishAsk(itemId: String!, targetPersonId: String!): CoordinationItemRow!
   updateDraftAsk(itemId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!

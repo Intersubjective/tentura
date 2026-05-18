@@ -17,15 +17,6 @@ abstract class CoordinationItemRepositoryPort {
     int ordering = 0,
   });
 
-  /// Ask created by [creatorId] targeting self, already accepted; one accept event only.
-  Future<CoordinationItem> createSelfAcceptedAsk({
-    required String beaconId,
-    required String creatorId,
-    required String title,
-    String body = '',
-    String? linkedMessageId,
-  });
-
   Future<CoordinationItem> updateStatus({
     required String id,
     required int newStatus,
@@ -94,7 +85,17 @@ abstract class CoordinationItemRepositoryPort {
     String? linkedMessageId,
   });
 
-  /// Publishes a draft ask: sets [targetPersonId], published=true, emits room+activity (or self-accept path).
+  /// Draft promise (published=false): no room message or activity until [publishDraft].
+  Future<CoordinationItem> createDraftPromise({
+    required String beaconId,
+    required String creatorId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+    String? linkedMessageId,
+  });
+
+  /// Publishes a draft ask or promise: sets [targetPersonId], published=true, emits room+activity.
   Future<CoordinationItem> publishDraft({
     required String id,
     required String actorId,

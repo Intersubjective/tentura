@@ -1,0 +1,25 @@
+mutation CoordinationItemResolvePromise($itemId: String!, $note: String) {
+  resolvePromise(itemId: $itemId, note: $note) {
+    id
+    beaconId
+    kind
+    status
+    source
+    published
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+    staleAt
+  }
+}

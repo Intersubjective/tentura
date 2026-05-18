@@ -64,17 +64,79 @@ class CoordinationItemCase {
         linkedMessageId: linkedMessageId,
       );
 
-  Future<CoordinationItem> createSelfAsk({
+  Future<CoordinationItem> createPromise({
     required String beaconId,
     required String title,
+    required String targetPersonId,
     String? body,
     String? linkedMessageId,
   }) =>
-      _repository.createSelfAsk(
+      _repository.createPromise(
+        beaconId: beaconId,
+        title: title,
+        targetPersonId: targetPersonId,
+        body: body,
+        linkedMessageId: linkedMessageId,
+      );
+
+  Future<CoordinationItem> createDraftPromise({
+    required String beaconId,
+    required String title,
+    String? body,
+    String? targetPersonId,
+    String? linkedMessageId,
+  }) =>
+      _repository.createDraftPromise(
         beaconId: beaconId,
         title: title,
         body: body,
+        targetPersonId: targetPersonId,
         linkedMessageId: linkedMessageId,
+      );
+
+  Future<CoordinationItem> publishDraftPromise({
+    required String itemId,
+    required String targetPersonId,
+  }) =>
+      _repository.publishDraftPromise(
+        itemId: itemId,
+        targetPersonId: targetPersonId,
+      );
+
+  Future<CoordinationItem> updateDraftPromise({
+    required String itemId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
+  }) =>
+      _repository.updateDraftPromise(
+        itemId: itemId,
+        title: title,
+        body: body,
+        targetPersonId: targetPersonId,
+        omitTargetPersonId: omitTargetPersonId,
+      );
+
+  Future<void> deleteDraftPromise({required String itemId}) =>
+      _repository.deleteDraftPromise(itemId: itemId);
+
+  Future<CoordinationItem> acceptPromise({required String itemId}) =>
+      _repository.acceptPromise(itemId: itemId);
+
+  Future<CoordinationItem> resolvePromise({required String itemId, String? note}) =>
+      _repository.resolvePromise(itemId: itemId, note: note);
+
+  Future<CoordinationItem> cancelPromise({required String itemId, String? reason}) =>
+      _repository.cancelPromise(itemId: itemId, reason: reason);
+
+  Future<CoordinationItem> redirectPromise({
+    required String itemId,
+    required String newTargetPersonId,
+  }) =>
+      _repository.redirectPromise(
+        itemId: itemId,
+        newTargetPersonId: newTargetPersonId,
       );
 
   Future<CoordinationItem> createDraftAsk({

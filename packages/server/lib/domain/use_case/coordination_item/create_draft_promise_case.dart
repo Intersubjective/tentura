@@ -8,8 +8,8 @@ import 'package:tentura_server/domain/port/coordination_item_repository_port.dar
 import '../_use_case_base.dart';
 
 @Singleton(order: 2)
-final class CreateSelfAskCase extends UseCaseBase {
-  CreateSelfAskCase(
+final class CreateDraftPromiseCase extends UseCaseBase {
+  CreateDraftPromiseCase(
     this._beaconRepository,
     this._itemRepository, {
     required super.env,
@@ -24,21 +24,35 @@ final class CreateSelfAskCase extends UseCaseBase {
     required String beaconId,
     required String title,
     String body = '',
+    String? targetPersonId,
     String? linkedMessageId,
   }) async {
     if (body.trim().isEmpty) {
-      throw const BeaconCreateException(description: 'Ask body is required');
+      throw const BeaconCreateException(description: 'Promise body is required');
     }
     final trimmed = title.trim();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.isActive) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
-    return _itemRepository.createSelfAcceptedAsk(
+    if (beacon.author.id != userId) {
+      throw const BeaconCreateException(
+        description: 'Only the beacon owner can prepare promises',
+      );
+    }
+    final target = targetPersonId?.trim();
+    if (target != null && target.isNotEmpty && target == userId) {
+      throw const BeaconCreateException(
+        description: 'Promise cannot target yourself',
+      );
+    }
+    return _itemRepository.createDraftPromise(
       beaconId: beaconId,
       creatorId: userId,
       title: trimmed,
       body: body.trim(),
+      targetPersonId:
+          target == null || target.isEmpty ? null : target,
       linkedMessageId: linkedMessageId,
     );
   }
