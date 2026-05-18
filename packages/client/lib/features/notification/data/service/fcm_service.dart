@@ -6,6 +6,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/data/service/service_base.dart';
 
 import '../../domain/entity/notification_permissions.dart';
+import '../../fcm_debug_log.dart';
 
 @singleton
 class FcmService extends ServiceBase {
@@ -21,8 +22,16 @@ class FcmService extends ServiceBase {
   }) {
     if (env.firebaseApiKey.isEmpty) {
       logger.info('Firebase Messaging configured with fake service');
+      fcmLog(
+        'FcmService: using fake (FB_API_KEY empty) — no real push on client',
+      );
       return const _FcmServiceFake();
     }
+    fcmLog(
+      'FcmService: real Firebase Messaging '
+      'projectId=${env.firebaseProjectId} '
+      'vapidKeySet=${env.firebaseVapidKey.isNotEmpty}',
+    );
     return FcmService._(
       env: env,
       logger: logger,
@@ -35,19 +44,32 @@ class FcmService extends ServiceBase {
   //
   //
   Future<NotificationPermissions> requestPermission() async {
+    fcmLog('FcmService: requestPermission (Firebase)');
     final settings = await FirebaseMessaging.instance.requestPermission(
       provisional: true,
     );
+    final status = settings.authorizationStatus;
+    fcmLog(
+      'FcmService: authorizationStatus=${status.name} '
+      'alert=${settings.alert} badge=${settings.badge}',
+    );
     return NotificationPermissions(
-      authorized:
-          settings.authorizationStatus == AuthorizationStatus.authorized,
+      authorized: status == AuthorizationStatus.authorized,
     );
   }
 
   //
   //
-  Future<String?> getToken() =>
-      FirebaseMessaging.instance.getToken(vapidKey: env.firebaseVapidKey);
+  Future<String?> getToken() async {
+    fcmLog(
+      'FcmService: getToken vapidKeyLen=${env.firebaseVapidKey.length}',
+    );
+    final token = await FirebaseMessaging.instance.getToken(
+      vapidKey: env.firebaseVapidKey,
+    );
+    fcmLog('FcmService: getToken result ${fcmTokenFingerprint(token)}');
+    return token;
+  }
 }
 
 final class _FcmServiceFake implements FcmService {
@@ -63,10 +85,19 @@ final class _FcmServiceFake implements FcmService {
   Stream<String> get onTokenRefresh => const Stream.empty();
 
   @override
-  Future<String?> getToken() => Future.value();
+  Future<String?> getToken() {
+    fcmLog('FcmService: fake getToken → null');
+    return Future.value();
+  }
 
   @override
-  Future<NotificationPermissions> requestPermission() => Future.value(
-    const NotificationPermissions(),
-  );
+  Future<NotificationPermissions> requestPermission() {
+    fcmLog(
+      'FcmService: fake requestPermission → authorized=false '
+      '(set FB_API_KEY / other FB_* dart-defines)',
+    );
+    return Future.value(
+      const NotificationPermissions(),
+    );
+  }
 }

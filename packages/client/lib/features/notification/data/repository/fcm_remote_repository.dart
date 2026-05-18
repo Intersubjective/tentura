@@ -4,6 +4,7 @@ import 'package:tentura/data/repository/remote_repository.dart';
 
 import 'package:tentura/features/notification/data/gql/_g/fcm_register_token.req.gql.dart';
 import 'package:tentura/features/notification/domain/port/fcm_remote_repository_port.dart';
+import 'package:tentura/features/notification/fcm_debug_log.dart';
 
 @Singleton(
   as: FcmRemoteRepositoryPort,
@@ -22,6 +23,10 @@ class FcmRemoteRepository extends RemoteRepository
     required String token,
     required String platform,
   }) async {
+    fcmLog(
+      'FcmRemoteRepository: fcmTokenRegister '
+      'platform=$platform appId=$appId token=${fcmTokenFingerprint(token)}',
+    );
     await requestDataOnlineOrThrow(
       GFcmRegisterTokenReq(
         (r) => r.vars
@@ -31,6 +36,7 @@ class FcmRemoteRepository extends RemoteRepository
       ),
       label: _label,
     );
+    fcmLog('FcmRemoteRepository: fcmTokenRegister response OK');
   }
 
   static const _label = 'Fcm';

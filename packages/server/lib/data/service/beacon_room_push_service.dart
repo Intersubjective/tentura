@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
@@ -13,6 +14,7 @@ class BeaconRoomPushService {
     this._fcmBatch,
     this._fcmTokens,
     this._users,
+    this._logger,
   );
 
   final FcmBatchQueuePort _fcmBatch;
@@ -20,6 +22,8 @@ class BeaconRoomPushService {
   final FcmTokenRepositoryPort _fcmTokens;
 
   final UserRepositoryPort _users;
+
+  final Logger _logger;
 
   Future<void> notifyForwardReceived({
     required String beaconId,
@@ -208,13 +212,27 @@ class BeaconRoomPushService {
     required String beaconId,
     String? dest,
   }) async {
-    if (receiverId.isEmpty) return;
+    if (receiverId.isEmpty) {
+      _logger.fine('[FCM] push skipped: empty receiverId');
+      return;
+    }
     final tokens = await _fcmTokens.getTokensByUserId(receiverId);
-    if (tokens.isEmpty) return;
+    if (tokens.isEmpty) {
+      _logger.info(
+        '[FCM] push skipped: no fcm_token rows for receiverId=$receiverId '
+        'beaconId=$beaconId title="$title"',
+      );
+      return;
+    }
     final destParam = dest != null ? '&dest=$dest' : '';
+    final tokenSet = tokens.map((e) => e.token).toSet();
+    _logger.info(
+      '[FCM] enqueue receiverId=$receiverId beaconId=$beaconId '
+      'devices=${tokenSet.length} title="$title" body="$body"',
+    );
     _fcmBatch.enqueue(
       receiverId: receiverId,
-      fcmTokens: tokens.map((e) => e.token).toSet(),
+      fcmTokens: tokenSet,
       message: FcmNotificationEntity(
         title: title,
         body: body,

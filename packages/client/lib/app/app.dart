@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:get_it/get_it.dart';
 import 'package:flutter/services.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -15,6 +17,8 @@ import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/notification/fcm_debug_log.dart';
+import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
@@ -33,6 +37,9 @@ class App extends StatelessWidget {
       DeviceOrientation.portraitUp,
     ]);
     await configureDependencies();
+    // Start global FCM registration (permission, token, server upload).
+    GetIt.I<FcmCubit>();
+    fcmLog('App: FcmCubit resolved at startup');
     FlutterNativeSplash.remove();
     // Web: defer ensureSemantics() until after layout is stable. A single post-frame
     // tick can still race deep-link / first-frame pointer delivery; two ticks avoids

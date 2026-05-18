@@ -46,10 +46,18 @@ class FcmBatchQueue implements FcmBatchQueuePort {
       existing.latestMessage = message;
       existing.fcmTokens.addAll(fcmTokens);
       existing.count += 1;
+      _logger.info(
+        '[FCM] batch coalesce receiverId=$receiverId count=${existing.count} '
+        'devices=${existing.fcmTokens.length}',
+      );
     } else {
       _pending[receiverId] = _FcmBatchEntry(
         fcmTokens: fcmTokens,
         latestMessage: message,
+      );
+      _logger.info(
+        '[FCM] batch queued receiverId=$receiverId devices=${fcmTokens.length} '
+        'title="${message.title}"',
       );
     }
   }
@@ -71,9 +79,18 @@ class FcmBatchQueue implements FcmBatchQueuePort {
               )
             : entry.latestMessage;
 
+        _logger.info(
+          '[FCM] batch flush receiverId=$receiverId devices=${entry.fcmTokens.length} '
+          'count=${entry.count} title="${notification.title}"',
+        );
         final results = await _fcmRemoteRepository.sendChatNotification(
           fcmTokens: entry.fcmTokens,
           message: notification,
+        );
+        final stale = results.whereType<FcmTokenNotFoundException>().length;
+        _logger.info(
+          '[FCM] batch sent receiverId=$receiverId devices=${entry.fcmTokens.length} '
+          'staleTokens=$stale',
         );
 
         for (final e in results.whereType<FcmTokenNotFoundException>()) {
