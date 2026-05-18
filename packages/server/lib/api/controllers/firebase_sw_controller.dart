@@ -15,7 +15,7 @@ importScripts("https://www.gstatic.com/firebasejs/11.9.1/firebase-app-compat.js"
 importScripts("https://www.gstatic.com/firebasejs/11.9.1/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  appId: "${env.fbApiKey}",
+  appId: "${env.fbAppId}",
   apiKey: "${env.fbApiKey}",
   projectId: "${env.fbProjectId}",
   authDomain: "${env.fbAuthDomain}",
