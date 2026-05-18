@@ -174,6 +174,8 @@ class ItemsTab extends StatelessWidget {
         }
 
         final canCreatePlan = isOwner || myParticipant != null;
+        final showCoordinationCtas = canCreatePlan &&
+            state.beacon.lifecycle == BeaconLifecycle.open;
         final showActiveFold = canCreatePlan || openItems.isNotEmpty;
         final showClosedFold = closedItems.isNotEmpty &&
             (canCreatePlan || openItems.isNotEmpty);
@@ -253,6 +255,16 @@ class ItemsTab extends StatelessWidget {
                     ),
                     leading: const Icon(Icons.bolt_outlined),
                     children: [
+                      if (showCoordinationCtas) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _ActiveCoordinationCtas(
+                            beaconId: beaconId,
+                            onSaved: () =>
+                                context.read<ItemsTabCubit>().fetch(),
+                          ),
+                        ),
+                      ],
                       if (openItems.isEmpty)
                         const Padding(
                           padding: EdgeInsets.only(bottom: 12),
@@ -379,6 +391,103 @@ class ItemsTab extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ActiveCoordinationCtas extends StatelessWidget {
+  const _ActiveCoordinationCtas({
+    required this.beaconId,
+    required this.onSaved,
+  });
+
+  final String beaconId;
+  final VoidCallback onSaved;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+
+    void refresh() => onSaved();
+
+    return Row(
+      children: [
+        Expanded(
+          child: TenturaCommandButton(
+            label: l10n.coordinationAskCardLabel,
+            icon: const Icon(Icons.help_outline),
+            onPressed: () => unawaited(
+              showPreparedAskEditorSheet(
+                context,
+                beaconId: beaconId,
+                onSaved: refresh,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: TenturaCommandButton(
+            label: l10n.coordinationPromiseCardLabel,
+            icon: const Icon(Icons.front_hand_outlined),
+            onPressed: () => unawaited(
+              showPreparedPromiseEditorSheet(
+                context,
+                beaconId: beaconId,
+                onSaved: refresh,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        _BlockerIconCommandButton(
+          tooltip: l10n.coordinationBlockerCardLabel,
+          onPressed: () => unawaited(
+            showPreparedBlockerEditorSheet(
+              context,
+              beaconId: beaconId,
+              onSaved: refresh,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BlockerIconCommandButton extends StatelessWidget {
+  const _BlockerIconCommandButton({
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final color = tt.info;
+
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(44, 44),
+            padding: EdgeInsets.zero,
+            side: BorderSide(color: tt.skyBorder),
+            foregroundColor: color,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(tt.buttonRadius),
+            ),
+          ),
+          child: const Icon(Icons.block, size: 20),
+        ),
+      ),
     );
   }
 }
