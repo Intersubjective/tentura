@@ -55,9 +55,9 @@ class _HomeBottomNavListenerState extends State<HomeBottomNavListener> {
     // baseline. The tab the user is ENTERING keeps its old baseline, letting
     // any newer activity appear as dots.
     if (oldIdx == 0) {
-      unawaited(cubit.markInboxTabSeen());
-    } else if (oldIdx == 1) {
       unawaited(cubit.markMyWorkTabSeen());
+    } else if (oldIdx == 1) {
+      unawaited(cubit.markInboxTabSeen());
     }
     cubit.setActiveHomeTabIndex(newIdx);
   }

@@ -52,16 +52,16 @@ class RootRouter extends RootStackRouter {
       page: HomeRoute.page,
       path: kPathHome,
       children: [
-        // Inbox (tab body only; rejected archive is a root-level full-screen route)
+        // My Work (default home tab)
         AutoRoute(
           initial: true,
-          page: InboxRoute.page,
-          path: kPathInbox.split('/').last,
-        ),
-        // My Work
-        AutoRoute(
           page: MyWorkRoute.page,
           path: kPathMyWork.split('/').last,
+        ),
+        // Inbox (tab body only; rejected archive is a root-level full-screen route)
+        AutoRoute(
+          page: InboxRoute.page,
+          path: kPathInbox.split('/').last,
         ),
         // Network (Friends)
         AutoRoute(

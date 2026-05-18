@@ -91,23 +91,23 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                   if (index == prev) {
                     final reselect = context.read<HomeTabReselectCubit>();
                     if (index == 0) {
-                      reselect.bumpInboxReselect();
-                    } else if (index == 1) {
                       reselect.bumpMyWorkReselect();
+                    } else if (index == 1) {
+                      reselect.bumpInboxReselect();
                     }
                   }
                 },
                 selectedIndex: tabsRouter.activeIndex,
                 destinations: [
                   NavigationDestination(
-                    icon: const InboxNavbarItem(),
-                    selectedIcon: const InboxNavbarItem(selected: true),
-                    label: l10n.inbox,
-                  ),
-                  NavigationDestination(
                     icon: const MyWorkNavbarItem(),
                     selectedIcon: const MyWorkNavbarItem(selected: true),
                     label: l10n.myWork,
+                  ),
+                  NavigationDestination(
+                    icon: const InboxNavbarItem(),
+                    selectedIcon: const InboxNavbarItem(selected: true),
+                    label: l10n.inbox,
                   ),
                   NavigationDestination(
                     icon: const FriendsNavbarItem(),
@@ -125,8 +125,8 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
           },
           resizeToAvoidBottomInset: false,
           routes: const [
-            InboxRoute(),
             MyWorkRoute(),
+            InboxRoute(),
             FriendsRoute(),
             ProfileRoute(),
           ],

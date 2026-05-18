@@ -158,14 +158,14 @@ class NewStuffCubit extends Cubit<NewStuffState> {
       state.inboxLastSeenMs != null &&
       state.maxInboxActivityMs != null &&
       state.maxInboxActivityMs! > state.inboxLastSeenMs! &&
-      state.activeHomeTabIndex != 0;
+      state.activeHomeTabIndex != 1;
 
   bool get hasNewMyWorkDot =>
       _authCubit.state.currentAccountId.isNotEmpty &&
       state.myWorkLastSeenMs != null &&
       state.maxMyWorkActivityMs != null &&
       state.maxMyWorkActivityMs! > state.myWorkLastSeenMs! &&
-      state.activeHomeTabIndex != 1;
+      state.activeHomeTabIndex != 0;
 
   @override
   @disposeMethod
