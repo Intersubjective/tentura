@@ -185,11 +185,13 @@ class CoordinationItemCase {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
   }) =>
       _repository.createDraftBlocker(
         beaconId: beaconId,
         title: title,
         body: body,
+        targetPersonId: targetPersonId,
       );
 
   Future<CoordinationItem> publishDraftBlocker({required String itemId}) =>
@@ -199,11 +201,15 @@ class CoordinationItemCase {
     required String itemId,
     required String title,
     String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
   }) =>
       _repository.updateDraftBlocker(
         itemId: itemId,
         title: title,
         body: body,
+        targetPersonId: targetPersonId,
+        omitTargetPersonId: omitTargetPersonId,
       );
 
   Future<void> deleteDraftBlocker({required String itemId}) =>

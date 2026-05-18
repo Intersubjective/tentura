@@ -178,6 +178,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
   }) =>
       throw UnimplementedError();
 
@@ -190,6 +191,8 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     required String itemId,
     required String title,
     String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
   }) =>
       throw UnimplementedError();
 

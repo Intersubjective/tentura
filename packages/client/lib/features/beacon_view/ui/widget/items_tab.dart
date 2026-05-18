@@ -25,8 +25,9 @@ import 'beacon_create_plan_sheet.dart';
 import 'beacon_definition_body.dart';
 import 'beacon_hud_action_button.dart';
 import 'beacon_prepared_ask_sheet.dart';
-import 'beacon_prepared_promise_sheet.dart';
 import 'beacon_prepared_blocker_sheet.dart';
+import 'beacon_prepared_promise_sheet.dart';
+import 'coordination_item_composer_sheet.dart';
 
 List<BeaconFactCard> _pinnedFactsForCarousel(List<BeaconFactCard> factCards) {
   return factCards
@@ -59,6 +60,37 @@ BeaconParticipant? _participantForUser(
   return null;
 }
 
+List<CoordinationItem> _myDraftItems(ItemsTabState tabState, String myUserId) {
+  final drafts = <CoordinationItem>[
+    ...tabState.draftAskItems,
+    ...tabState.draftPromiseItems,
+    ...tabState.draftBlockerItems,
+  ];
+  return drafts.where((d) => d.creatorId == myUserId).toList()
+    ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+}
+
+void _openCoordinationComposer(
+  BuildContext context, {
+  required BeaconViewState state,
+  required CoordinationItemKind kind,
+  CoordinationItem? existingDraft,
+}) {
+  unawaited(
+    showCoordinationItemComposerSheet(
+      context,
+      kind: kind,
+      beaconId: state.beacon.id,
+      participants: state.roomParticipants,
+      beaconAuthorId: state.beacon.author.id,
+      myUserId: state.myProfile.id,
+      isAuthorOrSteward: state.isAuthorOrSteward,
+      existingDraft: existingDraft,
+      onSaved: () => context.read<ItemsTabCubit>().fetch(),
+    ),
+  );
+}
+
 VoidCallback? _itemsTabEditHandler(
   BuildContext context, {
   required CoordinationItem item,
@@ -75,36 +107,16 @@ VoidCallback? _itemsTabEditHandler(
     return null;
   }
 
-  if (!item.published && item.kind == CoordinationItemKind.ask) {
-    return () => unawaited(
-          showPreparedAskEditorSheet(
-            context,
-            beaconId: state.beacon.id,
-            onSaved: () => context.read<ItemsTabCubit>().fetch(),
-            existing: item,
-          ),
-        );
-  }
-
-  if (!item.published && item.kind == CoordinationItemKind.promise) {
-    return () => unawaited(
-          showPreparedPromiseEditorSheet(
-            context,
-            beaconId: state.beacon.id,
-            onSaved: () => context.read<ItemsTabCubit>().fetch(),
-            existing: item,
-          ),
-        );
-  }
-
-  if (!item.published && item.kind == CoordinationItemKind.blocker) {
-    return () => unawaited(
-          showPreparedBlockerEditorSheet(
-            context,
-            beaconId: state.beacon.id,
-            onSaved: () => context.read<ItemsTabCubit>().fetch(),
-            existing: item,
-          ),
+  if (!item.published &&
+      item.creatorId == myId &&
+      (item.kind == CoordinationItemKind.ask ||
+          item.kind == CoordinationItemKind.promise ||
+          item.kind == CoordinationItemKind.blocker)) {
+    return () => _openCoordinationComposer(
+          context,
+          state: state,
+          kind: item.kind,
+          existingDraft: item,
         );
   }
 
@@ -153,16 +165,12 @@ class ItemsTab extends StatelessWidget {
 
         final openItems = tabState.openItems;
         final closedItems = tabState.closedItems;
-        final draftAskItems = tabState.draftAskItems;
-        final draftPromiseItems = tabState.draftPromiseItems;
-        final draftBlockerItems = tabState.draftBlockerItems;
-        final draftCount = draftAskItems.length +
-            draftPromiseItems.length +
-            draftBlockerItems.length;
         final myUserId = state.myProfile.id;
+        final myDrafts = _myDraftItems(tabState, myUserId);
+        final myDraftCount = myDrafts.length;
         final hasItems = openItems.isNotEmpty ||
             closedItems.isNotEmpty ||
-            draftCount > 0;
+            myDraftCount > 0;
         final beaconId = state.beacon.id;
         final isOwner = state.beacon.author.id == state.myProfile.id;
 
@@ -191,47 +199,6 @@ class ItemsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (isOwner && draftCount > 0) ...[
-                const SizedBox(height: 8),
-                ExpansionTile(
-                  title: Text(
-                    '${l10n.myWorkSectionDrafts} ($draftCount)',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  leading: const Icon(Icons.drafts_outlined),
-                  children: [
-                    for (final draft in draftAskItems)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _PreparedDraftAskRow(
-                          draft: draft,
-                          beaconId: beaconId,
-                          participants: state.roomParticipants,
-                          beaconAuthorId: state.beacon.author.id,
-                        ),
-                      ),
-                    for (final draft in draftPromiseItems)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _PreparedDraftPromiseRow(
-                          draft: draft,
-                          beaconId: beaconId,
-                          participants: state.roomParticipants,
-                          beaconAuthorId: state.beacon.author.id,
-                        ),
-                      ),
-                    for (final draft in draftBlockerItems)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _PreparedDraftBlockerRow(
-                          draft: draft,
-                          beaconId: beaconId,
-                          participants: state.roomParticipants,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
               if (!hasItems && !showActiveFold)
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
@@ -245,7 +212,7 @@ class ItemsTab extends StatelessWidget {
                     ),
                   ),
                 )
-              else if (showActiveFold || showClosedFold) ...[
+              else if (showActiveFold || showClosedFold || myDraftCount > 0) ...[
                 if (showActiveFold) ...[
                   const SizedBox(height: 8),
                   ExpansionTile(
@@ -259,11 +226,7 @@ class ItemsTab extends StatelessWidget {
                       if (showCoordinationCtas) ...[
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _ActiveCoordinationCtas(
-                            beaconId: beaconId,
-                            onSaved: () =>
-                                context.read<ItemsTabCubit>().fetch(),
-                          ),
+                          child: _ActiveCoordinationCtas(state: state),
                         ),
                       ],
                       if (openItems.isEmpty)
@@ -378,6 +341,26 @@ class ItemsTab extends StatelessWidget {
                     ],
                   ),
                 ],
+                if (myDraftCount > 0) ...[
+                  const SizedBox(height: 8),
+                  ExpansionTile(
+                    title: Text(
+                      '${l10n.myWorkSectionDrafts} ($myDraftCount)',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    leading: const Icon(Icons.drafts_outlined),
+                    children: [
+                      for (final draft in myDrafts)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _MyDraftItemRow(
+                            draft: draft,
+                            state: state,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ],
               if (showFacts) ...[
                 const SizedBox(height: 8),
@@ -397,19 +380,13 @@ class ItemsTab extends StatelessWidget {
 }
 
 class _ActiveCoordinationCtas extends StatelessWidget {
-  const _ActiveCoordinationCtas({
-    required this.beaconId,
-    required this.onSaved,
-  });
+  const _ActiveCoordinationCtas({required this.state});
 
-  final String beaconId;
-  final VoidCallback onSaved;
+  final BeaconViewState state;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-
-    void refresh() => onSaved();
 
     return Row(
       children: [
@@ -417,12 +394,10 @@ class _ActiveCoordinationCtas extends StatelessWidget {
           child: BeaconHudActionButton(
             icon: Icons.help_outline,
             label: l10n.coordinationAskCardLabel,
-            onPressed: () => unawaited(
-              showPreparedAskEditorSheet(
-                context,
-                beaconId: beaconId,
-                onSaved: refresh,
-              ),
+            onPressed: () => _openCoordinationComposer(
+              context,
+              state: state,
+              kind: CoordinationItemKind.ask,
             ),
           ),
         ),
@@ -431,12 +406,10 @@ class _ActiveCoordinationCtas extends StatelessWidget {
           child: BeaconHudActionButton(
             icon: Icons.front_hand_outlined,
             label: l10n.coordinationPromiseCardLabel,
-            onPressed: () => unawaited(
-              showPreparedPromiseEditorSheet(
-                context,
-                beaconId: beaconId,
-                onSaved: refresh,
-              ),
+            onPressed: () => _openCoordinationComposer(
+              context,
+              state: state,
+              kind: CoordinationItemKind.promise,
             ),
           ),
         ),
@@ -444,12 +417,10 @@ class _ActiveCoordinationCtas extends StatelessWidget {
         BeaconHudIconActionButton(
           icon: Icons.block,
           tooltip: l10n.coordinationBlockerCardLabel,
-          onPressed: () => unawaited(
-            showPreparedBlockerEditorSheet(
-              context,
-              beaconId: beaconId,
-              onSaved: refresh,
-            ),
+          onPressed: () => _openCoordinationComposer(
+            context,
+            state: state,
+            kind: CoordinationItemKind.blocker,
           ),
         ),
       ],
@@ -647,33 +618,47 @@ class _BeaconFactsSection extends StatelessWidget {
   }
 }
 
-class _PreparedDraftPromiseRow extends StatelessWidget {
-  const _PreparedDraftPromiseRow({
+class _MyDraftItemRow extends StatelessWidget {
+  const _MyDraftItemRow({
     required this.draft,
-    required this.beaconId,
-    required this.participants,
-    required this.beaconAuthorId,
+    required this.state,
   });
 
   final CoordinationItem draft;
-  final String beaconId;
-  final List<BeaconParticipant> participants;
-  final String beaconAuthorId;
+  final BeaconViewState state;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final participants = state.roomParticipants;
     final cubit = context.read<ItemsTabCubit>();
 
     Future<void> refresh() => cubit.fetch();
 
-    Future<void> openPublish() => showPreparedPromisePublishSheet(
-          context,
-          draft: draft,
-          participants: participants,
-          beaconAuthorId: beaconAuthorId,
-          onSaved: refresh,
-        );
+    Future<void> onDelete() async {
+      switch (draft.kind) {
+        case CoordinationItemKind.ask:
+          await confirmDeletePreparedAsk(
+            context,
+            itemId: draft.id,
+            onDeleted: refresh,
+          );
+        case CoordinationItemKind.promise:
+          await confirmDeletePreparedPromise(
+            context,
+            itemId: draft.id,
+            onDeleted: refresh,
+          );
+        case CoordinationItemKind.blocker:
+          await confirmDeletePreparedBlocker(
+            context,
+            itemId: draft.id,
+            onDeleted: refresh,
+          );
+        default:
+          break;
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -688,235 +673,20 @@ class _PreparedDraftPromiseRow extends StatelessWidget {
             participants,
             draft.targetPersonId,
           ),
-          onEdit: () => unawaited(
-            showPreparedPromiseEditorSheet(
-              context,
-              beaconId: beaconId,
-              onSaved: refresh,
-              existing: draft,
-            ),
+          onEdit: () => _openCoordinationComposer(
+            context,
+            state: state,
+            kind: draft.kind,
+            existingDraft: draft,
           ),
-          onOpenItemThread: (_) => unawaited(openPublish()),
         ),
         Align(
           alignment: Alignment.centerRight,
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            alignment: WrapAlignment.end,
-            children: [
-              TenturaTextAction(
-                label: l10n.buttonPublish,
-                icon: const Icon(Icons.send_outlined),
-                onPressed: () => unawaited(openPublish()),
-              ),
-              TenturaTextAction(
-                label: l10n.myWorkEditDraft,
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => unawaited(
-                  showPreparedPromiseEditorSheet(
-                    context,
-                    beaconId: beaconId,
-                    onSaved: refresh,
-                    existing: draft,
-                  ),
-                ),
-              ),
-              TenturaTextAction(
-                label: l10n.buttonDelete,
-                tone: TenturaTone.danger,
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => unawaited(
-                  confirmDeletePreparedPromise(
-                    context,
-                    itemId: draft.id,
-                    onDeleted: refresh,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PreparedDraftBlockerRow extends StatelessWidget {
-  const _PreparedDraftBlockerRow({
-    required this.draft,
-    required this.beaconId,
-    required this.participants,
-  });
-
-  final CoordinationItem draft;
-  final String beaconId;
-  final List<BeaconParticipant> participants;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final cubit = context.read<ItemsTabCubit>();
-
-    Future<void> refresh() => cubit.fetch();
-
-    Future<void> openPublish() => showPreparedBlockerPublishSheet(
-          context,
-          draft: draft,
-          onSaved: refresh,
-        );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ItemCard(
-          item: draft,
-          creatorParticipant: _participantForUser(
-            participants,
-            draft.creatorId,
-          ),
-          onEdit: () => unawaited(
-            showPreparedBlockerEditorSheet(
-              context,
-              beaconId: beaconId,
-              onSaved: refresh,
-              existing: draft,
-            ),
-          ),
-          onOpenItemThread: (_) => unawaited(openPublish()),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            alignment: WrapAlignment.end,
-            children: [
-              TenturaTextAction(
-                label: l10n.buttonPublish,
-                icon: const Icon(Icons.send_outlined),
-                onPressed: () => unawaited(openPublish()),
-              ),
-              TenturaTextAction(
-                label: l10n.myWorkEditDraft,
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => unawaited(
-                  showPreparedBlockerEditorSheet(
-                    context,
-                    beaconId: beaconId,
-                    onSaved: refresh,
-                    existing: draft,
-                  ),
-                ),
-              ),
-              TenturaTextAction(
-                label: l10n.buttonDelete,
-                tone: TenturaTone.danger,
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => unawaited(
-                  confirmDeletePreparedBlocker(
-                    context,
-                    itemId: draft.id,
-                    onDeleted: refresh,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PreparedDraftAskRow extends StatelessWidget {
-  const _PreparedDraftAskRow({
-    required this.draft,
-    required this.beaconId,
-    required this.participants,
-    required this.beaconAuthorId,
-  });
-
-  final CoordinationItem draft;
-  final String beaconId;
-  final List<BeaconParticipant> participants;
-  final String beaconAuthorId;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final cubit = context.read<ItemsTabCubit>();
-
-    Future<void> refresh() => cubit.fetch();
-
-    Future<void> openPublish() => showPreparedAskPublishSheet(
-          context,
-          draft: draft,
-          participants: participants,
-          beaconAuthorId: beaconAuthorId,
-          onSaved: refresh,
-        );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ItemCard(
-          item: draft,
-          creatorParticipant: _participantForUser(
-            participants,
-            draft.creatorId,
-          ),
-          targetParticipant: _participantForUser(
-            participants,
-            draft.targetPersonId,
-          ),
-          onEdit: () => unawaited(
-                showPreparedAskEditorSheet(
-                  context,
-                  beaconId: beaconId,
-                  onSaved: refresh,
-                  existing: draft,
-                ),
-              ),
-          onOpenItemThread: (_) => unawaited(openPublish()),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            alignment: WrapAlignment.end,
-            children: [
-              TenturaTextAction(
-                label: l10n.buttonPublish,
-                icon: const Icon(Icons.send_outlined),
-                onPressed: () => unawaited(openPublish()),
-              ),
-              TenturaTextAction(
-                label: l10n.myWorkEditDraft,
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () => unawaited(
-                  showPreparedAskEditorSheet(
-                    context,
-                    beaconId: beaconId,
-                    onSaved: refresh,
-                    existing: draft,
-                  ),
-                ),
-              ),
-              TenturaTextAction(
-                label: l10n.buttonDelete,
-                tone: TenturaTone.danger,
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => unawaited(
-                  confirmDeletePreparedAsk(
-                    context,
-                    itemId: draft.id,
-                    onDeleted: refresh,
-                  ),
-                ),
-              ),
-            ],
+          child: TenturaTextAction(
+            label: l10n.buttonDelete,
+            tone: TenturaTone.danger,
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => unawaited(onDelete()),
           ),
         ),
       ],

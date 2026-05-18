@@ -580,6 +580,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String creatorId,
     required String title,
     String body = '',
+    String? targetPersonId,
   }) =>
       _db.withMutatingUser(creatorId, () async {
         final id = CoordinationItemEntity.newId;
@@ -593,7 +594,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             title: Value(title),
             body: Value(body),
             creatorId: creatorId,
-            targetPersonId: const Value(null),
+            targetPersonId: Value(targetPersonId),
             acceptedById: const Value(null),
             targetItemId: const Value(null),
             targetMessageId: const Value(null),
@@ -692,6 +693,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String actorId,
     required String title,
     String body = '',
+    bool updateTargetPersonId = false,
+    String? targetPersonId,
   }) =>
       _db.withMutatingUser(actorId, () async {
         final rows = await (_db.select(_db.coordinationItems)
@@ -716,6 +719,9 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           CoordinationItemsCompanion(
             title: Value(title),
             body: Value(body),
+            targetPersonId: updateTargetPersonId
+                ? Value(targetPersonId)
+                : const Value.absent(),
             updatedAt: Value(now),
           ),
         );

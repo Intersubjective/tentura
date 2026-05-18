@@ -385,6 +385,7 @@ class CoordinationItemRepository {
     required String beaconId,
     required String title,
     String? body,
+    String? targetPersonId,
   }) =>
       _remote
           .request(
@@ -392,7 +393,8 @@ class CoordinationItemRepository {
               (b) => b.vars
                 ..beaconId = beaconId
                 ..title = title
-                ..body = body,
+                ..body = body
+                ..targetPersonId = targetPersonId,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -416,6 +418,8 @@ class CoordinationItemRepository {
     required String itemId,
     required String title,
     String body = '',
+    String? targetPersonId,
+    bool omitTargetPersonId = false,
   }) =>
       _remote
           .request(
@@ -423,7 +427,9 @@ class CoordinationItemRepository {
               (b) => b.vars
                 ..itemId = itemId
                 ..title = title
-                ..body = body,
+                ..body = body
+                ..targetPersonId =
+                    omitTargetPersonId ? null : targetPersonId,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)

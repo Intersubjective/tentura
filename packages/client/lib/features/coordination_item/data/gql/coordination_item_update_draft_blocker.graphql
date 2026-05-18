@@ -2,8 +2,14 @@ mutation CoordinationItemUpdateDraftBlocker(
   $itemId: String!
   $title: String!
   $body: String
+  $targetPersonId: String
 ) {
-  updateDraftBlocker(itemId: $itemId, title: $title, body: $body) {
+  updateDraftBlocker(
+    itemId: $itemId
+    title: $title
+    body: $body
+    targetPersonId: $targetPersonId
+  ) {
     id
     beaconId
     kind
