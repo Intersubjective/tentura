@@ -22,18 +22,6 @@ END;
 $$;
 
 -- Trigger functions (before_insert / vsids)
-CREATE OR REPLACE FUNCTION public.beacon_before_insert()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-BEGIN
-  UPDATE user_vsids SET counter = counter + 1
-    WHERE user_id = NEW.user_id
-    RETURNING counter INTO NEW.ticker;
-  RETURN NEW;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION public.notify_meritrank_vote_user_mutation()
   RETURNS trigger
   LANGUAGE plpgsql
@@ -88,18 +76,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.vote_beacon_before_insert()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-BEGIN
-  UPDATE user_vsids SET counter = counter + 1
-    WHERE user_id = NEW.subject
-    RETURNING counter INTO NEW.ticker;
-  RETURN NEW;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION public.vote_user_before_insert()
   RETURNS trigger
   LANGUAGE plpgsql
@@ -124,14 +100,6 @@ CREATE OR REPLACE TRIGGER on_public_user_update
 CREATE OR REPLACE TRIGGER on_user_created
   AFTER INSERT ON public."user"
   FOR EACH ROW EXECUTE FUNCTION public.on_user_created();
-
-CREATE OR REPLACE TRIGGER public_beacon_before_insert
-  BEFORE INSERT ON public.beacon
-  FOR EACH ROW EXECUTE FUNCTION public.beacon_before_insert();
-
-CREATE OR REPLACE TRIGGER public_vote_beacon_before_insert
-  BEFORE INSERT ON public.vote_beacon
-  FOR EACH ROW EXECUTE FUNCTION public.vote_beacon_before_insert();
 
 CREATE OR REPLACE TRIGGER public_vote_user_before_insert
   BEFORE INSERT ON public.vote_user
