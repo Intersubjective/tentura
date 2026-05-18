@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -19,6 +20,16 @@ class _TestProfileCubit extends Mock implements ProfileCubit {
 }
 
 void main() {
+  test('beaconCardUpdatedLineTextStyle uses readable secondary color in dark', () {
+    final theme = TenturaTheme.dark();
+    final scheme = theme.colorScheme;
+    final tt = theme.extension<TenturaTokens>()!;
+    final style = beaconCardUpdatedLineTextStyle(theme);
+
+    expect(style.color, scheme.onSurface.withValues(alpha: 0.72));
+    expect(style.color, isNot(tt.textMuted));
+  });
+
   testWidgets('compact header uses 40px identity and title max two lines at 360px', (
     tester,
   ) async {
