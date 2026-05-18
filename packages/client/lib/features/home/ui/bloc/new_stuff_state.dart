@@ -13,7 +13,7 @@ abstract class NewStuffState extends StateBase with _$NewStuffState {
     int? maxInboxActivityMs,
     /// Max activity epoch ms from last successful My Work fetch; null until first report.
     int? maxMyWorkActivityMs,
-    /// Home bottom nav index: 0 Inbox, 1 My Work, 2 Friends, 3 Profile.
+    /// Home bottom nav index: 0 My Work, 1 Inbox, 2 Friends, 3 Profile.
     @Default(0) int activeHomeTabIndex,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _NewStuffState;
