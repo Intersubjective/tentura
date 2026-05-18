@@ -13,54 +13,24 @@ CoordinationItem _item(CoordinationItemKind kind) => CoordinationItem(
     );
 
 void main() {
-  group('planLifecyclePlaqueSuppressesDiscussion', () {
+  group('planItemSuppressesItemDiscussion', () {
     final plan = _item(CoordinationItemKind.plan);
     final ask = _item(CoordinationItemKind.ask);
     final blocker = _item(CoordinationItemKind.blocker);
 
-    test('plan lifecycle events suppress discussion navigation', () {
-      for (final kind in [
-        CoordinationItemEventKind.created,
-        CoordinationItemEventKind.updated,
-        CoordinationItemEventKind.superseded,
-      ]) {
+    test('all plan items suppress item discussion navigation', () {
+      for (final kind in CoordinationItemEventKind.values) {
         expect(
-          planLifecyclePlaqueSuppressesDiscussion(plan, kind),
+          planItemSuppressesItemDiscussion(plan),
           isTrue,
           reason: 'plan + $kind',
         );
       }
     });
 
-    test('plan resolved and non-plan items keep discussion navigation', () {
-      expect(
-        planLifecyclePlaqueSuppressesDiscussion(
-          plan,
-          CoordinationItemEventKind.resolved,
-        ),
-        isFalse,
-      );
-      expect(
-        planLifecyclePlaqueSuppressesDiscussion(
-          plan,
-          CoordinationItemEventKind.accepted,
-        ),
-        isFalse,
-      );
-      expect(
-        planLifecyclePlaqueSuppressesDiscussion(
-          ask,
-          CoordinationItemEventKind.created,
-        ),
-        isFalse,
-      );
-      expect(
-        planLifecyclePlaqueSuppressesDiscussion(
-          blocker,
-          CoordinationItemEventKind.created,
-        ),
-        isFalse,
-      );
+    test('non-plan items keep item discussion navigation', () {
+      expect(planItemSuppressesItemDiscussion(ask), isFalse);
+      expect(planItemSuppressesItemDiscussion(blocker), isFalse);
     });
   });
 }

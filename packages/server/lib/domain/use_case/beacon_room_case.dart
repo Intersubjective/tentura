@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
@@ -80,6 +81,15 @@ final class BeaconRoomCase extends UseCaseBase {
       item.targetPersonId == userId ||
       item.acceptedById == userId;
 
+  Future<void> _rejectPlanItemThread(String threadItemId) async {
+    final item = await _items.getById(threadItemId);
+    if (item != null && item.kind == coordinationItemKindPlan) {
+      throw const IdWrongException(
+        description: 'Plan items do not support item discussion threads',
+      );
+    }
+  }
+
   Future<bool> _canAccessThread({
     required String beaconId,
     required String userId,
@@ -104,6 +114,7 @@ final class BeaconRoomCase extends UseCaseBase {
     if (tid == null || tid.isEmpty) {
       return _canUseRoom(beaconId: beaconId, userId: userId);
     }
+    await _rejectPlanItemThread(tid);
     return _canAccessThread(
       beaconId: beaconId,
       userId: userId,
@@ -124,6 +135,7 @@ final class BeaconRoomCase extends UseCaseBase {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
     if (inThread) {
+      await _rejectPlanItemThread(tid);
       final allowed = await _canAccessThread(
         beaconId: beaconId,
         userId: userId,
@@ -210,6 +222,7 @@ final class BeaconRoomCase extends UseCaseBase {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
     if (inThread) {
+      await _rejectPlanItemThread(tid);
       final allowed = await _canAccessThread(
         beaconId: beaconId,
         userId: userId,
@@ -490,6 +503,7 @@ final class BeaconRoomCase extends UseCaseBase {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
     if (inThread) {
+      await _rejectPlanItemThread(tid);
       final allowed = await _canAccessThread(
         beaconId: beaconId,
         userId: userId,

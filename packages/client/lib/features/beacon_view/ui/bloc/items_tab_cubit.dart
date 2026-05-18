@@ -48,10 +48,15 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
       final open = <CoordinationItem>[];
       final closed = <CoordinationItem>[];
       final draftAsks = <CoordinationItem>[];
+      final draftPromises = <CoordinationItem>[];
       final draftBlockers = <CoordinationItem>[];
       for (final item in items) {
         if (!item.published && item.kind == CoordinationItemKind.ask) {
           draftAsks.add(item);
+          continue;
+        }
+        if (!item.published && item.kind == CoordinationItemKind.promise) {
+          draftPromises.add(item);
           continue;
         }
         if (!item.published && item.kind == CoordinationItemKind.blocker) {
@@ -68,6 +73,7 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
         openItems: open,
         closedItems: closed,
         draftAskItems: draftAsks,
+        draftPromiseItems: draftPromises,
         draftBlockerItems: draftBlockers,
         currentCoordinationPlan: currentPlan,
         status: const StateIsSuccess(),
@@ -121,6 +127,36 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
     try {
       emit(state.copyWith(status: const StateIsSuccess()));
       await _case.cancelAsk(itemId: itemId);
+      await fetch(silent: true);
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> acceptPromise(String itemId) async {
+    try {
+      emit(state.copyWith(status: const StateIsSuccess()));
+      await _case.acceptPromise(itemId: itemId);
+      await fetch(silent: true);
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> resolvePromise(String itemId) async {
+    try {
+      emit(state.copyWith(status: const StateIsSuccess()));
+      await _case.resolvePromise(itemId: itemId);
+      await fetch(silent: true);
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> cancelPromise(String itemId) async {
+    try {
+      emit(state.copyWith(status: const StateIsSuccess()));
+      await _case.cancelPromise(itemId: itemId);
       await fetch(silent: true);
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));

@@ -25,6 +25,10 @@ Color coordinationItemColor(
         CoordinationItemStatus.accepted => tt.good,
         _ => tt.warn,
       },
+    CoordinationItemKind.promise => switch (status) {
+        CoordinationItemStatus.accepted => tt.good,
+        _ => tt.warn,
+      },
     CoordinationItemKind.resolution => tt.info,
     CoordinationItemKind.plan => tt.info,
   };
@@ -44,6 +48,7 @@ IconData coordinationItemIcon(
     _ => switch (kind) {
         CoordinationItemKind.blocker => Icons.block,
         CoordinationItemKind.ask => Icons.help_outline,
+        CoordinationItemKind.promise => Icons.front_hand_outlined,
         CoordinationItemKind.plan =>
           isPlanStep ? Icons.checklist : Icons.edit_note,
         CoordinationItemKind.resolution => Icons.handshake_outlined,
@@ -82,6 +87,13 @@ IconData coordinationItemEventIcon(
         CoordinationItemEventKind.resolved => Icons.check_circle_outline,
         CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
         _ => Icons.help_outline,
+      },
+    CoordinationItemKind.promise => switch (eventKind) {
+        CoordinationItemEventKind.created => Icons.front_hand_outlined,
+        CoordinationItemEventKind.accepted => Icons.handshake,
+        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
+        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
+        _ => Icons.front_hand_outlined,
       },
     CoordinationItemKind.plan => switch (eventKind) {
         CoordinationItemEventKind.created ||
@@ -129,10 +141,16 @@ _ItemHeaderTier _itemHeaderTier(CoordinationItem item) {
   if (item.kind == CoordinationItemKind.ask && item.isOpen) {
     return _ItemHeaderTier.high;
   }
+  if (item.kind == CoordinationItemKind.promise && item.isOpen) {
+    return _ItemHeaderTier.high;
+  }
   if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
     return _ItemHeaderTier.medium;
   }
   if (item.kind == CoordinationItemKind.ask && item.isAccepted) {
+    return _ItemHeaderTier.medium;
+  }
+  if (item.kind == CoordinationItemKind.promise && item.isAccepted) {
     return _ItemHeaderTier.medium;
   }
   if (item.kind == CoordinationItemKind.plan) return _ItemHeaderTier.medium;
@@ -201,6 +219,7 @@ class _ItemCardState extends State<ItemCard> {
     final kindLabel = switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
       CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+      CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
       CoordinationItemKind.plan => item.isPlanStep
           ? l10n.coordinationPlanStepCardLabel
           : l10n.coordinationPlanCardLabel,
@@ -296,7 +315,9 @@ class _ItemCardState extends State<ItemCard> {
                       ],
                     ),
                   ],
-                  if (item.unreadCount > 0 && item.isActive) ...[
+                  if (item.unreadCount > 0 &&
+                      item.isActive &&
+                      item.kind != CoordinationItemKind.plan) ...[
                     const SizedBox(width: 6),
                     TenturaCountBadge(
                       count: item.unreadCount,
@@ -413,6 +434,25 @@ class _ItemCardState extends State<ItemCard> {
       if (item.isOpen && widget.onAccept != null) {
         return [
           (_ItemMenuAction.accept, l10n.coordinationAskAcceptLabel),
+          if (widget.onResolve != null)
+            (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
+          if (widget.onCancel != null)
+            (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
+        ];
+      }
+      if (item.isAccepted) {
+        return [
+          if (widget.onResolve != null)
+            (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
+          if (widget.onCancel != null)
+            (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
+        ];
+      }
+    }
+    if (item.kind == CoordinationItemKind.promise) {
+      if (item.isOpen && widget.onAccept != null) {
+        return [
+          (_ItemMenuAction.accept, l10n.coordinationPromiseAcceptLabel),
           if (widget.onResolve != null)
             (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
           if (widget.onCancel != null)

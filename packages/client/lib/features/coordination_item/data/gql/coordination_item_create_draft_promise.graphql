@@ -1,0 +1,37 @@
+mutation CoordinationItemCreateDraftPromise(
+  $beaconId: String!
+  $title: String!
+  $body: String
+  $targetPersonId: String
+  $linkedMessageId: String
+) {
+  createDraftPromise(
+    beaconId: $beaconId
+    title: $title
+    body: $body
+    targetPersonId: $targetPersonId
+    linkedMessageId: $linkedMessageId
+  ) {
+    id
+    beaconId
+    kind
+    status
+    source
+    published
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+    staleAt
+  }
+}

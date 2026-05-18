@@ -24,7 +24,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_ask_sheet
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
 
 import '../bloc/room_cubit.dart';
-import 'beacon_room_self_ask_sheet.dart';
+import 'beacon_room_promise_sheet.dart';
 import 'fact_actions_sheet.dart';
 import 'room_file_attachment_open.dart';
 import 'room_reaction_picker.dart';
@@ -690,7 +690,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
   }
 
-  bool _roomCanSelfAsk(RoomCubit cubit) {
+  bool _roomCanCreatePromise(RoomCubit cubit) {
     final myUserId = cubit.state.myUserId;
     if (myUserId.isEmpty) return false;
     BeaconParticipant? myParticipant;
@@ -725,7 +725,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     Profile viewer,
     RoomMessage message,
   ) async {
-    final canSelfAsk = _roomCanSelfAsk(cubit);
+    final canCreatePromise = _roomCanCreatePromise(cubit);
     final isAuthor = _roomIsBeaconAuthor(cubit);
     final askSeed = AskComposerSeed.fromMessage(
       messageId: message.id,
@@ -747,16 +747,27 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                 style: Theme.of(ctx).textTheme.titleMedium,
               ),
             ),
-            if (canSelfAsk)
+            if (canCreatePromise)
               ListTile(
-                leading: const Icon(Icons.task_alt_outlined),
-                title: Text(l10n.beaconRoomSelfAskFromMessage),
+                leading: const Icon(Icons.front_hand_outlined),
+                title: Text(l10n.coordinationCreatePromiseFromMessage),
                 onTap: () {
                   Navigator.pop(ctx);
+                  final myUserId = cubit.state.myUserId;
+                  final myRole = cubit.state.participants
+                      .where((p) => p.userId == myUserId)
+                      .firstOrNull
+                      ?.role;
+                  final isAuthorOrSteward = myRole ==
+                          BeaconParticipantRoleBits.author ||
+                      myRole == BeaconParticipantRoleBits.steward;
                   unawaited(
-                    showBeaconRoomSelfAskSheet(
+                    showBeaconRoomPromiseSheet(
                       context,
                       beaconId: cubit.state.beaconId,
+                      participants: cubit.state.participants,
+                      myUserId: myUserId,
+                      isAuthorOrSteward: isAuthorOrSteward,
                       seed: askSeed,
                     ),
                   );

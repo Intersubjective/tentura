@@ -3,7 +3,15 @@ import 'package:tentura_server/domain/use_case/coordination_item/mark_blocker_ca
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/cancel_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/mark_ask_case.dart';
-import 'package:tentura_server/domain/use_case/coordination_item/create_self_ask_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/create_promise_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/create_draft_promise_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/publish_draft_promise_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/update_draft_promise_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_promise_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/accept_promise_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/resolve_promise_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/cancel_promise_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/redirect_promise_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/accept_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_ask_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/cancel_ask_case.dart';
@@ -34,7 +42,15 @@ final class MutationCoordinationItem extends GqlNodeBase {
     ResolveBlockerCase? resolveBlockerCase,
     CancelBlockerCase? cancelBlockerCase,
     MarkAskCase? markAskCase,
-    CreateSelfAskCase? createSelfAskCase,
+    CreatePromiseCase? createPromiseCase,
+    CreateDraftPromiseCase? createDraftPromiseCase,
+    PublishDraftPromiseCase? publishDraftPromiseCase,
+    UpdateDraftPromiseCase? updateDraftPromiseCase,
+    DeleteDraftPromiseCase? deleteDraftPromiseCase,
+    AcceptPromiseCase? acceptPromiseCase,
+    ResolvePromiseCase? resolvePromiseCase,
+    CancelPromiseCase? cancelPromiseCase,
+    RedirectPromiseCase? redirectPromiseCase,
     AcceptAskCase? acceptAskCase,
     ResolveAskCase? resolveAskCase,
     CancelAskCase? cancelAskCase,
@@ -59,8 +75,24 @@ final class MutationCoordinationItem extends GqlNodeBase {
            resolveBlockerCase ?? GetIt.I<ResolveBlockerCase>(),
        _cancelBlockerCase = cancelBlockerCase ?? GetIt.I<CancelBlockerCase>(),
        _markAskCase = markAskCase ?? GetIt.I<MarkAskCase>(),
-       _createSelfAskCase =
-           createSelfAskCase ?? GetIt.I<CreateSelfAskCase>(),
+       _createPromiseCase =
+           createPromiseCase ?? GetIt.I<CreatePromiseCase>(),
+       _createDraftPromiseCase =
+           createDraftPromiseCase ?? GetIt.I<CreateDraftPromiseCase>(),
+       _publishDraftPromiseCase =
+           publishDraftPromiseCase ?? GetIt.I<PublishDraftPromiseCase>(),
+       _updateDraftPromiseCase =
+           updateDraftPromiseCase ?? GetIt.I<UpdateDraftPromiseCase>(),
+       _deleteDraftPromiseCase =
+           deleteDraftPromiseCase ?? GetIt.I<DeleteDraftPromiseCase>(),
+       _acceptPromiseCase =
+           acceptPromiseCase ?? GetIt.I<AcceptPromiseCase>(),
+       _resolvePromiseCase =
+           resolvePromiseCase ?? GetIt.I<ResolvePromiseCase>(),
+       _cancelPromiseCase =
+           cancelPromiseCase ?? GetIt.I<CancelPromiseCase>(),
+       _redirectPromiseCase =
+           redirectPromiseCase ?? GetIt.I<RedirectPromiseCase>(),
        _acceptAskCase = acceptAskCase ?? GetIt.I<AcceptAskCase>(),
        _resolveAskCase = resolveAskCase ?? GetIt.I<ResolveAskCase>(),
        _cancelAskCase = cancelAskCase ?? GetIt.I<CancelAskCase>(),
@@ -98,7 +130,15 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final ResolveBlockerCase _resolveBlockerCase;
   final CancelBlockerCase _cancelBlockerCase;
   final MarkAskCase _markAskCase;
-  final CreateSelfAskCase _createSelfAskCase;
+  final CreatePromiseCase _createPromiseCase;
+  final CreateDraftPromiseCase _createDraftPromiseCase;
+  final PublishDraftPromiseCase _publishDraftPromiseCase;
+  final UpdateDraftPromiseCase _updateDraftPromiseCase;
+  final DeleteDraftPromiseCase _deleteDraftPromiseCase;
+  final AcceptPromiseCase _acceptPromiseCase;
+  final ResolvePromiseCase _resolvePromiseCase;
+  final CancelPromiseCase _cancelPromiseCase;
+  final RedirectPromiseCase _redirectPromiseCase;
   final AcceptAskCase _acceptAskCase;
   final ResolveAskCase _resolveAskCase;
   final CancelAskCase _cancelAskCase;
@@ -137,7 +177,15 @@ final class MutationCoordinationItem extends GqlNodeBase {
         resolveBlocker,
         cancelBlocker,
         markAsk,
-        createSelfAsk,
+        createPromise,
+        createDraftPromise,
+        publishPromise,
+        updateDraftPromise,
+        deleteDraftPromise,
+        acceptPromise,
+        resolvePromise,
+        cancelPromise,
+        redirectPromise,
         createDraftAsk,
         publishAsk,
         updateDraftAsk,
@@ -244,24 +292,182 @@ final class MutationCoordinationItem extends GqlNodeBase {
         },
       );
 
-  GraphQLObjectField<dynamic, dynamic> get createSelfAsk =>
+  GraphQLObjectField<dynamic, dynamic> get createPromise =>
       GraphQLObjectField(
-        'createSelfAsk',
+        'createPromise',
         gqlTypeCoordinationItemRow.nonNullable(),
         arguments: [
           _beaconId.field,
           _title.field,
+          _targetPersonId.field,
           _body.fieldNullable,
           _linkedMessageId.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
-          final item = await _createSelfAskCase.call(
+          final item = await _createPromiseCase.call(
+            userId: userId,
+            beaconId: _beaconId.fromArgsNonNullable(args),
+            title: _title.fromArgsNonNullable(args),
+            targetPersonId: _targetPersonId.fromArgsNonNullable(args),
+            body: _body.fromArgs(args) ?? '',
+            linkedMessageId: _linkedMessageId.fromArgs(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get createDraftPromise =>
+      GraphQLObjectField(
+        'createDraftPromise',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _beaconId.field,
+          _title.field,
+          _body.fieldNullable,
+          _targetPersonId.fieldNullable,
+          _linkedMessageId.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _createDraftPromiseCase.call(
             userId: userId,
             beaconId: _beaconId.fromArgsNonNullable(args),
             title: _title.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
+            targetPersonId: _targetPersonId.fromArgs(args),
             linkedMessageId: _linkedMessageId.fromArgs(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get publishPromise =>
+      GraphQLObjectField(
+        'publishPromise',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _itemId.field,
+          _targetPersonId.field,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _publishDraftPromiseCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+            targetPersonId: _targetPersonId.fromArgsNonNullable(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get updateDraftPromise =>
+      GraphQLObjectField(
+        'updateDraftPromise',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _itemId.field,
+          _title.field,
+          _body.fieldNullable,
+          _targetPersonId.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final hasTarget = args.containsKey('targetPersonId');
+          final item = await _updateDraftPromiseCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+            title: _title.fromArgsNonNullable(args),
+            body: _body.fromArgs(args) ?? '',
+            updateTargetPersonId: hasTarget,
+            targetPersonId: _targetPersonId.fromArgs(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get deleteDraftPromise =>
+      GraphQLObjectField(
+        'deleteDraftPromise',
+        graphQLBoolean.nonNullable(),
+        arguments: [_itemId.field],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final ok = await _deleteDraftPromiseCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+          );
+          return ok;
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get acceptPromise =>
+      GraphQLObjectField(
+        'acceptPromise',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [_itemId.field],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _acceptPromiseCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get resolvePromise =>
+      GraphQLObjectField(
+        'resolvePromise',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _itemId.field,
+          _note.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _resolvePromiseCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+            note: _note.fromArgs(args) ?? '',
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get cancelPromise =>
+      GraphQLObjectField(
+        'cancelPromise',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _itemId.field,
+          _reason.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _cancelPromiseCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+            reason: _reason.fromArgs(args) ?? '',
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get redirectPromise =>
+      GraphQLObjectField(
+        'redirectPromise',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [
+          _itemId.field,
+          _newTargetPersonId.field,
+        ],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _redirectPromiseCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+            newTargetPersonId: _newTargetPersonId.fromArgsNonNullable(args),
           );
           return _coordinationItemToMap(item);
         },

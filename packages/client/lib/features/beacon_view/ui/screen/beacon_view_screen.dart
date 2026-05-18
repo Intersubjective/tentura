@@ -29,7 +29,8 @@ import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
-import 'package:tentura/features/beacon_room/ui/widget/beacon_room_self_ask_sheet.dart';
+import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_promise_sheet.dart';
 import 'package:tentura/features/evaluation/ui/widget/beacon_evaluation_hooks.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
@@ -234,7 +235,7 @@ Future<void> _beaconViewRunAuthorCloseSheet({
   );
 }
 
-bool _canShowSelfAsk(BeaconViewState state) {
+bool _canShowCreatePromise(BeaconViewState state) {
   final b = state.beacon;
   if (b.lifecycle != BeaconLifecycle.open) return false;
   return state.isAuthorOrSteward || state.hasRoomAdmission;
@@ -306,11 +307,25 @@ Widget _beaconViewAppBarOverflow({
               ),
             )
           : null,
-      onSelfAsk: _canShowSelfAsk(state)
+      onPreparePromise: b.lifecycle == BeaconLifecycle.open
           ? () => unawaited(
-              showBeaconRoomSelfAskSheet(
+              showPreparedPromiseEditorSheet(
                 context,
                 beaconId: beaconId,
+                onSaved: () => unawaited(
+                  context.read<ItemsTabCubit>().fetch(),
+                ),
+              ),
+            )
+          : null,
+      onCreatePromise: _canShowCreatePromise(state)
+          ? () => unawaited(
+              showBeaconRoomPromiseSheet(
+                context,
+                beaconId: beaconId,
+                participants: state.roomParticipants,
+                myUserId: state.myProfile.id,
+                isAuthorOrSteward: state.isAuthorOrSteward,
                 onSaved: () => unawaited(
                   context.read<ItemsTabCubit>().fetch(),
                 ),
@@ -340,11 +355,14 @@ Widget _beaconViewAppBarOverflow({
 
   return BeaconOverflowMenu(
     beacon: b,
-    onSelfAsk: _canShowSelfAsk(state)
+    onCreatePromise: _canShowCreatePromise(state)
         ? () => unawaited(
-            showBeaconRoomSelfAskSheet(
+            showBeaconRoomPromiseSheet(
               context,
               beaconId: beaconId,
+              participants: state.roomParticipants,
+              myUserId: state.myProfile.id,
+              isAuthorOrSteward: state.isAuthorOrSteward,
               onSaved: () => unawaited(
                 context.read<ItemsTabCubit>().fetch(),
               ),
@@ -662,6 +680,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   void _openItemDiscussion(CoordinationItem item) {
+    if (item.kind == CoordinationItemKind.plan) {
+      _enterRoomSurface(item);
+      return;
+    }
     unawaited(context.router.push(ItemDiscussionRoute(item: item)));
   }
 

@@ -196,7 +196,6 @@ BeaconEntity _openBeacon(String id) => BeaconEntity(
       author: const UserEntity(id: 'Uauthor000001'),
       createdAt: DateTime.utc(2024),
       updatedAt: DateTime.utc(2024),
-      state: 0,
     );
 
 CoordinationItem _sampleBlocker({

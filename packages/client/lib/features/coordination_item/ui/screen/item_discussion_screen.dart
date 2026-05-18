@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -23,21 +26,35 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
   final CoordinationItem item;
 
   @override
-  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
-        providers: [
-          BlocProvider(
-            create: (_) => RoomCubit(
-              beaconId: item.beaconId,
-              threadItemId: item.id,
-              initialUnreadAnchorAt: item.lastSeenAt,
+  Widget wrappedRoute(BuildContext context) {
+    if (item.kind == CoordinationItemKind.plan) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          unawaited(
+            context.router.replace(
+              BeaconViewRoute(id: item.beaconId, viewTab: 'room'),
             ),
+          );
+        }
+      });
+      return const SizedBox.shrink();
+    }
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => RoomCubit(
+            beaconId: item.beaconId,
+            threadItemId: item.id,
+            initialUnreadAnchorAt: item.lastSeenAt,
           ),
-          BlocProvider(
-            create: (_) => ItemActionsCubit(item: item),
-          ),
-        ],
-        child: this,
-      );
+        ),
+        BlocProvider(
+          create: (_) => ItemActionsCubit(item: item),
+        ),
+      ],
+      child: this,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,10 +80,12 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
               final item = state.item;
               final hasPendingResolution = state.pendingResolution != null;
               final actionsCubit = context.read<ItemActionsCubit>();
+              final viewerId = GetIt.I<ProfileCubit>().state.profile.id;
               final canProposeResolution =
                   !hasPendingResolution &&
                   (item.kind == CoordinationItemKind.blocker ||
-                      item.kind == CoordinationItemKind.ask);
+                      item.kind == CoordinationItemKind.ask ||
+                      item.kind == CoordinationItemKind.promise);
 
               // Resolution items manage accept/reject via the pending banner
               // inside the parent item's discussion — not via this overflow menu.
@@ -90,6 +109,10 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                     if (v == 'accept') unawaited(actionsCubit.acceptAsk());
                     if (v == 'resolve') unawaited(actionsCubit.resolveAsk());
                     if (v == 'cancel') unawaited(actionsCubit.cancelAsk());
+                  } else if (item.kind == CoordinationItemKind.promise) {
+                    if (v == 'accept') unawaited(actionsCubit.acceptPromise());
+                    if (v == 'resolve') unawaited(actionsCubit.resolvePromise());
+                    if (v == 'cancel') unawaited(actionsCubit.cancelPromise());
                   } else {
                     if (v == 'resolve') unawaited(actionsCubit.resolveBlocker());
                     if (v == 'cancel') unawaited(actionsCubit.cancelBlocker());
@@ -102,6 +125,28 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                         PopupMenuItem(
                           value: 'accept',
                           child: Text(l10n.coordinationAskAcceptLabel),
+                        ),
+                      PopupMenuItem(
+                        value: 'resolve',
+                        child: Text(l10n.coordinationBlockerActionResolve),
+                      ),
+                      PopupMenuItem(
+                        value: 'cancel',
+                        child: Text(l10n.coordinationBlockerActionCancel),
+                      ),
+                      if (canProposeResolution)
+                        PopupMenuItem(
+                          value: 'propose_resolution',
+                          child: Text(l10n.beaconRoomActionCreateResolution),
+                        ),
+                    ];
+                  }
+                  if (item.kind == CoordinationItemKind.promise) {
+                    return [
+                      if (item.isOpen && item.targetPersonId == viewerId)
+                        PopupMenuItem(
+                          value: 'accept',
+                          child: Text(l10n.coordinationPromiseAcceptLabel),
                         ),
                       PopupMenuItem(
                         value: 'resolve',
@@ -198,6 +243,7 @@ class _ItemDiscussionHeader extends StatelessWidget {
     final kindLabel = switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
       CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+      CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
       CoordinationItemKind.plan => item.isPlanStep
           ? l10n.coordinationPlanStepCardLabel
           : l10n.coordinationPlanCardLabel,

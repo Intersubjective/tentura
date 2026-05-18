@@ -1,0 +1,28 @@
+mutation CoordinationItemRedirectPromise(
+  $itemId: String!
+  $newTargetPersonId: String!
+) {
+  redirectPromise(itemId: $itemId, newTargetPersonId: $newTargetPersonId) {
+    id
+    beaconId
+    kind
+    status
+    source
+    published
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+    staleAt
+  }
+}

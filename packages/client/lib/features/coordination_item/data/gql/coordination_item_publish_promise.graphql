@@ -1,0 +1,28 @@
+mutation CoordinationItemPublishPromise(
+  $itemId: String!
+  $targetPersonId: String!
+) {
+  publishPromise(itemId: $itemId, targetPersonId: $targetPersonId) {
+    id
+    beaconId
+    kind
+    status
+    source
+    published
+    title
+    body
+    creatorId
+    targetPersonId
+    acceptedById
+    targetItemId
+    targetMessageId
+    linkedMessageId
+    linkedParentItemId
+    ordering
+    createdAt
+    updatedAt
+    resolvedAt
+    cancelledAt
+    staleAt
+  }
+}

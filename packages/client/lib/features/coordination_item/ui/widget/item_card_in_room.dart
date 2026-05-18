@@ -29,24 +29,28 @@ class ItemCardInRoom extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final tt = context.tt;
 
-    final selfCommitmentAccepted = item.kind == CoordinationItemKind.ask &&
-        eventKind == CoordinationItemEventKind.accepted &&
-        (item.source == 1 ||
-            (timelineAuthorId != null &&
-                timelineAuthorId == item.creatorId));
-
     final label = switch (item.kind) {
       CoordinationItemKind.ask => switch (eventKind) {
           CoordinationItemEventKind.created =>
             l10n.coordinationSemanticAskOpened,
-          CoordinationItemEventKind.accepted => selfCommitmentAccepted
-              ? l10n.coordinationSemanticSelfAskAccepted
-              : l10n.coordinationSemanticAskAccepted,
+          CoordinationItemEventKind.accepted =>
+            l10n.coordinationSemanticAskAccepted,
           CoordinationItemEventKind.resolved =>
             l10n.coordinationSemanticAskResolved,
           CoordinationItemEventKind.cancelled =>
             l10n.coordinationSemanticAskCancelled,
           _ => l10n.coordinationAskCardLabel,
+        },
+      CoordinationItemKind.promise => switch (eventKind) {
+          CoordinationItemEventKind.created =>
+            l10n.coordinationSemanticPromiseOpened,
+          CoordinationItemEventKind.accepted =>
+            l10n.coordinationSemanticPromiseAccepted,
+          CoordinationItemEventKind.resolved =>
+            l10n.coordinationSemanticPromiseResolved,
+          CoordinationItemEventKind.cancelled =>
+            l10n.coordinationSemanticPromiseCancelled,
+          _ => l10n.coordinationPromiseCardLabel,
         },
       CoordinationItemKind.blocker => switch (eventKind) {
           CoordinationItemEventKind.created =>

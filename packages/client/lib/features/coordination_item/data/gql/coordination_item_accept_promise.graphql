@@ -1,15 +1,5 @@
-mutation CoordinationItemCreateSelfAsk(
-  $beaconId: String!
-  $title: String!
-  $body: String
-  $linkedMessageId: String
-) {
-  createSelfAsk(
-    beaconId: $beaconId
-    title: $title
-    body: $body
-    linkedMessageId: $linkedMessageId
-  ) {
+mutation CoordinationItemAcceptPromise($itemId: String!) {
+  acceptPromise(itemId: $itemId) {
     id
     beaconId
     kind

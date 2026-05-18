@@ -9,6 +9,7 @@ abstract class ItemsTabState extends StateBase with _$ItemsTabState {
     @Default([]) List<CoordinationItem> openItems,
     @Default([]) List<CoordinationItem> closedItems,
     @Default([]) List<CoordinationItem> draftAskItems,
+    @Default([]) List<CoordinationItem> draftPromiseItems,
     @Default([]) List<CoordinationItem> draftBlockerItems,
     CoordinationItem? currentCoordinationPlan,
     @Default(StateIsSuccess()) StateStatus status,
@@ -18,7 +19,10 @@ abstract class ItemsTabState extends StateBase with _$ItemsTabState {
 
   int get unreadDiscussionCount => openItems.fold(
         0,
-        (sum, item) => sum + item.unreadCount,
+        (sum, item) =>
+            item.kind == CoordinationItemKind.plan
+                ? sum
+                : sum + item.unreadCount,
       );
 
   bool get hasUnreadItems => unreadDiscussionCount > 0;

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -16,6 +17,7 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
@@ -30,21 +32,27 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:readmore/readmore.dart';
 
-/// Room inline plan plaques (created / updated / superseded) are informational;
-/// navigation to item discussion is handled from Items tab, not the timeline.
+/// Plan coordination items use the main beacon room, not per-item threads.
 @visibleForTesting
-bool planLifecyclePlaqueSuppressesDiscussion(
+bool planItemSuppressesItemDiscussion(CoordinationItem item) =>
+    item.kind == CoordinationItemKind.plan;
+
+VoidCallback? _linkedCoordinationItemOnTap(
+  BuildContext context,
   CoordinationItem item,
-  CoordinationItemEventKind eventKind,
-) =>
-    item.kind == CoordinationItemKind.plan &&
-    switch (eventKind) {
-      CoordinationItemEventKind.created ||
-      CoordinationItemEventKind.updated ||
-      CoordinationItemEventKind.superseded =>
-        true,
-      _ => false,
+) {
+  if (planItemSuppressesItemDiscussion(item)) {
+    return () {
+      final cubit = context.read<RoomCubit>();
+      if (cubit.state.threadItemId != null) return;
+      cubit.prepareThreadScroll(
+        messageId: item.threadAnchorMessageId,
+        coordinationItemId: item.id,
+      );
     };
+  }
+  return () => context.router.push(ItemDiscussionRoute(item: item));
+}
 
 class RoomMessageTile extends StatelessWidget {
   const RoomMessageTile({
@@ -109,6 +117,7 @@ class RoomMessageTile extends StatelessWidget {
       switch (k) {
         CoordinationItemKind.plan => l10n.coordinationPlanCardLabel,
         CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+        CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
         CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
         CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
         null => l10n.coordinationItemCardTitle,
@@ -213,13 +222,6 @@ class RoomMessageTile extends StatelessWidget {
     final linkedEventKind = linkedEv != null && linkedCoord != null
         ? CoordinationItemEventKind.fromInt(linkedEv)
         : null;
-    final suppressPlanDiscussion = linkedCoord != null &&
-        linkedEventKind != null &&
-        planLifecyclePlaqueSuppressesDiscussion(
-          linkedCoord,
-          linkedEventKind,
-        );
-
     final isGroupStart =
         breakGroupAbove || _groupBreak(previousMessage, message);
     final isGroupEnd = _groupBreak(message, nextMessage);
@@ -492,11 +494,10 @@ class RoomMessageTile extends StatelessWidget {
                 item: linkedCoord,
                 eventKind: linkedEventKind,
                 timelineAuthorId: message.authorId,
-                onTap: suppressPlanDiscussion
-                    ? null
-                    : () => context.router.push(
-                          ItemDiscussionRoute(item: linkedCoord),
-                        ),
+                onTap: _linkedCoordinationItemOnTap(
+                  context,
+                  linkedCoord,
+                ),
               ),
             ),
           ),

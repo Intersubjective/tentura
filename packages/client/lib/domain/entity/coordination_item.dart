@@ -6,7 +6,8 @@ enum CoordinationItemKind {
   plan(1),
   ask(2),
   blocker(3),
-  resolution(4);
+  resolution(4),
+  promise(5);
 
   const CoordinationItemKind(this.value);
   final int value;
@@ -16,6 +17,7 @@ enum CoordinationItemKind {
         2 => ask,
         3 => blocker,
         4 => resolution,
+        5 => promise,
         _ => throw ArgumentError.value(v, 'kind'),
       };
 }

@@ -9,6 +9,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 String _editSheetTitle(L10n l10n, CoordinationItem item) => switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
       CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+      CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
       CoordinationItemKind.plan => item.isPlanStep
           ? l10n.coordinationPlanStepCardLabel
           : l10n.coordinationPlanCardLabel,
