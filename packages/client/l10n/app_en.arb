@@ -2771,6 +2771,7 @@
   "coordinationCreatePromiseSheetPrompt": "What do you promise to do?",
   "coordinationCreatePromiseFromMessage": "Promise from message",
   "coordinationPromiseTargetPickerLabel": "Who is this promise to?",
+  "coordinationCreatePromiseNoTargets": "No one is available to receive a promise on this beacon yet. Admit a helper to the room or wait for a help offer first.",
   "beaconPreparedPromiseFromMessage": "Prepare promise from message",
   "beaconItemsPreparedPromiseDraftsTitle": "Prepared promises (drafts)",
   "beaconPreparedPromisePrepareAction": "Prepare promise",

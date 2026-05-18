@@ -238,7 +238,12 @@ Future<void> _beaconViewRunAuthorCloseSheet({
 bool _canShowCreatePromise(BeaconViewState state) {
   final b = state.beacon;
   if (b.lifecycle != BeaconLifecycle.open) return false;
-  return state.isAuthorOrSteward || state.hasRoomAdmission;
+  if (!state.isAuthorOrSteward && !state.hasRoomAdmission) return false;
+  return hasPublishedPromiseTargets(
+    participants: state.roomParticipants,
+    myUserId: state.myProfile.id,
+    isAuthorOrSteward: state.isAuthorOrSteward,
+  );
 }
 
 Widget _beaconViewAppBarOverflow({

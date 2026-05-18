@@ -28,6 +28,17 @@ List<BeaconParticipant> participantsForPromiseTargetPicker({
   return admitted.where((p) => p.userId != myUserId).toList();
 }
 
+bool hasPublishedPromiseTargets({
+  required List<BeaconParticipant> participants,
+  required String myUserId,
+  required bool isAuthorOrSteward,
+}) =>
+    participantsForPromiseTargetPicker(
+      participants: participants,
+      myUserId: myUserId,
+      isAuthorOrSteward: isAuthorOrSteward,
+    ).isNotEmpty;
+
 String _targetLabel(L10n l10n, BeaconParticipant p) {
   final t = p.userTitle.trim();
   if (t.isNotEmpty) return t;
@@ -56,7 +67,17 @@ Future<void> showBeaconRoomPromiseSheet(
     myUserId: myUserId,
     isAuthorOrSteward: isAuthorOrSteward,
   );
-  if (targets.isEmpty) return;
+
+  if (targets.isEmpty) {
+    if (context.mounted) {
+      showSnackBar(
+        context,
+        text: l10n.coordinationCreatePromiseNoTargets,
+        isError: true,
+      );
+    }
+    return;
+  }
 
   var targetUserId = targets.first.userId;
 

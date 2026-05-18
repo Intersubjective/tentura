@@ -2771,6 +2771,7 @@
   "coordinationCreatePromiseSheetPrompt": "Что вы обещаете сделать?",
   "coordinationCreatePromiseFromMessage": "Обещание из сообщения",
   "coordinationPromiseTargetPickerLabel": "Кому это обещание?",
+  "coordinationCreatePromiseNoTargets": "Пока некому дать обещание по этому маяку. Примите помощника в комнату или дождитесь предложения помощи.",
   "beaconPreparedPromiseFromMessage": "Подготовить обещание из сообщения",
   "beaconItemsPreparedPromiseDraftsTitle": "Подготовленные обещания (черновики)",
   "beaconPreparedPromisePrepareAction": "Подготовить обещание",
