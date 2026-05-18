@@ -11,6 +11,7 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'beacon_anchor_status.dart';
+import 'beacon_hud_action_button.dart';
 
 /// Compact HUD header: state tokens, NOW/YOU, people strip, action rail.
 class BeaconOperationalHeaderCard extends StatelessWidget {
@@ -682,37 +683,11 @@ class _HudActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final on = spec.onPressed;
-    final labelStyle = Theme.of(context).textTheme.labelMedium;
-    if (spec.filled) {
-      return FilledButton.icon(
-        onPressed: on,
-        icon: Icon(spec.icon, size: 16),
-        label: Text(
-          spec.label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        style: FilledButton.styleFrom(
-          textStyle: labelStyle,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          visualDensity: VisualDensity.compact,
-        ),
-      );
-    }
-    return OutlinedButton.icon(
-      onPressed: on,
-      icon: Icon(spec.icon, size: 16),
-      label: Text(
-        spec.label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: labelStyle,
-      ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        visualDensity: VisualDensity.compact,
-      ),
+    return BeaconHudActionButton(
+      icon: spec.icon,
+      label: spec.label,
+      onPressed: spec.onPressed,
+      filled: spec.filled,
     );
   }
 }
