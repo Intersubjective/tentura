@@ -28,6 +28,7 @@ Future<void> showReactionSendersSheet(
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useRootNavigator: true,
     builder: (sheetContext) {
       final theme = Theme.of(sheetContext);
       final scheme = theme.colorScheme;

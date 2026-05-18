@@ -27,6 +27,7 @@ Future<void> showBeaconRoomSelfAskSheet(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setState) {

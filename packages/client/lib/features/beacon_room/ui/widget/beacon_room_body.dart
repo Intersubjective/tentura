@@ -251,6 +251,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (_) => _PollCreateSheet(cubit: cubit),
     );
   }
@@ -308,6 +309,23 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       showModalBottomSheet<void>(
         context: context,
         showDragHandle: true,
+        // useRootNavigator: true is required on Web.
+        //
+        // BeaconViewScreen wraps its room surface in PopScope(canPop: false)
+        // so that the browser back-button can be intercepted. Flutter Web
+        // implements this by injecting a sentinel history entry via
+        // SystemNavigator. When showModalBottomSheet opens under the *same*
+        // Navigator as that PopScope (the default, useRootNavigator: false),
+        // the sentinel and the modal's route lifecycle interact: after the
+        // sheet is dismissed the Web platform's hit-test / gesture-delivery
+        // machinery stops forwarding taps to the AppBar back button, making
+        // _exitRoomSurface unreachable even though the room UI is still
+        // visible and the URL still contains ?tab=room.
+        //
+        // Opening the sheet under the root Navigator places it above the
+        // PopScope's scope, decoupling its lifecycle from the sentinel and
+        // restoring normal tap delivery once the sheet closes.
+        useRootNavigator: true,
         builder: (ctx) {
           final theme = Theme.of(ctx);
           final tt = ctx.tt;
@@ -580,6 +598,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (ctx) => _BeaconRoomTextBottomSheet(
         title: l10n.beaconRoomActionUpdatePlan,
         hintText: l10n.beaconRoomStripPlanLabel,
@@ -600,6 +619,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (ctx) => _BeaconRoomTextBottomSheet(
         title: l10n.beaconRoomActionEditMessage,
         hintText: l10n.beaconRoomMessageHint,
@@ -625,6 +645,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      useRootNavigator: true,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -713,6 +734,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      useRootNavigator: true,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
