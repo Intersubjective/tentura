@@ -23,6 +23,7 @@ import '../bloc/items_tab_cubit.dart';
 import '../bloc/items_tab_state.dart';
 import 'beacon_create_plan_sheet.dart';
 import 'beacon_definition_body.dart';
+import 'beacon_hud_action_button.dart';
 import 'beacon_prepared_ask_sheet.dart';
 import 'beacon_prepared_promise_sheet.dart';
 import 'beacon_prepared_blocker_sheet.dart';
@@ -413,9 +414,9 @@ class _ActiveCoordinationCtas extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: TenturaCommandButton(
+          child: BeaconHudActionButton(
+            icon: Icons.help_outline,
             label: l10n.coordinationAskCardLabel,
-            icon: const Icon(Icons.help_outline),
             onPressed: () => unawaited(
               showPreparedAskEditorSheet(
                 context,
@@ -427,9 +428,9 @@ class _ActiveCoordinationCtas extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: TenturaCommandButton(
+          child: BeaconHudActionButton(
+            icon: Icons.front_hand_outlined,
             label: l10n.coordinationPromiseCardLabel,
-            icon: const Icon(Icons.front_hand_outlined),
             onPressed: () => unawaited(
               showPreparedPromiseEditorSheet(
                 context,
@@ -440,7 +441,8 @@ class _ActiveCoordinationCtas extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        _BlockerIconCommandButton(
+        BeaconHudIconActionButton(
+          icon: Icons.block,
           tooltip: l10n.coordinationBlockerCardLabel,
           onPressed: () => unawaited(
             showPreparedBlockerEditorSheet(
@@ -455,43 +457,6 @@ class _ActiveCoordinationCtas extends StatelessWidget {
   }
 }
 
-class _BlockerIconCommandButton extends StatelessWidget {
-  const _BlockerIconCommandButton({
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    final color = tt.info;
-
-    return Semantics(
-      button: true,
-      label: tooltip,
-      child: Tooltip(
-        message: tooltip,
-        child: OutlinedButton(
-          onPressed: onPressed,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(44, 44),
-            padding: EdgeInsets.zero,
-            side: BorderSide(color: tt.skyBorder),
-            foregroundColor: color,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(tt.buttonRadius),
-            ),
-          ),
-          child: const Icon(Icons.block, size: 20),
-        ),
-      ),
-    );
-  }
-}
-
 class _CreatePlanCta extends StatelessWidget {
   const _CreatePlanCta();
 
@@ -499,14 +464,18 @@ class _CreatePlanCta extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
 
-    return FilledButton.tonal(
-      onPressed: () => unawaited(
-        showBeaconCreatePlanSheet(
-          context,
-          onSaved: () => context.read<ItemsTabCubit>().fetch(),
+    return SizedBox(
+      width: double.infinity,
+      child: BeaconHudActionButton(
+        icon: Icons.edit_note,
+        label: l10n.itemsTabCreatePlanCta,
+        onPressed: () => unawaited(
+          showBeaconCreatePlanSheet(
+            context,
+            onSaved: () => context.read<ItemsTabCubit>().fetch(),
+          ),
         ),
       ),
-      child: Text(l10n.itemsTabCreatePlanCta),
     );
   }
 }
