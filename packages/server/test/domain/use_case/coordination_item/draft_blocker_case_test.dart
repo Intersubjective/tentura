@@ -3,8 +3,10 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -49,6 +51,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     required String creatorId,
     required String title,
     String body = '',
+    String? targetPersonId,
   }) async {
     lastCreateBeaconId = beaconId;
     return nextReturn ?? item!;
@@ -68,6 +71,48 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     required String id,
     required String actorId,
   }) async {}
+}
+
+class _StubRoom extends Fake implements BeaconRoomRepository {
+  _StubRoom({required this.authorId, this.admittedUserIds = const {}});
+
+  final String authorId;
+  final Set<String> admittedUserIds;
+
+  @override
+  Future<bool> isBeaconAuthor({
+    required String beaconId,
+    required String userId,
+  }) async =>
+      userId == authorId;
+
+  @override
+  Future<bool> isBeaconSteward({
+    required String beaconId,
+    required String userId,
+  }) async =>
+      false;
+
+  @override
+  Future<BeaconParticipant?> findParticipant({
+    required String beaconId,
+    required String userId,
+  }) async {
+    if (!admittedUserIds.contains(userId)) {
+      return null;
+    }
+    final now = PgDateTime(DateTime.utc(2024));
+    return BeaconParticipant(
+      createdAt: now,
+      updatedAt: now,
+      id: 'Ptest',
+      beaconId: beaconId,
+      userId: userId,
+      role: BeaconParticipantRoleBits.helper,
+      status: 0,
+      roomAccess: RoomAccessBits.admitted,
+    );
+  }
 }
 
 BeaconEntity _openBeacon(String id, {String authorId = 'Uowner0000001'}) =>
@@ -123,6 +168,7 @@ void main() {
       sut = CreateDraftBlockerCase(
         beacons,
         items,
+        _StubRoom(authorId: ownerId, admittedUserIds: {otherId}),
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -138,9 +184,30 @@ void main() {
       expect(items.lastCreateBeaconId, beaconId);
     });
 
-    test('non-owner rejected', () async {
+    test('admitted non-owner can create draft', () async {
+      items.nextReturn = _draftBlocker(
+        id: itemId,
+        beaconId: beaconId,
+        creatorId: otherId,
+      );
+      final out = await sut.call(
+        userId: otherId,
+        beaconId: beaconId,
+        title: 'Need parts',
+      );
+      expect(out.creatorId, otherId);
+    });
+
+    test('non-participant rejected', () async {
+      final noAccess = CreateDraftBlockerCase(
+        beacons,
+        items,
+        _StubRoom(authorId: ownerId),
+        env: Env(environment: Environment.test),
+        logger: Logger('_'),
+      );
       expect(
-        () => sut.call(
+        () => noAccess.call(
           userId: otherId,
           beaconId: beaconId,
           title: 'x',

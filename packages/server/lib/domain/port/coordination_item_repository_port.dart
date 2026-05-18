@@ -131,6 +131,7 @@ abstract class CoordinationItemRepositoryPort {
     required String creatorId,
     required String title,
     String body = '',
+    String? targetPersonId,
   });
 
   /// Publishes a draft blocker: published=true, emits room+activity.
@@ -144,6 +145,8 @@ abstract class CoordinationItemRepositoryPort {
     required String actorId,
     required String title,
     String body = '',
+    bool updateTargetPersonId = false,
+    String? targetPersonId,
   });
 
   Future<void> deleteDraftBlocker({

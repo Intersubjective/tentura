@@ -25,6 +25,8 @@ final class UpdateDraftBlockerCase extends UseCaseBase {
     required String itemId,
     required String title,
     String body = '',
+    bool updateTargetPersonId = false,
+    String? targetPersonId,
   }) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) {
@@ -54,6 +56,8 @@ final class UpdateDraftBlockerCase extends UseCaseBase {
       actorId: userId,
       title: trimmed,
       body: body.trim(),
+      updateTargetPersonId: updateTargetPersonId,
+      targetPersonId: targetPersonId,
     );
   }
 }

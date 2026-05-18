@@ -564,6 +564,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _beaconId.field,
           _title.field,
           _body.fieldNullable,
+          _targetPersonId.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -572,6 +573,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             beaconId: _beaconId.fromArgsNonNullable(args),
             title: _title.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
+            targetPersonId: _targetPersonId.fromArgs(args),
           );
           return _coordinationItemToMap(item);
         },
@@ -600,14 +602,18 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _itemId.field,
           _title.field,
           _body.fieldNullable,
+          _targetPersonId.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
+          final hasTarget = args.containsKey('targetPersonId');
           final item = await _updateDraftBlockerCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
             title: _title.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
+            updateTargetPersonId: hasTarget,
+            targetPersonId: _targetPersonId.fromArgs(args),
           );
           return _coordinationItemToMap(item);
         },
