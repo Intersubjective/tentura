@@ -51,7 +51,13 @@ VoidCallback? _linkedCoordinationItemOnTap(
       );
     };
   }
-  return () => context.router.push(ItemDiscussionRoute(item: item));
+  return () => context.router.push(
+        ItemDiscussionRoute(
+          beaconId: item.beaconId,
+          itemId: item.id,
+          item: item,
+        ),
+      );
 }
 
 class RoomMessageTile extends StatelessWidget {

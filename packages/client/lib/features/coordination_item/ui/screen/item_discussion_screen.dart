@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
@@ -16,42 +18,69 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../bloc/item_actions_cubit.dart';
 import '../bloc/item_actions_state.dart';
 
+Widget _itemDiscussionProviders({
+  required CoordinationItem item,
+  required Widget child,
+}) {
+  return MultiBlocProvider(
+    providers: [
+      BlocProvider(
+        create: (_) => RoomCubit(
+          beaconId: item.beaconId,
+          threadItemId: item.id,
+          initialUnreadAnchorAt: item.lastSeenAt,
+        ),
+      ),
+      BlocProvider(
+        create: (_) => ItemActionsCubit(item: item),
+      ),
+    ],
+    child: child,
+  );
+}
+
 @RoutePage()
 class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
   const ItemDiscussionScreen({
-    required this.item,
+    @PathParam('beaconId') this.beaconId = '',
+    @PathParam('itemId') this.itemId = '',
+    this.item,
     super.key,
   });
 
-  final CoordinationItem item;
+  final String beaconId;
+
+  final String itemId;
+
+  /// Passed on in-app navigation; omitted after a web refresh (hydrate via path).
+  final CoordinationItem? item;
 
   @override
   Widget wrappedRoute(BuildContext context) {
-    if (item.kind == CoordinationItemKind.plan) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) {
-          unawaited(
-            context.router.replace(
-              BeaconViewRoute(id: item.beaconId, viewTab: 'room'),
-            ),
-          );
-        }
-      });
-      return const SizedBox.shrink();
+    final resolved = item;
+    if (resolved != null && resolved.id.isNotEmpty) {
+      if (resolved.kind == CoordinationItemKind.plan) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            unawaited(
+              context.router.replace(
+                BeaconViewRoute(id: resolved.beaconId, viewTab: 'room'),
+              ),
+            );
+          }
+        });
+        return const SizedBox.shrink();
+      }
+      return _itemDiscussionProviders(item: resolved, child: this);
     }
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (_) => RoomCubit(
-            beaconId: item.beaconId,
-            threadItemId: item.id,
-            initialUnreadAnchorAt: item.lastSeenAt,
-          ),
-        ),
-        BlocProvider(
-          create: (_) => ItemActionsCubit(item: item),
-        ),
-      ],
+    if (beaconId.isEmpty || itemId.isEmpty) {
+      return _ItemDiscussionLoadError(
+        onBack: () => unawaited(context.router.maybePop()),
+      );
+    }
+    return _ItemDiscussionHydrateLoader(
+      beaconId: beaconId,
+      itemId: itemId,
       child: this,
     );
   }
@@ -216,6 +245,90 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
           );
         },
       ),
+    );
+  }
+}
+
+class _ItemDiscussionHydrateLoader extends StatefulWidget {
+  const _ItemDiscussionHydrateLoader({
+    required this.beaconId,
+    required this.itemId,
+    required this.child,
+  });
+
+  final String beaconId;
+  final String itemId;
+  final ItemDiscussionScreen child;
+
+  @override
+  State<_ItemDiscussionHydrateLoader> createState() =>
+      _ItemDiscussionHydrateLoaderState();
+}
+
+class _ItemDiscussionHydrateLoaderState extends State<_ItemDiscussionHydrateLoader> {
+  late final Future<CoordinationItem?> _itemFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _itemFuture = _loadItem();
+  }
+
+  Future<CoordinationItem?> _loadItem() async {
+    final items = await GetIt.I<CoordinationItemCase>().listByBeacon(
+      widget.beaconId,
+    );
+    for (final item in items) {
+      if (item.id == widget.itemId) return item;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<CoordinationItem?>(
+      future: _itemFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator.adaptive()),
+          );
+        }
+        final item = snapshot.data;
+        if (item == null) {
+          return _ItemDiscussionLoadError(
+            onBack: () => unawaited(context.router.maybePop()),
+          );
+        }
+        if (item.kind == CoordinationItemKind.plan) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (context.mounted) {
+              unawaited(
+                context.router.replace(
+                  BeaconViewRoute(id: item.beaconId, viewTab: 'room'),
+                ),
+              );
+            }
+          });
+          return const SizedBox.shrink();
+        }
+        return _itemDiscussionProviders(item: item, child: widget.child);
+      },
+    );
+  }
+}
+
+class _ItemDiscussionLoadError extends StatelessWidget {
+  const _ItemDiscussionLoadError({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    return Scaffold(
+      appBar: AppBar(leading: BackButton(onPressed: onBack)),
+      body: Center(child: Text(l10n.labelNothingHere)),
     );
   }
 }

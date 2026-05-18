@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -253,6 +252,7 @@ Widget _beaconViewAppBarOverflow({
   required ScreenCubit screenCubit,
   required L10n l10n,
   required Future<void> Function() onAuthorListedOpenClose,
+  required VoidCallback onItemsTabRefresh,
 }) {
   final b = state.beacon;
   final beaconId = b.id;
@@ -295,9 +295,7 @@ Widget _beaconViewAppBarOverflow({
               showPreparedAskEditorSheet(
                 context,
                 beaconId: beaconId,
-                onSaved: () => unawaited(
-                  context.read<ItemsTabCubit>().fetch(),
-                ),
+                onSaved: onItemsTabRefresh,
               ),
             )
           : null,
@@ -306,9 +304,7 @@ Widget _beaconViewAppBarOverflow({
               showPreparedBlockerEditorSheet(
                 context,
                 beaconId: beaconId,
-                onSaved: () => unawaited(
-                  context.read<ItemsTabCubit>().fetch(),
-                ),
+                onSaved: onItemsTabRefresh,
               ),
             )
           : null,
@@ -317,9 +313,7 @@ Widget _beaconViewAppBarOverflow({
               showPreparedPromiseEditorSheet(
                 context,
                 beaconId: beaconId,
-                onSaved: () => unawaited(
-                  context.read<ItemsTabCubit>().fetch(),
-                ),
+                onSaved: onItemsTabRefresh,
               ),
             )
           : null,
@@ -331,9 +325,7 @@ Widget _beaconViewAppBarOverflow({
                 participants: state.roomParticipants,
                 myUserId: state.myProfile.id,
                 isAuthorOrSteward: state.isAuthorOrSteward,
-                onSaved: () => unawaited(
-                  context.read<ItemsTabCubit>().fetch(),
-                ),
+                onSaved: onItemsTabRefresh,
               ),
             )
           : null,
@@ -368,9 +360,7 @@ Widget _beaconViewAppBarOverflow({
               participants: state.roomParticipants,
               myUserId: state.myProfile.id,
               isAuthorOrSteward: state.isAuthorOrSteward,
-              onSaved: () => unawaited(
-                context.read<ItemsTabCubit>().fetch(),
-              ),
+              onSaved: onItemsTabRefresh,
             ),
           )
         : null,
@@ -516,6 +506,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   bool _roomExitInProgress = false;
 
+  /// Set when [_enterRoomSurface] used [StackRouter.pushPath] for `?tab=room`.
+  /// Exit must [StackRouter.back] to drop that history entry — [replacePath]
+  /// would leave a duplicate beacon URL and force two pops to leave the beacon.
+  bool _roomEnteredViaPush = false;
+
+  void _unfocusForRouteChange() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   bool _roomFromRouteParams(BeaconViewScreen w) {
     final legacySurface = w.surface?.trim().toLowerCase();
     return legacySurface == kBeaconSurfaceRoomQueryValue ||
@@ -571,10 +570,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (oldWidget.id != widget.id) {
       _userDismissedRoomSurface = false;
       _roomExitInProgress = false;
+      _roomEnteredViaPush = false;
     }
     final wasRoom = _roomFromRouteParams(oldWidget);
     final isRoom = _roomFromRouteParams(widget);
     if (wasRoom && !isRoom && _showRoomSurface) {
+      _roomEnteredViaPush = false;
       _exitRoomSurface(fromRouteSync: true);
     } else if (!wasRoom &&
         isRoom &&
@@ -586,6 +587,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _roomExitInProgress = false;
       _applyRoomSurfaceState(open: true);
     }
+  }
+
+  void _refreshItemsTab() {
+    _itemsTabCubit ??= ItemsTabCubit(beaconId: widget.id);
+    unawaited(_itemsTabCubit!.fetch());
   }
 
   @override
@@ -661,16 +667,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     // [RoomCubit] + `_showRoomSurface` on the underlying beacon view.
     if (!_roomFromRouteParams(widget)) {
       _userDismissedRoomSurface = false;
+      _roomEnteredViaPush = true;
       final roomPath = _beaconViewPath(viewTab: 'room');
-      // Web: replace in place so browser back + PopScope do not fight a pushed
-      // history entry ([usesPathAsKey] keeps one stack page for this beacon).
-      unawaited(
-        kIsWeb
-            ? context.router.replacePath(roomPath)
-            : context.router.pushPath(roomPath),
-      );
+      // Push so browser history retains the operational beacon URL; exit via
+      // [StackRouter.back] (not replacePath) to avoid duplicate beacon entries.
+      _unfocusForRouteChange();
+      unawaited(context.router.pushPath(roomPath));
       return;
     }
+    _roomEnteredViaPush = false;
     _applyRoomSurfaceState(open: true);
     final c = _roomCubit;
     if (c == null || c.isClosed) return;
@@ -689,13 +694,22 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _enterRoomSurface(item);
       return;
     }
-    unawaited(context.router.push(ItemDiscussionRoute(item: item)));
+    unawaited(
+      context.router.push(
+        ItemDiscussionRoute(
+          beaconId: item.beaconId,
+          itemId: item.id,
+          item: item,
+        ),
+      ),
+    );
   }
 
   void _exitRoomSurface({bool fromRouteSync = false}) {
     if (_roomExitInProgress) return;
 
     if (fromRouteSync) {
+      _roomEnteredViaPush = false;
       if (_showRoomSurface) {
         _applyRoomSurfaceState(open: false, fromRouteSync: true);
       }
@@ -707,9 +721,23 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _applyRoomSurfaceState(open: false);
     }
 
-    // Never [maybePop] here — with [usesPathAsKey] and PopScope vetoing browser
-    // back, maybePop fights popstate and can freeze the tab. Strip `?tab=room`
-    // via replacePath so the user stays on the operational beacon view.
+    // Room opened via pushPath: pop the `?tab=room` history entry. Using
+    // replacePath here duplicates `/beacon/view/:id` in the stack/history.
+    if (_roomEnteredViaPush) {
+      _roomEnteredViaPush = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          _roomExitInProgress = false;
+          return;
+        }
+        _unfocusForRouteChange();
+        context.router.back();
+        _roomExitInProgress = false;
+      });
+      return;
+    }
+
+    // Deep link / notification entry at `?tab=room` — strip query in place.
     final needsUrlSync =
         _urlIndicatesRoom() || _roomFromRouteParams(widget);
     if (!needsUrlSync) {
@@ -722,6 +750,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         _roomExitInProgress = false;
         return;
       }
+      _unfocusForRouteChange();
       unawaited(
         _stripRoomFromUrl().whenComplete(() {
           if (mounted) {
@@ -900,6 +929,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     cubit: beaconViewCubit,
                     screenCubit: screenCubit,
                     l10n: l10n,
+                    onItemsTabRefresh: _refreshItemsTab,
                     onAuthorListedOpenClose: () =>
                         _beaconViewRunAuthorCloseSheet(
                           context: context,

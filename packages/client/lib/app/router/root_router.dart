@@ -183,6 +183,13 @@ class RootRouter extends RootStackRouter {
       path: kPathBeaconNew,
     ),
 
+    // Item discussion (more specific than beacon view — register first).
+    AutoRoute(
+      usesPathAsKey: true,
+      page: ItemDiscussionRoute.page,
+      path: '$kPathBeaconView/:beaconId/discussion/:itemId',
+    ),
+
     // Beacon View
     AutoRoute(
       usesPathAsKey: true,
@@ -206,12 +213,6 @@ class RootRouter extends RootStackRouter {
           );
         }),
       ],
-    ),
-
-    AutoRoute(
-      usesPathAsKey: true,
-      page: ItemDiscussionRoute.page,
-      path: '/item-discussion',
     ),
 
     AutoRoute(
