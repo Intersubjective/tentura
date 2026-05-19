@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/settings/domain/port/settings_repository_port.dart';
 
+import '../entity/last_fcm_registration.dart';
 import '../port/fcm_local_repository_port.dart';
 import '../port/fcm_remote_repository_port.dart';
 import '../entity/notification_permissions.dart';
@@ -15,7 +15,6 @@ class FcmCase {
   FcmCase(
     this._fcmLocalRepository,
     this._fcmRemoteRepository,
-    this._authLocalRepository,
     this._settingsRepository,
   );
 
@@ -23,14 +22,9 @@ class FcmCase {
 
   final FcmRemoteRepositoryPort _fcmRemoteRepository;
 
-  final AuthLocalRepositoryPort _authLocalRepository;
-
   final SettingsRepositoryPort _settingsRepository;
 
   Stream<String> get onTokenRefresh => _fcmLocalRepository.onTokenRefresh;
-
-  Stream<String> get currentAccountChanges =>
-      _authLocalRepository.currentAccountChanges();
 
   ///
   Future<NotificationPermissions> requestPermission() {
@@ -39,24 +33,38 @@ class FcmCase {
   }
 
   ///
-  Future<String> registerFcmToken({
+  /// Syncs the device FCM token for [accountId]. When [forceRegister] is true
+  /// (e.g. [onTokenRefresh]), always posts to the server.
+  Future<String?> syncTokenForAccount({
+    required String accountId,
     required String platform,
     String? token,
+    bool forceRegister = false,
   }) async {
-    fcmLog('FcmCase: registerFcmToken platform=$platform');
-    token ??=
-        await _fcmLocalRepository.getToken() ??
-        (throw Exception('[FcmCase] No FCM token!'));
+    fcmLog(
+      'FcmCase: syncTokenForAccount accountId=$accountId '
+      'forceRegister=$forceRegister',
+    );
+    token ??= await _fcmLocalRepository.getToken();
+    if (token == null || token.isEmpty) {
+      fcmLog('FcmCase: no FCM token from platform');
+      return null;
+    }
     fcmLog('FcmCase: token ${fcmTokenFingerprint(token)}');
 
-    var appId = await _settingsRepository.getAppId();
+    final appId = await _ensureAppId();
 
-    if (appId == null) {
-      appId = const Uuid().v4();
-      await _settingsRepository.setAppId(appId);
-      fcmLog('FcmCase: created new appId=$appId');
-    } else {
-      fcmLog('FcmCase: reusing appId=$appId');
+    if (!forceRegister) {
+      final last = await _settingsRepository.getLastFcmRegistration();
+      if (last != null &&
+          last.matches(
+            accountId: accountId,
+            appId: appId,
+            token: token,
+          )) {
+        fcmLog('FcmCase: registration unchanged, skip server call');
+        return appId;
+      }
     }
 
     fcmLog('FcmCase: calling server fcmTokenRegister');
@@ -67,16 +75,45 @@ class FcmCase {
     );
     fcmLog('FcmCase: server fcmTokenRegister OK');
 
-    final currentAccount = await _authLocalRepository.getCurrentAccount();
-    if (currentAccount == null) {
-      throw Exception('[FcmCase] No current account!');
-    }
-    await _authLocalRepository.updateAccount(
-      currentAccount.copyWith(
-        fcmTokenUpdatedAt: DateTime.timestamp(),
+    await _settingsRepository.setLastFcmRegistration(
+      LastFcmRegistration(
+        accountId: accountId,
+        appId: appId,
+        token: token,
       ),
     );
-    fcmLog('FcmCase: updated local fcmTokenUpdatedAt');
+    fcmLog('FcmCase: updated LastFcmRegistration');
+    return appId;
+  }
+
+  ///
+  /// Best-effort: removes this device's row on the server. Must not throw.
+  Future<void> unregisterCurrentDevice() async {
+    final appId = await _settingsRepository.getAppId();
+    if (appId == null) {
+      fcmLog('FcmCase: unregister skipped (no appId)');
+      return;
+    }
+    try {
+      fcmLog('FcmCase: fcmTokenDelete appId=$appId');
+      await _fcmRemoteRepository.deleteToken(appId: appId);
+      fcmLog('FcmCase: fcmTokenDelete OK');
+    } catch (e, st) {
+      fcmLog('FcmCase: unregister failed (ignored): $e');
+      fcmLog('FcmCase: stack: $st');
+    }
+    await _settingsRepository.setLastFcmRegistration(null);
+  }
+
+  Future<String> _ensureAppId() async {
+    var appId = await _settingsRepository.getAppId();
+    if (appId == null) {
+      appId = const Uuid().v4();
+      await _settingsRepository.setAppId(appId);
+      fcmLog('FcmCase: created new appId=$appId');
+    } else {
+      fcmLog('FcmCase: reusing appId=$appId');
+    }
     return appId;
   }
 }

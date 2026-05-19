@@ -10,7 +10,6 @@ abstract class AccountEntity with _$AccountEntity {
   const factory AccountEntity({
     required String id,
     @Default('') String title,
-    DateTime? fcmTokenUpdatedAt,
     ImageEntity? image,
   }) = _AccountEntity;
 

@@ -8,4 +8,5 @@ FcmTokenEntity fcmTokenModelToEntity(FcmToken model) => FcmTokenEntity(
   token: model.token,
   platform: model.platform,
   createdAt: model.createdAt.dateTime,
+  lastRefreshedAt: model.lastRefreshedAt.dateTime,
 );

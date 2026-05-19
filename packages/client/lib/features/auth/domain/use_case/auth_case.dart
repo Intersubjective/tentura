@@ -7,6 +7,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
+import 'package:tentura/domain/port/device_push_port.dart';
+
 import '../port/auth_local_repository_port.dart';
 import '../port/auth_remote_repository_port.dart';
 import '../exception.dart';
@@ -15,7 +17,8 @@ import '../exception.dart';
 final class AuthCase extends UseCaseBase {
   AuthCase(
     this._authLocalRepository,
-    this._authRemoteRepository, {
+    this._authRemoteRepository,
+    this._devicePushPort, {
     required super.env,
     required super.logger,
   });
@@ -23,6 +26,8 @@ final class AuthCase extends UseCaseBase {
   final AuthLocalRepositoryPort _authLocalRepository;
 
   final AuthRemoteRepositoryPort _authRemoteRepository;
+
+  final DevicePushPort _devicePushPort;
 
   ///
   /// A stream that emits the current account ID whenever it changes.
@@ -86,10 +91,11 @@ final class AuthCase extends UseCaseBase {
   ///
   /// Signs out the current user.
   ///
-  Future<void> signOut() => Future.wait([
-    _authLocalRepository.setCurrentAccountId(null),
-    _authRemoteRepository.signOut(),
-  ]);
+  Future<void> signOut() async {
+    await _devicePushPort.unregisterCurrentDevice();
+    await _authRemoteRepository.signOut();
+    await _authLocalRepository.setCurrentAccountId(null);
+  }
 
   //
   static final _random = Random.secure();

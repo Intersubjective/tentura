@@ -10,6 +10,7 @@ final class MutationFcm extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     registerFcmToken,
+    deleteFcmToken,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get registerFcmToken =>
@@ -26,6 +27,19 @@ final class MutationFcm extends GqlNodeBase {
           appId: _appIdInput.fromArgsNonNullable(args),
           token: _tokenInput.fromArgsNonNullable(args),
           platform: _platformInput.fromArgsNonNullable(args),
+        ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get deleteFcmToken =>
+      GraphQLObjectField(
+        'fcmTokenDelete',
+        graphQLBoolean.nonNullable(),
+        arguments: [
+          _appIdInput.field,
+        ],
+        resolve: (_, args) => _fcmCase.deleteToken(
+          userId: getCredentials(args).sub,
+          appId: _appIdInput.fromArgsNonNullable(args),
         ),
       );
 

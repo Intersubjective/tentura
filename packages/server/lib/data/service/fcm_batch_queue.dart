@@ -6,15 +6,12 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
-import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
-
 /// Batches FCM notifications and flushes at most once per second to avoid
 /// per-message HTTP calls that trigger FCM rate limiting.
 @LazySingleton(as: FcmBatchQueuePort)
 class FcmBatchQueue implements FcmBatchQueuePort {
   FcmBatchQueue(
     this._fcmRemoteRepository,
-    this._fcmTokenRepository,
     this._logger,
   ) {
     _timer = Timer.periodic(
@@ -24,7 +21,6 @@ class FcmBatchQueue implements FcmBatchQueuePort {
   }
 
   final FcmRemoteRepositoryPort _fcmRemoteRepository;
-  final FcmTokenRepositoryPort _fcmTokenRepository;
   final Logger _logger;
 
   late final Timer _timer;
@@ -92,11 +88,6 @@ class FcmBatchQueue implements FcmBatchQueuePort {
           '[FCM] batch sent receiverId=$receiverId devices=${entry.fcmTokens.length} '
           'staleTokens=$stale',
         );
-
-        for (final e in results.whereType<FcmTokenNotFoundException>()) {
-          await _fcmTokenRepository.deleteToken(e.token);
-          _logger.info('[FcmBatchQueue] Deleted stale token: [${e.token}]');
-        }
       } catch (e) {
         _logger.severe(
           '[FcmBatchQueue] Failed to send batch for $receiverId: $e',

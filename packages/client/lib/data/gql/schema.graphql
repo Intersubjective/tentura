@@ -2457,6 +2457,7 @@ type mutation_root {
   evaluationSkip(id: String!): Boolean!
   evaluationSubmit(evaluatedUserId: String!, id: String!, note: String, reasonTags: [String!], value: Int!): Boolean!
   fcmTokenRegister(appId: String!, platform: String!, token: String!): Boolean!
+  fcmTokenDelete(appId: String!): Boolean!
 
   """
   insert data into the table: "beacon_help_offer"

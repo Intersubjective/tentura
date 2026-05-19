@@ -39,4 +39,26 @@ final class FcmCase extends UseCaseBase {
       return false;
     }
   }
+
+  Future<bool> deleteToken({
+    required String userId,
+    required String appId,
+  }) async {
+    if (userId.isEmpty || appId.isEmpty) {
+      return false;
+    }
+    try {
+      await _fcmTokenRepository.deleteByUserAndApp(
+        userId: userId,
+        appId: appId,
+      );
+      logger.info(
+        '[FCM] fcmTokenDelete userId=$userId appId=$appId',
+      );
+      return true;
+    } catch (e, st) {
+      logger.warning('[FCM] fcmTokenDelete failed userId=$userId: $e', e, st);
+      return false;
+    }
+  }
 }

@@ -1,0 +1,3 @@
+mutation FcmTokenDelete($appId: String!) {
+  fcmTokenDelete(appId: $appId)
+}

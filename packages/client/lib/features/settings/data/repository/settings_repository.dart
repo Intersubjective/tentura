@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/database/database.dart';
+import 'package:tentura/features/notification/domain/entity/last_fcm_registration.dart';
 
 import '../../domain/port/settings_repository_port.dart';
 
@@ -37,6 +41,50 @@ class SettingsRepository implements SettingsRepositoryPort {
       ),
     ),
   );
+
+  @override
+  Future<LastFcmRegistration?> getLastFcmRegistration() async {
+    final raw = await _database.managers.settings
+        .filter((f) => f.key.equals(_kLastFcmRegistrationKey))
+        .getSingleOrNull()
+        .then((v) => v?.valueText);
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    return LastFcmRegistration(
+      accountId: map['accountId']! as String,
+      appId: map['appId']! as String,
+      token: map['token']! as String,
+    );
+  }
+
+  @override
+  Future<void> setLastFcmRegistration(LastFcmRegistration? value) async {
+    if (value == null) {
+      await _database.managers.settings
+          .filter((f) => f.key.equals(_kLastFcmRegistrationKey))
+          .delete();
+      return;
+    }
+    final encoded = jsonEncode({
+      'accountId': value.accountId,
+      'appId': value.appId,
+      'token': value.token,
+    });
+    await _database.managers.settings.create(
+      (o) => o(
+        key: _kLastFcmRegistrationKey,
+        valueText: Value(encoded),
+      ),
+      mode: InsertMode.insertOrReplace,
+      onConflict: DoUpdate(
+        (_) => SettingsCompanion(
+          valueText: Value(encoded),
+        ),
+      ),
+    );
+  }
 
   ///
   /// Intro
@@ -142,6 +190,7 @@ class SettingsRepository implements SettingsRepositoryPort {
   static String _newStuffMyWorkKey(String accountId) => 'newStuff:myWork:$accountId';
 
   static const _kAppIdKey = 'appId';
+  static const _kLastFcmRegistrationKey = 'lastFcmRegistration';
   static const _kThemeModeKey = 'themeMode';
   static const _kIsIntroEnabledKey = 'isIntroEnabled';
 }

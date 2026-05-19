@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart';
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
@@ -20,9 +22,6 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
 
   final TenturaDb _database;
 
-  ///
-  ///
-  ///
   @override
   Future<Iterable<FcmTokenEntity>> getTokensByUserId(String userId) async {
     final tokens = await _database.managers.fcmTokens
@@ -31,26 +30,54 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
     return tokens.map(fcmTokenModelToEntity);
   }
 
-  ///
-  /// Insert token into DB, ignore if exists
-  ///
   @override
   Future<void> putToken({
     required String userId,
     required String appId,
     required String token,
     required String platform,
-  }) => _database.managers.fcmTokens.create(
-    (o) => o(
-      userId: userId,
-      appId: UuidValue.fromString(appId),
-      token: token,
-      platform: platform,
-    ),
-    mode: InsertMode.insertOrIgnore,
-  );
+  }) async {
+    final appUuid = UuidValue.fromString(appId);
+    final refreshedAt = PgDateTime(DateTime.timestamp());
+
+    await _database.transaction(() async {
+      await _database.into(_database.fcmTokens).insert(
+        FcmTokensCompanion.insert(
+          userId: userId,
+          appId: appUuid,
+          token: token,
+          platform: platform,
+          lastRefreshedAt: refreshedAt,
+        ),
+        onConflict: DoUpdate(
+          (_) => FcmTokensCompanion(
+            token: Value(token),
+            platform: Value(platform),
+            lastRefreshedAt: Value(refreshedAt),
+          ),
+        ),
+      );
+
+      await _database.customStatement(
+        'DELETE FROM fcm_token WHERE token = ? '
+        'AND NOT (user_id = ? AND app_id = ?::uuid)',
+        [token, userId, appId],
+      );
+    });
+  }
 
   @override
   Future<void> deleteToken(String token) =>
       _database.managers.fcmTokens.filter((f) => f.token(token)).delete();
+
+  @override
+  Future<void> deleteByUserAndApp({
+    required String userId,
+    required String appId,
+  }) =>
+      _database.managers.fcmTokens
+          .filter(
+            (f) => f.userId.id(userId) & f.appId(UuidValue.fromString(appId)),
+          )
+          .delete();
 }

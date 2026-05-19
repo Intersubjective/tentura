@@ -117,7 +117,6 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
       .update(
         (o) => o(
           title: Value(account.title),
-          fcmTokenUpdatedAt: Value(account.fcmTokenUpdatedAt),
           imageId: Value(account.image?.id ?? ''),
           blurHash: Value(account.image?.blurHash ?? ''),
           height: Value(account.image?.height ?? 0),
