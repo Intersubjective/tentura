@@ -39,21 +39,6 @@ class FcmCase {
   }
 
   ///
-  Future<bool> checkIfRegistrationNeeded() async {
-    final fcmLastRegistrationAt =
-        (await _authLocalRepository.getCurrentAccount())?.fcmTokenUpdatedAt;
-    final needed = fcmLastRegistrationAt == null ||
-        fcmLastRegistrationAt
-            .add(const Duration(days: 30))
-            .isBefore(DateTime.timestamp());
-    fcmLog(
-      'FcmCase: checkIfRegistrationNeeded=$needed '
-      'lastRegisteredAt=$fcmLastRegistrationAt',
-    );
-    return needed;
-  }
-
-  ///
   Future<String> registerFcmToken({
     required String platform,
     String? token,
