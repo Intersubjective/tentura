@@ -1,7 +1,5 @@
-import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
-import 'package:uuid/uuid.dart';
 
 import 'package:tentura_server/domain/entity/fcm_token_entity.dart';
 import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
@@ -47,7 +45,7 @@ class FcmTokenRepository implements FcmTokenRepositoryPort {
           appId: appUuid,
           token: token,
           platform: platform,
-          lastRefreshedAt: refreshedAt,
+          lastRefreshedAt: Value(refreshedAt),
         ),
         onConflict: DoUpdate(
           (_) => FcmTokensCompanion(
