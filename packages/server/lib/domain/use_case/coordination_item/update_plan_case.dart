@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -11,13 +14,15 @@ import '../_use_case_base.dart';
 final class UpdatePlanCase extends UseCaseBase {
   UpdatePlanCase(
     this._beaconRepository,
-    this._itemRepository, {
+    this._itemRepository,
+    this._push, {
     required super.env,
     required super.logger,
   });
 
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
+  final BeaconRoomPushService _push;
 
   Future<CoordinationItem> call({
     required String userId,
@@ -35,7 +40,7 @@ final class UpdatePlanCase extends UseCaseBase {
     if (!beacon.isActive) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
-    return _itemRepository.publishRootPlan(
+    final item = await _itemRepository.publishRootPlan(
       beaconId: beaconId,
       creatorId: userId,
       title: trimmed,
@@ -44,5 +49,14 @@ final class UpdatePlanCase extends UseCaseBase {
       linkedMessageId: linkedMessageId,
       syncCurrentPlanText: trimmed,
     );
+    unawaited(
+      _push.notifyPlanUpdatedToRoom(
+        beaconId: beaconId,
+        actorUserId: userId,
+        admittedUserIds: const [],
+        planExcerpt: trimmed,
+      ),
+    );
+    return item;
   }
 }

@@ -10,7 +10,6 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
-import '../../data/repository/beacon_blocker_repository.dart';
 import '../../data/repository/beacon_fact_card_repository.dart';
 import '../../data/repository/beacon_room_hints_repository.dart';
 import '../../data/repository/beacon_room_repository.dart';
@@ -22,7 +21,6 @@ final class BeaconRoomCase extends UseCaseBase {
   BeaconRoomCase(
     this._room,
     this._factCards,
-    this._blockers,
     this._polling,
     this._hints,
     this._coordinationItemCase, {
@@ -33,8 +31,6 @@ final class BeaconRoomCase extends UseCaseBase {
   final BeaconRoomRepository _room;
 
   final BeaconFactCardRepository _factCards;
-
-  final BeaconBlockerRepository _blockers;
 
   final PollingRepository _polling;
 
@@ -173,21 +169,6 @@ final class BeaconRoomCase extends UseCaseBase {
   Future<CoordinationItem?> fetchCurrentCoordinationPlan(String beaconId) =>
       _coordinationItemCase.fetchCurrentRootPlan(beaconId);
 
-  Future<bool> participantSetNextMove({
-    required String beaconId,
-    required String targetUserId,
-    required String nextMoveText,
-    required int nextMoveSource,
-    int? nextMoveStatus,
-  }) =>
-      _room.participantSetNextMove(
-        beaconId: beaconId,
-        targetUserId: targetUserId,
-        nextMoveText: nextMoveText,
-        nextMoveSource: nextMoveSource,
-        nextMoveStatus: nextMoveStatus,
-      );
-
   Future<List<BeaconFactCard>> fetchFactCards(String beaconId) =>
       _factCards.list(beaconId: beaconId);
 
@@ -296,32 +277,30 @@ final class BeaconRoomCase extends UseCaseBase {
           )
           .then((_) {});
 
-  Future<void> needInfoFromMessage({
+  Future<void> markAskFromMessageAsNeedInfo({
     required String beaconId,
     required String messageId,
-    required String targetUserId,
-    required String requestText,
+    required String targetPersonId,
+    required String title,
+    String body = '',
   }) =>
-      _blockers
-          .needInfo(
-            beaconId: beaconId,
-            messageId: messageId,
-            targetUserId: targetUserId,
-            requestText: requestText,
-          )
-          .then((_) {});
+      markAskFromMessage(
+        beaconId: beaconId,
+        messageId: messageId,
+        title: title,
+        targetPersonId: targetPersonId,
+        body: body,
+      );
 
-  Future<void> markMessageDone({
+  Future<void> resolveCoordinationBlocker({required String itemId}) =>
+      _coordinationItemCase.resolveBlocker(itemId: itemId).then((_) {});
+
+  Future<void> markMessageSemanticDone({
     required String beaconId,
     required String messageId,
-    required bool resolveBlocker,
   }) =>
-      _blockers
-          .markDone(
-            beaconId: beaconId,
-            messageId: messageId,
-            resolveBlocker: resolveBlocker,
-          )
+      _room
+          .markMessageSemanticDone(beaconId: beaconId, messageId: messageId)
           .then((_) {});
 
   Future<void> votePoll({

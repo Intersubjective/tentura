@@ -54,6 +54,9 @@ const kAppTitle = 'Tentura';
 
 const kPathIcons = '/icons';
 const kPathAppLinkView = '/shared/view';
+
+/// Post-close review contributions screen (client Auto Route).
+const kPathReviewContributions = '/beacon/review';
 const kPathWebSocketEndpoint = '/api/v2/ws';
 const kPathGraphQLEndpoint = '/api/v1/graphql';
 const kPathGraphQLEndpointV2 = '/api/v2/graphql';

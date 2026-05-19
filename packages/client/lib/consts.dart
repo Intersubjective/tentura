@@ -66,6 +66,9 @@ const kBeaconSurfaceRoomQueryValue = 'room';
 /// [kQueryBeaconSurface] value for Status mode.
 const kBeaconSurfaceStatusQueryValue = 'status';
 
+/// Coordination item to focus when opening room from a notification deep link.
+const kQueryCoordinationItemId = 'item';
+
 /// [kQueryBeaconEntry] string values (snake_case).
 const kBeaconEntryMyWork = 'my_work';
 const kBeaconEntryInbox = 'inbox';

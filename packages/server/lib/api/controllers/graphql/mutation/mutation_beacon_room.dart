@@ -27,17 +27,6 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _emoji = InputFieldString(fieldName: 'emoji');
 
-  final _targetUserId = InputFieldString(fieldName: 'targetUserId');
-
-  final _nextMoveText = InputFieldString(fieldName: 'nextMoveText');
-
-  final GraphQLFieldInput<int, int> _nextMoveSource =
-      GraphQLFieldInput('nextMoveSource', graphQLInt.nonNullable());
-
-  final _nextMoveStatus = InputFieldInt(fieldName: 'nextMoveStatus');
-
-  final _requestText = InputFieldString(fieldName: 'requestText');
-
   final _questionInput = InputFieldString(fieldName: 'question');
 
   final _variantsInput = InputFieldStringList(fieldName: 'variants');
@@ -48,9 +37,6 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _allowRevoteInput = InputFieldBool(fieldName: 'allowRevote');
 
-  final InputFieldBool _resolveBlockerFlag =
-      InputFieldBool(fieldName: 'resolveBlocker');
-
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
         roomMessageCreate,
         roomMessageAttachmentAdd,
@@ -60,9 +46,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
         beaconRoomAdmit,
         beaconStewardPromote,
         roomMessageReactionToggle,
-        beaconParticipantSetNextMove,
-        beaconRoomMessageNeedInfo,
-        roomMessageMarkDone,
+        roomMessageMarkSemanticDone,
         beaconParticipantRoomSeen,
         markBeaconRoomSeen,
         roomPollCreate,
@@ -246,63 +230,18 @@ final class MutationBeaconRoom extends GqlNodeBase {
             .then((_) => true),
       );
 
-  GraphQLObjectField<dynamic, dynamic> get beaconParticipantSetNextMove =>
+  GraphQLObjectField<dynamic, dynamic> get roomMessageMarkSemanticDone =>
       GraphQLObjectField(
-        'BeaconParticipantSetNextMove',
-        graphQLBoolean.nonNullable(),
-        arguments: [
-          _beaconIdStr.field,
-          _targetUserId.field,
-          _nextMoveText.field,
-          _nextMoveSource,
-          _nextMoveStatus.fieldNullable,
-        ],
-        resolve: (_, args) {
-          final src = args[_nextMoveSource.name]! as int;
-          return _case.participantSetNextMove(
-            beaconId: _beaconIdStr.fromArgsNonNullable(args),
-            actorUserId: getCredentials(args).sub,
-            targetUserId: _targetUserId.fromArgsNonNullable(args),
-            nextMoveText: _nextMoveText.fromArgsNonNullable(args),
-            nextMoveSource: src,
-            nextMoveStatus: _nextMoveStatus.fromArgs(args),
-          );
-        },
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get beaconRoomMessageNeedInfo =>
-      GraphQLObjectField(
-        'BeaconRoomMessageNeedInfo',
+        'RoomMessageMarkSemanticDone',
         graphQLBoolean.nonNullable(),
         arguments: [
           _beaconIdStr.field,
           _messageId.field,
-          _targetUserId.field,
-          _requestText.field,
         ],
-        resolve: (_, args) => _case.beaconRoomMessageNeedInfo(
+        resolve: (_, args) => _case.roomMessageMarkSemanticDone(
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
               messageId: _messageId.fromArgsNonNullable(args),
-              targetUserId: _targetUserId.fromArgsNonNullable(args),
-              requestText: _requestText.fromArgsNonNullable(args),
-            ),
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get roomMessageMarkDone =>
-      GraphQLObjectField(
-        'RoomMessageMarkDone',
-        graphQLBoolean.nonNullable(),
-        arguments: [
-          _beaconIdStr.field,
-          _messageId.field,
-          _resolveBlockerFlag.field,
-        ],
-        resolve: (_, args) => _case.roomMessageMarkDone(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-              messageId: _messageId.fromArgsNonNullable(args),
-              resolveBlocker: args[_resolveBlockerFlag.field.name]! as bool,
             ),
       );
 

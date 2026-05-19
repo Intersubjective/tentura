@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -12,13 +15,15 @@ import '../_use_case_base.dart';
 final class MarkAskCase extends UseCaseBase {
   MarkAskCase(
     this._beaconRepository,
-    this._itemRepository, {
+    this._itemRepository,
+    this._push, {
     required super.env,
     required super.logger,
   });
 
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
+  final BeaconRoomPushService _push;
 
   Future<CoordinationItem> call({
     required String userId,
@@ -41,7 +46,7 @@ final class MarkAskCase extends UseCaseBase {
     if (!beacon.isActive) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
-    return _itemRepository.create(
+    final item = await _itemRepository.create(
       beaconId: beaconId,
       kind: coordinationItemKindAsk,
       creatorId: userId,
@@ -50,5 +55,18 @@ final class MarkAskCase extends UseCaseBase {
       targetPersonId: targetPersonId,
       linkedMessageId: linkedMessageId,
     );
+    final target = item.targetPersonId;
+    if (target != null && target.isNotEmpty && target != userId) {
+      unawaited(
+        _push.notifyNeedsMe(
+          beaconId: beaconId,
+          actorUserId: userId,
+          targetUserId: target,
+          excerpt: trimmed.isNotEmpty ? trimmed : body.trim(),
+          coordinationItemId: item.id,
+        ),
+      );
+    }
+    return item;
   }
 }

@@ -390,7 +390,11 @@ void main() {
         ),
       ).thenAnswer((_) => Future.value());
       when(
-        roomPush.notifyRoomAdmitted(receiverId: 'U1', beaconId: 'B1'),
+        roomPush.notifyRoomAdmitted(
+          receiverId: 'U1',
+          beaconId: 'B1',
+          actorUserId: 'Uauth',
+        ),
       ).thenAnswer((_) => Future.value());
     }
 
@@ -415,7 +419,11 @@ void main() {
         ),
       ).called(1);
       verify(
-        roomPush.notifyRoomAdmitted(receiverId: 'U1', beaconId: 'B1'),
+        roomPush.notifyRoomAdmitted(
+          receiverId: 'U1',
+          beaconId: 'B1',
+          actorUserId: 'Uauth',
+        ),
       ).called(1);
     });
 
@@ -506,7 +514,11 @@ void main() {
         ),
       ).thenAnswer((_) => Future.value());
       when(
-        roomPush.notifyRoomAdmitted(receiverId: 'U1', beaconId: 'B1'),
+        roomPush.notifyRoomAdmitted(
+          receiverId: 'U1',
+          beaconId: 'B1',
+          actorUserId: 'Uauth',
+        ),
       ).thenAnswer((_) => Future.value());
 
       await case_.offerHelp(beaconId: 'B1', userId: 'U1');

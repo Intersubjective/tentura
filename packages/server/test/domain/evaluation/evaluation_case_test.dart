@@ -7,8 +7,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
-import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
-import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
@@ -117,10 +116,6 @@ class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
 }
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
-
-class MockFcmRemoteRepository extends Mock implements FcmRemoteRepositoryPort {}
-
-class MockFcmTokenRepository extends Mock implements FcmTokenRepositoryPort {}
 
 @immutable
 class _SetStatusCall {
@@ -334,8 +329,7 @@ void main() {
       forwardRepo,
       evalRepo,
       userRepo,
-      MockFcmRemoteRepository(),
-      MockFcmTokenRepository(),
+      MockBeaconRoomPushService(),
       graphBuilder,
       draftPurger,
       noopCapabilityCase,
@@ -596,3 +590,5 @@ void main() {
     });
   });
 }
+
+class MockBeaconRoomPushService extends Mock implements BeaconRoomPushService {}

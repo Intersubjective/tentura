@@ -4,7 +4,6 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -15,8 +14,7 @@ import '_use_case_base.dart';
 final class BeaconFactCardCase extends UseCaseBase {
   BeaconFactCardCase(
     this._facts,
-    this._room,
-    this._push, {
+    this._room, {
     required super.env,
     required super.logger,
   });
@@ -24,8 +22,6 @@ final class BeaconFactCardCase extends UseCaseBase {
   final BeaconFactCardRepository _facts;
 
   final BeaconRoomRepository _room;
-
-  final BeaconRoomPushService _push;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -79,18 +75,6 @@ final class BeaconFactCardCase extends UseCaseBase {
       visibility: visibility,
       pinnedBy: userId,
       sourceMessageId: sourceMessageId,
-    );
-    final isPub = visibility == BeaconFactCardVisibilityBits.public;
-    final recipients = isPub
-        ? await _room.listAllParticipantUserIds(beaconId)
-        : await _room.listAdmittedUserIds(beaconId);
-    unawaited(
-      _push.notifyFactPinned(
-        beaconId: beaconId,
-        actorUserId: userId,
-        isPublic: isPub,
-        recipientUserIds: recipients,
-      ),
     );
     return {'id': entity.id, 'beaconId': entity.beaconId};
   }

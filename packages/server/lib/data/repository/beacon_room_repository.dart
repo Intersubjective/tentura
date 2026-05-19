@@ -3,12 +3,10 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
-import 'package:tentura_server/consts/beacon_blocker_consts.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
-import 'package:tentura_server/domain/entity/beacon_blocker_entity.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
@@ -929,12 +927,6 @@ class BeaconRoomRepository {
           .filter((e) => e.beaconId.id(beaconId))
           .getSingleOrNull();
 
-  Future<String?> getBlockerTitle(String blockerId) =>
-      _db.managers.beaconBlockers
-          .filter((b) => b.id.equals(blockerId))
-          .getSingleOrNull()
-          .then((r) => r?.title);
-
   Future<void> markBeaconRoomSeen({
     required String userId,
     required String beaconId,
@@ -1004,124 +996,10 @@ class BeaconRoomRepository {
         at: DateTime.timestamp(),
       );
 
-  /// Upserts coordinated plan text (`beacon_room_state.current_plan`).
-  Future<void> upsertBeaconRoomPlan({
-    required String beaconId,
-    required String currentPlan,
-    required String updatedByUserId,
-  }) =>
-      _db.withMutatingUser(updatedByUserId, () async {
-        final plan = currentPlan.trim();
-        await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
-              BeaconRoomStatesCompanion.insert(
-                beaconId: beaconId,
-                currentPlan: Value(plan),
-                updatedBy: Value(updatedByUserId),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-      });
-
   Future<BeaconRoomMessage?> getRoomMessageById(String messageId) =>
       _db.managers.beaconRoomMessages
           .filter((m) => m.id.equals(messageId))
           .getSingleOrNull();
-
-  /// Opens a blocker tied to [openedFromMessageId], updates message + NOW strip pointer.
-  Future<String> insertBlockerOpen({
-    required String beaconId,
-    required String title,
-    required int visibility,
-    required String openedBy,
-    String? openedFromMessageId,
-    String? affectedParticipantId,
-    String? resolverParticipantId,
-  }) =>
-      _db.withMutatingUser(openedBy, () async {
-        final t = title.trim();
-        if (t.isEmpty) {
-          throw ArgumentError('title');
-        }
-        final blockerId = BeaconBlockerEntity.newId;
-        await _db.managers.beaconBlockers.create(
-          (o) => o(
-            id: Value(blockerId),
-            beaconId: beaconId,
-            title: t,
-            status: const Value(BeaconBlockerStatusBits.open),
-            visibility: Value(visibility),
-            openedBy: openedBy,
-            openedFromMessageId: Value(openedFromMessageId),
-            affectedParticipantId: Value(affectedParticipantId),
-            resolverParticipantId: Value(resolverParticipantId),
-            resolvedBy: const Value.absent(),
-            resolvedFromMessageId: const Value.absent(),
-            resolvedAt: const Value.absent(),
-            createdAt: const Value.absent(),
-          ),
-        );
-        final roomState = await getBeaconRoomState(beaconId);
-        if (roomState == null) {
-          await _db.into(_db.beaconRoomStates).insert(
-                BeaconRoomStatesCompanion.insert(
-                  beaconId: beaconId,
-                  currentPlan: const Value(''),
-                  openBlockerId: Value(blockerId),
-                  updatedAt: Value(PgDateTime(DateTime.timestamp())),
-                  updatedBy: Value(openedBy),
-                ),
-              );
-        } else {
-          await _db.managers.beaconRoomStates
-              .filter((s) => s.beaconId.id(beaconId))
-              .update(
-                (u) => u(
-                  openBlockerId: Value(blockerId),
-                  updatedAt: Value(PgDateTime(DateTime.timestamp())),
-                  updatedBy: Value(openedBy),
-                ),
-              );
-        }
-        if (openedFromMessageId != null) {
-          await _db.managers.beaconRoomMessages
-              .filter((m) => m.id.equals(openedFromMessageId))
-              .update(
-                (u) => u(
-                  linkedBlockerId: Value(blockerId),
-                  semanticMarker:
-                      const Value(BeaconRoomSemanticMarker.blocker),
-                ),
-              );
-        }
-        return blockerId;
-      });
-
-  Future<void> resolveBlocker({
-    required String blockerId,
-    required String resolvedByUserId,
-    String? resolvedFromMessageId,
-  }) =>
-      _db.withMutatingUser(resolvedByUserId, () async {
-        await _db.managers.beaconBlockers
-            .filter((b) => b.id.equals(blockerId))
-            .update(
-              (u) => u(
-                status: const Value(BeaconBlockerStatusBits.resolved),
-                resolvedBy: Value(resolvedByUserId),
-                resolvedFromMessageId: Value(resolvedFromMessageId),
-                resolvedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-        await _db.managers.beaconRoomStates
-            .filter((s) => s.openBlockerId.id(blockerId))
-            .update(
-              (u) => u(
-                openBlockerId: const Value(null),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-                updatedBy: Value(resolvedByUserId),
-              ),
-            );
-      });
 
   Future<void> markRoomMessageSemanticDone({
     required String messageId,
@@ -1133,33 +1011,6 @@ class BeaconRoomRepository {
             .update(
               (u) => u(
                 semanticMarker: const Value(BeaconRoomSemanticMarker.done),
-              ),
-            );
-      });
-
-  Future<void> setParticipantNeedsInfo({
-    required String participantRowId,
-    required String actingUserId,
-    required String requestText,
-    required String linkedMessageId,
-  }) =>
-      _db.withMutatingUser(actingUserId, () async {
-        final trimmed = requestText.trim();
-        if (trimmed.isEmpty) {
-          throw ArgumentError('requestText');
-        }
-        await _db.managers.beaconParticipants
-            .filter((r) => r.id.equals(participantRowId))
-            .update(
-              (u) => u(
-                status: const Value(BeaconParticipantStatusBits.needsInfo),
-                nextMoveText: Value(trimmed),
-                nextMoveStatus:
-                    const Value(BeaconNextMoveStatusBits.requested),
-                nextMoveSource:
-                    const Value(BeaconNextMoveSourceBits.stewardOrAuthor),
-                linkedMessageId: Value(linkedMessageId),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
               ),
             );
       });
@@ -1252,67 +1103,6 @@ class BeaconRoomRepository {
         .filter((r) => r.id.equals(participantRowId))
         .getSingleOrNull();
     return p?.userId;
-  }
-
-  /// Blocker opened: involved participants first; else beacon author + stewards.
-  Future<Set<String>> blockerOpenedNotifyUserIds({
-    required String beaconId,
-    required String openedByUserId,
-    String? affectedParticipantId,
-    String? resolverParticipantId,
-  }) async {
-    final out = <String>{};
-    if (affectedParticipantId != null && affectedParticipantId.isNotEmpty) {
-      final u = await participantUserIdForRow(affectedParticipantId);
-      if (u != null) {
-        out.add(u);
-      }
-    }
-    if (resolverParticipantId != null && resolverParticipantId.isNotEmpty) {
-      final u = await participantUserIdForRow(resolverParticipantId);
-      if (u != null) {
-        out.add(u);
-      }
-    }
-    if (out.isEmpty) {
-      final author = await beaconAuthorUserId(beaconId);
-      if (author != null && author.isNotEmpty) {
-        out.add(author);
-      }
-      out.addAll(await listStewardUserIds(beaconId));
-    }
-    out.remove(openedByUserId);
-    return out;
-  }
-
-  /// Blocker resolved: opened-by + involved participants (excluding resolver).
-  Future<Set<String>> blockerResolvedNotifyUserIds({
-    required String blockerId,
-    required String resolvedByUserId,
-  }) async {
-    final blocker = await _db.managers.beaconBlockers
-        .filter((b) => b.id.equals(blockerId))
-        .getSingleOrNull();
-    if (blocker == null) {
-      return {};
-    }
-    final out = <String>{blocker.openedBy};
-    final ap = blocker.affectedParticipantId;
-    if (ap != null) {
-      final u = await participantUserIdForRow(ap);
-      if (u != null) {
-        out.add(u);
-      }
-    }
-    final rp = blocker.resolverParticipantId;
-    if (rp != null) {
-      final u = await participantUserIdForRow(rp);
-      if (u != null) {
-        out.add(u);
-      }
-    }
-    out.remove(resolvedByUserId);
-    return out;
   }
 
   /// Room messages created strictly after [after] (exclusive), for unread counts.

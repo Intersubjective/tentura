@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_surface_mode.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_view_entry_source.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_view_surface_resolver.dart';

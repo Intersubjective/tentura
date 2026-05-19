@@ -4,10 +4,13 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
+import 'package:tentura_server/domain/entity/notification_kind.dart';
+import 'package:tentura_server/domain/entity/notification_priority.dart';
+import 'package:tentura_server/domain/notification/beacon_notification_batch_aggregator.dart';
 import 'package:tentura_server/domain/port/fcm_batch_queue_port.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
-/// Batches FCM notifications and flushes at most once per second to avoid
-/// per-message HTTP calls that trigger FCM rate limiting.
+
+/// Batches FCM notifications and flushes at most once per second.
 @LazySingleton(as: FcmBatchQueuePort)
 class FcmBatchQueue implements FcmBatchQueuePort {
   FcmBatchQueue(
@@ -25,34 +28,58 @@ class FcmBatchQueue implements FcmBatchQueuePort {
 
   late final Timer _timer;
 
-  /// Keyed by receiverId so multiple messages to the same user coalesce.
+  static const _aggregator = BeaconNotificationBatchAggregator();
+
   final _pending = <String, _FcmBatchEntry>{};
 
-  /// Enqueue a notification for a receiver. If the same receiver already has a
-  /// pending entry, the latest message replaces the previous one and the count
-  /// is incremented (for summary text).
+  String _batchKey({
+    required String receiverId,
+    required String? beaconId,
+    required NotificationPriority? priority,
+  }) {
+    final band = priority?.batchBand ?? 'normal';
+    final beacon = beaconId ?? '';
+    return '$receiverId|$beacon|$band';
+  }
+
   @override
   void enqueue({
     required String receiverId,
     required Set<String> fcmTokens,
     required FcmNotificationEntity message,
   }) {
-    final existing = _pending[receiverId];
+    final key = _batchKey(
+      receiverId: receiverId,
+      beaconId: message.beaconId,
+      priority: message.priority,
+    );
+    final existing = _pending[key];
     if (existing != null) {
       existing.latestMessage = message;
       existing.fcmTokens.addAll(fcmTokens);
       existing.count += 1;
+      if (message.kind != null) {
+        existing.kindCounts.update(
+          message.kind!,
+          (v) => v + 1,
+          ifAbsent: () => 1,
+        );
+      }
       _logger.info(
-        '[FCM] batch coalesce receiverId=$receiverId count=${existing.count} '
+        '[FCM] batch coalesce key=$key count=${existing.count} '
         'devices=${existing.fcmTokens.length}',
       );
     } else {
-      _pending[receiverId] = _FcmBatchEntry(
+      _pending[key] = _FcmBatchEntry(
+        receiverId: receiverId,
         fcmTokens: fcmTokens,
         latestMessage: message,
+        kindCounts: message.kind != null
+            ? {message.kind!: 1}
+            : <NotificationKind, int>{},
       );
       _logger.info(
-        '[FCM] batch queued receiverId=$receiverId devices=${fcmTokens.length} '
+        '[FCM] batch queued key=$key devices=${fcmTokens.length} '
         'title="${message.title}"',
       );
     }
@@ -64,20 +91,35 @@ class FcmBatchQueue implements FcmBatchQueuePort {
     final batch = Map<String, _FcmBatchEntry>.of(_pending);
     _pending.clear();
 
-    for (final MapEntry(key: receiverId, value: entry) in batch.entries) {
+    for (final MapEntry(key: batchKey, value: entry) in batch.entries) {
       try {
+        final dominantKind = _aggregator.pickDominantKind(entry.kindCounts);
+        final aggregated = _aggregator.aggregate(
+          count: entry.count,
+          dominantKind: dominantKind,
+          latestTitle: entry.latestMessage.title,
+          latestBody: entry.latestMessage.body,
+          beaconTitle: null,
+          kindCounts: entry.kindCounts,
+        );
+
         final notification = entry.count > 1
             ? FcmNotificationEntity(
-                title: entry.latestMessage.title,
-                body: 'You have ${entry.count} new messages',
+                title: aggregated.title,
+                body: aggregated.body,
                 imageUrl: entry.latestMessage.imageUrl,
                 actionUrl: entry.latestMessage.actionUrl,
+                beaconId: entry.latestMessage.beaconId,
+                coordinationItemId: entry.latestMessage.coordinationItemId,
+                kind: dominantKind,
+                priority: entry.latestMessage.priority,
               )
             : entry.latestMessage;
 
         _logger.info(
-          '[FCM] batch flush receiverId=$receiverId devices=${entry.fcmTokens.length} '
-          'count=${entry.count} title="${notification.title}"',
+          '[FCM] batch flush key=$batchKey receiverId=${entry.receiverId} '
+          'devices=${entry.fcmTokens.length} count=${entry.count} '
+          'title="${notification.title}"',
         );
         final results = await _fcmRemoteRepository.sendChatNotification(
           fcmTokens: entry.fcmTokens,
@@ -85,12 +127,12 @@ class FcmBatchQueue implements FcmBatchQueuePort {
         );
         final stale = results.whereType<FcmTokenNotFoundException>().length;
         _logger.info(
-          '[FCM] batch sent receiverId=$receiverId devices=${entry.fcmTokens.length} '
+          '[FCM] batch sent receiverId=${entry.receiverId} '
           'staleTokens=$stale',
         );
       } catch (e) {
         _logger.severe(
-          '[FcmBatchQueue] Failed to send batch for $receiverId: $e',
+          '[FcmBatchQueue] Failed to send batch for ${entry.receiverId}: $e',
         );
       }
     }
@@ -105,11 +147,15 @@ class FcmBatchQueue implements FcmBatchQueuePort {
 
 class _FcmBatchEntry {
   _FcmBatchEntry({
+    required this.receiverId,
     required this.fcmTokens,
     required this.latestMessage,
+    required this.kindCounts,
   });
 
+  final String receiverId;
   final Set<String> fcmTokens;
   FcmNotificationEntity latestMessage;
   int count = 1;
+  Map<NotificationKind, int> kindCounts;
 }

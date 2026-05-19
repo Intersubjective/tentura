@@ -11,6 +11,9 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
+import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_promise_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -85,6 +88,7 @@ void main() {
     sut = CreatePromiseCase(
       beacons,
       items,
+      _NoopRoomPush(),
       env: Env(environment: Environment.test),
       logger: Logger('_'),
     );
@@ -153,3 +157,12 @@ BeaconEntity _openBeacon(String id) => BeaconEntity(
       createdAt: DateTime.utc(2024),
       updatedAt: DateTime.utc(2024),
     );
+
+class _NoopRoomPush extends BeaconRoomPushService {
+  _NoopRoomPush() : super(_NoopNotificationPort());
+}
+
+class _NoopNotificationPort implements BeaconNotificationPort {
+  @override
+  Future<void> dispatch(BeaconNotificationIntent intent) async {}
+}

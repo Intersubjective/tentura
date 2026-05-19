@@ -8,6 +8,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
+import 'notification_deep_link.dart';
 import 'root_router.gr.dart';
 
 export 'package:auto_route/auto_route.dart';
@@ -287,16 +288,7 @@ class RootRouter extends RootStackRouter {
     uri.path == kPathAppLinkView
         ? switch (uri.queryParameters['id']) {
             final String id when id.startsWith('B') || id.startsWith('C') =>
-              uri.replace(
-                path: '$kPathBeaconView/$id',
-                queryParameters: {
-                  kQueryIsDeepLink: 'true',
-                  if (uri.queryParameters['dest'] == 'room') ...{
-                    kQueryBeaconViewTab: 'room',
-                    kQueryBeaconEntry: kBeaconEntryDeepLink,
-                  },
-                },
-              ),
+              transformBeaconAppLink(uri, id),
             final String id when id.startsWith('O') || id.startsWith('U') =>
               uri.replace(
                 path: '$kPathProfileView/$id',
@@ -325,7 +317,13 @@ class RootRouter extends RootStackRouter {
   /// Opens a notification [rawLink] (`/#/shared/view?…` or absolute URL).
   Future<void> openFromNotificationLink(String rawLink) async {
     final uri = _notificationUriFromRaw(rawLink);
-    final destRoom = uri.queryParameters['dest'] == 'room';
+    if (uri.path.startsWith(kPathReviewContributions)) {
+      await pushPath(uri.path);
+      return;
+    }
+    final destRoom = uri.queryParameters['dest'] == 'room' ||
+        (uri.path == kPathAppLinkView &&
+            uri.queryParameters['dest'] == 'room');
     var transformed = await deepLinkTransformer(uri);
     if (destRoom && transformed.path.startsWith(kPathBeaconView)) {
       final q = Map<String, String>.from(transformed.queryParameters);
