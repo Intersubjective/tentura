@@ -170,8 +170,8 @@ class RoomMessageTile extends StatelessWidget {
     try {
       final map = jsonDecode(sp);
       if (map is! Map<String, dynamic>) return '';
-      final plan = map['currentPlan'];
-      if (plan is String && plan.trim().isNotEmpty) return plan.trim();
+      final line = map['currentLine'] ?? map['currentPlan'];
+      if (line is String && line.trim().isNotEmpty) return line.trim();
       final fact = map['factText'];
       if (fact is String && fact.trim().isNotEmpty) return fact.trim();
       final req = map['requestText'];

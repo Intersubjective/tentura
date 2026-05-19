@@ -245,7 +245,7 @@ Use `Blocked` publicly only if the author/steward explicitly chooses to expose t
 Visible only to Room members. Stored in `BeaconRoomState`.
 
 ```text
-current_plan
+current_line
 open blockers with details
 private facts
 participant statuses
@@ -555,13 +555,15 @@ Visible only to Room members.
 ```text
 BeaconRoomState
 ├─ beaconId
-├─ currentPlan: string
+├─ currentLine: string
 ├─ openBlockerId?: string
 ├─ openBlockerTitle?: string
 ├─ lastRoomMeaningfulChange?: string
 ├─ updatedAt
 └─ updatedBy?
 ```
+
+**Current line** is a short shared orientation string (“what’s next in this situation?”). It is not a coordination **Plan** (checklist, route, or step sequence). UI label: “What’s next?” / “Что дальше?”.
 
 ### BeaconParticipant
 
@@ -945,7 +947,7 @@ Flow:
 Select Room message → Update plan
 ├─ show compact edit dialog
 ├─ prefill from selected message if feasible through manual selection/copy, not AI
-├─ user edits BeaconRoomState.currentPlan
+├─ user edits BeaconRoomState.currentLine
 ├─ save
 └─ emit room BeaconActivityEvent(planUpdated)
 ```
@@ -958,7 +960,7 @@ Room:
   system insert appears: "Plan updated by X"
 
 Room NOW strip:
-  currentPlan updates
+  currentLine updates
   lastRoomMeaningfulChange updates
 
 Overview:
@@ -1573,7 +1575,7 @@ Room message
 └─ updates Room unread state for Room members only
 
 Room message + Update plan
-├─ updates BeaconRoomState.currentPlan
+├─ updates BeaconRoomState.currentLine
 ├─ updates Room NOW strip
 ├─ updates Room members' My Work snippets if relevant
 └─ creates room BeaconActivityEvent(planUpdated)
@@ -1805,7 +1807,7 @@ Do:
 - Keep all state changes explicit, attributed, and reversible/supersedable.
 - Use OfferHelp for beacon-level participation.
 - Keep ordinary chat available.
-- Keep BeaconRoomState.currentPlan Room-private.
+- Keep BeaconRoomState.currentLine Room-private.
 - Respect the two-layer visibility model at every screen boundary.
 ```
 

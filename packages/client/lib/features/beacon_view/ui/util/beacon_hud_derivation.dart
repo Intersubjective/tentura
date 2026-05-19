@@ -30,9 +30,9 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
     return l10n.beaconHudNowBlocked(blockerTitle);
   }
 
-  final plan = cue?.currentPlan.trim() ?? '';
-  if (plan.isNotEmpty) {
-    return plan;
+  final currentLine = cue?.currentLine.trim() ?? '';
+  if (currentLine.isNotEmpty) {
+    return currentLine;
   }
 
   final roomCue = cue?.lastRoomMeaningfulChange?.trim();
@@ -61,7 +61,7 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
     return need;
   }
 
-  return l10n.beaconHudNoCurrentPlan;
+  return l10n.beaconHudNoCurrentLine;
 }
 
 /// User-relative “YOU” instruction line (no new server fields).
@@ -157,9 +157,9 @@ String beaconHudNowExpandedBody(L10n l10n, BeaconViewState state) {
     lines.add(l10n.beaconHudNowBlocked(blockerTitle));
   }
 
-  final plan = cue?.currentPlan.trim() ?? '';
-  if (plan.isNotEmpty) {
-    lines.add(plan);
+  final currentLine = cue?.currentLine.trim() ?? '';
+  if (currentLine.isNotEmpty) {
+    lines.add(currentLine);
   }
 
   final roomCue = cue?.lastRoomMeaningfulChange?.trim();

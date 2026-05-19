@@ -48,7 +48,7 @@ class BeaconRoomHintsRepository {
         e.beaconId: InboxRoomCardHints(
           isRoomMember: e.isRoomMember,
           roomUnreadCount: e.roomUnreadCount,
-          currentPlanSnippet: _clip(e.currentPlan ?? ''),
+          currentLineSnippet: _clip(e.currentLine ?? ''),
           lastRoomMeaningfulChange: _clip(e.lastRoomMeaningfulChange ?? ''),
           myNextMove: _clip(e.nextMoveText ?? ''),
           openBlockerTitle: _clip(e.openBlockerTitle ?? ''),

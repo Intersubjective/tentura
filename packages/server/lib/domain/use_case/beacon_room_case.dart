@@ -266,7 +266,7 @@ final class BeaconRoomCase extends UseCaseBase {
     if (row == null) {
       return {
         'beaconId': beaconId,
-        'currentPlan': '',
+        'currentLine': '',
         'openBlockerId': null,
         'openBlockerTitle': null,
         'lastRoomMeaningfulChange': null,
@@ -280,7 +280,7 @@ final class BeaconRoomCase extends UseCaseBase {
     );
     return {
       'beaconId': row.beaconId,
-      'currentPlan': row.currentPlan,
+      'currentLine': row.currentLine,
       'openBlockerId': openBlocker?.id,
       'openBlockerTitle': openBlocker?.title,
       'lastRoomMeaningfulChange': row.lastRoomMeaningfulChange,
@@ -307,7 +307,7 @@ final class BeaconRoomCase extends UseCaseBase {
         out.add({
           'beaconId': bid,
           'isRoomMember': false,
-          'currentPlan': null,
+          'currentLine': null,
           'lastRoomMeaningfulChange': null,
           'nextMoveText': null,
           'roomUnreadCount': 0,
@@ -334,7 +334,7 @@ final class BeaconRoomCase extends UseCaseBase {
       out.add({
         'beaconId': bid,
         'isRoomMember': true,
-        'currentPlan': st?.currentPlan,
+        'currentLine': st?.currentLine,
         'lastRoomMeaningfulChange': st?.lastRoomMeaningfulChange,
         'nextMoveText': p?.nextMoveText,
         'roomUnreadCount': unread,

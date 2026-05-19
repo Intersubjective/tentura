@@ -276,12 +276,12 @@ class InboxItemTile extends StatelessWidget {
           ),
         );
       }
-      if (h.currentPlanSnippet.isNotEmpty) {
+      if (h.currentLineSnippet.isNotEmpty) {
         out.add(
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
-              l10n.inboxCardRoomPlan(h.currentPlanSnippet),
+              l10n.inboxCardRoomCurrentLine(h.currentLineSnippet),
               style: theme.textTheme.bodySmall,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

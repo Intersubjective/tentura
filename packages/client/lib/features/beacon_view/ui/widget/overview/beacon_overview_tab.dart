@@ -119,7 +119,7 @@ class _SituationPanelBody extends StatelessWidget {
       );
     }
 
-    final plan = cue?.currentPlan.trim() ?? '';
+    final currentLine = cue?.currentLine.trim() ?? '';
     final blockerTitle = cue?.openBlockerTitle?.trim();
     final roomLast = cue?.lastRoomMeaningfulChange?.trim();
     final pubLast = beacon.lastPublicMeaningfulChange?.trim();
@@ -139,12 +139,12 @@ class _SituationPanelBody extends StatelessWidget {
       ),
     ];
 
-    if (plan.isNotEmpty) {
+    if (currentLine.isNotEmpty) {
       rows.add(
         _situationLabeledRow(
           context,
-          label: l10n.beaconSituationPlanLabel,
-          value: plan,
+          label: l10n.beaconSituationCurrentLineLabel,
+          value: currentLine,
         ),
       );
     }
@@ -170,7 +170,7 @@ class _SituationPanelBody extends StatelessWidget {
     }
 
     final hasRoomSignal = cue != null &&
-        (plan.isNotEmpty ||
+        (currentLine.isNotEmpty ||
             (blockerTitle != null && blockerTitle.isNotEmpty) ||
             (roomLast != null && roomLast.isNotEmpty));
     final showOpenRoom =

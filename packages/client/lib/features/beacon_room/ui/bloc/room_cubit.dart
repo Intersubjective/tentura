@@ -212,7 +212,7 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   Future<void> updatePlan(
-    String currentPlan, {
+    String currentLine, {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
@@ -221,7 +221,7 @@ class RoomCubit extends Cubit<RoomState> {
     try {
       await _case.updateRoomPlan(
         beaconId: state.beaconId,
-        currentPlan: currentPlan,
+        currentLine: currentLine,
         body: body,
         targetPersonId: targetPersonId,
         linkedMessageId: linkedMessageId,

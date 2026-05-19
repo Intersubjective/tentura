@@ -154,7 +154,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           '${e.id}|${e.pinnedBy}|${e.pinnedByTitle}|${e.status}|${e.factText}',
                     )
                     .join() ||
-            p.roomState?.currentPlan != c.roomState?.currentPlan ||
+            p.roomState?.currentLine != c.roomState?.currentLine ||
             p.roomState?.lastRoomMeaningfulChange !=
                 c.roomState?.lastRoomMeaningfulChange ||
             p.roomState?.openBlockerId != c.roomState?.openBlockerId ||
@@ -187,12 +187,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final err = state.status is StateHasError
               ? (state.status as StateHasError).error.toString()
               : '';
-          final plan = state.roomState?.currentPlan.trim() ?? '';
+          final currentLine = state.roomState?.currentLine.trim() ?? '';
           return BasicChatBody(
             key: _basicChatKey,
-            header: isThreadMode || plan.isEmpty
+            header: isThreadMode || currentLine.isEmpty
                 ? null
-                : _PinnedPlanCard(plan: plan),
+                : _PinnedCurrentLineCard(currentLine: currentLine),
             messages: state.messages,
             myProfile: myProfile,
             participants: state.participants,
@@ -602,8 +602,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       useRootNavigator: true,
       builder: (ctx) => _BeaconRoomTextBottomSheet(
         title: l10n.beaconRoomActionUpdatePlan,
-        hintText: l10n.beaconRoomStripPlanLabel,
-        initialText: cubit.state.roomState?.currentPlan ?? '',
+        hintText: l10n.beaconRoomStripCurrentLineLabel,
+        initialText: cubit.state.roomState?.currentLine ?? '',
       ),
     );
     if (plan == null || !context.mounted) return;
@@ -1414,10 +1414,10 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
   }
 }
 
-class _PinnedPlanCard extends StatelessWidget {
-  const _PinnedPlanCard({required this.plan});
+class _PinnedCurrentLineCard extends StatelessWidget {
+  const _PinnedCurrentLineCard({required this.currentLine});
 
-  final String plan;
+  final String currentLine;
 
   @override
   Widget build(BuildContext context) {
@@ -1428,13 +1428,13 @@ class _PinnedPlanCard extends StatelessWidget {
       initiallyExpanded: false,
       leading: Container(width: 3, color: accent),
       title: Text(
-        plan,
+        currentLine,
         style: theme.textTheme.bodySmall,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(
-        l10n.beaconRoomStripPlanLabel,
+        l10n.beaconRoomStripCurrentLineLabel,
         style: theme.textTheme.labelSmall?.copyWith(color: accent),
       ),
       children: [
@@ -1442,7 +1442,7 @@ class _PinnedPlanCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Align(
             alignment: AlignmentDirectional.centerStart,
-            child: Text(plan, style: theme.textTheme.bodySmall),
+            child: Text(currentLine, style: theme.textTheme.bodySmall),
           ),
         ),
       ],

@@ -64,7 +64,7 @@ abstract class CoordinationItemRepositoryPort {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
-    String? syncCurrentPlanText,
+    String? syncCurrentLineText,
   });
 
   /// Child plan step under [parentItemId].

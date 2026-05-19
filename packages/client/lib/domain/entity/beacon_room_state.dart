@@ -7,7 +7,7 @@ abstract class BeaconRoomState with _$BeaconRoomState {
   const factory BeaconRoomState({
     required String beaconId,
     required DateTime updatedAt,
-    @Default('') String currentPlan,
+    @Default('') String currentLine,
     String? openBlockerId,
     String? openBlockerTitle,
     String? lastRoomMeaningfulChange,

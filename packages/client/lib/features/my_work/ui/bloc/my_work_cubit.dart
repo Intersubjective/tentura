@@ -161,8 +161,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
             if (h.myNextMove.isNotEmpty) {
               parts.add(h.myNextMove);
             }
-            if (h.currentPlanSnippet.isNotEmpty) {
-              parts.add(h.currentPlanSnippet);
+            if (h.currentLineSnippet.isNotEmpty) {
+              parts.add(h.currentLineSnippet);
             }
             if (h.roomUnreadCount > 0) {
               parts.add('+${h.roomUnreadCount}');
@@ -244,8 +244,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
             if (h.myNextMove.isNotEmpty) {
               parts.add(h.myNextMove);
             }
-            if (h.currentPlanSnippet.isNotEmpty) {
-              parts.add(h.currentPlanSnippet);
+            if (h.currentLineSnippet.isNotEmpty) {
+              parts.add(h.currentLineSnippet);
             }
             if (h.roomUnreadCount > 0) {
               parts.add('+${h.roomUnreadCount}');

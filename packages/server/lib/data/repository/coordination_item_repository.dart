@@ -541,7 +541,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
                     BeaconRoomStatesCompanion.insert(
                       beaconId: existing.beaconId,
-                      currentPlan: Value(planText),
+                      currentLine: Value(planText),
                       updatedBy: Value(actorId),
                       updatedAt: Value(now),
                     ),
@@ -901,7 +901,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
-    String? syncCurrentPlanText,
+    String? syncCurrentLineText,
   }) async {
     final openRootPlans = await (_db.select(_db.coordinationItems)
           ..where((t) => t.beaconId.equals(beaconId))
@@ -927,13 +927,13 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       linkedMessageId: linkedMessageId,
     );
 
-    final planText = (syncCurrentPlanText ?? title).trim();
+    final planText = (syncCurrentLineText ?? title).trim();
     if (planText.isNotEmpty) {
       await _db.withMutatingUser(creatorId, () async {
         await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
               BeaconRoomStatesCompanion.insert(
                 beaconId: beaconId,
-                currentPlan: Value(planText),
+                currentLine: Value(planText),
                 updatedBy: Value(creatorId),
                 updatedAt: Value(PgDateTime(DateTime.timestamp())),
               ),

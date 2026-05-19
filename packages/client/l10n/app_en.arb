@@ -2284,10 +2284,10 @@
   "itemsTabCreatePlanSheetPrompt": "What is the plan?",
   "beaconHudNowLabel": "NOW",
   "beaconHudYouLabel": "YOU",
-  "beaconHudNoCurrentPlan": "No current plan yet",
+  "beaconHudNoCurrentLine": "Nothing noted yet",
   "beaconHudSituationPanelTitle": "Situation",
   "beaconSituationStateLabel": "State",
-  "beaconSituationPlanLabel": "Plan",
+  "beaconSituationCurrentLineLabel": "What's next?",
   "beaconSituationBlockerLabel": "Blocker",
   "beaconSituationLastChangeLabel": "Last",
   "beaconSituationOpenRoom": "Open Room",
@@ -2741,7 +2741,7 @@
   "labelBeaconTabPeople": "People",
   "beaconOverviewRoomCueCardTitle": "Room coordination",
   "beaconRoomStripNowTitle": "Now",
-  "beaconRoomStripPlanLabel": "Plan",
+  "beaconRoomStripCurrentLineLabel": "What's next?",
   "beaconRoomStripLastPrivateFactLabel": "Pinned facts",
   "beaconPinnedFactCarouselSemanticLabel": "Pinned facts carousel",
   "beaconPinnedFactCarouselPreviousTooltip": "Previous fact",
@@ -2918,8 +2918,8 @@
       }
     }
   },
-  "inboxCardRoomPlan": "Room plan: {text}",
-  "@inboxCardRoomPlan": {
+  "inboxCardRoomCurrentLine": "What's next in room: {text}",
+  "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
         "type": "String"

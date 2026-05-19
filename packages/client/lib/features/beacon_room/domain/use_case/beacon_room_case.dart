@@ -151,7 +151,7 @@ final class BeaconRoomCase extends UseCaseBase {
 
   Future<void> updateRoomPlan({
     required String beaconId,
-    required String currentPlan,
+    required String currentLine,
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
@@ -159,7 +159,7 @@ final class BeaconRoomCase extends UseCaseBase {
       _coordinationItemCase
           .updatePlan(
             beaconId: beaconId,
-            title: currentPlan,
+            title: currentLine,
             body: body,
             targetPersonId: targetPersonId,
             linkedMessageId: linkedMessageId,
