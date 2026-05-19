@@ -47,7 +47,7 @@ final class UpdatePlanCase extends UseCaseBase {
       body: body.trim(),
       targetPersonId: targetPersonId,
       linkedMessageId: linkedMessageId,
-      syncCurrentPlanText: trimmed,
+      syncCurrentLineText: trimmed,
     );
     unawaited(
       _push.notifyPlanUpdatedToRoom(

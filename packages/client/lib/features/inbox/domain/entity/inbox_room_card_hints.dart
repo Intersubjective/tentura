@@ -8,7 +8,7 @@ abstract class InboxRoomCardHints with _$InboxRoomCardHints {
   const factory InboxRoomCardHints({
     required bool isRoomMember,
     required int roomUnreadCount,
-    @Default('') String currentPlanSnippet,
+    @Default('') String currentLineSnippet,
     @Default('') String lastRoomMeaningfulChange,
     @Default('') String myNextMove,
     @Default('') String openBlockerTitle,

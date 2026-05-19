@@ -98,7 +98,7 @@ final gqlTypeBeaconRoomStateRow =
     GraphQLObjectType('BeaconRoomStateRow', null)
       ..fields.addAll([
         field('beaconId', graphQLString.nonNullable()),
-        field('currentPlan', graphQLString.nonNullable()),
+        field('currentLine', graphQLString.nonNullable()),
         field('openBlockerId', graphQLString),
         field('openBlockerTitle', graphQLString),
         field('lastRoomMeaningfulChange', graphQLString),
@@ -172,7 +172,7 @@ final gqlTypeInboxRoomContextRow =
       ..fields.addAll([
         field('beaconId', graphQLString.nonNullable()),
         field('isRoomMember', graphQLBoolean.nonNullable()),
-        field('currentPlan', graphQLString),
+        field('currentLine', graphQLString),
         field('lastRoomMeaningfulChange', graphQLString),
         field('nextMoveText', graphQLString),
         field('roomUnreadCount', graphQLInt.nonNullable()),

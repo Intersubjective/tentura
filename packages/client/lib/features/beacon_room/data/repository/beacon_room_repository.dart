@@ -220,7 +220,7 @@ class BeaconRoomRepository {
     final row = r.dataOrThrow(label: _label).BeaconRoomStateGet;
     return BeaconRoomState(
       beaconId: row.beaconId,
-      currentPlan: row.currentPlan,
+      currentLine: row.currentLine,
       openBlockerId: row.openBlockerId,
       openBlockerTitle: row.openBlockerTitle,
       lastRoomMeaningfulChange: row.lastRoomMeaningfulChange,

@@ -1157,7 +1157,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                   .join()) ||
           p.beaconRoomCue?.lastRoomMeaningfulChange !=
               c.beaconRoomCue?.lastRoomMeaningfulChange ||
-          p.beaconRoomCue?.currentPlan != c.beaconRoomCue?.currentPlan ||
+          p.beaconRoomCue?.currentLine != c.beaconRoomCue?.currentLine ||
           p.beaconRoomCue?.openBlockerTitle !=
               c.beaconRoomCue?.openBlockerTitle ||
           p.showDraftEvaluationCta != c.showDraftEvaluationCta ||

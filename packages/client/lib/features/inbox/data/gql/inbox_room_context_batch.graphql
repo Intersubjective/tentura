@@ -2,7 +2,7 @@ query InboxRoomContextBatch($beaconIds: [String!]!) {
   InboxRoomContextBatch(beaconIds: $beaconIds) {
     beaconId
     isRoomMember
-    currentPlan
+    currentLine
     lastRoomMeaningfulChange
     nextMoveText
     roomUnreadCount

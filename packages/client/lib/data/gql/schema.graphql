@@ -5481,7 +5481,7 @@ type RoomMessageRow {
 
 type BeaconRoomStateRow {
   beaconId: String!
-  currentPlan: String!
+  currentLine: String!
   openBlockerId: String
   openBlockerTitle: String
   lastRoomMeaningfulChange: String
@@ -5504,7 +5504,7 @@ type BeaconActivityEventRow {
 type InboxRoomContextRow {
   beaconId: String!
   isRoomMember: Boolean!
-  currentPlan: String
+  currentLine: String
   lastRoomMeaningfulChange: String
   nextMoveText: String
   roomUnreadCount: Int!

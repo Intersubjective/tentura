@@ -2284,10 +2284,10 @@
   "itemsTabCreatePlanSheetPrompt": "Какой план?",
   "beaconHudNowLabel": "СЕЙЧАС",
   "beaconHudYouLabel": "ВЫ",
-  "beaconHudNoCurrentPlan": "Плана пока нет",
+  "beaconHudNoCurrentLine": "Пока не указано",
   "beaconHudSituationPanelTitle": "Ситуация",
   "beaconSituationStateLabel": "Статус",
-  "beaconSituationPlanLabel": "План",
+  "beaconSituationCurrentLineLabel": "Что дальше?",
   "beaconSituationBlockerLabel": "Блокер",
   "beaconSituationLastChangeLabel": "Последнее",
   "beaconSituationOpenRoom": "Открыть комнату",
@@ -2741,7 +2741,7 @@
   "labelBeaconTabPeople": "Люди",
   "beaconOverviewRoomCueCardTitle": "В комнате",
   "beaconRoomStripNowTitle": "Сейчас",
-  "beaconRoomStripPlanLabel": "План",
+  "beaconRoomStripCurrentLineLabel": "Что дальше?",
   "beaconRoomStripLastPrivateFactLabel": "Закреплённые факты",
   "beaconPinnedFactCarouselSemanticLabel": "Карусель закреплённых фактов",
   "beaconPinnedFactCarouselPreviousTooltip": "Предыдущий факт",
@@ -2900,8 +2900,8 @@
       }
     }
   },
-  "inboxCardRoomPlan": "План в комнате: {text}",
-  "@inboxCardRoomPlan": {
+  "inboxCardRoomCurrentLine": "Что дальше в комнате: {text}",
+  "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
         "type": "String"

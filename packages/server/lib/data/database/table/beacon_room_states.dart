@@ -8,7 +8,7 @@ import 'users.dart';
 class BeaconRoomStates extends Table {
   late final beaconId = text().references(Beacons, #id)();
 
-  late final currentPlan = text().withDefault(const Constant(''))();
+  late final currentLine = text().withDefault(const Constant(''))();
 
   late final openBlockerId =
       text().nullable().references(BeaconBlockers, #id)();
