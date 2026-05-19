@@ -5,4 +5,6 @@ abstract class FcmRemoteRepositoryPort {
     required String token,
     required String platform,
   });
+
+  Future<void> deleteToken({required String appId});
 }

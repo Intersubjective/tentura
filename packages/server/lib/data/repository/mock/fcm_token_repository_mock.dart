@@ -22,4 +22,10 @@ class FcmTokenRepositoryMock implements FcmTokenRepositoryPort {
 
   @override
   Future<void> deleteToken(String token) async {}
+
+  @override
+  Future<void> deleteByUserAndApp({
+    required String userId,
+    required String appId,
+  }) async {}
 }

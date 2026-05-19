@@ -11,4 +11,9 @@ abstract class FcmTokenRepositoryPort {
   });
 
   Future<void> deleteToken(String token);
+
+  Future<void> deleteByUserAndApp({
+    required String userId,
+    required String appId,
+  });
 }

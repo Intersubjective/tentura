@@ -16,6 +16,10 @@ class FcmTokens extends Table {
     PgTypes.timestampWithTimezone,
   ).clientDefault(() => PgDateTime(DateTime.timestamp()))();
 
+  late final lastRefreshedAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).clientDefault(() => PgDateTime(DateTime.timestamp()))();
+
   @override
   Set<Column<Object>> get primaryKey => {userId, appId};
 

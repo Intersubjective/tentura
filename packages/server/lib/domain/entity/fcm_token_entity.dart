@@ -11,6 +11,7 @@ abstract class FcmTokenEntity with _$FcmTokenEntity {
     required String platform,
     required String token,
     required DateTime createdAt,
+    required DateTime lastRefreshedAt,
   }) = _FcmTokenEntity;
 
   const FcmTokenEntity._();

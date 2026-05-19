@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/data/repository/remote_repository.dart';
 
 import 'package:tentura/features/notification/data/gql/_g/fcm_register_token.req.gql.dart';
+import 'package:tentura/features/notification/data/gql/_g/fcm_token_delete.req.gql.dart';
 import 'package:tentura/features/notification/domain/port/fcm_remote_repository_port.dart';
 import 'package:tentura/features/notification/fcm_debug_log.dart';
 
@@ -37,6 +38,18 @@ class FcmRemoteRepository extends RemoteRepository
       label: _label,
     );
     fcmLog('FcmRemoteRepository: fcmTokenRegister response OK');
+  }
+
+  @override
+  Future<void> deleteToken({required String appId}) async {
+    fcmLog('FcmRemoteRepository: fcmTokenDelete appId=$appId');
+    await requestDataOnlineOrThrow(
+      GFcmTokenDeleteReq(
+        (r) => r.vars..appId = appId,
+      ),
+      label: _label,
+    );
+    fcmLog('FcmRemoteRepository: fcmTokenDelete response OK');
   }
 
   static const _label = 'Fcm';

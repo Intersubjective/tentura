@@ -6,7 +6,6 @@ import '../../domain/entity/account_entity.dart';
 AccountEntity accountModelToEntity(Account model) => AccountEntity(
   id: model.id,
   title: model.title,
-  fcmTokenUpdatedAt: model.fcmTokenUpdatedAt,
   image: model.imageId.isEmpty
       ? null
       : ImageEntity(

@@ -6,6 +6,7 @@ import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
+import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
 
 import '../service/fcm_service.dart';
 
@@ -26,12 +27,15 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
   FcmRemoteRepository(
     this._env,
     this._fcmService,
+    this._fcmTokenRepository,
     this._logger,
   );
 
   final Env _env;
 
   final FcmService _fcmService;
+
+  final FcmTokenRepositoryPort _fcmTokenRepository;
 
   final Logger _logger;
 
@@ -103,6 +107,13 @@ class FcmRemoteRepository implements FcmRemoteRepositoryPort {
         print(e);
         rethrow;
       } on FcmTokenNotFoundException catch (e) {
+        await _fcmTokenRepository.deleteToken(e.token);
+        final suffix = e.token.length > 8
+            ? e.token.substring(e.token.length - 8)
+            : e.token;
+        _logger.info(
+          '[FCM] pruned stale token len=${e.token.length} suffix=$suffix',
+        );
         results.add(e);
       } catch (e) {
         print(e);
