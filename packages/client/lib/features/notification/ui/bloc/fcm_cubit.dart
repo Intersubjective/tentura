@@ -77,13 +77,12 @@ class FcmCubit extends Cubit<FcmState> {
       if (!permissions.authorized) {
         return;
       }
-      final needsRegistration = await _fcmCase.checkIfRegistrationNeeded();
-      fcmLog('FcmCubit: registration needed=$needsRegistration');
-      if (needsRegistration) {
-        await _registerFcmToken();
-      } else {
-        fcmLog('FcmCubit: skip register (fresh token on server)');
-      }
+      // Always sync current getToken() to the server on account activation.
+      // Relying only on local fcmTokenUpdatedAt (30d) skips re-register after
+      // SW/token rotation, re-import, or embedded browsers — server then keeps
+      // a stale token and FCM returns UNREGISTERED for pushes.
+      fcmLog('FcmCubit: register (always on account change after permission)');
+      await _registerFcmToken();
     } catch (e, st) {
       fcmLog('FcmCubit: account FCM setup failed: $e');
       fcmLog('FcmCubit: stack: $st');
