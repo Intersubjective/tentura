@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
@@ -12,13 +15,15 @@ import '../_use_case_base.dart';
 final class MarkBlockerCase extends UseCaseBase {
   MarkBlockerCase(
     this._beaconRepository,
-    this._itemRepository, {
+    this._itemRepository,
+    this._push, {
     required super.env,
     required super.logger,
   });
 
   final BeaconRepositoryPort _beaconRepository;
   final CoordinationItemRepositoryPort _itemRepository;
+  final BeaconRoomPushService _push;
 
   Future<CoordinationItem> call({
     required String userId,
@@ -38,7 +43,7 @@ final class MarkBlockerCase extends UseCaseBase {
         description: 'Beacon is not open',
       );
     }
-    return _itemRepository.create(
+    final item = await _itemRepository.create(
       beaconId: beaconId,
       kind: coordinationItemKindBlocker,
       creatorId: userId,
@@ -47,5 +52,15 @@ final class MarkBlockerCase extends UseCaseBase {
       targetPersonId: targetPersonId,
       linkedMessageId: linkedMessageId,
     );
+    unawaited(
+      _push.notifyBlockerOpened(
+        beaconId: beaconId,
+        actorUserId: userId,
+        excerpt: trimmed,
+        targetPersonId: targetPersonId,
+        coordinationItemId: item.id,
+      ),
+    );
+    return item;
   }
 }

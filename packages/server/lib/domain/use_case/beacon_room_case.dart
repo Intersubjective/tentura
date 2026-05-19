@@ -274,14 +274,15 @@ final class BeaconRoomCase extends UseCaseBase {
         'updatedBy': null,
       };
     }
-    final blockerTitle = row.openBlockerId == null
-        ? null
-        : await _room.getBlockerTitle(row.openBlockerId!);
+    final openBlocker = await _findOpenCoordinationBlocker(
+      beaconId,
+      viewerUserId: userId,
+    );
     return {
       'beaconId': row.beaconId,
       'currentPlan': row.currentPlan,
-      'openBlockerId': row.openBlockerId,
-      'openBlockerTitle': blockerTitle,
+      'openBlockerId': openBlocker?.id,
+      'openBlockerTitle': openBlocker?.title,
       'lastRoomMeaningfulChange': row.lastRoomMeaningfulChange,
       'updatedAt': row.updatedAt.dateTime.toIso8601String(),
       'updatedBy': row.updatedBy,
@@ -326,9 +327,10 @@ final class BeaconRoomCase extends UseCaseBase {
         after: seenAt,
         excludeAuthorId: userId,
       );
-      final blockerTitle = st?.openBlockerId == null
-          ? null
-          : await _room.getBlockerTitle(st!.openBlockerId!);
+      final openBlocker = await _findOpenCoordinationBlocker(
+        bid,
+        viewerUserId: userId,
+      );
       out.add({
         'beaconId': bid,
         'isRoomMember': true,
@@ -336,7 +338,7 @@ final class BeaconRoomCase extends UseCaseBase {
         'lastRoomMeaningfulChange': st?.lastRoomMeaningfulChange,
         'nextMoveText': p?.nextMoveText,
         'roomUnreadCount': unread,
-        'openBlockerTitle': blockerTitle,
+        'openBlockerTitle': openBlocker?.title,
         'publicFactSnippet': factSnippet,
       });
     }
@@ -356,13 +358,11 @@ final class BeaconRoomCase extends UseCaseBase {
     return _room.listActivityEvents(beaconId: beaconId);
   }
 
-  /// Message → Need info (Phase 5).
-  Future<bool> beaconRoomMessageNeedInfo({
+  /// Marks a room message with the semantic "done" marker (no blocker resolution).
+  Future<bool> roomMessageMarkSemanticDone({
     required String beaconId,
     required String userId,
     required String messageId,
-    required String targetUserId,
-    required String requestText,
   }) async {
     final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
     if (!allowed) {
@@ -377,121 +377,18 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Room message not on this beacon',
       );
     }
-    final target = await _room.findParticipant(
-      beaconId: beaconId,
-      userId: targetUserId,
-    );
-    if (target == null) {
-      throw IdNotFoundException(
-        id: targetUserId,
-        description: 'Participant not found for beacon',
-      );
-    }
-    await _room.setParticipantNeedsInfo(
-      participantRowId: target.id,
+    await _room.markRoomMessageSemanticDone(
+      messageId: messageId,
       actingUserId: userId,
-      requestText: requestText,
-      linkedMessageId: messageId,
-    );
-    await _room.insertRoomMessage(
-      beaconId: beaconId,
-      authorId: userId,
-      body: '',
-      semanticMarker: BeaconRoomSemanticMarker.needInfo,
-      systemPayload: <String, Object?>{
-        'targetUserId': targetUserId,
-        'requestText': requestText.trim(),
-        'sourceMessageId': messageId,
-      },
     );
     await _room.insertActivityEvent(
       beaconId: beaconId,
       visibility: BeaconActivityEventVisibilityBits.room,
-      type: BeaconActivityEventTypeBits.needInfoOpened,
+      type: BeaconActivityEventTypeBits.doneMarked,
       actorId: userId,
-      targetUserId: targetUserId,
       sourceMessageId: messageId,
-      diff: <String, Object?>{'requestText': requestText.trim()},
+      diff: const <String, Object?>{'kind': 'message'},
     );
-    if (targetUserId != userId) {
-      unawaited(
-        _push.notifyNeedInfoRequested(
-          receiverId: targetUserId,
-          beaconId: beaconId,
-          actorUserId: userId,
-        ),
-      );
-    }
-    return true;
-  }
-
-  /// Mark done — resolve linked blocker or mark message semantic "done" (Phase 5).
-  Future<bool> roomMessageMarkDone({
-    required String beaconId,
-    required String userId,
-    required String messageId,
-    required bool resolveBlocker,
-  }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
-      );
-    }
-    final msg = await _room.getRoomMessageById(messageId);
-    if (msg == null || msg.beaconId != beaconId) {
-      throw IdNotFoundException(
-        id: messageId,
-        description: 'Room message not on this beacon',
-      );
-    }
-    if (resolveBlocker) {
-      final bid = msg.linkedBlockerId;
-      if (bid == null || bid.isEmpty) {
-        throw const UnspecifiedException(
-          description: 'Message has no linked blocker to resolve',
-        );
-      }
-      await _room.resolveBlocker(
-        blockerId: bid,
-        resolvedByUserId: userId,
-        resolvedFromMessageId: messageId,
-      );
-      await _room.insertActivityEvent(
-        beaconId: beaconId,
-        visibility: BeaconActivityEventVisibilityBits.room,
-        type: BeaconActivityEventTypeBits.blockerResolved,
-        actorId: userId,
-        sourceMessageId: messageId,
-        diff: <String, Object?>{'blockerId': bid},
-      );
-      final notifyIds =
-          await _room.blockerResolvedNotifyUserIds(
-        blockerId: bid,
-        resolvedByUserId: userId,
-      );
-      unawaited(
-        _push.notifyBlockerRoomEvent(
-          beaconId: beaconId,
-          actorUserId: userId,
-          receiverIds: notifyIds,
-          body: 'A blocker was resolved',
-        ),
-      );
-    } else {
-      await _room.markRoomMessageSemanticDone(
-        messageId: messageId,
-        actingUserId: userId,
-      );
-      await _room.insertActivityEvent(
-        beaconId: beaconId,
-        visibility: BeaconActivityEventVisibilityBits.room,
-        type: BeaconActivityEventTypeBits.doneMarked,
-        actorId: userId,
-        sourceMessageId: messageId,
-        diff: const <String, Object?>{'kind': 'message'},
-      );
-    }
     return true;
   }
 
@@ -644,6 +541,7 @@ final class BeaconRoomCase extends UseCaseBase {
       _push.notifyRoomAdmitted(
         receiverId: participantUserId,
         beaconId: beaconId,
+        actorUserId: actorUserId,
       ),
     );
   }
@@ -693,91 +591,6 @@ final class BeaconRoomCase extends UseCaseBase {
       userId: userId,
       emoji: emoji,
     );
-  }
-
-  /// Sets expected next move for [targetUserId]'s participant row (author/steward
-  /// for others; admitted members for self).
-  Future<bool> participantSetNextMove({
-    required String beaconId,
-    required String actorUserId,
-    required String targetUserId,
-    required String nextMoveText,
-    required int nextMoveSource,
-    int? nextMoveStatus,
-  }) async {
-    final trimmed = nextMoveText.trim();
-    if (trimmed.isEmpty) {
-      throw const UnspecifiedException(description: 'nextMoveText is empty');
-    }
-
-    final author =
-        await _room.isBeaconAuthor(beaconId: beaconId, userId: actorUserId);
-    final steward =
-        await _room.isBeaconSteward(beaconId: beaconId, userId: actorUserId);
-    final self = actorUserId == targetUserId;
-
-    if (!self) {
-      if (!author && !steward) {
-        throw const UnauthorizedException(
-          description: 'Author or steward only when setting for others',
-        );
-      }
-    } else {
-      if (!author && !steward) {
-        final allowed = await _canUseRoom(
-          beaconId: beaconId,
-          userId: actorUserId,
-        );
-        if (!allowed) {
-          throw const UnauthorizedException(
-            description: 'Room access required',
-          );
-        }
-      }
-    }
-
-    final target = await _room.findParticipant(
-      beaconId: beaconId,
-      userId: targetUserId,
-    );
-    if (target == null) {
-      throw IdNotFoundException(
-        id: targetUserId,
-        description: 'Participant not on beacon',
-      );
-    }
-
-    await _room.updateParticipantNextMoveFields(
-      actorUserId: actorUserId,
-      participantRowId: target.id,
-      nextMoveText: trimmed,
-      nextMoveSource: nextMoveSource,
-      nextMoveStatus: nextMoveStatus,
-    );
-
-    await _room.insertRoomMessage(
-      beaconId: beaconId,
-      authorId: actorUserId,
-      body: '',
-      linkedParticipantId: target.id,
-      semanticMarker: BeaconRoomSemanticMarker.participantStatusChanged,
-      systemPayload: <String, Object?>{
-        'targetUserId': targetUserId,
-        'nextMoveText': trimmed,
-        'nextMoveSource': nextMoveSource,
-        ...?(nextMoveStatus == null
-            ? null
-            : <String, Object?>{'nextMoveStatus': nextMoveStatus}),
-      },
-    );
-    unawaited(
-      _push.notifyNextMoveUpdated(
-        beaconId: beaconId,
-        targetUserId: targetUserId,
-        actorUserId: actorUserId,
-      ),
-    );
-    return true;
   }
 
   Future<bool> addMessageAttachment({
@@ -1086,5 +899,18 @@ final class BeaconRoomCase extends UseCaseBase {
       linkedPollingId: pollingId,
       viewerUserId: userId,
     );
+  }
+
+  Future<CoordinationItem?> _findOpenCoordinationBlocker(
+    String beaconId, {
+    required String viewerUserId,
+  }) async {
+    final rows = await _items.listByBeacon(
+      beaconId,
+      viewerUserId: viewerUserId,
+      kind: coordinationItemKindBlocker,
+      status: coordinationItemStatusOpen,
+    );
+    return rows.isEmpty ? null : rows.first.item;
   }
 }

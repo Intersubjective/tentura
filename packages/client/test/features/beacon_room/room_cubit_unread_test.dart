@@ -11,7 +11,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/env.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_blocker_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
@@ -104,9 +103,6 @@ class _FakeBeaconFactCardRepository extends Fake
   Future<List<BeaconFactCard>> list({required String beaconId}) async => [];
 }
 
-class _FakeBeaconBlockerRepository extends Fake
-    implements BeaconBlockerRepository {}
-
 class _FakeBeaconRoomHintsRepository extends Fake
     implements BeaconRoomHintsRepository {
   @override
@@ -150,7 +146,6 @@ BeaconRoomCase _makeCase(_FakeBeaconRoomRepository fakeRoom) =>
     BeaconRoomCase(
       fakeRoom,
       _FakeBeaconFactCardRepository(),
-      _FakeBeaconBlockerRepository(),
       _FakePollingRepository(),
       _FakeBeaconRoomHintsRepository(),
       const FakeCoordinationItemCaseForRoom(),

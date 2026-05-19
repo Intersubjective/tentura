@@ -43,6 +43,13 @@ class FcmService {
         if (message.actionUrl != null)
           'data': {
             'link': message.actionUrl!,
+            if (message.kind != null) 'kind': message.kind!.name,
+            if (message.priority != null) 'priority': message.priority!.name,
+            if (message.beaconId != null && message.beaconId!.isNotEmpty)
+              'beaconId': message.beaconId!,
+            if (message.coordinationItemId != null &&
+                message.coordinationItemId!.isNotEmpty)
+              'item': message.coordinationItemId!,
           },
         'android': {
           'ttl': '${ttlInSeconds}s',

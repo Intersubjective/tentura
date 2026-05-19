@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
@@ -355,27 +354,6 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> participantSetNextMove({
-    required String targetUserId,
-    required String nextMoveText,
-    int nextMoveSource = BeaconNextMoveSourceBits.self,
-    int? nextMoveStatus,
-  }) async {
-    emit(state.copyWith(status: const StateIsLoading()));
-    try {
-      await _case.participantSetNextMove(
-        beaconId: state.beaconId,
-        targetUserId: targetUserId,
-        nextMoveText: nextMoveText,
-        nextMoveSource: nextMoveSource,
-        nextMoveStatus: nextMoveStatus,
-      );
-      await load();
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
-
   Future<void> sendMessage({
     required String body,
     List<RoomPendingUpload> uploads = const [],
@@ -515,18 +493,20 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> needInfoFromMessage({
+  Future<void> markAskFromMessageAsNeedInfo({
     required String messageId,
-    required String targetUserId,
-    required String requestText,
+    required String targetPersonId,
+    required String title,
+    String body = '',
   }) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
-      await _case.needInfoFromMessage(
+      await _case.markAskFromMessageAsNeedInfo(
         beaconId: state.beaconId,
         messageId: messageId,
-        targetUserId: targetUserId,
-        requestText: requestText,
+        targetPersonId: targetPersonId,
+        title: title,
+        body: body,
       );
       await load();
     } on Object catch (e) {
@@ -534,16 +514,22 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> markMessageDone({
-    required String messageId,
-    required bool resolveBlocker,
-  }) async {
+  Future<void> resolveCoordinationBlocker({required String itemId}) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
-      await _case.markMessageDone(
+      await _case.resolveCoordinationBlocker(itemId: itemId);
+      await load();
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> markMessageSemanticDone({required String messageId}) async {
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      await _case.markMessageSemanticDone(
         beaconId: state.beaconId,
         messageId: messageId,
-        resolveBlocker: resolveBlocker,
       );
       await load();
     } on Object catch (e) {

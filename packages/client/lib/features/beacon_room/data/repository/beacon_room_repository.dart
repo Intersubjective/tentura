@@ -21,7 +21,7 @@ import 'package:tentura/domain/entity/room_pending_upload.dart';
 import '../gql/_g/beacon_participant_list.req.gql.dart';
 import '../gql/_g/beacon_participant_room_seen.req.gql.dart';
 import '../gql/_g/mark_beacon_room_seen.req.gql.dart';
-import '../gql/_g/beacon_participant_set_next_move.req.gql.dart';
+import '../gql/_g/room_message_mark_semantic_done.req.gql.dart';
 import '../gql/_g/beacon_participant_offer_help.req.gql.dart';
 import '../gql/_g/beacon_room_admit.req.gql.dart';
 import '../gql/_g/beacon_room_state_get.req.gql.dart';
@@ -254,25 +254,22 @@ class BeaconRoomRepository {
         .then((r) => r.dataOrThrow(label: _label).MarkBeaconRoomSeen);
   }
 
-  Future<bool> participantSetNextMove({
+  Future<bool> markMessageSemanticDone({
     required String beaconId,
-    required String targetUserId,
-    required String nextMoveText,
-    required int nextMoveSource,
-    int? nextMoveStatus,
-  }) async => _remoteApiService
-      .request(
-        GBeaconParticipantSetNextMoveReq(
-          (b) => b.vars
-            ..beaconId = beaconId
-            ..targetUserId = targetUserId
-            ..nextMoveText = nextMoveText
-            ..nextMoveSource = nextMoveSource
-            ..nextMoveStatus = nextMoveStatus,
-        ),
-      )
-      .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).BeaconParticipantSetNextMove);
+    required String messageId,
+  }) async =>
+      _remoteApiService
+          .request(
+            GRoomMessageMarkSemanticDoneReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..messageId = messageId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) => r.dataOrThrow(label: _label).RoomMessageMarkSemanticDone,
+          );
 
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
     final r = await _remoteApiService

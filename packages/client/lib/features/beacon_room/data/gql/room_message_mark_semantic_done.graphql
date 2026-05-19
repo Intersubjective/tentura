@@ -1,0 +1,6 @@
+mutation RoomMessageMarkSemanticDone(
+  $beaconId: String!
+  $messageId: String!
+) {
+  RoomMessageMarkSemanticDone(beaconId: $beaconId, messageId: $messageId)
+}

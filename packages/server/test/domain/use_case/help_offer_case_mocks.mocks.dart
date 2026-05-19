@@ -6,14 +6,13 @@
 import 'dart:async' as _i6;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i16;
 import 'package:tentura_server/data/database/tentura_db.dart' as _i4;
 import 'package:tentura_server/data/repository/beacon_room_repository.dart'
     as _i15;
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
-    as _i17;
+    as _i16;
 import 'package:tentura_server/data/service/beacon_room_push_service.dart'
-    as _i18;
+    as _i17;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart' as _i12;
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart'
@@ -1542,14 +1541,6 @@ class MockBeaconRoomRepository extends _i1.Mock
           as _i6.Future<_i4.BeaconRoomState?>);
 
   @override
-  _i6.Future<String?> getBlockerTitle(String? blockerId) =>
-      (super.noSuchMethod(
-            Invocation.method(#getBlockerTitle, [blockerId]),
-            returnValue: _i6.Future<String?>.value(),
-          )
-          as _i6.Future<String?>);
-
-  @override
   _i6.Future<void> markBeaconRoomSeen({
     required String? userId,
     required String? beaconId,
@@ -1614,83 +1605,12 @@ class MockBeaconRoomRepository extends _i1.Mock
           as _i6.Future<void>);
 
   @override
-  _i6.Future<void> upsertBeaconRoomPlan({
-    required String? beaconId,
-    required String? currentPlan,
-    required String? updatedByUserId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#upsertBeaconRoomPlan, [], {
-              #beaconId: beaconId,
-              #currentPlan: currentPlan,
-              #updatedByUserId: updatedByUserId,
-            }),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
-
-  @override
   _i6.Future<_i4.BeaconRoomMessage?> getRoomMessageById(String? messageId) =>
       (super.noSuchMethod(
             Invocation.method(#getRoomMessageById, [messageId]),
             returnValue: _i6.Future<_i4.BeaconRoomMessage?>.value(),
           )
           as _i6.Future<_i4.BeaconRoomMessage?>);
-
-  @override
-  _i6.Future<String> insertBlockerOpen({
-    required String? beaconId,
-    required String? title,
-    required int? visibility,
-    required String? openedBy,
-    String? openedFromMessageId,
-    String? affectedParticipantId,
-    String? resolverParticipantId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#insertBlockerOpen, [], {
-              #beaconId: beaconId,
-              #title: title,
-              #visibility: visibility,
-              #openedBy: openedBy,
-              #openedFromMessageId: openedFromMessageId,
-              #affectedParticipantId: affectedParticipantId,
-              #resolverParticipantId: resolverParticipantId,
-            }),
-            returnValue: _i6.Future<String>.value(
-              _i16.dummyValue<String>(
-                this,
-                Invocation.method(#insertBlockerOpen, [], {
-                  #beaconId: beaconId,
-                  #title: title,
-                  #visibility: visibility,
-                  #openedBy: openedBy,
-                  #openedFromMessageId: openedFromMessageId,
-                  #affectedParticipantId: affectedParticipantId,
-                  #resolverParticipantId: resolverParticipantId,
-                }),
-              ),
-            ),
-          )
-          as _i6.Future<String>);
-
-  @override
-  _i6.Future<void> resolveBlocker({
-    required String? blockerId,
-    required String? resolvedByUserId,
-    String? resolvedFromMessageId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#resolveBlocker, [], {
-              #blockerId: blockerId,
-              #resolvedByUserId: resolvedByUserId,
-              #resolvedFromMessageId: resolvedFromMessageId,
-            }),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
 
   @override
   _i6.Future<void> markRoomMessageSemanticDone({
@@ -1701,25 +1621,6 @@ class MockBeaconRoomRepository extends _i1.Mock
             Invocation.method(#markRoomMessageSemanticDone, [], {
               #messageId: messageId,
               #actingUserId: actingUserId,
-            }),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
-
-  @override
-  _i6.Future<void> setParticipantNeedsInfo({
-    required String? participantRowId,
-    required String? actingUserId,
-    required String? requestText,
-    required String? linkedMessageId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#setParticipantNeedsInfo, [], {
-              #participantRowId: participantRowId,
-              #actingUserId: actingUserId,
-              #requestText: requestText,
-              #linkedMessageId: linkedMessageId,
             }),
             returnValue: _i6.Future<void>.value(),
             returnValueForMissingStub: _i6.Future<void>.value(),
@@ -1806,38 +1707,6 @@ class MockBeaconRoomRepository extends _i1.Mock
             returnValue: _i6.Future<String?>.value(),
           )
           as _i6.Future<String?>);
-
-  @override
-  _i6.Future<Set<String>> blockerOpenedNotifyUserIds({
-    required String? beaconId,
-    required String? openedByUserId,
-    String? affectedParticipantId,
-    String? resolverParticipantId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#blockerOpenedNotifyUserIds, [], {
-              #beaconId: beaconId,
-              #openedByUserId: openedByUserId,
-              #affectedParticipantId: affectedParticipantId,
-              #resolverParticipantId: resolverParticipantId,
-            }),
-            returnValue: _i6.Future<Set<String>>.value(<String>{}),
-          )
-          as _i6.Future<Set<String>>);
-
-  @override
-  _i6.Future<Set<String>> blockerResolvedNotifyUserIds({
-    required String? blockerId,
-    required String? resolvedByUserId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#blockerResolvedNotifyUserIds, [], {
-              #blockerId: blockerId,
-              #resolvedByUserId: resolvedByUserId,
-            }),
-            returnValue: _i6.Future<Set<String>>.value(<String>{}),
-          )
-          as _i6.Future<Set<String>>);
 
   @override
   _i6.Future<int> countRoomMessagesAfter({
@@ -1932,7 +1801,7 @@ class MockBeaconRoomRepository extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVoteUserFriendshipLookup extends _i1.Mock
-    implements _i17.VoteUserFriendshipLookup {
+    implements _i16.VoteUserFriendshipLookup {
   MockVoteUserFriendshipLookup() {
     _i1.throwOnMissingStub(this);
   }
@@ -1984,7 +1853,7 @@ class MockVoteUserFriendshipLookup extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomPushService extends _i1.Mock
-    implements _i18.BeaconRoomPushService {
+    implements _i17.BeaconRoomPushService {
   MockBeaconRoomPushService() {
     _i1.throwOnMissingStub(this);
   }
@@ -2029,25 +1898,10 @@ class MockBeaconRoomPushService extends _i1.Mock
   _i6.Future<void> notifyRoomAdmitted({
     required String? receiverId,
     required String? beaconId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#notifyRoomAdmitted, [], {
-              #receiverId: receiverId,
-              #beaconId: beaconId,
-            }),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
-
-  @override
-  _i6.Future<void> notifyNeedInfoRequested({
-    required String? receiverId,
-    required String? beaconId,
     required String? actorUserId,
   }) =>
       (super.noSuchMethod(
-            Invocation.method(#notifyNeedInfoRequested, [], {
+            Invocation.method(#notifyRoomAdmitted, [], {
               #receiverId: receiverId,
               #beaconId: beaconId,
               #actorUserId: actorUserId,
@@ -2079,48 +1933,14 @@ class MockBeaconRoomPushService extends _i1.Mock
     required String? beaconId,
     required String? actorUserId,
     required List<String>? admittedUserIds,
+    String? planExcerpt = '',
   }) =>
       (super.noSuchMethod(
             Invocation.method(#notifyPlanUpdatedToRoom, [], {
               #beaconId: beaconId,
               #actorUserId: actorUserId,
               #admittedUserIds: admittedUserIds,
-            }),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
-
-  @override
-  _i6.Future<void> notifyBlockerRoomEvent({
-    required String? beaconId,
-    required String? actorUserId,
-    required Set<String>? receiverIds,
-    required String? body,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#notifyBlockerRoomEvent, [], {
-              #beaconId: beaconId,
-              #actorUserId: actorUserId,
-              #receiverIds: receiverIds,
-              #body: body,
-            }),
-            returnValue: _i6.Future<void>.value(),
-            returnValueForMissingStub: _i6.Future<void>.value(),
-          )
-          as _i6.Future<void>);
-
-  @override
-  _i6.Future<void> notifyNextMoveUpdated({
-    required String? beaconId,
-    required String? targetUserId,
-    required String? actorUserId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#notifyNextMoveUpdated, [], {
-              #beaconId: beaconId,
-              #targetUserId: targetUserId,
-              #actorUserId: actorUserId,
+              #planExcerpt: planExcerpt,
             }),
             returnValue: _i6.Future<void>.value(),
             returnValueForMissingStub: _i6.Future<void>.value(),
@@ -2140,6 +1960,111 @@ class MockBeaconRoomPushService extends _i1.Mock
               #actorUserId: actorUserId,
               #isPublic: isPublic,
               #recipientUserIds: recipientUserIds,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> notifyNeedsMe({
+    required String? beaconId,
+    required String? actorUserId,
+    required String? targetUserId,
+    required String? excerpt,
+    String? coordinationItemId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyNeedsMe, [], {
+              #beaconId: beaconId,
+              #actorUserId: actorUserId,
+              #targetUserId: targetUserId,
+              #excerpt: excerpt,
+              #coordinationItemId: coordinationItemId,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> notifyPromiseMade({
+    required String? beaconId,
+    required String? actorUserId,
+    required String? excerpt,
+    String? targetPersonId,
+    String? coordinationItemId,
+    bool? withdrawn = false,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyPromiseMade, [], {
+              #beaconId: beaconId,
+              #actorUserId: actorUserId,
+              #excerpt: excerpt,
+              #targetPersonId: targetPersonId,
+              #coordinationItemId: coordinationItemId,
+              #withdrawn: withdrawn,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> notifyBlockerOpened({
+    required String? beaconId,
+    required String? actorUserId,
+    required String? excerpt,
+    String? targetPersonId,
+    String? coordinationItemId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyBlockerOpened, [], {
+              #beaconId: beaconId,
+              #actorUserId: actorUserId,
+              #excerpt: excerpt,
+              #targetPersonId: targetPersonId,
+              #coordinationItemId: coordinationItemId,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> notifyBlockerResolved({
+    required String? beaconId,
+    required String? actorUserId,
+    required String? excerpt,
+    String? targetPersonId,
+    String? coordinationItemId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyBlockerResolved, [], {
+              #beaconId: beaconId,
+              #actorUserId: actorUserId,
+              #excerpt: excerpt,
+              #targetPersonId: targetPersonId,
+              #coordinationItemId: coordinationItemId,
+            }),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
+          )
+          as _i6.Future<void>);
+
+  @override
+  _i6.Future<void> notifyReviewOpened({
+    required String? beaconId,
+    required String? beaconTitle,
+    required Set<String>? recipientUserIds,
+    required String? actorUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyReviewOpened, [], {
+              #beaconId: beaconId,
+              #beaconTitle: beaconTitle,
+              #recipientUserIds: recipientUserIds,
+              #actorUserId: actorUserId,
             }),
             returnValue: _i6.Future<void>.value(),
             returnValueForMissingStub: _i6.Future<void>.value(),

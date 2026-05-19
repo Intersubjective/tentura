@@ -2349,13 +2349,6 @@ type mutation_root {
     messageId: String!
     emoji: String!
   ): Boolean!
-  BeaconParticipantSetNextMove(
-    beaconId: String!
-    targetUserId: String!
-    nextMoveText: String!
-    nextMoveSource: Int!
-    nextMoveStatus: Int
-  ): Boolean!
   BeaconPublicStatusUpdate(id: String!, lastPublicMeaningfulChange: String, publicStatus: Int!): v2_Beacon!
   BeaconFactCardPin(
     beaconId: String!
@@ -2366,13 +2359,7 @@ type mutation_root {
   BeaconFactCardCorrect(beaconId: String!, factCardId: String!, newText: String!): Boolean!
   BeaconFactCardRemove(beaconId: String!, factCardId: String!): Boolean!
   BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
-  BeaconRoomMessageNeedInfo(
-    beaconId: String!
-    messageId: String!
-    targetUserId: String!
-    requestText: String!
-  ): Boolean!
-  RoomMessageMarkDone(beaconId: String!, messageId: String!, resolveBlocker: Boolean!): Boolean!
+  RoomMessageMarkSemanticDone(beaconId: String!, messageId: String!): Boolean!
   RoomMessageEdit(beaconId: String!, messageId: String!, body: String!): Boolean!
   RoomMessageDelete(beaconId: String!, messageId: String!): Boolean!
   BeaconParticipantRoomSeen(beaconId: String!): Boolean!

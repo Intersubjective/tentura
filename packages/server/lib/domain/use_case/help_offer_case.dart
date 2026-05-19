@@ -175,6 +175,7 @@ final class HelpOfferCase extends UseCaseBase {
       _roomPush.notifyRoomAdmitted(
         receiverId: helpOffererId,
         beaconId: beacon.id,
+        actorUserId: beacon.author.id,
       ),
     );
   }

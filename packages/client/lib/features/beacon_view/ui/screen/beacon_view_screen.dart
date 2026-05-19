@@ -36,6 +36,7 @@ import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 
+import '../../domain/beacon_view_surface_resolver.dart';
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/help_offer_message_dialog.dart';
 import '../widget/activity_list.dart';
@@ -440,6 +441,7 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconPeopleTabAttention) this.peopleTabAttention,
     @QueryParam(kQueryBeaconSurface) this.surface,
     @QueryParam(kQueryBeaconEntry) this.entry,
+    @QueryParam(kQueryCoordinationItemId) this.coordinationItemId,
     super.key,
   });
 
@@ -458,6 +460,9 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
 
   /// Entry provenance ([kQueryBeaconEntry]).
   final String? entry;
+
+  /// Open room focused on this coordination item (notification deep link).
+  final String? coordinationItemId;
 
   @override
   Widget wrappedRoute(_) => MultiBlocProvider(
@@ -614,6 +619,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _didApplyFetchResolution = true;
       if (_showRoomSurface && s.canNavigateBeaconRoom) {
         _roomCubit ??= RoomCubit(beaconId: widget.id);
+        final itemId = widget.coordinationItemId?.trim();
+        if (itemId != null && itemId.isNotEmpty) {
+          _roomCubit!.prepareThreadScroll(coordinationItemId: itemId);
+        }
       }
     });
   }

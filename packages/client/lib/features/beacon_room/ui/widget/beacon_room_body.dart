@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -1099,10 +1100,10 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       if (ok == true && context.mounted) {
         final note = requestController.text.trim();
         if (note.isEmpty) return;
-        await cubit.needInfoFromMessage(
+        await cubit.markAskFromMessageAsNeedInfo(
           messageId: message.id,
-          targetUserId: targetUserId,
-          requestText: note,
+          targetPersonId: targetUserId,
+          title: note,
         );
       }
     } finally {
@@ -1130,14 +1131,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     final rs = cubit.state.roomState;
     final hasBlocker =
         rs?.openBlockerId != null && rs!.openBlockerId!.isNotEmpty;
-    final myUserId = cubit.state.myUserId;
-    final myParticipant = cubit.state.participants
-        .where((p) => p.userId == myUserId)
-        .firstOrNull;
-    final ownNextMove = myParticipant?.nextMoveText?.trim() ?? '';
-    final hasOwnNextMove = ownNextMove.isNotEmpty;
+    final linkedBlockerItemId = message.linkedItemId != null &&
+            message.linkedItemKind == CoordinationItemKind.blocker.value
+        ? message.linkedItemId
+        : null;
 
-    // Selection: 0=messageOnly, 1=resolveBlocker, 2=myNextStep
+    // Selection: 0=messageOnly, 1=resolveBlocker
     var selection = hasBlocker ? 1 : 0;
     final ok = await showDialog<bool>(
       context: context,
@@ -1147,16 +1146,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (hasOwnNextMove)
-                ListTile(
-                  title: Text(l10n.beaconRoomMarkDoneMyNextStep(ownNextMove)),
-                  leading: Icon(
-                    selection == 2
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
-                  ),
-                  onTap: () => setState(() => selection = 2),
-                ),
               ListTile(
                 title: Text(
                   hasBlocker &&
@@ -1171,7 +1160,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
                 ),
-                onTap: message.linkedBlockerId == null && !hasBlocker
+                onTap: linkedBlockerItemId == null && !hasBlocker
                     ? null
                     : () => setState(() => selection = 1),
               ),
@@ -1200,17 +1189,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     );
     if (ok == true && context.mounted) {
-      if (selection == 2 && hasOwnNextMove) {
-        await cubit.participantSetNextMove(
-          targetUserId: myUserId,
-          nextMoveText: ownNextMove,
-          nextMoveStatus: BeaconNextMoveStatusBits.done,
-        );
+      if (selection == 1) {
+        final itemId = linkedBlockerItemId ?? rs?.openBlockerId;
+        if (itemId != null && itemId.isNotEmpty) {
+          await cubit.resolveCoordinationBlocker(itemId: itemId);
+        }
       } else {
-        await cubit.markMessageDone(
-          messageId: message.id,
-          resolveBlocker: selection == 1,
-        );
+        await cubit.markMessageSemanticDone(messageId: message.id);
       }
     }
   }

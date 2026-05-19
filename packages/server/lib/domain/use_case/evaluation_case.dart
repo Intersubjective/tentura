@@ -1,12 +1,10 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
-import 'package:tentura_server/domain/port/fcm_remote_repository_port.dart';
-import 'package:tentura_server/domain/port/fcm_token_repository_port.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
-import 'package:tentura_server/domain/entity/fcm_message_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
@@ -30,8 +28,7 @@ final class EvaluationCase extends UseCaseBase {
     this._forwardEdgeRepository,
     this._evaluationRepository,
     this._userRepository,
-    this._fcmRemoteRepository,
-    this._fcmTokenRepository,
+    this._roomPush,
     this._participantGraphBuilder,
     this._draftPurger,
     this._capabilityCase, {
@@ -43,8 +40,7 @@ final class EvaluationCase extends UseCaseBase {
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final EvaluationRepositoryPort _evaluationRepository;
   final UserRepositoryPort _userRepository;
-  final FcmRemoteRepositoryPort _fcmRemoteRepository;
-  final FcmTokenRepositoryPort _fcmTokenRepository;
+  final BeaconRoomPushService _roomPush;
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
   final CapabilityCase _capabilityCase;
@@ -134,6 +130,7 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       beaconTitle: beacon.title,
       recipientUserIds: participantIds,
+      actorUserId: userId,
     );
 
     return {
@@ -147,22 +144,14 @@ final class EvaluationCase extends UseCaseBase {
     required String beaconId,
     required String beaconTitle,
     required Set<String> recipientUserIds,
+    required String actorUserId,
   }) async {
-    for (final uid in recipientUserIds) {
-      final tokens = await _fcmTokenRepository.getTokensByUserId(uid);
-      final tokenStrings = tokens.map((t) => t.token).toList();
-      if (tokenStrings.isEmpty) {
-        continue;
-      }
-      await _fcmRemoteRepository.sendChatNotification(
-        fcmTokens: tokenStrings,
-        message: FcmNotificationEntity(
-          title: 'Beacon closed — review contributions',
-          body: beaconTitle.isNotEmpty ? beaconTitle : 'Private feedback window',
-          actionUrl: '/beacon/$beaconId',
-        ),
-      );
-    }
+    await _roomPush.notifyReviewOpened(
+      beaconId: beaconId,
+      beaconTitle: beaconTitle,
+      recipientUserIds: recipientUserIds,
+      actorUserId: actorUserId,
+    );
   }
 
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.

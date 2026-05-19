@@ -14,6 +14,9 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/create_draft_blocker_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_blocker_case.dart';
+import 'package:tentura_server/data/service/beacon_room_push_service.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
+import 'package:tentura_server/domain/port/beacon_notification_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/publish_draft_blocker_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -245,6 +248,7 @@ void main() {
       sut = PublishDraftBlockerCase(
         beacons,
         items,
+        _NoopRoomPush(),
         env: Env(environment: Environment.test),
         logger: Logger('_'),
       );
@@ -297,4 +301,13 @@ void main() {
       expect(ok, isTrue);
     });
   });
+}
+
+class _NoopRoomPush extends BeaconRoomPushService {
+  _NoopRoomPush() : super(_NoopNotificationPort());
+}
+
+class _NoopNotificationPort implements BeaconNotificationPort {
+  @override
+  Future<void> dispatch(BeaconNotificationIntent intent) async {}
 }
