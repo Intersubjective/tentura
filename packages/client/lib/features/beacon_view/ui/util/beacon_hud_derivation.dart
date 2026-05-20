@@ -64,6 +64,47 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
   return l10n.beaconHudNoCurrentLine;
 }
 
+/// Operational HUD NOW row: current line or placeholder only (no read fallbacks).
+String beaconHudNowDisplayLine(L10n l10n, BeaconViewState state) {
+  final beacon = state.beacon;
+  final cue = state.beaconRoomCue;
+
+  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+    return l10n.beaconHudBeaconUnavailable;
+  }
+
+  if (beacon.lifecycle == BeaconLifecycle.closed ||
+      beacon.lifecycle == BeaconLifecycle.closedReviewComplete) {
+    return l10n.beaconHudClosedSummary;
+  }
+
+  if (beacon.lifecycle == BeaconLifecycle.closedReviewOpen ||
+      beacon.lifecycle == BeaconLifecycle.pendingReview) {
+    return coordinationStatusLabel(l10n, beacon.coordinationStatus);
+  }
+
+  final blockerTitle = cue?.openBlockerTitle?.trim();
+  if (blockerTitle != null && blockerTitle.isNotEmpty) {
+    return l10n.beaconHudNowBlocked(blockerTitle);
+  }
+
+  final currentLine = cue?.currentLine.trim() ?? '';
+  if (currentLine.isNotEmpty) {
+    return currentLine;
+  }
+
+  return l10n.beaconHudNoCurrentLine;
+}
+
+/// True when the operational HUD should style NOW text as empty placeholder.
+bool beaconHudNowLineIsPlaceholder(BeaconViewState state) {
+  final beacon = state.beacon;
+  if (beacon.lifecycle != BeaconLifecycle.open) return false;
+  final blockerTitle = state.beaconRoomCue?.openBlockerTitle?.trim();
+  if (blockerTitle != null && blockerTitle.isNotEmpty) return false;
+  return (state.beaconRoomCue?.currentLine.trim() ?? '').isEmpty;
+}
+
 /// User-relative “YOU” instruction line (no new server fields).
 String beaconHudYouLine(L10n l10n, BeaconViewState state) {
   final beacon = state.beacon;
