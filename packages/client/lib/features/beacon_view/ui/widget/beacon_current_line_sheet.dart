@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura_root/domain/entity/localizable.dart';
 
 /// Sets the beacon room [current line] (synced via coordination updatePlan).
 Future<void> showBeaconCurrentLineSheet(
@@ -23,6 +24,7 @@ Future<void> showBeaconCurrentLineSheet(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setState) {
@@ -71,9 +73,18 @@ Future<void> showBeaconCurrentLineSheet(
                               if (ctx.mounted) {
                                 Navigator.of(ctx).pop(true);
                               }
-                            } on Object catch (_) {
+                            } on Object catch (e) {
                               if (ctx.mounted) {
                                 setState(() => submitting = false);
+                                final locale = L10n.of(ctx)?.localeName;
+                                showSnackBar(
+                                  ctx,
+                                  isError: true,
+                                  text: switch (e) {
+                                    final Localizable l => l.toL10n(locale),
+                                    _ => e.toString(),
+                                  },
+                                );
                               }
                             }
                           },

@@ -96,8 +96,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     );
     final visibleTokens = tokens.length > 3 ? tokens.sublist(0, 3) : tokens;
 
-    final nowText = beaconHudNowDisplayLine(l10n, state);
-    final nowIsPlaceholder = beaconHudNowLineIsPlaceholder(state);
+    final nowDisplay = beaconHudNowDisplay(l10n, state);
     final youText = beaconHudYouLine(l10n, state);
 
     final bundle = _buildHudActions(l10n);
@@ -117,9 +116,10 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           const SizedBox(height: 8),
           _HudLabeledMultiline(
             label: l10n.beaconHudNowLabel,
-            text: nowText,
+            text: nowDisplay.primaryText,
+            subline: nowDisplay.blockerText,
             mutedColor: tt.textMuted,
-            isPlaceholder: nowIsPlaceholder,
+            isPlaceholder: nowDisplay.isPlaceholder,
             onEdit: onEditNowLine,
             editSemanticLabel: l10n.beaconHudEditNowLine,
           ),
@@ -509,6 +509,7 @@ class _HudLabeledMultiline extends StatelessWidget {
     required this.label,
     required this.text,
     required this.mutedColor,
+    this.subline,
     this.isPlaceholder = false,
     this.onEdit,
     this.editSemanticLabel,
@@ -516,6 +517,7 @@ class _HudLabeledMultiline extends StatelessWidget {
 
   final String label;
   final String text;
+  final String? subline;
   final Color mutedColor;
   final bool isPlaceholder;
   final VoidCallback? onEdit;
@@ -527,6 +529,35 @@ class _HudLabeledMultiline extends StatelessWidget {
     final scheme = theme.colorScheme;
     final textColor =
         isPlaceholder ? scheme.onSurfaceVariant : scheme.onSurface;
+    final semanticsText = subline == null ? text : '$text\n$subline';
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          text,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: textColor,
+            height: 1.25,
+          ),
+        ),
+        if (subline != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            subline!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.error,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ],
+    );
 
     final row = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,17 +573,7 @@ class _HudLabeledMultiline extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: textColor,
-              height: 1.25,
-            ),
-          ),
-        ),
+        Expanded(child: content),
         if (onEdit != null) ...[
           const SizedBox(width: 4),
           Semantics(
@@ -575,7 +596,7 @@ class _HudLabeledMultiline extends StatelessWidget {
     );
 
     return Semantics(
-      label: '$label $text',
+      label: '$label $semanticsText',
       child: ExcludeSemantics(
         child: onEdit == null
             ? row

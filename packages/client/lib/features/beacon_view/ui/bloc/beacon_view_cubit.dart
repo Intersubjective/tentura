@@ -362,6 +362,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         needFactCards = true;
       } else if (t == BeaconRoomEntityType.blocker) {
         needRoomState = true;
+      } else if (t == BeaconRoomEntityType.coordinationItem) {
+        needRoomState = true;
+        needActivity = true;
       }
     }
     await Future.wait([
@@ -391,6 +394,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> _refreshBeaconRoomCue(String beaconId) async {
     final cue = await _case.fetchRoomStateIfAllowed(beaconId);
     if (!isClosed) emit(state.copyWith(beaconRoomCue: cue));
+  }
+
+  /// Refetch room cue after local mutations (echo-suppressed on WS).
+  Future<void> refreshBeaconRoomCue() async {
+    if (isClosed) return;
+    await _refreshBeaconRoomCue(state.beacon.id);
   }
 
   Future<void> _refreshFactCards(String beaconId) async {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
@@ -64,45 +65,59 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
   return l10n.beaconHudNoCurrentLine;
 }
 
+/// Operational HUD NOW block: current line (or placeholder) plus optional blocker.
+@immutable
+class BeaconHudNowDisplay {
+  const BeaconHudNowDisplay({
+    required this.primaryText,
+    this.blockerText,
+    this.isPlaceholder = false,
+  });
+
+  final String primaryText;
+  final String? blockerText;
+  final bool isPlaceholder;
+}
+
 /// Operational HUD NOW row: current line or placeholder only (no read fallbacks).
-String beaconHudNowDisplayLine(L10n l10n, BeaconViewState state) {
+BeaconHudNowDisplay beaconHudNowDisplay(L10n l10n, BeaconViewState state) {
   final beacon = state.beacon;
   final cue = state.beaconRoomCue;
 
   if (beacon.lifecycle == BeaconLifecycle.deleted) {
-    return l10n.beaconHudBeaconUnavailable;
+    return BeaconHudNowDisplay(primaryText: l10n.beaconHudBeaconUnavailable);
   }
 
   if (beacon.lifecycle == BeaconLifecycle.closed ||
       beacon.lifecycle == BeaconLifecycle.closedReviewComplete) {
-    return l10n.beaconHudClosedSummary;
+    return BeaconHudNowDisplay(primaryText: l10n.beaconHudClosedSummary);
   }
 
   if (beacon.lifecycle == BeaconLifecycle.closedReviewOpen ||
       beacon.lifecycle == BeaconLifecycle.pendingReview) {
-    return coordinationStatusLabel(l10n, beacon.coordinationStatus);
+    return BeaconHudNowDisplay(
+      primaryText: coordinationStatusLabel(l10n, beacon.coordinationStatus),
+    );
   }
 
   final blockerTitle = cue?.openBlockerTitle?.trim();
-  if (blockerTitle != null && blockerTitle.isNotEmpty) {
-    return l10n.beaconHudNowBlocked(blockerTitle);
-  }
+  final blockerText = blockerTitle != null && blockerTitle.isNotEmpty
+      ? l10n.beaconHudNowBlocked(blockerTitle)
+      : null;
 
   final currentLine = cue?.currentLine.trim() ?? '';
   if (currentLine.isNotEmpty) {
-    return currentLine;
+    return BeaconHudNowDisplay(
+      primaryText: currentLine,
+      blockerText: blockerText,
+    );
   }
 
-  return l10n.beaconHudNoCurrentLine;
-}
-
-/// True when the operational HUD should style NOW text as empty placeholder.
-bool beaconHudNowLineIsPlaceholder(BeaconViewState state) {
-  final beacon = state.beacon;
-  if (beacon.lifecycle != BeaconLifecycle.open) return false;
-  final blockerTitle = state.beaconRoomCue?.openBlockerTitle?.trim();
-  if (blockerTitle != null && blockerTitle.isNotEmpty) return false;
-  return (state.beaconRoomCue?.currentLine.trim() ?? '').isEmpty;
+  return BeaconHudNowDisplay(
+    primaryText: l10n.beaconHudNoCurrentLine,
+    blockerText: blockerText,
+    isPlaceholder: true,
+  );
 }
 
 /// User-relative “YOU” instruction line (no new server fields).
