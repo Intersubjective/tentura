@@ -393,12 +393,28 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   Future<void> _refreshBeaconRoomCue(String beaconId) async {
     final cue = await _case.fetchRoomStateIfAllowed(beaconId);
-    if (!isClosed) emit(state.copyWith(beaconRoomCue: cue));
+    if (!isClosed && cue != null) {
+      emit(state.copyWith(beaconRoomCue: cue));
+    }
   }
 
   /// Refetch room cue after local mutations (echo-suppressed on WS).
-  Future<void> refreshBeaconRoomCue() async {
+  Future<void> refreshBeaconRoomCue({String? savedCurrentLine}) async {
     if (isClosed) return;
+    final trimmed = savedCurrentLine?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) {
+      final cue = state.beaconRoomCue;
+      emit(
+        state.copyWith(
+          beaconRoomCue: cue?.copyWith(currentLine: trimmed) ??
+              BeaconRoomState(
+                beaconId: state.beacon.id,
+                updatedAt: DateTime.now().toUtc(),
+                currentLine: trimmed,
+              ),
+        ),
+      );
+    }
     await _refreshBeaconRoomCue(state.beacon.id);
   }
 

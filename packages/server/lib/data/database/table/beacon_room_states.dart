@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
-import 'beacon_blockers.dart';
 import 'beacons.dart';
+import 'coordination_items.dart';
 import 'users.dart';
 
 class BeaconRoomStates extends Table {
@@ -11,7 +11,7 @@ class BeaconRoomStates extends Table {
   late final currentLine = text().withDefault(const Constant(''))();
 
   late final openBlockerId =
-      text().nullable().references(BeaconBlockers, #id)();
+      text().nullable().references(CoordinationItems, #id)();
 
   late final lastRoomMeaningfulChange = text().nullable()();
 

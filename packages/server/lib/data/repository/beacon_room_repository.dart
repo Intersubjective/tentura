@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
@@ -341,7 +342,10 @@ class BeaconRoomRepository {
         'createdAt': m.createdAt.dateTime.toUtc().toIso8601String(),
         'editedAt': m.editedAt?.dateTime.toUtc().toIso8601String(),
         'semanticMarker': m.semanticMarker,
-        'linkedBlockerId': m.linkedBlockerId,
+        'linkedBlockerId': linkedRow != null &&
+                linkedRow.kind == coordinationItemKindBlocker
+            ? linkedId
+            : null,
         'linkedFactCardId': m.linkedFactCardId,
         'linkedPollingId': m.linkedPollingId,
         'linkedItemId': linkedId,
@@ -517,7 +521,6 @@ class BeaconRoomRepository {
               body: Value(body),
               replyToMessageId: Value(replyToMessageId),
               threadItemId: Value(threadItemId),
-              linkedBlockerId: const Value.absent(),
               linkedNextMoveId: Value(linkedParticipantId),
               linkedFactCardId: const Value.absent(),
               linkedPollingId: Value(linkedPollingId),
