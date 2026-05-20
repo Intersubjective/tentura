@@ -2285,6 +2285,8 @@
   "beaconHudNowLabel": "СЕЙЧАС",
   "beaconHudYouLabel": "ВЫ",
   "beaconHudNoCurrentLine": "Пока не указано",
+  "beaconHudEditCurrentLineTitle": "Что дальше?",
+  "beaconHudEditNowLine": "Изменить текущую строку",
   "beaconHudSituationPanelTitle": "Ситуация",
   "beaconSituationStateLabel": "Статус",
   "beaconSituationCurrentLineLabel": "Что дальше?",

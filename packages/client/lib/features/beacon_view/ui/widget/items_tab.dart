@@ -21,7 +21,6 @@ import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import '../bloc/beacon_view_state.dart';
 import '../bloc/items_tab_cubit.dart';
 import '../bloc/items_tab_state.dart';
-import 'beacon_create_plan_sheet.dart';
 import 'beacon_definition_body.dart';
 import 'beacon_hud_action_button.dart';
 import 'beacon_prepared_ask_sheet.dart';
@@ -40,14 +39,8 @@ List<BeaconFactCard> _pinnedFactsForCarousel(List<BeaconFactCard> factCards) {
     });
 }
 
-List<CoordinationItem> _planFirst(List<CoordinationItem> items) {
-  final copy = [...items];
-  copy.sort((a, b) {
-    if (a.isRootPlan == b.isRootPlan) return 0;
-    return a.isRootPlan ? -1 : 1;
-  });
-  return copy;
-}
+List<CoordinationItem> _itemsTabVisibleItems(List<CoordinationItem> items) =>
+    items.where((i) => i.kind != CoordinationItemKind.plan).toList();
 
 BeaconParticipant? _participantForUser(
   List<BeaconParticipant> participants,
@@ -99,13 +92,10 @@ VoidCallback? _itemsTabEditHandler(
   if (state.beacon.lifecycle != BeaconLifecycle.open) {
     return null;
   }
-  final myId = state.myProfile.id;
-  final isOwner = state.beacon.author.id == myId;
-  final isParticipant =
-      state.roomParticipants.any((p) => p.userId == myId);
-  if (!isOwner && !isParticipant) {
+  if (!state.canCoordinateInBeaconRoom) {
     return null;
   }
+  final myId = state.myProfile.id;
 
   if (!item.published &&
       item.creatorId == myId &&
@@ -163,8 +153,8 @@ class ItemsTab extends StatelessWidget {
           return const Center(child: CircularProgressIndicator.adaptive());
         }
 
-        final openItems = tabState.openItems;
-        final closedItems = tabState.closedItems;
+        final openItems = _itemsTabVisibleItems(tabState.openItems);
+        final closedItems = _itemsTabVisibleItems(tabState.closedItems);
         final myUserId = state.myProfile.id;
         final myDrafts = _myDraftItems(tabState, myUserId);
         final myDraftCount = myDrafts.length;
@@ -172,22 +162,12 @@ class ItemsTab extends StatelessWidget {
             closedItems.isNotEmpty ||
             myDraftCount > 0;
         final beaconId = state.beacon.id;
-        final isOwner = state.beacon.author.id == state.myProfile.id;
 
-        BeaconParticipant? myParticipant;
-        for (final p in state.roomParticipants) {
-          if (p.userId == state.myProfile.id) {
-            myParticipant = p;
-            break;
-          }
-        }
-
-        final canCreatePlan = isOwner || myParticipant != null;
-        final showCoordinationCtas = canCreatePlan &&
-            state.beacon.lifecycle == BeaconLifecycle.open;
-        final showActiveFold = canCreatePlan || openItems.isNotEmpty;
+        final canCoordinate = state.canCoordinateInBeaconRoom;
+        final showCoordinationCtas = canCoordinate;
+        final showActiveFold = canCoordinate || openItems.isNotEmpty;
         final showClosedFold = closedItems.isNotEmpty &&
-            (canCreatePlan || openItems.isNotEmpty);
+            (canCoordinate || openItems.isNotEmpty);
 
         final pinnedFacts = _pinnedFactsForCarousel(state.factCards);
         final showFacts = pinnedFacts.isNotEmpty;
@@ -229,13 +209,7 @@ class ItemsTab extends StatelessWidget {
                           child: _ActiveCoordinationCtas(state: state),
                         ),
                       ],
-                      if (openItems.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: _CreatePlanCta(),
-                        )
-                      else
-                        for (final item in _planFirst(openItems))
+                      for (final item in openItems)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: _ItemCardAnimatedRow(
@@ -317,7 +291,7 @@ class ItemsTab extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
                     children: [
-                      for (final item in _planFirst(closedItems))
+                      for (final item in closedItems)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: ItemCard(
@@ -424,29 +398,6 @@ class _ActiveCoordinationCtas extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CreatePlanCta extends StatelessWidget {
-  const _CreatePlanCta();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-
-    return SizedBox(
-      width: double.infinity,
-      child: BeaconHudActionButton(
-        icon: Icons.edit_note,
-        label: l10n.itemsTabCreatePlanCta,
-        onPressed: () => unawaited(
-          showBeaconCreatePlanSheet(
-            context,
-            onSaved: () => context.read<ItemsTabCubit>().fetch(),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -30,6 +30,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onOpenRoomSurface,
     this.onOpenReview,
     this.onOpenLogTab,
+    this.onEditNowLine,
     super.key,
   });
 
@@ -59,6 +60,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   /// Closed beacon: switch to Log tab.
   final VoidCallback? onOpenLogTab;
+
+  /// Edit room current line (NOW row).
+  final VoidCallback? onEditNowLine;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +96,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     );
     final visibleTokens = tokens.length > 3 ? tokens.sublist(0, 3) : tokens;
 
-    final nowText = beaconHudNowLine(l10n, state);
+    final nowText = beaconHudNowDisplayLine(l10n, state);
+    final nowIsPlaceholder = beaconHudNowLineIsPlaceholder(state);
     final youText = beaconHudYouLine(l10n, state);
 
     final bundle = _buildHudActions(l10n);
@@ -114,6 +119,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             label: l10n.beaconHudNowLabel,
             text: nowText,
             mutedColor: tt.textMuted,
+            isPlaceholder: nowIsPlaceholder,
+            onEdit: onEditNowLine,
+            editSemanticLabel: l10n.beaconHudEditNowLine,
           ),
           const SizedBox(height: 6),
           _HudLabeledMultiline(
@@ -501,46 +509,84 @@ class _HudLabeledMultiline extends StatelessWidget {
     required this.label,
     required this.text,
     required this.mutedColor,
+    this.isPlaceholder = false,
+    this.onEdit,
+    this.editSemanticLabel,
   });
 
   final String label;
   final String text;
   final Color mutedColor;
+  final bool isPlaceholder;
+  final VoidCallback? onEdit;
+  final String? editSemanticLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final textColor =
+        isPlaceholder ? scheme.onSurfaceVariant : scheme.onSurface;
+
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 44,
+          child: Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: mutedColor,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: textColor,
+              height: 1.25,
+            ),
+          ),
+        ),
+        if (onEdit != null) ...[
+          const SizedBox(width: 4),
+          Semantics(
+            button: true,
+            label: editSemanticLabel,
+            child: IconButton(
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              icon: Icon(
+                Icons.edit_outlined,
+                size: 20,
+                color: scheme.onSurfaceVariant,
+              ),
+              onPressed: onEdit,
+            ),
+          ),
+        ],
+      ],
+    );
+
     return Semantics(
       label: '$label $text',
       child: ExcludeSemantics(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 44,
-              child: Text(
-                label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: mutedColor,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
+        child: onEdit == null
+            ? row
+            : InkWell(
+                onTap: onEdit,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: row,
                 ),
               ),
-            ),
-            Expanded(
-              child: Text(
-                text,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface,
-                  height: 1.25,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

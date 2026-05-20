@@ -40,6 +40,7 @@ import '../../domain/beacon_view_surface_resolver.dart';
 import '../bloc/beacon_view_cubit.dart';
 import '../dialog/help_offer_message_dialog.dart';
 import '../widget/activity_list.dart';
+import '../widget/beacon_current_line_sheet.dart';
 import '../widget/beacon_operational_header_card.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_view_app_bar_title.dart';
@@ -1295,6 +1296,16 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                           )
                         : null,
                     onOpenLogTab: state.isBeaconMine ? () => _setTab(kBeaconTabLog) : null,
+                    onEditNowLine: state.canCoordinateInBeaconRoom
+                        ? () => unawaited(
+                            showBeaconCurrentLineSheet(
+                              context,
+                              beaconId: beaconId,
+                              initialText:
+                                  state.beaconRoomCue?.currentLine ?? '',
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               ),

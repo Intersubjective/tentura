@@ -1,20 +1,22 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
+import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import '../bloc/items_tab_cubit.dart';
-
-/// Creates a root coordination Plan for the beacon (title only).
-Future<void> showBeaconCreatePlanSheet(
+/// Sets the beacon room [current line] (synced via coordination updatePlan).
+Future<void> showBeaconCurrentLineSheet(
   BuildContext context, {
+  required String beaconId,
+  required String initialText,
   VoidCallback? onSaved,
 }) async {
   final l10n = L10n.of(context)!;
-  final itemsTabCubit = context.read<ItemsTabCubit>();
-  final titleController = TextEditingController();
+  final coordinationCase = GetIt.I<CoordinationItemCase>();
+  final titleController = TextEditingController(text: initialText);
   try {
     var submitting = false;
     final ok = await showModalBottomSheet<bool>(
@@ -39,15 +41,18 @@ Future<void> showBeaconCreatePlanSheet(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    l10n.itemsTabCreatePlanSheetPrompt,
+                    l10n.beaconHudEditCurrentLineTitle,
                     style: Theme.of(ctx).textTheme.titleMedium,
                   ),
                   const SizedBox(height: kSpacingSmall),
                   TextField(
                     controller: titleController,
+                    decoration: InputDecoration(
+                      hintText: l10n.beaconRoomStripCurrentLineLabel,
+                    ),
                     onChanged: (_) => setState(() {}),
-                    maxLines: 2,
-                    minLines: 1,
+                    maxLines: 6,
+                    minLines: 3,
                     textInputAction: TextInputAction.done,
                     enabled: !submitting,
                     autofocus: true,
@@ -59,8 +64,9 @@ Future<void> showBeaconCreatePlanSheet(
                         : () async {
                             setState(() => submitting = true);
                             try {
-                              await itemsTabCubit.createPlan(
-                                titleController.text.trim(),
+                              await coordinationCase.updatePlan(
+                                beaconId: beaconId,
+                                title: titleController.text.trim(),
                               );
                               if (ctx.mounted) {
                                 Navigator.of(ctx).pop(true);

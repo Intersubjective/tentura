@@ -2285,6 +2285,8 @@
   "beaconHudNowLabel": "NOW",
   "beaconHudYouLabel": "YOU",
   "beaconHudNoCurrentLine": "Nothing noted yet",
+  "beaconHudEditCurrentLineTitle": "What's next?",
+  "beaconHudEditNowLine": "Edit current line",
   "beaconHudSituationPanelTitle": "Situation",
   "beaconSituationStateLabel": "State",
   "beaconSituationCurrentLineLabel": "What's next?",
