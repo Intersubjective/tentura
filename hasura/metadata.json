@@ -1337,7 +1337,7 @@
                 "permission": {
                   "columns": [
                     "beacon_id",
-                    "current_plan",
+                    "current_line",
                     "last_room_meaningful_change",
                     "open_blocker_id",
                     "updated_at",

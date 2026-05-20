@@ -1303,8 +1303,10 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                               beaconId: beaconId,
                               initialText:
                                   state.beaconRoomCue?.currentLine ?? '',
-                              onSaved: () => unawaited(
-                                beaconViewCubit.refreshBeaconRoomCue(),
+                              onSaved: (line) => unawaited(
+                                beaconViewCubit.refreshBeaconRoomCue(
+                                  savedCurrentLine: line,
+                                ),
                               ),
                             ),
                           )

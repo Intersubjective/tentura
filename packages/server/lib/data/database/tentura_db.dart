@@ -7,7 +7,6 @@ import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
-import 'package:tentura_server/domain/entity/beacon_blocker_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_update_entity.dart';
@@ -24,7 +23,6 @@ import 'table/beacon_evaluation_participants.dart';
 import 'table/beacon_evaluation_visibility.dart';
 import 'table/beacon_evaluations.dart';
 import 'table/beacon_activity_events.dart';
-import 'table/beacon_blockers.dart';
 import 'table/beacon_fact_cards.dart';
 import 'table/beacon_forward_edges.dart';
 import 'table/beacon_images.dart';
@@ -67,7 +65,6 @@ part 'tentura_db.g.dart';
     BeaconEvaluationVisibility,
     BeaconEvaluations,
     BeaconActivityEvents,
-    BeaconBlockers,
     BeaconFactCards,
     BeaconForwardEdges,
     BeaconImages,

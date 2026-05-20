@@ -13,14 +13,14 @@ Future<void> showBeaconCurrentLineSheet(
   BuildContext context, {
   required String beaconId,
   required String initialText,
-  VoidCallback? onSaved,
+  void Function(String savedLine)? onSaved,
 }) async {
   final l10n = L10n.of(context)!;
   final coordinationCase = GetIt.I<CoordinationItemCase>();
   final titleController = TextEditingController(text: initialText);
   try {
     var submitting = false;
-    final ok = await showModalBottomSheet<bool>(
+    final savedLine = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -66,12 +66,13 @@ Future<void> showBeaconCurrentLineSheet(
                         : () async {
                             setState(() => submitting = true);
                             try {
+                              final line = titleController.text.trim();
                               await coordinationCase.updatePlan(
                                 beaconId: beaconId,
-                                title: titleController.text.trim(),
+                                title: line,
                               );
                               if (ctx.mounted) {
-                                Navigator.of(ctx).pop(true);
+                                Navigator.of(ctx).pop(line);
                               }
                             } on Object catch (e) {
                               if (ctx.mounted) {
@@ -103,8 +104,10 @@ Future<void> showBeaconCurrentLineSheet(
         );
       },
     );
-    if (ok == true && context.mounted) {
-      onSaved?.call();
+    if (savedLine != null &&
+        savedLine.isNotEmpty &&
+        context.mounted) {
+      onSaved?.call(savedLine);
     }
   } finally {
     titleController.dispose();

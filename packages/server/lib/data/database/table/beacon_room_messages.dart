@@ -2,7 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
 import '../custom_types/mentions_text_array_type.dart';
-import 'beacon_blockers.dart';
 import 'beacons.dart';
 import 'coordination_items.dart';
 import 'pollings.dart';
@@ -18,9 +17,6 @@ class BeaconRoomMessages extends Table {
   late final body = text().withDefault(const Constant(''))();
 
   late final replyToMessageId = text().nullable()();
-
-  late final linkedBlockerId =
-      text().nullable().references(BeaconBlockers, #id)();
 
   late final linkedNextMoveId = text().nullable()();
 
