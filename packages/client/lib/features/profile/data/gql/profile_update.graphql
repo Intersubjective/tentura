@@ -1,12 +1,12 @@
 mutation ProfileUpdate(
-  $title: String,
+  $displayName: String,
   $description: String,
   $handle: String,
   $dropImage: Boolean = false,
   $image: Upload = {}
 ) {
   userUpdate(
-    title: $title,
+    displayName: $displayName,
     description: $description,
     handle: $handle,
     dropImage: $dropImage,

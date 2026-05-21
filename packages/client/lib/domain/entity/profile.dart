@@ -14,7 +14,7 @@ part 'profile.freezed.dart';
 abstract class Profile with _$Profile implements Likable, Scorable {
   const factory Profile({
     @Default('') String id,
-    @Default('') String title,
+    @Default('') String displayName,
     /// Public @mention handle (5–30 `[a-z0-9_]`, optional).
     @Default('') String handle,
     @Default('') String description,
@@ -43,7 +43,7 @@ abstract class Profile with _$Profile implements Likable, Scorable {
 
   bool get isSeeingMe => rScore > 0;
 
-  bool get needEdit => id.isNotEmpty && title.isEmpty;
+  bool get needEdit => id.isNotEmpty && displayName.isEmpty;
 
   bool get hasAvatar => image != null && image!.id.isNotEmpty;
   bool get hasNoAvatar => !hasAvatar;

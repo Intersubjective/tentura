@@ -35,7 +35,7 @@ List<Map<String, dynamic>> mutualScoresToGqlList(List<MutualScoreRecord> s) =>
 
 Map<String, dynamic> userPublicToGqlMap(UserPublicRecord u) => {
   'id': u.id,
-  'title': u.title,
+  'displayName': u.displayName,
   'handle': u.handle,
   'description': u.description,
   'my_vote': u.myVote,

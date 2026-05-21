@@ -6,7 +6,7 @@ import 'image_mapper.dart';
 
 UserEntity userModelToEntity(User model, {Image? image}) => UserEntity(
   id: model.id,
-  title: model.title,
+  displayName: model.displayName,
   handle: (model.handle ?? '').trim(),
   publicKey: model.publicKey,
   description: model.description,

@@ -9,7 +9,7 @@ void main() {
   test('helpOfferWithCoordinationToGqlMap includes roomAccess for auto-admit', () {
     const user = UserPublicRecord(
       id: 'U1',
-      title: 't',
+      displayName: 't',
       description: '',
     );
     final row = HelpOfferWithCoordinationRow(
@@ -29,7 +29,7 @@ void main() {
   test('helpOfferWithCoordinationToGqlMap omits roomAccess when null', () {
     const user = UserPublicRecord(
       id: 'U1',
-      title: 't',
+      displayName: 't',
       description: '',
     );
     final row = HelpOfferWithCoordinationRow(

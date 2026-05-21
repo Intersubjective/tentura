@@ -17,7 +17,7 @@ const kCoordinationLogEventIconSize = 22.0;
 
 Profile profileFromBeaconParticipant(BeaconParticipant p) => Profile(
       id: p.userId,
-      title: p.userTitle,
+      displayName: p.userTitle,
       image: p.userHasPicture
           ? ImageEntity(
               id: p.userImageId,

@@ -28,7 +28,7 @@ class AuthRemoteRepository extends RemoteRepository
   @override
   Future<String> signUp({
     required String seed,
-    required String title,
+    required String displayName,
     required String invitationCode,
     String? handle,
   }) async {
@@ -42,7 +42,7 @@ class AuthRemoteRepository extends RemoteRepository
     final request = GSignUpReq((b) {
       b.context = const Context().withEntry(const HttpAuthHeaders.noAuth());
       b.vars
-        ..title = title
+        ..displayName = displayName
         ..authRequestToken = authRequestToken
         ..handle = handle;
     });

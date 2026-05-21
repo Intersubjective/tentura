@@ -51,7 +51,7 @@ class ProfileRepository implements ProfileRepositoryPort {
   @override
   Future<void> update(
     Profile profile, {
-    String? title,
+    String? displayName,
     String? description,
     bool dropImage = false,
     ImageEntity? image,
@@ -61,7 +61,7 @@ class ProfileRepository implements ProfileRepositoryPort {
     final request = GProfileUpdateReq((b) {
       b.fetchPolicy = FetchPolicy.NoCache;
       b.vars
-        ..title = title
+        ..displayName = displayName
         ..description = description
         ..dropImage = dropImage
         ..image = image?.imageBytes == null

@@ -799,7 +799,7 @@
                     "id",
                     "image_id",
                     "public_key",
-                    "title",
+                    "display_name",
                     "updated_at"
                   ],
                   "computed_fields": [

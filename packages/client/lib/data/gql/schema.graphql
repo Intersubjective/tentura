@@ -2630,7 +2630,7 @@ type mutation_root {
   setCoordinationResponse(offerUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_CoordinationStatusResult!
   signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
-  signUp(authRequestToken: String!, title: String!, handle: String): v2_AuthResponse!
+  signUp(authRequestToken: String!, displayName: String!, handle: String): v2_AuthResponse!
 
   """
   update data of the table: "beacon"
@@ -2802,7 +2802,7 @@ type mutation_root {
     updates: [vote_user_updates!]!
   ): [vote_user_mutation_response]
   userDelete: Boolean!
-  userUpdate(description: String, dropImage: Boolean, handle: String, image: v2_Upload = {}, title: String): v2_User!
+  userUpdate(description: String, dropImage: Boolean, handle: String, image: v2_Upload = {}, displayName: String): v2_User!
 }
 
 """
@@ -5105,7 +5105,9 @@ type user {
     """filter the rows returned"""
     where: mutual_score_bool_exp
   ): [mutual_score!]
-  title: String!
+  display_name: String!
+  """V2 direct user projection (mutualFriends, invitationById issuer, etc.)."""
+  displayName: String!
   updated_at: timestamptz!
 
   """An object relationship"""
@@ -5183,7 +5185,7 @@ input user_bool_exp {
   my_vote: Int_comparison_exp
   public_key: String_comparison_exp
   scores: mutual_score_bool_exp
-  title: String_comparison_exp
+  display_name: String_comparison_exp
   updated_at: timestamptz_comparison_exp
   user_presence: user_presence_bool_exp
   voteUsersBySubject: vote_user_bool_exp
@@ -5301,7 +5303,7 @@ input user_order_by {
   my_vote: order_by
   public_key: order_by
   scores_aggregate: mutual_score_aggregate_order_by
-  title: order_by
+  display_name: order_by
   updated_at: order_by
   user_presence: user_presence_order_by
   voteUsersBySubject_aggregate: vote_user_aggregate_order_by
@@ -5394,7 +5396,7 @@ enum user_select_column {
   public_key
 
   """column name"""
-  title
+  display_name
 
   """column name"""
   updated_at
@@ -5418,7 +5420,7 @@ input user_stream_cursor_value_input {
   id: String
   image_id: uuid
   public_key: String
-  title: String
+  display_name: String
   updated_at: timestamptz
 }
 
@@ -5664,7 +5666,7 @@ type v2_EvaluationParticipant {
   promptVariant: String!
   reasonTags: [String!]
   role: Int!
-  title: String!
+  displayName: String!
   userId: String!
   value: Int
 }
@@ -5696,7 +5698,7 @@ type v2_Invitation {
   id: String!
   invited: user
   invited_id: String
-  issuer: v2_user!
+  issuer: user!
   issuer_id: String!
   updated_at: String!
 }
@@ -5736,7 +5738,7 @@ type v2_user {
   my_vote: Int
   is_mutual_friend: Boolean!
   scores: [v2_mutual_score!]
-  title: String!
+  displayName: String!
   user_presence: user_presence
 }
 

@@ -92,7 +92,7 @@ class BeaconRoomRepository {
           if (id.isEmpty) {
             continue;
           }
-          final title = map['title'] as String? ?? '';
+          final displayName = map['displayName'] as String? ?? '';
           final hasPicture = map['hasPicture'] as bool? ?? false;
           final imageId = map['imageId'] as String? ?? '';
           final blurHash = map['blurHash'] as String? ?? '';
@@ -101,7 +101,7 @@ class BeaconRoomRepository {
           profiles.add(
             Profile(
               id: id,
-              title: title,
+              displayName: displayName,
               image: hasPicture && imageId.isNotEmpty
                   ? ImageEntity(
                       id: imageId,
@@ -164,7 +164,7 @@ class BeaconRoomRepository {
         }
         final author = Profile(
           id: m.authorId,
-          title: m.authorTitle,
+          displayName: m.authorTitle,
           image: m.authorHasPicture && m.authorImageId.isNotEmpty
               ? ImageEntity(
                   id: m.authorImageId,

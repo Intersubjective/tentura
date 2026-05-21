@@ -537,7 +537,7 @@ void main() {
     test('row may have admitted roomAccess before author coordination response', () {
       const user = UserPublicRecord(
         id: 'U1',
-        title: 't',
+        displayName: 't',
         description: '',
       );
       final row = HelpOfferWithCoordinationRow(

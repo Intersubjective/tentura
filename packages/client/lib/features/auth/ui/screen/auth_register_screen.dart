@@ -139,12 +139,12 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
             autovalidateMode: AutovalidateMode.onUserInteraction,
             controller: _titleController,
             decoration: InputDecoration(
-              hintText: _l10n.pleaseFillTitle,
-              labelText: _l10n.labelTitle,
+              hintText: _l10n.pleaseFillDisplayName,
+              labelText: _l10n.labelDisplayName,
             ),
             maxLength: kTitleMaxLength,
             style: _textTheme.headlineLarge,
-            validator: (text) => titleValidator(_l10n, text),
+            validator: (text) => displayNameValidator(_l10n, text),
             onTapOutside: (_) => FocusScope.of(context).unfocus(),
           ),
         ),
@@ -182,7 +182,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
           child: FilledButton(
             onPressed: () => _authCubit.signUp(
               invitationCode: _codeController.text,
-              title: _titleController.text,
+              displayName: _titleController.text,
               handle: _handleController.text.trim().toLowerCase().isEmpty
                   ? null
                   : _handleController.text.trim().toLowerCase(),

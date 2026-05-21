@@ -176,7 +176,7 @@ class RatingCubit extends Cubit<RatingState> {
     final asc = state.isSortedByAsc;
     if (state.isSortedByAlter) {
       state.items.sort((a, b) {
-        final c = a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        final c = a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
         return asc ? c : -c;
       });
     } else if (state.isSortedByClass) {

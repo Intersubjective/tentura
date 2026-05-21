@@ -63,7 +63,7 @@ class GraphCubit extends Cubit<GraphState> {
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
   }) : _egoNode = UserNode(
-         user: me.copyWith(title: 'Me', score: 2),
+         user: me.copyWith(displayName: 'Me', score: 2),
          pinned: true,
          size: 80,
          positionHint: 0,

@@ -15,7 +15,7 @@ import '../../domain/entity/inbox_provenance.dart';
 
 Profile _senderProfile(InboxForwardSender s) => Profile(
       id: s.id,
-      title: s.title,
+      displayName: s.displayName,
       image: s.imageId != null && s.imageId!.isNotEmpty && s.imageId != 'null'
           ? ImageEntity(id: s.imageId!, authorId: s.id)
           : null,
@@ -204,7 +204,7 @@ bool _provenanceEquivalent(InboxProvenance a, InboxProvenance b) {
     final x = a.senders[i];
     final y = b.senders[i];
     if (x.id != y.id ||
-        x.title != y.title ||
+        x.displayName != y.displayName ||
         x.notePreview != y.notePreview ||
         x.imageId != y.imageId ||
         !listEquals(x.reasonSlugs, y.reasonSlugs)) {

@@ -117,7 +117,7 @@ Future<void> showReactionSendersSheet(
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      p.title,
+                                      p.displayName,
                                       style: theme.textTheme.bodyMedium,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,

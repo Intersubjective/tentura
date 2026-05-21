@@ -38,14 +38,14 @@ final class MutationAuth extends GqlNodeBase {
     'signUp',
     gqlTypeAuthResponse.nonNullable(),
     arguments: [
-      InputFieldTitle.fieldNonNullable,
+      InputFieldDisplayName.fieldNonNullable,
       _authRequestTokenInput.field,
       _handleField.fieldNullable,
     ],
     resolve: (_, args) async {
       final jwt = await _authCase.signUp(
         authRequestToken: _authRequestTokenInput.fromArgsNonNullable(args),
-        title: InputFieldTitle.fromArgsNonNullable(args),
+        displayName: InputFieldDisplayName.fromArgsNonNullable(args),
         handle: _handleField.fromArgs(args),
       );
       return jwt.asOauth2Map;

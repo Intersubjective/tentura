@@ -90,7 +90,7 @@ final class EvaluationParticipantGraphBuilder {
           contributionSummary:
               'Committed on $d${c.message.isNotEmpty ? ': ${c.message}' : ''}',
           causalHint:
-              'Committer — received via forward from ${fs.title}; committed in this beacon',
+              'Committer — received via forward from ${fs.displayName}; committed in this beacon',
         );
       }
     }
@@ -102,7 +102,7 @@ final class EvaluationParticipantGraphBuilder {
           .toList();
       final names = <String>[];
       for (final cid in linkedCommitters) {
-        names.add((await _userRepository.getById(cid)).title);
+        names.add((await _userRepository.getById(cid)).displayName);
       }
       final namesStr = names.join(', ');
       participants.add(

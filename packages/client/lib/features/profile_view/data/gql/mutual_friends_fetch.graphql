@@ -3,7 +3,7 @@
 query MutualFriendsFetch($id: String!) {
   mutualFriends(id: $id) {
     id
-    title
+    displayName
     is_mutual_friend
     image {
       ...ImageModel

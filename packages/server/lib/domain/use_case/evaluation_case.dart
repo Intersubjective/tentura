@@ -206,7 +206,7 @@ final class EvaluationCase extends UseCaseBase {
       final ev = evByTarget[pid];
       out.add({
         'userId': pid,
-        'title': u.title,
+        'displayName': u.displayName,
         'imageId': u.image?.id ?? '',
         'role': row.role,
         'contributionSummary': row.contributionSummary,
@@ -298,7 +298,7 @@ final class EvaluationCase extends UseCaseBase {
           ev != null && ev.status == BeaconEvaluationRowStatus.draft ? ev : null;
       out.add({
         'userId': pid,
-        'title': u.title,
+        'displayName': u.displayName,
         'imageId': u.image?.id ?? '',
         'role': row.role.dbValue,
         'contributionSummary': row.contributionSummary,

@@ -38,7 +38,7 @@ class InboxProvenance {
           senders.add(
             InboxForwardSender(
               id: id,
-              title: e['title'] as String? ?? '',
+              displayName: e['displayName'] as String? ?? '',
               mr: mr is num ? mr.toDouble() : double.tryParse('$mr') ?? 0,
               imageId: e['imageId'] as String?,
               notePreview: e['notePreview'] as String? ?? '',
@@ -65,7 +65,7 @@ class InboxProvenance {
 class InboxForwardSender {
   const InboxForwardSender({
     required this.id,
-    required this.title,
+    required this.displayName,
     required this.mr,
     this.imageId,
     this.notePreview = '',
@@ -73,7 +73,7 @@ class InboxForwardSender {
   });
 
   final String id;
-  final String title;
+  final String displayName;
   final double mr;
   final String? imageId;
 

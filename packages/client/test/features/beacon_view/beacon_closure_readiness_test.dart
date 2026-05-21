@@ -24,7 +24,7 @@ Beacon _openBeacon({
       updatedAt: DateTime.utc(2025),
       id: 'b1',
       title: 'T',
-      author: const Profile(id: 'uAuthor', title: 'Author'),
+      author: const Profile(id: 'uAuthor', displayName: 'Author'),
       coordinationStatus: coordinationStatus,
     );
 
@@ -35,7 +35,7 @@ BeaconViewState _baseAuthorState({
   BeaconRoomState? beaconRoomCue,
   List<BeaconActivityEvent> roomActivityEvents = const [],
   StateStatus status = const StateIsSuccess(),
-  Profile myProfile = const Profile(id: 'uAuthor', title: 'Me'),
+  Profile myProfile = const Profile(id: 'uAuthor', displayName: 'Me'),
 }) =>
     BeaconViewState(
       beacon: beacon ?? _openBeacon(),
@@ -53,7 +53,7 @@ TimelineHelpOffer _helpOffer({
   bool withdrawn = false,
 }) =>
     TimelineHelpOffer(
-      user: Profile(id: userId, title: userId),
+      user: Profile(id: userId, displayName: userId),
       message: '',
       createdAt: DateTime.utc(2025),
       updatedAt: DateTime.utc(2025),
@@ -65,7 +65,7 @@ void main() {
   group('closeHardGate', () {
     test('false when not author', () {
       final s = _baseAuthorState(
-        myProfile: const Profile(id: 'other', title: 'X'),
+        myProfile: const Profile(id: 'other', displayName: 'X'),
       );
       expect(closeHardGate(s), false);
     });

@@ -69,7 +69,7 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
   Future<AccountEntity?> getCurrentAccount() async => null;
 
   @override
-  Future<void> addAccount(String id, String seed, [String? title]) async {}
+  Future<void> addAccount(String id, String seed, [String? displayName]) async {}
 
   @override
   Future<void> removeAccount(String id) async {}
@@ -99,7 +99,7 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
   @override
   Future<String> signUp({
     required String seed,
-    required String title,
+    required String displayName,
     required String invitationCode,
     String? handle,
   }) async =>

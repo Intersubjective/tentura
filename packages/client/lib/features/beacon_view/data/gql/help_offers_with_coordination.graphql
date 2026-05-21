@@ -16,7 +16,7 @@ query HelpOffersWithCoordination($beaconId: String!) {
     roomAccess
     user {
       id
-      title
+      displayName
       description
       my_vote
       is_mutual_friend

@@ -14,7 +14,7 @@ void main() {
     const low = ForwardCandidate(
       profile: Profile(
         id: 'a',
-        title: 'Low',
+        displayName: 'Low',
         rScore: 1,
         score: 10,
       ),
@@ -22,7 +22,7 @@ void main() {
     const high = ForwardCandidate(
       profile: Profile(
         id: 'b',
-        title: 'High',
+        displayName: 'High',
         rScore: 1,
         score: 90,
       ),
@@ -30,7 +30,7 @@ void main() {
     const blocked = ForwardCandidate(
       profile: Profile(
         id: 'c',
-        title: 'Blocked',
+        displayName: 'Blocked',
         rScore: 1,
         score: 99,
       ),
@@ -48,11 +48,11 @@ void main() {
 
   test('involved scope includes forwarded-by-others', () {
     const forwarded = ForwardCandidate(
-      profile: Profile(id: 'f', title: 'F', rScore: 1, score: 50),
+      profile: Profile(id: 'f', displayName: 'F', rScore: 1, score: 50),
       involvement: CandidateInvolvement.forwarded,
     );
     const unseen = ForwardCandidate(
-      profile: Profile(id: 'u', title: 'U', rScore: 1, score: 80),
+      profile: Profile(id: 'u', displayName: 'U', rScore: 1, score: 80),
     );
 
     const state = ForwardState(
@@ -68,7 +68,7 @@ void main() {
     const low = ForwardCandidate(
       profile: Profile(
         id: 'low',
-        title: 'Low',
+        displayName: 'Low',
         description: 'alpha bravo',
         rScore: 1,
         score: 10,
@@ -77,7 +77,7 @@ void main() {
     const high = ForwardCandidate(
       profile: Profile(
         id: 'high',
-        title: 'High',
+        displayName: 'High',
         description: 'alpha bravo',
         rScore: 1,
         score: 90,

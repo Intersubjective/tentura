@@ -4,7 +4,7 @@ import 'package:tentura/features/auth/data/repository/auth_remote_repository.dar
 abstract class AuthRemoteRepositoryPort {
   Future<String> signUp({
     required String seed,
-    required String title,
+    required String displayName,
     required String invitationCode,
     String? handle,
   });

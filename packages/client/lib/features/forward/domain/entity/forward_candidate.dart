@@ -21,7 +21,7 @@ abstract class ForwardCandidate with _$ForwardCandidate {
 
   String get id => profile.id;
 
-  String get title => profile.title;
+  String get displayName => profile.displayName;
 
   bool get isReachable => profile.isSeeingMe;
 

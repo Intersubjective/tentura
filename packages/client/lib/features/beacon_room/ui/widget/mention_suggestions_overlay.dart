@@ -165,6 +165,6 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
 extension on BeaconParticipant {
   Profile toProfile() => Profile(
         id: userId,
-        title: userTitle,
+        displayName: userTitle,
       );
 }

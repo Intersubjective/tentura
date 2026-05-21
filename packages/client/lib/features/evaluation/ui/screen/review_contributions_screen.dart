@@ -301,7 +301,7 @@ class _ParticipantTile extends StatelessWidget {
             : l10n.evaluationReviewed);
     final profile = Profile(
       id: participant.userId,
-      title: participant.title,
+      displayName: participant.displayName,
       image: participant.imageId.isNotEmpty
           ? ImageEntity(id: participant.imageId, authorId: participant.userId)
           : null,

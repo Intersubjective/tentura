@@ -9,7 +9,7 @@ part 'account_entity.freezed.dart';
 abstract class AccountEntity with _$AccountEntity {
   const factory AccountEntity({
     required String id,
-    @Default('') String title,
+    @Default('') String displayName,
     ImageEntity? image,
   }) = _AccountEntity;
 

@@ -14,7 +14,7 @@ enum EvaluationParticipantRole {
 abstract class EvaluationParticipant with _$EvaluationParticipant {
   const factory EvaluationParticipant({
     required String userId,
-    required String title,
+    required String displayName,
     required EvaluationParticipantRole role,
     required String contributionSummary,
     required String causalHint,

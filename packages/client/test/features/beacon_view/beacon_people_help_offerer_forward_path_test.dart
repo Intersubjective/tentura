@@ -15,7 +15,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState(
-        profile: Profile(id: 'me', title: 'Me'),
+        profile: Profile(id: 'me', displayName: 'Me'),
       );
 
   @override
@@ -75,7 +75,7 @@ Widget _wrap(Widget child, {required _RecordingScreenCubit screenCubit}) {
 }
 
 void main() {
-  const author = Profile(id: 'auth', title: 'Author');
+  const author = Profile(id: 'auth', displayName: 'Author');
   final beacon = Beacon.empty.copyWith(
     id: 'B-1',
     updatedAt: DateTime(2025),

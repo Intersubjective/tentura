@@ -31,7 +31,7 @@ final class Database extends _$Database {
   final Logger _logger;
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -73,6 +73,15 @@ final class Database extends _$Database {
         await customStatement('DROP TABLE IF EXISTS messages;');
         await m.dropColumn(schema.accounts, 'has_avatar');
         await m.dropColumn(schema.friends, 'has_avatar');
+      },
+      from3To4: (m, schema) async {
+        _logger.warning('Migrating step 3 to 4 (title → display_name)...');
+        await customStatement(
+          'ALTER TABLE accounts RENAME COLUMN title TO display_name',
+        );
+        await customStatement(
+          'ALTER TABLE friends RENAME COLUMN title TO display_name',
+        );
       },
     ),
   );

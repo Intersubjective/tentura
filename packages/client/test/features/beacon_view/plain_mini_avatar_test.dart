@@ -9,7 +9,7 @@ void main() {
   testWidgets('PlainMiniAvatar shows asset placeholder when profile has no photo', (
     tester,
   ) async {
-    const profile = Profile(id: 'user-1', title: 'No Photo User');
+    const profile = Profile(id: 'user-1', displayName: 'No Photo User');
 
     await tester.pumpWidget(
       MaterialApp(

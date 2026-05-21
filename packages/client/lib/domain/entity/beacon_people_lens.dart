@@ -54,7 +54,7 @@ String participantDisplayTitle({
   required Map<String, String> userIdToKnownTitle,
 }) {
   if (participant.userId == beacon.author.id) {
-    return beacon.author.title;
+    return beacon.author.displayName;
   }
   final t = userIdToKnownTitle[participant.userId];
   if (t != null && t.trim().isNotEmpty) return t.trim();

@@ -145,7 +145,7 @@ class HelpOfferTile extends StatelessWidget {
                       context.read<ScreenCubit>().showHelpOffererForwardPathFor(
                         beaconId: beaconId,
                         helpOffererId: helpOffer.user.id,
-                        helpOffererName: helpOffer.user.title,
+                        helpOffererName: helpOffer.user.displayName,
                       ),
                 ),
             ],

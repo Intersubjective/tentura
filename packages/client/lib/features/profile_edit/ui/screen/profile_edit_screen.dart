@@ -156,15 +156,15 @@ class ProfileEditScreen extends StatelessWidget
             child: TextFormField(
               autovalidateMode: AutovalidateMode.onUnfocus,
               decoration: InputDecoration(
-                labelText: l10n.labelTitle,
-                hintText: l10n.pleaseFillTitle,
+                labelText: l10n.labelDisplayName,
+                hintText: l10n.pleaseFillDisplayName,
               ),
-              initialValue: cubit.state.title,
+              initialValue: cubit.state.displayName,
               maxLength: kTitleMaxLength,
               style: textTheme.headlineLarge,
-              onChanged: cubit.setTitle,
+              onChanged: cubit.setDisplayName,
               onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) => titleValidator(l10n, text),
+              validator: (text) => displayNameValidator(l10n, text),
             ),
           ),
 

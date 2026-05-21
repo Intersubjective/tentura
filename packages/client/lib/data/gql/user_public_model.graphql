@@ -1,8 +1,8 @@
 # import '/data/gql/image_model.graphql'
 
-fragment UserModel on user {
+fragment UserPublicModel on user {
   id
-  display_name
+  displayName
   handle
   description
   my_vote

@@ -25,6 +25,22 @@
     "context": "Utils",
     "description": "Optional public @mention handle for the user profile"
   },
+  "labelDisplayName": "Отображаемое имя",
+  "@labelDisplayName": {
+    "context": "Utils"
+  },
+  "pleaseFillDisplayName": "Укажите отображаемое имя",
+  "@pleaseFillDisplayName": {
+    "context": "AccountAddDialog, ProfileEditScreen"
+  },
+  "displayNameTooShort": "Отображаемое имя слишком короткое",
+  "@displayNameTooShort": {
+    "context": "CommonErrors"
+  },
+  "displayNameTooLong": "Отображаемое имя слишком длинное",
+  "@displayNameTooLong": {
+    "context": "CommonErrors"
+  },
   "userHandleHint": "3–30 символов: строчные буквы, цифры или подчёркивание (необязательно)",
   "@userHandleHint": {
     "context": "Utils"
@@ -168,7 +184,7 @@
   },
   "pleaseFillTitle": "Пожалуйста, укажите название",
   "@pleaseFillTitle": {
-    "context": "AccountAddDialog, ProfileEditScreen"
+    "context": "Utils"
   },
   "confirmAccountRemoval": "Вы уверены, что хотите удалить этот аккаунт?",
   "@confirmAccountRemoval": {

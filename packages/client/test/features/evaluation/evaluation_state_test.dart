@@ -11,7 +11,7 @@ void main() {
       participants: [
         EvaluationParticipant(
           userId: 'U1',
-          title: 'A',
+          displayName: 'A',
           role: EvaluationParticipantRole.author,
           contributionSummary: '',
           causalHint: '',
@@ -19,7 +19,7 @@ void main() {
         ),
         EvaluationParticipant(
           userId: 'U2',
-          title: 'B',
+          displayName: 'B',
           role: EvaluationParticipantRole.committer,
           contributionSummary: '',
           causalHint: '',

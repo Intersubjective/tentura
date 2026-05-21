@@ -5,7 +5,8 @@ class Friends extends Table {
 
   TextColumn get objectId => text()();
 
-  TextColumn get title => text().withDefault(const Constant(''))();
+  TextColumn get displayName =>
+      text().named('display_name').withDefault(const Constant(''))();
 
   TextColumn get imageId => text().withDefault(const Constant(''))(); // v2
 
