@@ -76,6 +76,21 @@ void main() {
       expect(RoomMessageTile.showLifecycleFooter(m), isTrue);
     });
 
+    test('legacy notify row resolves anchor without sourceMessageId payload', () {
+      final m = _msg(
+        id: 'notify',
+        linkedItemId: 'item1',
+        linkedEventKind: CoordinationItemEventKind.resolved.value,
+        linkedItemLinkedMessageId: 'source',
+        linkedItemKind: CoordinationItemKind.ask.value,
+      );
+      expect(RoomMessageTile.isCoordinationTimelineNotifyRow(m), isTrue);
+      expect(
+        RoomMessageTile.coordinationTimelineAnchorMessageId(m),
+        'source',
+      );
+    });
+
     test('linkedCoordinationItem includes linkedMessageId', () {
       final m = _msg(
         id: 'source',
