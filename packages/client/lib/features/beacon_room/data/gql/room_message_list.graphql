@@ -27,6 +27,8 @@ query RoomMessageList(
     linkedItemCreatorId
     linkedItemCreatedAt
     linkedItemUpdatedAt
+    linkedItemLinkedMessageId
+    linkedItemResolvedAt
     pollDataJson
     systemPayloadJson
     authorTitle

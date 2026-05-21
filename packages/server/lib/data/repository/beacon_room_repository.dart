@@ -360,6 +360,10 @@ class BeaconRoomRepository {
               linkedRow.createdAt.dateTime.toUtc().toIso8601String(),
           'linkedItemUpdatedAt':
               linkedRow.updatedAt.dateTime.toUtc().toIso8601String(),
+          'linkedItemLinkedMessageId': linkedRow.linkedMessageId,
+          'linkedItemResolvedAt': linkedRow.resolvedAt?.dateTime
+              .toUtc()
+              .toIso8601String(),
         },
         'pollDataJson': pollDataJsonByMid[id],
         'systemPayloadJson': encodeSystemPayload(m.systemPayload),

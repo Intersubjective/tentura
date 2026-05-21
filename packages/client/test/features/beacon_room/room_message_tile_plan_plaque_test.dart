@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
+import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 
 CoordinationItem _item(CoordinationItemKind kind) => CoordinationItem(
       id: 'item1',

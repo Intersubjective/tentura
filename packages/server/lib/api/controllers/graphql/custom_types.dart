@@ -74,6 +74,8 @@ final gqlTypeRoomMessageRow =
         field('linkedItemCreatorId', graphQLString),
         field('linkedItemCreatedAt', graphQLString),
         field('linkedItemUpdatedAt', graphQLString),
+        field('linkedItemLinkedMessageId', graphQLString),
+        field('linkedItemResolvedAt', graphQLString),
         field('pollDataJson', graphQLString),
         field('systemPayloadJson', graphQLString),
         field('authorTitle', graphQLString.nonNullable()),

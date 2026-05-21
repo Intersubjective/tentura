@@ -25,6 +25,8 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_event_copy.dart';
+import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/features/coordination_item/ui/widget/item_card_in_room.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -34,11 +36,6 @@ import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:readmore/readmore.dart';
-
-/// Plan coordination items use the main beacon room, not per-item threads.
-@visibleForTesting
-bool planItemSuppressesItemDiscussion(CoordinationItem item) =>
-    item.kind == CoordinationItemKind.plan;
 
 VoidCallback? _linkedCoordinationItemOnTap(
   BuildContext context,
@@ -76,6 +73,8 @@ class RoomMessageTile extends StatelessWidget {
     this.breakGroupAbove = false,
     this.participants = const [],
     this.onScrollToPromoteSource,
+    this.onOpenCoordinationItem,
+    this.hideCoordinationLifecycleFooter = false,
     super.key,
   });
 
@@ -96,6 +95,12 @@ class RoomMessageTile extends StatelessWidget {
 
   /// Jumps the chat viewport to the source message (promote pin bar).
   final void Function(String messageId)? onScrollToPromoteSource;
+
+  /// Opens item thread or scrolls to plan anchor from footer / inline card.
+  final void Function(CoordinationItem item)? onOpenCoordinationItem;
+
+  /// True in item discussion thread (no lifecycle footer rows).
+  final bool hideCoordinationLifecycleFooter;
 
   /// Member-only file attachments (download + share flow).
   final Future<void> Function(RoomMessageAttachment attachment)?
@@ -123,16 +128,30 @@ class RoomMessageTile extends StatelessWidget {
     return src != null && src.trim().isNotEmpty;
   }
 
-  /// Compact Telegram-style bar: server `system_payload` includes sourceMessageId.
-  static bool isPromotePinNotification(RoomMessage m) {
+  /// Centered coordination timeline row pointing at a source message.
+  @visibleForTesting
+  static bool isCoordinationTimelineNotifyRow(RoomMessage m) {
     if (isFactPinNotification(m)) return false;
-    final src = m.sourceMessageId;
+    if (isPlanAnnounceBar(m)) return false;
     final lid = m.linkedItemId;
-    return src != null &&
-        src.trim().isNotEmpty &&
-        lid != null &&
-        lid.trim().isNotEmpty;
+    final ev = m.linkedEventKind;
+    if (lid == null || lid.trim().isEmpty || ev == null) return false;
+
+    final src = m.sourceMessageId?.trim();
+    if (src != null && src.isNotEmpty) {
+      return m.id != src;
+    }
+
+    final anchor = m.linkedItemLinkedMessageId?.trim();
+    if (anchor == null || anchor.isEmpty) return false;
+    if (m.id == anchor) return false;
+    return ev != CoordinationItemEventKind.created.value;
   }
+
+  /// @deprecated Use [isCoordinationTimelineNotifyRow].
+  static bool isPromotePinNotification(RoomMessage m) =>
+      isCoordinationTimelineNotifyRow(m) &&
+      m.linkedEventKind == CoordinationItemEventKind.created.value;
 
   /// Plan updated from room menu (no linked chat message).
   static bool isPlanAnnounceBar(RoomMessage m) {
@@ -145,21 +164,17 @@ class RoomMessageTile extends StatelessWidget {
     return m.body.trim().isEmpty;
   }
 
-  /// Footer chip on promoted source messages and mark-done rows.
-  static bool showPromoteIndicator(RoomMessage m) {
-    if (m.semanticMarker == BeaconRoomSemanticMarker.done) return true;
-    if (isPromotePinNotification(m)) return false;
-    if (!_isLinkedCoordSemantic(m)) return false;
-    final ev = m.linkedEventKind;
-    if (ev == null) return false;
-    return CoordinationItemEventKind.fromInt(ev) ==
-        CoordinationItemEventKind.created;
-  }
+  static bool showMarkDoneFooter(RoomMessage m) =>
+      m.semanticMarker == BeaconRoomSemanticMarker.done;
+
+  static bool showLifecycleFooter(RoomMessage m) =>
+      m.isPromotedSourceMessage && m.linkedCoordinationItem != null;
 
   static bool showItemCardInBubble(RoomMessage m) {
-    if (showPromoteIndicator(m)) return false;
+    if (showLifecycleFooter(m)) return false;
+    if (showMarkDoneFooter(m)) return false;
     if (isPlanAnnounceBar(m)) return false;
-    if (isPromotePinNotification(m)) return false;
+    if (isCoordinationTimelineNotifyRow(m)) return false;
     if (isFactPinNotification(m)) return false;
     final ev = m.linkedEventKind;
     if (m.linkedItemId == null || m.linkedItemId!.trim().isEmpty) {
@@ -206,6 +221,7 @@ class RoomMessageTile extends StatelessWidget {
 
   static bool _isCoordStateCard(RoomMessage m) {
     if (_isLinkedCoordSemantic(m)) return false;
+    if (m.isPromotedSourceMessage) return false;
     return m.semanticMarker == BeaconRoomSemanticMarker.blocker ||
         m.semanticMarker == BeaconRoomSemanticMarker.needInfo;
   }
@@ -283,6 +299,30 @@ class RoomMessageTile extends StatelessWidget {
         '${l.minute.toString().padLeft(2, '0')}';
   }
 
+  static String _formatMessageTime(DateTime t) {
+    final local = t.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(local.year, local.month, local.day);
+    if (day == today) {
+      return _formatTime(local);
+    }
+    return '${local.day.toString().padLeft(2, '0')}.'
+        '${local.month.toString().padLeft(2, '0')} '
+        '${_formatTime(local)}';
+  }
+
+  VoidCallback? _coordinationItemTap(
+    BuildContext context,
+    CoordinationItem item,
+  ) {
+    final open = onOpenCoordinationItem;
+    if (open != null) {
+      return () => open(item);
+    }
+    return _linkedCoordinationItemOnTap(context, item);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -308,8 +348,10 @@ class RoomMessageTile extends StatelessWidget {
 
     final topPad = (isGroupStart ? tt.sectionGap : tt.rowGap / 2) / 2;
     final bottomPad = (isGroupEnd ? tt.sectionGap : tt.rowGap / 2) / 2;
-    final showFooterPromoteIndicator = showPromoteIndicator(message);
     final showInlineItemCard = showItemCardInBubble(message);
+    final showLifecycle = !hideCoordinationLifecycleFooter &&
+        showLifecycleFooter(message);
+    final showMarkDone = showMarkDoneFooter(message);
 
     if (isFactPinNotification(message)) {
       final srcId = message.sourceMessageId!;
@@ -339,13 +381,21 @@ class RoomMessageTile extends StatelessWidget {
       );
     }
 
-    if (isPromotePinNotification(message)) {
+    if (isCoordinationTimelineNotifyRow(message)) {
       final srcId = message.sourceMessageId!;
       final kind = message.linkedCoordinationItem?.kind ??
           (message.linkedItemKind != null
               ? CoordinationItemKind.fromInt(message.linkedItemKind!)
               : null);
-      final kindLabel = _coordKindShortLabel(l10n, kind);
+      final eventKind = CoordinationItemEventKind.fromInt(message.linkedEventKind!);
+      final isPlanStep = message.linkedCoordinationItem?.isPlanStep ?? false;
+      final icon = eventKind == CoordinationItemEventKind.created
+          ? Icons.push_pin_outlined
+          : coordinationEventTimelineIcon(
+              kind ?? CoordinationItemKind.ask,
+              eventKind,
+              isPlanStep: isPlanStep,
+            );
       return _CenteredTimelineBar(
         padding: EdgeInsets.fromLTRB(
           tt.screenHPadding,
@@ -353,9 +403,17 @@ class RoomMessageTile extends StatelessWidget {
           tt.screenHPadding,
           bottomPad / 2,
         ),
-        icon: Icons.push_pin_outlined,
-        lineBuilder: (authorName) =>
-            l10n.beaconRoomPromotePinLine(authorName, kindLabel),
+        icon: icon,
+        lineBuilder: (authorName) {
+          if (eventKind == CoordinationItemEventKind.created) {
+            return l10n.beaconRoomPromotePinLine(
+              authorName,
+              _coordKindShortLabel(l10n, kind),
+            );
+          }
+          if (kind == null) return authorName;
+          return '$authorName · ${coordinationEventTimelineLabel(l10n, kind, eventKind, isPlanStep: isPlanStep)}';
+        },
         author: message.author,
         onTap: onScrollToPromoteSource == null
             ? null
@@ -447,108 +505,22 @@ class RoomMessageTile extends StatelessWidget {
       ),
     ];
 
-    Widget reactionsAndTime() => Padding(
-      padding: EdgeInsets.only(top: tt.rowGap / 2),
-      child: SizedBox(
-        width: double.infinity,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Wrap(
-                spacing: kSpacingSmall,
-                runSpacing: kSpacingSmall / 2,
-                alignment: WrapAlignment.start,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  for (final entry in _sortedReactionEntries(message))
-                    InkWell(
-                      key: ValueKey('${message.id}-re-${entry.key}'),
-                      onTap: () => unawaited(
-                        onToggleReaction(message.id, entry.key),
-                      ),
-                      onLongPress:
-                          (message.reactors[entry.key]?.isNotEmpty ?? false)
-                          ? () => unawaited(
-                              showReactionSendersSheet(
-                                context,
-                                reactors: message.reactors,
-                                reactionCounts: message.reactionCounts,
-                                initialEmoji: entry.key,
-                              ),
-                            )
-                          : null,
-                      borderRadius: BorderRadius.circular(18),
-                      child: Padding(
-                        padding: kPaddingSmallH.add(
-                          const EdgeInsets.symmetric(vertical: 6),
-                        ),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: viewerReactions.contains(entry.key)
-                                ? scheme.primaryContainer
-                                : scheme.surfaceContainerHighest.withValues(
-                                    alpha: 0.75,
-                                  ),
-                            borderRadius: BorderRadius.circular(999),
-                            border: viewerReactions.contains(entry.key)
-                                ? Border.all(color: scheme.primary)
-                                : null,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: kSpacingSmall,
-                              vertical: 2,
-                            ),
-                            child: _RoomReactionChipPill(
-                              emoji: entry.key,
-                              count: entry.value,
-                              reactors:
-                                  message.reactors[entry.key] ?? const [],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (showFooterPromoteIndicator)
-              Padding(
-                padding: EdgeInsets.only(
-                  left: tt.iconTextGap / 2,
-                  bottom: 2,
-                ),
-                child: _PromoteIndicator(
-                  message: message,
-                  participants: participants,
-                  linkedCoord: linkedCoord,
-                  linkedEventKind: linkedEventKind,
-                  tokens: tt,
-                  colorScheme: scheme,
-                  textTheme: theme.textTheme,
-                  l10n: l10n,
-                  onTap: linkedCoord != null && linkedEventKind != null
-                      ? _linkedCoordinationItemOnTap(context, linkedCoord)
-                      : null,
-                ),
-              ),
-            Padding(
-              padding: EdgeInsets.only(
-                left: tt.iconTextGap,
-                bottom: 2,
-              ),
-              child: Text(
-                [
-                  _formatTime(message.createdAt),
-                  if (message.editedAt != null) l10n.beaconRoomMessageEdited,
-                ].join(' · '),
-                style: theme.textTheme.labelSmall,
-              ),
-            ),
-          ],
-        ),
-      ),
+    Widget reactionsAndTime() => _MessageLifecycleFooter(
+      message: message,
+      participants: participants,
+      linkedCoord: linkedCoord,
+      viewerReactions: viewerReactions,
+      tokens: tt,
+      scheme: scheme,
+      textTheme: theme.textTheme,
+      l10n: l10n,
+      showLifecycle: showLifecycle,
+      showMarkDone: showMarkDone,
+      onToggleReaction: onToggleReaction,
+      onOpenItem: linkedCoord == null
+          ? null
+          : _coordinationItemTap(context, linkedCoord),
+      editedSuffix: message.editedAt != null ? l10n.beaconRoomMessageEdited : null,
     );
 
     Widget coreColumn({required bool showNameHeader}) => Column(
@@ -603,10 +575,7 @@ class RoomMessageTile extends StatelessWidget {
                 item: linkedCoord,
                 eventKind: linkedEventKind,
                 timelineAuthorId: message.authorId,
-                onTap: _linkedCoordinationItemOnTap(
-                  context,
-                  linkedCoord,
-                ),
+                onTap: _coordinationItemTap(context, linkedCoord),
               ),
             ),
           ),
@@ -956,81 +925,257 @@ class _CenteredTimelineBar extends StatelessWidget {
   }
 }
 
-/// Compact promote / done chip in the message footer row.
-class _PromoteIndicator extends StatelessWidget {
-  const _PromoteIndicator({
+/// Emoji bar + right-aligned dates + optional promotion / resolution rows.
+class _MessageLifecycleFooter extends StatelessWidget {
+  const _MessageLifecycleFooter({
     required this.message,
     required this.participants,
     required this.linkedCoord,
-    required this.linkedEventKind,
+    required this.viewerReactions,
     required this.tokens,
-    required this.colorScheme,
+    required this.scheme,
     required this.textTheme,
     required this.l10n,
-    required this.onTap,
+    required this.showLifecycle,
+    required this.showMarkDone,
+    required this.onToggleReaction,
+    required this.onOpenItem,
+    required this.editedSuffix,
   });
 
   final RoomMessage message;
   final List<BeaconParticipant> participants;
   final CoordinationItem? linkedCoord;
-  final CoordinationItemEventKind? linkedEventKind;
+  final Set<String> viewerReactions;
   final TenturaTokens tokens;
-  final ColorScheme colorScheme;
+  final ColorScheme scheme;
   final TextTheme textTheme;
   final L10n l10n;
-  final VoidCallback? onTap;
+  final bool showLifecycle;
+  final bool showMarkDone;
+  final Future<void> Function(String messageId, String emoji) onToggleReaction;
+  final VoidCallback? onOpenItem;
+  final String? editedSuffix;
 
   static const double _avatarSize = 16;
   static const double _iconSize = 12;
+  static const double _minTapHeight = 44;
+
+  static bool _isTerminalStatus(int? status) =>
+      status == CoordinationItemStatus.resolved.value ||
+      status == CoordinationItemStatus.cancelled.value ||
+      status == CoordinationItemStatus.superseded.value;
 
   @override
   Widget build(BuildContext context) {
-    final isDone = message.semanticMarker == BeaconRoomSemanticMarker.done;
-    final actorId = isDone
-        ? (message.semanticActorId ?? '')
-        : (message.linkedItemCreatorId ?? '');
-    final actorProfile =
-        RoomMessageTile.profileForUserId(actorId, participants) ??
-        const Profile();
+    final dateLine = [
+      RoomMessageTile._formatMessageTime(
+        message.editedAt ?? message.createdAt,
+      ),
+      if (editedSuffix != null) editedSuffix,
+    ].join(' · ');
 
-    final IconData typeIcon;
-    final Color accent;
-    final String label;
-    final bool tappable;
+    final promotionDate = message.linkedItemUpdatedAt ?? message.linkedItemCreatedAt;
 
-    if (isDone) {
-      typeIcon = Icons.task_alt;
-      accent = tokens.good;
-      label = l10n.beaconRoomSemanticDone;
-      tappable = false;
-    } else {
-      final kind = linkedCoord?.kind ??
-          (message.linkedItemKind != null
-              ? CoordinationItemKind.fromInt(message.linkedItemKind!)
-              : null);
-      final eventKind = linkedEventKind ??
-          (message.linkedEventKind != null
-              ? CoordinationItemEventKind.fromInt(message.linkedEventKind!)
-              : null);
-      if (kind == null || eventKind == null) {
-        return const SizedBox.shrink();
+    Widget? resolutionRow;
+    if (showLifecycle &&
+        linkedCoord != null &&
+        _isTerminalStatus(message.linkedItemStatus)) {
+      final last = message.lastStatusEvent;
+      final eventKind = last != null
+          ? CoordinationItemEventKind.fromInt(last.eventKind)
+          : null;
+      final actorId = last?.actorId ?? '';
+      final at = last?.at ?? message.linkedItemResolvedAt ?? message.linkedItemUpdatedAt;
+      if (eventKind != null && at != null) {
+        resolutionRow = _lifecycleTapRow(
+          context: context,
+          profile: RoomMessageTile.profileForUserId(actorId, participants) ??
+              const Profile(),
+          icon: coordinationEventTimelineIcon(
+            linkedCoord!.kind,
+            eventKind,
+            isPlanStep: linkedCoord!.isPlanStep,
+          ),
+          accent: coordinationEventTimelineColor(
+            tokens,
+            linkedCoord!.kind,
+            eventKind,
+          ),
+          label: coordinationEventTimelineLabel(
+            l10n,
+            linkedCoord!.kind,
+            eventKind,
+            isPlanStep: linkedCoord!.isPlanStep,
+          ),
+          time: RoomMessageTile._formatMessageTime(at),
+          onTap: onOpenItem,
+        );
       }
-      typeIcon = coordinationItemEventIcon(
-        kind,
-        eventKind,
-        isPlanStep: linkedCoord?.isPlanStep ?? false,
-      );
-      accent = coordinationItemEventColor(tokens, kind, eventKind);
-      label = RoomMessageTile._coordKindShortLabel(l10n, kind);
-      tappable = onTap != null;
     }
 
+    Widget? promotionRow;
+    if (showLifecycle && linkedCoord != null && promotionDate != null) {
+      final kind = linkedCoord!.kind;
+      promotionRow = _lifecycleTapRow(
+        context: context,
+        profile: RoomMessageTile.profileForUserId(
+              message.linkedItemCreatorId ?? '',
+              participants,
+            ) ??
+            const Profile(),
+        icon: coordinationItemEventIcon(
+          kind,
+          CoordinationItemEventKind.created,
+          isPlanStep: linkedCoord!.isPlanStep,
+        ),
+        accent: coordinationItemEventColor(
+          tokens,
+          kind,
+          CoordinationItemEventKind.created,
+        ),
+        label: RoomMessageTile._coordKindShortLabel(l10n, kind),
+        time: RoomMessageTile._formatMessageTime(promotionDate),
+        onTap: onOpenItem,
+      );
+    }
+
+    Widget? markDoneRow;
+    if (showMarkDone) {
+      final actorProfile = RoomMessageTile.profileForUserId(
+            message.semanticActorId ?? '',
+            participants,
+          ) ??
+          const Profile();
+      markDoneRow = Align(
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TenturaAvatar(profile: actorProfile, size: _avatarSize),
+            SizedBox(width: tokens.iconTextGap / 4),
+            Icon(Icons.task_alt, size: _iconSize, color: tokens.good),
+            SizedBox(width: tokens.iconTextGap / 4),
+            Text(
+              l10n.beaconRoomSemanticDone,
+              style: textTheme.labelSmall?.copyWith(
+                color: tokens.good,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(top: tokens.rowGap / 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: kSpacingSmall,
+                  runSpacing: kSpacingSmall / 2,
+                  alignment: WrapAlignment.start,
+                  children: [
+                    for (final entry
+                        in RoomMessageTile._sortedReactionEntries(message))
+                      InkWell(
+                        key: ValueKey('${message.id}-re-${entry.key}'),
+                        onTap: () => unawaited(
+                          onToggleReaction(message.id, entry.key),
+                        ),
+                        onLongPress:
+                            (message.reactors[entry.key]?.isNotEmpty ?? false)
+                            ? () => unawaited(
+                                showReactionSendersSheet(
+                                  context,
+                                  reactors: message.reactors,
+                                  reactionCounts: message.reactionCounts,
+                                  initialEmoji: entry.key,
+                                ),
+                              )
+                            : null,
+                        borderRadius: BorderRadius.circular(18),
+                        child: Padding(
+                          padding: kPaddingSmallH.add(
+                            const EdgeInsets.symmetric(vertical: 6),
+                          ),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: viewerReactions.contains(entry.key)
+                                  ? scheme.primaryContainer
+                                  : scheme.surfaceContainerHighest.withValues(
+                                      alpha: 0.75,
+                                    ),
+                              borderRadius: BorderRadius.circular(999),
+                              border: viewerReactions.contains(entry.key)
+                                  ? Border.all(color: scheme.primary)
+                                  : null,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: kSpacingSmall,
+                                vertical: 2,
+                              ),
+                              child: _RoomReactionChipPill(
+                                emoji: entry.key,
+                                count: entry.value,
+                                reactors:
+                                    message.reactors[entry.key] ?? const [],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.only(left: tokens.iconTextGap / 2),
+                child: Text(
+                  dateLine,
+                  style: textTheme.labelSmall,
+                ),
+              ),
+            ],
+          ),
+          if (promotionRow != null) ...[
+            SizedBox(height: tokens.rowGap / 4),
+            promotionRow,
+          ],
+          if (resolutionRow != null) ...[
+            SizedBox(height: tokens.rowGap / 4),
+            resolutionRow,
+          ],
+          if (markDoneRow != null) ...[
+            SizedBox(height: tokens.rowGap / 4),
+            markDoneRow,
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _lifecycleTapRow({
+    required BuildContext context,
+    required Profile profile,
+    required IconData icon,
+    required Color accent,
+    required String label,
+    required String time,
+    required VoidCallback? onTap,
+  }) {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        TenturaAvatar(profile: actorProfile, size: _avatarSize),
+        TenturaAvatar(profile: profile, size: _avatarSize),
         SizedBox(width: tokens.iconTextGap / 4),
-        Icon(typeIcon, size: _iconSize, color: accent),
+        Icon(icon, size: _iconSize, color: accent),
         SizedBox(width: tokens.iconTextGap / 4),
         Text(
           label,
@@ -1041,22 +1186,47 @@ class _PromoteIndicator extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        if (tappable) ...[
+        SizedBox(width: tokens.iconTextGap / 4),
+        Text(
+          time,
+          style: textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        if (onTap != null) ...[
           SizedBox(width: tokens.iconTextGap / 4),
           Icon(
             Icons.chevron_right,
             size: _iconSize,
-            color: colorScheme.onSurfaceVariant,
+            color: scheme.onSurfaceVariant,
           ),
         ],
       ],
     );
 
-    if (!tappable) return row;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: row,
+    final content = Align(
+      alignment: Alignment.centerRight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: _minTapHeight),
+        child: Center(child: row),
+      ),
+    );
+
+    if (onTap == null) return content;
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(tokens.cardRadius / 2),
+          child: Semantics(
+            button: true,
+            label: label,
+            child: content,
+          ),
+        ),
+      ),
     );
   }
 }

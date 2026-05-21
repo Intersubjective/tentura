@@ -7,6 +7,7 @@ import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
 
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
@@ -48,6 +49,8 @@ class BasicChatBody extends StatefulWidget {
     this.enableParticipantMentions = true,
     this.jumpFabHeroTag = 'basic_chat_jump_latest',
     this.onScrollToPromoteSource,
+    this.onOpenCoordinationItem,
+    this.hideCoordinationLifecycleFooter = false,
     super.key,
   });
 
@@ -107,6 +110,10 @@ class BasicChatBody extends StatefulWidget {
 
   /// Telegram-style promote pin row → scrolls to the linked source message.
   final void Function(String messageId)? onScrollToPromoteSource;
+
+  final void Function(CoordinationItem item)? onOpenCoordinationItem;
+
+  final bool hideCoordinationLifecycleFooter;
 
   @override
   State<BasicChatBody> createState() => BasicChatBodyState();
@@ -353,6 +360,9 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                         score: score,
                                       ),
                               onScrollToPromoteSource: widget.onScrollToPromoteSource,
+                              onOpenCoordinationItem: widget.onOpenCoordinationItem,
+                              hideCoordinationLifecycleFooter:
+                                  widget.hideCoordinationLifecycleFooter,
                             );
 
                             return Column(
