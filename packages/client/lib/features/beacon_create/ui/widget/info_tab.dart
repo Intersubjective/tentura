@@ -121,9 +121,16 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         bloc: _cubit,
         listenWhen: (prev, curr) =>
             prev.location != curr.location ||
+            prev.startAt != curr.startAt ||
+            prev.endAt != curr.endAt ||
             prev.needSummary != curr.needSummary ||
             prev.successCriteria != curr.successCriteria,
         listener: (context, state) {
+          final dateRangeText =
+              _formatDateRange(state.startAt, state.endAt);
+          if (_dateRangeController.text != dateRangeText) {
+            _dateRangeController.text = dateRangeText;
+          }
           if (_locationController.text != state.location) {
             _locationController.text = state.location;
           }
@@ -297,38 +304,19 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 child: ContextDropDown(),
               ),
 
-            // Date Range
+            // Date range
             Padding(
               padding: kPaddingSmallV,
-              child: TextFormField(
-                readOnly: true,
-                controller: _dateRangeController,
-                decoration: InputDecoration(
-                  hintText: _l10n.setDisplayPeriod,
+              child: BlocSelector<BeaconCreateCubit, BeaconCreateState, String>(
+                bloc: _cubit,
+                selector: (s) => _formatDateRange(s.startAt, s.endAt),
+                builder: (_, displayText) => _pickerField(
+                  key: const Key('BeaconCreate.DateRangeField'),
+                  hint: _l10n.setDisplayPeriod,
+                  displayText: displayText,
                   suffixIcon: const Icon(TenturaIcons.calendar),
+                  onTap: () => unawaited(_pickDateRange(context)),
                 ),
-                onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                onTap: () async {
-                  final now = DateTime.timestamp();
-                  final dateRange = await showDateRangePicker(
-                    context: context,
-                    firstDate: now,
-                    currentDate: now,
-                    lastDate: now.add(const Duration(days: 365)),
-                    initialEntryMode: DatePickerEntryMode.calendarOnly,
-                    saveText: _l10n.buttonOk,
-                  );
-                  if (dateRange != null) {
-                    _dateRangeController.text = _formatDateRange(
-                      dateRange.start,
-                      dateRange.end,
-                    );
-                    _cubit.setDateRange(
-                      startAt: dateRange.start,
-                      endAt: dateRange.end,
-                    );
-                  }
-                },
               ),
             ),
 
@@ -416,50 +404,100 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
             // Location
             Padding(
               padding: kPaddingSmallV,
-              child: TextFormField(
-                readOnly: true,
-                controller: _locationController,
-                decoration: InputDecoration(
-                  hintText: _l10n.addLocation,
-                  suffixIcon:
-                      BlocSelector<
-                        BeaconCreateCubit,
-                        BeaconCreateState,
-                        Coordinates?
-                      >(
-                        bloc: _cubit,
-                        selector: (state) => state.coordinates,
-                        builder: (_, coordinates) => coordinates == null
-                            ? const Icon(TenturaIcons.location)
-                            : IconButton(
-                                icon: const Icon(Icons.cancel_rounded),
-                                onPressed: () {
-                                  _locationController.clear();
-                                  _cubit.setLocation(null, '');
-                                },
-                              ),
-                      ),
+              child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
+                  ({String location, Coordinates? coordinates})>(
+                bloc: _cubit,
+                selector: (s) =>
+                    (location: s.location, coordinates: s.coordinates),
+                builder: (_, data) => _pickerField(
+                  key: const Key('BeaconCreate.LocationField'),
+                  hint: _l10n.addLocation,
+                  displayText: data.location,
+                  suffixIcon: data.coordinates == null
+                      ? const Icon(TenturaIcons.location)
+                      : IconButton(
+                          key: const Key('BeaconCreate.LocationClearButton'),
+                          icon: const Icon(Icons.cancel_rounded),
+                          onPressed: () {
+                            _locationController.clear();
+                            _cubit.setLocation(null, '');
+                          },
+                        ),
+                  onTap: () => unawaited(_pickLocation(context)),
                 ),
-                onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                onTap: () async {
-                  final location = await ChooseLocationDialog.show(
-                    context,
-                    center: _cubit.state.coordinates,
-                  );
-                  if (location != null) {
-                    final locationName =
-                        location.place?.toString() ??
-                        location.coords.toString();
-
-                    _locationController.text = locationName;
-                    _cubit.setLocation(location.coords, locationName);
-                  }
-                },
               ),
             ),
           ],
         ),
       );
+
+  /// Picker row styled like a [TextFormField] but opened via [InkWell], not
+  /// `readOnly` + `onTap` on a real text input.
+  ///
+  /// Workaround: read-only [TextFormField] inside a [ListView] often does not
+  /// receive taps on Flutter web (especially mobile Firefox); [onTap] never
+  /// runs so date/map dialogs never open. See flutter/flutter#164282.
+  Widget _pickerField({
+    required Key key,
+    required String hint,
+    required String displayText,
+    required Widget? suffixIcon,
+    required VoidCallback onTap,
+  }) =>
+      InputDecorator(
+        key: key,
+        decoration: InputDecoration(
+          hintText: hint,
+          suffixIcon: suffixIcon,
+        ),
+        isEmpty: displayText.isEmpty,
+        child: InkWell(
+          onTap: onTap,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              displayText,
+              style: _theme.textTheme.bodyLarge,
+            ),
+          ),
+        ),
+      );
+
+  Future<void> _pickDateRange(BuildContext context) async {
+    final now = DateTime.timestamp();
+    final dateRange = await showDateRangePicker(
+      context: context,
+      firstDate: now,
+      currentDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+      saveText: _l10n.buttonOk,
+    );
+    if (dateRange != null) {
+      _dateRangeController.text = _formatDateRange(
+        dateRange.start,
+        dateRange.end,
+      );
+      _cubit.setDateRange(
+        startAt: dateRange.start,
+        endAt: dateRange.end,
+      );
+    }
+  }
+
+  Future<void> _pickLocation(BuildContext context) async {
+    final location = await ChooseLocationDialog.show(
+      context,
+      center: _cubit.state.coordinates,
+    );
+    if (location != null) {
+      final locationName =
+          location.place?.toString() ?? location.coords.toString();
+
+      _locationController.text = locationName;
+      _cubit.setLocation(location.coords, locationName);
+    }
+  }
 
   String _formatDateRange(DateTime? start, DateTime? end) =>
       start == null || end == null
