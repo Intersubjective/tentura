@@ -47,7 +47,7 @@ final class AuthCase extends UseCaseBase {
   /// Returns the ID of the newly created and signed-in account.
   ///
   Future<String> signUp({
-    required String title,
+    required String displayName,
     required String invitationCode,
     String? handle,
   }) async {
@@ -62,14 +62,14 @@ final class AuthCase extends UseCaseBase {
     );
     final userId = await _authRemoteRepository.signUp(
       seed: seed,
-      title: title,
+      displayName: displayName,
       invitationCode: invitationCode,
       handle: handle,
     );
     await _authLocalRepository.addAccount(
       userId,
       seed,
-      title,
+      displayName,
     );
     await _authLocalRepository.setCurrentAccountId(userId);
     return userId;

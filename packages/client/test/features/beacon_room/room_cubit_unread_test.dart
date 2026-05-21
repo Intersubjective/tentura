@@ -117,7 +117,7 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 
   @override
   ProfileState get state =>
-      ProfileState(profile: Profile(id: _userId, title: 'T'));
+      ProfileState(profile: Profile(id: _userId, displayName: 'T'));
 
   @override
   Stream<ProfileState> get stream => Stream.value(state);

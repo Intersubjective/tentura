@@ -43,7 +43,7 @@ mutation SignUp(
 
 {
   "authRequestToken": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJwayI6IjJDbUliM0hvMmViNm04V0lvZzZLaXl6Q1kwNXNieVgwNFBpR2xINWJhRHc9IiwiaWF0IjoxNzQxODk0NDYxLCJleHAiOjIwNTI5MzQ0NjF9.NpwK4WT581zUZkWVXC-lzC3qhIGHywg4eZ7SuOKKl4mwQ8SomX-f8hMGgfE3wu4SBbGzrjxKkP4EIFnSYXdxBQ",
-  "title": "Newbie"
+  "displayName": "Newbie"
 }
 
 
@@ -70,7 +70,7 @@ mutation SignUp(
 
 {
   "authRequestToken": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJwayI6IjJDbUliM0hvMmViNm04V0lvZzZLaXl6Q1kwNXNieVgwNFBpR2xINWJhRHc9IiwiaWF0IjoxNzQxODk0NDYxLCJleHAiOjIwNTI5MzQ0NjF9.NpwK4WT581zUZkWVXC-lzC3qhIGHywg4eZ7SuOKKl4mwQ8SomX-f8hMGgfE3wu4SBbGzrjxKkP4EIFnSYXdxBQ",
-  "title": "Newbie"
+  "displayName": "Newbie"
 }
 
 

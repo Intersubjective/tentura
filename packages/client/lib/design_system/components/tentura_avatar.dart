@@ -43,7 +43,7 @@ class TenturaAvatar extends StatelessWidget {
 
   /// Initials when there is no profile photo (also used by room mini avatars).
   static String initialsForProfile(Profile profile) {
-    final t = profile.title.trim();
+    final t = profile.displayName.trim();
     if (t.isEmpty) {
       return '?';
     }

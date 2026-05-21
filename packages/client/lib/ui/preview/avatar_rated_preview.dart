@@ -25,18 +25,18 @@ Widget sampleAvatarRatedBig() => AvatarRated.big(
 
 const _profileEyeOpen = Profile(
   id: 'Ueye1',
-  title: 'Seeing you',
+  displayName: 'Seeing you',
   rScore: 1,
 );
 
 const _profileEyeClosed = Profile(
   id: 'Ueye0',
-  title: 'Not seeing you',
+  displayName: 'Not seeing you',
 );
 
 const _profileHandshake = Profile(
   id: 'Uhs1',
-  title: 'Mutual friend',
+  displayName: 'Mutual friend',
   rScore: 1,
   isMutualFriend: true,
 );

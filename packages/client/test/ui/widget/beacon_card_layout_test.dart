@@ -40,7 +40,7 @@ void main() {
       title:
           '"Sweet spot": разгребаем завалы и длинный хвост чтобы title занял две строки',
       context: 'General',
-      author: const Profile(id: 'a1', title: 'Fionna Campbell'),
+      author: const Profile(id: 'a1', displayName: 'Fionna Campbell'),
     );
 
     await tester.pumpWidget(
@@ -101,7 +101,7 @@ void main() {
                 child: SizedBox(
                   width: 360,
                   child: BeaconCardMetadataBlock(
-                    author: Profile(id: 'a1', title: name),
+                    author: Profile(id: 'a1', displayName: name),
                     name: name,
                     nameStyle: TextStyle(
                       color: Color(0xFF111111),

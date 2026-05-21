@@ -15,7 +15,7 @@ abstract class ProfileRepositoryPort {
 
   Future<void> update(
     Profile profile, {
-    String? title,
+    String? displayName,
     String? description,
     bool dropImage = false,
     ImageEntity? image,

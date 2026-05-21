@@ -1,10 +1,11 @@
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
 
-import '../gql/_g/user_model.data.gql.dart';
+import '../gql/_g/user_public_model.data.gql.dart';
 import 'image_model.dart';
 
-extension type const UserModel(GUserModel i) implements GUserModel {
+extension type const UserPublicModel(GUserPublicModel i)
+    implements GUserPublicModel {
   Profile toEntity({ImageModel? image}) {
     final p = i.user_presence;
     UserPresenceStatus? presenceStatus;
@@ -15,7 +16,7 @@ extension type const UserModel(GUserModel i) implements GUserModel {
     }
     return Profile(
       id: i.id,
-      displayName: i.display_name,
+      displayName: i.displayName,
       handle: i.handle ?? '',
       description: i.description,
       myVote: i.my_vote ?? 0,

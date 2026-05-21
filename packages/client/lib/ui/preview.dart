@@ -20,5 +20,5 @@ PreviewThemeData previewThemeData() => PreviewThemeData(
 // Preview data
 const profileCaptainNemo = Profile(
   id: 'U3ea0a229ad85',
-  title: 'Captain Nemo',
+  displayName: 'Captain Nemo',
 );

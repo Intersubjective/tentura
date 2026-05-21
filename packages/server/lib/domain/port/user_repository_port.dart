@@ -4,14 +4,14 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 abstract class UserRepositoryPort {
   Future<UserEntity> create({
     required String publicKey,
-    required String title,
+    required String displayName,
     String? handle,
   });
 
   Future<UserEntity> createInvited({
     required String invitationId,
     required String publicKey,
-    required String title,
+    required String displayName,
     String? handle,
   });
 
@@ -21,7 +21,7 @@ abstract class UserRepositoryPort {
 
   Future<void> update({
     required String id,
-    String? title,
+    String? displayName,
     String? description,
     String? imageId,
     bool dropImage = false,

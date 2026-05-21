@@ -73,7 +73,7 @@ class _RatingScreenState extends State<RatingScreen> {
             ? state.items
             : state.items
                   .where(
-                    (e) => e.title.toLowerCase().contains(filter.toLowerCase()),
+                    (e) => e.displayName.toLowerCase().contains(filter.toLowerCase()),
                   )
                   .toList();
 

@@ -34,12 +34,12 @@ class UserRepository implements UserRepositoryPort {
   @override
   Future<UserEntity> create({
     required String publicKey,
-    required String title,
+    required String displayName,
     String? handle,
   }) => _database.managers.users
       .createReturning(
         (o) => o(
-          title: title,
+          displayName: displayName,
           publicKey: publicKey,
           handle: handle == null || handle.trim().isEmpty
               ? const Value.absent()
@@ -54,7 +54,7 @@ class UserRepository implements UserRepositoryPort {
   Future<UserEntity> createInvited({
     required String invitationId,
     required String publicKey,
-    required String title,
+    required String displayName,
     String? handle,
   }) => _database.transaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
@@ -73,7 +73,7 @@ class UserRepository implements UserRepositoryPort {
 
     final user = await _database.managers.users.createReturning(
       (o) => o(
-        title: title,
+        displayName: displayName,
         publicKey: publicKey,
         handle: handle == null || handle.trim().isEmpty
             ? const Value.absent()
@@ -137,7 +137,7 @@ class UserRepository implements UserRepositoryPort {
   @override
   Future<void> update({
     required String id,
-    String? title,
+    String? displayName,
     String? description,
     String? imageId,
     bool dropImage = false,
@@ -147,7 +147,7 @@ class UserRepository implements UserRepositoryPort {
       .filter((e) => e.id(id))
       .update(
         (o) => o(
-          title: Value.absentIfNull(title),
+          displayName: Value.absentIfNull(displayName),
           description: Value.absentIfNull(description),
           imageId: dropImage
               ? const Value(null)

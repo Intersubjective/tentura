@@ -10,7 +10,7 @@ void main() {
   test('Copy with null', () {
     final stateA = ProfileEditState(
       original: const Profile(),
-      title: 'title',
+      displayName: 'title',
       handle: '',
       description: 'description',
       image: ImageEntity(imageBytes: Uint8List(0)),

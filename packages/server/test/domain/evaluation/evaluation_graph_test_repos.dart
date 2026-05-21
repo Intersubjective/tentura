@@ -119,17 +119,18 @@ final class EmptyGraphForwardEdgeRepository implements ForwardEdgeRepositoryPort
 }
 
 final class StubUserRepository implements UserRepositoryPort {
-  StubUserRepository(this._title);
+  StubUserRepository(this._displayName);
 
-  final String _title;
+  final String _displayName;
 
   @override
-  Future<UserEntity> getById(String id) async => UserEntity(id: id, title: _title);
+  Future<UserEntity> getById(String id) async =>
+      UserEntity(id: id, displayName: _displayName);
 
   @override
   Future<UserEntity> create({
     required String publicKey,
-    required String title,
+    required String displayName,
     String? handle,
   }) =>
       throw UnimplementedError();
@@ -138,7 +139,7 @@ final class StubUserRepository implements UserRepositoryPort {
   Future<UserEntity> createInvited({
     required String invitationId,
     required String publicKey,
-    required String title,
+    required String displayName,
     String? handle,
   }) =>
       throw UnimplementedError();
@@ -150,7 +151,7 @@ final class StubUserRepository implements UserRepositoryPort {
   @override
   Future<void> update({
     required String id,
-    String? title,
+    String? displayName,
     String? description,
     String? imageId,
     bool dropImage = false,

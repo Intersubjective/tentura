@@ -54,7 +54,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
     final actor = await _users.getById(intent.actorUserId);
     final copy = _copyBuilder.build(
       intent: intent,
-      actorDisplayName: actor.title,
+      actorDisplayName: actor.displayName,
     );
 
     if (intent.kind == NotificationKind.reviewReady) {

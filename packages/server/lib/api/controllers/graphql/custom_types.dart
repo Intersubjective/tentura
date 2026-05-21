@@ -315,7 +315,7 @@ final gqlTypeUserPresence = GraphQLObjectType('user_presence', null)
 final gqlTypeUserPublic = GraphQLObjectType('user', null)
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
-    field('title', graphQLString.nonNullable()),
+    field('displayName', graphQLString.nonNullable()),
     field('handle', graphQLString),
     field('description', graphQLString.nonNullable()),
     field('my_vote', graphQLInt),
@@ -367,7 +367,7 @@ final gqlTypeEvaluationParticipant = GraphQLObjectType(
 )
   ..fields.addAll([
     field('userId', graphQLString.nonNullable()),
-    field('title', graphQLString.nonNullable()),
+    field('displayName', graphQLString.nonNullable()),
     field('imageId', graphQLString.nonNullable()),
     field('role', graphQLInt.nonNullable()),
     field('contributionSummary', graphQLString.nonNullable()),

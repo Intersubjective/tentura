@@ -30,7 +30,7 @@ class EvaluationRepository {
 
   EvaluationParticipant _participantFromGraphqlRow({
     required String userId,
-    required String title,
+    required String displayName,
     required String imageId,
     required int role,
     required String contributionSummary,
@@ -43,7 +43,7 @@ class EvaluationRepository {
     final tags = reasonTags ?? const <String>[];
     return EvaluationParticipant(
       userId: userId,
-      title: title,
+      displayName: displayName,
       imageId: imageId,
       role: _roleFromInt(role),
       contributionSummary: contributionSummary,
@@ -60,7 +60,7 @@ class EvaluationRepository {
   ) =>
       _participantFromGraphqlRow(
         userId: e.userId,
-        title: e.title,
+        displayName: e.displayName,
         imageId: e.imageId,
         role: e.role,
         contributionSummary: e.contributionSummary,
@@ -76,7 +76,7 @@ class EvaluationRepository {
   ) =>
       _participantFromGraphqlRow(
         userId: e.userId,
-        title: e.title,
+        displayName: e.displayName,
         imageId: e.imageId,
         role: e.role,
         contributionSummary: e.contributionSummary,

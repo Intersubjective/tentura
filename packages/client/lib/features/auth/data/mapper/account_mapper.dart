@@ -5,7 +5,7 @@ import '../../domain/entity/account_entity.dart';
 
 AccountEntity accountModelToEntity(Account model) => AccountEntity(
   id: model.id,
-  title: model.title,
+  displayName: model.displayName,
   image: model.imageId.isEmpty
       ? null
       : ImageEntity(

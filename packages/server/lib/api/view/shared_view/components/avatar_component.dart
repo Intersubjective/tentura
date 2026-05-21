@@ -42,7 +42,7 @@ class AvatarComponent extends StatelessComponent {
     // Title
     h3(
       [
-        Component.text(user.title),
+        Component.text(user.displayName),
       ],
     ),
   ]);

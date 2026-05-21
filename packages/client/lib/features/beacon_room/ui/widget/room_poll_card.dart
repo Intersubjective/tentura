@@ -247,7 +247,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
   Profile _profileForParticipant(BeaconParticipant p) {
     return Profile(
       id: p.userId,
-      title: p.userTitle,
+      displayName: p.userTitle,
       image: p.userHasPicture && p.userImageId.isNotEmpty
           ? ImageEntity(
               id: p.userImageId,
@@ -281,7 +281,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                   ? p!.userTitle
                   : uid.substring(0, 6);
               final profile = p == null
-                  ? Profile(id: uid, title: title)
+                  ? Profile(id: uid, displayName: title)
                   : _profileForParticipant(p);
               return Tooltip(
                 message: title,

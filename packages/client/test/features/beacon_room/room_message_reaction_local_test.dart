@@ -7,7 +7,7 @@ import 'package:tentura/features/beacon_room/ui/bloc/room_message_reaction_local
 void main() {
   final thumb = BeaconRoomMessageReaction.quickPickerEmojis.first;
 
-  const me = Profile(id: 'me', title: 'Me');
+  const me = Profile(id: 'me', displayName: 'Me');
 
   RoomMessage baseMessage() => RoomMessage(
     id: 'm1',
@@ -30,7 +30,7 @@ void main() {
       reactionCounts: {thumb: 2},
       myReaction: thumb,
       reactors: {
-        thumb: [me, const Profile(id: 'other', title: 'Other')],
+        thumb: [me, const Profile(id: 'other', displayName: 'Other')],
       },
     );
     final next = toggleRoomMessageReactionLocally(m, thumb, me);
@@ -57,7 +57,7 @@ void main() {
     final m = baseMessage().copyWith(
       reactionCounts: {thumb: 1},
       myReaction: thumb,
-      reactors: {thumb: [const Profile(id: 'x', title: 'X')]},
+      reactors: {thumb: [const Profile(id: 'x', displayName: 'X')]},
     );
     final next = toggleRoomMessageReactionLocally(m, other, me);
     final expected = <String>[thumb, other]..sort();

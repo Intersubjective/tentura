@@ -17,8 +17,8 @@ class Accounts extends Table with TableInfo<Accounts, AccountsData> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
-  late final GeneratedColumn<String> title = GeneratedColumn<String>(
-    'title',
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+    'display_name',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -74,7 +74,7 @@ class Accounts extends Table with TableInfo<Accounts, AccountsData> {
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    title,
+    displayName,
     imageId,
     blurHash,
     height,
@@ -96,9 +96,9 @@ class Accounts extends Table with TableInfo<Accounts, AccountsData> {
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      title: attachedDatabase.typeMapping.read(
+      displayName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}title'],
+        data['${effectivePrefix}display_name'],
       )!,
       imageId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -138,7 +138,7 @@ class Accounts extends Table with TableInfo<Accounts, AccountsData> {
 
 class AccountsData extends DataClass implements Insertable<AccountsData> {
   final String id;
-  final String title;
+  final String displayName;
   final String imageId;
   final String blurHash;
   final int height;
@@ -146,7 +146,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
   final String? fcmTokenUpdatedAt;
   const AccountsData({
     required this.id,
-    required this.title,
+    required this.displayName,
     required this.imageId,
     required this.blurHash,
     required this.height,
@@ -157,7 +157,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['title'] = Variable<String>(title);
+    map['display_name'] = Variable<String>(displayName);
     map['image_id'] = Variable<String>(imageId);
     map['blur_hash'] = Variable<String>(blurHash);
     map['height'] = Variable<int>(height);
@@ -171,7 +171,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
   AccountsCompanion toCompanion(bool nullToAbsent) {
     return AccountsCompanion(
       id: Value(id),
-      title: Value(title),
+      displayName: Value(displayName),
       imageId: Value(imageId),
       blurHash: Value(blurHash),
       height: Value(height),
@@ -189,7 +189,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AccountsData(
       id: serializer.fromJson<String>(json['id']),
-      title: serializer.fromJson<String>(json['title']),
+      displayName: serializer.fromJson<String>(json['displayName']),
       imageId: serializer.fromJson<String>(json['imageId']),
       blurHash: serializer.fromJson<String>(json['blurHash']),
       height: serializer.fromJson<int>(json['height']),
@@ -204,7 +204,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'title': serializer.toJson<String>(title),
+      'displayName': serializer.toJson<String>(displayName),
       'imageId': serializer.toJson<String>(imageId),
       'blurHash': serializer.toJson<String>(blurHash),
       'height': serializer.toJson<int>(height),
@@ -215,7 +215,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
 
   AccountsData copyWith({
     String? id,
-    String? title,
+    String? displayName,
     String? imageId,
     String? blurHash,
     int? height,
@@ -223,7 +223,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
     Value<String?> fcmTokenUpdatedAt = const Value.absent(),
   }) => AccountsData(
     id: id ?? this.id,
-    title: title ?? this.title,
+    displayName: displayName ?? this.displayName,
     imageId: imageId ?? this.imageId,
     blurHash: blurHash ?? this.blurHash,
     height: height ?? this.height,
@@ -235,7 +235,9 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
   AccountsData copyWithCompanion(AccountsCompanion data) {
     return AccountsData(
       id: data.id.present ? data.id.value : this.id,
-      title: data.title.present ? data.title.value : this.title,
+      displayName: data.displayName.present
+          ? data.displayName.value
+          : this.displayName,
       imageId: data.imageId.present ? data.imageId.value : this.imageId,
       blurHash: data.blurHash.present ? data.blurHash.value : this.blurHash,
       height: data.height.present ? data.height.value : this.height,
@@ -250,7 +252,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
   String toString() {
     return (StringBuffer('AccountsData(')
           ..write('id: $id, ')
-          ..write('title: $title, ')
+          ..write('displayName: $displayName, ')
           ..write('imageId: $imageId, ')
           ..write('blurHash: $blurHash, ')
           ..write('height: $height, ')
@@ -263,7 +265,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
   @override
   int get hashCode => Object.hash(
     id,
-    title,
+    displayName,
     imageId,
     blurHash,
     height,
@@ -275,7 +277,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
       identical(this, other) ||
       (other is AccountsData &&
           other.id == this.id &&
-          other.title == this.title &&
+          other.displayName == this.displayName &&
           other.imageId == this.imageId &&
           other.blurHash == this.blurHash &&
           other.height == this.height &&
@@ -285,7 +287,7 @@ class AccountsData extends DataClass implements Insertable<AccountsData> {
 
 class AccountsCompanion extends UpdateCompanion<AccountsData> {
   final Value<String> id;
-  final Value<String> title;
+  final Value<String> displayName;
   final Value<String> imageId;
   final Value<String> blurHash;
   final Value<int> height;
@@ -293,7 +295,7 @@ class AccountsCompanion extends UpdateCompanion<AccountsData> {
   final Value<String?> fcmTokenUpdatedAt;
   const AccountsCompanion({
     this.id = const Value.absent(),
-    this.title = const Value.absent(),
+    this.displayName = const Value.absent(),
     this.imageId = const Value.absent(),
     this.blurHash = const Value.absent(),
     this.height = const Value.absent(),
@@ -302,7 +304,7 @@ class AccountsCompanion extends UpdateCompanion<AccountsData> {
   });
   AccountsCompanion.insert({
     required String id,
-    this.title = const Value.absent(),
+    this.displayName = const Value.absent(),
     this.imageId = const Value.absent(),
     this.blurHash = const Value.absent(),
     this.height = const Value.absent(),
@@ -311,7 +313,7 @@ class AccountsCompanion extends UpdateCompanion<AccountsData> {
   }) : id = Value(id);
   static Insertable<AccountsData> custom({
     Expression<String>? id,
-    Expression<String>? title,
+    Expression<String>? displayName,
     Expression<String>? imageId,
     Expression<String>? blurHash,
     Expression<int>? height,
@@ -320,7 +322,7 @@ class AccountsCompanion extends UpdateCompanion<AccountsData> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (title != null) 'title': title,
+      if (displayName != null) 'display_name': displayName,
       if (imageId != null) 'image_id': imageId,
       if (blurHash != null) 'blur_hash': blurHash,
       if (height != null) 'height': height,
@@ -331,7 +333,7 @@ class AccountsCompanion extends UpdateCompanion<AccountsData> {
 
   AccountsCompanion copyWith({
     Value<String>? id,
-    Value<String>? title,
+    Value<String>? displayName,
     Value<String>? imageId,
     Value<String>? blurHash,
     Value<int>? height,
@@ -340,7 +342,7 @@ class AccountsCompanion extends UpdateCompanion<AccountsData> {
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
-      title: title ?? this.title,
+      displayName: displayName ?? this.displayName,
       imageId: imageId ?? this.imageId,
       blurHash: blurHash ?? this.blurHash,
       height: height ?? this.height,
@@ -355,8 +357,8 @@ class AccountsCompanion extends UpdateCompanion<AccountsData> {
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
-    if (title.present) {
-      map['title'] = Variable<String>(title.value);
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
     }
     if (imageId.present) {
       map['image_id'] = Variable<String>(imageId.value);
@@ -380,7 +382,7 @@ class AccountsCompanion extends UpdateCompanion<AccountsData> {
   String toString() {
     return (StringBuffer('AccountsCompanion(')
           ..write('id: $id, ')
-          ..write('title: $title, ')
+          ..write('displayName: $displayName, ')
           ..write('imageId: $imageId, ')
           ..write('blurHash: $blurHash, ')
           ..write('height: $height, ')
@@ -412,8 +414,8 @@ class Friends extends Table with TableInfo<Friends, FriendsData> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL',
   );
-  late final GeneratedColumn<String> title = GeneratedColumn<String>(
-    'title',
+  late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
+    'display_name',
     aliasedName,
     false,
     type: DriftSqlType.string,
@@ -461,7 +463,7 @@ class Friends extends Table with TableInfo<Friends, FriendsData> {
   List<GeneratedColumn> get $columns => [
     subjectId,
     objectId,
-    title,
+    displayName,
     imageId,
     blurHash,
     height,
@@ -486,9 +488,9 @@ class Friends extends Table with TableInfo<Friends, FriendsData> {
         DriftSqlType.string,
         data['${effectivePrefix}object_id'],
       )!,
-      title: attachedDatabase.typeMapping.read(
+      displayName: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}title'],
+        data['${effectivePrefix}display_name'],
       )!,
       imageId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -527,7 +529,7 @@ class Friends extends Table with TableInfo<Friends, FriendsData> {
 class FriendsData extends DataClass implements Insertable<FriendsData> {
   final String subjectId;
   final String objectId;
-  final String title;
+  final String displayName;
   final String imageId;
   final String blurHash;
   final int height;
@@ -535,7 +537,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
   const FriendsData({
     required this.subjectId,
     required this.objectId,
-    required this.title,
+    required this.displayName,
     required this.imageId,
     required this.blurHash,
     required this.height,
@@ -546,7 +548,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
     final map = <String, Expression>{};
     map['subject_id'] = Variable<String>(subjectId);
     map['object_id'] = Variable<String>(objectId);
-    map['title'] = Variable<String>(title);
+    map['display_name'] = Variable<String>(displayName);
     map['image_id'] = Variable<String>(imageId);
     map['blur_hash'] = Variable<String>(blurHash);
     map['height'] = Variable<int>(height);
@@ -558,7 +560,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
     return FriendsCompanion(
       subjectId: Value(subjectId),
       objectId: Value(objectId),
-      title: Value(title),
+      displayName: Value(displayName),
       imageId: Value(imageId),
       blurHash: Value(blurHash),
       height: Value(height),
@@ -574,7 +576,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
     return FriendsData(
       subjectId: serializer.fromJson<String>(json['subjectId']),
       objectId: serializer.fromJson<String>(json['objectId']),
-      title: serializer.fromJson<String>(json['title']),
+      displayName: serializer.fromJson<String>(json['displayName']),
       imageId: serializer.fromJson<String>(json['imageId']),
       blurHash: serializer.fromJson<String>(json['blurHash']),
       height: serializer.fromJson<int>(json['height']),
@@ -587,7 +589,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
     return <String, dynamic>{
       'subjectId': serializer.toJson<String>(subjectId),
       'objectId': serializer.toJson<String>(objectId),
-      'title': serializer.toJson<String>(title),
+      'displayName': serializer.toJson<String>(displayName),
       'imageId': serializer.toJson<String>(imageId),
       'blurHash': serializer.toJson<String>(blurHash),
       'height': serializer.toJson<int>(height),
@@ -598,7 +600,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
   FriendsData copyWith({
     String? subjectId,
     String? objectId,
-    String? title,
+    String? displayName,
     String? imageId,
     String? blurHash,
     int? height,
@@ -606,7 +608,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
   }) => FriendsData(
     subjectId: subjectId ?? this.subjectId,
     objectId: objectId ?? this.objectId,
-    title: title ?? this.title,
+    displayName: displayName ?? this.displayName,
     imageId: imageId ?? this.imageId,
     blurHash: blurHash ?? this.blurHash,
     height: height ?? this.height,
@@ -616,7 +618,9 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
     return FriendsData(
       subjectId: data.subjectId.present ? data.subjectId.value : this.subjectId,
       objectId: data.objectId.present ? data.objectId.value : this.objectId,
-      title: data.title.present ? data.title.value : this.title,
+      displayName: data.displayName.present
+          ? data.displayName.value
+          : this.displayName,
       imageId: data.imageId.present ? data.imageId.value : this.imageId,
       blurHash: data.blurHash.present ? data.blurHash.value : this.blurHash,
       height: data.height.present ? data.height.value : this.height,
@@ -629,7 +633,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
     return (StringBuffer('FriendsData(')
           ..write('subjectId: $subjectId, ')
           ..write('objectId: $objectId, ')
-          ..write('title: $title, ')
+          ..write('displayName: $displayName, ')
           ..write('imageId: $imageId, ')
           ..write('blurHash: $blurHash, ')
           ..write('height: $height, ')
@@ -639,15 +643,22 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(subjectId, objectId, title, imageId, blurHash, height, width);
+  int get hashCode => Object.hash(
+    subjectId,
+    objectId,
+    displayName,
+    imageId,
+    blurHash,
+    height,
+    width,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is FriendsData &&
           other.subjectId == this.subjectId &&
           other.objectId == this.objectId &&
-          other.title == this.title &&
+          other.displayName == this.displayName &&
           other.imageId == this.imageId &&
           other.blurHash == this.blurHash &&
           other.height == this.height &&
@@ -657,7 +668,7 @@ class FriendsData extends DataClass implements Insertable<FriendsData> {
 class FriendsCompanion extends UpdateCompanion<FriendsData> {
   final Value<String> subjectId;
   final Value<String> objectId;
-  final Value<String> title;
+  final Value<String> displayName;
   final Value<String> imageId;
   final Value<String> blurHash;
   final Value<int> height;
@@ -665,7 +676,7 @@ class FriendsCompanion extends UpdateCompanion<FriendsData> {
   const FriendsCompanion({
     this.subjectId = const Value.absent(),
     this.objectId = const Value.absent(),
-    this.title = const Value.absent(),
+    this.displayName = const Value.absent(),
     this.imageId = const Value.absent(),
     this.blurHash = const Value.absent(),
     this.height = const Value.absent(),
@@ -674,7 +685,7 @@ class FriendsCompanion extends UpdateCompanion<FriendsData> {
   FriendsCompanion.insert({
     required String subjectId,
     required String objectId,
-    this.title = const Value.absent(),
+    this.displayName = const Value.absent(),
     this.imageId = const Value.absent(),
     this.blurHash = const Value.absent(),
     this.height = const Value.absent(),
@@ -684,7 +695,7 @@ class FriendsCompanion extends UpdateCompanion<FriendsData> {
   static Insertable<FriendsData> custom({
     Expression<String>? subjectId,
     Expression<String>? objectId,
-    Expression<String>? title,
+    Expression<String>? displayName,
     Expression<String>? imageId,
     Expression<String>? blurHash,
     Expression<int>? height,
@@ -693,7 +704,7 @@ class FriendsCompanion extends UpdateCompanion<FriendsData> {
     return RawValuesInsertable({
       if (subjectId != null) 'subject_id': subjectId,
       if (objectId != null) 'object_id': objectId,
-      if (title != null) 'title': title,
+      if (displayName != null) 'display_name': displayName,
       if (imageId != null) 'image_id': imageId,
       if (blurHash != null) 'blur_hash': blurHash,
       if (height != null) 'height': height,
@@ -704,7 +715,7 @@ class FriendsCompanion extends UpdateCompanion<FriendsData> {
   FriendsCompanion copyWith({
     Value<String>? subjectId,
     Value<String>? objectId,
-    Value<String>? title,
+    Value<String>? displayName,
     Value<String>? imageId,
     Value<String>? blurHash,
     Value<int>? height,
@@ -713,7 +724,7 @@ class FriendsCompanion extends UpdateCompanion<FriendsData> {
     return FriendsCompanion(
       subjectId: subjectId ?? this.subjectId,
       objectId: objectId ?? this.objectId,
-      title: title ?? this.title,
+      displayName: displayName ?? this.displayName,
       imageId: imageId ?? this.imageId,
       blurHash: blurHash ?? this.blurHash,
       height: height ?? this.height,
@@ -730,8 +741,8 @@ class FriendsCompanion extends UpdateCompanion<FriendsData> {
     if (objectId.present) {
       map['object_id'] = Variable<String>(objectId.value);
     }
-    if (title.present) {
-      map['title'] = Variable<String>(title.value);
+    if (displayName.present) {
+      map['display_name'] = Variable<String>(displayName.value);
     }
     if (imageId.present) {
       map['image_id'] = Variable<String>(imageId.value);
@@ -753,7 +764,7 @@ class FriendsCompanion extends UpdateCompanion<FriendsData> {
     return (StringBuffer('FriendsCompanion(')
           ..write('subjectId: $subjectId, ')
           ..write('objectId: $objectId, ')
-          ..write('title: $title, ')
+          ..write('displayName: $displayName, ')
           ..write('imageId: $imageId, ')
           ..write('blurHash: $blurHash, ')
           ..write('height: $height, ')
@@ -1028,8 +1039,8 @@ class SettingsCompanion extends UpdateCompanion<SettingsData> {
   }
 }
 
-class DatabaseAtV3 extends GeneratedDatabase {
-  DatabaseAtV3(QueryExecutor e) : super(e);
+class DatabaseAtV4 extends GeneratedDatabase {
+  DatabaseAtV4(QueryExecutor e) : super(e);
   late final Accounts accounts = Accounts(this);
   late final Friends friends = Friends(this);
   late final Settings settings = Settings(this);
@@ -1043,7 +1054,7 @@ class DatabaseAtV3 extends GeneratedDatabase {
     settings,
   ];
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
   @override
   DriftDatabaseOptions get options =>
       const DriftDatabaseOptions(storeDateTimeAsText: true);

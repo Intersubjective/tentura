@@ -39,7 +39,7 @@ void main() {
     title:
         'Inbox card typography: a deliberately long title that should wrap',
     context: 'General',
-    author: const Profile(id: 'a1', title: 'Fionna Campbell'),
+    author: const Profile(id: 'a1', displayName: 'Fionna Campbell'),
   );
 
   final myWorkBeacon = Beacon(
@@ -48,7 +48,7 @@ void main() {
     id: 'b-mywork',
     title: 'My Work card: status strip and metadata line',
     context: 'Neighborhood',
-    author: const Profile(id: 'a2', title: 'Alex River'),
+    author: const Profile(id: 'a2', displayName: 'Alex River'),
   );
 
   final beaconViewBeacon = Beacon(
@@ -57,7 +57,7 @@ void main() {
     id: 'b-view',
     title: 'Beacon view header — compact title row',
     context: 'Projects',
-    author: const Profile(id: 'a3', title: 'Jordan Lee'),
+    author: const Profile(id: 'a3', displayName: 'Jordan Lee'),
     needSummary:
         'Need-first line under author: volunteers for debris clearance.',
   );
@@ -327,7 +327,7 @@ class _ForwardRecipientGoldenBody extends StatelessWidget {
             candidate: const ForwardCandidate(
               profile: Profile(
                 id: 'u1',
-                title: 'Dmitrii long display name for ellipsis',
+                displayName: 'Dmitrii long display name for ellipsis',
                 rScore: 1,
               ),
             ),

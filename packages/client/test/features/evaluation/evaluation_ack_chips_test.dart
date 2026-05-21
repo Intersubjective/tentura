@@ -61,7 +61,7 @@ Future<void> _pumpSheet({
 void main() {
   const participant = EvaluationParticipant(
     userId: 'u1',
-    title: 'Alice',
+    displayName: 'Alice',
     role: EvaluationParticipantRole.committer,
     contributionSummary: 'Helped with packing',
     causalHint: 'via beacon B1',

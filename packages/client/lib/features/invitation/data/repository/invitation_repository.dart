@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/model/user_public_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -57,7 +57,7 @@ class InvitationRepository {
         createdAt: timestamp,
         updatedAt: timestamp,
       ),
-      issuer: (invitation.issuer as UserModel).toEntity(),
+      issuer: (invitation.issuer as UserPublicModel).toEntity(),
     );
   }
 

@@ -158,7 +158,7 @@ class AuthCubit extends Cubit<AuthState> {
   //
   //
   Future<void> signUp({
-    required String title,
+    required String displayName,
     required String invitationCode,
     String? handle,
   }) async {
@@ -169,7 +169,7 @@ class AuthCubit extends Cubit<AuthState> {
         ),
       );
     }
-    if (title.length < kTitleMinLength) {
+    if (displayName.length < kTitleMinLength) {
       return emit(
         state.copyWith(
           status: StateHasError(const TitleTooShortException()),
@@ -182,10 +182,10 @@ class AuthCubit extends Cubit<AuthState> {
       final newProfile = AccountEntity(
         id: await _authCase.signUp(
           invitationCode: invitationCode,
-          title: title,
+          displayName: displayName,
           handle: handle,
         ),
-        title: title,
+        displayName: displayName,
       );
       emit(
         AuthState(
@@ -283,7 +283,7 @@ class AuthCubit extends Cubit<AuthState> {
 
         final account = state.accounts[index];
 
-        if (account.title == event.value.title &&
+        if (account.displayName == event.value.displayName &&
             account.image == event.value.image) {
           return;
         }
@@ -292,7 +292,7 @@ class AuthCubit extends Cubit<AuthState> {
           await _accountCase.updateAccount(account);
 
           state.accounts[index] = account.copyWith(
-            title: event.value.title,
+            displayName: event.value.displayName,
             image: event.value.image,
           );
           emit(

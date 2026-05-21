@@ -20,7 +20,7 @@ class ProfileAppBarTitle extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          profile.title.isEmpty ? L10n.of(context)!.noName : profile.title,
+          profile.displayName.isEmpty ? L10n.of(context)!.noName : profile.displayName,
           style: textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),

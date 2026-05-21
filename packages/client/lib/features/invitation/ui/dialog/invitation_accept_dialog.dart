@@ -33,7 +33,7 @@ class InvitationAcceptDialog extends StatelessWidget {
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
-            profile.title,
+            profile.displayName,
             style: theme.textTheme.titleMedium,
             textAlign: TextAlign.center,
           ),

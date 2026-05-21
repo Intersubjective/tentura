@@ -18,7 +18,7 @@ final class MutationUser extends GqlNodeBase {
     'userUpdate',
     gqlTypeProfile.nonNullable(),
     arguments: [
-      InputFieldTitle.field,
+      InputFieldDisplayName.field,
       InputFieldDropImage.field,
       InputFieldDescription.field,
       InputFieldUpload.fieldImage,
@@ -28,7 +28,7 @@ final class MutationUser extends GqlNodeBase {
         (_, args) => _userCase
             .updateProfile(
               id: getCredentials(args).sub,
-              title: InputFieldTitle.fromArgs(args),
+              displayName: InputFieldDisplayName.fromArgs(args),
               description: InputFieldDescription.fromArgs(args),
               imageBytes: InputFieldUpload.fromArgs(args),
               dropImage: InputFieldDropImage.fromArgs(args),

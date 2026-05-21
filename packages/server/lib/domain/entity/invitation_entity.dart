@@ -40,7 +40,7 @@ abstract class InvitationEntity with _$InvitationEntity {
     ...asMap,
     'issuer': {
       'id': issuer.id,
-      'title': issuer.title,
+      'displayName': issuer.displayName,
       'description': issuer.description,
       'my_vote': null,
       'is_mutual_friend': false,

@@ -3,7 +3,8 @@ import 'package:drift/drift.dart';
 class Accounts extends Table {
   TextColumn get id => text()();
 
-  TextColumn get title => text().withDefault(const Constant(''))();
+  TextColumn get displayName =>
+      text().named('display_name').withDefault(const Constant(''))();
 
   TextColumn get imageId => text().withDefault(const Constant(''))(); // v2
 

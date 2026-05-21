@@ -47,7 +47,7 @@ final class UserCase extends UseCaseBase {
   //
   Future<UserEntity> updateProfile({
     required String id,
-    String? title,
+    String? displayName,
     String? description,
     Stream<Uint8List>? imageBytes,
     bool? dropImage,
@@ -88,7 +88,7 @@ final class UserCase extends UseCaseBase {
 
     await _userRepository.update(
       id: id,
-      title: title,
+      displayName: displayName,
       description: description,
       dropImage: needDropImage,
       imageId: imageId,

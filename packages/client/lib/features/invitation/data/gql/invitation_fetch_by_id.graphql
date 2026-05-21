@@ -1,11 +1,11 @@
-# import '/data/gql/user_model.graphql'
+# import '/data/gql/user_public_model.graphql'
 
 query InvitationById($id: String!) {
   invitationById(id: $id) {
     id
     created_at
     issuer {
-      ...UserModel
+      ...UserPublicModel
     }
   }
 }

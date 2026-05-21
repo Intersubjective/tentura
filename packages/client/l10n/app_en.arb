@@ -25,6 +25,22 @@
     "context": "Utils",
     "description": "Optional public @mention handle for the user profile"
   },
+  "labelDisplayName": "Display name",
+  "@labelDisplayName": {
+    "context": "Utils"
+  },
+  "pleaseFillDisplayName": "Enter your display name",
+  "@pleaseFillDisplayName": {
+    "context": "AccountAddDialog, ProfileEditScreen"
+  },
+  "displayNameTooShort": "Display name is too short",
+  "@displayNameTooShort": {
+    "context": "CommonErrors"
+  },
+  "displayNameTooLong": "Display name is too long",
+  "@displayNameTooLong": {
+    "context": "CommonErrors"
+  },
   "userHandleHint": "3–30 letters, numbers, or underscore (optional)",
   "@userHandleHint": {
     "context": "Utils"
@@ -160,7 +176,7 @@
   },
   "pleaseFillTitle": "Please fill title",
   "@pleaseFillTitle": {
-    "context": "AccountAddDialog, ProfileEditScreen"
+    "context": "Utils"
   },
   "labelInvitationCode": "Invitation Code",
   "@labelInvitationCode": {

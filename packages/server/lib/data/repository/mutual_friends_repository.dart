@@ -65,7 +65,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
     final out = <UserPublicRecord>[];
     for (final row in rows) {
       final id = row.data['id']! as String;
-      final title = row.data['title']! as String;
+      final displayName = row.data['display_name']! as String;
       final description = row.data['description']! as String;
       final handleRaw = row.data['handle'];
       final handle = handleRaw is String && handleRaw.trim().isNotEmpty
@@ -114,7 +114,7 @@ class MutualFriendsRepository implements MutualFriendsRepositoryPort {
       out.add(
         UserPublicRecord(
           id: id,
-          title: title,
+          displayName: displayName,
           description: description,
           handle: handle,
           isMutualFriend: reciprocal.contains(id),

@@ -131,7 +131,7 @@ Profile _profileFromHelpOfferUser(
   }
   return Profile(
     id: user.id,
-    title: user.title,
+    displayName: user.displayName,
     description: user.description,
     myVote: user.my_vote ?? 0,
     image: user.image == null ? null : ImageModel(user.image!).asEntity,

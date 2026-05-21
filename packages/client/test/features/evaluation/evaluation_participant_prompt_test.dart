@@ -7,7 +7,7 @@ void main() {
   test('promptVariant handoff is preserved on participant', () {
     const p = EvaluationParticipant(
       userId: 'u',
-      title: 't',
+      displayName: 't',
       role: EvaluationParticipantRole.committer,
       contributionSummary: '',
       causalHint: '',
@@ -20,7 +20,7 @@ void main() {
   test('default promptVariant is full', () {
     const p = EvaluationParticipant(
       userId: 'u',
-      title: 't',
+      displayName: 't',
       role: EvaluationParticipantRole.author,
       contributionSummary: '',
       causalHint: '',

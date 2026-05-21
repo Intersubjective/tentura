@@ -37,7 +37,7 @@ class ProfileAppBar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  profile.title.isEmpty ? l10n.noName : profile.title,
+                  profile.displayName.isEmpty ? l10n.noName : profile.displayName,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: scheme.onPrimary,

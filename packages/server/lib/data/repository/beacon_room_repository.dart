@@ -208,7 +208,7 @@ class BeaconRoomRepository {
 
     Map<String, Object?> reactorProfileJson(String uid) {
       final userRow = userById[uid];
-      final title = userRow?.title ?? '';
+      final displayName = userRow?.displayName ?? '';
       final imgUuid = userRow?.imageId;
       final image = imgUuid != null ? imageByUuid[imgUuid] : null;
       final hasPicture = imgUuid != null && image != null;
@@ -218,7 +218,7 @@ class BeaconRoomRepository {
       final imageId = image != null ? image.id.toString() : '';
       return <String, Object?>{
         'id': uid,
-        'title': title,
+        'displayName': displayName,
         'hasPicture': hasPicture,
         'imageId': imageId,
         'blurHash': blurHash,
@@ -321,7 +321,7 @@ class BeaconRoomRepository {
     return msgs.map((m) {
       final id = m.id;
       final userRow = userById[m.authorId];
-      final title = userRow?.title ?? '';
+      final displayName = userRow?.displayName ?? '';
       final imgUuid = userRow?.imageId;
       final image = imgUuid != null ? imageByUuid[imgUuid] : null;
       final authorHasPicture = imgUuid != null && image != null;
@@ -363,7 +363,7 @@ class BeaconRoomRepository {
         },
         'pollDataJson': pollDataJsonByMid[id],
         'systemPayloadJson': encodeSystemPayload(m.systemPayload),
-        'authorTitle': title,
+        'authorTitle': displayName,
         'authorHasPicture': authorHasPicture,
         'authorPicHeight': authorPicHeight,
         'authorPicWidth': authorPicWidth,
@@ -614,7 +614,7 @@ class BeaconRoomRepository {
     return {for (final r in rows) r.userId: r.helpType};
   }
 
-  /// `user.title` for V2 row projections (missing users yield no map entry).
+  /// `user.displayName` for V2 row projections (missing users yield no map entry).
   /// Trims `user.handle` per id (empty string when unset).
   Future<Map<String, String>> userHandlesByIds(Iterable<String> userIds) async {
     final ids = userIds.where((id) => id.isNotEmpty).toSet().toList();
@@ -666,7 +666,7 @@ class BeaconRoomRepository {
       return {};
     }
     final users = await _db.managers.users.filter((u) => u.id.isIn(ids)).get();
-    return {for (final u in users) u.id: u.title};
+    return {for (final u in users) u.id: u.displayName};
   }
 
   Future<Map<String, ({
@@ -1014,6 +1014,9 @@ class BeaconRoomRepository {
             .update(
               (u) => u(
                 semanticMarker: const Value(BeaconRoomSemanticMarker.done),
+                systemPayload: Value(<String, Object?>{
+                  'semanticActorId': actingUserId,
+                }),
               ),
             );
       });

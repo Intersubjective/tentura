@@ -8,7 +8,7 @@ part 'profile_edit_state.freezed.dart';
 abstract class ProfileEditState extends StateBase with _$ProfileEditState {
   const factory ProfileEditState({
     required Profile original,
-    required String title,
+    required String displayName,
     required String handle,
     required String description,
     @Default(false) bool canDropImage,
@@ -26,7 +26,7 @@ abstract class ProfileEditState extends StateBase with _$ProfileEditState {
   bool get hasChanges =>
       hasImage ||
       willDropImage ||
-      original.title != title ||
+      original.displayName != displayName ||
       original.handle != handle ||
       original.description != description;
 }

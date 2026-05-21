@@ -154,7 +154,7 @@ final class AccountCase extends UseCaseBase {
   //
   static Profile fromAccountEntity(AccountEntity account) => Profile(
     id: account.id,
-    title: account.title,
+    displayName: account.displayName,
     image: account.image,
   );
 
@@ -162,7 +162,7 @@ final class AccountCase extends UseCaseBase {
   //
   static AccountEntity fromProfile(Profile profile) => AccountEntity(
     id: profile.id,
-    title: profile.title,
+    displayName: profile.displayName,
     image: profile.image,
   );
 

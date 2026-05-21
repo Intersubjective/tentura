@@ -379,7 +379,7 @@ class _ActivityEntryTile extends StatelessWidget {
               const SizedBox(width: kSpacingSmall),
               Expanded(
                 child: Text(
-                  '${l10n.updateNumberLabel(u.number)} · ${l10n.timelineUpdate(u.author.title, u.content)}',
+                  '${l10n.updateNumberLabel(u.number)} · ${l10n.timelineUpdate(u.author.displayName, u.content)}',
                   style: theme.textTheme.bodySmall,
                 ),
               ),
@@ -451,30 +451,30 @@ Color _iconColor(ThemeData theme, TimelineEntry e, _ActivityTier tier) {
 
 String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
       final TimelineHelpOfferCreated e => e.message.isNotEmpty
-          ? l10n.timelineHelpOfferedWithMessage(e.helpOfferer.title, e.message)
-          : l10n.timelineHelpOffered(e.helpOfferer.title),
+          ? l10n.timelineHelpOfferedWithMessage(e.helpOfferer.displayName, e.message)
+          : l10n.timelineHelpOffered(e.helpOfferer.displayName),
       final TimelineHelpOfferUpdated e =>
         _timelineHelpOfferUpdatedLine(l10n, e),
       final TimelineAuthorCoordinationResponse e =>
         l10n.timelineAuthorCoordinationResponseLine(
-          e.author.title,
-          e.helpOfferer.title,
+          e.author.displayName,
+          e.helpOfferer.displayName,
           coordinationResponseLabel(l10n, e.response) ?? '',
         ),
       final TimelineHelpOfferWithdrawn e => e.message.isNotEmpty
-          ? l10n.timelineWithdrewWithMessage(e.helpOfferer.title, e.message)
-          : l10n.timelineWithdrew(e.helpOfferer.title),
+          ? l10n.timelineWithdrewWithMessage(e.helpOfferer.displayName, e.message)
+          : l10n.timelineWithdrew(e.helpOfferer.displayName),
       final TimelineBeaconCoordinationStatusChanged e =>
         l10n.timelineBeaconCoordinationStatusChanged(
-          e.author.title,
+          e.author.displayName,
           coordinationStatusLabel(l10n, e.status),
         ),
       final TimelineBeaconLifecycleChanged e =>
         l10n.timelineBeaconLifecycleChanged(
-          e.author.title,
+          e.author.displayName,
           _lifecycleLabel(l10n, e.lifecycle),
         ),
-      final TimelineCreation e => l10n.timelineCreated(e.author.title),
+      final TimelineCreation e => l10n.timelineCreated(e.author.displayName),
       TimelineUpdate() => '',
     };
 
@@ -542,7 +542,7 @@ String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
     };
 
 String _timelineHelpOfferUpdatedLine(L10n l10n, TimelineHelpOfferUpdated e) {
-  final base = l10n.timelineHelpOfferDetailsUpdated(e.helpOfferer.title);
+  final base = l10n.timelineHelpOfferDetailsUpdated(e.helpOfferer.displayName);
   final help = helpTypeLabel(l10n, e.helpType);
   if (help != null && help.isNotEmpty) {
     return '$base · $help';

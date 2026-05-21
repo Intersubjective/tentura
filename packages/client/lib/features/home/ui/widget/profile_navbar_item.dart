@@ -92,7 +92,7 @@ class _AccountMenuItem extends StatelessWidget {
             builder: (context, state) {
               final l10n = L10n.of(context);
               if (l10n == null) {
-                return Text(profile.title);
+                return Text(profile.displayName);
               }
               return Text(
                 SelfUserHighlight.displayName(

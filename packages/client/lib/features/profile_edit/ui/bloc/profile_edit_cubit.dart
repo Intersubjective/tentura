@@ -24,7 +24,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
        super(
          ProfileEditState(
            original: profile,
-           title: profile.title,
+           displayName: profile.displayName,
            handle: profile.handle,
            description: profile.description,
            canDropImage: profile.hasAvatar,
@@ -36,7 +36,8 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
   final ProfileRepositoryPort _profileRepository;
 
   //
-  void setTitle(String value) => emit(state.copyWith(title: value));
+  void setDisplayName(String value) =>
+      emit(state.copyWith(displayName: value));
 
   //
   void setHandle(String value) => emit(state.copyWith(handle: value));
@@ -82,7 +83,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
     try {
       await _profileRepository.update(
         state.original,
-        title: state.title,
+        displayName: state.displayName,
         updateHandle: true,
         handle: state.handle.trim().toLowerCase(),
         description: state.description,

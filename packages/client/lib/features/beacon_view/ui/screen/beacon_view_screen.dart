@@ -1482,7 +1482,7 @@ class _HelpOffersTabBody extends StatelessWidget {
               a.coordinationResponse,
             ).compareTo(p(b.coordinationResponse));
             if (cmp != 0) return cmp;
-            return a.user.title.compareTo(b.user.title);
+            return a.user.displayName.compareTo(b.user.displayName);
           });
 
     HelpOfferTile helpOfferTile(TimelineHelpOffer c) {
@@ -1496,7 +1496,7 @@ class _HelpOffersTabBody extends StatelessWidget {
             ? () => unawaited(
                 showCoordinationResponseBottomSheet(
                   context: context,
-                  offerUserTitle: c.user.title,
+                  offerUserTitle: c.user.displayName,
                   initialResponse: c.coordinationResponse,
                   offerUserAdmittedToRoom: state.roomParticipants.any(
                     (p) =>

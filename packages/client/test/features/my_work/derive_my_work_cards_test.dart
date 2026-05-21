@@ -19,7 +19,7 @@ Beacon _b({
       lifecycle: lifecycle,
       coordinationStatus: coordination,
       helpOfferCount: helpOfferCount,
-      author: const Profile(id: 'auth', title: 'Author Co'),
+      author: const Profile(id: 'auth', displayName: 'Author Co'),
     );
 
 void main() {

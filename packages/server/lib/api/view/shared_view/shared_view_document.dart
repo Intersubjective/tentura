@@ -27,7 +27,7 @@ class SharedViewDocument extends StatelessComponent {
       ],
       meta: _buildMeta(
         id: user.id,
-        title: user.title,
+        title: user.displayName,
         description: user.description,
         imagePath: user.imageUrl,
       ),
@@ -53,7 +53,7 @@ class SharedViewDocument extends StatelessComponent {
       ],
       meta: _buildMeta(
         id: invitation.id,
-        title: invitation.issuer.title,
+        title: invitation.issuer.displayName,
         // TBD: need real text with l10n
         description: 'Invite you to join Tentura!',
         imagePath: invitation.issuer.imageUrl,

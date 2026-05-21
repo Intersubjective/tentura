@@ -10,7 +10,7 @@ import 'user_presence_record.dart';
 class UserPublicRecord {
   const UserPublicRecord({
     required this.id,
-    required this.title,
+    required this.displayName,
     required this.description,
     this.handle,
     this.myVote,
@@ -21,7 +21,7 @@ class UserPublicRecord {
   });
 
   final String id;
-  final String title;
+  final String displayName;
 
   /// Nullable public handle for display / @mentions (mirrors `user.handle`).
   final String? handle;

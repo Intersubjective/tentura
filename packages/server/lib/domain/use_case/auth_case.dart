@@ -62,7 +62,7 @@ final class AuthCase extends UseCaseBase {
   //
   Future<JwtEntity> signUp({
     required String authRequestToken,
-    required String title,
+    required String displayName,
     String? handle,
   }) async {
     final jwt = _verifyAuthRequest(authRequestToken);
@@ -83,7 +83,7 @@ final class AuthCase extends UseCaseBase {
             final String invitationId => await _userRepository.createInvited(
               invitationId: invitationId,
               publicKey: publicKey,
-              title: title,
+              displayName: displayName,
               handle: handle,
             ),
             _ => throw const IdWrongException(
@@ -92,7 +92,7 @@ final class AuthCase extends UseCaseBase {
           }
         : await _userRepository.create(
             publicKey: publicKey,
-            title: title,
+            displayName: displayName,
             handle: handle,
           );
     return _issueJwt(newUser.id);

@@ -14,7 +14,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
   ProfileState get state => const ProfileState(
-    profile: Profile(id: 'me', title: 'Me'),
+    profile: Profile(id: 'me', displayName: 'Me'),
   );
 
   @override
@@ -45,7 +45,7 @@ TimelineHelpOffer _helpOffer({
 }) {
   final t = DateTime.utc(2025);
   return TimelineHelpOffer(
-    user: Profile(id: userId, title: 'Help Offerer'),
+    user: Profile(id: userId, displayName: 'Help Offerer'),
     message: message,
     createdAt: t,
     updatedAt: t,

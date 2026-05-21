@@ -21,7 +21,7 @@ UserPublicRecord userEntityToPublicRecord(
   }
   return UserPublicRecord(
     id: u.id,
-    title: u.title,
+    displayName: u.displayName,
     description: u.description,
     handle: u.handle.trim().isEmpty ? null : u.handle.trim(),
     isMutualFriend: isMutualFriend,

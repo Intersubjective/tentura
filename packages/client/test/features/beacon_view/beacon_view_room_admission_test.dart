@@ -21,8 +21,8 @@ TimelineHelpOffer _commitmentMe({
     );
 
 void main() {
-  const author = Profile(id: 'auth', title: 'Author');
-  const me = Profile(id: 'me', title: 'Me');
+  const author = Profile(id: 'auth', displayName: 'Author');
+  const me = Profile(id: 'me', displayName: 'Me');
   final beacon =
       Beacon.empty.copyWith(id: 'Bxxxx', updatedAt: DateTime(2025), author: author);
 

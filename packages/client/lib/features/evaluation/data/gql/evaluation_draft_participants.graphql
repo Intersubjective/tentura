@@ -1,7 +1,7 @@
 query EvaluationDraftParticipants($id: String!) {
   evaluationDraftParticipants(id: $id) {
     userId
-    title
+    displayName
     imageId
     role
     contributionSummary

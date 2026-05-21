@@ -22,7 +22,7 @@ class FriendRemoveDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     return AlertDialog.adaptive(
-      title: Text(l10n.confirmFriendRemoval(profile.title)),
+      title: Text(l10n.confirmFriendRemoval(profile.displayName)),
       actions: [
         // Remove
         TextButton(

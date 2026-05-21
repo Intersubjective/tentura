@@ -116,7 +116,7 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
       .filter((f) => f.id.equals(account.id))
       .update(
         (o) => o(
-          title: Value(account.title),
+          displayName: Value(account.displayName),
           imageId: Value(account.image?.id ?? ''),
           blurHash: Value(account.image?.blurHash ?? ''),
           height: Value(account.image?.height ?? 0),
@@ -139,10 +139,12 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
   //
   //
   @override
-  Future<void> addAccount(String id, String seed, [String? title]) async {
+  Future<void> addAccount(String id, String seed, [String? displayName]) async {
     await _localSecureStorage.write(_getAccountKey(id), seed);
     await _database.managers.accounts.create(
-      (o) => title == null ? o(id: id) : o(id: id, title: Value(title)),
+      (o) => displayName == null
+          ? o(id: id)
+          : o(id: id, displayName: Value(displayName)),
       mode: InsertMode.insert,
     );
   }

@@ -74,7 +74,7 @@ Future<void> showEvaluationDetailSheet({
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    participant.title,
+                    participant.displayName,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),

@@ -38,7 +38,7 @@ class MutualFriendsRepository {
             }
             return Profile(
               id: e.id,
-              title: e.title,
+              displayName: e.displayName,
               image: image == null
                   ? null
                   : ImageEntity(

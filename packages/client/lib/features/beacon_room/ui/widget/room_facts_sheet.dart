@@ -27,7 +27,7 @@ String _pinnedByDisplayLabel(
   required String viewerUserId,
   required BeaconFactCard fact,
 }) {
-  final profile = Profile(id: fact.pinnedBy, title: fact.pinnedByTitle);
+  final profile = Profile(id: fact.pinnedBy, displayName: fact.pinnedByTitle);
   var name = SelfUserHighlight.displayName(l10n, profile, viewerUserId);
   if (name.trim().isEmpty) {
     name = _shortUserId(fact.pinnedBy);

@@ -85,7 +85,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
         : candidates
               .where(
                 (c) =>
-                    c.title.toLowerCase().contains(trimmed.toLowerCase()) ||
+                    c.displayName.toLowerCase().contains(trimmed.toLowerCase()) ||
                     c.profile.description.toLowerCase().contains(
                           trimmed.toLowerCase(),
                         ),

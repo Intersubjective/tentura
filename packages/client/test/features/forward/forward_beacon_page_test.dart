@@ -88,7 +88,7 @@ void main() {
       const ForwardCandidate(
         profile: Profile(
           id: 'u1',
-          title: 'Clara',
+          displayName: 'Clara',
           rScore: 1,
           score: 70,
         ),
@@ -96,7 +96,7 @@ void main() {
       const ForwardCandidate(
         profile: Profile(
           id: 'u2',
-          title: 'Zed',
+          displayName: 'Zed',
           rScore: 1,
           score: 20,
         ),
@@ -206,7 +206,7 @@ void main() {
     final candidates = List.generate(
       8,
       (i) => ForwardCandidate(
-        profile: Profile(id: 'u$i', title: 'User $i', rScore: 1, score: 50),
+        profile: Profile(id: 'u$i', displayName: 'User $i', rScore: 1, score: 50),
       ),
     );
 

@@ -24,9 +24,9 @@ Content-Disposition: form-data; name="operations"
 Content-Type: application/json
 
 {
-  "query": "mutation UserUpdate($title: String, $description: String, $dropImage: Boolean = false, $image: Upload = {}) {userUpdate(title: $title, description: $description, dropImage: $dropImage, image: $image) {id}}",
+  "query": "mutation UserUpdate($displayName: String, $description: String, $dropImage: Boolean = false, $image: Upload = {}) {userUpdate(displayName: $displayName, description: $description, dropImage: $dropImage, image: $image) {id}}",
   "variables": {
-    "title": "A new one",
+    "displayName": "A new one",
     "description": "Empty description :-)",
     "image": null
   }

@@ -9,7 +9,7 @@ const kThorinKey = 'iqjH7nwdD1CBa-XgaW90yY443ghL8RC0Za-hKv-aeGg';
 
 final kUserThorin = UserEntity(
   id: 'U286f94380611',
-  title: 'Thorin Oakenshield',
+  displayName: 'Thorin Oakenshield',
   description: 'Son of Thrain, son of Thror, King under the Mountain',
   image: ImageEntity(
     id: '5edb9b09-e0af-408e-8c45-4b047abf1237',
@@ -25,7 +25,7 @@ final kUserThorin = UserEntity(
 
 final kUserDain = UserEntity(
   id: 'U8ebde6fbfd3f',
-  title: 'Dain Ironfoot',
+  displayName: 'Dain Ironfoot',
   description:
       'CEO of Ironfoot Industries and the Lord of the Iron Hills. '
       'Veteran in resource extraction and heavy manufacturing. '
@@ -47,7 +47,7 @@ final kUserDain = UserEntity(
 
 final kUserGandalf = UserEntity(
   id: 'U2becfc64c13b',
-  title: 'Gandalf the Gray',
+  displayName: 'Gandalf the Gray',
   description:
       'Experienced business angel and startup mentor with a knack '
       'for turning risky ventures into legendary success stories. '
@@ -68,7 +68,7 @@ final kUserGandalf = UserEntity(
 
 const kUserAnonymous = UserEntity(
   id: 'U4d9267c70eab',
-  title: 'The Anonymous of Dol Guldur',
+  displayName: 'The Anonymous of Dol Guldur',
   description: '''
 Let's save the nature and cultural traditions of Middle-earth! 
 
@@ -87,6 +87,6 @@ final kUserByPublicKey = <String, UserEntity>{
   // User for auth test
   kPussyCatKey: const UserEntity(
     id: 'U3ea0a229ad85',
-    title: 'Pussy Cat',
+    displayName: 'Pussy Cat',
   ),
 };

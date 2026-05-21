@@ -25,7 +25,7 @@ void main() {
         updatedAt: DateTime.utc(2025),
         id: 'b1',
         title: 'T',
-        author: const Profile(id: 'u1', title: 'Author'),
+        author: const Profile(id: 'u1', displayName: 'Author'),
         needSummary: needSummary,
         description: description ?? '',
       );

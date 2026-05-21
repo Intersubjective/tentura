@@ -13,6 +13,7 @@ part 'input_field_context.dart';
 part 'input_field_image_ids.dart';
 part 'input_field_upload.dart';
 part 'input_field_title.dart';
+part 'input_field_display_name.dart';
 part 'input_field_beacon_title.dart';
 part 'input_field_id.dart';
 part 'input_field_recipient_ids.dart';

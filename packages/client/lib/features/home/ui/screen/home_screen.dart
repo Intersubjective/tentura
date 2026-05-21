@@ -74,7 +74,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     final l10n = L10n.of(context)!;
     return BlocSelector<ProfileCubit, ProfileState, String>(
       bloc: GetIt.I<ProfileCubit>(),
-      selector: (state) => state.profile.title,
+      selector: (state) => state.profile.displayName,
       builder: (context, profileTitle) {
         // Fixed tab label keeps the profile icon stable; long names go to tooltip.
         final profileTooltipLabel = profileTitle.isEmpty

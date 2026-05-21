@@ -19,7 +19,7 @@ const _kAvatarOverlap = 6.0;
 
 Profile _senderProfile(InboxForwardSender s) => Profile(
       id: s.id,
-      title: s.title,
+      displayName: s.displayName,
       image: s.imageId != null && s.imageId!.isNotEmpty && s.imageId != 'null'
           ? ImageEntity(id: s.imageId!, authorId: s.id)
           : null,

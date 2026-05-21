@@ -223,7 +223,7 @@ class CoordinationRepository implements CoordinationRepositoryPort {
             );
       final userPublic = UserPublicRecord(
         id: user.id,
-        title: user.title,
+        displayName: user.displayName,
         description: user.description,
         handle: (user.handle ?? '').trim().isEmpty
             ? null

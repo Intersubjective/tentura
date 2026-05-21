@@ -26,6 +26,16 @@ mixin StringInputValidator {
     return null;
   }
 
+  String? displayNameValidator(L10n l10n, String? name) {
+    if (name == null || name.length < kTitleMinLength) {
+      return l10n.displayNameTooShort;
+    }
+    if (name.length > kTitleMaxLength) {
+      return l10n.displayNameTooLong;
+    }
+    return null;
+  }
+
   String? beaconTitleValidator(L10n l10n, String? title) {
     if (title == null || title.length < kTitleMinLength) {
       return l10n.titleTooShort;
