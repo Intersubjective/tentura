@@ -25,6 +25,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_ask_sheet
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
 
 import '../bloc/room_cubit.dart';
+import '../coordination_room_navigation.dart';
 import 'beacon_room_promise_sheet.dart';
 import 'fact_actions_sheet.dart';
 import 'room_file_attachment_open.dart';
@@ -239,6 +240,16 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             imageRepository: GetIt.I<ImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
             onScrollToPromoteSource: cubit.requestScrollToMessage,
+            hideCoordinationLifecycleFooter: isThreadMode,
+            onOpenCoordinationItem: isThreadMode
+                ? null
+                : (item) => unawaited(
+                      openCoordinationItemFromRoom(
+                        context,
+                        item: item,
+                        roomCubit: cubit,
+                      ),
+                    ),
           );
         },
       ),

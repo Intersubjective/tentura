@@ -4,9 +4,9 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'item_actions_state.dart';
 
@@ -17,8 +17,10 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
     required CoordinationItem item,
     CoordinationItemCase? coordinationItemCase,
     InvalidationService? invalidationService,
+    CoordinationItemRoomSync? coordinationItemRoomSync,
     bool listenToInvalidation = true,
   })  : _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
+        _itemSync = coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
         super(ItemActionsState(item: item)) {
     if (listenToInvalidation) {
       _invalidationSub = (invalidationService ?? GetIt.I<InvalidationService>())
@@ -34,7 +36,15 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
   }
 
   final CoordinationItemCase _case;
+  final CoordinationItemRoomSync _itemSync;
   StreamSubscription<BeaconRoomInvalidation>? _invalidationSub;
+
+  void _publishItem(CoordinationItem item) {
+    if (!isClosed) {
+      emit(state.copyWith(item: item));
+    }
+    _itemSync.notifyItemUpdated(item);
+  }
 
   Future<void> _refreshItem() async {
     try {
@@ -81,8 +91,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> resolveBlocker() async {
     try {
-      final updated = await _case.resolveBlocker(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      _publishItem(await _case.resolveBlocker(itemId: state.item.id));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -90,8 +99,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> cancelBlocker() async {
     try {
-      final updated = await _case.cancelBlocker(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      _publishItem(await _case.cancelBlocker(itemId: state.item.id));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -99,8 +107,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> acceptAsk() async {
     try {
-      final updated = await _case.acceptAsk(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      _publishItem(await _case.acceptAsk(itemId: state.item.id));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -108,8 +115,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> resolveAsk() async {
     try {
-      final updated = await _case.resolveAsk(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      _publishItem(await _case.resolveAsk(itemId: state.item.id));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -117,8 +123,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> cancelAsk() async {
     try {
-      final updated = await _case.cancelAsk(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      _publishItem(await _case.cancelAsk(itemId: state.item.id));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -126,8 +131,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> acceptPromise() async {
     try {
-      final updated = await _case.acceptPromise(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      _publishItem(await _case.acceptPromise(itemId: state.item.id));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -135,8 +139,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> resolvePromise() async {
     try {
-      final updated = await _case.resolvePromise(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      _publishItem(await _case.resolvePromise(itemId: state.item.id));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
@@ -144,8 +147,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> cancelPromise() async {
     try {
-      final updated = await _case.cancelPromise(itemId: state.item.id);
-      emit(state.copyWith(item: updated));
+      _publishItem(await _case.cancelPromise(itemId: state.item.id));
     } on Object catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

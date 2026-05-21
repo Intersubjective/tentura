@@ -44,7 +44,8 @@ class BeaconRoomRepository {
       (inv) {
         if (_roomRefreshController.isClosed) return;
         if (inv.entityType == BeaconRoomEntityType.roomMessage ||
-            inv.entityType == BeaconRoomEntityType.participant) {
+            inv.entityType == BeaconRoomEntityType.participant ||
+            inv.entityType == BeaconRoomEntityType.coordinationItem) {
           _roomRefreshController.add(inv.beaconId);
         }
       },
@@ -202,6 +203,10 @@ class BeaconRoomRepository {
               : null,
           linkedItemUpdatedAt: m.linkedItemUpdatedAt != null
               ? DateTime.parse(m.linkedItemUpdatedAt!)
+              : null,
+          linkedItemLinkedMessageId: m.linkedItemLinkedMessageId,
+          linkedItemResolvedAt: m.linkedItemResolvedAt != null
+              ? DateTime.parse(m.linkedItemResolvedAt!)
               : null,
           pollDataJson: m.pollDataJson,
           systemPayloadJson: m.systemPayloadJson,

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
@@ -60,71 +63,14 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
                     published: const Value(true),
                   ));
 
-          final trimmedLinkedMessageId = linkedMessageId?.trim();
-          final String roomMsgIdForActivity;
-          if (trimmedLinkedMessageId != null &&
-              trimmedLinkedMessageId.isNotEmpty) {
-            final srcRows = await (_db.select(_db.beaconRoomMessages)
-                  ..where((t) => t.id.equals(trimmedLinkedMessageId)))
-                .get();
-            if (srcRows.isEmpty) {
-              throw StateError(
-                'Linked room message not found: $trimmedLinkedMessageId',
-              );
-            }
-            if (srcRows.first.beaconId != beaconId) {
-              throw StateError(
-                'Linked message $trimmedLinkedMessageId is not in beacon $beaconId',
-              );
-            }
-            await (_db.update(_db.beaconRoomMessages)
-                  ..where((t) => t.id.equals(trimmedLinkedMessageId)))
-                .write(
-              BeaconRoomMessagesCompanion(
-                linkedItemId: Value(id),
-                linkedEventKind: const Value(coordinationEventKindCreated),
-              ),
-            );
-            final notifyId = generateId('R');
-            await _db.managers.beaconRoomMessages.createReturning((o) => o(
-                  id: notifyId,
-                  beaconId: beaconId,
-                  authorId: creatorId,
-                  body: const Value(''),
-                  semanticMarker: const Value(null),
-                  linkedNextMoveId: const Value(null),
-                  linkedFactCardId: const Value(null),
-                  linkedPollingId: const Value(null),
-                  linkedItemId: Value(id),
-                  linkedEventKind:
-                      const Value(coordinationEventKindCreated),
-                  systemPayload: Value(<String, Object?>{
-                    'sourceMessageId': trimmedLinkedMessageId,
-                  }),
-                  mentions: const Value([]),
-                  createdAt: const Value.absent(),
-                ));
-            roomMsgIdForActivity = notifyId;
-          } else {
-            final roomMsgId = generateId('R');
-            await _db.managers.beaconRoomMessages.createReturning((o) => o(
-                  id: roomMsgId,
-                  beaconId: beaconId,
-                  authorId: creatorId,
-                  body: const Value(''),
-                  semanticMarker: const Value(null),
-                  linkedNextMoveId: const Value(null),
-                  linkedFactCardId: const Value(null),
-                  linkedPollingId: const Value(null),
-                  linkedItemId: Value(id),
-                  linkedEventKind:
-                      const Value(coordinationEventKindCreated),
-                  systemPayload: const Value(null),
-                  mentions: const Value([]),
-                  createdAt: const Value.absent(),
-                ));
-            roomMsgIdForActivity = roomMsgId;
-          }
+          final roomMsgIdForActivity = await _emitCreatedRoomNotify(
+            itemId: id,
+            beaconId: beaconId,
+            kind: kind,
+            creatorId: creatorId,
+            linkedMessageId: linkedMessageId,
+            targetPersonId: targetPersonId,
+          );
 
           await _db.managers.beaconActivityEvents.create(
             (o) => o(
@@ -269,6 +215,10 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required int eventKind,
     String? targetUserId,
   }) async {
+    final anchorId = existing.linkedMessageId?.trim();
+    final hasAnchor = anchorId != null && anchorId.isNotEmpty;
+    final nowIso = DateTime.timestamp().toUtc().toIso8601String();
+
     final roomMsgId = generateId('R');
     await _db.managers.beaconRoomMessages.createReturning((o) => o(
           id: roomMsgId,
@@ -281,10 +231,21 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           linkedPollingId: const Value(null),
           linkedItemId: Value(existing.id),
           linkedEventKind: Value(eventKind),
-          systemPayload: const Value(null),
+          systemPayload: hasAnchor
+              ? Value(<String, Object?>{'sourceMessageId': anchorId})
+              : const Value(null),
           mentions: const Value([]),
           createdAt: const Value.absent(),
         ));
+
+    if (hasAnchor) {
+      await _mergeSourceMessageLastStatusEvent(
+        sourceMessageId: anchorId,
+        actorId: actorId,
+        eventKind: eventKind,
+        atIso: nowIso,
+      );
+    }
 
     await _db.managers.beaconActivityEvents.create(
       (o) => o(
@@ -414,22 +375,14 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           final updated =
               await (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id))).getSingle();
 
-          final roomMsgId = generateId('R');
-          await _db.managers.beaconRoomMessages.createReturning((o) => o(
-                id: roomMsgId,
-                beaconId: updated.beaconId,
-                authorId: actorId,
-                body: const Value(''),
-                semanticMarker: const Value(null),
-                linkedNextMoveId: const Value(null),
-                linkedFactCardId: const Value(null),
-                linkedPollingId: const Value(null),
-                linkedItemId: Value(id),
-                linkedEventKind: const Value(coordinationEventKindCreated),
-                systemPayload: const Value(null),
-                mentions: const Value([]),
-                createdAt: const Value.absent(),
-              ));
+          final roomMsgIdForActivity = await _emitCreatedRoomNotify(
+            itemId: id,
+            beaconId: updated.beaconId,
+            kind: updated.kind,
+            creatorId: actorId,
+            linkedMessageId: updated.linkedMessageId,
+            targetPersonId: targetPersonId,
+          );
 
           await _db.managers.beaconActivityEvents.create(
             (o) => o(
@@ -442,7 +395,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               ),
               actorId: Value(actorId),
               targetUserId: Value(targetPersonId),
-              sourceMessageId: Value(roomMsgId),
+              sourceMessageId: Value(roomMsgIdForActivity),
               diff: const Value(null),
               createdAt: const Value.absent(),
             ),
@@ -644,22 +597,14 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
                 ..where((t) => t.id.equals(id)))
               .getSingle();
 
-          final roomMsgId = generateId('R');
-          await _db.managers.beaconRoomMessages.createReturning((o) => o(
-                id: roomMsgId,
-                beaconId: updated.beaconId,
-                authorId: actorId,
-                body: const Value(''),
-                semanticMarker: const Value(null),
-                linkedNextMoveId: const Value(null),
-                linkedFactCardId: const Value(null),
-                linkedPollingId: const Value(null),
-                linkedItemId: Value(id),
-                linkedEventKind: const Value(coordinationEventKindCreated),
-                systemPayload: const Value(null),
-                mentions: const Value([]),
-                createdAt: const Value.absent(),
-              ));
+          final roomMsgIdForActivity = await _emitCreatedRoomNotify(
+            itemId: id,
+            beaconId: updated.beaconId,
+            kind: updated.kind,
+            creatorId: actorId,
+            linkedMessageId: updated.linkedMessageId,
+            targetPersonId: null,
+          );
 
           await _db.managers.beaconActivityEvents.create(
             (o) => o(
@@ -672,7 +617,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               ),
               actorId: Value(actorId),
               targetUserId: const Value(null),
-              sourceMessageId: Value(roomMsgId),
+              sourceMessageId: Value(roomMsgIdForActivity),
               diff: const Value(null),
               createdAt: const Value.absent(),
             ),
@@ -968,6 +913,145 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       linkedParentItemId: parentItemId,
       ordering: maxOrder + 1,
     );
+  }
+
+  /// Room notify row for item creation (linked source or standalone).
+  /// Returns the id used as activity `sourceMessageId`.
+  Future<String> _emitCreatedRoomNotify({
+    required String itemId,
+    required String beaconId,
+    required int kind,
+    required String creatorId,
+    String? linkedMessageId,
+    String? targetPersonId,
+  }) async {
+    final trimmedLinkedMessageId = linkedMessageId?.trim();
+    if (trimmedLinkedMessageId != null && trimmedLinkedMessageId.isNotEmpty) {
+      final srcRows = await (_db.select(_db.beaconRoomMessages)
+            ..where((t) => t.id.equals(trimmedLinkedMessageId)))
+          .get();
+      if (srcRows.isEmpty) {
+        throw StateError(
+          'Linked room message not found: $trimmedLinkedMessageId',
+        );
+      }
+      if (srcRows.first.beaconId != beaconId) {
+        throw StateError(
+          'Linked message $trimmedLinkedMessageId is not in beacon $beaconId',
+        );
+      }
+      await (_db.update(_db.beaconRoomMessages)
+            ..where((t) => t.id.equals(trimmedLinkedMessageId)))
+          .write(
+        BeaconRoomMessagesCompanion(
+          linkedItemId: Value(itemId),
+          linkedEventKind: const Value(coordinationEventKindCreated),
+        ),
+      );
+      final notifyId = generateId('R');
+      await _db.managers.beaconRoomMessages.createReturning((o) => o(
+            id: notifyId,
+            beaconId: beaconId,
+            authorId: creatorId,
+            body: const Value(''),
+            semanticMarker: const Value(null),
+            linkedNextMoveId: const Value(null),
+            linkedFactCardId: const Value(null),
+            linkedPollingId: const Value(null),
+            linkedItemId: Value(itemId),
+            linkedEventKind: const Value(coordinationEventKindCreated),
+            systemPayload: Value(<String, Object?>{
+              'sourceMessageId': trimmedLinkedMessageId,
+            }),
+            mentions: const Value([]),
+            createdAt: const Value.absent(),
+          ));
+      return notifyId;
+    }
+
+    final roomMsgId = generateId('R');
+    await _db.managers.beaconRoomMessages.createReturning((o) => o(
+          id: roomMsgId,
+          beaconId: beaconId,
+          authorId: creatorId,
+          body: const Value(''),
+          semanticMarker: const Value(null),
+          linkedNextMoveId: const Value(null),
+          linkedFactCardId: const Value(null),
+          linkedPollingId: const Value(null),
+          linkedItemId: Value(itemId),
+          linkedEventKind: const Value(coordinationEventKindCreated),
+          systemPayload: const Value(null),
+          mentions: const Value([]),
+          createdAt: const Value.absent(),
+        ));
+    return roomMsgId;
+  }
+
+  Future<void> _mergeSourceMessageLastStatusEvent({
+    required String sourceMessageId,
+    required String actorId,
+    required int eventKind,
+    required String atIso,
+  }) async {
+    final rows = await (_db.select(_db.beaconRoomMessages)
+          ..where((t) => t.id.equals(sourceMessageId)))
+        .get();
+    if (rows.isEmpty) return;
+
+    final merged = _mergeJsonPayload(
+      rows.first.systemPayload,
+      <String, Object?>{
+        'lastStatusEvent': <String, Object?>{
+          'eventKind': eventKind,
+          'actorId': actorId,
+          'at': atIso,
+        },
+      },
+    );
+
+    await (_db.update(_db.beaconRoomMessages)
+          ..where((t) => t.id.equals(sourceMessageId)))
+        .write(BeaconRoomMessagesCompanion(systemPayload: Value(merged)));
+  }
+
+  /// Deep-merge for room message [systemPayload]; used by status-event source patch.
+  @visibleForTesting
+  static Map<String, Object?> mergeSystemPayload(
+    Object? existing,
+    Map<String, Object?> patch,
+  ) =>
+      _mergeJsonPayload(existing, patch);
+
+  static Map<String, Object?> _mergeJsonPayload(
+    Object? existing,
+    Map<String, Object?> patch,
+  ) {
+    Map<String, Object?> base = {};
+    if (existing != null) {
+      if (existing is Map) {
+        base = Map<String, Object?>.from(existing);
+      } else if (existing is String && existing.trim().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(existing);
+          if (decoded is Map) {
+            base = Map<String, Object?>.from(decoded);
+          }
+        } on Object catch (_) {}
+      }
+    }
+    for (final e in patch.entries) {
+      final v = e.value;
+      if (v is Map && base[e.key] is Map) {
+        base[e.key] = {
+          ...Map<String, Object?>.from(base[e.key]! as Map),
+          ...Map<String, Object?>.from(v),
+        };
+      } else {
+        base[e.key] = v;
+      }
+    }
+    return base;
   }
 
   int _eventKindForStatus(int status) => switch (status) {

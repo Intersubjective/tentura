@@ -5465,6 +5465,8 @@ type RoomMessageRow {
   linkedItemCreatorId: String
   linkedItemCreatedAt: String
   linkedItemUpdatedAt: String
+  linkedItemLinkedMessageId: String
+  linkedItemResolvedAt: String
   pollDataJson: String
   systemPayloadJson: String
   authorTitle: String!

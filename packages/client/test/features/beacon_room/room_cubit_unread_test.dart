@@ -14,6 +14,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
+import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
@@ -141,6 +142,14 @@ RoomMessage _msg(String id, DateTime createdAt, {String authorId = 'other'}) =>
       createdAt: createdAt,
     );
 
+final _testItemSync = CoordinationItemRoomSync();
+
+RoomCubit _roomCubit(_FakeBeaconRoomRepository fakeRoom) => RoomCubit(
+      beaconId: _kBeaconId,
+      beaconRoomCase: _makeCase(fakeRoom),
+      coordinationItemRoomSync: _testItemSync,
+    );
+
 /// Creates a [BeaconRoomCase] backed by [fakeRoom] and minimal stubs.
 BeaconRoomCase _makeCase(_FakeBeaconRoomRepository fakeRoom) =>
     BeaconRoomCase(
@@ -189,7 +198,7 @@ void main() {
           _msg('new', _kAnchorTime.add(const Duration(hours: 1))),
         ];
 
-      final cubit = RoomCubit(beaconId: _kBeaconId, beaconRoomCase: _makeCase(fakeRoom));
+      final cubit = _roomCubit(fakeRoom);
       addTearDown(cubit.close);
 
       final s = await _awaitLoad(cubit);
@@ -211,7 +220,7 @@ void main() {
           _msg('m2', _kAnchorTime.add(const Duration(minutes: 1))),
         ];
 
-      final cubit = RoomCubit(beaconId: _kBeaconId, beaconRoomCase: _makeCase(fakeRoom));
+      final cubit = _roomCubit(fakeRoom);
       addTearDown(cubit.close);
 
       final s = await _awaitLoad(cubit);
@@ -232,7 +241,7 @@ void main() {
           _msg('new', _kAnchorTime.add(const Duration(hours: 1))),
         ];
 
-      final cubit = RoomCubit(beaconId: _kBeaconId, beaconRoomCase: _makeCase(fakeRoom));
+      final cubit = _roomCubit(fakeRoom);
       addTearDown(cubit.close);
 
       await _awaitLoad(cubit);
@@ -261,7 +270,7 @@ void main() {
       final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
         ..participantLastSeenRoomAt = _kAnchorTime;
 
-      final cubit = RoomCubit(beaconId: _kBeaconId, beaconRoomCase: _makeCase(fakeRoom));
+      final cubit = _roomCubit(fakeRoom);
       addTearDown(cubit.close);
 
       await _awaitLoad(cubit); // let the constructor load finish first
@@ -299,7 +308,7 @@ void main() {
           _msg('m1', msgTime), // unread for the current anchor
         ];
 
-      final cubit = RoomCubit(beaconId: _kBeaconId, beaconRoomCase: _makeCase(fakeRoom));
+      final cubit = _roomCubit(fakeRoom);
       addTearDown(cubit.close);
 
       await _awaitLoad(cubit);

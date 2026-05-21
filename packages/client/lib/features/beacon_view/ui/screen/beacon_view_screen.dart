@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_view_entry_source.dart';
@@ -705,12 +706,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return;
     }
     unawaited(
-      context.router.push(
-        ItemDiscussionRoute(
-          beaconId: item.beaconId,
-          itemId: item.id,
-          item: item,
-        ),
+      openCoordinationItemFromRoom(
+        context,
+        item: item,
+        roomCubit: _roomCubit,
       ),
     );
   }
