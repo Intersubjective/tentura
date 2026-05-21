@@ -21,7 +21,11 @@ class DebugErrorStore extends ChangeNotifier {
     debugPrint('\n========== FLUTTER ERROR ==========\n$text\n===================================\n',
         wrapWidth: 1024);
 
-    notifyListeners();
+    // Defer overlay rebuild so layout/paint errors do not schedule a build
+    // during the same frame (FlutterError → report → notifyListeners).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
   }
 
   void clear() {
