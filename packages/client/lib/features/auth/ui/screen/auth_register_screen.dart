@@ -94,7 +94,12 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
           Padding(
             padding: kPaddingAll,
             child: TextFormField(
-              autofocus: true,
+                // Do NOT autofocus when the id is pre-filled from a deep link.
+              // On iOS, autofocus during cold-start (e.g. QR-code launch) fires
+              // while UIKit still rejects firstResponder requests; Flutter marks
+              // the field as focused but the keyboard never appears, breaking
+              // all subsequent taps on any field for the rest of the session.
+              autofocus: widget.id.trim().isEmpty,
               autovalidateMode: AutovalidateMode.onUserInteraction,
               controller: _codeController,
               contextMenuBuilder: (_, state) =>
