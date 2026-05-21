@@ -3178,6 +3178,28 @@
     }
   },
   "beaconRoomPromotePinAccessibilityHint": "Jump to the linked message",
+  "beaconRoomFactPinLine": "{author} pinned a fact · {visibility}",
+  "@beaconRoomFactPinLine": {
+    "description": "Compact bar when a chat message is pinned as a fact (tap scrolls to source message).",
+    "placeholders": {
+      "author": {"type": "String"},
+      "visibility": {"type": "String"}
+    }
+  },
+  "beaconRoomPlanAnnounceLine": "{author} updated the plan",
+  "@beaconRoomPlanAnnounceLine": {
+    "description": "Non-tappable bar when the beacon plan is updated without a linked chat message.",
+    "placeholders": {
+      "author": {"type": "String"}
+    }
+  },
+  "beaconRoomPlanAnnounceLineWithTitle": "{author} updated the plan · {title}",
+  "@beaconRoomPlanAnnounceLineWithTitle": {
+    "placeholders": {
+      "author": {"type": "String"},
+      "title": {"type": "String"}
+    }
+  },
   "itemStaleOverdue": "overdue",
   "@itemStaleOverdue": {
     "description": "Label when a coordination item staleAt deadline has passed"

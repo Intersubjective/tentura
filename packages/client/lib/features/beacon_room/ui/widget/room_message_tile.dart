@@ -23,6 +23,9 @@ import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/features/coordination_item/ui/widget/item_card_in_room.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -109,14 +112,86 @@ class RoomMessageTile extends StatelessWidget {
 
   final List<BeaconParticipant> participants;
 
+  /// Fact-pin notify row: semantic fact marker + scroll target in payload.
+  static bool isFactPinNotification(RoomMessage m) {
+    final marker = m.semanticMarker;
+    if (marker != BeaconRoomSemanticMarker.pinFactPublic &&
+        marker != BeaconRoomSemanticMarker.pinFactPrivate) {
+      return false;
+    }
+    final src = m.sourceMessageId;
+    return src != null && src.trim().isNotEmpty;
+  }
+
   /// Compact Telegram-style bar: server `system_payload` includes sourceMessageId.
   static bool isPromotePinNotification(RoomMessage m) {
+    if (isFactPinNotification(m)) return false;
     final src = m.sourceMessageId;
     final lid = m.linkedItemId;
     return src != null &&
         src.trim().isNotEmpty &&
         lid != null &&
         lid.trim().isNotEmpty;
+  }
+
+  /// Plan updated from room menu (no linked chat message).
+  static bool isPlanAnnounceBar(RoomMessage m) {
+    if (m.linkedItemKind != CoordinationItemKind.plan.value) return false;
+    if (m.linkedEventKind != CoordinationItemEventKind.created.value) {
+      return false;
+    }
+    if (m.sourceMessageId != null) return false;
+    if (m.semanticMarker != null) return false;
+    return m.body.trim().isEmpty;
+  }
+
+  /// Footer chip on promoted source messages and mark-done rows.
+  static bool showPromoteIndicator(RoomMessage m) {
+    if (m.semanticMarker == BeaconRoomSemanticMarker.done) return true;
+    if (isPromotePinNotification(m)) return false;
+    if (!_isLinkedCoordSemantic(m)) return false;
+    final ev = m.linkedEventKind;
+    if (ev == null) return false;
+    return CoordinationItemEventKind.fromInt(ev) ==
+        CoordinationItemEventKind.created;
+  }
+
+  static bool showItemCardInBubble(RoomMessage m) {
+    if (showPromoteIndicator(m)) return false;
+    if (isPlanAnnounceBar(m)) return false;
+    if (isPromotePinNotification(m)) return false;
+    if (isFactPinNotification(m)) return false;
+    final ev = m.linkedEventKind;
+    if (m.linkedItemId == null || m.linkedItemId!.trim().isEmpty) {
+      return false;
+    }
+    if (ev == null) return false;
+    return m.linkedCoordinationItem != null;
+  }
+
+  static Profile? profileForUserId(
+    String userId,
+    List<BeaconParticipant> participants,
+  ) {
+    if (userId.isEmpty) return null;
+    for (final p in participants) {
+      if (p.userId == userId) {
+        return Profile(
+          id: p.userId,
+          displayName: p.userTitle,
+          image: p.userHasPicture && p.userImageId.isNotEmpty
+              ? ImageEntity(
+                  id: p.userImageId,
+                  authorId: p.userId,
+                  blurHash: p.userBlurHash,
+                  height: p.userPicHeight,
+                  width: p.userPicWidth,
+                )
+              : null,
+        );
+      }
+    }
+    return Profile(id: userId);
   }
 
   static String _coordKindShortLabel(L10n l10n, CoordinationItemKind? k) =>
@@ -132,8 +207,7 @@ class RoomMessageTile extends StatelessWidget {
   static bool _isCoordStateCard(RoomMessage m) {
     if (_isLinkedCoordSemantic(m)) return false;
     return m.semanticMarker == BeaconRoomSemanticMarker.blocker ||
-        m.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
-        m.semanticMarker == BeaconRoomSemanticMarker.done;
+        m.semanticMarker == BeaconRoomSemanticMarker.needInfo;
   }
 
   static bool _isLinkedCoordSemantic(RoomMessage m) =>
@@ -234,6 +308,36 @@ class RoomMessageTile extends StatelessWidget {
 
     final topPad = (isGroupStart ? tt.sectionGap : tt.rowGap / 2) / 2;
     final bottomPad = (isGroupEnd ? tt.sectionGap : tt.rowGap / 2) / 2;
+    final showFooterPromoteIndicator = showPromoteIndicator(message);
+    final showInlineItemCard = showItemCardInBubble(message);
+
+    if (isFactPinNotification(message)) {
+      final srcId = message.sourceMessageId!;
+      final visibilityLabel =
+          message.semanticMarker == BeaconRoomSemanticMarker.pinFactPublic
+          ? l10n.beaconRoomSemanticPublicFact
+          : l10n.beaconRoomSemanticRoomFact;
+      return _CenteredTimelineBar(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          topPad / 2,
+          tt.screenHPadding,
+          bottomPad / 2,
+        ),
+        icon: Icons.fact_check_outlined,
+        lineBuilder: (authorName) =>
+            l10n.beaconRoomFactPinLine(authorName, visibilityLabel),
+        author: message.author,
+        onTap: onScrollToPromoteSource == null
+            ? null
+            : () => onScrollToPromoteSource!(srcId),
+        accessibilityHint: l10n.beaconRoomPromotePinAccessibilityHint,
+        borderRadius: tt.cardRadius,
+        scheme: scheme,
+        theme: theme,
+        iconTextGap: tt.iconTextGap,
+      );
+    }
 
     if (isPromotePinNotification(message)) {
       final srcId = message.sourceMessageId!;
@@ -242,73 +346,48 @@ class RoomMessageTile extends StatelessWidget {
               ? CoordinationItemKind.fromInt(message.linkedItemKind!)
               : null);
       final kindLabel = _coordKindShortLabel(l10n, kind);
-      final pinTopPad = topPad / 2;
-      final pinBottomPad = bottomPad / 2;
-      final hInset = tt.screenHPadding;
-      const innerV = 4.0;
-      const innerH = 8.0;
-      return Padding(
+      return _CenteredTimelineBar(
         padding: EdgeInsets.fromLTRB(
-          hInset,
-          pinTopPad,
-          hInset,
-          pinBottomPad,
+          tt.screenHPadding,
+          topPad / 2,
+          tt.screenHPadding,
+          bottomPad / 2,
         ),
-        child: BlocBuilder<ProfileCubit, ProfileState>(
-          buildWhen: (p, c) => p.profile.id != c.profile.id,
-          builder: (context, state) {
-            final authorName = SelfUserHighlight.displayName(
-              l10n,
-              message.author,
-              state.profile.id,
-            );
-            final line = l10n.beaconRoomPromotePinLine(authorName, kindLabel);
-            return Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onScrollToPromoteSource == null
-                    ? null
-                    : () => onScrollToPromoteSource!(srcId),
-                borderRadius: BorderRadius.circular(tt.cardRadius),
-                child: Semantics(
-                  button: true,
-                  label: line,
-                  hint: l10n.beaconRoomPromotePinAccessibilityHint,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: innerH,
-                      vertical: innerV,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.push_pin_outlined,
-                          size: 14,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        SizedBox(width: tt.iconTextGap / 2),
-                        Flexible(
-                          child: Text(
-                            line,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w500,
-                              height: 1.15,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
+        icon: Icons.push_pin_outlined,
+        lineBuilder: (authorName) =>
+            l10n.beaconRoomPromotePinLine(authorName, kindLabel),
+        author: message.author,
+        onTap: onScrollToPromoteSource == null
+            ? null
+            : () => onScrollToPromoteSource!(srcId),
+        accessibilityHint: l10n.beaconRoomPromotePinAccessibilityHint,
+        borderRadius: tt.cardRadius,
+        scheme: scheme,
+        theme: theme,
+        iconTextGap: tt.iconTextGap,
+      );
+    }
+
+    if (isPlanAnnounceBar(message)) {
+      final title = (message.linkedItemTitle ?? '').trim();
+      return _CenteredTimelineBar(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          topPad / 2,
+          tt.screenHPadding,
+          bottomPad / 2,
         ),
+        icon: Icons.edit_note_outlined,
+        lineBuilder: (authorName) => title.isEmpty
+            ? l10n.beaconRoomPlanAnnounceLine(authorName)
+            : l10n.beaconRoomPlanAnnounceLineWithTitle(authorName, title),
+        author: message.author,
+        onTap: null,
+        accessibilityHint: null,
+        borderRadius: tt.cardRadius,
+        scheme: scheme,
+        theme: theme,
+        iconTextGap: tt.iconTextGap,
       );
     }
 
@@ -434,6 +513,26 @@ class RoomMessageTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (showFooterPromoteIndicator)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: tt.iconTextGap / 2,
+                  bottom: 2,
+                ),
+                child: _PromoteIndicator(
+                  message: message,
+                  participants: participants,
+                  linkedCoord: linkedCoord,
+                  linkedEventKind: linkedEventKind,
+                  tokens: tt,
+                  colorScheme: scheme,
+                  textTheme: theme.textTheme,
+                  l10n: l10n,
+                  onTap: linkedCoord != null && linkedEventKind != null
+                      ? _linkedCoordinationItemOnTap(context, linkedCoord)
+                      : null,
+                ),
+              ),
             Padding(
               padding: EdgeInsets.only(
                 left: tt.iconTextGap,
@@ -479,7 +578,9 @@ class RoomMessageTile extends StatelessWidget {
               );
             },
           ),
-        if (semantic.isNotEmpty && !isStateCard)
+        if (semantic.isNotEmpty &&
+            !isStateCard &&
+            message.semanticMarker != BeaconRoomSemanticMarker.done)
           Padding(
             padding: EdgeInsets.only(top: tt.iconTextGap / 2),
             child: Text(
@@ -491,7 +592,9 @@ class RoomMessageTile extends StatelessWidget {
               ),
             ),
           ),
-        if (linkedCoord != null && linkedEventKind != null)
+        if (showInlineItemCard &&
+            linkedCoord != null &&
+            linkedEventKind != null)
           Padding(
             padding: EdgeInsets.only(top: tt.rowGap / 2),
             child: Align(
@@ -753,6 +856,206 @@ class RoomMessageTile extends StatelessWidget {
         tt.screenHPadding,
         bottomPad,
       ),
+      child: row,
+    );
+  }
+}
+
+/// Centered in-chat system / promote / fact / plan announce bar.
+class _CenteredTimelineBar extends StatelessWidget {
+  const _CenteredTimelineBar({
+    required this.padding,
+    required this.icon,
+    required this.lineBuilder,
+    required this.author,
+    required this.onTap,
+    required this.accessibilityHint,
+    required this.borderRadius,
+    required this.scheme,
+    required this.theme,
+    required this.iconTextGap,
+  });
+
+  final EdgeInsets padding;
+  final IconData icon;
+  final String Function(String authorName) lineBuilder;
+  final Profile author;
+  final VoidCallback? onTap;
+  final String? accessibilityHint;
+  final double borderRadius;
+  final ColorScheme scheme;
+  final ThemeData theme;
+  final double iconTextGap;
+
+  static const double _innerV = 4;
+  static const double _innerH = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: padding,
+      child: BlocBuilder<ProfileCubit, ProfileState>(
+        buildWhen: (p, c) => p.profile.id != c.profile.id,
+        builder: (context, state) {
+          final l10n = L10n.of(context)!;
+          final authorName = SelfUserHighlight.displayName(
+            l10n,
+            author,
+            state.profile.id,
+          );
+          final line = lineBuilder(authorName);
+          final content = Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: _innerH,
+              vertical: _innerV,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 14,
+                  color: scheme.onSurfaceVariant,
+                ),
+                SizedBox(width: iconTextGap / 2),
+                Flexible(
+                  child: Text(
+                    line,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w500,
+                      height: 1.15,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+          if (onTap == null) {
+            return Semantics(label: line, child: content);
+          }
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(borderRadius),
+              child: Semantics(
+                button: true,
+                label: line,
+                hint: accessibilityHint,
+                child: content,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Compact promote / done chip in the message footer row.
+class _PromoteIndicator extends StatelessWidget {
+  const _PromoteIndicator({
+    required this.message,
+    required this.participants,
+    required this.linkedCoord,
+    required this.linkedEventKind,
+    required this.tokens,
+    required this.colorScheme,
+    required this.textTheme,
+    required this.l10n,
+    required this.onTap,
+  });
+
+  final RoomMessage message;
+  final List<BeaconParticipant> participants;
+  final CoordinationItem? linkedCoord;
+  final CoordinationItemEventKind? linkedEventKind;
+  final TenturaTokens tokens;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+  final L10n l10n;
+  final VoidCallback? onTap;
+
+  static const double _avatarSize = 16;
+  static const double _iconSize = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDone = message.semanticMarker == BeaconRoomSemanticMarker.done;
+    final actorId = isDone
+        ? (message.semanticActorId ?? '')
+        : (message.linkedItemCreatorId ?? '');
+    final actorProfile =
+        RoomMessageTile.profileForUserId(actorId, participants) ??
+        const Profile();
+
+    final IconData typeIcon;
+    final Color accent;
+    final String label;
+    final bool tappable;
+
+    if (isDone) {
+      typeIcon = Icons.task_alt;
+      accent = tokens.good;
+      label = l10n.beaconRoomSemanticDone;
+      tappable = false;
+    } else {
+      final kind = linkedCoord?.kind ??
+          (message.linkedItemKind != null
+              ? CoordinationItemKind.fromInt(message.linkedItemKind!)
+              : null);
+      final eventKind = linkedEventKind ??
+          (message.linkedEventKind != null
+              ? CoordinationItemEventKind.fromInt(message.linkedEventKind!)
+              : null);
+      if (kind == null || eventKind == null) {
+        return const SizedBox.shrink();
+      }
+      typeIcon = coordinationItemEventIcon(
+        kind,
+        eventKind,
+        isPlanStep: linkedCoord?.isPlanStep ?? false,
+      );
+      accent = coordinationItemEventColor(tokens, kind, eventKind);
+      label = RoomMessageTile._coordKindShortLabel(l10n, kind);
+      tappable = onTap != null;
+    }
+
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TenturaAvatar(profile: actorProfile, size: _avatarSize),
+        SizedBox(width: tokens.iconTextGap / 4),
+        Icon(typeIcon, size: _iconSize, color: accent),
+        SizedBox(width: tokens.iconTextGap / 4),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.labelSmall?.copyWith(
+            color: accent,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (tappable) ...[
+          SizedBox(width: tokens.iconTextGap / 4),
+          Icon(
+            Icons.chevron_right,
+            size: _iconSize,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ],
+      ],
+    );
+
+    if (!tappable) return row;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: row,
     );
   }
