@@ -3160,6 +3160,9 @@
     }
   },
   "beaconRoomPromotePinAccessibilityHint": "Перейти к связанному сообщению",
+  "beaconRoomFactPinLine": "{author} закрепил(а) факт · {visibility}",
+  "beaconRoomPlanAnnounceLine": "{author} обновил(а) план",
+  "beaconRoomPlanAnnounceLineWithTitle": "{author} обновил(а) план · {title}",
   "itemStaleOverdue": "просрочено",
   "itemShowMore": "ещё",
   "itemShowLess": "свернуть"

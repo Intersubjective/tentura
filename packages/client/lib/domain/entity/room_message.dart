@@ -59,6 +59,21 @@ abstract class RoomMessage with _$RoomMessage {
     }
   }
 
+  /// Who set [semanticMarker] (e.g. mark-done); from `system_payload.semanticActorId`.
+  String? get semanticActorId {
+    final raw = systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final id = decoded['semanticActorId'];
+      if (id is String && id.trim().isNotEmpty) return id.trim();
+      return null;
+    } on Object {
+      return null;
+    }
+  }
+
   /// When [linkedItemId] is set and snapshot fields are present, reconstructs
   /// the linked coordination item for navigation / inline cards.
   CoordinationItem? get linkedCoordinationItem {
