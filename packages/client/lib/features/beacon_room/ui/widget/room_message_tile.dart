@@ -6,7 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -34,8 +33,10 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measure.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_message_text_body.dart';
+import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
-import 'package:readmore/readmore.dart';
 
 VoidCallback? _linkedCoordinationItemOnTap(
   BuildContext context,
@@ -301,18 +302,7 @@ class RoomMessageTile extends StatelessWidget {
         '${l.minute.toString().padLeft(2, '0')}';
   }
 
-  static String _formatMessageTime(DateTime t) {
-    final local = t.toLocal();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final day = DateTime(local.year, local.month, local.day);
-    if (day == today) {
-      return _formatTime(local);
-    }
-    return '${local.day.toString().padLeft(2, '0')}.'
-        '${local.month.toString().padLeft(2, '0')} '
-        '${_formatTime(local)}';
-  }
+  static String _formatMessageTime(DateTime t) => _formatTime(t);
 
   VoidCallback? _coordinationItemTap(
     BuildContext context,
@@ -482,32 +472,44 @@ class RoomMessageTile extends StatelessWidget {
       }
     }
     final mentionedIds = message.mentions.toSet();
-    final mentionAnnotations = <Annotation>[
-      Annotation(
-        regExp: RegExp(
-          '@[a-zA-Z0-9_]{$kUserHandleMinLength,$kUserHandleMaxLength}',
-        ),
-        spanBuilder: ({required text, textStyle}) {
-          final handle = text.substring(1).toLowerCase();
-          final userId = handleToUserId[handle];
-          final isMentioned = userId != null && mentionedIds.contains(userId);
-          if (!isMentioned) {
-            return TextSpan(text: text, style: textStyle);
-          }
-          final isSelfMention = userId == myProfile.id;
-          return TextSpan(
-            text: text,
-            style: textStyle?.copyWith(
-              color: isSelfMention ? null : scheme.primary,
-              backgroundColor: isSelfMention
-                  ? scheme.tertiaryContainer.withValues(alpha: 0.8)
-                  : null,
-              fontWeight: isSelfMention ? FontWeight.w600 : FontWeight.w700,
-            ),
-          );
-        },
-      ),
-    ];
+    final mentionAnnotations = buildRoomMessageMentionAnnotations(
+      handleToUserId: handleToUserId,
+      mentionedIds: mentionedIds,
+      selfUserId: myProfile.id,
+      mentionColor: scheme.primary,
+      selfMentionBackground: scheme.tertiaryContainer.withValues(alpha: 0.8),
+    );
+
+    final editedSuffix =
+        message.editedAt != null ? l10n.beaconRoomMessageEdited : null;
+    final dateLine = [
+      _formatMessageTime(message.editedAt ?? message.createdAt),
+      if (editedSuffix != null) editedSuffix,
+    ].join(' · ');
+    final useInlineMeta = shouldUseInlineTrailingMeta(
+      hasDisplayText: display.isNotEmpty,
+      reactionCounts: message.reactionCounts,
+    );
+    final hasMediaOrPoll =
+        imageAttachments.isNotEmpty ||
+        fileAttachments.isNotEmpty ||
+        message.linkedPollingId != null ||
+        showInlineItemCard;
+    final bodyStyle = ShowMoreText.buildTextStyle(context);
+    final metaStyle = theme.textTheme.labelSmall ?? const TextStyle();
+    final trailingGap = tt.iconTextGap / 2;
+    final textDirection = Directionality.of(context);
+    final textScaler = MediaQuery.textScalerOf(context);
+    final trailingMetrics = useInlineMeta
+        ? computeTrailingMetaMetrics(
+            dateLine: dateLine,
+            metaStyle: metaStyle,
+            bodyStyle: bodyStyle,
+            trailingGap: trailingGap,
+            textDirection: textDirection,
+            textScaler: textScaler,
+          )
+        : null;
 
     Widget reactionsAndTime() => _MessageLifecycleFooter(
       message: message,
@@ -524,7 +526,8 @@ class RoomMessageTile extends StatelessWidget {
       onOpenItem: linkedCoord == null
           ? null
           : _coordinationItemTap(context, linkedCoord),
-      editedSuffix: message.editedAt != null ? l10n.beaconRoomMessageEdited : null,
+      editedSuffix: editedSuffix,
+      hideTimestamp: useInlineMeta,
     );
 
     Widget coreColumn({required bool showNameHeader}) => Column(
@@ -586,13 +589,22 @@ class RoomMessageTile extends StatelessWidget {
         if (display.isNotEmpty)
           Padding(
             padding: EdgeInsets.only(top: tt.rowGap / 2),
-            child: ShowMoreText(
-              display,
-              style: ShowMoreText.buildTextStyle(context),
-              colorClickableText: scheme.primary,
-              annotations: mentionAnnotations,
-              textAlign: TextAlign.start,
-            ),
+            child: useInlineMeta && trailingMetrics != null
+                ? RoomMessageTextBody(
+                    display: display,
+                    dateLine: dateLine,
+                    bodyStyle: bodyStyle,
+                    metaStyle: metaStyle,
+                    metrics: trailingMetrics,
+                    mentionAnnotations: mentionAnnotations,
+                  )
+                : ShowMoreText(
+                    display,
+                    style: bodyStyle,
+                    colorClickableText: scheme.primary,
+                    annotations: mentionAnnotations,
+                    textAlign: TextAlign.start,
+                  ),
           ),
         if (imageAttachments.isNotEmpty)
           Padding(
@@ -700,32 +712,85 @@ class RoomMessageTile extends StatelessWidget {
       ),
     );
 
-    /// Same [Row] skeleton for mine and others: avatar gutter + gap + bubble so
-    /// left/right bubble borders line up; bubble fills remaining width.
-    final fullWidthBubble = LayoutBuilder(
-      builder: (context, constraints) => SizedBox(
-        width: constraints.maxWidth,
-        child: wrapActions(bubbleChild),
-      ),
+    final measuredBubble = LayoutBuilder(
+      builder: (context, constraints) {
+        final contentCap = useInlineMeta
+            ? constraints.maxWidth * kRoomMessageBubbleMaxWidthFraction
+            : constraints.maxWidth;
+        final cardPaddingH = tt.cardPadding.horizontal;
+
+        double? tightTextWidth;
+        if (useInlineMeta && trailingMetrics != null) {
+          final bodySpan = buildRoomMessageAnnotatedBodySpan(
+            data: display,
+            textStyle: bodyStyle,
+            annotations: mentionAnnotations,
+          );
+          tightTextWidth = measureTightBodyWidthWithTrailingReserve(
+            bodySpan: bodySpan,
+            trailingReserveWidth: trailingMetrics.reserveWidth,
+            maxWidth: contentCap,
+            textDirection: textDirection,
+            textScaler: textScaler,
+          );
+          if (!isMine && isGroupStart) {
+            final namePainter = TextPainter(
+              text: TextSpan(
+                text: message.author.displayName,
+                style: theme.textTheme.labelMedium,
+              ),
+              textDirection: textDirection,
+              textScaler: textScaler,
+            )..layout();
+            tightTextWidth = tightTextWidth > namePainter.width
+                ? tightTextWidth
+                : namePainter.width;
+          }
+        }
+
+        final bubbleWidth = measureBubble(
+          contentMaxWidth: contentCap,
+          cardPaddingH: cardPaddingH,
+          tightTextWidth: tightTextWidth,
+          hasMediaOrPoll: hasMediaOrPoll || !useInlineMeta,
+        ).innerWidth;
+
+        return Align(
+          alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+          child: SizedBox(
+            width: bubbleWidth,
+            child: wrapActions(bubbleChild),
+          ),
+        );
+      },
     );
 
-    // Others' bubbles: slight inset from the list edge so the card border
-    // is not flush with the screen padding.
-    final bubbleSlot = isMine
-        ? fullWidthBubble
-        : Padding(
-            padding: const EdgeInsets.only(right: kSpacingSmall),
-            child: fullWidthBubble,
-          );
+    final bubbleSlot = Padding(
+      padding: EdgeInsets.only(
+        right: isMine ? 0 : kSpacingSmall,
+        left: isMine ? kSpacingSmall : 0,
+      ),
+      child: measuredBubble,
+    );
 
-    final row = Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        SizedBox(
-          width: AvatarRated.sizeSmall + kSpacingSmall,
-          child: isMine
-              ? const SizedBox.shrink()
-              : (isGroupEnd
+    final row = isMine
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: bubbleSlot,
+                ),
+              ),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              SizedBox(
+                width: AvatarRated.sizeSmall + kSpacingSmall,
+                child: isGroupEnd
                     ? GestureDetector(
                         onTap: () => context.read<ScreenCubit>().showProfile(
                           message.author.id,
@@ -733,7 +798,9 @@ class RoomMessageTile extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SelfAwarePlainMiniAvatar(profile: message.author),
+                            SelfAwarePlainMiniAvatar(
+                              profile: message.author,
+                            ),
                             if (authorCapabilityIcons.isNotEmpty) ...[
                               const SizedBox(height: 1),
                               SizedBox(
@@ -756,12 +823,12 @@ class RoomMessageTile extends StatelessWidget {
                           ],
                         ),
                       )
-                    : const SizedBox.shrink()),
-        ),
-        SizedBox(width: tt.avatarTextGap / 2),
-        Expanded(child: bubbleSlot),
-      ],
-    );
+                    : const SizedBox.shrink(),
+              ),
+              SizedBox(width: tt.avatarTextGap / 2),
+              Expanded(child: bubbleSlot),
+            ],
+          );
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -886,6 +953,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
     required this.onToggleReaction,
     required this.onOpenItem,
     required this.editedSuffix,
+    this.hideTimestamp = false,
   });
 
   final RoomMessage message;
@@ -901,6 +969,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
   final Future<void> Function(String messageId, String emoji) onToggleReaction;
   final VoidCallback? onOpenItem;
   final String? editedSuffix;
+  final bool hideTimestamp;
 
   static const double _avatarSize = 16;
   static const double _iconSize = 12;
@@ -913,12 +982,9 @@ class _MessageLifecycleFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateLine = [
-      RoomMessageTile._formatMessageTime(
-        message.editedAt ?? message.createdAt,
-      ),
-      if (editedSuffix != null) editedSuffix,
-    ].join(' · ');
+    final reactionEntries = RoomMessageTile._sortedReactionEntries(message);
+    final showReactionTimeRow =
+        reactionEntries.isNotEmpty || !hideTimestamp;
 
     final promotionDate = message.linkedItemUpdatedAt ?? message.linkedItemCreatedAt;
 
@@ -1013,82 +1079,99 @@ class _MessageLifecycleFooter extends StatelessWidget {
       );
     }
 
+    final dateLine = hideTimestamp
+        ? null
+        : [
+            RoomMessageTile._formatMessageTime(
+              message.editedAt ?? message.createdAt,
+            ),
+            if (editedSuffix != null) editedSuffix,
+          ].join(' · ');
+
+    if (!showReactionTimeRow &&
+        promotionRow == null &&
+        resolutionRow == null &&
+        markDoneRow == null) {
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: EdgeInsets.only(top: tokens.rowGap / 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Wrap(
-                  spacing: kSpacingSmall,
-                  runSpacing: kSpacingSmall / 2,
-                  alignment: WrapAlignment.start,
-                  children: [
-                    for (final entry
-                        in RoomMessageTile._sortedReactionEntries(message))
-                      InkWell(
-                        key: ValueKey('${message.id}-re-${entry.key}'),
-                        onTap: () => unawaited(
-                          onToggleReaction(message.id, entry.key),
-                        ),
-                        onLongPress:
-                            (message.reactors[entry.key]?.isNotEmpty ?? false)
-                            ? () => unawaited(
-                                showReactionSendersSheet(
-                                  context,
-                                  reactors: message.reactors,
-                                  reactionCounts: message.reactionCounts,
-                                  initialEmoji: entry.key,
+          if (showReactionTimeRow)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: kSpacingSmall,
+                    runSpacing: kSpacingSmall / 2,
+                    alignment: WrapAlignment.start,
+                    children: [
+                      for (final entry in reactionEntries)
+                        InkWell(
+                          key: ValueKey('${message.id}-re-${entry.key}'),
+                          onTap: () => unawaited(
+                            onToggleReaction(message.id, entry.key),
+                          ),
+                          onLongPress:
+                              (message.reactors[entry.key]?.isNotEmpty ??
+                                  false)
+                              ? () => unawaited(
+                                  showReactionSendersSheet(
+                                    context,
+                                    reactors: message.reactors,
+                                    reactionCounts: message.reactionCounts,
+                                    initialEmoji: entry.key,
+                                  ),
+                                )
+                              : null,
+                          borderRadius: BorderRadius.circular(18),
+                          child: Padding(
+                            padding: kPaddingSmallH.add(
+                              const EdgeInsets.symmetric(vertical: 6),
+                            ),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: viewerReactions.contains(entry.key)
+                                    ? scheme.primaryContainer
+                                    : scheme.surfaceContainerHighest
+                                          .withValues(alpha: 0.75),
+                                borderRadius: BorderRadius.circular(999),
+                                border: viewerReactions.contains(entry.key)
+                                    ? Border.all(color: scheme.primary)
+                                    : null,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: kSpacingSmall,
+                                  vertical: 2,
                                 ),
-                              )
-                            : null,
-                        borderRadius: BorderRadius.circular(18),
-                        child: Padding(
-                          padding: kPaddingSmallH.add(
-                            const EdgeInsets.symmetric(vertical: 6),
-                          ),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: viewerReactions.contains(entry.key)
-                                  ? scheme.primaryContainer
-                                  : scheme.surfaceContainerHighest.withValues(
-                                      alpha: 0.75,
-                                    ),
-                              borderRadius: BorderRadius.circular(999),
-                              border: viewerReactions.contains(entry.key)
-                                  ? Border.all(color: scheme.primary)
-                                  : null,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: kSpacingSmall,
-                                vertical: 2,
-                              ),
-                              child: _RoomReactionChipPill(
-                                emoji: entry.key,
-                                count: entry.value,
-                                reactors:
-                                    message.reactors[entry.key] ?? const [],
+                                child: _RoomReactionChipPill(
+                                  emoji: entry.key,
+                                  count: entry.value,
+                                  reactors:
+                                      message.reactors[entry.key] ?? const [],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Padding(
-                padding: EdgeInsets.only(left: tokens.iconTextGap / 2),
-                child: Text(
-                  dateLine,
-                  style: textTheme.labelSmall,
-                ),
-              ),
-            ],
-          ),
+                if (dateLine != null)
+                  Padding(
+                    padding: EdgeInsets.only(left: tokens.iconTextGap / 2),
+                    child: Text(
+                      dateLine,
+                      style: textTheme.labelSmall,
+                    ),
+                  ),
+              ],
+            ),
           if (promotionRow != null) ...[
             SizedBox(height: tokens.rowGap / 4),
             promotionRow,
