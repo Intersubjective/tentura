@@ -2712,17 +2712,6 @@
   "beaconRoomSemanticDone": "Готово",
   "beaconRoomSemanticPoll": "Опрос",
   "beaconRoomSemanticSystem": "Системное",
-  "beaconRoomStateCardInlineHeader": "{authorName} — {semanticLabel}",
-  "@beaconRoomStateCardInlineHeader": {
-    "placeholders": {
-      "authorName": {
-        "type": "String"
-      },
-      "semanticLabel": {
-        "type": "String"
-      }
-    }
-  },
   "beaconRoomDateToday": "Сегодня",
   "beaconRoomDateYesterday": "Вчера",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",

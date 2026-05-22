@@ -103,4 +103,46 @@ void main() {
       expect(m.linkedCoordinationItem?.linkedMessageId, 'source');
     });
   });
+
+  group('isPromotedSourceMessage', () {
+    test('timeline notify row with created event is not promoted source', () {
+      final m = _msg(
+        id: 'notify',
+        linkedItemId: 'item1',
+        linkedEventKind: CoordinationItemEventKind.created.value,
+        systemPayloadJson: '{"sourceMessageId":"source"}',
+        linkedItemLinkedMessageId: 'source',
+        linkedItemKind: CoordinationItemKind.ask.value,
+        linkedItemCreatorId: 'u1',
+      );
+      expect(m.isPromotedSourceMessage, isFalse);
+      expect(RoomMessageTile.showLifecycleFooter(m), isFalse);
+    });
+
+    test('standalone creation row is promoted source', () {
+      final m = _msg(
+        id: 'roomRow',
+        linkedItemId: 'item1',
+        linkedEventKind: CoordinationItemEventKind.created.value,
+        linkedItemKind: CoordinationItemKind.blocker.value,
+        linkedItemCreatorId: 'u1',
+      );
+      expect(m.isPromotedSourceMessage, isTrue);
+      expect(RoomMessageTile.showLifecycleFooter(m), isTrue);
+    });
+
+    test('orphan linkedItemId without item snapshot is not promoted source', () {
+      final m = RoomMessage(
+        id: 'orphan',
+        beaconId: 'b1',
+        authorId: 'u1',
+        body: '',
+        createdAt: DateTime.utc(2026),
+        linkedItemId: 'item1',
+        linkedEventKind: CoordinationItemEventKind.created.value,
+      );
+      expect(m.linkedCoordinationItem, isNull);
+      expect(m.isPromotedSourceMessage, isFalse);
+    });
+  });
 }

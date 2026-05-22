@@ -181,20 +181,22 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
 
     switch (widget.kind) {
       case CoordinationItemKind.ask:
-        if (existing == null) {
-          final draft = await c.createDraftAsk(
+        if (existing == null && _willPublish) {
+          await c.markAsk(
+            beaconId: widget.beaconId,
+            title: title,
+            targetPersonId: target!,
+            body: body,
+            linkedMessageId: _linkedMessageId,
+          );
+        } else if (existing == null) {
+          await c.createDraftAsk(
             beaconId: widget.beaconId,
             title: title,
             body: body,
             linkedMessageId: _linkedMessageId,
             targetPersonId: target,
           );
-          if (_willPublish) {
-            await c.publishDraftAsk(
-              itemId: draft.id,
-              targetPersonId: target!,
-            );
-          }
         } else {
           await c.updateDraftAsk(
             itemId: existing.id,
@@ -211,20 +213,22 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
           }
         }
       case CoordinationItemKind.promise:
-        if (existing == null) {
-          final draft = await c.createDraftPromise(
+        if (existing == null && _willPublish) {
+          await c.createPromise(
+            beaconId: widget.beaconId,
+            title: title,
+            targetPersonId: target!,
+            body: body,
+            linkedMessageId: _linkedMessageId,
+          );
+        } else if (existing == null) {
+          await c.createDraftPromise(
             beaconId: widget.beaconId,
             title: title,
             body: body,
             linkedMessageId: _linkedMessageId,
             targetPersonId: target,
           );
-          if (_willPublish) {
-            await c.publishDraftPromise(
-              itemId: draft.id,
-              targetPersonId: target!,
-            );
-          }
         } else {
           await c.updateDraftPromise(
             itemId: existing.id,
@@ -241,16 +245,20 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
           }
         }
       case CoordinationItemKind.blocker:
-        if (existing == null) {
-          final draft = await c.createDraftBlocker(
+        if (existing == null && _willPublish) {
+          await c.markBlocker(
             beaconId: widget.beaconId,
             title: title,
             body: body.isEmpty ? null : body,
             targetPersonId: target,
           );
-          if (_willPublish) {
-            await c.publishDraftBlocker(itemId: draft.id);
-          }
+        } else if (existing == null) {
+          await c.createDraftBlocker(
+            beaconId: widget.beaconId,
+            title: title,
+            body: body.isEmpty ? null : body,
+            targetPersonId: target,
+          );
         } else {
           await c.updateDraftBlocker(
             itemId: existing.id,

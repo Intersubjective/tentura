@@ -47,7 +47,7 @@ class BeaconRoomBody extends StatefulWidget {
 class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   final _basicChatKey = GlobalKey<BasicChatBodyState>();
 
-  bool _roomMessageIsCoordinationStateCard(RoomMessage message) =>
+  bool _suppressesRichMessageActions(RoomMessage message) =>
       message.semanticMarker == BeaconRoomSemanticMarker.blocker ||
       message.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
       message.semanticMarker == BeaconRoomSemanticMarker.done;
@@ -314,7 +314,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
   }) {
     final pf = cubit.state.factForRoomMessage(message);
     final showFactInMenu =
-        !isThreadMode && !_roomMessageIsCoordinationStateCard(message);
+        !isThreadMode && !_suppressesRichMessageActions(message);
     final isOwnMessage = message.authorId == viewer.id;
     final viewerReactions = _viewerReactionEmojis(message);
     unawaited(

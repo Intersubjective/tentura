@@ -70,6 +70,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             creatorId: creatorId,
             linkedMessageId: linkedMessageId,
             targetPersonId: targetPersonId,
+            title: title,
+            body: body,
           );
 
           await _db.managers.beaconActivityEvents.create(
@@ -382,6 +384,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             creatorId: actorId,
             linkedMessageId: updated.linkedMessageId,
             targetPersonId: targetPersonId,
+            title: updated.title,
+            body: updated.body,
           );
 
           await _db.managers.beaconActivityEvents.create(
@@ -604,6 +608,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             creatorId: actorId,
             linkedMessageId: updated.linkedMessageId,
             targetPersonId: null,
+            title: updated.title,
+            body: updated.body,
           );
 
           await _db.managers.beaconActivityEvents.create(
@@ -915,6 +921,19 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     );
   }
 
+  /// Body for standalone coordination item creation rows in the room timeline.
+  @visibleForTesting
+  static String roomBodyForCreatedItem({
+    required String title,
+    String body = '',
+  }) {
+    final t = title.trim();
+    final b = body.trim();
+    if (t.isEmpty) return b;
+    if (b.isEmpty) return t;
+    return '$t\n$b';
+  }
+
   /// Room notify row for item creation (linked source or standalone).
   /// Returns the id used as activity `sourceMessageId`.
   Future<String> _emitCreatedRoomNotify({
@@ -922,6 +941,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String beaconId,
     required int kind,
     required String creatorId,
+    required String title,
+    String body = '',
     String? linkedMessageId,
     String? targetPersonId,
   }) async {
@@ -970,11 +991,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     }
 
     final roomMsgId = generateId('R');
+    final standaloneBody = roomBodyForCreatedItem(title: title, body: body);
     await _db.managers.beaconRoomMessages.createReturning((o) => o(
           id: roomMsgId,
           beaconId: beaconId,
           authorId: creatorId,
-          body: const Value(''),
+          body: Value(standaloneBody),
           semanticMarker: const Value(null),
           linkedNextMoveId: const Value(null),
           linkedFactCardId: const Value(null),
