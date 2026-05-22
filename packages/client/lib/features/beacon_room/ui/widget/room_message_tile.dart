@@ -1217,11 +1217,11 @@ class _MessageLifecycleFooter extends StatelessWidget {
       ],
     );
 
-    final content = Align(
-      alignment: Alignment.centerRight,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: _minTapHeight),
-        child: Center(child: row),
+    final content = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: _minTapHeight),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: row,
       ),
     );
 
