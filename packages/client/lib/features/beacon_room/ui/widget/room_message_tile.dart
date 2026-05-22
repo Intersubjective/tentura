@@ -746,6 +746,88 @@ class RoomMessageTile extends StatelessWidget {
                 ? tightTextWidth
                 : namePainter.width;
           }
+
+          final footerGap = tt.iconTextGap / 4;
+          final lifecycleLabelStyle = theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          );
+          final lifecycleTimeStyle = theme.textTheme.labelSmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          );
+          final hasItemTap = linkedCoord != null;
+          var footerMinWidth = 0.0;
+
+          if (showLifecycle && linkedCoord != null) {
+            final promotionDate =
+                message.linkedItemUpdatedAt ?? message.linkedItemCreatedAt;
+            if (promotionDate != null &&
+                lifecycleLabelStyle != null &&
+                lifecycleTimeStyle != null) {
+              footerMinWidth = measureLifecycleTapRowMinWidth(
+                label: _coordKindShortLabel(l10n, linkedCoord.kind),
+                time: _formatMessageTime(promotionDate),
+                labelStyle: lifecycleLabelStyle,
+                timeStyle: lifecycleTimeStyle,
+                itemGap: footerGap,
+                showChevron: hasItemTap,
+                textDirection: textDirection,
+                textScaler: textScaler,
+              );
+            }
+
+            final status = message.linkedItemStatus;
+            final isTerminal = status == CoordinationItemStatus.resolved.value ||
+                status == CoordinationItemStatus.cancelled.value ||
+                status == CoordinationItemStatus.superseded.value;
+            if (isTerminal &&
+                lifecycleLabelStyle != null &&
+                lifecycleTimeStyle != null) {
+              final last = message.lastStatusEvent;
+              final eventKind = last != null
+                  ? CoordinationItemEventKind.fromInt(last.eventKind)
+                  : null;
+              final at = last?.at ??
+                  message.linkedItemResolvedAt ??
+                  message.linkedItemUpdatedAt;
+              if (eventKind != null && at != null) {
+                final resolutionWidth = measureLifecycleTapRowMinWidth(
+                  label: coordinationEventTimelineLabel(
+                    l10n,
+                    linkedCoord.kind,
+                    eventKind,
+                    isPlanStep: linkedCoord.isPlanStep,
+                  ),
+                  time: _formatMessageTime(at),
+                  labelStyle: lifecycleLabelStyle,
+                  timeStyle: lifecycleTimeStyle,
+                  itemGap: footerGap,
+                  showChevron: hasItemTap,
+                  textDirection: textDirection,
+                  textScaler: textScaler,
+                );
+                if (resolutionWidth > footerMinWidth) {
+                  footerMinWidth = resolutionWidth;
+                }
+              }
+            }
+          }
+
+          if (showMarkDone && lifecycleLabelStyle != null) {
+            final markDoneWidth = measureMarkDoneRowMinWidth(
+              label: l10n.beaconRoomSemanticDone,
+              labelStyle: lifecycleLabelStyle.copyWith(color: tt.good),
+              itemGap: footerGap,
+              textDirection: textDirection,
+              textScaler: textScaler,
+            );
+            if (markDoneWidth > footerMinWidth) {
+              footerMinWidth = markDoneWidth;
+            }
+          }
+
+          if (footerMinWidth > tightTextWidth) {
+            tightTextWidth = footerMinWidth;
+          }
         }
 
         final bubbleWidth = measureBubble(
@@ -1199,24 +1281,28 @@ class _MessageLifecycleFooter extends StatelessWidget {
     required VoidCallback? onTap,
   }) {
     final row = Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
       children: [
         TenturaAvatar(profile: profile, size: _avatarSize),
         SizedBox(width: tokens.iconTextGap / 4),
         Icon(icon, size: _iconSize, color: accent),
         SizedBox(width: tokens.iconTextGap / 4),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: textTheme.labelSmall?.copyWith(
-            color: accent,
-            fontWeight: FontWeight.w600,
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.labelSmall?.copyWith(
+              color: accent,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         SizedBox(width: tokens.iconTextGap / 4),
         Text(
           time,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: textTheme.labelSmall?.copyWith(
             color: scheme.onSurfaceVariant,
           ),

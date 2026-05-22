@@ -153,6 +153,30 @@ void main() {
     });
   });
 
+  group('measureLifecycleTapRowMinWidth', () {
+    test('wider than trailing meta reserve alone', () {
+      final metrics = computeTrailingMetaMetrics(
+        dateLine: '12:34',
+        metaStyle: metaStyle,
+        bodyStyle: bodyStyle,
+        trailingGap: 4.0,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+      final rowWidth = measureLifecycleTapRowMinWidth(
+        label: 'Coordination need',
+        time: '12:34',
+        labelStyle: metaStyle.copyWith(fontWeight: FontWeight.w600),
+        timeStyle: metaStyle,
+        itemGap: 4.0,
+        showChevron: true,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+      expect(rowWidth, greaterThan(metrics.reserveWidth));
+    });
+  });
+
   group('measureBubble', () {
     test('text-only hugs tight width plus padding', () {
       const contentMax = 300.0;

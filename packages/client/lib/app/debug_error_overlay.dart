@@ -152,15 +152,13 @@ class DebugErrorPanel extends StatelessWidget {
           const SizedBox(height: 8),
           Expanded(
             child: SingleChildScrollView(
-              child: SelectionArea(
-                child: Text(
-                  errorText,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                    height: 1.25,
-                  ),
+              child: SelectableText(
+                errorText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  height: 1.25,
                 ),
               ),
             ),
