@@ -3,6 +3,38 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
 
 void main() {
+  group('CoordinationItemRepository.roomBodyForCreatedItem', () {
+    test('uses title only when body empty', () {
+      expect(
+        CoordinationItemRepository.roomBodyForCreatedItem(
+          title: 'Blocked on API',
+          body: '',
+        ),
+        'Blocked on API',
+      );
+    });
+
+    test('joins title and body when both present', () {
+      expect(
+        CoordinationItemRepository.roomBodyForCreatedItem(
+          title: 'Ask',
+          body: 'Need the file by Friday',
+        ),
+        'Ask\nNeed the file by Friday',
+      );
+    });
+
+    test('uses body only when title empty', () {
+      expect(
+        CoordinationItemRepository.roomBodyForCreatedItem(
+          title: '  ',
+          body: 'Details only',
+        ),
+        'Details only',
+      );
+    });
+  });
+
   group('CoordinationItemRepository.mergeSystemPayload', () {
     test('preserves existing keys when patching lastStatusEvent', () {
       final merged = CoordinationItemRepository.mergeSystemPayload(

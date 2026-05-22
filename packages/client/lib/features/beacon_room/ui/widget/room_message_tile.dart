@@ -229,13 +229,6 @@ class RoomMessageTile extends StatelessWidget {
         null => l10n.coordinationItemCardTitle,
       };
 
-  static bool _isCoordStateCard(RoomMessage m) {
-    if (_isLinkedCoordSemantic(m)) return false;
-    if (m.isPromotedSourceMessage) return false;
-    return m.semanticMarker == BeaconRoomSemanticMarker.blocker ||
-        m.semanticMarker == BeaconRoomSemanticMarker.needInfo;
-  }
-
   static bool _isLinkedCoordSemantic(RoomMessage m) =>
       m.linkedItemId != null && m.linkedItemId!.trim().isNotEmpty;
 
@@ -243,7 +236,6 @@ class RoomMessageTile extends StatelessWidget {
   static bool _groupBreak(RoomMessage? a, RoomMessage? b) {
     if (a == null || b == null) return true;
     if (a.authorId != b.authorId) return true;
-    if (_isCoordStateCard(a) || _isCoordStateCard(b)) return true;
     if (_isLinkedCoordSemantic(a) || _isLinkedCoordSemantic(b)) return true;
     final diff = b.createdAt.difference(a.createdAt).inMinutes.abs();
     return diff > 5;
@@ -346,7 +338,6 @@ class RoomMessageTile extends StatelessWidget {
     final isMine = message.authorId == myProfile.id;
     final semantic = _semanticShortLabel(l10n, message.semanticMarker);
     final display = _bodyForDisplay(message);
-    final isStateCard = _isCoordStateCard(message);
     final linkedCoord = message.linkedCoordinationItem;
     final linkedEv = message.linkedEventKind;
     final linkedEventKind = linkedEv != null && linkedCoord != null
@@ -564,7 +555,7 @@ class RoomMessageTile extends StatelessWidget {
             },
           ),
         if (semantic.isNotEmpty &&
-            !isStateCard &&
+            !showLifecycle &&
             message.semanticMarker != BeaconRoomSemanticMarker.done)
           Padding(
             padding: EdgeInsets.only(top: tt.iconTextGap / 2),
@@ -697,65 +688,6 @@ class RoomMessageTile extends StatelessWidget {
           : () => onActionsPressed!(message),
       child: inner,
     );
-
-    if (isStateCard) {
-      final stateBody = BlocBuilder<ProfileCubit, ProfileState>(
-        buildWhen: (p, c) => p.profile.id != c.profile.id,
-        builder: (context, state) {
-          final displayName = SelfUserHighlight.displayName(
-            l10n,
-            message.author,
-            state.profile.id,
-          );
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                semantic.isEmpty
-                    ? displayName
-                    : l10n.beaconRoomStateCardInlineHeader(
-                        displayName,
-                        semantic,
-                      ),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              coreColumn(showNameHeader: false),
-            ],
-          );
-        },
-      );
-
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-          tt.screenHPadding,
-          topPad,
-          tt.screenHPadding,
-          bottomPad,
-        ),
-        child: wrapActions(
-          LayoutBuilder(
-            builder: (context, c) {
-              final cap = tt.contentMaxWidth ?? c.maxWidth;
-              return Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: cap),
-                  child: bubbleShell(
-                    background: scheme.tertiaryContainer.withValues(
-                      alpha: 0.45,
-                    ),
-                    borderColor: scheme.tertiary,
-                    child: stateBody,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      );
-    }
 
     final bubbleBg = isMine ? tt.info.withValues(alpha: 0.18) : tt.surface;
     final bubbleBorder = isMine ? tt.skyBorder : tt.borderSubtle;

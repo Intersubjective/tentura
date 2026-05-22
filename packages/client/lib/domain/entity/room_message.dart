@@ -86,14 +86,23 @@ abstract class RoomMessage with _$RoomMessage {
     }
   }
 
-  /// Promoted source message (item linked on this row, not a timeline notify).
+  /// Promoted source or standalone creation row (not a timeline notify).
   bool get isPromotedSourceMessage {
-    final lid = linkedItemId;
-    if (lid == null || lid.trim().isEmpty) return false;
-    final ev = linkedEventKind;
-    if (ev == CoordinationItemEventKind.created.value) return true;
-    final anchor = linkedItemLinkedMessageId?.trim();
-    return anchor != null && anchor.isNotEmpty && anchor == id;
+    final lid = linkedItemId?.trim();
+    if (lid == null || lid.isEmpty) return false;
+
+    final src = sourceMessageId?.trim();
+    if (src != null && src.isNotEmpty && id != src) return false;
+
+    final item = linkedCoordinationItem;
+    if (item == null) return false;
+
+    final itemAnchor = item.linkedMessageId?.trim();
+    if (itemAnchor != null && itemAnchor.isNotEmpty) {
+      return id == itemAnchor;
+    }
+
+    return linkedEventKind == CoordinationItemEventKind.created.value;
   }
 
   /// Who set [semanticMarker] (e.g. mark-done); from `system_payload.semanticActorId`.

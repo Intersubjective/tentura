@@ -1174,30 +1174,34 @@ Decline / remove
 
 This preserves minimalism and avoids turning the People tab into a social judgment surface.
 
-## Blocker cards
+## Coordination items in the Room stream
 
-When a blocker is created, insert a small state card into the Room stream.
+Blockers, asks, and promises are `coordination_item` rows. Creating them from the Items tab or by promoting a chat message uses the same server path (`create` / `_emitCreatedRoomNotify`).
+
+**Room presentation:**
 
 ```text
-BLOCKER
-Waiting for cat weight
-Opened by Julia
-Affected: Sergei
-[Reply] [Resolve]
+Promote a chat message:
+  - Source message: normal bubble (user text) + lifecycle footer (Ask / Blocker / …)
+  - Separate timeline row: centered promote pin (“X pinned Ask”) — tap scrolls to source
+
+Create from Items tab (no linked message):
+  - One normal bubble with item title/body as message text + lifecycle footer
+
+Status changes (resolve, accept, …):
+  - Lifecycle footer on the anchor message; timeline notify row when anchored
 ```
+
+Legacy rows with `semantic_marker = blocker` and no `linked_item_id` render as normal bubbles with a semantic label (not a centered state card). Migrated rows (migration 0065) keep the marker but use the lifecycle footer; the duplicate label is hidden when the footer is shown.
 
 Interactions:
 
 ```text
-Reply:
-  composer links message to linkedBlockerId
-
-Resolve:
-  closes blocker after confirmation
-  asks optional source message if not resolving from a message
+Item thread: dedicated discussion per coordination_item
+Resolve / cancel: V2 mutations + room timeline events
 ```
 
-Blocker cards are Room-private by default.
+Coordination items are Room-private by default (Items tab + room for admitted members).
 
 ## Fact cards in Room
 
