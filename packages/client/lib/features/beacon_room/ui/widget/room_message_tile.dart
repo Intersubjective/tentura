@@ -871,7 +871,8 @@ class RoomMessageTile extends StatelessWidget {
               for (final entry in message.reactionCounts.entries)
                 entry.key: message.reactors[entry.key]?.length ?? 0,
             };
-            final reactionRowWidth = measureReactionTimeRowMinWidth(
+            tightTextWidth = ensureHugWidthFitsReactionFooter(
+              contentWidth: tightTextWidth ?? 0,
               reactionEntries: _sortedReactionEntries(message),
               reactorCountsByEmoji: reactorCountsByEmoji,
               dateLine: dateLine,
@@ -883,9 +884,6 @@ class RoomMessageTile extends StatelessWidget {
               textDirection: textDirection,
               textScaler: textScaler,
             );
-            if (reactionRowWidth > tightTextWidth) {
-              tightTextWidth = reactionRowWidth;
-            }
           }
         }
 
@@ -1301,49 +1299,54 @@ class _MessageLifecycleFooter extends StatelessWidget {
                     alignment: WrapAlignment.start,
                     children: [
                       for (final entry in reactionEntries)
-                        InkWell(
+                        UnconstrainedBox(
                           key: ValueKey('${message.id}-re-${entry.key}'),
-                          onTap: () => unawaited(
-                            onToggleReaction(message.id, entry.key),
-                          ),
-                          onLongPress:
-                              (message.reactors[entry.key]?.isNotEmpty ??
-                                  false)
-                              ? () => unawaited(
-                                  showReactionSendersSheet(
-                                    context,
-                                    reactors: message.reactors,
-                                    reactionCounts: message.reactionCounts,
-                                    initialEmoji: entry.key,
-                                  ),
-                                )
-                              : null,
-                          borderRadius: BorderRadius.circular(18),
-                          child: Padding(
-                            padding: kPaddingSmallH.add(
-                              const EdgeInsets.symmetric(vertical: 6),
+                          constrainedAxis: Axis.vertical,
+                          alignment: Alignment.centerLeft,
+                          child: InkWell(
+                            onTap: () => unawaited(
+                              onToggleReaction(message.id, entry.key),
                             ),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: viewerReactions.contains(entry.key)
-                                    ? scheme.primaryContainer
-                                    : scheme.surfaceContainerHighest
-                                          .withValues(alpha: 0.75),
-                                borderRadius: BorderRadius.circular(999),
-                                border: viewerReactions.contains(entry.key)
-                                    ? Border.all(color: scheme.primary)
-                                    : null,
+                            onLongPress:
+                                (message.reactors[entry.key]?.isNotEmpty ??
+                                    false)
+                                ? () => unawaited(
+                                    showReactionSendersSheet(
+                                      context,
+                                      reactors: message.reactors,
+                                      reactionCounts: message.reactionCounts,
+                                      initialEmoji: entry.key,
+                                    ),
+                                  )
+                                : null,
+                            borderRadius: BorderRadius.circular(18),
+                            child: Padding(
+                              padding: kPaddingSmallH.add(
+                                const EdgeInsets.symmetric(vertical: 6),
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: kSpacingSmall,
-                                  vertical: 2,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: viewerReactions.contains(entry.key)
+                                      ? scheme.primaryContainer
+                                      : scheme.surfaceContainerHighest
+                                            .withValues(alpha: 0.75),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: viewerReactions.contains(entry.key)
+                                      ? Border.all(color: scheme.primary)
+                                      : null,
                                 ),
-                                child: _RoomReactionChipPill(
-                                  emoji: entry.key,
-                                  count: entry.value,
-                                  reactors:
-                                      message.reactors[entry.key] ?? const [],
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: kSpacingSmall,
+                                    vertical: 2,
+                                  ),
+                                  child: _RoomReactionChipPill(
+                                    emoji: entry.key,
+                                    count: entry.value,
+                                    reactors:
+                                        message.reactors[entry.key] ??
+                                        const [],
+                                  ),
                                 ),
                               ),
                             ),

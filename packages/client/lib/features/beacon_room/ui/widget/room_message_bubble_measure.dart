@@ -12,8 +12,14 @@ const double kReactionChipHorizontalChrome = kSpacingSmall * 4;
 /// Selected chip outline ([Border.all] on the pill) is not part of chrome padding.
 const double kReactionChipBorderAllowance = 2;
 
+/// Subpixel / web emoji slack so measured hug width does not squeeze chips.
+const double kReactionChipMeasurementSlack = 4;
+
 /// Gap between emoji and count / avatar strip inside a reaction chip.
 const double kReactionChipEmojiGap = 4;
+
+/// Ring paint can extend past the stack width ([clipBehavior: Clip.none]).
+const double kReactorAvatarStripRingAllowance = 4;
 
 /// Reactor avatar strip layout (mirrors [_ReactorAvatarStrip]).
 const double kReactorAvatarStripSize = 16;
@@ -34,7 +40,9 @@ double reactorAvatarStripWidth(int reactorCount) {
       ? kReactorAvatarStripMaxVisible.toInt()
       : reactorCount;
   final extraSlots = overflow > 0 ? 1 : 0;
-  return kReactorAvatarStripSize + (visible + extraSlots - 1) * step;
+  return kReactorAvatarStripSize +
+      (visible + extraSlots - 1) * step +
+      kReactorAvatarStripRingAllowance;
 }
 
 /// Minimum width of one reaction chip (emoji + count or avatar strip + chrome).
@@ -71,7 +79,8 @@ double measureReactionChipWidth({
       kReactionChipBorderAllowance +
       emojiPainter.width +
       kReactionChipEmojiGap +
-      trailingWidth;
+      trailingWidth +
+      kReactionChipMeasurementSlack;
 }
 
 /// Minimum width for a single-line reactions + timestamp footer row.
@@ -112,6 +121,79 @@ double measureReactionTimeRowMinWidth({
       maxLines: 1,
     )..layout();
     width += trailingGap + timePainter.width;
+  }
+
+  return width;
+}
+
+/// Ensures hugged bubble content width fits reaction chips beside the timestamp.
+///
+/// When body text is wider than the reaction row, the footer still uses
+/// `Expanded(Wrap)` + timestamp, so chips must not be squeezed into the
+/// remaining band.
+double ensureHugWidthFitsReactionFooter({
+  required double contentWidth,
+  required List<MapEntry<String, int>> reactionEntries,
+  required Map<String, int> reactorCountsByEmoji,
+  required String dateLine,
+  required TextStyle emojiStyle,
+  required TextStyle countStyle,
+  required TextStyle timeStyle,
+  required double chipSpacing,
+  required double trailingGap,
+  required TextDirection textDirection,
+  required TextScaler textScaler,
+}) {
+  if (reactionEntries.isEmpty) {
+    return contentWidth;
+  }
+
+  final footerRowWidth = measureReactionTimeRowMinWidth(
+    reactionEntries: reactionEntries,
+    reactorCountsByEmoji: reactorCountsByEmoji,
+    dateLine: dateLine,
+    emojiStyle: emojiStyle,
+    countStyle: countStyle,
+    timeStyle: timeStyle,
+    chipSpacing: chipSpacing,
+    trailingGap: trailingGap,
+    textDirection: textDirection,
+    textScaler: textScaler,
+  );
+
+  var width = contentWidth > footerRowWidth ? contentWidth : footerRowWidth;
+
+  if (dateLine.isEmpty) {
+    return width;
+  }
+
+  final timePainter = TextPainter(
+    text: TextSpan(text: dateLine, style: timeStyle),
+    textDirection: textDirection,
+    textScaler: textScaler,
+    maxLines: 1,
+  )..layout();
+  final timeBand = trailingGap + timePainter.width;
+
+  var chipsWidth = 0.0;
+  for (var i = 0; i < reactionEntries.length; i++) {
+    final entry = reactionEntries[i];
+    if (i > 0) {
+      chipsWidth += chipSpacing;
+    }
+    chipsWidth += measureReactionChipWidth(
+      emoji: entry.key,
+      count: entry.value,
+      reactorCount: reactorCountsByEmoji[entry.key] ?? 0,
+      emojiStyle: emojiStyle,
+      countStyle: countStyle,
+      textDirection: textDirection,
+      textScaler: textScaler,
+    );
+  }
+
+  if (width - timeBand < chipsWidth) {
+    width = chipsWidth + timeBand;
   }
 
   return width;
