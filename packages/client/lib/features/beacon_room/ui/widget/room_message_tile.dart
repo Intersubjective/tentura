@@ -27,7 +27,6 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_event_copy.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
-import 'package:tentura/features/coordination_item/ui/widget/item_card_in_room.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -178,11 +177,9 @@ class RoomMessageTile extends StatelessWidget {
   static bool showMarkDoneFooter(RoomMessage m) =>
       m.semanticMarker == BeaconRoomSemanticMarker.done;
 
-  static bool showLifecycleFooter(RoomMessage m) =>
-      m.isPromotedSourceMessage && m.linkedCoordinationItem != null;
-
-  static bool showItemCardInBubble(RoomMessage m) {
-    if (showLifecycleFooter(m)) return false;
+  /// Bottom-row coordination indicator (replaces inline coordination plaques).
+  @visibleForTesting
+  static bool showCoordinationItemFooter(RoomMessage m) {
     if (showMarkDoneFooter(m)) return false;
     if (isPlanAnnounceBar(m)) return false;
     if (isCoordinationTimelineNotifyRow(m)) return false;
@@ -194,6 +191,10 @@ class RoomMessageTile extends StatelessWidget {
     if (ev == null) return false;
     return m.linkedCoordinationItem != null;
   }
+
+  /// @deprecated Use [showCoordinationItemFooter].
+  static bool showLifecycleFooter(RoomMessage m) =>
+      showCoordinationItemFooter(m) && m.isPromotedSourceMessage;
 
   static Profile? profileForUserId(
     String userId,
@@ -339,9 +340,8 @@ class RoomMessageTile extends StatelessWidget {
 
     final topPad = (isGroupStart ? tt.sectionGap : tt.rowGap / 2) / 2;
     final bottomPad = (isGroupEnd ? tt.sectionGap : tt.rowGap / 2) / 2;
-    final showInlineItemCard = showItemCardInBubble(message);
-    final showLifecycle = !hideCoordinationLifecycleFooter &&
-        showLifecycleFooter(message);
+    final showCoordinationFooter = !hideCoordinationLifecycleFooter &&
+        showCoordinationItemFooter(message);
     final showMarkDone = showMarkDoneFooter(message);
 
     if (isFactPinNotification(message)) {
@@ -493,8 +493,7 @@ class RoomMessageTile extends StatelessWidget {
     final hasMediaOrPoll =
         imageAttachments.isNotEmpty ||
         fileAttachments.isNotEmpty ||
-        message.linkedPollingId != null ||
-        showInlineItemCard;
+        message.linkedPollingId != null;
     final bodyStyle = ShowMoreText.buildTextStyle(context);
     final metaStyle = theme.textTheme.labelSmall ?? const TextStyle();
     final trailingGap = tt.iconTextGap / 2;
@@ -520,7 +519,8 @@ class RoomMessageTile extends StatelessWidget {
       scheme: scheme,
       textTheme: theme.textTheme,
       l10n: l10n,
-      showLifecycle: showLifecycle,
+      showCoordinationFooter: showCoordinationFooter,
+      linkedEventKind: linkedEventKind,
       showMarkDone: showMarkDone,
       onToggleReaction: onToggleReaction,
       onOpenItem: linkedCoord == null
@@ -558,7 +558,7 @@ class RoomMessageTile extends StatelessWidget {
             },
           ),
         if (semantic.isNotEmpty &&
-            !showLifecycle &&
+            !showCoordinationFooter &&
             message.semanticMarker != BeaconRoomSemanticMarker.done)
           Padding(
             padding: EdgeInsets.only(top: tt.iconTextGap / 2),
@@ -568,21 +568,6 @@ class RoomMessageTile extends StatelessWidget {
               style: theme.textTheme.labelMedium?.copyWith(
                 color: scheme.tertiary,
                 fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        if (showInlineItemCard &&
-            linkedCoord != null &&
-            linkedEventKind != null)
-          Padding(
-            padding: EdgeInsets.only(top: tt.rowGap / 2),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ItemCardInRoom(
-                item: linkedCoord,
-                eventKind: linkedEventKind,
-                timelineAuthorId: message.authorId,
-                onTap: _coordinationItemTap(context, linkedCoord),
               ),
             ),
           ),
@@ -712,27 +697,51 @@ class RoomMessageTile extends StatelessWidget {
       ),
     );
 
+    final hasReactions = message.reactionCounts.isNotEmpty;
+    final hasFooterContent =
+        (showCoordinationFooter && linkedCoord != null) || showMarkDone;
+    final shouldHug = shouldHugBubbleWidth(
+      hasMediaOrPoll: hasMediaOrPoll,
+      hasDisplayText: display.isNotEmpty,
+      hasReactions: hasReactions,
+      hasFooterContent: hasFooterContent,
+    );
+
     final measuredBubble = LayoutBuilder(
       builder: (context, constraints) {
-        final contentCap = useInlineMeta
+        final contentCap = shouldHug
             ? constraints.maxWidth * kRoomMessageBubbleMaxWidthFraction
             : constraints.maxWidth;
         final cardPaddingH = tt.cardPadding.horizontal;
 
         double? tightTextWidth;
-        if (useInlineMeta && trailingMetrics != null) {
-          final bodySpan = buildRoomMessageAnnotatedBodySpan(
-            data: display,
-            textStyle: bodyStyle,
-            annotations: mentionAnnotations,
-          );
-          tightTextWidth = measureTightBodyWidthWithTrailingReserve(
-            bodySpan: bodySpan,
-            trailingReserveWidth: trailingMetrics.reserveWidth,
-            maxWidth: contentCap,
-            textDirection: textDirection,
-            textScaler: textScaler,
-          );
+        if (shouldHug) {
+          if (display.isNotEmpty) {
+            final bodySpan = buildRoomMessageAnnotatedBodySpan(
+              data: display,
+              textStyle: bodyStyle,
+              annotations: mentionAnnotations,
+            );
+            if (useInlineMeta && trailingMetrics != null) {
+              tightTextWidth = measureTightBodyWidthWithTrailingReserve(
+                bodySpan: bodySpan,
+                trailingReserveWidth: trailingMetrics.reserveWidth,
+                maxWidth: contentCap,
+                textDirection: textDirection,
+                textScaler: textScaler,
+              );
+            } else {
+              tightTextWidth = measureTightTextWidth(
+                span: bodySpan,
+                maxWidth: contentCap,
+                textDirection: textDirection,
+                textScaler: textScaler,
+              );
+            }
+          } else {
+            tightTextWidth = 0;
+          }
+
           if (!isMine && isGroupStart) {
             final namePainter = TextPainter(
               text: TextSpan(
@@ -742,9 +751,9 @@ class RoomMessageTile extends StatelessWidget {
               textDirection: textDirection,
               textScaler: textScaler,
             )..layout();
-            tightTextWidth = tightTextWidth > namePainter.width
-                ? tightTextWidth
-                : namePainter.width;
+            if (namePainter.width > tightTextWidth) {
+              tightTextWidth = namePainter.width;
+            }
           }
 
           final footerGap = tt.iconTextGap / 4;
@@ -757,15 +766,36 @@ class RoomMessageTile extends StatelessWidget {
           final hasItemTap = linkedCoord != null;
           var footerMinWidth = 0.0;
 
-          if (showLifecycle && linkedCoord != null) {
+          if (showCoordinationFooter && linkedCoord != null) {
             final promotionDate =
                 message.linkedItemUpdatedAt ?? message.linkedItemCreatedAt;
-            if (promotionDate != null &&
+            if (message.isPromotedSourceMessage &&
+                promotionDate != null &&
                 lifecycleLabelStyle != null &&
                 lifecycleTimeStyle != null) {
               footerMinWidth = measureLifecycleTapRowMinWidth(
                 label: _coordKindShortLabel(l10n, linkedCoord.kind),
                 time: _formatMessageTime(promotionDate),
+                labelStyle: lifecycleLabelStyle,
+                timeStyle: lifecycleTimeStyle,
+                itemGap: footerGap,
+                showChevron: hasItemTap,
+                textDirection: textDirection,
+                textScaler: textScaler,
+              );
+            } else if (!message.isPromotedSourceMessage &&
+                linkedEventKind != null &&
+                lifecycleLabelStyle != null &&
+                lifecycleTimeStyle != null) {
+              final at = promotionDate ?? message.createdAt;
+              footerMinWidth = measureLifecycleTapRowMinWidth(
+                label: coordinationEventTimelineLabel(
+                  l10n,
+                  linkedCoord.kind,
+                  linkedEventKind,
+                  isPlanStep: linkedCoord.isPlanStep,
+                ),
+                time: _formatMessageTime(at),
                 labelStyle: lifecycleLabelStyle,
                 timeStyle: lifecycleTimeStyle,
                 itemGap: footerGap,
@@ -779,7 +809,8 @@ class RoomMessageTile extends StatelessWidget {
             final isTerminal = status == CoordinationItemStatus.resolved.value ||
                 status == CoordinationItemStatus.cancelled.value ||
                 status == CoordinationItemStatus.superseded.value;
-            if (isTerminal &&
+            if (message.isPromotedSourceMessage &&
+                isTerminal &&
                 lifecycleLabelStyle != null &&
                 lifecycleTimeStyle != null) {
               final last = message.lastStatusEvent;
@@ -828,13 +859,46 @@ class RoomMessageTile extends StatelessWidget {
           if (footerMinWidth > tightTextWidth) {
             tightTextWidth = footerMinWidth;
           }
+
+          if (hasReactions) {
+            final emojiStyle =
+                theme.textTheme.titleMedium?.copyWith(height: 1) ??
+                const TextStyle();
+            final countStyle =
+                theme.textTheme.labelMedium?.copyWith(height: 1) ??
+                const TextStyle();
+            final reactorCountsByEmoji = {
+              for (final entry in message.reactionCounts.entries)
+                entry.key: message.reactors[entry.key]?.length ?? 0,
+            };
+            final reactionRowWidth = measureReactionTimeRowMinWidth(
+              reactionEntries: _sortedReactionEntries(message),
+              reactorCountsByEmoji: reactorCountsByEmoji,
+              dateLine: dateLine,
+              emojiStyle: emojiStyle,
+              countStyle: countStyle,
+              timeStyle: metaStyle,
+              chipSpacing: kSpacingSmall,
+              trailingGap: trailingGap,
+              textDirection: textDirection,
+              textScaler: textScaler,
+            );
+            if (reactionRowWidth > tightTextWidth) {
+              tightTextWidth = reactionRowWidth;
+            }
+          }
+        }
+
+        var hugContentCap = contentCap;
+        if (shouldHug && tightTextWidth != null && tightTextWidth > hugContentCap) {
+          hugContentCap = tightTextWidth.clamp(0, constraints.maxWidth);
         }
 
         final bubbleWidth = measureBubble(
-          contentMaxWidth: contentCap,
+          contentMaxWidth: hugContentCap,
           cardPaddingH: cardPaddingH,
-          tightTextWidth: tightTextWidth,
-          hasMediaOrPoll: hasMediaOrPoll || !useInlineMeta,
+          tightTextWidth: shouldHug ? tightTextWidth : null,
+          hasMediaOrPoll: hasMediaOrPoll,
         ).innerWidth;
 
         return Align(
@@ -1030,7 +1094,8 @@ class _MessageLifecycleFooter extends StatelessWidget {
     required this.scheme,
     required this.textTheme,
     required this.l10n,
-    required this.showLifecycle,
+    required this.showCoordinationFooter,
+    required this.linkedEventKind,
     required this.showMarkDone,
     required this.onToggleReaction,
     required this.onOpenItem,
@@ -1041,12 +1106,13 @@ class _MessageLifecycleFooter extends StatelessWidget {
   final RoomMessage message;
   final List<BeaconParticipant> participants;
   final CoordinationItem? linkedCoord;
+  final CoordinationItemEventKind? linkedEventKind;
   final Set<String> viewerReactions;
   final TenturaTokens tokens;
   final ColorScheme scheme;
   final TextTheme textTheme;
   final L10n l10n;
-  final bool showLifecycle;
+  final bool showCoordinationFooter;
   final bool showMarkDone;
   final Future<void> Function(String messageId, String emoji) onToggleReaction;
   final VoidCallback? onOpenItem;
@@ -1071,7 +1137,8 @@ class _MessageLifecycleFooter extends StatelessWidget {
     final promotionDate = message.linkedItemUpdatedAt ?? message.linkedItemCreatedAt;
 
     Widget? resolutionRow;
-    if (showLifecycle &&
+    if (showCoordinationFooter &&
+        message.isPromotedSourceMessage &&
         linkedCoord != null &&
         _isTerminalStatus(message.linkedItemStatus)) {
       final last = message.lastStatusEvent;
@@ -1108,7 +1175,10 @@ class _MessageLifecycleFooter extends StatelessWidget {
     }
 
     Widget? promotionRow;
-    if (showLifecycle && linkedCoord != null && promotionDate != null) {
+    if (showCoordinationFooter &&
+        message.isPromotedSourceMessage &&
+        linkedCoord != null &&
+        promotionDate != null) {
       final kind = linkedCoord!.kind;
       promotionRow = _lifecycleTapRow(
         context: context,
@@ -1129,6 +1199,43 @@ class _MessageLifecycleFooter extends StatelessWidget {
         ),
         label: RoomMessageTile._coordKindShortLabel(l10n, kind),
         time: RoomMessageTile._formatMessageTime(promotionDate),
+        onTap: onOpenItem,
+      );
+    }
+
+    Widget? eventRow;
+    if (showCoordinationFooter &&
+        !message.isPromotedSourceMessage &&
+        linkedCoord != null &&
+        linkedEventKind != null) {
+      final at =
+          message.linkedItemUpdatedAt ??
+          message.linkedItemCreatedAt ??
+          message.createdAt;
+      eventRow = _lifecycleTapRow(
+        context: context,
+        profile: RoomMessageTile.profileForUserId(
+              message.authorId,
+              participants,
+            ) ??
+            message.author,
+        icon: coordinationEventTimelineIcon(
+          linkedCoord!.kind,
+          linkedEventKind!,
+          isPlanStep: linkedCoord!.isPlanStep,
+        ),
+        accent: coordinationEventTimelineColor(
+          tokens,
+          linkedCoord!.kind,
+          linkedEventKind!,
+        ),
+        label: coordinationEventTimelineLabel(
+          l10n,
+          linkedCoord!.kind,
+          linkedEventKind!,
+          isPlanStep: linkedCoord!.isPlanStep,
+        ),
+        time: RoomMessageTile._formatMessageTime(at),
         onTap: onOpenItem,
       );
     }
@@ -1173,6 +1280,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
     if (!showReactionTimeRow &&
         promotionRow == null &&
         resolutionRow == null &&
+        eventRow == null &&
         markDoneRow == null) {
       return const SizedBox.shrink();
     }
@@ -1262,6 +1370,10 @@ class _MessageLifecycleFooter extends StatelessWidget {
             SizedBox(height: tokens.rowGap / 4),
             resolutionRow,
           ],
+          if (eventRow != null) ...[
+            SizedBox(height: tokens.rowGap / 4),
+            eventRow,
+          ],
           if (markDoneRow != null) ...[
             SizedBox(height: tokens.rowGap / 4),
             markDoneRow,
@@ -1281,7 +1393,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
     required VoidCallback? onTap,
   }) {
     final row = Row(
-      mainAxisSize: MainAxisSize.max,
+      mainAxisSize: MainAxisSize.min,
       children: [
         TenturaAvatar(profile: profile, size: _avatarSize),
         SizedBox(width: tokens.iconTextGap / 4),

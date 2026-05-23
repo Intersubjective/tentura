@@ -143,16 +143,31 @@ void main() {
       );
     });
 
-    testWidgets('short_text_with_reactions_no_inline_meta', (tester) async {
+    testWidgets('short_text_with_reactions_hugs_width', (tester) async {
       await pumpRoomMessageGolden(
         tester,
-        goldenName: 'short_text_with_reactions_no_inline_meta',
+        goldenName: 'short_text_with_reactions_hugs_width',
         message: textMessage(
           id: 'm4',
           authorId: 'other',
           author: other,
           body: 'Nice work',
           reactionCounts: const {'👍': 2},
+        ),
+        myProfile: me,
+      );
+    });
+
+    testWidgets('short_text_mine_with_reaction', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'short_text_mine_with_reaction',
+        message: textMessage(
+          id: 'm6',
+          authorId: 'me',
+          author: me,
+          body: 'Thanks!',
+          reactionCounts: const {'👍': 1},
         ),
         myProfile: me,
       );

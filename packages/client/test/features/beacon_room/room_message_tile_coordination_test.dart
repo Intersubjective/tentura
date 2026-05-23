@@ -73,6 +73,7 @@ void main() {
         linkedItemCreatorId: 'u1',
       );
       expect(m.isPromotedSourceMessage, isTrue);
+      expect(RoomMessageTile.showCoordinationItemFooter(m), isTrue);
       expect(RoomMessageTile.showLifecycleFooter(m), isTrue);
     });
 
@@ -116,6 +117,7 @@ void main() {
         linkedItemCreatorId: 'u1',
       );
       expect(m.isPromotedSourceMessage, isFalse);
+      expect(RoomMessageTile.showCoordinationItemFooter(m), isFalse);
       expect(RoomMessageTile.showLifecycleFooter(m), isFalse);
     });
 
@@ -128,7 +130,23 @@ void main() {
         linkedItemCreatorId: 'u1',
       );
       expect(m.isPromotedSourceMessage, isTrue);
+      expect(RoomMessageTile.showCoordinationItemFooter(m), isTrue);
       expect(RoomMessageTile.showLifecycleFooter(m), isTrue);
+    });
+
+    test('non-promoted linked item uses coordination footer not inline card', () {
+      final m = _msg(
+        id: 'notify',
+        linkedItemId: 'item1',
+        linkedEventKind: CoordinationItemEventKind.created.value,
+        linkedItemLinkedMessageId: 'source',
+        linkedItemKind: CoordinationItemKind.ask.value,
+        linkedItemCreatorId: 'u1',
+      );
+      expect(m.isPromotedSourceMessage, isFalse);
+      expect(RoomMessageTile.isCoordinationTimelineNotifyRow(m), isFalse);
+      expect(RoomMessageTile.showCoordinationItemFooter(m), isTrue);
+      expect(RoomMessageTile.showLifecycleFooter(m), isFalse);
     });
 
     test('orphan linkedItemId without item snapshot is not promoted source', () {

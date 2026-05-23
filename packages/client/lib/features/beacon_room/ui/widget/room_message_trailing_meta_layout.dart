@@ -27,6 +27,15 @@ bool shouldUseInlineTrailingMeta({
 }) =>
     hasDisplayText && reactionCounts.isEmpty;
 
+bool shouldHugBubbleWidth({
+  required bool hasMediaOrPoll,
+  required bool hasDisplayText,
+  required bool hasReactions,
+  required bool hasFooterContent,
+}) =>
+    !hasMediaOrPoll &&
+    (hasDisplayText || hasReactions || hasFooterContent);
+
 TrailingMetaMetrics computeTrailingMetaMetrics({
   required String dateLine,
   required TextStyle metaStyle,

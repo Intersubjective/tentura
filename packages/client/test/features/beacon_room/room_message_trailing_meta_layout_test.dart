@@ -45,6 +45,44 @@ void main() {
     });
   });
 
+  group('shouldHugBubbleWidth', () {
+    test('true for text with reactions when no media', () {
+      expect(
+        shouldHugBubbleWidth(
+          hasMediaOrPoll: false,
+          hasDisplayText: true,
+          hasReactions: true,
+          hasFooterContent: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('false when media present', () {
+      expect(
+        shouldHugBubbleWidth(
+          hasMediaOrPoll: true,
+          hasDisplayText: true,
+          hasReactions: true,
+          hasFooterContent: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('true for reactions-only footer', () {
+      expect(
+        shouldHugBubbleWidth(
+          hasMediaOrPoll: false,
+          hasDisplayText: false,
+          hasReactions: true,
+          hasFooterContent: false,
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('computeTrailingMetaMetrics', () {
     test('reserve dimensions are positive', () {
       final m = computeTrailingMetaMetrics(
@@ -150,6 +188,58 @@ void main() {
 
       expect(width, greaterThan(0));
       expect(width, lessThanOrEqualTo(maxWidth + 1));
+    });
+  });
+
+  group('measureReactionTimeRowMinWidth', () {
+    test('single chip plus time is wider than bare text', () {
+      const emojiStyle = TextStyle(fontSize: 16, height: 1);
+      const countStyle = TextStyle(fontSize: 14, height: 1);
+      const display = 'Hi';
+
+      final bodySpan = buildRoomMessageAnnotatedBodySpan(
+        data: display,
+        textStyle: bodyStyle,
+        annotations: null,
+      );
+      final bodyWidth = measureTightTextWidth(
+        span: bodySpan,
+        maxWidth: 400,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+
+      final rowWidth = measureReactionTimeRowMinWidth(
+        reactionEntries: const [MapEntry('👍', 2)],
+        reactorCountsByEmoji: const {},
+        dateLine: '12:34',
+        emojiStyle: emojiStyle,
+        countStyle: countStyle,
+        timeStyle: metaStyle,
+        chipSpacing: 8,
+        trailingGap: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+
+      expect(rowWidth, greaterThan(bodyWidth));
+    });
+
+    test('chip width includes border allowance', () {
+      const emojiStyle = TextStyle(fontSize: 16, height: 1);
+      const countStyle = TextStyle(fontSize: 14, height: 1);
+
+      final withBorder = measureReactionChipWidth(
+        emoji: '👍',
+        count: 1,
+        reactorCount: 0,
+        emojiStyle: emojiStyle,
+        countStyle: countStyle,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+
+      expect(withBorder, greaterThan(kReactionChipHorizontalChrome));
     });
   });
 
