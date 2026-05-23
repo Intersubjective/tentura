@@ -16,41 +16,22 @@ env:
   BUILDER_IMAGE: ghcr.io/intersubjective/tentura-builder
 
 jobs:
-  # Parallel test + web + server; fail-fast cancels sibling matrix legs when one fails.
-  ci:
-    name: ${{ matrix.task }}
-    if: github.event_name == 'push'
+  test:
     runs-on: ubuntu-latest
-    environment: ${{ matrix.task == 'build-web' && 'dev' || '' }}
-    strategy:
-      fail-fast: true
-      matrix:
-        task: [test, build-web, build-server]
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
 
       - name: Cache pub dependencies
-        if: matrix.task == 'test' || matrix.task == 'build-web'
         uses: actions/cache@v5
         with:
           path: .pub-cache
           key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
-      - name: Determine versions
-        if: matrix.task == 'build-web' || matrix.task == 'build-server'
-        id: versions
-        run: |
-          set -euo pipefail
-          VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
-          VERSION_CLEAN=${VERSION_LINE//+/-}
-          VERSION_CLEAN=${VERSION_CLEAN//\//-}
-          echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
-          CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
-          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
-
       - name: Run tests in builder container
-        if: matrix.task == 'test'
         run: |
           set -euo pipefail
           docker run --rm \
@@ -66,9 +47,38 @@ jobs:
               cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && dart run custom_lint && flutter test --dart-define=ENV=test
             '
 
+  build-web:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    environment: dev
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
+      - name: Determine versions
+        id: versions
+        run: |
+          set -euo pipefail
+          VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
+          VERSION_CLEAN=${VERSION_LINE//+/-}
+          VERSION_CLEAN=${VERSION_CLEAN//\//-}
+          echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
+          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: .pub-cache
+          key: pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: pub-
+
       # Multiline .env blob (FB_* dart-defines) — same format as packages/client/env/dev-web.env
       - name: Write client dart-define file
-        if: matrix.task == 'build-web'
         env:
           CLIENT_DART_DEFINES: ${{ secrets.CLIENT_DART_DEFINES }}
         run: |
@@ -82,7 +92,6 @@ jobs:
           echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
 
       - name: Build dev web in builder container
-        if: matrix.task == 'build-web'
         env:
           IMAGE_SERVER: ${{ vars.IMAGE_SERVER }}
           SERVER_NAME: ${{ vars.SERVER_NAME }}
@@ -124,7 +133,6 @@ jobs:
             "
 
       - name: Upload web archive artifacts
-        if: matrix.task == 'build-web'
         uses: actions/upload-artifact@v6
         with:
           name: web-archives
@@ -132,7 +140,6 @@ jobs:
           retention-days: 7
 
       - name: Save web archive to cache
-        if: matrix.task == 'build-web'
         run: |
           mkdir -p web-build-output
           cp web-dev-*.tar.gz web-build-output/web-dev.tar.gz
@@ -140,26 +147,41 @@ jobs:
       # Unique key per commit: GitHub refuses to overwrite an existing cache key, so a
       # static key (e.g. web-build-main) would never pick up newer web builds after the first save.
       - name: Cache web build for deploy
-        if: matrix.task == 'build-web'
         uses: actions/cache/save@v5
         with:
           path: web-build-output
           key: web-build-${{ github.sha }}
 
+  build-server:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
+
       - name: Set up Docker Buildx
-        if: matrix.task == 'build-server'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: matrix.task == 'build-server'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Determine versions
+        id: versions
+        run: |
+          set -euo pipefail
+          VERSION_LINE=$(grep '^version:' packages/server/pubspec.yaml | sed 's/version:[[:space:]]*//')
+          VERSION_CLEAN=${VERSION_LINE//+/-}
+          VERSION_CLEAN=${VERSION_CLEAN//\//-}
+          echo "server_version=$VERSION_CLEAN" >> $GITHUB_OUTPUT
+          CLIENT_VERSION=$(grep '^version:' packages/client/pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
+          echo "client_version=$CLIENT_VERSION" >> $GITHUB_OUTPUT
+
       - name: Build and push server image
-        if: matrix.task == 'build-server'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -172,7 +194,6 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Print version summary
-        if: matrix.task == 'build-server'
         run: |
           echo "### Versions built" >> $GITHUB_STEP_SUMMARY
           echo "| Package | Version |" >> $GITHUB_STEP_SUMMARY
@@ -186,9 +207,14 @@ jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
     environment: dev
     steps:
       - uses: actions/checkout@v6
+        with:
+          token: ${{ github.token }}
 
       # Prefer tarball built for this exact commit; fall back to latest web-build-* entry.
       - name: Restore web build from cache
