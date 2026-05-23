@@ -240,7 +240,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             imageRepository: GetIt.I<ImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
             onScrollToPromoteSource: cubit.requestScrollToMessage,
-            hideCoordinationLifecycleFooter: isThreadMode,
             onOpenCoordinationItem: isThreadMode
                 ? null
                 : (item) => unawaited(
