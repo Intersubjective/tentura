@@ -243,6 +243,58 @@ void main() {
     });
   });
 
+  group('ensureHugWidthFitsReactionFooter', () {
+    test('widens when body text wins but chip band is too narrow', () {
+      const emojiStyle = TextStyle(fontSize: 16, height: 1);
+      const countStyle = TextStyle(fontSize: 14, height: 1);
+      const entries = [MapEntry('👍', 2)];
+
+      final footerRow = measureReactionTimeRowMinWidth(
+        reactionEntries: entries,
+        reactorCountsByEmoji: const {},
+        dateLine: '12:34',
+        emojiStyle: emojiStyle,
+        countStyle: countStyle,
+        timeStyle: metaStyle,
+        chipSpacing: 8,
+        trailingGap: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+
+      final bodySpan = buildRoomMessageAnnotatedBodySpan(
+        data: 'Nice work everyone',
+        textStyle: bodyStyle,
+        annotations: null,
+      );
+      final bodyWidth = measureTightTextWidth(
+        span: bodySpan,
+        maxWidth: 400,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+
+      final ensured = ensureHugWidthFitsReactionFooter(
+        contentWidth: bodyWidth,
+        reactionEntries: entries,
+        reactorCountsByEmoji: const {},
+        dateLine: '12:34',
+        emojiStyle: emojiStyle,
+        countStyle: countStyle,
+        timeStyle: metaStyle,
+        chipSpacing: 8,
+        trailingGap: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+
+      expect(ensured, greaterThanOrEqualTo(footerRow));
+      if (bodyWidth > footerRow) {
+        expect(ensured, greaterThanOrEqualTo(bodyWidth));
+      }
+    });
+  });
+
   group('measureLifecycleTapRowMinWidth', () {
     test('wider than trailing meta reserve alone', () {
       final metrics = computeTrailingMetaMetrics(
