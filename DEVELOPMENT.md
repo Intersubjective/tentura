@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Docker & Docker Compose (v2+)
-- Flutter SDK (stable channel, currently 3.41+)
+- Flutter SDK (stable channel, currently 3.44+)
 - Dart SDK (bundled with Flutter)
 
 ## Quick Start
