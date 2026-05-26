@@ -83,6 +83,7 @@ void main() {
     required Profile author,
     required String body,
     Map<String, int> reactionCounts = const {},
+    Map<String, List<Profile>> reactors = const {},
     List<RoomMessageAttachment> attachments = const [],
   }) =>
       RoomMessage(
@@ -93,6 +94,7 @@ void main() {
         createdAt: createdAt,
         author: author,
         reactionCounts: reactionCounts,
+        reactors: reactors,
         attachments: attachments,
       );
 
@@ -171,6 +173,55 @@ void main() {
         ),
         myProfile: me,
       );
+    });
+
+    testWidgets('angry_reaction_with_reactors_no_layout_overflow', (
+      tester,
+    ) async {
+      const reactorA = Profile(id: 'r1', displayName: 'Sam');
+      const reactorB = Profile(id: 'r2', displayName: 'Jo');
+
+      final profileCubit = _GoldenProfileCubit();
+      await tester.pumpWidget(
+        BlocProvider<ProfileCubit>.value(
+          value: profileCubit,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            locale: const Locale('en'),
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: MediaQueryData(size: logicalSize),
+              child: TenturaResponsiveScope(
+                child: Scaffold(
+                  body: SizedBox(
+                    width: logicalSize.width,
+                    child: RoomMessageTile(
+                      message: textMessage(
+                        id: 'm7',
+                        authorId: 'other',
+                        author: other,
+                        body: 'Ok',
+                        reactionCounts: const {'😠': 2},
+                        reactors: const {
+                          '😠': [reactorA, reactorB],
+                        },
+                      ),
+                      myProfile: me,
+                      onToggleReaction: (_, _) async {},
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('mixed_text_and_file_attachment', (tester) async {

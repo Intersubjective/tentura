@@ -241,6 +241,37 @@ void main() {
 
       expect(withBorder, greaterThan(kReactionChipHorizontalChrome));
     });
+
+    test('angry emoji with reactors is wider than emoji-only baseline', () {
+      const emojiStyle = TextStyle(fontSize: 16, height: 1);
+      const countStyle = TextStyle(fontSize: 14, height: 1);
+      const angry = '😠';
+
+      final emojiOnly = measureReactionChipWidth(
+        emoji: angry,
+        count: 1,
+        reactorCount: 0,
+        emojiStyle: emojiStyle,
+        countStyle: countStyle,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+      final withReactors = measureReactionChipWidth(
+        emoji: angry,
+        count: 2,
+        reactorCount: 2,
+        emojiStyle: emojiStyle,
+        countStyle: countStyle,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+
+      expect(withReactors, greaterThan(emojiOnly));
+      expect(
+        withReactors,
+        greaterThan(reactorAvatarStripWidth(2) + kReactionChipHorizontalChrome),
+      );
+    });
   });
 
   group('ensureHugWidthFitsReactionFooter', () {
@@ -292,6 +323,51 @@ void main() {
       if (bodyWidth > footerRow) {
         expect(ensured, greaterThanOrEqualTo(bodyWidth));
       }
+    });
+
+    test('chip band leaves room for angry emoji reactors beside timestamp', () {
+      const emojiStyle = TextStyle(fontSize: 16, height: 1);
+      const countStyle = TextStyle(fontSize: 14, height: 1);
+      const entries = [MapEntry('😠', 2)];
+      const dateLine = '12:34';
+
+      final timePainter = TextPainter(
+        text: TextSpan(text: dateLine, style: metaStyle),
+        textDirection: textDirection,
+        textScaler: textScaler,
+        maxLines: 1,
+      )..layout();
+      final timeBand = (4 + timePainter.width).ceilToDouble();
+
+      var chipsWidth = 0.0;
+      for (final entry in entries) {
+        chipsWidth += measureReactionChipWidth(
+          emoji: entry.key,
+          count: entry.value,
+          reactorCount: 2,
+          emojiStyle: emojiStyle,
+          countStyle: countStyle,
+          textDirection: textDirection,
+          textScaler: textScaler,
+        );
+      }
+
+      final ensured = ensureHugWidthFitsReactionFooter(
+        contentWidth: 40,
+        reactionEntries: entries,
+        reactorCountsByEmoji: const {'😠': 2},
+        dateLine: dateLine,
+        emojiStyle: emojiStyle,
+        countStyle: countStyle,
+        timeStyle: metaStyle,
+        chipSpacing: 8,
+        trailingGap: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+
+      expect(ensured - timeBand, greaterThanOrEqualTo(chipsWidth));
+      expect(ensured, greaterThanOrEqualTo(chipsWidth + timeBand));
     });
   });
 
