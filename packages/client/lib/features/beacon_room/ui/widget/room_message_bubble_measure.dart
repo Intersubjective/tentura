@@ -15,6 +15,9 @@ const double kReactionChipBorderAllowance = 2;
 /// Subpixel / web emoji slack so measured hug width does not squeeze chips.
 const double kReactionChipMeasurementSlack = 4;
 
+/// Extra guard for DPR rounding and Wrap line-slot truncation vs [TextPainter].
+const double kReactionChipLayoutEpsilon = 1;
+
 /// Gap between emoji and count / avatar strip inside a reaction chip.
 const double kReactionChipEmojiGap = 4;
 
@@ -40,9 +43,10 @@ double reactorAvatarStripWidth(int reactorCount) {
       ? kReactorAvatarStripMaxVisible.toInt()
       : reactorCount;
   final extraSlots = overflow > 0 ? 1 : 0;
-  return kReactorAvatarStripSize +
-      (visible + extraSlots - 1) * step +
-      kReactorAvatarStripRingAllowance;
+  return (kReactorAvatarStripSize +
+          (visible + extraSlots - 1) * step +
+          kReactorAvatarStripRingAllowance)
+      .ceilToDouble();
 }
 
 /// Minimum width of one reaction chip (emoji + count or avatar strip + chrome).
@@ -72,15 +76,16 @@ double measureReactionChipWidth({
       textScaler: textScaler,
       maxLines: 1,
     )..layout();
-    trailingWidth = countPainter.width;
+    trailingWidth = countPainter.width.ceilToDouble();
   }
 
-  return kReactionChipHorizontalChrome +
-      kReactionChipBorderAllowance +
-      emojiPainter.width +
-      kReactionChipEmojiGap +
-      trailingWidth +
-      kReactionChipMeasurementSlack;
+  return (kReactionChipHorizontalChrome +
+          kReactionChipBorderAllowance +
+          emojiPainter.width.ceilToDouble() +
+          kReactionChipEmojiGap +
+          trailingWidth +
+          kReactionChipMeasurementSlack)
+      .ceilToDouble();
 }
 
 /// Minimum width for a single-line reactions + timestamp footer row.
@@ -145,7 +150,7 @@ double ensureHugWidthFitsReactionFooter({
   required TextScaler textScaler,
 }) {
   if (reactionEntries.isEmpty) {
-    return contentWidth;
+    return contentWidth.ceilToDouble();
   }
 
   final footerRowWidth = measureReactionTimeRowMinWidth(
@@ -164,7 +169,7 @@ double ensureHugWidthFitsReactionFooter({
   var width = contentWidth > footerRowWidth ? contentWidth : footerRowWidth;
 
   if (dateLine.isEmpty) {
-    return width;
+    return width.ceilToDouble();
   }
 
   final timePainter = TextPainter(
@@ -173,7 +178,7 @@ double ensureHugWidthFitsReactionFooter({
     textScaler: textScaler,
     maxLines: 1,
   )..layout();
-  final timeBand = trailingGap + timePainter.width;
+  final timeBand = (trailingGap + timePainter.width).ceilToDouble();
 
   var chipsWidth = 0.0;
   for (var i = 0; i < reactionEntries.length; i++) {
@@ -193,10 +198,12 @@ double ensureHugWidthFitsReactionFooter({
   }
 
   if (width - timeBand < chipsWidth) {
-    width = chipsWidth + timeBand;
+    width = chipsWidth.ceilToDouble() +
+        timeBand +
+        kReactionChipLayoutEpsilon;
   }
 
-  return width;
+  return width.ceilToDouble();
 }
 
 /// Fixed width of a lifecycle tap row excluding [label] and [time] text.
