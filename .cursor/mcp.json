@@ -5,6 +5,18 @@
       "command": "dart mcp-server --experimental-mcp-server --force-roots-fallback",
       "env": {},
       "args": []
+    },
+    "serena": {
+      "type": "stdio",
+      "command": "serena",
+      "args": [
+        "start-mcp-server",
+        "--context",
+        "ide",
+        "--project",
+        "${workspaceFolder}"
+      ],
+      "env": {}
     }
   }
 }
