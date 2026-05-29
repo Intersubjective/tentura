@@ -1,3 +1,10 @@
-mutation BeaconParticipantRoomSeen($beaconId: String!) {
-  BeaconParticipantRoomSeen(beaconId: $beaconId)
+mutation BeaconParticipantRoomSeen(
+  $beaconId: String!
+  $readThroughAt: String
+) {
+  BeaconParticipantRoomSeen(beaconId: $beaconId, readThroughAt: $readThroughAt) {
+    beaconId
+    threadItemId
+    seenAt
+  }
 }

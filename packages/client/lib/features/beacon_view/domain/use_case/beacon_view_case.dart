@@ -23,7 +23,7 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
+import 'package:tentura/features/beacon_room/domain/entity/room_unread_snapshot.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 
@@ -42,7 +42,6 @@ final class BeaconViewCase extends UseCaseBase {
     this._factCards,
     this._beaconRoomCase,
     this._activityEvents,
-    this._roomHints,
     this._invalidationService, {
     required super.env,
     required super.logger,
@@ -66,8 +65,6 @@ final class BeaconViewCase extends UseCaseBase {
 
   final BeaconActivityEventRepository _activityEvents;
 
-  final BeaconRoomHintsRepository _roomHints;
-
   final InvalidationService _invalidationService;
 
   Stream<String> get forwardCompleted => _forwardRepository.forwardCompleted;
@@ -77,6 +74,23 @@ final class BeaconViewCase extends UseCaseBase {
 
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
       _invalidationService.beaconRoomInvalidations;
+
+  /// Emits beacon ids when session read-through or synced watermark changes.
+  Stream<String> get readWatermarkChanges => _beaconRoomCase.readWatermarkChanges;
+
+  DateTime? readThrough(String beaconId) =>
+      _beaconRoomCase.readThrough(beaconId);
+
+  int resolveRoomUnread({
+    required String beaconId,
+    required int serverCount,
+    required DateTime? serverSeenAt,
+  }) =>
+      _beaconRoomCase.resolveUnread(
+        beaconId: beaconId,
+        serverCount: serverCount,
+        serverSeenAt: serverSeenAt,
+      );
 
   Future<void> setInboxStatus({
     required String beaconId,
@@ -186,15 +200,9 @@ final class BeaconViewCase extends UseCaseBase {
     }
   }
 
-  /// Inbox/My Work style unread count for beacon room (0 when not a room member).
-  Future<int> fetchRoomUnreadForBeacon(String beaconId) async {
-    try {
-      final map = await _roomHints.fetchByBeaconIds([beaconId]);
-      return map[beaconId]?.roomUnreadCount ?? 0;
-    } on Object catch (_) {
-      return 0;
-    }
-  }
+  /// Inbox/My Work style unread snapshot for beacon room (0 when not a room member).
+  Future<RoomUnreadSnapshot> fetchRoomUnreadSnapshot(String beaconId) =>
+      _beaconRoomCase.fetchRoomUnreadSnapshot(beaconId);
 
   Future<
     List<

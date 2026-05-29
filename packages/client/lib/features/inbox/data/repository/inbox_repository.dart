@@ -17,25 +17,11 @@ import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_r
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class InboxRepository {
-  InboxRepository(
-    this._remoteApiService,
-    this._roomHints,
-  ) {
-    _roomSeenSub = _roomHints.roomSeenNotifications.listen(
-      (_) {
-        if (!_localMutationController.isClosed) {
-          _localMutationController.add(null);
-        }
-      },
-      cancelOnError: false,
-    );
-  }
+  InboxRepository(this._remoteApiService, this._roomHints);
 
   final RemoteApiService _remoteApiService;
 
   final BeaconRoomHintsRepository _roomHints;
-
-  late final StreamSubscription<String> _roomSeenSub;
 
   final _localMutationController = StreamController<void>.broadcast();
 
@@ -44,7 +30,6 @@ class InboxRepository {
 
   @disposeMethod
   Future<void> dispose() async {
-    await _roomSeenSub.cancel();
     await _localMutationController.close();
   }
 

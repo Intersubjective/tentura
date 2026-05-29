@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -13,20 +11,6 @@ class BeaconRoomHintsRepository {
   BeaconRoomHintsRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
-
-  final _seenController = StreamController<String>.broadcast();
-
-  /// Local signal after a successful room-seen mutation (WS echo is suppressed for self).
-  Stream<String> get roomSeenNotifications => _seenController.stream;
-
-  void notifyRoomSeen(String beaconId) {
-    if (!_seenController.isClosed) {
-      _seenController.add(beaconId);
-    }
-  }
-
-  @disposeMethod
-  Future<void> dispose() => _seenController.close();
 
   static const _label = 'InboxRoomContextBatch';
 
@@ -48,6 +32,7 @@ class BeaconRoomHintsRepository {
         e.beaconId: InboxRoomCardHints(
           isRoomMember: e.isRoomMember,
           roomUnreadCount: e.roomUnreadCount,
+          lastSeenAt: _parseOptionalIso(e.lastSeenAt),
           currentLineSnippet: _clip(e.currentLine ?? ''),
           lastRoomMeaningfulChange: _clip(e.lastRoomMeaningfulChange ?? ''),
           myNextMove: _clip(e.nextMoveText ?? ''),
@@ -55,6 +40,11 @@ class BeaconRoomHintsRepository {
           publicFactSnippet: _clip(e.publicFactSnippet ?? ''),
         ),
     };
+  }
+
+  static DateTime? _parseOptionalIso(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    return DateTime.tryParse(raw);
   }
 
   static String _clip(String s) {

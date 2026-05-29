@@ -342,3 +342,49 @@ Results are ranked by semantic distance. Distance < 1.0 is a strong hit; > 1.2 i
 The index is rebuilt from scratch with `python3 rag_index.py`. The indexer respects `.gitignore` at every directory level, so generated files are excluded automatically.
 
 When using Claude Code, the index is updated automatically after any file edit via a PostToolUse hook in `.claude/settings.json`.
+
+## Read-state / unread (single watermark)
+
+Room unread must have **one session-scoped owner** for main-room read-through:
+
+| Layer | Owner |
+|-------|--------|
+| Local read-through (user reached bottom) | `RoomReadWatermarkStore` (`@lazySingleton`) |
+| In-chat divider / count | `RoomCubit` derives from watermark + loaded messages |
+| Shell badge / inbox / My Work | `resolveUnread(serverCount, serverSeenAt)` — never manual `clear + refresh` clamps |
+
+### Checklist (new read-state features)
+
+1. **Advance local read-through immediately** when the user reaches the bottom:
+   `RoomReadWatermarkStore.observeReadThrough(beaconId, latestLoaded.createdAt)`.
+2. **Persist only on confirmed success:** mark-seen mutations return
+   `BeaconRoomSeenResult.seenAt`; domain exposes `RoomSeenOutcome` (`Succeeded` /
+   `Denied` / `Failed`); call `confirmSynced` only on `Succeeded`.
+3. **Pass `readThroughAt`** to mark-seen mutations (latest loaded message timestamp).
+4. **Batch unread** uses `InboxRoomContextBatch.lastSeenAt` + `roomUnreadCount`;
+   UI resolves via watermark, not raw server count alone.
+5. **No cross-feature repository side channels** (e.g. hints repo → inbox repo
+   notification streams). Expose watermark `changes` through **use cases**
+   (`BeaconRoomCase.readWatermarkChanges`, merged into `InboxCase.localMutations`).
+6. **Server SQL:** follow `packages/server/WORKAROUNDS.md` §4 for
+   `beacon_room_seen` `customStatement` binding.
+
+Reference implementation: `packages/client/lib/features/beacon_room/domain/room_read_watermark_store.dart`.
+
+## State scopes: route vs session vs persisted
+
+| Scope | Example | Lifetime |
+|-------|---------|----------|
+| Route / screen | `RoomCubit`, `BeaconViewCubit` | Created per navigation; disposed on pop |
+| Session `@lazySingleton` | `RoomReadWatermarkStore` | App process; survives `?tab=room` pushes |
+| Server-persisted | `beacon_room_seen.last_seen_at` | Postgres; may lag behind local read-through |
+
+**Rule:** data that must survive route re-entry (read watermarks, debounced
+invalidation buffers) belongs in `@lazySingleton` domain services — not in
+route-scoped cubits or data-repository session maps.
+
+## Cross-feature events
+
+Avoid **data-repository → data-repository** imports for UI refresh side effects.
+Prefer domain/use-case streams (e.g. watermark `changes` merged into
+`InboxCase.localMutations`) so features stay decoupled at the data layer.

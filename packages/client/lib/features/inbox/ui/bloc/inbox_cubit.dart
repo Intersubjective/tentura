@@ -5,6 +5,7 @@ import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
+import '../../domain/entity/inbox_item.dart';
 import '../../domain/use_case/inbox_case.dart';
 import '../../domain/enum.dart';
 import '../message/inbox_messages.dart';
@@ -126,12 +127,30 @@ class InboxCubit extends Cubit<InboxState> {
     return super.close();
   }
 
+  InboxItem _withResolvedRoomUnread(InboxItem item) {
+    final hints = item.roomHints;
+    if (hints == null) return item;
+    final unread = _inboxCase.resolveRoomUnread(
+      beaconId: item.beaconId,
+      serverCount: hints.roomUnreadCount,
+      serverSeenAt: hints.lastSeenAt,
+    );
+    if (unread == hints.roomUnreadCount) return item;
+    return item.copyWith(
+      roomHints: hints.copyWith(roomUnreadCount: unread),
+    );
+  }
+
   Future<void> fetch({bool showLoading = true}) async {
     if (showLoading) {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
     try {
-      final items = await _inboxCase.fetch(userId: _userId);
+      final raw = await _inboxCase.fetch(userId: _userId);
+      final items = [
+        for (final item in raw)
+          _withResolvedRoomUnread(item),
+      ];
       emit(
         state.copyWith(
           items: items,

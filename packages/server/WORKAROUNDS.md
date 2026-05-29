@@ -190,3 +190,35 @@ When the computed function returns **zero rows**, selecting `rejected_user_ids` 
 - Client: `ForwardRepository.fetchBeaconInvolvement` runs those two requests in parallel (`packages/client/lib/features/forward/data/repository/forward_repository.dart`).
 
 The `_HasuraSetofScalarFixLink` workaround remains relevant for any **other** code paths that still select `rejected_user_ids` on `beacon_by_pk`.
+
+---
+
+## 4. Drift `customStatement` timestamptz binding (`beacon_room_seen`)
+
+**Library:** Drift / `drift_postgres`
+**File:** `packages/server/lib/data/repository/beacon_room_repository.dart` (`markBeaconRoomSeen`)
+
+### Rules
+
+- Drift `customStatement` positional binds use **`$1`, `$2`, …** placeholders (not `?`).
+- Use **`r'...'` raw strings** for SQL so Dart does not interpret `$n` as string interpolation.
+- Bind timestamptz values as **ISO-8601 UTC text** and cast in SQL: `$3::timestamptz`.
+- Main-room seen rows use **`thread_item_id IS NULL`** with partial unique index
+  `ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL`.
+- Thread seen rows use **`ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL`.
+
+### Example (main room)
+
+```dart
+await _db.customStatement(
+  r'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+  r'VALUES ($1, $2, NULL, $3::timestamptz) '
+  r'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
+  r'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
+  [userId, beaconId, at.toUtc().toIso8601String()],
+);
+```
+
+### Removal condition
+
+Replace with typed Drift upsert when `beacon_room_seen` is fully managed via generated table APIs and partial-unique upserts are supported without raw SQL.

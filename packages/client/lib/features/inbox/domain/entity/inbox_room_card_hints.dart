@@ -8,6 +8,7 @@ abstract class InboxRoomCardHints with _$InboxRoomCardHints {
   const factory InboxRoomCardHints({
     required bool isRoomMember,
     required int roomUnreadCount,
+    DateTime? lastSeenAt,
     @Default('') String currentLineSnippet,
     @Default('') String lastRoomMeaningfulChange,
     @Default('') String myNextMove,

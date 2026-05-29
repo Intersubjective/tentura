@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
+import 'package:tentura/debug/agent_session_log.dart';
 
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -18,6 +19,7 @@ import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/beacon_room/domain/entity/room_unread_snapshot.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
@@ -63,6 +65,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _onRoomInvalidation,
       cancelOnError: false,
     );
+    _readWatermarkSub = _case.readWatermarkChanges.listen(
+      _onReadWatermarkChanged,
+      cancelOnError: false,
+    );
     unawaited(_fetchBeaconByIdWithTimeline());
   }
 
@@ -74,6 +80,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<BeaconRoomInvalidation> _beaconRoomRefreshSub;
 
+  late final StreamSubscription<String> _readWatermarkSub;
+
+  int _serverUnreadCount = 0;
+  DateTime? _serverSeenAt;
+
   bool _fetchInProgress = false;
   bool _fetchPending = false;
 
@@ -84,8 +95,32 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     await _forwardCompletedSub.cancel();
     await _helpOfferChangesSub.cancel();
     await _beaconRoomRefreshSub.cancel();
+    await _readWatermarkSub.cancel();
     return super.close();
   }
+
+  void _onReadWatermarkChanged(String beaconId) {
+    if (isClosed || beaconId != state.beacon.id) return;
+    _emitResolvedRoomUnread();
+  }
+
+  void _emitResolvedRoomUnread() {
+    final count = _case.resolveRoomUnread(
+      beaconId: state.beacon.id,
+      serverCount: _serverUnreadCount,
+      serverSeenAt: _serverSeenAt,
+    );
+    if (!isClosed && state.roomUnreadCount != count) {
+      emit(state.copyWith(roomUnreadCount: count));
+    }
+  }
+
+  /// Session read-through watermark for main room (survives route pushes).
+  DateTime? roomReadThrough(String beaconId) => _case.readThrough(beaconId);
+
+  /// Re-fetches server unread snapshot for the current beacon (e.g. after invalidation).
+  Future<void> refreshRoomUnreadCount() =>
+      _refreshRoomUnread(state.beacon.id);
 
   Future<void> moveToWatching() async {
     if (state.inboxStatus != InboxItemStatus.needsMe) return;
@@ -275,16 +310,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  /// Immediately zeros out the cached unread count.
-  ///
-  /// Call this when the user leaves the room surface so the badge clears
-  /// without waiting for the next server invalidation.
-  void clearRoomUnread() {
-    if (!isClosed && state.roomUnreadCount != 0) {
-      emit(state.copyWith(roomUnreadCount: 0));
-    }
-  }
-
   /// Run one stream-triggered full refresh under the concurrency gate.
   ///
   /// At most one gate-guarded fetch runs at a time. If a second invalidation
@@ -382,8 +407,24 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> _refreshRoomUnread(String beaconId) async {
-    final count = await _case.fetchRoomUnreadForBeacon(beaconId);
-    if (!isClosed) emit(state.copyWith(roomUnreadCount: count));
+    final snapshot = await _case.fetchRoomUnreadSnapshot(beaconId);
+    _serverUnreadCount = snapshot.count;
+    _serverSeenAt = snapshot.serverSeenAt;
+    // #region agent log
+    agentSessionLog(
+      location: 'beacon_view_cubit.dart:_refreshRoomUnread',
+      message: 'server roomUnreadCount fetched',
+      hypothesisId: 'H-E',
+      data: {
+        'beaconId': beaconId,
+        'roomUnreadCount': snapshot.count,
+        'serverSeenAt': snapshot.serverSeenAt?.toIso8601String(),
+      },
+    );
+    // #endregion
+    if (!isClosed && beaconId == state.beacon.id) {
+      _emitResolvedRoomUnread();
+    }
   }
 
   Future<void> _refreshRoomParticipants(String beaconId) async {
@@ -440,7 +481,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchRoomParticipants(beaconId),
         _case.fetchRoomStateIfAllowed(beaconId),
         _case.fetchRoomActivityEvents(beaconId),
-        _case.fetchRoomUnreadForBeacon(beaconId),
+        _case.fetchRoomUnreadSnapshot(beaconId),
       ]);
 
       final beacon = results[0]! as Beacon;
@@ -485,7 +526,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final roomParticipants = results[5]! as List<BeaconParticipant>;
       final beaconRoomCue = results[6] as BeaconRoomState?;
       final roomActivityEvents = results[7]! as List<BeaconActivityEvent>;
-      final roomUnreadCount = results[8]! as int;
+      final roomUnreadSnapshot = results[8]! as RoomUnreadSnapshot;
+      _serverUnreadCount = roomUnreadSnapshot.count;
+      _serverSeenAt = roomUnreadSnapshot.serverSeenAt;
+      final roomUnreadCount = _case.resolveRoomUnread(
+        beaconId: beaconId,
+        serverCount: roomUnreadSnapshot.count,
+        serverSeenAt: roomUnreadSnapshot.serverSeenAt,
+      );
       final openCoordinationBlocker = beaconRoomCue != null
           ? await _case.fetchOpenCoordinationBlocker(beaconId)
           : null;

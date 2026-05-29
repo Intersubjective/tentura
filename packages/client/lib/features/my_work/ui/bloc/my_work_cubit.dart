@@ -7,6 +7,7 @@ import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
+import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
@@ -24,11 +25,13 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     ProfileCubit? profileCubit,
     ForwardRepository? forwardRepository,
     NewStuffCubit? newStuffCubit,
+    BeaconRoomCase? beaconRoomCase,
     BeaconRoomHintsRepository? roomHints,
   }) : _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
        _profileCubit = profileCubit ?? GetIt.I<ProfileCubit>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
+       _beaconRoomCase = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
        _roomHints = roomHints ?? GetIt.I<BeaconRoomHintsRepository>(),
        super(const MyWorkState()) {
     _beaconChanges = (myWorkCase ?? GetIt.I<MyWorkCase>()).beaconChanges.listen(
@@ -43,6 +46,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       (_) => unawaited(fetch()),
       cancelOnError: false,
     );
+    _readWatermarkSub = _beaconRoomCase.readWatermarkChanges.listen(
+      (_) => unawaited(fetch()),
+      cancelOnError: false,
+    );
     unawaited(fetch());
   }
 
@@ -50,7 +57,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   final ProfileCubit _profileCubit;
   final ForwardRepository _forwardRepository;
   final NewStuffCubit _newStuffCubit;
+  final BeaconRoomCase _beaconRoomCase;
   final BeaconRoomHintsRepository _roomHints;
+
+  late final StreamSubscription<String> _readWatermarkSub;
 
   void _reportMyWorkActivity() {
     if (!state.isSuccess) return;
@@ -106,6 +116,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
     await _forwardCompleted.cancel();
+    await _readWatermarkSub.cancel();
     return super.close();
   }
 
@@ -165,7 +176,14 @@ class MyWorkCubit extends Cubit<MyWorkState> {
               parts.add(h.currentLineSnippet);
             }
             if (h.roomUnreadCount > 0) {
-              parts.add('+${h.roomUnreadCount}');
+              final unread = _beaconRoomCase.resolveUnread(
+                beaconId: c.beaconId,
+                serverCount: h.roomUnreadCount,
+                serverSeenAt: h.lastSeenAt,
+              );
+              if (unread > 0) {
+                parts.add('+$unread');
+              }
             }
             if (parts.isEmpty) return c;
             return c.copyWith(roomInboxSubtitle: parts.join(' · '));
@@ -248,7 +266,14 @@ class MyWorkCubit extends Cubit<MyWorkState> {
               parts.add(h.currentLineSnippet);
             }
             if (h.roomUnreadCount > 0) {
-              parts.add('+${h.roomUnreadCount}');
+              final unread = _beaconRoomCase.resolveUnread(
+                beaconId: c.beaconId,
+                serverCount: h.roomUnreadCount,
+                serverSeenAt: h.lastSeenAt,
+              );
+              if (unread > 0) {
+                parts.add('+$unread');
+              }
             }
             if (parts.isEmpty) return c;
             return c.copyWith(roomInboxSubtitle: parts.join(' · '));

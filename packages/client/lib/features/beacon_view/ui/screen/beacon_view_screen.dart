@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/debug/agent_session_log.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
@@ -518,6 +519,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   /// would leave a duplicate beacon URL and force two pops to leave the beacon.
   bool _roomEnteredViaPush = false;
 
+  /// Ensures mark-seen on the previous visit finishes before re-open refresh.
+  Future<void>? _pendingRoomExit;
+
   void _unfocusForRouteChange() {
     FocusManager.instance.primaryFocus?.unfocus();
   }
@@ -560,15 +564,35 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         _tabIndex == kBeaconTabPeople;
   }
 
-  /// Drop the embedded room cubit so the next room visit re-reads the
-  /// server last-seen watermark for the unread divider.
-  void _releaseEmbeddedRoomCubit() {
+  /// Drops the embedded room cubit after [RoomCubit.close] flushes mark-seen.
+  Future<void> _releaseEmbeddedRoomCubit() async {
     final c = _roomCubit;
     if (c == null) return;
+    // #region agent log
+    agentSessionLog(
+      location: 'beacon_view_screen.dart:_releaseEmbeddedRoomCubit',
+      message: 'releasing room cubit (await close)',
+      hypothesisId: 'H-C',
+      data: {
+        'roomUnreadCount':
+            context.read<BeaconViewCubit>().state.roomUnreadCount,
+        'roomCubitUnread': c.state.unreadCount,
+        'roomCubitClosed': c.isClosed,
+      },
+    );
+    // #endregion
     _roomCubit = null;
     if (!c.isClosed) {
-      unawaited(c.close());
+      await c.close();
     }
+    // #region agent log
+    agentSessionLog(
+      location: 'beacon_view_screen.dart:_releaseEmbeddedRoomCubit',
+      message: 'room cubit close finished',
+      hypothesisId: 'H-C',
+      runId: 'post-fix',
+    );
+    // #endregion
   }
 
   @override
@@ -603,7 +627,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   @override
   void dispose() {
-    _releaseEmbeddedRoomCubit();
+    unawaited(_releaseEmbeddedRoomCubit());
     unawaited(_itemsTabCubit?.close());
     super.dispose();
   }
@@ -620,7 +644,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       }
       _didApplyFetchResolution = true;
       if (_showRoomSurface && s.canNavigateBeaconRoom) {
-        _roomCubit ??= RoomCubit(beaconId: widget.id);
+        _ensureEmbeddedRoomCubit();
         final itemId = widget.coordinationItemId?.trim();
         if (itemId != null && itemId.isNotEmpty) {
           _roomCubit!.prepareThreadScroll(coordinationItemId: itemId);
@@ -637,19 +661,103 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       setState(() {
         _userDismissedRoomSurface = false;
         _showRoomSurface = true;
-        _roomCubit ??= RoomCubit(beaconId: widget.id);
+        _ensureEmbeddedRoomCubit();
       });
+      // #region agent log
+      agentSessionLog(
+        location: 'beacon_view_screen.dart:_applyRoomSurfaceState',
+        message: 'room surface opened',
+        hypothesisId: 'H-E',
+        data: {
+          'beaconId': widget.id,
+          'roomUnreadCount':
+              context.read<BeaconViewCubit>().state.roomUnreadCount,
+          'newCubit': _roomCubit != null,
+        },
+      );
+      // #endregion
+      unawaited(_onRoomSurfaceOpened());
     } else {
       if (!_showRoomSurface) return;
       if (!fromRouteSync) {
         _userDismissedRoomSurface = true;
       }
-      // Hide room before [clearRoomUnread] — its emit rebuilds this screen and
-      // build() must not recreate [RoomCubit] via `_roomCubit ??=` while exiting.
       setState(() => _showRoomSurface = false);
-      _releaseEmbeddedRoomCubit();
-      context.read<BeaconViewCubit>().clearRoomUnread();
+      final beaconView = context.read<BeaconViewCubit>();
+      _pendingRoomExit = _exitRoomAndSyncUnread(beaconView);
+      unawaited(_pendingRoomExit);
     }
+  }
+
+  void _ensureEmbeddedRoomCubit() {
+    if (_roomCubit != null && !_roomCubit!.isClosed) return;
+    final initialAnchor =
+        context.read<BeaconViewCubit>().roomReadThrough(widget.id);
+    // #region agent log
+    agentSessionLog(
+      location: 'beacon_view_screen.dart:_ensureEmbeddedRoomCubit',
+      message: 'creating RoomCubit',
+      hypothesisId: 'H-G',
+      runId: 'post-fix',
+      data: {
+        'beaconId': widget.id,
+        'initialUnreadAnchorAt': initialAnchor?.toIso8601String(),
+      },
+    );
+    // #endregion
+    _roomCubit = RoomCubit(
+      beaconId: widget.id,
+      initialUnreadAnchorAt: initialAnchor,
+    );
+  }
+
+  /// In-room UI uses live [RoomCubit] unread; beacon shell uses server batch count.
+  int _effectiveRoomUnreadCount(BeaconViewState beaconState) {
+    final rc = _roomCubit;
+    if (_showRoomSurface && rc != null && !rc.isClosed) {
+      return rc.state.unreadCount;
+    }
+    return beaconState.roomUnreadCount;
+  }
+
+  Future<void> _onRoomSurfaceOpened() async {
+    final pending = _pendingRoomExit;
+    if (pending != null) {
+      await pending;
+    }
+    if (!mounted) return;
+    if (mounted) setState(() {});
+    // #region agent log
+    final beaconView = context.read<BeaconViewCubit>();
+    final rc = _roomCubit;
+    agentSessionLog(
+      location: 'beacon_view_screen.dart:_onRoomSurfaceOpened',
+      message: 'open sync complete',
+      hypothesisId: 'H-E',
+      runId: 'post-fix',
+      data: {
+        'beaconRoomUnread': beaconView.state.roomUnreadCount,
+        'roomCubitUnread': rc?.state.unreadCount,
+      },
+    );
+    // #endregion
+  }
+
+  Future<void> _exitRoomAndSyncUnread(BeaconViewCubit beaconView) async {
+    await _releaseEmbeddedRoomCubit();
+    _pendingRoomExit = null;
+    if (mounted) setState(() {});
+    // #region agent log
+    agentSessionLog(
+      location: 'beacon_view_screen.dart:_exitRoomAndSyncUnread',
+      message: 'exit sync complete',
+      hypothesisId: 'H-E',
+      runId: 'post-fix',
+      data: {
+        'roomUnreadCount': beaconView.state.roomUnreadCount,
+      },
+    );
+    // #endregion
   }
 
   bool _urlIndicatesRoom() {
@@ -794,7 +902,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         if (!s.isSuccess) return;
         if (!ctx.mounted) return;
         if (_showRoomSurface && !s.canNavigateBeaconRoom) {
-          _releaseEmbeddedRoomCubit();
+          unawaited(_releaseEmbeddedRoomCubit());
           setState(() {
             _showRoomSurface = false;
             _bannerMessage = L10n.of(
@@ -829,10 +937,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           final activeHelpOfferCount = state.helpOffers
               .where((c) => !c.isWithdrawn)
               .length;
+          final roomUnread = _effectiveRoomUnreadCount(state);
           final (appBarStatusLine, appBarStatusTone) = _showRoomSurface
-              ? (state.roomUnreadCount > 0
+              ? (roomUnread > 0
                     ? (
-                        'ROOM · Unread: ${state.roomUnreadCount}',
+                        'ROOM · Unread: $roomUnread',
                         TenturaTone.info,
                       )
                     : ('ROOM · UP-TO-DATE', TenturaTone.neutral))
@@ -855,7 +964,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 ? const Center(child: CircularProgressIndicator.adaptive())
                 : BlocProvider.value(
                     value: roomCubit,
-                    child: const BeaconRoomSurface(),
+                    child: BlocListener<RoomCubit, RoomState>(
+                      listenWhen: (p, c) => p.unreadCount != c.unreadCount,
+                      listener: (ctx, roomState) {
+                        if (mounted) setState(() {});
+                      },
+                      child: const BeaconRoomSurface(),
+                    ),
                   );
           } else {
             if (_itemsTabCubit == null) {
