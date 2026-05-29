@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -21,7 +22,10 @@ import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
 
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_now_detail_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_ask_sheet.dart';
+import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
 
 import '../bloc/room_cubit.dart';
@@ -188,12 +192,44 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           final err = state.status is StateHasError
               ? (state.status as StateHasError).error.toString()
               : '';
-          final currentLine = state.roomState?.currentLine.trim() ?? '';
+          final showPinnedNow = !isThreadMode &&
+              beaconRoomShowsPinnedNow(
+                roomState: state.roomState,
+                openBlocker: state.openCoordinationBlocker,
+              );
           return BasicChatBody(
             key: _basicChatKey,
-            header: isThreadMode || currentLine.isEmpty
-                ? null
-                : _PinnedCurrentLineCard(currentLine: currentLine),
+            header: showPinnedNow
+                ? _PinnedNowRow(
+                    state: state,
+                    onEdit: _roomCanCreatePromise(cubit)
+                        ? () => unawaited(
+                              _showPlanUpdateSheet(context, cubit, l10n),
+                            )
+                        : null,
+                    onShowDetail: () => unawaited(
+                      showBeaconNowDetailSheet(
+                        context,
+                        model: beaconNowDetailModelFromRoom(
+                          l10n,
+                          roomState: state.roomState,
+                          openCoordinationBlocker:
+                              state.openCoordinationBlocker,
+                          canEdit: _roomCanCreatePromise(cubit),
+                          onEdit: _roomCanCreatePromise(cubit)
+                              ? () => unawaited(
+                                    _showPlanUpdateSheet(
+                                      context,
+                                      cubit,
+                                      l10n,
+                                    ),
+                                  )
+                              : null,
+                        ),
+                      ),
+                    ),
+                  )
+                : null,
             messages: state.messages,
             myProfile: myProfile,
             participants: state.participants,
@@ -1424,38 +1460,40 @@ class _PollCreateSheetState extends State<_PollCreateSheet> {
   }
 }
 
-class _PinnedCurrentLineCard extends StatelessWidget {
-  const _PinnedCurrentLineCard({required this.currentLine});
+class _PinnedNowRow extends StatelessWidget {
+  const _PinnedNowRow({
+    required this.state,
+    this.onEdit,
+    this.onShowDetail,
+  });
 
-  final String currentLine;
+  final RoomState state;
+  final VoidCallback? onEdit;
+  final VoidCallback? onShowDetail;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
-    final accent = theme.colorScheme.primary;
-    return ExpansionTile(
-      initiallyExpanded: false,
-      leading: Container(width: 3, color: accent),
-      title: Text(
-        currentLine,
-        style: theme.textTheme.bodySmall,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+    final tt = context.tt;
+    final nowDisplay = beaconRoomHudNowDisplay(
+      l10n,
+      roomState: state.roomState,
+      openBlocker: state.openCoordinationBlocker,
+    );
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(tt.screenHPadding, 8, tt.screenHPadding, 8),
+      child: HudLabeledMultiline(
+        label: l10n.beaconHudNowLabel,
+        text: nowDisplay.primaryText,
+        subline: nowDisplay.blockerText,
+        mutedColor: tt.textMuted,
+        isPlaceholder: nowDisplay.isPlaceholder,
+        onEdit: onEdit,
+        editSemanticLabel: l10n.beaconHudEditNowLine,
+        onShowDetail: onShowDetail,
+        showDetailSemanticLabel: l10n.beaconHudNowLabel,
       ),
-      subtitle: Text(
-        l10n.beaconRoomStripCurrentLineLabel,
-        style: theme.textTheme.labelSmall?.copyWith(color: accent),
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(currentLine, style: theme.textTheme.bodySmall),
-          ),
-        ),
-      ],
     );
   }
 }
