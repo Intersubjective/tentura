@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
@@ -11,10 +10,9 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
-import 'beacon_anchor_status.dart';
 import 'beacon_hud_action_button.dart';
 
-/// Compact HUD header: state tokens, NOW/YOU, people strip, action rail.
+/// Compact HUD header: NOW/YOU, people strip, action rail.
 class BeaconOperationalHeaderCard extends StatelessWidget {
   const BeaconOperationalHeaderCard({
     required this.state,
@@ -73,34 +71,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final beacon = state.beacon;
-
-    final activeHelpOfferCount =
-        state.helpOffers.where((c) => !c.isWithdrawn).length;
-    final needCoordinationCount = state.helpOffers
-        .where(
-          (c) =>
-              !c.isWithdrawn &&
-              c.coordinationResponse ==
-                  CoordinationResponseType.needCoordination,
-        )
-        .length;
-
-    final authorClosure = state.isBeaconMine &&
-            beacon.lifecycle == BeaconLifecycle.open
-        ? state.closureReadiness
-        : null;
-
-    final tokens = buildBeaconHudStateTokens(
-      l10n: l10n,
-      beacon: beacon,
-      activeHelpOfferCount: activeHelpOfferCount,
-      needCoordinationCount: needCoordinationCount,
-      cue: state.beaconRoomCue,
-      authorClosureReadiness: authorClosure,
-    );
-    final visibleTokens = tokens.length > 3 ? tokens.sublist(0, 3) : tokens;
-
     final nowDisplay = beaconHudNowDisplay(l10n, state);
     final youText = beaconHudYouLine(l10n, state);
 
@@ -117,8 +87,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _HudStateTokenRow(tokens: visibleTokens),
-          const SizedBox(height: 8),
           HudLabeledMultiline(
             label: l10n.beaconHudNowLabel,
             text: nowDisplay.primaryText,
@@ -475,40 +443,6 @@ class _HudActionSpec {
   final String label;
   final VoidCallback? onPressed;
   final bool filled;
-}
-
-class _HudStateTokenRow extends StatelessWidget {
-  const _HudStateTokenRow({required this.tokens});
-
-  final List<String> tokens;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (tokens.isEmpty) return const SizedBox.shrink();
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: [
-        for (final t in tokens)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-            ),
-            child: Text(
-              t,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
 }
 
 class _HudPeopleStrip extends StatelessWidget {
