@@ -592,7 +592,7 @@
   "@forwardsGraphView": {
     "context": "ForwardsGraphScreen"
   },
-  "forwardsGraphMenuTitle": "Forwards graph",
+  "forwardsGraphMenuTitle": "Track of forwards",
   "@forwardsGraphMenuTitle": {
     "context": "BeaconOverflowMenu"
   },
