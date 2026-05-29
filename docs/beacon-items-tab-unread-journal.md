@@ -16,7 +16,7 @@ Plan: `/home/vader/.claude/plans/beacon-screen-items-tab-memoized-blanket.md`
 
 ## Surprises / blockers
 
-- **vexp/Grep blocked** in workspace — use `rg` in shell or direct `Read` instead.
+- **Serena MCP** preferred for symbol lookup; use `rg` in shell or direct `Read` when MCP unavailable.
 - **Plan path `m0069_coordination_item_user_seen`** — wrong number; use m0070.
 - **Plan `query_my_work.dart`** — does not exist; My Work is Hasura + separate V2 enrichment query.
 - **`mark_room_seen_case.dart`** — not found; pattern is `BeaconRoomCase.beaconParticipantRoomSeen` + client `markRoomSeenIfAllowed`.

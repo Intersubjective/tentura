@@ -7,7 +7,7 @@ alwaysApply: true
 One-line rules for quick lookup. See detailed files for explanations.
 
 ## Search & Exploration
-- Follow the repo’s token-minimizing ladder in **`.cursor/rules/search-tools.mdc`** (known location → Ollama+RAG → vexp → Grep/Glob fallback)
+- Follow the repo’s token-minimizing ladder in **`.cursor/rules/search-tools.mdc`** (known location → Ollama+RAG → Serena MCP → Grep/Glob fallback)
 
 ## Planning
 - When planning implementation (UI flows, navigation, async-loaded screens), read **`DEV_GUIDELINES.md`** at the repository root alongside these rules.

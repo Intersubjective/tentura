@@ -1,12 +1,6 @@
 {
   "version": 1,
   "hooks": {
-    "preToolUse": [
-      {
-        "command": ".cursor/hooks/vexp-guard.sh",
-        "matcher": "^(Grep|Glob)$"
-      }
-    ],
     "afterShellExecution": [
       {
         "command": ".cursor/hooks/ollama-compress.sh"
