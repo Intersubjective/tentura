@@ -56,7 +56,11 @@ class NetworkPersonCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            SelfAwareAvatar.small(profile: profile, withRating: false),
+            SelfAwareAvatar.small(
+              profile: profile,
+              withRating: false,
+              withContactBadge: true,
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

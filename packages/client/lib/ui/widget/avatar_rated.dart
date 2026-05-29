@@ -28,23 +28,28 @@ class AvatarRated extends StatelessWidget {
   AvatarRated({
     required this.profile,
     this.withRating = true,
+    bool? withContactBadge,
     this.boxFit = BoxFit.cover,
     this.size = sizeSmall,
     super.key,
-  });
+  }) : withContactBadge = withContactBadge ?? withRating;
 
   AvatarRated.big({
     required this.profile,
     this.withRating = true,
+    bool? withContactBadge,
     super.key,
-  }) : boxFit = BoxFit.cover,
+  }) : withContactBadge = withContactBadge ?? withRating,
+       boxFit = BoxFit.cover,
        size = sizeBig;
 
   AvatarRated.small({
     required this.profile,
     this.withRating = true,
+    bool? withContactBadge,
     super.key,
-  }) : boxFit = BoxFit.cover,
+  }) : withContactBadge = withContactBadge ?? withRating,
+       boxFit = BoxFit.cover,
        size = sizeSmall;
 
   final double size;
@@ -54,6 +59,9 @@ class AvatarRated extends StatelessWidget {
   final Profile profile;
 
   final bool withRating;
+
+  /// MeritRank eye / mutual-contact badge; defaults to [withRating].
+  final bool withContactBadge;
 
   late final _cacheSize = size.ceil();
 
@@ -73,27 +81,37 @@ class AvatarRated extends StatelessWidget {
   );
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-    dimension: size,
-    child: withRating
-        ? CustomPaint(
-            painter: _RatingArcsPainter(
-              color: Theme.of(context).colorScheme.primary,
-              score: profile.score,
-            ),
-            foregroundPainter: _AvatarBadgePainter(
-              color: Theme.of(context).colorScheme.primary,
-              badgeFill: Theme.of(context).colorScheme.surface,
-              isSeeingMe: profile.isSeeingMe,
-              isMutualFriend: profile.isMutualFriend,
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(size / 8),
-              child: _avatar,
-            ),
-          )
-        : _avatar,
-  );
+  Widget build(BuildContext context) {
+    if (!withRating && !withContactBadge) {
+      return SizedBox.square(dimension: size, child: _avatar);
+    }
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox.square(
+      dimension: size,
+      child: CustomPaint(
+        painter: withRating
+            ? _RatingArcsPainter(
+                color: scheme.primary,
+                score: profile.score,
+              )
+            : null,
+        foregroundPainter: withContactBadge
+            ? _AvatarBadgePainter(
+                color: scheme.primary,
+                badgeFill: scheme.surface,
+                isSeeingMe: profile.isSeeingMe,
+                isMutualFriend: profile.isMutualFriend,
+              )
+            : null,
+        child: withRating
+            ? Padding(
+                padding: EdgeInsets.all(size / 8),
+                child: _avatar,
+              )
+            : _avatar,
+      ),
+    );
+  }
 
   Widget get _imageNetwork => Image.network(
     profile.avatarUrl,

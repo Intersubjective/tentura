@@ -11,25 +11,24 @@ class SelfAwareAvatar extends StatelessWidget {
     required this.profile,
     this.size = AvatarRated.sizeSmall,
     this.withRating = true,
+    this.withContactBadge,
     super.key,
   });
 
   factory SelfAwareAvatar.small({
     required Profile profile,
     bool withRating = true,
-  }) {
-    if (withRating) {
-      return SelfAwareAvatar(profile: profile);
-    }
-    return SelfAwareAvatar(
-      profile: profile,
-      withRating: false,
-    );
-  }
+    bool? withContactBadge,
+  }) => SelfAwareAvatar(
+    profile: profile,
+    withRating: withRating,
+    withContactBadge: withContactBadge,
+  );
 
   final Profile profile;
   final double size;
   final bool withRating;
+  final bool? withContactBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +40,7 @@ class SelfAwareAvatar extends StatelessWidget {
           profile: profile,
           size: size,
           withRating: withRating,
+          withContactBadge: withContactBadge,
         );
         return SelfUserHighlight.wrapSmallAvatar(
           context,
