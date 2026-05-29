@@ -40,6 +40,8 @@ class BeaconActivityList extends StatelessWidget {
     this.actors = const {},
     this.coordinationLogOnly = false,
     this.onTapCoordinationEvent,
+    this.itemContentById = const {},
+    this.coordinationItems = const [],
     super.key,
   });
 
@@ -57,6 +59,12 @@ class BeaconActivityList extends StatelessWidget {
 
   /// Tapping a log row routes to the linked coordination item / participant.
   final void Function(BeaconActivityEvent event)? onTapCoordinationEvent;
+
+  /// Loaded coordination items for content preview when `diffJson` is empty.
+  final Map<String, String> itemContentById;
+
+  /// Full item list for resolving `coordinationItemId` on legacy events.
+  final Iterable<CoordinationItem> coordinationItems;
 
   static bool _isCoordinationLogEvent(BeaconActivityEvent e) {
     if (e.type >= 100 && e.type < 500) return true;
@@ -101,6 +109,8 @@ class BeaconActivityList extends StatelessWidget {
           label: _coordinationEventLabel(context, e),
           actor: e.actorId != null ? actors[e.actorId!] : null,
           target: e.targetUserId != null ? actors[e.targetUserId!] : null,
+          itemContentById: itemContentById,
+          coordinationItems: coordinationItems,
           onTap: onTapCoordinationEvent == null
               ? null
               : () => onTapCoordinationEvent!(e),
@@ -298,6 +308,8 @@ class _LogActivityTile extends StatelessWidget {
     required this.label,
     required this.actor,
     required this.target,
+    required this.itemContentById,
+    required this.coordinationItems,
     this.onTap,
   });
 
@@ -305,6 +317,8 @@ class _LogActivityTile extends StatelessWidget {
   final String label;
   final BeaconParticipant? actor;
   final BeaconParticipant? target;
+  final Map<String, String> itemContentById;
+  final Iterable<CoordinationItem> coordinationItems;
   final VoidCallback? onTap;
 
   @override
@@ -325,6 +339,7 @@ class _LogActivityTile extends StatelessWidget {
     final bodySnippet = coordinationLogEventBodySnippet(
       event: event,
       fallback: label,
+      itemContentById: itemContentById,
     );
 
     final row = Row(

@@ -1073,30 +1073,74 @@ class BeaconRoomRepository {
     required String beaconId,
     int limit = 200,
   }) async {
-    final rows = await (_db.select(_db.beaconActivityEvents)
-          ..where((e) => e.beaconId.equals(beaconId))
-          ..orderBy([
-            (e) =>
-                OrderingTerm(expression: e.createdAt, mode: OrderingMode.desc),
-          ])
-          ..limit(limit))
-        .get();
+    final rows = await _db.customSelect(
+      r'''
+      SELECT
+        e.id AS id,
+        e.beacon_id AS beacon_id,
+        e.visibility AS visibility,
+        e.type AS type,
+        e.actor_id AS actor_id,
+        e.target_user_id AS target_user_id,
+        e.source_message_id AS source_message_id,
+        COALESCE(e.coordination_item_id, m.linked_item_id) AS coordination_item_id,
+        COALESCE(
+          e.diff,
+          CASE
+            WHEN ci.id IS NULL THEN NULL
+            ELSE jsonb_strip_nulls(
+              jsonb_build_object(
+                'title', NULLIF(btrim(ci.title), ''),
+                'body', NULLIF(btrim(ci.body), '')
+              )
+            )
+          END
+        ) AS diff,
+        floor(extract(epoch from e.created_at) * 1000)::bigint AS created_at_ms
+      FROM beacon_activity_event e
+      LEFT JOIN beacon_room_message m ON m.id = e.source_message_id
+      LEFT JOIN coordination_item ci
+        ON ci.id = COALESCE(e.coordination_item_id, m.linked_item_id)
+      WHERE e.beacon_id = $1
+      ORDER BY e.created_at DESC
+      LIMIT $2
+      ''',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<int>(limit),
+      ],
+    ).get();
+
     return rows
         .map(
           (r) => <String, Object?>{
-            'id': r.id,
-            'beaconId': r.beaconId,
-            'visibility': r.visibility,
-            'type': r.type,
-            'actorId': r.actorId,
-            'targetUserId': r.targetUserId,
-            'sourceMessageId': r.sourceMessageId,
-            'coordinationItemId': r.coordinationItemId,
-            'diffJson': r.diff == null ? null : jsonEncode(r.diff),
-            'createdAt': r.createdAt.dateTime.toUtc().toIso8601String(),
+            'id': r.read<String>('id'),
+            'beaconId': r.read<String>('beacon_id'),
+            'visibility': r.read<int>('visibility'),
+            'type': r.read<int>('type'),
+            'actorId': r.read<String?>('actor_id'),
+            'targetUserId': r.read<String?>('target_user_id'),
+            'sourceMessageId': r.read<String?>('source_message_id'),
+            'coordinationItemId': r.read<String?>('coordination_item_id'),
+            'diffJson': _activityEventDiffJson(r.read<Object?>('diff')),
+            'createdAt': DateTime.fromMillisecondsSinceEpoch(
+              r.read<int>('created_at_ms'),
+              isUtc: true,
+            ).toIso8601String(),
           },
         )
         .toList();
+  }
+
+  String? _activityEventDiffJson(Object? diff) {
+    if (diff == null) return null;
+    if (diff is String) {
+      final trimmed = diff.trim();
+      if (trimmed.isEmpty || trimmed == 'null') return null;
+      return trimmed;
+    }
+    if (diff is Map && diff.isEmpty) return null;
+    return jsonEncode(diff);
   }
 
   Future<String?> beaconAuthorUserId(String beaconId) async {
