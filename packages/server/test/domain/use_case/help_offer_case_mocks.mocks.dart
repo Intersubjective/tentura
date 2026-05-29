@@ -1560,6 +1560,14 @@ class MockBeaconRoomRepository extends _i1.Mock
           as _i6.Future<void>);
 
   @override
+  _i6.Future<DateTime?> latestMainRoomMessageCreatedAt(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#latestMainRoomMessageCreatedAt, [beaconId]),
+            returnValue: _i6.Future<DateTime?>.value(),
+          )
+          as _i6.Future<DateTime?>);
+
+  @override
   _i6.Future<DateTime?> getMainRoomLastSeen({
     required String? beaconId,
     required String? userId,
