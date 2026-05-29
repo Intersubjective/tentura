@@ -7,6 +7,7 @@ query BeaconActivityEventList($beaconId: String!) {
     actorId
     targetUserId
     sourceMessageId
+    coordinationItemId
     diffJson
     createdAt
   }

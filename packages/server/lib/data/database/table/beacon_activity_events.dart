@@ -23,6 +23,8 @@ class BeaconActivityEvents extends Table {
 
   late final sourceMessageId = text().nullable()();
 
+  late final coordinationItemId = text().nullable()();
+
   late final diff = customType(PgTypes.jsonb).nullable()();
 
   late final createdAt = customType(

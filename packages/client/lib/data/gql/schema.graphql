@@ -5501,6 +5501,7 @@ type BeaconActivityEventRow {
   actorId: String
   targetUserId: String
   sourceMessageId: String
+  coordinationItemId: String
   diffJson: String
   createdAt: String!
 }

@@ -13,6 +13,7 @@ abstract class BeaconActivityEvent with _$BeaconActivityEvent {
     String? actorId,
     String? targetUserId,
     String? sourceMessageId,
+    String? coordinationItemId,
     String? diffJson,
   }) = _BeaconActivityEvent;
 }

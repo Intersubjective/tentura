@@ -165,6 +165,7 @@ final gqlTypeBeaconActivityEventRow =
         field('actorId', graphQLString),
         field('targetUserId', graphQLString),
         field('sourceMessageId', graphQLString),
+        field('coordinationItemId', graphQLString),
         field('diffJson', graphQLString),
         field('createdAt', graphQLString.nonNullable()),
       ]);

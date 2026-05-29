@@ -39,6 +39,7 @@ class BeaconActivityList extends StatelessWidget {
     this.roomActivityEvents = const [],
     this.actors = const {},
     this.coordinationLogOnly = false,
+    this.onTapCoordinationEvent,
     super.key,
   });
 
@@ -53,6 +54,9 @@ class BeaconActivityList extends StatelessWidget {
 
   /// When true (Log tab), show only semantic/coordination room events.
   final bool coordinationLogOnly;
+
+  /// Tapping a log row routes to the linked coordination item / participant.
+  final void Function(BeaconActivityEvent event)? onTapCoordinationEvent;
 
   static bool _isCoordinationLogEvent(BeaconActivityEvent e) {
     if (e.type >= 100 && e.type < 500) return true;
@@ -97,6 +101,9 @@ class BeaconActivityList extends StatelessWidget {
           label: _coordinationEventLabel(context, e),
           actor: e.actorId != null ? actors[e.actorId!] : null,
           target: e.targetUserId != null ? actors[e.targetUserId!] : null,
+          onTap: onTapCoordinationEvent == null
+              ? null
+              : () => onTapCoordinationEvent!(e),
         ),
       ));
     }
@@ -291,12 +298,14 @@ class _LogActivityTile extends StatelessWidget {
     required this.label,
     required this.actor,
     required this.target,
+    this.onTap,
   });
 
   final BeaconActivityEvent event;
   final String label;
   final BeaconParticipant? actor;
   final BeaconParticipant? target;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -318,30 +327,47 @@ class _LogActivityTile extends StatelessWidget {
       fallback: label,
     );
 
-    return Padding(
-      padding: kPaddingSmallV,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          lead,
-          const SizedBox(width: kSpacingSmall),
-          Expanded(
-            child: Text(
-              bodySnippet,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: iconColor,
-                fontWeight: tier == _LogTier.high ? FontWeight.w600 : null,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        lead,
+        const SizedBox(width: kSpacingSmall),
+        Expanded(
+          child: Text(
+            bodySnippet,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: iconColor,
+              fontWeight: tier == _LogTier.high ? FontWeight.w600 : null,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(width: 4),
-          Text(
-            coordinationLogTimestampLabel(event.createdAt),
-            style: theme.textTheme.labelSmall,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          coordinationLogTimestampLabel(event.createdAt),
+          style: theme.textTheme.labelSmall,
+        ),
+        if (onTap != null) ...[
+          const SizedBox(width: 2),
+          Icon(
+            Icons.chevron_right,
+            size: 16,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ],
+      ],
+    );
+
+    if (onTap == null) {
+      return Padding(padding: kPaddingSmallV, child: row);
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: const BorderRadius.all(Radius.circular(8)),
+      child: Padding(
+        padding: kPaddingSmallV,
+        child: row,
       ),
     );
   }

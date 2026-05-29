@@ -15,6 +15,7 @@ import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_file_attachment_open.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
+import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 
@@ -127,11 +128,16 @@ class ItemsTab extends StatelessWidget {
   const ItemsTab({
     required this.state,
     required this.onOpenItemThread,
+    this.focusItemId,
     super.key,
   });
 
   final BeaconViewState state;
   final void Function(CoordinationItem item) onOpenItemThread;
+
+  /// When set, the matching item is scrolled into view, its fold expanded, and
+  /// a brief highlight flash is played (Log row tap-to-focus).
+  final String? focusItemId;
 
   @override
   Widget build(BuildContext context) {
@@ -157,6 +163,11 @@ class ItemsTab extends StatelessWidget {
         final closedItems = _itemsTabVisibleItems(tabState.closedItems);
         final myUserId = state.myProfile.id;
         final myDrafts = _myDraftItems(tabState, myUserId);
+        final focusId = focusItemId?.trim();
+        final hasFocus = focusId != null && focusId.isNotEmpty;
+        final focusInClosed =
+            hasFocus && closedItems.any((i) => i.id == focusId);
+        final focusInDrafts = hasFocus && myDrafts.any((d) => d.id == focusId);
         final myDraftCount = myDrafts.length;
         final hasItems = openItems.isNotEmpty ||
             closedItems.isNotEmpty ||
@@ -212,7 +223,9 @@ class ItemsTab extends StatelessWidget {
                       for (final item in openItems)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
-                            child: _ItemCardAnimatedRow(
+                            child: FocusFlashHighlight(
+                              active: hasFocus && item.id == focusId,
+                              child: _ItemCardAnimatedRow(
                               key: ValueKey(item.id),
                               item: item,
                               creatorParticipant: _participantForUser(
@@ -279,6 +292,7 @@ class ItemsTab extends StatelessWidget {
                                           .rejectResolution(item.id)
                                       : null,
                             ),
+                            ),
                           ),
                     ],
                   ),
@@ -286,6 +300,7 @@ class ItemsTab extends StatelessWidget {
                 if (showClosedFold) ...[
                   const SizedBox(height: 8),
                   ExpansionTile(
+                    initiallyExpanded: focusInClosed,
                     leading: const Icon(Icons.check_circle_outline),
                     title: Text(
                       'Closed (${closedItems.length})',
@@ -295,22 +310,25 @@ class ItemsTab extends StatelessWidget {
                       for (final item in closedItems)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: ItemCard(
-                            item: item,
-                            creatorParticipant: _participantForUser(
-                              state.roomParticipants,
-                              item.creatorId,
-                            ),
-                            targetParticipant: _participantForUser(
-                              state.roomParticipants,
-                              item.targetPersonId,
-                            ),
-                            onEdit: _itemsTabEditHandler(
-                              context,
+                          child: FocusFlashHighlight(
+                            active: hasFocus && item.id == focusId,
+                            child: ItemCard(
                               item: item,
-                              state: state,
+                              creatorParticipant: _participantForUser(
+                                state.roomParticipants,
+                                item.creatorId,
+                              ),
+                              targetParticipant: _participantForUser(
+                                state.roomParticipants,
+                                item.targetPersonId,
+                              ),
+                              onEdit: _itemsTabEditHandler(
+                                context,
+                                item: item,
+                                state: state,
+                              ),
+                              onOpenItemThread: onOpenItemThread,
                             ),
-                            onOpenItemThread: onOpenItemThread,
                           ),
                         ),
                     ],
@@ -319,6 +337,7 @@ class ItemsTab extends StatelessWidget {
                 if (myDraftCount > 0) ...[
                   const SizedBox(height: 8),
                   ExpansionTile(
+                    initiallyExpanded: focusInDrafts,
                     title: Text(
                       '${l10n.myWorkSectionDrafts} ($myDraftCount)',
                       style: Theme.of(context).textTheme.titleSmall,
@@ -328,9 +347,12 @@ class ItemsTab extends StatelessWidget {
                       for (final draft in myDrafts)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: _MyDraftItemRow(
-                            draft: draft,
-                            state: state,
+                          child: FocusFlashHighlight(
+                            active: hasFocus && draft.id == focusId,
+                            child: _MyDraftItemRow(
+                              draft: draft,
+                              state: state,
+                            ),
                           ),
                         ),
                     ],

@@ -83,7 +83,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               actorId: Value(creatorId),
               targetUserId: Value(targetPersonId),
               sourceMessageId: Value(roomMsgIdForActivity),
-              diff: const Value(null),
+              coordinationItemId: Value(id),
+              diff: _activityEventDiff(title: title, body: body),
               createdAt: const Value.absent(),
             ),
           );
@@ -258,7 +259,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         actorId: Value(actorId),
         targetUserId: Value(targetUserId ?? existing.targetPersonId),
         sourceMessageId: Value(roomMsgId),
-        diff: const Value(null),
+        coordinationItemId: Value(existing.id),
+        diff: _activityEventDiff(title: existing.title, body: existing.body),
         createdAt: const Value.absent(),
       ),
     );
@@ -400,7 +402,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               actorId: Value(actorId),
               targetUserId: Value(targetPersonId),
               sourceMessageId: Value(roomMsgIdForActivity),
-              diff: const Value(null),
+              coordinationItemId: Value(id),
+              diff: _activityEventDiff(title: updated.title, body: updated.body),
               createdAt: const Value.absent(),
             ),
           );
@@ -624,7 +627,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               actorId: Value(actorId),
               targetUserId: const Value(null),
               sourceMessageId: Value(roomMsgIdForActivity),
-              diff: const Value(null),
+              coordinationItemId: Value(id),
+              diff: _activityEventDiff(title: updated.title, body: updated.body),
               createdAt: const Value.absent(),
             ),
           );
@@ -1087,4 +1091,19 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   /// Activity event type encoding: kind * 100 + eventKind.
   int _activityEventTypeForKind(int itemKind, int eventKind) =>
       itemKind * 100 + eventKind;
+
+  /// Content snippet stored on the activity event `diff` jsonb so the Log row
+  /// can show the item's text (title/body) instead of the bare event type.
+  Value<Map<String, Object?>?> _activityEventDiff({
+    required String title,
+    String body = '',
+  }) {
+    final t = title.trim();
+    final b = body.trim();
+    if (t.isEmpty && b.isEmpty) return const Value(null);
+    return Value(<String, Object?>{
+      if (t.isNotEmpty) 'title': t,
+      if (b.isNotEmpty) 'body': b,
+    });
+  }
 }
