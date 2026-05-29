@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.da
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
 import 'beacon_anchor_status.dart';
 import 'beacon_hud_action_button.dart';
@@ -31,6 +32,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onOpenReview,
     this.onOpenLogTab,
     this.onEditNowLine,
+    this.onShowNowDetail,
     super.key,
   });
 
@@ -63,6 +65,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   /// Edit room current line (NOW row).
   final VoidCallback? onEditNowLine;
+
+  /// Opens NOW detail bottom sheet.
+  final VoidCallback? onShowNowDetail;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +119,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         children: [
           _HudStateTokenRow(tokens: visibleTokens),
           const SizedBox(height: 8),
-          _HudLabeledMultiline(
+          HudLabeledMultiline(
             label: l10n.beaconHudNowLabel,
             text: nowDisplay.primaryText,
             subline: nowDisplay.blockerText,
@@ -122,9 +127,11 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             isPlaceholder: nowDisplay.isPlaceholder,
             onEdit: onEditNowLine,
             editSemanticLabel: l10n.beaconHudEditNowLine,
+            onShowDetail: onShowNowDetail,
+            showDetailSemanticLabel: l10n.beaconHudNowLabel,
           ),
           const SizedBox(height: 6),
-          _HudLabeledMultiline(
+          HudLabeledMultiline(
             label: l10n.beaconHudYouLabel,
             text: youText,
             mutedColor: tt.textMuted,
@@ -500,115 +507,6 @@ class _HudStateTokenRow extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _HudLabeledMultiline extends StatelessWidget {
-  const _HudLabeledMultiline({
-    required this.label,
-    required this.text,
-    required this.mutedColor,
-    this.subline,
-    this.isPlaceholder = false,
-    this.onEdit,
-    this.editSemanticLabel,
-  });
-
-  final String label;
-  final String text;
-  final String? subline;
-  final Color mutedColor;
-  final bool isPlaceholder;
-  final VoidCallback? onEdit;
-  final String? editSemanticLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final textColor =
-        isPlaceholder ? scheme.onSurfaceVariant : scheme.onSurface;
-    final semanticsText = subline == null ? text : '$text\n$subline';
-
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          text,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: textColor,
-            height: 1.25,
-          ),
-        ),
-        if (subline != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            subline!,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.error,
-              height: 1.25,
-            ),
-          ),
-        ],
-      ],
-    );
-
-    final row = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 44,
-          child: Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: mutedColor,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
-            ),
-          ),
-        ),
-        Expanded(child: content),
-        if (onEdit != null) ...[
-          const SizedBox(width: 4),
-          Semantics(
-            button: true,
-            label: editSemanticLabel,
-            child: IconButton(
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-              icon: Icon(
-                Icons.edit_outlined,
-                size: 20,
-                color: scheme.onSurfaceVariant,
-              ),
-              onPressed: onEdit,
-            ),
-          ),
-        ],
-      ],
-    );
-
-    return Semantics(
-      label: '$label $semanticsText',
-      child: ExcludeSemantics(
-        child: onEdit == null
-            ? row
-            : InkWell(
-                onTap: onEdit,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: row,
-                ),
-              ),
-      ),
     );
   }
 }
