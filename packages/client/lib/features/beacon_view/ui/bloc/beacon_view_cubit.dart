@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:get_it/get_it.dart';
-import 'package:tentura/debug/agent_session_log.dart';
 
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -410,18 +409,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     final snapshot = await _case.fetchRoomUnreadSnapshot(beaconId);
     _serverUnreadCount = snapshot.count;
     _serverSeenAt = snapshot.serverSeenAt;
-    // #region agent log
-    agentSessionLog(
-      location: 'beacon_view_cubit.dart:_refreshRoomUnread',
-      message: 'server roomUnreadCount fetched',
-      hypothesisId: 'H-E',
-      data: {
-        'beaconId': beaconId,
-        'roomUnreadCount': snapshot.count,
-        'serverSeenAt': snapshot.serverSeenAt?.toIso8601String(),
-      },
-    );
-    // #endregion
     if (!isClosed && beaconId == state.beacon.id) {
       _emitResolvedRoomUnread();
     }

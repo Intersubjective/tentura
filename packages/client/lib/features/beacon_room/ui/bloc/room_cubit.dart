@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:tentura/debug/agent_session_log.dart';
 import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -176,56 +175,17 @@ class RoomCubit extends Cubit<RoomState> {
   /// Advances the read watermark to the newest loaded message and flushes seen
   /// to the server. Called when the user reaches the bottom of the list.
   Future<void> markReadToBottom() async {
-    // #region agent log
-    agentSessionLog(
-      location: 'room_cubit.dart:markReadToBottom',
-      message: 'markReadToBottom called',
-      hypothesisId: 'H-A',
-      data: {
-        'msgCount': state.messages.length,
-        'unreadCountBefore': state.unreadCount,
-        'anchorBefore': state.unreadAnchorAt?.toIso8601String(),
-      },
-    );
-    // #endregion
     if (state.messages.isEmpty) return;
 
     _advanceReadAnchorToLatestLoaded();
-    // #region agent log
-    agentSessionLog(
-      location: 'room_cubit.dart:markReadToBottom',
-      message: 'anchor advanced',
-      hypothesisId: 'H-A',
-      data: {
-        'unreadCountAfter': state.unreadCount,
-        'anchorAfter': state.unreadAnchorAt?.toIso8601String(),
-      },
-    );
-    // #endregion
     await markSeenNowIfNeeded();
   }
 
   Future<void> markSeenNowIfNeeded() async {
     if (_markSeenEmittedThisVisit) {
-      // #region agent log
-      agentSessionLog(
-        location: 'room_cubit.dart:markSeenNowIfNeeded',
-        message: 'skipped already emitted',
-        hypothesisId: 'H-B',
-        data: {'beaconId': state.beaconId},
-      );
-      // #endregion
       return;
     }
     if (!_initialLoadDone) {
-      // #region agent log
-      agentSessionLog(
-        location: 'room_cubit.dart:markSeenNowIfNeeded',
-        message: 'skipped initial load not done',
-        hypothesisId: 'H-B',
-        data: {'beaconId': state.beaconId},
-      );
-      // #endregion
       return;
     }
     try {
@@ -242,52 +202,10 @@ class RoomCubit extends Cubit<RoomState> {
             _advanceReadAnchorToLatestLoaded();
             emit(state.copyWith(pendingMarkSeen: false));
           }
-          // #region agent log
-          agentSessionLog(
-            location: 'room_cubit.dart:markSeenNowIfNeeded',
-            message: 'markRoomSeen success',
-            hypothesisId: 'H-B',
-            data: {
-              'beaconId': state.beaconId,
-              'unreadCount': state.unreadCount,
-              'anchor': state.unreadAnchorAt?.toIso8601String(),
-            },
-          );
-          // #endregion
         case RoomSeenDenied():
-          // #region agent log
-          agentSessionLog(
-            location: 'room_cubit.dart:markSeenNowIfNeeded',
-            message: 'markRoomSeen denied',
-            hypothesisId: 'H-B',
-            data: {'beaconId': state.beaconId},
-          );
-          // #endregion
-        case RoomSeenFailed(:final error):
-          // #region agent log
-          agentSessionLog(
-            location: 'room_cubit.dart:markSeenNowIfNeeded',
-            message: 'markRoomSeen failed',
-            hypothesisId: 'H-B',
-            data: {
-              'beaconId': state.beaconId,
-              'error': error.runtimeType.toString(),
-            },
-          );
-          // #endregion
+        case RoomSeenFailed():
       }
-    } on Object catch (e) {
-      // #region agent log
-      agentSessionLog(
-        location: 'room_cubit.dart:markSeenNowIfNeeded',
-        message: 'markRoomSeen failed',
-        hypothesisId: 'H-B',
-        data: {
-          'beaconId': state.beaconId,
-          'error': e.runtimeType.toString(),
-        },
-      );
-      // #endregion
+    } on Object {
       /* non-fatal; retry on next bottom / exit */
     }
   }
@@ -343,54 +261,15 @@ class RoomCubit extends Cubit<RoomState> {
             break;
           }
         }
-        final anchorBeforeMerge = anchor;
         if (anchor == null) {
           anchor = serverSeen;
         } else if (serverSeen != null && serverSeen.isAfter(anchor)) {
           anchor = serverSeen;
         }
-        // #region agent log
-        agentSessionLog(
-          location: 'room_cubit.dart:_fetchRoomData',
-          message: serverSeen != null &&
-                  anchorBeforeMerge != null &&
-                  serverSeen.isBefore(anchorBeforeMerge)
-              ? 'anchor kept above stale serverSeen'
-              : 'anchor merged with server seen',
-          hypothesisId: 'H-G',
-          runId: 'post-fix',
-          data: {
-            'silent': silent,
-            'serverSeen': serverSeen?.toIso8601String(),
-            'anchorBefore': anchorBeforeMerge?.toIso8601String(),
-            'anchor': anchor?.toIso8601String(),
-            'markSeenEmitted': _markSeenEmittedThisVisit,
-          },
-        );
-        // #endregion
       }
 
       if (!isClosed) {
         _initialLoadDone = true;
-        // #region agent log
-        agentSessionLog(
-          location: 'room_cubit.dart:_fetchRoomData',
-          message: 'load success unread snapshot',
-          hypothesisId: 'H-E',
-          data: {
-            'silent': silent,
-            'anchor': anchor?.toIso8601String(),
-            'unreadCount': state.messages.isEmpty
-                ? 0
-                : RoomState(
-                    messages: messages,
-                    unreadAnchorAt: anchor,
-                    myUserId: GetIt.I<ProfileCubit>().state.profile.id,
-                  ).unreadCount,
-            'markSeenEmitted': _markSeenEmittedThisVisit,
-          },
-        );
-        // #endregion
         emit(
           state.copyWith(
             messages: messages,
@@ -816,28 +695,9 @@ class RoomCubit extends Cubit<RoomState> {
 
   @override
   Future<void> close() async {
-    // #region agent log
-    agentSessionLog(
-      location: 'room_cubit.dart:close',
-      message: 'close start',
-      hypothesisId: 'H-C',
-      data: {
-        'unreadCount': state.unreadCount,
-        'markSeenEmitted': _markSeenEmittedThisVisit,
-      },
-    );
-    // #endregion
     await _refreshSub.cancel();
     await _itemSyncSub?.cancel();
     await markSeenNowIfNeeded();
-    // #region agent log
-    agentSessionLog(
-      location: 'room_cubit.dart:close',
-      message: 'close after markSeen',
-      hypothesisId: 'H-C',
-      data: {'markSeenEmitted': _markSeenEmittedThisVisit},
-    );
-    // #endregion
     return super.close();
   }
 }
