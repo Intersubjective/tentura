@@ -2556,7 +2556,7 @@
     }
   },
   "beaconNoActivityYetShort": "Пока нет событий",
-  "helpOffersTabAuthorLabelCaption": "метка автора",
+  "helpOffersTabNoAuthorLabelYet": "метки автора ещё нет",
   "helpOffersTabActionEdit": "правка",
   "helpOffersTabActionWithdraw": "снять",
   "helpOffersTabSummaryUseful": "{n} полезн.",
