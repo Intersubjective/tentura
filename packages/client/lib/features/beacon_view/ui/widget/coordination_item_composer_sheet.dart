@@ -350,20 +350,22 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
                 onSelected: (id) => setState(() => _selectedTargetId = id),
               ),
             ],
-            const SizedBox(height: kSpacingSmall),
-            Material(
-              color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: const EdgeInsets.all(kSpacingSmall),
-                child: Text(
-                  l10n.coordinationComposerNoTargetWillSaveDraft,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
+            if (!_willPublish) ...[
+              const SizedBox(height: kSpacingSmall),
+              Material(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.all(kSpacingSmall),
+                  child: Text(
+                    l10n.coordinationComposerNoTargetWillSaveDraft,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: kSpacingMedium),
             FilledButton(
               onPressed: !_canSubmitContent ? null : _onSubmit,
