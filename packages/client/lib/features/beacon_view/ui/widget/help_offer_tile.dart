@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -22,6 +23,7 @@ class HelpOfferTile extends StatelessWidget {
   const HelpOfferTile({
     required this.helpOffer,
     required this.beaconId,
+    required this.beaconAuthor,
     required this.beaconAuthorId,
     this.isMine = false,
     this.onEdit,
@@ -33,6 +35,7 @@ class HelpOfferTile extends StatelessWidget {
 
   final TimelineHelpOffer helpOffer;
   final String beaconId;
+  final Profile beaconAuthor;
   final String beaconAuthorId;
   final bool isMine;
   final VoidCallback? onEdit;
@@ -171,6 +174,7 @@ class HelpOfferTile extends StatelessWidget {
             _AuthorFooter(
               l10n: l10n,
               tt: tt,
+              beaconAuthor: beaconAuthor,
               coordinationLabel: coordinationLabel,
               responseType: helpOffer.coordinationResponse,
               authorLabelColor: helpOffer.coordinationResponse != null
@@ -222,6 +226,7 @@ class _AuthorFooter extends StatelessWidget {
   const _AuthorFooter({
     required this.l10n,
     required this.tt,
+    required this.beaconAuthor,
     required this.coordinationLabel,
     required this.responseType,
     required this.authorLabelColor,
@@ -229,8 +234,11 @@ class _AuthorFooter extends StatelessWidget {
     required this.onAuthorTapCoordination,
   });
 
+  static const double _authorAvatarSize = 16;
+
   final L10n l10n;
   final TenturaTokens tt;
+  final Profile beaconAuthor;
   final String? coordinationLabel;
   final CoordinationResponseType? responseType;
   final Color authorLabelColor;
@@ -239,31 +247,35 @@ class _AuthorFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasResponse = coordinationLabel != null && responseType != null;
+
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: TenturaText.bodySmall(tt.textMuted),
-              children: [
-                TextSpan(
-                  text: l10n.helpOffersTabAuthorLabelCaption,
+          child: hasResponse
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    TenturaAvatar(
+                      profile: beaconAuthor,
+                      size: _authorAvatarSize,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        ' - "$coordinationLabel"',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.typeLabel(authorLabelColor),
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  l10n.helpOffersTabNoAuthorLabelYet,
+                  style: TenturaText.bodySmall(tt.textMuted),
                 ),
-                if (coordinationLabel != null && responseType != null) ...[
-                  const TextSpan(text: '  '),
-                  TextSpan(
-                    text: coordinationLabel,
-                    style: TenturaText.typeLabel(authorLabelColor),
-                  ),
-                ] else
-                  TextSpan(
-                    text: ' —',
-                    style: TenturaText.bodySmall(tt.textMuted),
-                  ),
-              ],
-            ),
-          ),
         ),
         if (isAuthorView && onAuthorTapCoordination != null) ...[
           const SizedBox(width: 6),

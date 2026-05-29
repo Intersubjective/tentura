@@ -1558,6 +1558,7 @@ class _HelpOffersTabBody extends StatelessWidget {
       return HelpOfferTile(
         helpOffer: c,
         beaconId: beacon.id,
+        beaconAuthor: beacon.author,
         beaconAuthorId: beacon.author.id,
         isMine: c.user.id == state.myProfile.id,
         isAuthorView: state.isAuthorOrSteward,
@@ -1828,6 +1829,7 @@ class _HelpOffersTabBody extends StatelessWidget {
                 HelpOfferTile(
                   helpOffer: withdrawn[j],
                   beaconId: beacon.id,
+                  beaconAuthor: beacon.author,
                   beaconAuthorId: beacon.author.id,
                   isMine: withdrawn[j].user.id == state.myProfile.id,
                   isAuthorView: state.isAuthorOrSteward,

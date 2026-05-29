@@ -70,6 +70,7 @@ void main() {
         HelpOfferTile(
           helpOffer: _helpOffer(userId: 'c1', helpType: 'money'),
           beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
           beaconAuthorId: 'auth',
         ),
       ),
@@ -91,6 +92,7 @@ void main() {
         HelpOfferTile(
           helpOffer: _helpOffer(userId: 'c1', helpType: 'legacy_unknown_key'),
           beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
           beaconAuthorId: 'auth',
         ),
       ),
@@ -115,6 +117,7 @@ void main() {
             helpType: '["money","time"]',
           ),
           beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
           beaconAuthorId: 'auth',
         ),
       ),
@@ -132,6 +135,7 @@ void main() {
         HelpOfferTile(
           helpOffer: _helpOffer(userId: 'c1'),
           beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
           beaconAuthorId: 'auth',
         ),
       ),
@@ -151,6 +155,7 @@ void main() {
         HelpOfferTile(
           helpOffer: _helpOffer(userId: 'c1', isWithdrawn: true),
           beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
           beaconAuthorId: 'auth',
         ),
       ),
@@ -169,6 +174,7 @@ void main() {
           HelpOfferTile(
             helpOffer: _helpOffer(userId: 'me'),
             beaconId: 'B1',
+            beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
             beaconAuthorId: 'auth',
             isMine: true,
           ),
