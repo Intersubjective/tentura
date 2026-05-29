@@ -180,7 +180,6 @@ class RoomMessageTile extends StatelessWidget {
   /// Bottom-row coordination indicator (replaces inline coordination plaques).
   @visibleForTesting
   static bool showCoordinationItemFooter(RoomMessage m) {
-    if (showMarkDoneFooter(m)) return false;
     if (isPlanAnnounceBar(m)) return false;
     if (isCoordinationTimelineNotifyRow(m)) return false;
     if (isFactPinNotification(m)) return false;
@@ -195,6 +194,17 @@ class RoomMessageTile extends StatelessWidget {
   /// @deprecated Use [showCoordinationItemFooter].
   static bool showLifecycleFooter(RoomMessage m) =>
       showCoordinationItemFooter(m) && m.isPromotedSourceMessage;
+
+  @visibleForTesting
+  static bool isThreadEntryKind(CoordinationItemKind kind) =>
+      kind == CoordinationItemKind.ask ||
+      kind == CoordinationItemKind.promise ||
+      kind == CoordinationItemKind.blocker;
+
+  /// Ask / promise / blocker marks stay vivid on cards so thread access matches open items.
+  @visibleForTesting
+  static Color threadMarkAccent(TenturaTokens tt, CoordinationItemKind kind) =>
+      coordinationItemColor(tt, kind, CoordinationItemStatus.open);
 
   static Profile? profileForUserId(
     String userId,
@@ -809,8 +819,13 @@ class RoomMessageTile extends StatelessWidget {
             final isTerminal = status == CoordinationItemStatus.resolved.value ||
                 status == CoordinationItemStatus.cancelled.value ||
                 status == CoordinationItemStatus.superseded.value;
+            final skipResolutionWidth =
+                message.isPromotedSourceMessage &&
+                promotionDate != null &&
+                RoomMessageTile.isThreadEntryKind(linkedCoord.kind);
             if (message.isPromotedSourceMessage &&
                 isTerminal &&
+                !skipResolutionWidth &&
                 lifecycleLabelStyle != null &&
                 lifecycleTimeStyle != null) {
               final last = message.lastStatusEvent;
@@ -1133,12 +1148,20 @@ class _MessageLifecycleFooter extends StatelessWidget {
         reactionEntries.isNotEmpty || !hideTimestamp;
 
     final promotionDate = message.linkedItemUpdatedAt ?? message.linkedItemCreatedAt;
+    final showPromotionRow = showCoordinationFooter &&
+        message.isPromotedSourceMessage &&
+        linkedCoord != null &&
+        promotionDate != null;
+    final keepThreadMarkInsteadOfResolution = showPromotionRow &&
+        linkedCoord != null &&
+        RoomMessageTile.isThreadEntryKind(linkedCoord!.kind);
 
     Widget? resolutionRow;
     if (showCoordinationFooter &&
         message.isPromotedSourceMessage &&
         linkedCoord != null &&
-        _isTerminalStatus(message.linkedItemStatus)) {
+        _isTerminalStatus(message.linkedItemStatus) &&
+        !keepThreadMarkInsteadOfResolution) {
       final last = message.lastStatusEvent;
       final eventKind = last != null
           ? CoordinationItemEventKind.fromInt(last.eventKind)
@@ -1173,10 +1196,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
     }
 
     Widget? promotionRow;
-    if (showCoordinationFooter &&
-        message.isPromotedSourceMessage &&
-        linkedCoord != null &&
-        promotionDate != null) {
+    if (showPromotionRow) {
       final kind = linkedCoord!.kind;
       promotionRow = _lifecycleTapRow(
         context: context,
@@ -1190,13 +1210,15 @@ class _MessageLifecycleFooter extends StatelessWidget {
           CoordinationItemEventKind.created,
           isPlanStep: linkedCoord!.isPlanStep,
         ),
-        accent: coordinationItemEventColor(
-          tokens,
-          kind,
-          CoordinationItemEventKind.created,
-        ),
+        accent: RoomMessageTile.isThreadEntryKind(kind)
+            ? RoomMessageTile.threadMarkAccent(tokens, kind)
+            : coordinationItemEventColor(
+                tokens,
+                kind,
+                CoordinationItemEventKind.created,
+              ),
         label: RoomMessageTile._coordKindShortLabel(l10n, kind),
-        time: RoomMessageTile._formatMessageTime(promotionDate),
+        time: RoomMessageTile._formatMessageTime(promotionDate!),
         onTap: onOpenItem,
       );
     }
@@ -1210,6 +1232,8 @@ class _MessageLifecycleFooter extends StatelessWidget {
           message.linkedItemUpdatedAt ??
           message.linkedItemCreatedAt ??
           message.createdAt;
+      final kind = linkedCoord!.kind;
+      final useThreadMarkAccent = RoomMessageTile.isThreadEntryKind(kind);
       eventRow = _lifecycleTapRow(
         context: context,
         profile: RoomMessageTile.profileForUserId(
@@ -1218,18 +1242,20 @@ class _MessageLifecycleFooter extends StatelessWidget {
             ) ??
             message.author,
         icon: coordinationEventTimelineIcon(
-          linkedCoord!.kind,
+          kind,
           linkedEventKind!,
           isPlanStep: linkedCoord!.isPlanStep,
         ),
-        accent: coordinationEventTimelineColor(
-          tokens,
-          linkedCoord!.kind,
-          linkedEventKind!,
-        ),
+        accent: useThreadMarkAccent
+            ? RoomMessageTile.threadMarkAccent(tokens, kind)
+            : coordinationEventTimelineColor(
+                tokens,
+                kind,
+                linkedEventKind!,
+              ),
         label: coordinationEventTimelineLabel(
           l10n,
-          linkedCoord!.kind,
+          kind,
           linkedEventKind!,
           isPlanStep: linkedCoord!.isPlanStep,
         ),
