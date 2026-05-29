@@ -286,6 +286,7 @@ class ItemsTab extends StatelessWidget {
                 if (showClosedFold) ...[
                   const SizedBox(height: 8),
                   ExpansionTile(
+                    leading: const Icon(Icons.check_circle_outline),
                     title: Text(
                       'Closed (${closedItems.length})',
                       style: Theme.of(context).textTheme.titleSmall,
