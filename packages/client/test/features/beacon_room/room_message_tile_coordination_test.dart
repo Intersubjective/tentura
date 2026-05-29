@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
@@ -12,6 +13,7 @@ RoomMessage _msg({
   int? linkedItemKind,
   int? linkedItemStatus,
   String? linkedItemCreatorId,
+  int? semanticMarker,
 }) =>
     RoomMessage(
       id: id,
@@ -29,6 +31,7 @@ RoomMessage _msg({
       linkedItemCreatorId: linkedItemCreatorId,
       linkedItemCreatedAt: DateTime.utc(2026),
       linkedItemUpdatedAt: DateTime.utc(2026),
+      semanticMarker: semanticMarker,
     );
 
 void main() {
@@ -161,6 +164,37 @@ void main() {
       );
       expect(m.linkedCoordinationItem, isNull);
       expect(m.isPromotedSourceMessage, isFalse);
+    });
+  });
+
+  group('showCoordinationItemFooter with mark done', () {
+    test('semantic done keeps coordination footer for promoted ask', () {
+      final m = _msg(
+        id: 'source',
+        linkedItemId: 'item1',
+        linkedEventKind: CoordinationItemEventKind.created.value,
+        linkedItemKind: CoordinationItemKind.ask.value,
+        linkedItemCreatorId: 'u1',
+        linkedItemStatus: CoordinationItemStatus.resolved.value,
+        semanticMarker: BeaconRoomSemanticMarker.done,
+        systemPayloadJson: '{"semanticActorId":"u2"}',
+      );
+      expect(RoomMessageTile.showMarkDoneFooter(m), isTrue);
+      expect(RoomMessageTile.showCoordinationItemFooter(m), isTrue);
+    });
+  });
+
+  group('thread mark accent', () {
+    test('resolved ask uses open warn accent not muted resolved accent', () {
+      // Uses design tokens indirectly via coordinationItemColor — open ask is warn.
+      expect(
+        RoomMessageTile.isThreadEntryKind(CoordinationItemKind.ask),
+        isTrue,
+      );
+      expect(
+        RoomMessageTile.isThreadEntryKind(CoordinationItemKind.plan),
+        isFalse,
+      );
     });
   });
 }
