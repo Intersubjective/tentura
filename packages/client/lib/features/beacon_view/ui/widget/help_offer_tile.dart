@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
+import 'package:tentura/features/beacon_view/ui/widget/author_star_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -30,6 +35,8 @@ class HelpOfferTile extends StatelessWidget {
     this.onWithdraw,
     this.isAuthorView = false,
     this.onAuthorTapCoordination,
+    this.participant,
+    this.showAuthorStar = false,
     super.key,
   });
 
@@ -42,6 +49,8 @@ class HelpOfferTile extends StatelessWidget {
   final VoidCallback? onWithdraw;
   final bool isAuthorView;
   final VoidCallback? onAuthorTapCoordination;
+  final BeaconParticipant? participant;
+  final bool showAuthorStar;
 
   static const double _contentGap = 10;
   static const double _rowGap = 12;
@@ -71,6 +80,21 @@ class HelpOfferTile extends StatelessWidget {
     final showHelpTypeChips = helpTypeSlugs.isNotEmpty;
     final showForwardPathButton =
         !isWithdrawn && helpOffer.user.id != beaconAuthorId;
+    final participantMeta = participant;
+    final nextMove = participantMeta?.nextMoveText?.trim();
+    final locale = Localizations.localeOf(context).toString();
+    final participantUpdated = participantMeta == null
+        ? null
+        : DateFormat.yMMMd(locale)
+            .add_Hm()
+            .format(participantMeta.updatedAt.toLocal());
+
+    Widget avatarWidget;
+    if (showAuthorStar) {
+      avatarWidget = AuthorStarAvatar(profile: helpOffer.user);
+    } else {
+      avatarWidget = TenturaAvatar(profile: helpOffer.user);
+    }
 
     return TenturaTechCardStatic(
       isOwned: isMine && !isWithdrawn,
@@ -89,7 +113,7 @@ class HelpOfferTile extends StatelessWidget {
                     : () => context.read<ScreenCubit>().showProfile(
                         helpOffer.user.id,
                       ),
-                child: TenturaAvatar(profile: helpOffer.user),
+                child: avatarWidget,
               ),
               const SizedBox(width: _contentGap),
               Expanded(
@@ -127,6 +151,26 @@ class HelpOfferTile extends StatelessWidget {
                             },
                           ),
                           const SizedBox(height: 2),
+                          if (participantMeta != null) ...[
+                            Text(
+                              '${beaconPeopleRoleLabel(l10n, participantMeta.role)} · ${beaconPeopleStatusLabel(l10n, participantMeta.status, helpOffer.coordinationResponse)}',
+                              style: TenturaText.status(
+                                theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                          ] else if (showAuthorStar) ...[
+                            Text(
+                              beaconPeopleRoleLabel(
+                                l10n,
+                                BeaconParticipantRoleBits.author,
+                              ),
+                              style: TenturaText.status(
+                                theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                          ],
                           TenturaMetaText(
                             '${dateFormatYMD(dateShown.toLocal())} · ${timeFormatHm(dateShown.toLocal())}'
                             '${helpOffer.isEdited ? ' · ${l10n.labelEdited}' : ''}',
@@ -163,6 +207,20 @@ class HelpOfferTile extends StatelessWidget {
             Text(
               helpOffer.message,
               style: TenturaText.body(theme.colorScheme.onSurface),
+            ),
+          ],
+          if (nextMove != null && nextMove.isNotEmpty) ...[
+            const SizedBox(height: _rowGap),
+            Text(
+              nextMove,
+              style: TenturaText.bodySmall(theme.colorScheme.onSurface),
+            ),
+          ],
+          if (participantUpdated != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              l10n.beaconPeopleParticipantUpdated(participantUpdated),
+              style: TenturaText.status(theme.colorScheme.onSurfaceVariant),
             ),
           ],
           if (!isWithdrawn &&

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -10,6 +9,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -69,12 +69,12 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
       }
     }
 
-    final statusLabel = _statusL10n(
+    final statusLabel = beaconPeopleStatusLabel(
       l10n,
       participant.status,
       authorResponseForHelpOffered,
     );
-    final roleLabel = _roleL10n(l10n, participant.role);
+    final roleLabel = beaconPeopleRoleLabel(l10n, participant.role);
     final next = participant.nextMoveText?.trim();
     final locale = Localizations.localeOf(context).toString();
     final when = DateFormat.yMMMd(locale).add_Hm().format(
@@ -145,61 +145,5 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _roleL10n(L10n l10n, int role) {
-    return switch (role) {
-      BeaconParticipantRoleBits.author => l10n.beaconPeopleRoleAuthor,
-      BeaconParticipantRoleBits.steward => l10n.beaconPeopleRoleSteward,
-      BeaconParticipantRoleBits.helper => l10n.beaconPeopleRoleHelper,
-      BeaconParticipantRoleBits.candidate => l10n.beaconPeopleRoleCandidate,
-      BeaconParticipantRoleBits.watcher => l10n.beaconPeopleRoleWatcher,
-      BeaconParticipantRoleBits.forwarder => l10n.beaconPeopleRoleForwarder,
-      _ => l10n.beaconPeopleStatusUnknown(role),
-    };
-  }
-
-  static String _statusL10n(
-    L10n l10n,
-    int status,
-    CoordinationResponseType? authorResponseForOffered,
-  ) {
-    if (status == BeaconParticipantStatusBits.committed && authorResponseForOffered != null) {
-      return switch (authorResponseForOffered) {
-        CoordinationResponseType.useful => l10n.beaconPeopleStatusHelpOfferedUseful,
-        CoordinationResponseType.needCoordination =>
-          l10n.beaconPeopleStatusHelpOfferedNeedCoordination,
-        _ => l10n.beaconPeopleStatusHelpOffered,
-      };
-    }
-    if (status == BeaconParticipantStatusBits.watching) {
-      return l10n.beaconPeopleStatusWatching;
-    }
-    if (status == BeaconParticipantStatusBits.offeredHelp) {
-      return l10n.beaconPeopleStatusOfferedHelp;
-    }
-    if (status == BeaconParticipantStatusBits.candidate) {
-      return l10n.beaconPeopleStatusCandidate;
-    }
-    if (status == BeaconParticipantStatusBits.admitted) {
-      return l10n.beaconPeopleStatusAdmitted;
-    }
-    if (status == BeaconParticipantStatusBits.checking) {
-      return l10n.beaconPeopleStatusChecking;
-    }
-    if (status == BeaconParticipantStatusBits.committed) {
-      return l10n.beaconPeopleStatusHelpOffered;
-    }
-    if (status == BeaconParticipantStatusBits.needsInfo) {
-      return l10n.beaconPeopleStatusNeedsInfo;
-    }
-    if (status == BeaconParticipantStatusBits.blocked) {
-      return l10n.beaconPeopleStatusBlocked;
-    }
-    if (status == BeaconParticipantStatusBits.done) return l10n.beaconPeopleStatusDone;
-    if (status == BeaconParticipantStatusBits.withdrawn) {
-      return l10n.beaconPeopleStatusWithdrawn;
-    }
-    return l10n.beaconPeopleStatusUnknown(status);
   }
 }

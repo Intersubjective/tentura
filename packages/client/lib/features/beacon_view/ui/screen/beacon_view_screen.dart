@@ -13,17 +13,14 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
-import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
-import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import 'package:tentura/domain/entity/beacon_people_lens.dart';
+import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
@@ -47,7 +44,6 @@ import '../widget/beacon_operational_header_card.dart';
 import '../util/beacon_hud_derivation.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_view_app_bar_title.dart';
-import '../widget/beacon_people_participant_card.dart';
 import '../widget/help_offer_tile.dart';
 import '../widget/coordination_response_bottom_sheet.dart';
 import '../util/help_offer_types_wire.dart';
@@ -1061,8 +1057,9 @@ class _BeaconOperationalScrollView extends StatelessWidget {
   }
 
   void _onPointerDown(PointerDownEvent _) {
-    if (!peopleTabAttentionActive) return;
-    onPeopleTabAttentionCleared();
+    if (peopleTabAttentionActive) {
+      onPeopleTabAttentionCleared();
+    }
   }
 
   Future<void> _showUpdateStatusSheet(
@@ -1224,7 +1221,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             state: state,
             onOpenItemThread: onOpenItemDiscussion,
           ),
-          kBeaconTabPeople => _HelpOffersTabBody(
+          kBeaconTabPeople => BeaconPeopleTabBody(
             state: state,
             beaconViewCubit: beaconViewCubit,
             l10n: l10n,
@@ -1488,11 +1485,12 @@ class _PinnedSegmentBarDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-class _HelpOffersTabBody extends StatelessWidget {
-  const _HelpOffersTabBody({
+class BeaconPeopleTabBody extends StatelessWidget {
+  const BeaconPeopleTabBody({
     required this.state,
     required this.beaconViewCubit,
     required this.l10n,
+    super.key,
   });
 
   final BeaconViewState state;
@@ -1503,74 +1501,66 @@ class _HelpOffersTabBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final beacon = state.beacon;
-    final active = state.helpOffers
-        .where((c) => !c.isWithdrawn)
-        .toList(growable: false);
     final withdrawn = state.helpOffers
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
 
-    final stewards = state.roomParticipants
-        .where((p) => p.role == BeaconParticipantRoleBits.steward)
-        .toList(growable: false);
-
-    final admittedMembers = state.canNavigateBeaconRoom
-        ? state.roomParticipants
-            .where(
-              (p) =>
-                  p.roomAccess == RoomAccessBits.admitted &&
-                  p.role != BeaconParticipantRoleBits.author &&
-                  p.role != BeaconParticipantRoleBits.steward &&
-                  p.userId != beacon.author.id,
-            )
-            .toList(growable: false)
-        : const <BeaconParticipant>[];
-
-    final needCoordList = active
-        .where(
-          (c) =>
-              c.coordinationResponse ==
-              CoordinationResponseType.needCoordination,
+    final helpOfferInputs = state.helpOffers
+        .map(
+          (c) => BeaconPeopleHelpOfferInput(
+            userId: c.user.id,
+            profile: c.user,
+            isWithdrawn: c.isWithdrawn,
+            roomAccess: c.roomAccess,
+            coordinationResponse: c.coordinationResponse,
+          ),
         )
         .toList(growable: false);
-    final otherActive =
-        active
-            .where(
-              (c) =>
-                  c.coordinationResponse !=
-                  CoordinationResponseType.needCoordination,
-            )
-            .toList(growable: false)
-          ..sort((a, b) {
-            int p(CoordinationResponseType? r) => switch (r) {
-              CoordinationResponseType.useful => 0,
-              CoordinationResponseType.overlapping => 1,
-              _ => 2,
-            };
-            final cmp = p(
-              a.coordinationResponse,
-            ).compareTo(p(b.coordinationResponse));
-            if (cmp != 0) return cmp;
-            return a.user.displayName.compareTo(b.user.displayName);
-          });
 
-    HelpOfferTile helpOfferTile(TimelineHelpOffer c) {
+    final sections = classifyBeaconPeopleSections(
+      beacon: beacon,
+      helpOffers: helpOfferInputs,
+      roomParticipants: state.roomParticipants,
+      viewerUserId: state.myProfile.id,
+    );
+
+    TimelineHelpOffer helpOfferForRow(BeaconPeopleRow row) {
+      for (final c in state.helpOffers) {
+        if (c.user.id == row.userId && !c.isWithdrawn) return c;
+      }
+      return TimelineHelpOffer(
+        user: row.profile,
+        message: '',
+        createdAt: beacon.createdAt,
+        updatedAt: row.participant?.updatedAt ?? beacon.updatedAt,
+      );
+    }
+
+    HelpOfferTile peopleTile(BeaconPeopleRow row) {
+      final c = helpOfferForRow(row);
       return HelpOfferTile(
         helpOffer: c,
         beaconId: beacon.id,
         beaconAuthor: beacon.author,
         beaconAuthorId: beacon.author.id,
-        isMine: c.user.id == state.myProfile.id,
+        isMine: row.userId == state.myProfile.id,
         isAuthorView: state.isAuthorOrSteward,
-        onAuthorTapCoordination: state.isAuthorOrSteward && !c.isWithdrawn
+        participant: row.participant,
+        showAuthorStar: row.isAuthor,
+        onAuthorTapCoordination: !row.isAuthor &&
+                state.isAuthorOrSteward &&
+                !c.isWithdrawn &&
+                state.helpOffers.any(
+                  (ho) => ho.user.id == row.userId && !ho.isWithdrawn,
+                )
             ? () => unawaited(
                 showCoordinationResponseBottomSheet(
                   context: context,
-                  offerUserTitle: c.user.displayName,
+                  offerUserTitle: row.profile.displayName,
                   initialResponse: c.coordinationResponse,
                   offerUserAdmittedToRoom: state.roomParticipants.any(
                     (p) =>
-                        p.userId == c.user.id &&
+                        p.userId == row.userId &&
                         p.roomAccess == RoomAccessBits.admitted,
                   ),
                   onSave:
@@ -1579,7 +1569,7 @@ class _HelpOffersTabBody extends StatelessWidget {
                         required inviteToRoom,
                         required removeFromRoom,
                       }) => beaconViewCubit.setCoordinationResponse(
-                        offerUserId: c.user.id,
+                        offerUserId: row.userId,
                         responseType: responseTypeSmallint,
                         inviteToRoom: inviteToRoom,
                         removeFromRoom: removeFromRoom,
@@ -1587,7 +1577,7 @@ class _HelpOffersTabBody extends StatelessWidget {
                 ),
               )
             : null,
-        onEdit: c.user.id == state.myProfile.id && !c.isWithdrawn
+        onEdit: row.userId == state.myProfile.id && !c.isWithdrawn
             ? () async {
                 final outcome = await HelpOfferMessageDialog.show(
                   context,
@@ -1612,7 +1602,7 @@ class _HelpOffersTabBody extends StatelessWidget {
               }
             : null,
         onWithdraw:
-            c.user.id == state.myProfile.id &&
+            row.userId == state.myProfile.id &&
                 !c.isWithdrawn &&
                 beacon.allowsWithdrawWhileHelpOffered
             ? () async {
@@ -1634,6 +1624,27 @@ class _HelpOffersTabBody extends StatelessWidget {
       );
     }
 
+    Widget peopleSectionFold({
+      required String title,
+      required List<BeaconPeopleRow> rows,
+      required bool initiallyExpanded,
+    }) {
+      if (rows.isEmpty) return const SizedBox.shrink();
+      return ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        title: Text(
+          '$title (${rows.length})',
+          style: theme.textTheme.titleSmall,
+        ),
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i != 0) const SizedBox(height: 12),
+            peopleTile(rows[i]),
+          ],
+        ],
+      );
+    }
+
     final sectionHeaderStyle = theme.textTheme.titleSmall!.copyWith(
       color: theme.colorScheme.onSurface,
     );
@@ -1646,95 +1657,28 @@ class _HelpOffersTabBody extends StatelessWidget {
           lifecycle: beacon.lifecycle,
         ),
         const SizedBox(height: 12),
-        Text(l10n.beaconPeopleLensAuthorHeading, style: sectionHeaderStyle),
-        const SizedBox(height: 8),
-        GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: () =>
-              context.read<ScreenCubit>().showProfile(beacon.author.id),
-          child: Row(
-            children: [
-              SelfAwareAvatar(
-                profile: beacon.author,
-                size: 36,
-                withRating: beacon.author.id != state.myProfile.id,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: BlocBuilder<ProfileCubit, ProfileState>(
-                  buildWhen: (p, c) => p.profile.id != c.profile.id,
-                  builder: (context, profileState) {
-                    final base = beaconCardMetadataLineTextStyle(theme);
-                    final isSelf = SelfUserHighlight.profileIsSelf(
-                      beacon.author,
-                      profileState.profile.id,
-                    );
-                    return Text(
-                      SelfUserHighlight.displayName(
-                        l10n,
-                        beacon.author,
-                        profileState.profile.id,
-                      ),
-                      style: SelfUserHighlight.nameStyle(theme, base, isSelf),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+        peopleSectionFold(
+          title: l10n.beaconPeopleLensActiveHelpersHeading,
+          rows: sections.activeHelpers,
+          initiallyExpanded: true,
         ),
-        if (stewards.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(l10n.beaconPeopleLensStewardsHeading, style: sectionHeaderStyle),
+        if (sections.activeHelpers.isNotEmpty &&
+            (sections.willingToHelp.isNotEmpty ||
+                sections.notFitting.isNotEmpty))
           const SizedBox(height: 8),
-          for (var i = 0; i < stewards.length; i++) ...[
-            if (i != 0) const SizedBox(height: 8),
-            BeaconPeopleParticipantCard(
-              beacon: beacon,
-              participant: stewards[i],
-              helpOffers: state.helpOffers,
-            ),
-          ],
-        ],
-        if (admittedMembers.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(l10n.beaconPeopleLensRoomMembersHeading, style: sectionHeaderStyle),
+        peopleSectionFold(
+          title: l10n.beaconPeopleLensWillingToHelpHeading,
+          rows: sections.willingToHelp,
+          initiallyExpanded: true,
+        ),
+        if (sections.willingToHelp.isNotEmpty &&
+            sections.notFitting.isNotEmpty)
           const SizedBox(height: 8),
-          for (var i = 0; i < admittedMembers.length; i++) ...[
-            if (i != 0) const SizedBox(height: 8),
-            BeaconPeopleParticipantCard(
-              beacon: beacon,
-              participant: admittedMembers[i],
-              helpOffers: state.helpOffers,
-            ),
-          ],
-        ],
-        if (needCoordList.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            l10n.beaconPeopleLensNeedsAttentionHeading,
-            style: sectionHeaderStyle,
-          ),
-          const SizedBox(height: 8),
-          for (var i = 0; i < needCoordList.length; i++) ...[
-            if (i != 0) const SizedBox(height: 12),
-            helpOfferTile(needCoordList[i]),
-          ],
-        ],
-        if (otherActive.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text(
-            '${l10n.beaconPeopleLensActiveHelpersHeading} (${otherActive.length})',
-            style: sectionHeaderStyle,
-          ),
-          const SizedBox(height: 8),
-          for (var i = 0; i < otherActive.length; i++) ...[
-            if (i != 0) const SizedBox(height: 12),
-            helpOfferTile(otherActive[i]),
-          ],
-        ],
+        peopleSectionFold(
+          title: l10n.beaconPeopleLensNotFittingHeading,
+          rows: sections.notFitting,
+          initiallyExpanded: false,
+        ),
         const SizedBox(height: 16),
         if (state.forwardsLoaded) ...[
           Builder(
@@ -1820,7 +1764,7 @@ class _HelpOffersTabBody extends StatelessWidget {
             ),
           ),
         if (withdrawn.isNotEmpty) ...[
-          if (active.isNotEmpty) const SizedBox(height: 12),
+          const SizedBox(height: 12),
           ExpansionTile(
             title: Text(l10n.beaconShowWithdrawn(withdrawn.length)),
             children: [
