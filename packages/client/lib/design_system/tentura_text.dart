@@ -15,7 +15,7 @@ abstract final class TenturaText {
     required double fontSize,
     required FontWeight fontWeight,
     required double height,
-    double letterSpacing = 0,
+    double letterSpacing = 0.0,
   }) =>
       TextStyle(
         color: color,
