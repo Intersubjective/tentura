@@ -73,6 +73,41 @@ void main() {
     expect(detailTaps, 1);
   });
 
+  testWidgets('label and subline taps fire onShowDetail', (tester) async {
+    var detailTaps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: TenturaResponsiveScope(
+          child: Scaffold(
+            body: SizedBox(
+              width: 320,
+              child: HudLabeledMultiline(
+                label: 'NOW',
+                text: 'Current focus',
+                subline: 'Blocked: credentials',
+                mutedColor: Colors.grey,
+                onShowDetail: () => detailTaps++,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('NOW'));
+    await tester.pumpAndSettle();
+    expect(detailTaps, 1);
+
+    await tester.tap(find.text('Blocked: credentials'));
+    await tester.pumpAndSettle();
+    expect(detailTaps, 2);
+  });
+
   testWidgets('edit tap fires onEdit without detail callback', (tester) async {
     var editTaps = 0;
     var detailTaps = 0;
