@@ -1481,19 +1481,41 @@ class _PinnedNowRow extends StatelessWidget {
       openBlocker: state.openCoordinationBlocker,
     );
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(tt.screenHPadding, 8, tt.screenHPadding, 8),
-      child: HudLabeledMultiline(
-        label: l10n.beaconHudNowLabel,
-        text: nowDisplay.primaryText,
-        subline: nowDisplay.blockerText,
-        mutedColor: tt.textMuted,
-        isPlaceholder: nowDisplay.isPlaceholder,
-        onEdit: onEdit,
-        editSemanticLabel: l10n.beaconHudEditNowLine,
-        onShowDetail: onShowDetail,
-        showDetailSemanticLabel: l10n.beaconHudNowLabel,
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            tt.screenHPadding,
+            tt.rowGap,
+            tt.screenHPadding,
+            tt.rowGap,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: tt.surface,
+              borderRadius: BorderRadius.circular(tt.cardRadius),
+              border: Border.all(color: tt.borderSubtle),
+            ),
+            child: Padding(
+              padding: tt.cardPadding,
+              child: HudLabeledMultiline(
+                label: l10n.beaconHudNowLabel,
+                text: nowDisplay.primaryText,
+                subline: nowDisplay.blockerText,
+                mutedColor: tt.textMuted,
+                isPlaceholder: nowDisplay.isPlaceholder,
+                onEdit: onEdit,
+                editSemanticLabel: l10n.beaconHudEditNowLine,
+                onShowDetail: onShowDetail,
+                showDetailSemanticLabel: l10n.beaconHudNowLabel,
+              ),
+            ),
+          ),
+        ),
+        const TenturaHairlineDivider(),
+      ],
     );
   }
 }
