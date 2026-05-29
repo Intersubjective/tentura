@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/debug/agent_session_log.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
@@ -265,20 +264,6 @@ final class BeaconRoomCase extends UseCaseBase {
       _watermark.confirmSynced(beaconId, persistedAt);
       return RoomSeenSucceeded(persistedAt);
     } on Object catch (e) {
-      // #region agent log
-      agentSessionLog(
-        location: 'beacon_room_case.dart:markRoomSeenIfAllowed',
-        message: 'markRoomSeen exception',
-        hypothesisId: 'H-B',
-        runId: 'post-fix',
-        data: {
-          'beaconId': beaconId,
-          'threadItemId': threadItemId,
-          'error': e.toString(),
-          'type': e.runtimeType.toString(),
-        },
-      );
-      // #endregion
       return RoomSeenFailed(e);
     }
   }

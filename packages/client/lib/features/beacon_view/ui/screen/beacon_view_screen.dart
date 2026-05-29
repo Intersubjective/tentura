@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/debug/agent_session_log.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
@@ -570,31 +569,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   Future<void> _releaseEmbeddedRoomCubit() async {
     final c = _roomCubit;
     if (c == null) return;
-    // #region agent log
-    agentSessionLog(
-      location: 'beacon_view_screen.dart:_releaseEmbeddedRoomCubit',
-      message: 'releasing room cubit (await close)',
-      hypothesisId: 'H-C',
-      data: {
-        'roomUnreadCount':
-            context.read<BeaconViewCubit>().state.roomUnreadCount,
-        'roomCubitUnread': c.state.unreadCount,
-        'roomCubitClosed': c.isClosed,
-      },
-    );
-    // #endregion
     _roomCubit = null;
     if (!c.isClosed) {
       await c.close();
     }
-    // #region agent log
-    agentSessionLog(
-      location: 'beacon_view_screen.dart:_releaseEmbeddedRoomCubit',
-      message: 'room cubit close finished',
-      hypothesisId: 'H-C',
-      runId: 'post-fix',
-    );
-    // #endregion
   }
 
   @override
@@ -665,19 +643,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         _showRoomSurface = true;
         _ensureEmbeddedRoomCubit();
       });
-      // #region agent log
-      agentSessionLog(
-        location: 'beacon_view_screen.dart:_applyRoomSurfaceState',
-        message: 'room surface opened',
-        hypothesisId: 'H-E',
-        data: {
-          'beaconId': widget.id,
-          'roomUnreadCount':
-              context.read<BeaconViewCubit>().state.roomUnreadCount,
-          'newCubit': _roomCubit != null,
-        },
-      );
-      // #endregion
       unawaited(_onRoomSurfaceOpened());
     } else {
       if (!_showRoomSurface) return;
@@ -685,8 +650,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         _userDismissedRoomSurface = true;
       }
       setState(() => _showRoomSurface = false);
-      final beaconView = context.read<BeaconViewCubit>();
-      _pendingRoomExit = _exitRoomAndSyncUnread(beaconView);
+      _pendingRoomExit = _exitRoomAndSyncUnread();
       unawaited(_pendingRoomExit);
     }
   }
@@ -695,18 +659,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (_roomCubit != null && !_roomCubit!.isClosed) return;
     final initialAnchor =
         context.read<BeaconViewCubit>().roomReadThrough(widget.id);
-    // #region agent log
-    agentSessionLog(
-      location: 'beacon_view_screen.dart:_ensureEmbeddedRoomCubit',
-      message: 'creating RoomCubit',
-      hypothesisId: 'H-G',
-      runId: 'post-fix',
-      data: {
-        'beaconId': widget.id,
-        'initialUnreadAnchorAt': initialAnchor?.toIso8601String(),
-      },
-    );
-    // #endregion
     _roomCubit = RoomCubit(
       beaconId: widget.id,
       initialUnreadAnchorAt: initialAnchor,
@@ -729,37 +681,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     }
     if (!mounted) return;
     if (mounted) setState(() {});
-    // #region agent log
-    final beaconView = context.read<BeaconViewCubit>();
-    final rc = _roomCubit;
-    agentSessionLog(
-      location: 'beacon_view_screen.dart:_onRoomSurfaceOpened',
-      message: 'open sync complete',
-      hypothesisId: 'H-E',
-      runId: 'post-fix',
-      data: {
-        'beaconRoomUnread': beaconView.state.roomUnreadCount,
-        'roomCubitUnread': rc?.state.unreadCount,
-      },
-    );
-    // #endregion
   }
 
-  Future<void> _exitRoomAndSyncUnread(BeaconViewCubit beaconView) async {
+  Future<void> _exitRoomAndSyncUnread() async {
     await _releaseEmbeddedRoomCubit();
     _pendingRoomExit = null;
     if (mounted) setState(() {});
-    // #region agent log
-    agentSessionLog(
-      location: 'beacon_view_screen.dart:_exitRoomAndSyncUnread',
-      message: 'exit sync complete',
-      hypothesisId: 'H-E',
-      runId: 'post-fix',
-      data: {
-        'roomUnreadCount': beaconView.state.roomUnreadCount,
-      },
-    );
-    // #endregion
   }
 
   bool _urlIndicatesRoom() {
