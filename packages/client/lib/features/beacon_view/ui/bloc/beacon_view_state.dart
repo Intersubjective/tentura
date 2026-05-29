@@ -50,6 +50,29 @@ class TimelineHelpOffer {
 
   bool get isEdited =>
       !isWithdrawn && updatedAt.difference(createdAt).inSeconds.abs() > 1;
+
+  TimelineHelpOffer copyWith({
+    Profile? user,
+    String? message,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isWithdrawn,
+    String? helpType,
+    CoordinationResponseType? coordinationResponse,
+    String? withdrawReason,
+    int? roomAccess,
+  }) =>
+      TimelineHelpOffer(
+        user: user ?? this.user,
+        message: message ?? this.message,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        isWithdrawn: isWithdrawn ?? this.isWithdrawn,
+        helpType: helpType ?? this.helpType,
+        coordinationResponse: coordinationResponse ?? this.coordinationResponse,
+        withdrawReason: withdrawReason ?? this.withdrawReason,
+        roomAccess: roomAccess ?? this.roomAccess,
+      );
 }
 
 /// Help offerer offered help at [createdAt].

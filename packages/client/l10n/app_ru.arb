@@ -2430,6 +2430,8 @@
   "beaconPeopleLensStewardsHeading": "Стюард",
   "beaconPeopleLensRoomMembersHeading": "Участники комнаты",
   "beaconPeopleLensActiveHelpersHeading": "Активные помощники",
+  "beaconPeopleLensWillingToHelpHeading": "Готовы помочь",
+  "beaconPeopleLensNotFittingHeading": "Не подходят",
   "beaconPeopleLensWithdrawnHeading": "Отозваны",
   "beaconPeopleLensNeedsAttentionHeading": "Нужна координация",
   "beaconCtaUpdateStatus": "Статус",

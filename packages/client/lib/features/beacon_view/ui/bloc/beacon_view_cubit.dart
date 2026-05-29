@@ -6,6 +6,7 @@ import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidat
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
@@ -261,7 +262,33 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     required bool inviteToRoom,
     required bool removeFromRoom,
   }) async {
-    emit(state.copyWith(status: StateStatus.isLoading));
+    final response = coordinationResponseFromSmallint(responseType);
+    final optimisticOffers = [
+      for (final c in state.helpOffers)
+        if (c.user.id == offerUserId)
+          c.copyWith(
+            coordinationResponse: response,
+            roomAccess: patchedHelpOfferRoomAccess(
+              current: c.roomAccess,
+              inviteToRoom: inviteToRoom,
+              removeFromRoom: removeFromRoom,
+            ),
+          )
+        else
+          c,
+    ];
+    final optimisticParticipants = applyCoordinationRoomParticipantPatch(
+      participants: state.roomParticipants,
+      offerUserId: offerUserId,
+      inviteToRoom: inviteToRoom,
+      removeFromRoom: removeFromRoom,
+    );
+    emit(
+      state.copyWith(
+        helpOffers: optimisticOffers,
+        roomParticipants: optimisticParticipants,
+      ),
+    );
     try {
       await _case.setCoordinationResponse(
         beaconId: state.beacon.id,
@@ -270,9 +297,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         inviteToRoom: inviteToRoom,
         removeFromRoom: removeFromRoom,
       );
-      await _fetchBeaconByIdWithTimeline();
+      unawaited(_fetchBeaconByIdWithTimeline());
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      await _fetchBeaconByIdWithTimeline();
+      if (!isClosed) emit(state.copyWith(status: StateHasError(e)));
       rethrow;
     }
   }
@@ -371,6 +399,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     var needActivity = false;
     var needUnread = false;
     var needParticipants = false;
+    var needHelpOffers = false;
     var needRoomState = false;
     var needFactCards = false;
     for (final t in types) {
@@ -381,6 +410,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         needActivity = true;
       } else if (t == BeaconRoomEntityType.participant) {
         needParticipants = true;
+        needHelpOffers = true;
         needRoomState = true;
       } else if (t == BeaconRoomEntityType.factCard) {
         needFactCards = true;
@@ -395,6 +425,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       if (needActivity) _refreshRoomActivityEvents(beaconId),
       if (needUnread) _refreshRoomUnread(beaconId),
       if (needParticipants) _refreshRoomParticipants(beaconId),
+      if (needHelpOffers) _refreshHelpOffers(beaconId),
       if (needRoomState) _refreshBeaconRoomCue(beaconId),
       if (needFactCards) _refreshFactCards(beaconId),
     ]);
@@ -418,6 +449,55 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     final participants = await _case.fetchRoomParticipants(beaconId);
     if (!isClosed) emit(state.copyWith(roomParticipants: participants));
   }
+
+  Future<void> _refreshHelpOffers(String beaconId) async {
+    final helpOffers = await _case.fetchHelpOffersWithCoordination(
+      beaconId: beaconId,
+    );
+    if (!isClosed && beaconId == state.beacon.id) {
+      emit(
+        state.copyWith(
+          helpOffers: _timelineHelpOffersFromRemote(helpOffers),
+        ),
+      );
+    }
+  }
+
+  List<TimelineHelpOffer> _timelineHelpOffersFromRemote(
+    List<
+      ({
+        String beaconId,
+        String userId,
+        Profile user,
+        String message,
+        String? helpType,
+        int status,
+        String? withdrawReason,
+        DateTime createdAt,
+        DateTime updatedAt,
+        int? responseType,
+        DateTime? responseUpdatedAt,
+        String? responseAuthorUserId,
+        int? roomAccess,
+      })
+    > helpOffers,
+  ) =>
+      [
+        for (final c in helpOffers)
+          TimelineHelpOffer(
+            user: c.user,
+            message: c.message,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt,
+            isWithdrawn: c.status == 1,
+            helpType: c.helpType,
+            coordinationResponse: CoordinationResponseType.tryFromInt(
+              c.responseType,
+            ),
+            withdrawReason: c.withdrawReason,
+            roomAccess: c.roomAccess,
+          ),
+      ];
 
   Future<void> _refreshBeaconRoomCue(String beaconId) async {
     final cue = await _case.fetchRoomStateIfAllowed(beaconId);

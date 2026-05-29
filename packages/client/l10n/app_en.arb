@@ -2430,6 +2430,8 @@
   "beaconPeopleLensStewardsHeading": "Steward",
   "beaconPeopleLensRoomMembersHeading": "Room members",
   "beaconPeopleLensActiveHelpersHeading": "Active helpers",
+  "beaconPeopleLensWillingToHelpHeading": "Willing to help",
+  "beaconPeopleLensNotFittingHeading": "Not fitting",
   "beaconPeopleLensWithdrawnHeading": "Withdrawn",
   "beaconPeopleLensNeedsAttentionHeading": "Needs coordination",
   "beaconCtaUpdateStatus": "Update status",
