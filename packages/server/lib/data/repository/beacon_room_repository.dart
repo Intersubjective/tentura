@@ -1073,74 +1073,114 @@ class BeaconRoomRepository {
     required String beaconId,
     int limit = 200,
   }) async {
-    final rows = await _db.customSelect(
-      r'''
-      SELECT
-        e.id AS id,
-        e.beacon_id AS beacon_id,
-        e.visibility AS visibility,
-        e.type AS type,
-        e.actor_id AS actor_id,
-        e.target_user_id AS target_user_id,
-        e.source_message_id AS source_message_id,
-        COALESCE(e.coordination_item_id, m.linked_item_id) AS coordination_item_id,
-        COALESCE(
-          e.diff,
-          CASE
-            WHEN ci.id IS NULL THEN NULL
-            ELSE jsonb_strip_nulls(
-              jsonb_build_object(
-                'title', NULLIF(btrim(ci.title), ''),
-                'body', NULLIF(btrim(ci.body), '')
-              )
-            )
-          END
-        ) AS diff,
-        floor(extract(epoch from e.created_at) * 1000)::bigint AS created_at_ms
-      FROM beacon_activity_event e
-      LEFT JOIN beacon_room_message m ON m.id = e.source_message_id
-      LEFT JOIN coordination_item ci
-        ON ci.id = COALESCE(e.coordination_item_id, m.linked_item_id)
-      WHERE e.beacon_id = $1
-      ORDER BY e.created_at DESC
-      LIMIT $2
-      ''',
-      variables: [
-        Variable<String>(beaconId),
-        Variable<int>(limit),
-      ],
-    ).get();
+    final rows = await (_db.select(_db.beaconActivityEvents)
+          ..where((e) => e.beaconId.equals(beaconId))
+          ..orderBy([
+            (e) =>
+                OrderingTerm(expression: e.createdAt, mode: OrderingMode.desc),
+          ])
+          ..limit(limit))
+        .get();
 
-    return rows
-        .map(
-          (r) => <String, Object?>{
-            'id': r.read<String>('id'),
-            'beaconId': r.read<String>('beacon_id'),
-            'visibility': r.read<int>('visibility'),
-            'type': r.read<int>('type'),
-            'actorId': r.read<String?>('actor_id'),
-            'targetUserId': r.read<String?>('target_user_id'),
-            'sourceMessageId': r.read<String?>('source_message_id'),
-            'coordinationItemId': r.read<String?>('coordination_item_id'),
-            'diffJson': _activityEventDiffJson(r.read<Object?>('diff')),
-            'createdAt': DateTime.fromMillisecondsSinceEpoch(
-              r.read<int>('created_at_ms'),
-              isUtc: true,
-            ).toIso8601String(),
-          },
-        )
-        .toList();
+    if (rows.isEmpty) return const [];
+
+    final sourceMessageIds = rows
+        .map((r) => r.sourceMessageId)
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    final messageToItemId = <String, String>{};
+    if (sourceMessageIds.isNotEmpty) {
+      final messages = await (_db.select(_db.beaconRoomMessages)
+            ..where((m) => m.id.isIn(sourceMessageIds.toList())))
+          .get();
+      for (final message in messages) {
+        final linkedItemId = message.linkedItemId?.trim();
+        if (linkedItemId != null && linkedItemId.isNotEmpty) {
+          messageToItemId[message.id] = linkedItemId;
+        }
+      }
+    }
+
+    final itemIds = <String>{};
+    for (final row in rows) {
+      final storedItemId = row.coordinationItemId?.trim();
+      if (storedItemId != null && storedItemId.isNotEmpty) {
+        itemIds.add(storedItemId);
+      }
+      final sourceMessageId = row.sourceMessageId;
+      if (sourceMessageId != null) {
+        final linkedItemId = messageToItemId[sourceMessageId];
+        if (linkedItemId != null) itemIds.add(linkedItemId);
+      }
+    }
+
+    final itemsById = <String, CoordinationItem>{};
+    if (itemIds.isNotEmpty) {
+      final items = await (_db.select(_db.coordinationItems)
+            ..where((t) => t.id.isIn(itemIds.toList())))
+          .get();
+      for (final item in items) {
+        itemsById[item.id] = item;
+      }
+    }
+
+    return [
+      for (final row in rows)
+        _activityEventToMap(
+          row,
+          messageToItemId: messageToItemId,
+          itemsById: itemsById,
+        ),
+    ];
   }
 
-  String? _activityEventDiffJson(Object? diff) {
-    if (diff == null) return null;
-    if (diff is String) {
-      final trimmed = diff.trim();
-      if (trimmed.isEmpty || trimmed == 'null') return null;
-      return trimmed;
+  Map<String, Object?> _activityEventToMap(
+    BeaconActivityEvent row, {
+    required Map<String, String> messageToItemId,
+    required Map<String, CoordinationItem> itemsById,
+  }) {
+    final storedItemId = row.coordinationItemId?.trim();
+    final itemId = storedItemId != null && storedItemId.isNotEmpty
+        ? storedItemId
+        : (row.sourceMessageId != null
+            ? messageToItemId[row.sourceMessageId!]
+            : null);
+
+    var diff = row.diff;
+    if (diff == null && itemId != null) {
+      final item = itemsById[itemId];
+      if (item != null) {
+        diff = _activityEventDiffMap(title: item.title, body: item.body);
+      }
     }
-    if (diff is Map && diff.isEmpty) return null;
-    return jsonEncode(diff);
+
+    return {
+      'id': row.id,
+      'beaconId': row.beaconId,
+      'visibility': row.visibility,
+      'type': row.type,
+      'actorId': row.actorId,
+      'targetUserId': row.targetUserId,
+      'sourceMessageId': row.sourceMessageId,
+      'coordinationItemId': itemId,
+      'diffJson': diff == null ? null : jsonEncode(diff),
+      'createdAt': row.createdAt.dateTime.toUtc().toIso8601String(),
+    };
+  }
+
+  Map<String, Object?>? _activityEventDiffMap({
+    required String title,
+    String body = '',
+  }) {
+    final trimmedTitle = title.trim();
+    final trimmedBody = body.trim();
+    if (trimmedTitle.isEmpty && trimmedBody.isEmpty) return null;
+    return {
+      if (trimmedTitle.isNotEmpty) 'title': trimmedTitle,
+      if (trimmedBody.isNotEmpty) 'body': trimmedBody,
+    };
   }
 
   Future<String?> beaconAuthorUserId(String beaconId) async {

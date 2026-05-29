@@ -13,7 +13,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
-import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
@@ -823,11 +822,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   /// Log row tap → jump to the linked coordination item (Items tab) or, when the
   /// event has no item, to the related participant (People tab).
-  void _onTapCoordinationLogEvent(
-    BeaconActivityEvent e, {
-    String? resolvedItemId,
-  }) {
-    final itemId = (e.coordinationItemId ?? resolvedItemId)?.trim();
+  void _onTapCoordinationLogEvent(BeaconActivityEvent e) {
+    final itemId = e.coordinationItemId?.trim();
     if (itemId != null && itemId.isNotEmpty) {
       setState(() {
         _tabIndex = kBeaconTabItems;
@@ -1100,8 +1096,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
   final String? focusItemId;
   final String? focusUserId;
   final VoidCallback onOperationalFocusCleared;
-  final void Function(BeaconActivityEvent event, {String? resolvedItemId})
-      onTapCoordinationLogEvent;
+  final void Function(BeaconActivityEvent event) onTapCoordinationLogEvent;
 
   final void Function([CoordinationItem? focusItem]) onEnterRoomSurface;
 
@@ -1271,17 +1266,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
               c.needCoordinationHelpOffersCount,
       builder: (context, state) {
         final beaconId = state.beacon.id;
-        final itemsTabState = context.watch<ItemsTabCubit>().state;
-        final coordinationItems = coordinationItemsFromTabState(
-          openItems: itemsTabState.openItems,
-          closedItems: itemsTabState.closedItems,
-          draftAskItems: itemsTabState.draftAskItems,
-          draftPromiseItems: itemsTabState.draftPromiseItems,
-          draftBlockerItems: itemsTabState.draftBlockerItems,
-          currentCoordinationPlan: itemsTabState.currentCoordinationPlan,
-        ).toList(growable: false);
-        final itemContentById =
-            coordinationItemContentLookup(coordinationItems);
         Future<void> editUpdate(TimelineUpdate u) => _showEditAuthorUpdateSheet(
           context,
           beaconViewCubit,
@@ -1310,16 +1294,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             onEditTimelineUpdate: editUpdate,
             roomActivityEvents: state.roomActivityEvents,
             coordinationLogOnly: true,
-            itemContentById: itemContentById,
-            coordinationItems: coordinationItems,
-            onTapCoordinationEvent: (e) => onTapCoordinationLogEvent(
-              e,
-              resolvedItemId: resolveCoordinationItemIdForEvent(
-                e,
-                itemContentById: itemContentById,
-                items: coordinationItems,
-              ),
-            ),
+            onTapCoordinationEvent: onTapCoordinationLogEvent,
             actors: {
               for (final p in state.roomParticipants) p.userId: p,
             },
