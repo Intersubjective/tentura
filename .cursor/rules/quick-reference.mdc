@@ -28,6 +28,14 @@ One-line rules for quick lookup. See detailed files for explanations.
 - Server mutations wrap in `db.withMutatingUser(userId, ...)` to suppress echo back to originating user -- see `DEV_GUIDELINES.md` § Echo suppression
 - Client uses `rxdart` `bufferTime` for debounced invalidation streams -- see `DEV_GUIDELINES.md` § Echo suppression
 
+## Read-state / unread
+- **Single watermark owner:** session `@lazySingleton` `RoomReadWatermarkStore` — in-chat + shell badges derive via `resolveUnread`, not parallel counters
+- **Local vs synced:** `observeReadThrough` advances immediately; `confirmSynced` only after mark-seen `RoomSeenOutcome` success
+- **Optimistic mutations:** return typed domain outcomes; never swallow mark-seen errors silently in cubits
+- **Session-scoped state** (read watermarks) lives in `@lazySingleton` domain services, not route cubits or hints repositories
+- **No cross-feature data-repo side channels** — watermark refresh via use-case streams (`BeaconRoomCase.readWatermarkChanges`)
+- **Server raw SQL:** `beacon_room_seen` `customStatement` rules in `packages/server/WORKAROUNDS.md` §4
+
 ## Codegen
 - Run `dart run build_runner build -d` after codegen changes
 - Never commit `*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `_g/`, `di.config.dart`

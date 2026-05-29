@@ -33,6 +33,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconFactCardRow,
   gqlTypeBeaconActivityEventRow,
   gqlTypeInboxRoomContextRow,
+  gqlTypeBeaconRoomSeenResult,
   gqlTypeTagCount,
   gqlTypeTagBeaconRef,
   gqlTypeCapabilityForViewer,
@@ -178,8 +179,18 @@ final gqlTypeInboxRoomContextRow =
         field('lastRoomMeaningfulChange', graphQLString),
         field('nextMoveText', graphQLString),
         field('roomUnreadCount', graphQLInt.nonNullable()),
+        field('lastSeenAt', graphQLString),
         field('openBlockerTitle', graphQLString),
         field('publicFactSnippet', graphQLString),
+      ]);
+
+/// Result of marking a beacon room (or thread) as seen.
+final gqlTypeBeaconRoomSeenResult =
+    GraphQLObjectType('BeaconRoomSeenResult', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('threadItemId', graphQLString),
+        field('seenAt', graphQLString.nonNullable()),
       ]);
 
 final gqlTypeAuthResponse = GraphQLObjectType('AuthResponse', null)

@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/debug/agent_session_log.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_room/ui/widget/mention_text_controller.dart';
@@ -207,6 +208,17 @@ class BasicChatBodyState extends State<BasicChatBody> {
       setState(() => _showJumpFab = showJump);
     }
     if (fromBottom <= 12) {
+      // #region agent log
+      agentSessionLog(
+        location: 'basic_chat_body.dart:_onMessageListScroll',
+        message: 'near bottom invoking onMarkSeenNearBottom',
+        hypothesisId: 'H-A',
+        data: {
+          'fromBottom': fromBottom,
+          'unreadCount': widget.unreadCount,
+        },
+      );
+      // #endregion
       final fn = widget.onMarkSeenNearBottom;
       if (fn != null) {
         unawaited(fn());
@@ -256,6 +268,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
     if (scrollPos != null && scrollPos.maxScrollExtent >= 0) {
       _scrollController.jumpTo(scrollPos.maxScrollExtent);
       _onMessageListScroll();
+      await _invokeMarkSeenNearBottom();
       setState(() => _viewportScrollDone = true);
       return;
     }
@@ -268,6 +281,13 @@ class BasicChatBodyState extends State<BasicChatBody> {
     }
   }
 
+  Future<void> _invokeMarkSeenNearBottom() async {
+    final fn = widget.onMarkSeenNearBottom;
+    if (fn != null) {
+      await fn();
+    }
+  }
+
   Future<void> _jumpToLatest() async {
     if (!_scrollController.hasClients) return;
     await _scrollController.animateTo(
@@ -276,6 +296,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
       curve: Curves.easeOut,
     );
     _onMessageListScroll();
+    await _invokeMarkSeenNearBottom();
   }
 
   @override

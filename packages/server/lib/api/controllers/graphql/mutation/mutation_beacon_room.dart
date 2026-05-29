@@ -37,6 +37,8 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _allowRevoteInput = InputFieldBool(fieldName: 'allowRevote');
 
+  final _readThroughAt = InputFieldString(fieldName: 'readThroughAt');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
         roomMessageCreate,
         roomMessageAttachmentAdd,
@@ -248,28 +250,32 @@ final class MutationBeaconRoom extends GqlNodeBase {
   GraphQLObjectField<dynamic, dynamic> get beaconParticipantRoomSeen =>
       GraphQLObjectField(
         'BeaconParticipantRoomSeen',
-        graphQLBoolean.nonNullable(),
+        gqlTypeBeaconRoomSeenResult.nonNullable(),
         arguments: [
           _beaconIdStr.field,
+          _readThroughAt.fieldNullable,
         ],
         resolve: (_, args) => _case.beaconParticipantRoomSeen(
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
+              readThroughAtIso: _readThroughAt.fromArgs(args),
             ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get markBeaconRoomSeen =>
       GraphQLObjectField(
         'MarkBeaconRoomSeen',
-        graphQLBoolean.nonNullable(),
+        gqlTypeBeaconRoomSeenResult.nonNullable(),
         arguments: [
           _beaconIdStr.field,
           _threadItemId.fieldNullable,
+          _readThroughAt.fieldNullable,
         ],
         resolve: (_, args) => _case.markBeaconRoomSeen(
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
               threadItemId: _threadItemId.fromArgs(args),
+              readThroughAtIso: _readThroughAt.fromArgs(args),
             ),
       );
 

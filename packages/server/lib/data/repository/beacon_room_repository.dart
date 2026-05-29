@@ -941,25 +941,43 @@ class BeaconRoomRepository {
     required DateTime at,
   }) =>
       _db.withMutatingUser(userId, () async {
-        final seenAt = PgDateTime(at);
+        // customStatement accepts strings/nums only — bind timestamptz as ISO text.
+        final seenAtIso = at.toUtc().toIso8601String();
         if (threadItemId == null) {
           await _db.customStatement(
-            'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
-            'VALUES (?1, ?2, NULL, ?3) '
-            'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
-            'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
-            [userId, beaconId, seenAt],
+            r'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+            r'VALUES ($1, $2, NULL, $3::timestamptz) '
+            r'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
+            r'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
+            [userId, beaconId, seenAtIso],
           );
         } else {
           await _db.customStatement(
-            'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
-            'VALUES (?1, ?2, ?3, ?4) '
-            'ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL '
-            'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
-            [userId, beaconId, threadItemId, seenAt],
+            r'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+            r'VALUES ($1, $2, $3, $4::timestamptz) '
+            r'ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL '
+            r'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
+            [userId, beaconId, threadItemId, seenAtIso],
           );
         }
       });
+
+  /// Newest main-room message timestamp, or null when the room has no messages.
+  Future<DateTime?> latestMainRoomMessageCreatedAt(String beaconId) async {
+    final row = await (_db.select(_db.beaconRoomMessages)
+          ..where(
+            (m) => m.beaconId.equals(beaconId) & m.threadItemId.isNull(),
+          )
+          ..orderBy([
+            (t) => OrderingTerm(
+              expression: t.createdAt,
+              mode: OrderingMode.desc,
+            ),
+          ])
+          ..limit(1))
+        .getSingleOrNull();
+    return row?.createdAt.dateTime;
+  }
 
   Future<DateTime?> getMainRoomLastSeen({
     required String beaconId,

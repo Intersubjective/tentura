@@ -234,29 +234,37 @@ class BeaconRoomRepository {
     );
   }
 
-  Future<void> markRoomSeen({
+  Future<DateTime> markRoomSeen({
     required String beaconId,
     String? threadItemId,
+    required DateTime readThroughAt,
   }) async {
+    final readThroughIso = readThroughAt.toUtc().toIso8601String();
     if (threadItemId == null) {
-      await _remoteApiService
+      final row = await _remoteApiService
           .request(
-            GBeaconParticipantRoomSeenReq((b) => b.vars.beaconId = beaconId),
+            GBeaconParticipantRoomSeenReq(
+              (b) => b.vars
+                ..beaconId = beaconId
+                ..readThroughAt = readThroughIso,
+            ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then((r) => r.dataOrThrow(label: _label).BeaconParticipantRoomSeen);
-      return;
+      return DateTime.parse(row.seenAt).toUtc();
     }
-    await _remoteApiService
+    final row = await _remoteApiService
         .request(
           GMarkBeaconRoomSeenReq(
             (b) => b.vars
               ..beaconId = beaconId
-              ..threadItemId = threadItemId,
+              ..threadItemId = threadItemId
+              ..readThroughAt = readThroughIso,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).MarkBeaconRoomSeen);
+    return DateTime.parse(row.seenAt).toUtc();
   }
 
   Future<bool> markMessageSemanticDone({

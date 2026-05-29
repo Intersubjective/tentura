@@ -15,6 +15,7 @@ import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_re
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
 import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.dart';
+import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
@@ -79,12 +80,14 @@ class _FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
       BeaconRoomState(beaconId: beaconId, updatedAt: DateTime.utc(2026));
 
   @override
-  Future<void> markRoomSeen({
+  Future<DateTime> markRoomSeen({
     required String beaconId,
     String? threadItemId,
+    required DateTime readThroughAt,
   }) async {
     markRoomSeenCalled = true;
-    participantLastSeenRoomAt = DateTime.timestamp();
+    participantLastSeenRoomAt = readThroughAt;
+    return readThroughAt;
   }
 
   @override
@@ -105,10 +108,7 @@ class _FakeBeaconFactCardRepository extends Fake
 }
 
 class _FakeBeaconRoomHintsRepository extends Fake
-    implements BeaconRoomHintsRepository {
-  @override
-  void notifyRoomSeen(String beaconId) {}
-}
+    implements BeaconRoomHintsRepository {}
 
 class _FakePollingRepository extends Fake implements PollingRepository {}
 
@@ -157,6 +157,7 @@ BeaconRoomCase _makeCase(_FakeBeaconRoomRepository fakeRoom) =>
       _FakeBeaconFactCardRepository(),
       _FakePollingRepository(),
       _FakeBeaconRoomHintsRepository(),
+      RoomReadWatermarkStore(),
       const FakeCoordinationItemCaseForRoom(),
       env: const Env(),
       logger: Logger('test'),
@@ -229,14 +230,115 @@ void main() {
       expect(s.unreadCount, 2, reason: 'all messages are unread with null anchor');
     });
 
-    test('markSeenNowIfNeeded() does NOT overwrite unreadAnchorAt', () async {
-      // Regression: the fix to markSeenNowIfNeeded() removed the
-      // `unreadAnchorAt: DateTime.now()` emission that was causing the unread
-      // banner to disappear immediately.
+    test('markSeenNowIfNeeded sets flag only on successful persist', () async {
       _registerProfileCubit(_kMyUserId);
 
+      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
       final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
         ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('new', newMsgTime),
+        ];
+
+      final case_ = _makeCase(fakeRoom);
+      final cubit = RoomCubit(
+        beaconId: _kBeaconId,
+        beaconRoomCase: case_,
+        coordinationItemRoomSync: _testItemSync,
+      );
+      addTearDown(cubit.close);
+
+      await _awaitLoad(cubit);
+      await cubit.markSeenNowIfNeeded();
+      expect(cubit.state.pendingMarkSeen, isFalse);
+
+      fakeRoom.markRoomSeenCalled = false;
+      // Second call should be skipped (already emitted this visit).
+      await cubit.markSeenNowIfNeeded();
+      expect(fakeRoom.markRoomSeenCalled, isFalse);
+    });
+
+    test('local read-through clears unread before server confirms', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('new', newMsgTime),
+        ];
+
+      final cubit = _roomCubit(fakeRoom);
+      addTearDown(cubit.close);
+
+      await _awaitLoad(cubit);
+      expect(cubit.state.unreadCount, 1);
+
+      await cubit.markReadToBottom();
+
+      expect(cubit.state.unreadCount, 0);
+      expect(cubit.state.unreadAnchorAt, newMsgTime);
+    });
+
+    test('anchor never regresses below session watermark on reload', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final watermark = _kAnchorTime.add(const Duration(hours: 2));
+      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('new', newMsgTime),
+        ];
+
+      final case_ = _makeCase(fakeRoom);
+      case_.observeReadThrough(_kBeaconId, watermark);
+
+      final cubit = RoomCubit(
+        beaconId: _kBeaconId,
+        beaconRoomCase: case_,
+        coordinationItemRoomSync: _testItemSync,
+      );
+      addTearDown(cubit.close);
+
+      final s = await _awaitLoad(cubit);
+      expect(s.unreadAnchorAt, watermark);
+      expect(s.unreadCount, 0);
+    });
+
+    test('markSeenNowIfNeeded() advances anchor to latest loaded message', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('new', newMsgTime),
+        ];
+
+      final cubit = _roomCubit(fakeRoom);
+      addTearDown(cubit.close);
+
+      await _awaitLoad(cubit);
+      expect(cubit.state.unreadAnchorAt, equals(_kAnchorTime));
+      expect(cubit.state.unreadCount, 1);
+
+      await cubit.markSeenNowIfNeeded();
+
+      expect(cubit.state.unreadAnchorAt, equals(newMsgTime));
+      expect(cubit.state.pendingMarkSeen, isFalse);
+      expect(cubit.state.unreadCount, 0);
+      expect(cubit.state.firstUnreadMessageId, isNull);
+    });
+
+    test('markSeenNowIfNeeded() is blocked until initial load completes', () async {
+      // Regression: must not flush before the first load derives unreadAnchorAt.
+      _registerProfileCubit(_kMyUserId);
+
+      final gate = Completer<void>();
+      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..fetchMessagesCompleter = gate
         ..messages = [
           _msg('new', _kAnchorTime.add(const Duration(hours: 1))),
         ];
@@ -244,55 +346,138 @@ void main() {
       final cubit = _roomCubit(fakeRoom);
       addTearDown(cubit.close);
 
-      await _awaitLoad(cubit);
-      final anchorBeforeMark = cubit.state.unreadAnchorAt;
-      expect(anchorBeforeMark, equals(_kAnchorTime));
-
-      await cubit.markSeenNowIfNeeded();
-
-      expect(
-        cubit.state.unreadAnchorAt,
-        equals(anchorBeforeMark),
-        reason: 'marking seen must not change the unread anchor',
-      );
-      // pendingMarkSeen should now be cleared
-      expect(cubit.state.pendingMarkSeen, isFalse);
-      // unread banner still shows the correct message
-      expect(cubit.state.firstUnreadMessageId, 'new');
-    });
-
-    test('markSeenNowIfNeeded() is blocked while load() is in progress', () async {
-      // Regression: a race condition allowed markSeenNowIfNeeded to write a
-      // too-recent lastSeenRoomAt before load() had a chance to read the
-      // pre-mark value from the server.
-      _registerProfileCubit(_kMyUserId);
-
-      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
-        ..participantLastSeenRoomAt = _kAnchorTime;
-
-      final cubit = _roomCubit(fakeRoom);
-      addTearDown(cubit.close);
-
-      await _awaitLoad(cubit); // let the constructor load finish first
-
-      // Gate the next load on a completer so we can interleave calls.
-      final gate = Completer<void>();
-      fakeRoom
-        ..fetchMessagesCompleter = gate
-        ..markRoomSeenCalled = false;
-
-      unawaited(cubit.load()); // starts load, blocks at fetchMessages
-
-      // While load is blocked, markSeenNowIfNeeded must be a no-op.
       await cubit.markSeenNowIfNeeded();
       expect(
         fakeRoom.markRoomSeenCalled,
         isFalse,
-        reason: 'markSeenNowIfNeeded must not fire while load is in progress',
+        reason: 'markSeenNowIfNeeded must not fire before initial load',
       );
 
       gate.complete();
       await _awaitLoad(cubit);
+
+      fakeRoom.markRoomSeenCalled = false;
+      await cubit.markSeenNowIfNeeded();
+      expect(fakeRoom.markRoomSeenCalled, isTrue);
+    });
+
+    test(
+      'markSeenNowIfNeeded() fires during a later reload while fetch is in progress',
+      () async {
+        _registerProfileCubit(_kMyUserId);
+
+        final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+          ..participantLastSeenRoomAt = _kAnchorTime
+          ..messages = [
+            _msg('new', _kAnchorTime.add(const Duration(hours: 1))),
+          ];
+
+        final cubit = _roomCubit(fakeRoom);
+        addTearDown(cubit.close);
+
+        await _awaitLoad(cubit);
+
+        final gate = Completer<void>();
+        fakeRoom
+          ..fetchMessagesCompleter = gate
+          ..markRoomSeenCalled = false;
+
+        unawaited(cubit.reloadMessages(silent: true));
+
+        await cubit.markSeenNowIfNeeded();
+        expect(
+          fakeRoom.markRoomSeenCalled,
+          isTrue,
+          reason: 'mark-seen must not be blocked by concurrent silent reload',
+        );
+
+        gate.complete();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(cubit.state.status, isA<StateIsSuccess>());
+      },
+    );
+
+    test('markReadToBottom() advances anchor and clears unread', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('old', _kAnchorTime.subtract(const Duration(hours: 1))),
+          _msg('new', newMsgTime),
+        ];
+
+      final cubit = _roomCubit(fakeRoom);
+      addTearDown(cubit.close);
+
+      await _awaitLoad(cubit);
+      expect(cubit.state.unreadCount, 1);
+
+      fakeRoom.markRoomSeenCalled = false;
+      await cubit.markReadToBottom();
+
+      expect(cubit.state.unreadCount, 0);
+      expect(cubit.state.firstUnreadMessageId, isNull);
+      expect(cubit.state.unreadAnchorAt, equals(newMsgTime));
+      expect(fakeRoom.markRoomSeenCalled, isTrue);
+    });
+
+    test('silent reload after markSeen does not resurrect unread count', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('old', _kAnchorTime.subtract(const Duration(hours: 1))),
+          _msg('new', newMsgTime),
+        ];
+
+      final cubit = _roomCubit(fakeRoom);
+      addTearDown(cubit.close);
+
+      await _awaitLoad(cubit);
+      expect(cubit.state.unreadCount, 1);
+
+      await cubit.markSeenNowIfNeeded();
+      expect(cubit.state.unreadCount, 0);
+
+      await cubit.reloadMessages(silent: true);
+
+      expect(cubit.state.unreadCount, 0);
+      expect(cubit.state.firstUnreadMessageId, isNull);
+    });
+
+    test('silent reload preserves an advanced anchor', () async {
+      _registerProfileCubit(_kMyUserId);
+
+      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+      final fakeRoom = _FakeBeaconRoomRepository(userId: _kMyUserId)
+        ..participantLastSeenRoomAt = _kAnchorTime
+        ..messages = [
+          _msg('old', _kAnchorTime.subtract(const Duration(hours: 1))),
+          _msg('new', newMsgTime),
+        ];
+
+      final cubit = _roomCubit(fakeRoom);
+      addTearDown(cubit.close);
+
+      await _awaitLoad(cubit);
+      await cubit.markReadToBottom();
+      final anchorAfterRead = cubit.state.unreadAnchorAt;
+      expect(cubit.state.unreadCount, 0);
+
+      await cubit.reloadMessages(silent: true);
+
+      expect(cubit.state.unreadCount, 0);
+      expect(cubit.state.firstUnreadMessageId, isNull);
+      // After mark-seen, reload may merge a newer server watermark than the
+      // locally advanced anchor.
+      expect(
+        cubit.state.unreadAnchorAt!.compareTo(anchorAfterRead!) >= 0,
+        isTrue,
+      );
     });
 
     test('sendMessage() resets anchor so next load re-derives it from server', () async {

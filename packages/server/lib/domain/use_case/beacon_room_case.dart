@@ -311,6 +311,7 @@ final class BeaconRoomCase extends UseCaseBase {
           'lastRoomMeaningfulChange': null,
           'nextMoveText': null,
           'roomUnreadCount': 0,
+          'lastSeenAt': null,
           'openBlockerTitle': null,
           'publicFactSnippet': factSnippet,
         });
@@ -338,6 +339,7 @@ final class BeaconRoomCase extends UseCaseBase {
         'lastRoomMeaningfulChange': st?.lastRoomMeaningfulChange,
         'nextMoveText': p?.nextMoveText,
         'roomUnreadCount': unread,
+        'lastSeenAt': seenAt?.toUtc().toIso8601String(),
         'openBlockerTitle': openBlocker?.title,
         'publicFactSnippet': factSnippet,
       });
@@ -392,10 +394,11 @@ final class BeaconRoomCase extends UseCaseBase {
     return true;
   }
 
-  Future<bool> markBeaconRoomSeen({
+  Future<Map<String, Object?>> markBeaconRoomSeen({
     required String beaconId,
     required String userId,
     String? threadItemId,
+    String? readThroughAtIso,
   }) async {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
@@ -419,20 +422,51 @@ final class BeaconRoomCase extends UseCaseBase {
         );
       }
     }
+    final parsedReadThrough = readThroughAtIso != null &&
+            readThroughAtIso.trim().isNotEmpty
+        ? DateTime.tryParse(readThroughAtIso.trim())
+        : null;
+    var at = parsedReadThrough ?? DateTime.timestamp();
+    if (!inThread) {
+      final latest = await _room.latestMainRoomMessageCreatedAt(beaconId);
+      if (latest != null) {
+        if (latest.isAfter(at)) {
+          at = latest;
+        } else if (at.isAfter(latest)) {
+          at = latest;
+        }
+      }
+      final existing = await _room.getMainRoomLastSeen(
+        beaconId: beaconId,
+        userId: userId,
+      );
+      if (existing != null && existing.isAfter(at)) {
+        at = existing;
+      }
+    }
     await _room.markBeaconRoomSeen(
       userId: userId,
       beaconId: beaconId,
       threadItemId: inThread ? tid : null,
-      at: DateTime.timestamp(),
+      at: at,
     );
-    return true;
+    return {
+      'beaconId': beaconId,
+      'threadItemId': inThread ? tid : null,
+      'seenAt': at.toUtc().toIso8601String(),
+    };
   }
 
-  Future<bool> beaconParticipantRoomSeen({
+  Future<Map<String, Object?>> beaconParticipantRoomSeen({
     required String beaconId,
     required String userId,
+    String? readThroughAtIso,
   }) =>
-      markBeaconRoomSeen(beaconId: beaconId, userId: userId);
+      markBeaconRoomSeen(
+        beaconId: beaconId,
+        userId: userId,
+        readThroughAtIso: readThroughAtIso,
+      );
 
   /// Room members (same visibility envelope as chat): author, steward, or
   /// admitted participants.

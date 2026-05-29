@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/debug/agent_session_log.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
@@ -13,6 +14,9 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import '../../data/repository/beacon_fact_card_repository.dart';
 import '../../data/repository/beacon_room_hints_repository.dart';
 import '../../data/repository/beacon_room_repository.dart';
+import '../entity/room_seen_outcome.dart';
+import '../entity/room_unread_snapshot.dart';
+import '../room_read_watermark_store.dart';
 import '../../../coordination_item/domain/use_case/coordination_item_case.dart';
 import '../../../polling/data/repository/polling_repository.dart';
 
@@ -23,6 +27,7 @@ final class BeaconRoomCase extends UseCaseBase {
     this._factCards,
     this._polling,
     this._hints,
+    this._watermark,
     this._coordinationItemCase, {
     required super.env,
     required super.logger,
@@ -36,7 +41,40 @@ final class BeaconRoomCase extends UseCaseBase {
 
   final BeaconRoomHintsRepository _hints;
 
+  final RoomReadWatermarkStore _watermark;
+
   final CoordinationItemCase _coordinationItemCase;
+
+  Stream<String> get readWatermarkChanges => _watermark.changes;
+
+  DateTime? readThrough(String beaconId) => _watermark.readThrough(beaconId);
+
+  bool observeReadThrough(String beaconId, DateTime at) =>
+      _watermark.observeReadThrough(beaconId, at);
+
+  int resolveUnread({
+    required String beaconId,
+    required int serverCount,
+    required DateTime? serverSeenAt,
+  }) =>
+      _watermark.resolveUnread(
+        beaconId: beaconId,
+        serverCount: serverCount,
+        serverSeenAt: serverSeenAt,
+      );
+
+  Future<RoomUnreadSnapshot> fetchRoomUnreadSnapshot(String beaconId) async {
+    try {
+      final map = await _hints.fetchByBeaconIds([beaconId]);
+      final hints = map[beaconId];
+      return RoomUnreadSnapshot(
+        count: hints?.roomUnreadCount ?? 0,
+        serverSeenAt: hints?.lastSeenAt,
+      );
+    } on Object catch (_) {
+      return const RoomUnreadSnapshot(count: 0);
+    }
+  }
 
   Stream<String> get beaconRoomRefresh => _room.beaconRoomRefresh;
 
@@ -213,17 +251,36 @@ final class BeaconRoomCase extends UseCaseBase {
         visibility: visibility,
       );
 
-  Future<void> markRoomSeenIfAllowed({
+  Future<RoomSeenOutcome> markRoomSeenIfAllowed({
     required String beaconId,
     String? threadItemId,
+    required DateTime readThroughAt,
   }) async {
     try {
-      await _room.markRoomSeen(
+      final persistedAt = await _room.markRoomSeen(
         beaconId: beaconId,
         threadItemId: threadItemId,
+        readThroughAt: readThroughAt,
       );
-      _hints.notifyRoomSeen(beaconId);
-    } on Object catch (_) {}
+      _watermark.confirmSynced(beaconId, persistedAt);
+      return RoomSeenSucceeded(persistedAt);
+    } on Object catch (e) {
+      // #region agent log
+      agentSessionLog(
+        location: 'beacon_room_case.dart:markRoomSeenIfAllowed',
+        message: 'markRoomSeen exception',
+        hypothesisId: 'H-B',
+        runId: 'post-fix',
+        data: {
+          'beaconId': beaconId,
+          'threadItemId': threadItemId,
+          'error': e.toString(),
+          'type': e.runtimeType.toString(),
+        },
+      );
+      // #endregion
+      return RoomSeenFailed(e);
+    }
   }
 
   Future<void> markBlockerFromMessage({

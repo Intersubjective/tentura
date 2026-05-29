@@ -2362,8 +2362,8 @@ type mutation_root {
   RoomMessageMarkSemanticDone(beaconId: String!, messageId: String!): Boolean!
   RoomMessageEdit(beaconId: String!, messageId: String!, body: String!): Boolean!
   RoomMessageDelete(beaconId: String!, messageId: String!): Boolean!
-  BeaconParticipantRoomSeen(beaconId: String!): Boolean!
-  MarkBeaconRoomSeen(beaconId: String!, threadItemId: String): Boolean!
+  BeaconParticipantRoomSeen(beaconId: String!, readThroughAt: String): BeaconRoomSeenResult!
+  MarkBeaconRoomSeen(beaconId: String!, threadItemId: String, readThroughAt: String): BeaconRoomSeenResult!
   RoomPollCreate(beaconId: String!, question: String!, variants: [String!]!, pollType: String, isAnonymous: Boolean, allowRevote: Boolean): RoomMessageRow!
   capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
   capabilitySetViewerVisible(subjectUserId: String!, slugs: [String!]!): Boolean!
@@ -5512,8 +5512,15 @@ type InboxRoomContextRow {
   lastRoomMeaningfulChange: String
   nextMoveText: String
   roomUnreadCount: Int!
+  lastSeenAt: String
   openBlockerTitle: String
   publicFactSnippet: String
+}
+
+type BeaconRoomSeenResult {
+  beaconId: String!
+  threadItemId: String
+  seenAt: String!
 }
 
 type BeaconParticipantRow {
