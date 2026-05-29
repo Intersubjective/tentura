@@ -22,21 +22,22 @@ class ForwardCapabilityChips extends StatelessWidget {
         for (final slug in slugs)
           () {
             final tag = CapabilityTag.fromSlug(slug);
+            final fg = theme.colorScheme.onSecondaryContainer;
+            final label = tag?.labelOf(l10n) ?? slug;
+            final labelStyle = theme.textTheme.labelSmall?.copyWith(color: fg);
             return RawChip(
-              label: Text(
-                tag?.labelOf(l10n) ?? slug,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (tag != null) ...[
+                    Icon(tag.icon, size: 14, color: fg),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(label, style: labelStyle),
+                ],
               ),
-              avatar: tag != null
-                  ? Icon(
-                      tag.icon,
-                      size: 14,
-                      color: theme.colorScheme.onSecondaryContainer,
-                    )
-                  : null,
               backgroundColor: theme.colorScheme.secondaryContainer,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
               padding: EdgeInsets.zero,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: VisualDensity.compact,
