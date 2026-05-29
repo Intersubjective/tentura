@@ -33,7 +33,11 @@ class ProfileViewBody extends StatelessWidget {
           children: [
             // Avatar
             Center(
-              child: AvatarRated.big(profile: profile, withRating: false),
+              child: AvatarRated.big(
+                profile: profile,
+                withRating: false,
+                withContactBadge: true,
+              ),
             ),
 
             // Description
