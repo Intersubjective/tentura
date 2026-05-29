@@ -1091,6 +1091,7 @@ class BeaconRoomRepository {
             'actorId': r.actorId,
             'targetUserId': r.targetUserId,
             'sourceMessageId': r.sourceMessageId,
+            'coordinationItemId': r.coordinationItemId,
             'diffJson': r.diff == null ? null : jsonEncode(r.diff),
             'createdAt': r.createdAt.dateTime.toUtc().toIso8601String(),
           },

@@ -50,6 +50,7 @@ class BeaconActivityEventRepository {
           actorId: e.actorId,
           targetUserId: e.targetUserId,
           sourceMessageId: e.sourceMessageId,
+          coordinationItemId: e.coordinationItemId,
           diffJson: e.diffJson,
           createdAt: DateTime.parse(e.createdAt),
         ),

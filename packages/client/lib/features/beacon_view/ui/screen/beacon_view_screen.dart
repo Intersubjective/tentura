@@ -13,9 +13,11 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
+import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
@@ -499,6 +501,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   late bool _peopleTabAttentionActive;
   late bool _showRoomSurface;
 
+  /// Coordination item / participant to scroll-to + flash after a Log row tap.
+  String? _focusItemId;
+  String? _focusUserId;
+
   RoomCubit? _roomCubit;
   ItemsTabCubit? _itemsTabCubit;
   bool _didApplyFetchResolution = false;
@@ -809,6 +815,42 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _tabIndex = tab;
       _bannerMessage = null;
       _peopleTabAttentionActive = false;
+      _focusItemId = null;
+      _focusUserId = null;
+    });
+  }
+
+  /// Log row tap → jump to the linked coordination item (Items tab) or, when the
+  /// event has no item, to the related participant (People tab).
+  void _onTapCoordinationLogEvent(BeaconActivityEvent e) {
+    final itemId = e.coordinationItemId?.trim();
+    if (itemId != null && itemId.isNotEmpty) {
+      setState(() {
+        _tabIndex = kBeaconTabItems;
+        _focusItemId = itemId;
+        _focusUserId = null;
+        _bannerMessage = null;
+        _peopleTabAttentionActive = false;
+      });
+      return;
+    }
+    final userId = (e.targetUserId ?? e.actorId)?.trim();
+    if (userId != null && userId.isNotEmpty) {
+      setState(() {
+        _tabIndex = kBeaconTabPeople;
+        _focusUserId = userId;
+        _focusItemId = null;
+        _bannerMessage = null;
+        _peopleTabAttentionActive = false;
+      });
+    }
+  }
+
+  void _clearOperationalFocus() {
+    if (_focusItemId == null && _focusUserId == null) return;
+    setState(() {
+      _focusItemId = null;
+      _focusUserId = null;
     });
   }
 
@@ -913,6 +955,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 onPeopleTabAttentionCleared: () => setState(() {
                   _peopleTabAttentionActive = false;
                 }),
+                focusItemId: _focusItemId,
+                focusUserId: _focusUserId,
+                onOperationalFocusCleared: _clearOperationalFocus,
+                onTapCoordinationLogEvent: _onTapCoordinationLogEvent,
                 onEnterRoomSurface: _enterRoomSurface,
                 onOpenItemDiscussion: _openItemDiscussion,
                 onAuthorCloseRequested: (ctx) => _beaconViewRunAuthorCloseSheet(
@@ -1028,6 +1074,10 @@ class _BeaconOperationalScrollView extends StatelessWidget {
     required this.onTabChanged,
     required this.peopleTabAttentionActive,
     required this.onPeopleTabAttentionCleared,
+    required this.focusItemId,
+    required this.focusUserId,
+    required this.onOperationalFocusCleared,
+    required this.onTapCoordinationLogEvent,
     required this.onEnterRoomSurface,
     required this.onOpenItemDiscussion,
     required this.onAuthorCloseRequested,
@@ -1041,6 +1091,12 @@ class _BeaconOperationalScrollView extends StatelessWidget {
   /// Pulse/highlight People tab until first pointer interaction or tab change.
   final bool peopleTabAttentionActive;
   final VoidCallback onPeopleTabAttentionCleared;
+
+  /// Coordination item / participant to focus + flash (Log row tap-to-focus).
+  final String? focusItemId;
+  final String? focusUserId;
+  final VoidCallback onOperationalFocusCleared;
+  final void Function(BeaconActivityEvent event) onTapCoordinationLogEvent;
 
   final void Function([CoordinationItem? focusItem]) onEnterRoomSurface;
 
@@ -1059,6 +1115,9 @@ class _BeaconOperationalScrollView extends StatelessWidget {
   void _onPointerDown(PointerDownEvent _) {
     if (peopleTabAttentionActive) {
       onPeopleTabAttentionCleared();
+    }
+    if (focusItemId != null || focusUserId != null) {
+      onOperationalFocusCleared();
     }
   }
 
@@ -1220,11 +1279,13 @@ class _BeaconOperationalScrollView extends StatelessWidget {
           kBeaconTabItems => ItemsTab(
             state: state,
             onOpenItemThread: onOpenItemDiscussion,
+            focusItemId: focusItemId,
           ),
           kBeaconTabPeople => BeaconPeopleTabBody(
             state: state,
             beaconViewCubit: beaconViewCubit,
             l10n: l10n,
+            focusUserId: focusUserId,
           ),
           kBeaconTabLog => BeaconActivityList(
             timeline: const [],
@@ -1233,6 +1294,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             onEditTimelineUpdate: editUpdate,
             roomActivityEvents: state.roomActivityEvents,
             coordinationLogOnly: true,
+            onTapCoordinationEvent: onTapCoordinationLogEvent,
             actors: {
               for (final p in state.roomParticipants) p.userId: p,
             },
@@ -1490,6 +1552,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     required this.state,
     required this.beaconViewCubit,
     required this.l10n,
+    this.focusUserId,
     super.key,
   });
 
@@ -1497,10 +1560,19 @@ class BeaconPeopleTabBody extends StatelessWidget {
   final BeaconViewCubit beaconViewCubit;
   final L10n l10n;
 
+  /// When set, the matching participant card is scrolled into view and flashed.
+  final String? focusUserId;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final beacon = state.beacon;
+    final focusUid = focusUserId?.trim();
+    final hasFocus = focusUid != null && focusUid.isNotEmpty;
+    Widget focusWrap(String userId, Widget child) => FocusFlashHighlight(
+          active: hasFocus && userId == focusUid,
+          child: child,
+        );
     final withdrawn = state.helpOffers
         .where((c) => c.isWithdrawn)
         .toList(growable: false);
@@ -1639,7 +1711,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         children: [
           for (var i = 0; i < rows.length; i++) ...[
             if (i != 0) const SizedBox(height: 12),
-            peopleTile(rows[i]),
+            focusWrap(rows[i].userId, peopleTile(rows[i])),
           ],
         ],
       );
