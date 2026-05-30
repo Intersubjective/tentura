@@ -87,13 +87,6 @@
 http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
 	encode gzip
 
-	@invite_shared_browser {
-		path /shared/view
-		expression `{http.request.uri.query.id}.startsWith("I")`
-		header User-Agent *Mozilla*
-	}
-	redir @invite_shared_browser http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080}/invite/{http.request.uri.query.id} 302
-
 	import local_api
 
 	handle_errors {
@@ -112,13 +105,6 @@ http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
 
 http://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
 	encode gzip
-
-	@invite_shared_browser {
-		path /shared/view
-		expression `{http.request.uri.query.id}.startsWith("I")`
-		header User-Agent *Mozilla*
-	}
-	redir @invite_shared_browser http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080}/invite/{http.request.uri.query.id} 302
 
 	import local_api
 

@@ -62,10 +62,9 @@ device key.
     free by wrapping those methods. The only NEW work is *surfacing* the beacon in the
     preview response and landing UI.
 
-**Current invite link format.** `{kServerName}/shared/view?id=<invitationId>` (built at
-`forward_beacon_screen.dart:211`; `kPathAppLinkView = '/shared/view'`, `kServerName` in the
-shared `lib/consts.dart` — `tentura_root`). The invitation id is the "code" (prefix `'I'`).
-Old links must keep working after the new `/invite/:code` scheme lands.
+**Invite link format.** `{INVITE_LINK_HOST}/invite/<invitationId>` via `inviteShareUri()` in
+`packages/client/lib/consts.dart` (forward + friends screens). The invitation id is the
+"code" (prefix `'I'`). Legacy `/shared/view?id=I…` URLs are not supported.
 
 **Schema is owned by Drift, not Hasura.**
 - `packages/server/lib/data/database/migration/m0001…m0072.dart`; snapshots in
@@ -191,7 +190,7 @@ that already work server-side should be exercised end-to-end.
   `extractJwtClaims` (non-failing).
 - **OG meta stays on the existing Jaspr path** (`shared_view_controller` +
   `invitation_view_component`) for Telegram/iMessage crawlers; keep its output consistent
-  with the JSON preview. Old `/shared/view?id=I…` links must continue to work.
+  with the JSON preview (crawler path only; user-facing shares use `/invite/:code`).
 
 ### Landing — `packages/landing` (static package, implemented)
 - Plain static HTML/CSS/JS, served **as-is** — **no build step, no npm, no `node_modules`,
@@ -199,8 +198,7 @@ that already work server-side should be exercised end-to-end.
   loaded in-browser (CDN ESM or a vendored single file).
 - **Runtime config** (`config.js`): `apiBase: ''` (landing host proxies `/api`);
   `appBase` absolute app origin (CI injects `APP_BASE`, default
-  `https://app.dev.tentura.io/`). New invite URLs: `/invite/:code` (`I…` id); old
-  `/shared/view?id=…` still parsed in `preview.js`.
+  `https://app.dev.tentura.io/`). Invite URLs: `/invite/:code` (`I…` id) on the landing host.
 - In-app-webview detection → two-tier UX:
   - **Tier 1 (system browser):** full auth CTAs (Passkey/Google/Apple/Email) —
     **feature-flagged off / stubbed in Phase 0**, wired in Phase 1.
@@ -238,9 +236,8 @@ The Flutter client compiles one `kServerName` used for **API/WS** and **share li
 | `APP_BASE` | GitHub `dev` env → CI `sed` on `packages/landing/config.js` | `https://app.dev.tentura.io/` | Landing CTAs → WASM (`appBase`) |
 | `APP_HOST` | VPS `.env` → Caddy | `app.dev.tentura.io` | Second TLS site block |
 
-Share links from the app may still point at `CLIENT_SERVER_NAME` (`/shared/view?id=…`);
-**both hosts proxy `/shared/*`**, so old and app-origin links keep working. A dedicated
-landing share base is optional in Phase 1+.
+Share links from the app use `INVITE_LINK_HOST` (`/invite/I…` on the landing host). OG
+crawlers still hit Jaspr `/shared/view?id=…` on whichever host proxies `/shared/*`.
 
 **CICD / deploy**
 
@@ -300,7 +297,7 @@ Authoritative key names and cross-subdomain notes: [`docs/handoff-contract.md`](
 | Criterion | Status |
 |-----------|--------|
 | `curl GET /api/v2/invite/:code/preview` — all `codeStatus`/`callerStatus` + beacon | **Unit tests done**; live curl on dev stack **owed** |
-| OG crawler `/shared/view?id=I…`; old links | **Verify on deploy** |
+| OG crawler `/shared/view?id=I…` (not user share URLs) | **Verify on deploy** |
 | Landing: 5 states + beacon; Sentry before WASM | **Implemented**; TTI/funnel on deploy **owed** |
 | Caddy: landing no COOP; app COOP/COEP; both proxy `/api` | **`caddy validate` + local curl done**; live dev hosts **owed** |
 
@@ -433,9 +430,8 @@ skip the landing when the app is installed).
    (`.dev.tentura.io`) and prod (`.tentura.io`). localStorage is not shared; handoff keys
    are pinned in `docs/handoff-contract.md`; Phase 1 must implement cookie or transfer.
    CI pin for key names is planned.
-7. **Link compatibility** — old `/shared/view?id=I…` links must keep resolving after the
-   new `/invite/:code` scheme; beacon-forward invites (`beaconId` present) must render and
-   accept correctly on all surfaces.
+7. **Beacon-forward invites** — when `beaconId` is present, preview + landing must render
+   and accept correctly on all surfaces (`/invite/:code` only).
 
 ---
 
