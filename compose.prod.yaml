@@ -22,6 +22,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./web:/srv/web:ro
+      - ./landing:/srv/landing:ro
       - caddy_data:/data
       - caddy_config:/config
     ports:
@@ -32,6 +33,9 @@ services:
       - backend
     environment:
       - SERVER_NAME
+      - APP_HOST
+      - APP_ROOT
+      - LANDING_ROOT
       - ACME_EMAIL
       - CORS
       - CLIENT_MAX_BODY_SIZE

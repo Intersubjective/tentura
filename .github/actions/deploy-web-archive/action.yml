@@ -5,6 +5,10 @@ inputs:
   archive-name:
     description: 'Exact archive filename (e.g., web-dev-abc123.tar.gz)'
     required: true
+  landing-archive-name:
+    description: 'Optional static landing archive (e.g., landing-dev.tar.gz); deploy.sh picks it up from /tmp/landing-*.tar.gz'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -32,6 +36,15 @@ runs:
             -o LogLevel=ERROR \
             "${{ inputs.archive-name }}" \
             deploy@"$VPS_HOST":/tmp/
+
+        # Optional static landing archive (picked up by deploy.sh from /tmp).
+        if [ -n "${{ inputs.landing-archive-name }}" ]; then
+          scp -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=accept-new \
+              -o LogLevel=ERROR \
+              "${{ inputs.landing-archive-name }}" \
+              deploy@"$VPS_HOST":/tmp/
+        fi
 
     - name: Deploy to VPS
       shell: bash

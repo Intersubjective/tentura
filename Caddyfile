@@ -1,21 +1,17 @@
-# Production: set SERVER_NAME and ACME_EMAIL for Let's Encrypt.
-# Development: SERVER_NAME=localhost uses Caddy's automatic internal TLS.
+# Subdomain split (dev mimics prod):
+#   {$SERVER_NAME}     -> static landing (dev.tentura.io / tentura.io)
+#   {$APP_HOST}        -> Flutter WASM app + /api/* + /shared/* (app.dev.tentura.io / app.tentura.io)
+#
+# VPS .env: SERVER_NAME=https://dev.tentura.io, APP_HOST=app.dev.tentura.io,
+#   APP_ROOT=/srv/web, LANDING_ROOT=/srv/landing, ACME_EMAIL=...
+# Client build uses CLIENT_SERVER_NAME=https://app.dev.tentura.io (see pipeline.yml).
 {
 	auto_https disable_redirects
-	# host network: avoid conflict if another Caddy (or stale bind) uses :2019
 	admin off
 }
 
-{$SERVER_NAME:localhost} {
-	tls {$ACME_EMAIL}
-
-	request_body {
-		max_size {$CLIENT_MAX_BODY_SIZE:12MB}
-	}
-
-	encode gzip
-
-	# /api/v1/graphql -> Hasura at /v1/graphql (client sends V2 ops to /api/v2/graphql explicitly)
+(api) {
+	# /api/v1/graphql -> Hasura at /v1/graphql
 	handle /api/v1/graphql {
 		rewrite * /v1/graphql
 		reverse_proxy {$HASURA_UPSTREAM:hasura:8080} {
@@ -26,7 +22,6 @@
 		}
 	}
 
-	# Tentura GraphQL and WebSocket (long timeouts for subscriptions)
 	handle /api/v2/graphql {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
 			transport http {
@@ -44,7 +39,6 @@
 		}
 	}
 
-	# Tentura: authenticated room attachment downloads (not Hasura)
 	handle /api/v2/room-attachments/* {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
 			transport http {
@@ -54,7 +48,6 @@
 		}
 	}
 
-	# Tentura: service worker and shared assets
 	handle /firebase-messaging-sw.js {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}
 	}
@@ -62,21 +55,59 @@
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}
 	}
 
-	# Hasura: strip /api prefix (e.g. /api/ -> Hasura /)
 	handle_path /api/* {
 		reverse_proxy {$HASURA_UPSTREAM:hasura:8080}
 	}
+}
 
-	# Optional: pgAdmin (omit if pgadmin service not running)
+# Landing host — no COOP/COEP (fast TTI in webviews).
+{$SERVER_NAME:localhost} {
+	tls {$ACME_EMAIL:internal}
+
+	request_body {
+		max_size {$CLIENT_MAX_BODY_SIZE:12MB}
+	}
+
+	encode gzip
+
+	import api
+
 	handle /pgadmin4/* {
 		reverse_proxy pgadmin:80 {
 			header_up X-Script-Name /pgadmin4
 		}
 	}
 
-	# Static Flutter web app (SPA fallback) and CORS/security headers
+	# Empty or missing landing files → friendly page instead of bare 404.
+	handle_errors {
+		@landing_404 expression {http.error.status_code} == 404
+		handle @landing_404 {
+			respond "Landing is being deployed. Please try again shortly." 503
+		}
+	}
+
 	handle {
-		root * /srv/web
+		root * {$LANDING_ROOT:/srv/landing}
+		try_files {path} /index.html
+		file_server
+		header Access-Control-Allow-Origin "{$CORS:*}"
+	}
+}
+
+# WASM app host — base-href /; COOP/COEP scoped here only (Risk #1).
+{$APP_HOST:app.localhost} {
+	tls {$ACME_EMAIL:internal}
+
+	request_body {
+		max_size {$CLIENT_MAX_BODY_SIZE:12MB}
+	}
+
+	encode gzip
+
+	import api
+
+	handle {
+		root * {$APP_ROOT:/srv/web}
 		try_files {path} /index.html
 		file_server
 		header Cross-Origin-Opener-Policy "same-origin"

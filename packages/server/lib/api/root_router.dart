@@ -8,6 +8,7 @@ import 'controllers/firebase_sw_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'controllers/graphiql_controller.dart';
 import 'controllers/graphql_controller.dart';
+import 'controllers/invite_preview_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/shared_view_controller.dart';
 import 'middleware/auth_middleware.dart';
@@ -23,6 +24,7 @@ class RootRouter {
     this._firebaseSwController,
     this._sharedViewController,
     this._roomAttachmentDownloadController,
+    this._invitePreviewController,
   );
 
   final Env _env;
@@ -40,6 +42,8 @@ class RootRouter {
   final SharedViewController _sharedViewController;
 
   final RoomAttachmentDownloadController _roomAttachmentDownloadController;
+
+  final InvitePreviewController _invitePreviewController;
 
   Handler routeHandler() {
     final router = Router().plus
@@ -66,6 +70,11 @@ class RootRouter {
         '$kPathRoomAttachmentDownload/<attachmentId>',
         _roomAttachmentDownloadController.handler,
         use: _authMiddleware.verifyBearerJwt,
+      )
+      ..get(
+        '/api/v2/invite/<code>/preview',
+        _invitePreviewController.handler,
+        use: _authMiddleware.extractJwtClaims,
       );
 
     return router.call;

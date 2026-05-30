@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Tentura — you've been invited</title>
+    <meta
+      name="description"
+      content="Someone invited you to connect on Tentura."
+    />
+    <!--
+      OG/preview meta for link crawlers (Telegram/iMessage) is served by the
+      Dart server's Jaspr path (/shared/view) — see shared_view_controller.dart.
+      This static page is the in-browser human experience; it fetches the JSON
+      preview at /api/v2/invite/:code/preview and renders one of five states.
+      No third-party scripts except Sentry (analytics decision, Phase 0).
+    -->
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main id="app" class="state-loading">
+      <section class="card" id="card" aria-live="polite">
+        <div class="spinner" role="status" aria-label="Loading"></div>
+      </section>
+    </main>
+    <!--
+      Sentry browser SDK from CDN — the single allowed external script (deps-light,
+      no npm). `defer` runs it before the deferred module below, so window.Sentry
+      is ready when initAnalytics() runs. Safe to omit/block: analytics no-ops.
+    -->
+    <script
+      src="https://browser.sentry-cdn.com/8.39.0/bundle.min.js"
+      crossorigin="anonymous"
+      defer
+    ></script>
+    <!-- Runtime config (no build step injects values). -->
+    <script src="/config.js"></script>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
