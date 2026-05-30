@@ -30,20 +30,6 @@ final class SharedViewController extends BaseController {
     final isBrowser =
         request.headers['User-Agent']?.contains('Mozilla') ?? false;
 
-    // Invitation links: send browsers to static landing (not WASM #/ fragment).
-    if (!env.renderSharedPreview &&
-        isBrowser &&
-        ogId != null &&
-        ogId.isNotEmpty &&
-        ogId.startsWith('I')) {
-      return Response.found(
-        env.serverUri.replace(
-          path: '/invite/$ogId',
-          queryParameters: const {},
-        ),
-      );
-    }
-
     if (!env.renderSharedPreview && isBrowser) {
       return Response.found(
         Uri(

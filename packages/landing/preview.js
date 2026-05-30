@@ -4,12 +4,10 @@
 //   { inviter:{id,displayName,image}, codeStatus, callerStatus, beacon?, suggestedAction }
 const API_BASE = (window.TENTURA || {}).apiBase || ''; // '' = same origin
 
-/// New invite scheme is `/invite/:code`; old links `/shared/view?id=<code>`
-/// must keep working (link compatibility, Risk #7).
+/// Invite URLs: `/invite/:code` on the landing host.
 export function parseInviteCode() {
   const m = location.pathname.match(/^\/invite\/([^/]+)/);
-  if (m) return decodeURIComponent(m[1]);
-  return new URLSearchParams(location.search).get('id') || '';
+  return m ? decodeURIComponent(m[1]) : '';
 }
 
 export async function fetchPreview(code) {

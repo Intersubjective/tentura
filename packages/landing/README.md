@@ -54,7 +54,7 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 
 ## Routes / states
 
-- URL scheme: `/invite/:code`. Old `/shared/view?id=<code>` links still resolve
+- URL scheme: `/invite/:code` on the landing host (e.g. `https://dev.tentura.io/invite/I…`)
   (link compatibility, Risk #7).
 - Renders 5 states from `suggestedAction`: invalid · is-inviter ·
   already-friends · existing-user (befriend) · anonymous (3 ordered CTAs).

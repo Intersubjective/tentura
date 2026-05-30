@@ -80,13 +80,6 @@
 
 	encode gzip
 
-	@invite_shared_browser {
-		path /shared/view
-		expression `{http.request.uri.query.id}.startsWith("I")`
-		header User-Agent *Mozilla*
-	}
-	redir @invite_shared_browser https://{$SERVER_NAME}/invite/{http.request.uri.query.id} 302
-
 	import api
 
 	handle /pgadmin4/* {
@@ -120,13 +113,6 @@
 	}
 
 	encode gzip
-
-	@invite_shared_browser {
-		path /shared/view
-		expression `{http.request.uri.query.id}.startsWith("I")`
-		header User-Agent *Mozilla*
-	}
-	redir @invite_shared_browser https://{$SERVER_NAME}/invite/{http.request.uri.query.id} 302
 
 	import api
 
