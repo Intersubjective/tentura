@@ -51,9 +51,22 @@ Configure secrets under **Settings → Environments** (per environment) and **Se
 
   **`FB_APP_ID` must be the Firebase Web App ID** from Project settings → Your apps (format `1:123456789:web:abc…`). **Do not** paste `FB_API_KEY` (`AIza…`) into `FB_APP_ID` — that causes `firebaseinstallations.googleapis.com` **400** in the browser.
 
-  CI writes this to repo-root `.env` before `flutter build web` and runs `scripts/validate_client_firebase_env.sh`. `SERVER_NAME` and `IMAGE_SERVER` still come from environment **variables** and override via `--dart-define`.
+  CI writes this to repo-root `.env` before `flutter build web` and runs `scripts/validate_client_firebase_env.sh`.
+
+  **Deploy web config** (before every `build-web` on `main`): `scripts/resolve_deploy_web_config.sh` validates required vars and derives optional ones. The build **fails** if required values are missing or not absolute `http(s)://` URLs. Never pass empty `--dart-define=VAR=` (unset GitHub vars override Dart defaults).
+
+  | GitHub `dev` variable | Required | Resolved value |
+  |----------------------|----------|----------------|
+  | `CLIENT_SERVER_NAME` | **Yes** | WASM `--dart-define=SERVER_NAME` (API/WS origin, e.g. `https://app.dev.tentura.io`) |
+  | `IMAGE_SERVER` | **Yes** | WASM `--dart-define=IMAGE_SERVER` (CDN/S3 base for image URLs) |
+  | `INVITE_LINK_HOST` | No | Derived: `CLIENT_SERVER_NAME` with `app.` stripped from host → landing invite URLs (`/invite/I…`) |
+  | `APP_BASE` | No | Derived: `CLIENT_SERVER_NAME` + trailing `/` → `packages/landing/config.js` `appBase` |
+
+  Local check: `CLIENT_SERVER_NAME=https://app.dev.tentura.io IMAGE_SERVER=https://cdn.example/bucket bash scripts/resolve_deploy_web_config.sh --check-only`
 
   **Server vs client:** `FB_APP_ID` on the VPS (service worker via Tentura API) and in `CLIENT_DART_DEFINES` (compiled into the Flutter web app) must both be correct. Redeploying the API alone does not fix a bad web build — push to `main` must rebuild web after updating the secret.
+
+  **Runtime (VPS, not web build):** `SERVER_NAME` on the Tentura container (OG `/shared/view` URLs) — set in VPS `.env`, separate from `CLIENT_SERVER_NAME`.
 
 ### Per Environment (dev/stage/prod) — deploy
 
