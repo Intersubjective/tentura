@@ -35,6 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/test_resolve_deploy_web_config.sh
+          bash scripts/check_handoff_contract.sh
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
@@ -160,9 +161,11 @@ jobs:
             sed -i "s|sentryDsn: ''|sentryDsn: '${LANDING_SENTRY_DSN}'|" packages/landing/config.js
           fi
           sed -i "s|appBase: '[^']*'|appBase: '${APP_BASE}'|" packages/landing/config.js
+          # Explicit allowlist: ships handoff.js (transport), excludes the
+          # dev-only handoff-dev.html harness.
           tar -czf landing-dev-${{ steps.versions.outputs.server_version }}.tar.gz \
             -C packages/landing \
-            index.html config.js main.js preview.js webview.js analytics.js styles.css
+            index.html config.js main.js preview.js webview.js analytics.js handoff.js styles.css
 
       - name: Upload web archive artifacts
         uses: actions/upload-artifact@v6

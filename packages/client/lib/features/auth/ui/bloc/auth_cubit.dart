@@ -33,6 +33,9 @@ class AuthCubit extends Cubit<AuthState> {
     AccountCase accountCase,
     ProfileRepositoryPort profileRepository,
   ) async {
+    // Web: pick up a landing -> app session handoff before reading local state,
+    // so the account it writes is visible to the hydration below.
+    await authCase.consumeHandoff();
     final accounts = await accountCase.getAccountsAll();
     var state = AuthState(
       accounts: accounts..sort(_compareAccounts),

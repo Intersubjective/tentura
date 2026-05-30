@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tentura session handoff — dev harness</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+      label { display: block; margin: 0.75rem 0; }
+      input { width: 100%; box-sizing: border-box; padding: 0.4rem; font: inherit; }
+      button { padding: 0.6rem 1rem; font: inherit; }
+      .note { color: #555; }
+    </style>
+  </head>
+  <body>
+    <h1>Session handoff — dev harness</h1>
+    <p class="note">
+      Local/dev only — not served in production. Pastes a known account into the
+      WASM app via the URL fragment, exercising the landing -> app handoff
+      without the real auth flow. See <code>docs/handoff-contract.md</code>.
+    </p>
+    <label>userId (U…)<input id="userId" /></label>
+    <label>seed (base64url, 32 bytes)<input id="seed" /></label>
+    <label>displayName (optional)<input id="displayName" /></label>
+    <button id="go">Open app with handoff</button>
+
+    <script src="config.js"></script>
+    <script type="module">
+      import { redirectToApp } from './handoff.js';
+      document.getElementById('go').addEventListener('click', () => {
+        const displayName = document.getElementById('displayName').value.trim();
+        redirectToApp({
+          userId: document.getElementById('userId').value.trim(),
+          seed: document.getElementById('seed').value.trim(),
+          displayName: displayName || undefined,
+        });
+      });
+    </script>
+  </body>
+</html>

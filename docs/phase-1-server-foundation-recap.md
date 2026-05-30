@@ -4,10 +4,13 @@
 > This is what **shipped** in the server-foundation slice and what the **next
 > slices** need. Read this before continuing Phase 1.
 
-**Branch:** `feat/phase-1-account-credentials` (not yet merged or pushed). Shipped so far:
+**Branch:** `feat/phase-1-account-credentials` (not yet merged or pushed). Shipped so far
+(all committed):
 1. `feat(phase-1): multi-credential auth model + split invite accept endpoints` (17 files).
-2. Cross-subdomain session handoff (slice 1 below) — landing→app via URL fragment.
-   **Working tree, not yet committed.**
+2. Cross-subdomain session handoff (slice 1 below) — landing→app via URL fragment,
+   incl. CI pin (`check_handoff_contract.sh`) and landing/web deploy plumbing.
+3. `feat(phase-1): credential management endpoints (/accounts/me/credentials)` (slice 2
+   below) — link/list/remove on the `ed25519_device` provider.
 
 ---
 

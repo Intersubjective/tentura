@@ -272,11 +272,14 @@ empty.
 
 ### Handoff contract (define now; exercised in Phase 1)
 
-Authoritative key names and cross-subdomain notes: [`docs/handoff-contract.md`](handoff-contract.md).
+Authoritative payload + cross-subdomain notes: [`docs/handoff-contract.md`](handoff-contract.md).
 
-- Dev/prod are **cross-subdomain** (`dev.tentura.io` ↔ `app.dev.tentura.io`); Phase 1 needs
-  `Domain=.dev.tentura.io` / `.tentura.io` cookie or redirect/postMessage transfer.
-- CI pin for key strings: **planned**, not wired yet.
+- Dev/prod are **cross-subdomain** (`dev.tentura.io` ↔ `app.dev.tentura.io`).
+- **Implemented (Phase 1 slice 1):** transport is a **one-time URL-fragment redirect**
+  (`{appBase}#th=<base64url(json)>`), **not** a cookie/postMessage. The original
+  "landing writes the app's localStorage keys" model was dropped — it's both cross-origin
+  *and* the app's secure storage is encrypted/key-prefixed; the app itself does the write.
+- CI pin for key strings: **wired** (`scripts/check_handoff_contract.sh` in `pipeline.yml`).
 
 ### Files (Phase 0 — in repo)
 
@@ -316,6 +319,22 @@ real auth on the landing; remove web login UI from the WASM app; split invite ac
 into explicit endpoints (preserving beacon-forward).
 
 **Prerequisites.** Phase 0 (preview endpoint, landing shell, handoff contract).
+
+### Implementation status (repo)
+
+Detailed shipped-status + gotchas live in
+[`phase-1-server-foundation-recap.md`](phase-1-server-foundation-recap.md); this is the
+program-level summary.
+
+| Area | Status | Notes |
+|------|--------|--------|
+| Migration + `account_credential` table | **Done** | Landed as `m0080` (not m0073 — repo had reached m0079). `users.public_key` kept & dual-written; no Hasura ripple, no snapshot to regen. |
+| `signIn` resolves via credential | **Done** | `getByCredential('ed25519_device', pk)`. |
+| Split invite accept endpoints | **Done** | `accept-as-new` / `accept-as-existing` (REST, additive; GraphQL stays). |
+| Session handoff (slice 1) | **Done** | URL-fragment redirect; CI-pinned. Live cross-subdomain E2E **owed**. |
+| `/accounts/me/credentials` link/list/remove (slice 2) | **Done (infra + `ed25519_device`)** | Conflict→409, last-credential→409. **Deferred:** WebAuthn/OIDC/email-OTP providers; immediate session revocation (1h JWT expiry is interim). |
+| Landing real auth (Tier 1/2) | **Pending** | Slice 3. |
+| Client WASM (remove login UI, Settings sign-in methods) | **Pending** | Slice 4 — where the COOP/popup constraint (Risk #1) gets validated. |
 
 ### Server — Drift migration m0073+
 - New table `account_credentials(account_id, type, identifier, public_data, created_at, …)`,
@@ -417,9 +436,12 @@ skip the landing when the app is installed).
 ## Risks / Constraints (carry into each phase's detailed plan)
 
 1. **COOP `same-origin` vs popup `postMessage`** (Caddy WASM headers) can break the
-   landing↔WASM popup handoff for OIDC/WebAuthn linking. Options: relax to
-   `same-origin-allow-popups` on the app root, use redirect-based OIDC, or a dedicated
-   handoff route. **Validate empirically early in Phase 1.**
+   landing↔WASM popup handoff for OIDC/WebAuthn linking. **Update:** the boot handoff
+   (slice 1) is a top-level **fragment redirect** and is *unaffected* by COOP — so this
+   risk does **not** apply there. It now applies only to the **Settings credential-linking
+   popup (slice 4)**. Options when that lands: relax to `same-origin-allow-popups` on the
+   app root, use redirect-based OIDC, or a dedicated handoff route. **Validate empirically
+   in slice 4.**
 2. **iOS in-app webview escape is not programmatic** — accept the explicit user tap as the
    design; do not engineer an escape.
 3. **`dev.tentura.io` uses subdomain split** (`app.dev.tentura.io`) — same topology as
@@ -429,9 +451,11 @@ skip the landing when the app is installed).
 5. **Migration safety** — `users.public_key` → `account_credentials` backfill must be
    idempotent/reversible; verify via `drift_schemas/` snapshot diffing.
 6. **Cross-origin session** — landing and app are on **different subdomains** on both dev
-   (`.dev.tentura.io`) and prod (`.tentura.io`). localStorage is not shared; handoff keys
-   are pinned in `docs/handoff-contract.md`; Phase 1 must implement cookie or transfer.
-   CI pin for key names is planned.
+   (`.dev.tentura.io`) and prod (`.tentura.io`); localStorage is not shared. **Resolved
+   (slice 1):** transfer is a one-time **URL-fragment redirect**, with the WASM app writing
+   its own (encrypted, key-prefixed) secure storage; payload pinned in
+   `docs/handoff-contract.md` and enforced by `scripts/check_handoff_contract.sh` in CI.
+   **Owed:** live cross-subdomain E2E on the dev stack.
 7. **Beacon-forward invites** — when `beaconId` is present, preview + landing must render
    and accept correctly on all surfaces (`/invite/:code` only).
 
