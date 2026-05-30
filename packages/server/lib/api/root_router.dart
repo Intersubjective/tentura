@@ -4,6 +4,7 @@ import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 
 import 'package:tentura_server/env.dart';
 
+import 'controllers/account_credentials_controller.dart';
 import 'controllers/firebase_sw_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'controllers/graphiql_controller.dart';
@@ -29,6 +30,7 @@ class RootRouter {
     this._invitePreviewController,
     this._inviteAcceptNewController,
     this._inviteAcceptExistingController,
+    this._accountCredentialsController,
   );
 
   final Env _env;
@@ -52,6 +54,8 @@ class RootRouter {
   final InviteAcceptNewController _inviteAcceptNewController;
 
   final InviteAcceptExistingController _inviteAcceptExistingController;
+
+  final AccountCredentialsController _accountCredentialsController;
 
   Handler routeHandler() {
     final router = Router().plus
@@ -91,6 +95,21 @@ class RootRouter {
       ..post(
         '/api/v2/invite/<code>/accept-as-existing',
         _inviteAcceptExistingController.handler,
+        use: _authMiddleware.verifyBearerJwt,
+      )
+      ..get(
+        '/api/v2/accounts/me/credentials',
+        _accountCredentialsController.list,
+        use: _authMiddleware.verifyBearerJwt,
+      )
+      ..post(
+        '/api/v2/accounts/me/credentials',
+        _accountCredentialsController.link,
+        use: _authMiddleware.verifyBearerJwt,
+      )
+      ..delete(
+        '/api/v2/accounts/me/credentials/<credentialId>',
+        _accountCredentialsController.remove,
         use: _authMiddleware.verifyBearerJwt,
       );
 

@@ -165,6 +165,85 @@ class UserRepository implements UserRepositoryPort {
   //
   //
   @override
+  Future<List<AccountCredentialEntity>> listCredentials({
+    required String accountId,
+  }) => _database.managers.accountCredentials
+      .filter((e) => e.accountId.id(accountId))
+      .get()
+      .then((rows) => rows.map(_credentialModelToEntity).toList());
+
+  //
+  //
+  @override
+  Future<AccountCredentialEntity> addCredential({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+  }) async {
+    try {
+      final row = await _database.managers.accountCredentials.createReturning(
+        (o) => o(
+          accountId: accountId,
+          type: type.wire,
+          identifier: identifier,
+          publicData: publicData == null
+              ? const Value.absent()
+              : Value(publicData),
+        ),
+      );
+      return _credentialModelToEntity(row);
+    } on UniqueViolationException catch (_) {
+      // Unique (type, identifier) index — the pair is already linked (on this
+      // or another account). Conflict policy: refuse, never auto-merge.
+      throw const CredentialConflictException();
+    }
+  }
+
+  //
+  //
+  @override
+  Future<void> removeCredential({
+    required String accountId,
+    required String credentialId,
+  }) => _database.transaction(() async {
+    // Lock the account's credential rows so concurrent removals serialize —
+    // otherwise two deletes of different rows could both pass the
+    // last-credential guard and leave the account with none.
+    final locked = await _database.customSelect(
+      'SELECT id FROM public.account_credential '
+      r'WHERE account_id = $1 FOR UPDATE',
+      variables: [Variable<String>(accountId)],
+    ).get();
+    final ids = locked.map((r) => r.read<String>('id')).toSet();
+
+    if (!ids.contains(credentialId)) {
+      throw IdNotFoundException(id: credentialId);
+    }
+    if (ids.length <= 1) {
+      throw const LastCredentialException();
+    }
+
+    await _database.managers.accountCredentials
+        .filter((e) => e.accountId.id(accountId) & e.id(credentialId))
+        .delete();
+  });
+
+  //
+  //
+  AccountCredentialEntity _credentialModelToEntity(AccountCredential row) =>
+      AccountCredentialEntity(
+        id: row.id,
+        accountId: row.accountId,
+        type: CredentialType.fromWire(row.type),
+        identifier: row.identifier,
+        publicData: (row.publicData as Map?)?.cast<String, Object?>(),
+        createdAt: row.createdAt.dateTime,
+      );
+
+  //
+  //
+  @override
   Future<void> update({
     required String id,
     String? displayName,

@@ -139,6 +139,15 @@ final class AuthCase extends UseCaseBase {
     required JwtEntity jwt,
   }) async => true;
 
+  /// Verify a device auth-request JWT (EdDSA, self-signed by the holder of the
+  /// device private key) and return the embedded public key. Used by the
+  /// credential-linking path to prove possession of a new device key before
+  /// storing it as an `ed25519_device` credential.
+  String verifyDeviceAuthRequest(String authRequestToken) =>
+      (_verifyAuthRequest(authRequestToken).payload
+          as Map)[AuthRequestIntent.keyPublicKey]
+      as String;
+
   //
   //
   JWT _verifyAuthRequest(String token) {

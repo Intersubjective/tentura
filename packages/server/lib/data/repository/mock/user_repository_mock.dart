@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -58,6 +59,31 @@ class UserRepositoryMock implements UserRepositoryPort {
       // Mock stores users by device public key; for the device credential the
       // identifier is that public key.
       getByPublicKey(identifier);
+
+  @override
+  Future<List<AccountCredentialEntity>> listCredentials({
+    required String accountId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AccountCredentialEntity> addCredential({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> removeCredential({
+    required String accountId,
+    required String credentialId,
+  }) {
+    throw UnimplementedError();
+  }
 
   @override
   Future<void> update({
