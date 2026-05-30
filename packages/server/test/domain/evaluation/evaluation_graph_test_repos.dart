@@ -149,6 +149,13 @@ final class StubUserRepository implements UserRepositoryPort {
       throw UnimplementedError();
 
   @override
+  Future<UserEntity> getByCredential({
+    required String type,
+    required String identifier,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> update({
     required String id,
     String? displayName,

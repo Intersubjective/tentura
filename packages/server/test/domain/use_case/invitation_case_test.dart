@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/invite_preview_result.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 
 import 'invitation_case_mocks.mocks.dart';
@@ -141,6 +142,88 @@ void main() {
       final json = r.toJson();
       expect((json['beacon']! as Map)['title'], 'Shared beacon');
       expect((json['beacon']! as Map)['snippet'], 'help needed');
+    });
+  });
+
+  group('InvitationCase.acceptAsExisting', () {
+    void stubBindMutual({required bool result}) {
+      when(
+        userRepo.bindMutual(
+          invitationId: anyNamed('invitationId'),
+          userId: anyNamed('userId'),
+        ),
+      ).thenAnswer((_) async => result);
+    }
+
+    test('unknown code -> IdNotFoundException', () async {
+      stubGetById(null);
+      await expectLater(
+        case_.acceptAsExisting(code: 'Inope', userId: 'Ustranger'),
+        throwsA(isA<IdNotFoundException>()),
+      );
+    });
+
+    test('self-invite -> InvitationWrongException (rejected)', () async {
+      stubGetById(invitation());
+      await expectLater(
+        case_.acceptAsExisting(code: 'Iabc', userId: issuerId),
+        throwsA(isA<InvitationWrongException>()),
+      );
+      verifyNever(
+        userRepo.bindMutual(
+          invitationId: anyNamed('invitationId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+    });
+
+    test('already-friends -> ok, never re-binds (retry-safe)', () async {
+      stubGetById(invitation());
+      when(
+        friendshipLookup.isReciprocalSubscribe(
+          viewerId: 'Ufriend',
+          peerId: issuerId,
+        ),
+      ).thenAnswer((_) async => true);
+      final ok = await case_.acceptAsExisting(code: 'Iabc', userId: 'Ufriend');
+      expect(ok, isTrue);
+      verifyNever(
+        userRepo.bindMutual(
+          invitationId: anyNamed('invitationId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+    });
+
+    test('consumed code, non-friend -> IdNotFoundException', () async {
+      stubGetById(invitation(invited: const UserEntity(id: 'Ujoiner')));
+      await expectLater(
+        case_.acceptAsExisting(code: 'Iabc', userId: 'Ustranger'),
+        throwsA(isA<IdNotFoundException>()),
+      );
+    });
+
+    test('expired code, non-friend -> IdNotFoundException', () async {
+      stubGetById(
+        invitation(createdAt: now.subtract(const Duration(days: 365))),
+      );
+      await expectLater(
+        case_.acceptAsExisting(code: 'Iabc', userId: 'Ustranger'),
+        throwsA(isA<IdNotFoundException>()),
+      );
+    });
+
+    test('available code, non-friend -> befriends via bindMutual', () async {
+      stubGetById(invitation());
+      stubBindMutual(result: true);
+      final ok = await case_.acceptAsExisting(
+        code: 'Iabc',
+        userId: 'Ustranger',
+      );
+      expect(ok, isTrue);
+      verify(
+        userRepo.bindMutual(invitationId: 'Iabc', userId: 'Ustranger'),
+      ).called(1);
     });
   });
 }

@@ -51,6 +51,15 @@ class UserRepositoryMock implements UserRepositoryPort {
       (throw IdNotFoundException(id: publicKey));
 
   @override
+  Future<UserEntity> getByCredential({
+    required String type,
+    required String identifier,
+  }) =>
+      // Mock stores users by device public key; for the device credential the
+      // identifier is that public key.
+      getByPublicKey(identifier);
+
+  @override
   Future<void> update({
     required String id,
     String? displayName,

@@ -19,6 +19,13 @@ abstract class UserRepositoryPort {
 
   Future<UserEntity> getByPublicKey(String publicKey);
 
+  /// Resolve the account that owns the credential identified by
+  /// `(type, identifier)` (the multi-credential auth lookup path).
+  Future<UserEntity> getByCredential({
+    required String type,
+    required String identifier,
+  });
+
   Future<void> update({
     required String id,
     String? displayName,

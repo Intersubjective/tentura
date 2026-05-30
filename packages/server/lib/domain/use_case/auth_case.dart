@@ -5,6 +5,7 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
 import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 
+import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/consts/user_handle_consts.dart';
@@ -51,8 +52,9 @@ final class AuthCase extends UseCaseBase {
     required String authRequestToken,
   }) async {
     final jwt = _verifyAuthRequest(authRequestToken);
-    final user = await _userRepository.getByPublicKey(
-      (jwt.payload as Map)[AuthRequestIntent.keyPublicKey] as String,
+    final user = await _userRepository.getByCredential(
+      type: CredentialType.ed25519Device.wire,
+      identifier: (jwt.payload as Map)[AuthRequestIntent.keyPublicKey] as String,
     );
 
     return _issueJwt(user.id);
@@ -95,6 +97,39 @@ final class AuthCase extends UseCaseBase {
             displayName: displayName,
             handle: handle,
           );
+    return _issueJwt(newUser.id);
+  }
+
+  /// Sign up by accepting an invite whose code comes from the request URL
+  /// (the landing `accept-as-new` endpoint), unlike [signUp] which reads the
+  /// code from the auth-request JWT payload. Creates the account + its
+  /// `ed25519_device` credential, befriends the issuer, and forwards the beacon
+  /// when the invite carries one (all inside `createInvited`).
+  Future<JwtEntity> signUpWithInvite({
+    required String authRequestToken,
+    required String invitationId,
+    required String displayName,
+    String? handle,
+  }) async {
+    final jwt = _verifyAuthRequest(authRequestToken);
+    final publicKey =
+        (jwt.payload as Map)[AuthRequestIntent.keyPublicKey]! as String;
+    if (handle != null && handle.trim().isNotEmpty) {
+      final h = handle.trim().toLowerCase();
+      if (!isValidUserHandleFormat(h)) {
+        throw const IdWrongException(
+          description:
+              'Handle must be $kUserHandleMinLength–$kUserHandleMaxLength '
+              'characters: lowercase letters, digits, underscore',
+        );
+      }
+    }
+    final newUser = await _userRepository.createInvited(
+      invitationId: invitationId,
+      publicKey: publicKey,
+      displayName: displayName,
+      handle: handle,
+    );
     return _issueJwt(newUser.id);
   }
 

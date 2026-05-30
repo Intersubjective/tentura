@@ -1,6 +1,7 @@
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -36,17 +37,32 @@ class UserRepository implements UserRepositoryPort {
     required String publicKey,
     required String displayName,
     String? handle,
-  }) => _database.managers.users
-      .createReturning(
-        (o) => o(
-          displayName: displayName,
-          publicKey: publicKey,
-          handle: handle == null || handle.trim().isEmpty
-              ? const Value.absent()
-              : Value(handle.trim().toLowerCase()),
-        ),
-      )
-      .then(userModelToEntity);
+  }) => _database.transaction<UserEntity>(() async {
+    final user = await _database.managers.users.createReturning(
+      (o) => o(
+        displayName: displayName,
+        publicKey: publicKey,
+        handle: handle == null || handle.trim().isEmpty
+            ? const Value.absent()
+            : Value(handle.trim().toLowerCase()),
+      ),
+    );
+    await _createDeviceCredential(accountId: user.id, publicKey: publicKey);
+    return userModelToEntity(user);
+  });
+
+  /// Dual-write the `ed25519_device` credential alongside the account row so
+  /// `getByCredential` resolves it. `user.public_key` is kept in lockstep.
+  Future<void> _createDeviceCredential({
+    required String accountId,
+    required String publicKey,
+  }) => _database.managers.accountCredentials.create(
+    (o) => o(
+      accountId: accountId,
+      type: CredentialType.ed25519Device.wire,
+      identifier: publicKey,
+    ),
+  );
 
   // TBD: move to SQL
   //
@@ -80,6 +96,7 @@ class UserRepository implements UserRepositoryPort {
             : Value(handle.trim().toLowerCase()),
       ),
     );
+    await _createDeviceCredential(accountId: user.id, publicKey: publicKey);
     final changedRowCount = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
         .update((o) => o(invitedId: Value(user.id)));
@@ -131,6 +148,19 @@ class UserRepository implements UserRepositoryPort {
       .filter((e) => e.publicKey(publicKey))
       .getSingle()
       .then(userModelToEntity);
+
+  //
+  //
+  @override
+  Future<UserEntity> getByCredential({
+    required String type,
+    required String identifier,
+  }) async {
+    final credential = await _database.managers.accountCredentials
+        .filter((e) => e.type(type) & e.identifier(identifier))
+        .getSingle();
+    return getById(credential.accountId);
+  }
 
   //
   //

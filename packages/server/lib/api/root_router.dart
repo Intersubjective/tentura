@@ -8,6 +8,8 @@ import 'controllers/firebase_sw_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'controllers/graphiql_controller.dart';
 import 'controllers/graphql_controller.dart';
+import 'controllers/invite_accept_existing_controller.dart';
+import 'controllers/invite_accept_new_controller.dart';
 import 'controllers/invite_preview_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/shared_view_controller.dart';
@@ -25,6 +27,8 @@ class RootRouter {
     this._sharedViewController,
     this._roomAttachmentDownloadController,
     this._invitePreviewController,
+    this._inviteAcceptNewController,
+    this._inviteAcceptExistingController,
   );
 
   final Env _env;
@@ -44,6 +48,10 @@ class RootRouter {
   final RoomAttachmentDownloadController _roomAttachmentDownloadController;
 
   final InvitePreviewController _invitePreviewController;
+
+  final InviteAcceptNewController _inviteAcceptNewController;
+
+  final InviteAcceptExistingController _inviteAcceptExistingController;
 
   Handler routeHandler() {
     final router = Router().plus
@@ -75,6 +83,15 @@ class RootRouter {
         '/api/v2/invite/<code>/preview',
         _invitePreviewController.handler,
         use: _authMiddleware.extractJwtClaims,
+      )
+      ..post(
+        '/api/v2/invite/<code>/accept-as-new',
+        _inviteAcceptNewController.handler,
+      )
+      ..post(
+        '/api/v2/invite/<code>/accept-as-existing',
+        _inviteAcceptExistingController.handler,
+        use: _authMiddleware.verifyBearerJwt,
       );
 
     return router.call;
