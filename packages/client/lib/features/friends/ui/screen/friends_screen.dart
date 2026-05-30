@@ -63,10 +63,7 @@ class _FriendsScreenState extends State<FriendsScreen>
     await ShareCodeDialog.show(
       context,
       header: l10n.labelInvitationCode,
-      link: Uri.parse(kServerName).replace(
-        path: kPathAppLinkView,
-        queryParameters: {'id': invitation.id},
-      ),
+      link: inviteShareUri(invitation.id),
     );
   }
 
@@ -313,10 +310,7 @@ class _InvitesTabBody extends StatelessWidget {
                       onTap: () => ShareCodeDialog.show(
                         context,
                         header: l10n.labelInvitationCode,
-                        link: Uri.parse(kServerName).replace(
-                          path: kPathAppLinkView,
-                          queryParameters: {'id': invitation.id},
-                        ),
+                        link: inviteShareUri(invitation.id),
                       ),
                     );
                   },
