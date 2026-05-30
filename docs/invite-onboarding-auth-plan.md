@@ -229,20 +229,22 @@ that already work server-side should be exercised end-to-end.
 The Flutter client compiles one `kServerName` used for **API/WS** and **share links**
 (`packages/client/lib/consts.dart`). Phase 0 intentionally splits build-time vs runtime:
 
-| Variable | Where | Phase 0 dev value | Purpose |
-|----------|-------|-------------------|---------|
-| `CLIENT_SERVER_NAME` | GitHub `dev` env → `pipeline.yml` `--dart-define=SERVER_NAME` | `https://app.dev.tentura.io` | GraphQL/WS same-origin on app host |
-| `SERVER_NAME` | VPS `.env` → Tentura container | `https://dev.tentura.io` | OG tags, Jaspr `/shared/view`, server `kServerName` |
-| `APP_BASE` | GitHub `dev` env → CI `sed` on `packages/landing/config.js` | `https://app.dev.tentura.io/` | Landing CTAs → WASM (`appBase`) |
-| `APP_HOST` | VPS `.env` → Caddy | `app.dev.tentura.io` | Second TLS site block |
+| Variable | Required | Where | Phase 0 dev value | Purpose |
+|----------|----------|-------|-------------------|---------|
+| `CLIENT_SERVER_NAME` | **Yes** | GitHub `dev` → [`resolve_deploy_web_config.sh`](../scripts/resolve_deploy_web_config.sh) → `--dart-define=SERVER_NAME` | `https://app.dev.tentura.io` | GraphQL/WS same-origin on app host |
+| `IMAGE_SERVER` | **Yes** | GitHub `dev` → resolver → `--dart-define=IMAGE_SERVER` | CDN base URL | Image URLs in client |
+| `INVITE_LINK_HOST` | No (derived) | Resolver → `--dart-define=INVITE_LINK_HOST` | `https://dev.tentura.io` | Invite share links `/invite/I…` |
+| `APP_BASE` | No (derived) | Resolver → CI `sed` on `config.js` | `https://app.dev.tentura.io/` | Landing CTAs → WASM (`appBase`) |
+| `SERVER_NAME` | VPS only | `.env` → Tentura container | `https://dev.tentura.io` | OG tags, Jaspr `/shared/view`, server `kServerName` |
+| `APP_HOST` | VPS only | `.env` → Caddy | `app.dev.tentura.io` | Second TLS site block |
 
 Share links from the app use `INVITE_LINK_HOST` (`/invite/I…` on the landing host). OG
 crawlers still hit Jaspr `/shared/view?id=…` on whichever host proxies `/shared/*`.
 
 **CICD / deploy**
 
-- [`pipeline.yml`](../.github/workflows/pipeline.yml): `flutter build web --base-href=/`;
-  `CLIENT_SERVER_NAME`; landing tar + `APP_BASE` / `LANDING_SENTRY_DSN` injection.
+- [`pipeline.yml`](../.github/workflows/pipeline.yml): `resolve_deploy_web_config.sh` (fail-fast);
+  `flutter build web --base-href=/`; landing tar + resolved `APP_BASE` / `LANDING_SENTRY_DSN`.
 - [`deploy.sh`](../deploy.sh): extract web + landing **before** `compose up`; placeholder
   `index.html` if `LANDING_DIR` empty.
 - [`compose.prod.yaml`](../compose.prod.yaml): mounts `./web`, `./landing`; proxy env
@@ -253,8 +255,8 @@ crawlers still hit Jaspr `/shared/view?id=…` on whichever host proxies `/share
 1. DNS: `app.dev.tentura.io` → VPS (or `*.dev.tentura.io` wildcard).
 2. VPS `.env`: `SERVER_NAME=https://dev.tentura.io`, `APP_HOST=app.dev.tentura.io`,
    `APP_ROOT=/srv/web`, `LANDING_ROOT=/srv/landing`, `ACME_EMAIL=…`.
-3. GitHub **dev** environment variables: `CLIENT_SERVER_NAME`, `APP_BASE`, `APP_HOST`
-   (if referenced), existing `IMAGE_SERVER`, etc.
+3. GitHub **dev** variables: **required** `CLIENT_SERVER_NAME`, `IMAGE_SERVER`; optional
+   `INVITE_LINK_HOST`, `APP_BASE` (auto-derived when unset). See `CI_CD_SETUP.md`.
 
 **Local simulation** — [`Caddyfile.local`](../Caddyfile.local):
 

@@ -34,6 +34,7 @@ jobs:
       - name: Run tests in builder container
         run: |
           set -euo pipefail
+          bash scripts/test_resolve_deploy_web_config.sh
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
@@ -91,35 +92,32 @@ jobs:
           bash scripts/validate_client_firebase_env.sh .env
           echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
 
+      # Required dev vars: CLIENT_SERVER_NAME, IMAGE_SERVER.
+      # Derived when unset: INVITE_LINK_HOST (app. → apex), APP_BASE (CLIENT_SERVER_NAME + /).
+      - name: Resolve deploy web config
+        id: webcfg
+        env:
+          CLIENT_SERVER_NAME: ${{ vars.CLIENT_SERVER_NAME }}
+          IMAGE_SERVER: ${{ vars.IMAGE_SERVER }}
+          INVITE_LINK_HOST: ${{ vars.INVITE_LINK_HOST }}
+          APP_BASE: ${{ vars.APP_BASE }}
+        run: bash scripts/resolve_deploy_web_config.sh --github-output "$GITHUB_OUTPUT"
+
       # WASM app at app.dev.tentura.io (subdomain root, base-href /).
-      # dev GitHub Environment: CLIENT_SERVER_NAME=https://app.dev.tentura.io (client API/WS origin).
-      # INVITE_LINK_HOST=https://dev.tentura.io (invite share URLs → /invite/I… on landing).
       # VPS .env keeps SERVER_NAME=https://dev.tentura.io (OG/share URLs on landing host).
       - name: Build dev web in builder container
-        env:
-          IMAGE_SERVER: ${{ vars.IMAGE_SERVER }}
-          CLIENT_SERVER_NAME: ${{ vars.CLIENT_SERVER_NAME }}
-          INVITE_LINK_HOST: ${{ vars.INVITE_LINK_HOST }}
         run: |
           set -euo pipefail
-          # Empty GitHub var → --dart-define=INVITE_LINK_HOST= → path-only /invite/… URLs.
-          INVITE_LINK_HOST="${INVITE_LINK_HOST:-}"
-          if [ -z "$INVITE_LINK_HOST" ] && [ -n "${CLIENT_SERVER_NAME:-}" ]; then
-            INVITE_LINK_HOST="$(printf '%s' "$CLIENT_SERVER_NAME" | sed -E 's#(https?://)app\.#\1#')"
-          fi
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
-            --env IMAGE_SERVER="${{ vars.IMAGE_SERVER }}" \
-            --env CLIENT_SERVER_NAME="${{ vars.CLIENT_SERVER_NAME }}" \
-            --env INVITE_LINK_HOST="${INVITE_LINK_HOST}" \
+            --env IMAGE_SERVER="${{ steps.webcfg.outputs.image_server }}" \
+            --env CLIENT_SERVER_NAME="${{ steps.webcfg.outputs.client_server_name }}" \
+            --env INVITE_LINK_HOST="${{ steps.webcfg.outputs.invite_link_host }}" \
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c "
               set -euo pipefail
-              if [ -z \"\${INVITE_LINK_HOST}\" ] && [ -n \"\${CLIENT_SERVER_NAME}\" ]; then
-                INVITE_LINK_HOST=\$(printf '%s' \"\${CLIENT_SERVER_NAME}\" | sed -E 's#(https?://)app\\.#\\1#')
-              fi
               git config --global --add safe.directory \"*\"
               flutter pub get
               cd packages/client && flutter gen-l10n && dart run build_runner build -d
@@ -151,20 +149,17 @@ jobs:
             "
 
       # Static landing at dev.tentura.io — plain files, no build/npm.
-      # dev Environment: APP_BASE=https://app.dev.tentura.io/ (injected into config.js).
-      # Inject Sentry DSN + appBase at deploy time; deploy.sh extracts to ./landing.
+      # appBase resolved in webcfg step; deploy.sh extracts to ./landing.
       - name: Package static landing
         env:
           LANDING_SENTRY_DSN: ${{ secrets.LANDING_SENTRY_DSN }}
-          APP_BASE: ${{ vars.APP_BASE }}
+          APP_BASE: ${{ steps.webcfg.outputs.app_base }}
         run: |
           set -euo pipefail
           if [ -n "${LANDING_SENTRY_DSN:-}" ]; then
             sed -i "s|sentryDsn: ''|sentryDsn: '${LANDING_SENTRY_DSN}'|" packages/landing/config.js
           fi
-          if [ -n "${APP_BASE:-}" ]; then
-            sed -i "s|appBase: '[^']*'|appBase: '${APP_BASE}'|" packages/landing/config.js
-          fi
+          sed -i "s|appBase: '[^']*'|appBase: '${APP_BASE}'|" packages/landing/config.js
           tar -czf landing-dev-${{ steps.versions.outputs.server_version }}.tar.gz \
             -C packages/landing \
             index.html config.js main.js preview.js webview.js analytics.js styles.css
