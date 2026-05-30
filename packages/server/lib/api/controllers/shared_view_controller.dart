@@ -26,8 +26,25 @@ final class SharedViewController extends BaseController {
 
   @override
   Future<Response> handler(Request request) async {
+    final ogId = request.requestedUri.queryParameters['id'];
+    final isBrowser =
+        request.headers['User-Agent']?.contains('Mozilla') ?? false;
+
+    // Invitation links: send browsers to static landing (not WASM #/ fragment).
     if (!env.renderSharedPreview &&
-        (request.headers['User-Agent']?.contains('Mozilla') ?? false)) {
+        isBrowser &&
+        ogId != null &&
+        ogId.isNotEmpty &&
+        ogId.startsWith('I')) {
+      return Response.found(
+        env.serverUri.replace(
+          path: '/invite/$ogId',
+          queryParameters: const {},
+        ),
+      );
+    }
+
+    if (!env.renderSharedPreview && isBrowser) {
       return Response.found(
         Uri(
           scheme: request.requestedUri.scheme,
@@ -41,18 +58,16 @@ final class SharedViewController extends BaseController {
     }
 
     try {
-      final ogId =
-          request.requestedUri.queryParameters['id'] ??
-          (throw const IdWrongException());
+      final id = ogId ?? (throw const IdWrongException());
       final html = await renderComponent(
         SharedViewDocument(
-          entity: switch (ogId[0]) {
-            'B' => await _beaconRepository.getBeaconById(beaconId: ogId),
+          entity: switch (id[0]) {
+            'B' => await _beaconRepository.getBeaconById(beaconId: id),
             'C' => throw const IdWrongException(),
-            'I' => await _invitationCase.fetchById(invitationId: ogId),
+            'I' => await _invitationCase.fetchById(invitationId: id),
             'O' => throw const IdWrongException(),
-            'U' => await _userRepository.getById(ogId),
-            _ => throw IdWrongException(id: ogId),
+            'U' => await _userRepository.getById(id),
+            _ => throw IdWrongException(id: id),
           },
         ),
       );

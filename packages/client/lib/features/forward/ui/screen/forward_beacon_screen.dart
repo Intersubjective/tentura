@@ -211,10 +211,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
     await ShareCodeDialog.show(
       context,
       header: l10n.labelInvitationCode,
-      link: Uri.parse(kServerName).replace(
-        path: kPathAppLinkView,
-        queryParameters: {'id': invitation.id},
-      ),
+      link: inviteShareUri(invitation.id),
     );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
