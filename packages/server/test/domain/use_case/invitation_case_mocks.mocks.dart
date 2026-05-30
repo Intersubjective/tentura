@@ -187,6 +187,28 @@ class MockUserRepositoryPort extends _i1.Mock
           as _i6.Future<_i3.UserEntity>);
 
   @override
+  _i6.Future<_i3.UserEntity> getByCredential({
+    required String? type,
+    required String? identifier,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getByCredential, [], {
+              #type: type,
+              #identifier: identifier,
+            }),
+            returnValue: _i6.Future<_i3.UserEntity>.value(
+              _FakeUserEntity_1(
+                this,
+                Invocation.method(#getByCredential, [], {
+                  #type: type,
+                  #identifier: identifier,
+                }),
+              ),
+            ),
+          )
+          as _i6.Future<_i3.UserEntity>);
+
+  @override
   _i6.Future<void> update({
     required String? id,
     String? displayName,

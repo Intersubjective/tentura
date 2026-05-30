@@ -111,6 +111,43 @@ final class InvitationCase extends UseCaseBase {
     userId: userId,
   );
 
+  /// Befriend the issuer of [code] as an already-authenticated [userId] (the
+  /// landing `accept-as-existing` endpoint). Single-use semantics — `bindMutual`
+  /// consumes (deletes) the invite row. Behaviour:
+  /// - self-invite -> rejected (`InvitationWrongException`);
+  /// - caller already connected to the issuer (invite still present) -> ok,
+  ///   no re-bind;
+  /// - invite missing / consumed / expired for a non-friend -> `IdNotFoundException`
+  ///   (404). Note this includes a *repeat* of a befriend that already
+  ///   succeeded: `bindMutual` deleted the row, so the issuer is unknown and we
+  ///   cannot re-check friendship — the caller treats 404 as "nothing left to
+  ///   do". True idempotent re-submit needs the deferred non-deleting slot model;
+  /// - otherwise -> befriend, forwarding the beacon when present.
+  Future<bool> acceptAsExisting({
+    required String code,
+    required String userId,
+  }) async {
+    final invitation = await _invitationRepository.getById(invitationId: code);
+    if (invitation == null) {
+      throw IdNotFoundException(id: code);
+    }
+    if (invitation.issuer.id == userId) {
+      throw const InvitationWrongException(
+        description: 'Cannot accept your own invite',
+      );
+    }
+    if (await _friendshipLookup.isReciprocalSubscribe(
+      viewerId: userId,
+      peerId: invitation.issuer.id,
+    )) {
+      return true;
+    }
+    if (invitation.isAccepted || invitation.isExpired) {
+      throw IdNotFoundException(id: code);
+    }
+    return accept(invitationId: code, userId: userId);
+  }
+
   Future<bool> delete({
     required String invitationId,
     required String userId,
