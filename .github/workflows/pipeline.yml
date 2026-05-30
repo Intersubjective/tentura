@@ -91,10 +91,13 @@ jobs:
           bash scripts/validate_client_firebase_env.sh .env
           echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
 
+      # WASM app at app.dev.tentura.io (subdomain root, base-href /).
+      # dev GitHub Environment: CLIENT_SERVER_NAME=https://app.dev.tentura.io (client API/WS origin).
+      # VPS .env keeps SERVER_NAME=https://dev.tentura.io (OG/share URLs on landing host).
       - name: Build dev web in builder container
         env:
           IMAGE_SERVER: ${{ vars.IMAGE_SERVER }}
-          SERVER_NAME: ${{ vars.SERVER_NAME }}
+          CLIENT_SERVER_NAME: ${{ vars.CLIENT_SERVER_NAME }}
         run: |
           set -euo pipefail
           docker run --rm \
@@ -102,7 +105,7 @@ jobs:
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
             --env IMAGE_SERVER="${{ vars.IMAGE_SERVER }}" \
-            --env SERVER_NAME="${{ vars.SERVER_NAME }}" \
+            --env CLIENT_SERVER_NAME="${{ vars.CLIENT_SERVER_NAME }}" \
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c "
               set -euo pipefail
@@ -115,8 +118,9 @@ jobs:
                   --wasm \\
                   --pwa-strategy=none \\
                   --source-maps \\
+                  --base-href=/ \\
                   --dart-define-from-file=/app/.env \\
-                  --dart-define=SERVER_NAME=\${SERVER_NAME} \\
+                  --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
                   --dart-define=NEED_INVITE_CODE=true \\
                   --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
               else
@@ -125,24 +129,47 @@ jobs:
                   --wasm \\
                   --pwa-strategy=none \\
                   --source-maps \\
-                  --dart-define=SERVER_NAME=\${SERVER_NAME} \\
+                  --base-href=/ \\
+                  --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
                   --dart-define=NEED_INVITE_CODE=true \\
                   --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
               fi
               cd build/web && tar -czf /app/web-dev-\${SERVER_VERSION}.tar.gz . && cd ../..
             "
 
+      # Static landing at dev.tentura.io — plain files, no build/npm.
+      # dev Environment: APP_BASE=https://app.dev.tentura.io/ (injected into config.js).
+      # Inject Sentry DSN + appBase at deploy time; deploy.sh extracts to ./landing.
+      - name: Package static landing
+        env:
+          LANDING_SENTRY_DSN: ${{ secrets.LANDING_SENTRY_DSN }}
+          APP_BASE: ${{ vars.APP_BASE }}
+        run: |
+          set -euo pipefail
+          if [ -n "${LANDING_SENTRY_DSN:-}" ]; then
+            sed -i "s|sentryDsn: ''|sentryDsn: '${LANDING_SENTRY_DSN}'|" packages/landing/config.js
+          fi
+          if [ -n "${APP_BASE:-}" ]; then
+            sed -i "s|appBase: '[^']*'|appBase: '${APP_BASE}'|" packages/landing/config.js
+          fi
+          tar -czf landing-dev-${{ steps.versions.outputs.server_version }}.tar.gz \
+            -C packages/landing \
+            index.html config.js main.js preview.js webview.js analytics.js styles.css
+
       - name: Upload web archive artifacts
         uses: actions/upload-artifact@v6
         with:
           name: web-archives
-          path: web-dev-*.tar.gz
+          path: |
+            web-dev-*.tar.gz
+            landing-dev-*.tar.gz
           retention-days: 7
 
       - name: Save web archive to cache
         run: |
           mkdir -p web-build-output
           cp web-dev-*.tar.gz web-build-output/web-dev.tar.gz
+          cp landing-dev-*.tar.gz web-build-output/landing-dev.tar.gz
 
       # Unique key per commit: GitHub refuses to overwrite an existing cache key, so a
       # static key (e.g. web-build-main) would never pick up newer web builds after the first save.
@@ -236,6 +263,12 @@ jobs:
           fi
           cp "$CACHED" web-dev.tar.gz
           echo "archive_name=web-dev.tar.gz" >> $GITHUB_OUTPUT
+          if [ -f web-build-output/landing-dev.tar.gz ]; then
+            cp web-build-output/landing-dev.tar.gz landing-dev.tar.gz
+            echo "landing_archive_name=landing-dev.tar.gz" >> $GITHUB_OUTPUT
+          else
+            echo "landing_archive_name=" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup SSH
         id: setup-ssh
@@ -250,3 +283,4 @@ jobs:
           VPS_HOST: ${{ steps.setup-ssh.outputs.vps-host }}
         with:
           archive-name: ${{ steps.archive-name.outputs.archive_name }}
+          landing-archive-name: ${{ steps.archive-name.outputs.landing_archive_name }}

@@ -25,9 +25,9 @@ account model so users can add/recover passkey, Google, Apple, and email alongsi
 device key.
 
 **Domains.** Production: `tentura.io` (landing) + `app.tentura.io` (WASM app).
-**`dev.tentura.io`** is the **CICD-default deploy** and must be supported — today it is a
-**single host** serving everything; the landing/app split must work there too (see Phase 0,
-Routing).
+**`dev.tentura.io`** is the **only live deploy today** (no prod users yet) and uses the
+**same subdomain split** as prod: `dev.tentura.io` (landing) + `app.dev.tentura.io`
+(WASM app). See Phase 0 § Infra and § `SERVER_NAME` split.
 
 ---
 
@@ -81,15 +81,19 @@ Old links must keep working after the new `/invite/:code` scheme lands.
   `Mozilla` UA it 302-redirects to the SPA (path in URL fragment); else renders preview
   HTML. Precursor to the proposal's preview endpoint.
 
-**Routing today (one host).** `Caddyfile`:
-- `{$SERVER_NAME}` serves the Flutter SPA at root (`root * /srv/web`, `try_files …
-  /index.html`); `/api/v1/graphql` → Hasura; `/api/v2/graphql`, `/api/v2/ws`,
-  `/api/v2/room-attachments/*`, `/shared/*`, `firebase-messaging-sw.js` → Dart server
-  (`tentura:2080`).
-- SPA handler sets WASM headers: `Cross-Origin-Opener-Policy: same-origin`,
-  `Cross-Origin-Embedder-Policy: credentialless`. **These interact with the handoff** —
-  COOP `same-origin` can sever `window.opener`, breaking landing↔WASM popup
-  `postMessage` (see Risks).
+**Routing (Phase 0 — subdomain split, implemented).** [`Caddyfile`](../Caddyfile):
+- Shared `(api)` snippet on **both** hosts: `/api/v1/graphql` → Hasura;
+  `/api/v2/graphql`, `/api/v2/ws`, `/api/v2/room-attachments/*`, `/shared/*`,
+  `firebase-messaging-sw.js` → Dart server (`tentura:2080`); `handle_path /api/*` → Hasura.
+- **`{$SERVER_NAME}`** (landing): `{$LANDING_ROOT:/srv/landing}` static files; **no**
+  COOP/COEP; `handle_errors` 404 → maintenance text; pgAdmin only here.
+- **`{$APP_HOST}`** (WASM app): `{$APP_ROOT:/srv/web}` at root (`--base-href=/`); COOP
+  `same-origin` + COEP `credentialless` **only on this host** (Risk #1).
+- **Local:** [`Caddyfile.local`](../Caddyfile.local) — `http://dev.lvh.me:9080` +
+  `http://app.dev.lvh.me:9080` (or `.test` hosts via `/etc/hosts`); see
+  [`compose.dev.yaml`](../compose.dev.yaml) header.
+- **Historical:** pre–Phase 0, a single host served the SPA at `/` with COOP/COEP on
+  everything; path-based `/app/*` on dev was considered then **superseded** by subdomain-on-dev.
 
 **Optional auth middleware exists.** `packages/server/lib/api/middleware/auth_middleware.dart`:
 `extractJwtClaims` (non-failing; on the GraphQL endpoint) vs `verifyBearerJwt` (failing).
@@ -103,10 +107,12 @@ The preview endpoint needs the **non-failing** variant.
 
 ## Target Architecture (high level)
 
-- **`tentura.io`** — new static HTML/JS landing (**`packages/landing`**, monorepo). All
+- **`tentura.io`** — new static landing (**`packages/landing`**, monorepo). All
   invite + web-auth flows. 300–800ms TTI; works in webviews; OG previews; OAuth redirect
-  URIs; native WebAuthn in DOM; in-app-browser detection. `@noble/ed25519` for JS Ed25519;
-  **no third-party scripts**.
+  URIs; native WebAuthn in DOM; in-app-browser detection. **Deps-light: no npm, no build
+  toolchain** — plain static HTML/CSS/JS served as-is. Pull in a JS library only when truly
+  needed, loaded **in-browser** (CDN ESM `import`, or a single vendored file checked into the
+  repo) — never via a Node/npm build. Keep external scripts to the minimum (see analytics).
 - **`app.tentura.io`** — existing Flutter WASM app, **no login UI**; unauthenticated →
   redirect to landing; receives session via same-origin handoff; keeps `Settings >
   Sign-in methods`.
@@ -141,6 +147,28 @@ that already work server-side should be exercised end-to-end.
 
 **Prerequisites.** None (independent of Phase 1).
 
+### Implementation status (repo)
+
+| Area | Status | Notes |
+|------|--------|--------|
+| JSON preview endpoint | **Done** | Case tests + `dart analyze`; live curl matrix **owed** |
+| `packages/landing` static shell | **Done** | 5 states + beacon overlay; `AUTH_ENABLED=false` |
+| `docs/handoff-contract.md` | **Done** | Keys pinned; CI pin **not yet** wired |
+| Caddy subdomain split | **Done** | `Caddyfile`, `compose.prod.yaml`, `deploy.sh`, `pipeline.yml` |
+| `Caddyfile.local` | **Done** | `dev.lvh.me` / `app.dev.lvh.me`; `caddy validate` + curl checks |
+| Deploy to `dev.tentura.io` | **Pending** | Needs DNS for `app.dev.tentura.io` + env vars below |
+
+### Locked decisions (Phase 0 — do not relitigate)
+
+- **`preview()`** uses `getById` (nullable), **not** `fetchById` (throws on consumed/expired).
+- **`codeStatus`:** `available` \| `consumed` \| `expired` \| `invalid` — **no `revoked`**
+  in Phase 0 (not modeled; deleted row → `invalid`).
+- **already-friends:** reuse `VoteUserFriendshipLookup.isReciprocalSubscribe` — **no**
+  new `areFriends` on `UserRepositoryPort`.
+- **Landing:** plain static HTML/JS; **no npm/bundler**; Sentry CDN = only external script.
+- **Routing:** **subdomain on dev** (mirrors prod), **not** path-based `/app/` on
+  `dev.tentura.io`. WASM build: `--base-href=/`.
+
 ### Server — preview endpoint (JSON, REST on `root_router`)
 - Add `GET /api/v2/invite/:code/preview` to
   `packages/server/lib/api/root_router.dart`, guarded by `_authMiddleware.extractJwtClaims`
@@ -150,21 +178,29 @@ that already work server-side should be exercised end-to-end.
   ```
   { inviter:{id,displayName,image}, codeStatus, callerStatus, beacon?, suggestedAction }
   ```
-  - `codeStatus`: available | consumed | expired | revoked (reuse
-    `InvitationEntity.isAccepted` / `isExpired`; add revoked if/when modeled).
-  - `callerStatus`: anonymous | existing-user | already-friends | is-inviter
+  - `codeStatus`: `available` \| `consumed` \| `expired` \| `invalid` (Phase 0; no
+    `revoked` — see locked decisions).
+  - `callerStatus`: `anonymous` \| `existing-user` \| `already-friends` \| `is-inviter`
     (self-invite blocked).
-  - `beacon`: present iff `invitation.beaconId != null` — surface beacon title/snippet so
-    the landing can render "Alice shared <beacon> with you".
-- Extend `InvitationCase` with a read-only `preview(...)` that computes the above; add an
-  "is caller already mutual-friend of issuer?" check to `InvitationCase` /
-  `UserRepositoryPort` (read-only).
+  - `beacon`: present iff `invitation.beaconId != null` — title/snippet via
+    `BeaconRepositoryPort`.
+- **`InvitationCase.preview(...)`** (implemented): `getById` for code status;
+  `VoteUserFriendshipLookup.isReciprocalSubscribe` for already-friends;
+  `InvitePreviewResult` in `packages/server/lib/domain/entity/invite_preview_result.dart`;
+  `InvitePreviewController` → `GET /api/v2/invite/<code>/preview` with
+  `extractJwtClaims` (non-failing).
 - **OG meta stays on the existing Jaspr path** (`shared_view_controller` +
   `invitation_view_component`) for Telegram/iMessage crawlers; keep its output consistent
   with the JSON preview. Old `/shared/view?id=I…` links must continue to work.
 
-### Landing — `packages/landing` (new static package)
-- Plain static HTML/JS, no shipped framework runtime; build emits a static dir.
+### Landing — `packages/landing` (static package, implemented)
+- Plain static HTML/CSS/JS, served **as-is** — **no build step, no npm, no `node_modules`,
+  no bundler**. Caddy serves `{$LANDING_ROOT}` directly. JS libraries only as needed,
+  loaded in-browser (CDN ESM or a vendored single file).
+- **Runtime config** (`config.js`): `apiBase: ''` (landing host proxies `/api`);
+  `appBase` absolute app origin (CI injects `APP_BASE`, default
+  `https://app.dev.tentura.io/`). New invite URLs: `/invite/:code` (`I…` id); old
+  `/shared/view?id=…` still parsed in `preview.js`.
 - In-app-webview detection → two-tier UX:
   - **Tier 1 (system browser):** full auth CTAs (Passkey/Google/Apple/Email) —
     **feature-flagged off / stubbed in Phase 0**, wired in Phase 1.
@@ -177,40 +213,100 @@ that already work server-side should be exercised end-to-end.
   "I already have an account, open in browser" → "I'm new, sign up").
 - **Beacon-forward overlay:** when `beacon` is present, every state shows the shared
   beacon context above the CTA ("Alice shared **<beacon>** and wants to connect").
-- Funnel analytics (Sentry/PostHog) firing **before** any WASM — a first-class Phase 0
-  deliverable.
+- Funnel analytics firing **before** any WASM — a first-class Phase 0 deliverable. Use the
+  **Sentry browser SDK loaded from its CDN** (the single allowed external `<script>`); no npm.
 
-### Infra — routing for prod AND dev
-- Add a `tentura.io` (landing static) vs `app.tentura.io` (existing SPA + `/api/*`) host
-  split in `Caddyfile`; serve `packages/landing` build output at the apex.
-- **`dev.tentura.io` is single-host (CICD default).** Parameterize the split so dev works:
-  decide between (a) **path-based on dev** (`dev.tentura.io/` = landing, `dev.tentura.io/app/`
-  = WASM app — keeps a single origin, simplest handoff) vs (b) **subdomain on dev**
-  (`app.dev.tentura.io`, needs cookie scoped to `.tentura.io`). Recommend **path-based on
-  dev, subdomain on prod**, both driven by Caddy env (`LANDING_ROOT`, `APP_ROOT`). Wire
-  the landing build into `deploy.sh` / `compose.prod.yaml` and the CICD pipeline.
-- Keep WASM `COOP/COEP` headers scoped to the **app** root only.
+### Infra — routing for prod AND dev (implemented)
+
+**Topology**
+
+| Host | Serves | Caddy env |
+|------|--------|-----------|
+| `dev.tentura.io` | Static landing | `SERVER_NAME`, `LANDING_ROOT=/srv/landing` |
+| `app.dev.tentura.io` | WASM + same `(api)` routes | `APP_HOST`, `APP_ROOT=/srv/web` |
+| `tentura.io` / `app.tentura.io` | Same pattern when prod exists | same vars, prod values |
+
+**`SERVER_NAME` split (client vs server)**
+
+The Flutter client compiles one `kServerName` used for **API/WS** and **share links**
+(`packages/client/lib/consts.dart`). Phase 0 intentionally splits build-time vs runtime:
+
+| Variable | Where | Phase 0 dev value | Purpose |
+|----------|-------|-------------------|---------|
+| `CLIENT_SERVER_NAME` | GitHub `dev` env → `pipeline.yml` `--dart-define=SERVER_NAME` | `https://app.dev.tentura.io` | GraphQL/WS same-origin on app host |
+| `SERVER_NAME` | VPS `.env` → Tentura container | `https://dev.tentura.io` | OG tags, Jaspr `/shared/view`, server `kServerName` |
+| `APP_BASE` | GitHub `dev` env → CI `sed` on `packages/landing/config.js` | `https://app.dev.tentura.io/` | Landing CTAs → WASM (`appBase`) |
+| `APP_HOST` | VPS `.env` → Caddy | `app.dev.tentura.io` | Second TLS site block |
+
+Share links from the app may still point at `CLIENT_SERVER_NAME` (`/shared/view?id=…`);
+**both hosts proxy `/shared/*`**, so old and app-origin links keep working. A dedicated
+landing share base is optional in Phase 1+.
+
+**CICD / deploy**
+
+- [`pipeline.yml`](../.github/workflows/pipeline.yml): `flutter build web --base-href=/`;
+  `CLIENT_SERVER_NAME`; landing tar + `APP_BASE` / `LANDING_SENTRY_DSN` injection.
+- [`deploy.sh`](../deploy.sh): extract web + landing **before** `compose up`; placeholder
+  `index.html` if `LANDING_DIR` empty.
+- [`compose.prod.yaml`](../compose.prod.yaml): mounts `./web`, `./landing`; proxy env
+  `APP_HOST`, `APP_ROOT`, `LANDING_ROOT`.
+
+**Deploy prerequisites (ops)**
+
+1. DNS: `app.dev.tentura.io` → VPS (or `*.dev.tentura.io` wildcard).
+2. VPS `.env`: `SERVER_NAME=https://dev.tentura.io`, `APP_HOST=app.dev.tentura.io`,
+   `APP_ROOT=/srv/web`, `LANDING_ROOT=/srv/landing`, `ACME_EMAIL=…`.
+3. GitHub **dev** environment variables: `CLIENT_SERVER_NAME`, `APP_BASE`, `APP_HOST`
+   (if referenced), existing `IMAGE_SERVER`, etc.
+
+**Local simulation** — [`Caddyfile.local`](../Caddyfile.local):
+
+- `http://dev.lvh.me:9080` (landing), `http://app.dev.lvh.me:9080` (app); `auto_https off`.
+- Default: app host → `flutter run` on `:8888`; `LOCAL_USE_FLUTTER_PROXY=off` → static
+  `packages/client/build/web`.
+- Landing `config.js` for local: `appBase: 'http://app.dev.lvh.me:9080/'`, `apiBase: ''`.
+- Offline: `/etc/hosts` → `dev.tentura.test`, `app.dev.tentura.test` + Caddy env overrides.
+
+**Deploy ordering (Risk #1):** ship landing + web archives **before** switching Caddy to
+subdomain split, or rely on `deploy.sh` placeholder + `handle_errors` so apex never 404s
+empty.
 
 ### Handoff contract (define now; exercised in Phase 1)
-- Same-origin / `.tentura.io`-scoped session+seed keys in localStorage; **document exact
-  key names**; pin the schema in CI so `packages/landing` and the WASM app cannot drift.
 
-### Files (representative)
-`packages/landing/**` (new) · `packages/server/lib/api/root_router.dart` ·
-`packages/server/lib/api/controllers/invite_preview_controller.dart` (new) ·
-`packages/server/lib/domain/use_case/invitation_case.dart` ·
-`packages/server/lib/domain/port/{invitation,user}_repository_port.dart` ·
-`Caddyfile` · `deploy.sh` · `compose.prod.yaml` · CICD config.
+Authoritative key names and cross-subdomain notes: [`docs/handoff-contract.md`](handoff-contract.md).
+
+- Dev/prod are **cross-subdomain** (`dev.tentura.io` ↔ `app.dev.tentura.io`); Phase 1 needs
+  `Domain=.dev.tentura.io` / `.tentura.io` cookie or redirect/postMessage transfer.
+- CI pin for key strings: **planned**, not wired yet.
+
+### Files (Phase 0 — in repo)
+
+**Server:** `packages/server/lib/api/controllers/invite_preview_controller.dart`,
+`packages/server/lib/domain/entity/invite_preview_result.dart`,
+`packages/server/lib/domain/use_case/invitation_case.dart`,
+`packages/server/lib/api/root_router.dart`,
+`packages/server/test/domain/use_case/invitation_case_test.dart` (+ mocks).
+
+**Landing:** `packages/landing/**` (`index.html`, `config.js`, `main.js`, `preview.js`,
+`webview.js`, `analytics.js`, `styles.css`, `README.md`).
+
+**Infra:** `Caddyfile`, `Caddyfile.local`, `compose.prod.yaml`, `deploy.sh`,
+`.github/workflows/pipeline.yml`, `.github/actions/deploy-web-archive/action.yml`.
+
+**Docs:** `docs/handoff-contract.md`, this file.
 
 ### Acceptance criteria
-- `curl GET /api/v2/invite/:code/preview` returns correct `codeStatus`/`callerStatus` for
-  anonymous, existing-user, already-friends, is-inviter, expired; and includes `beacon`
-  when the invite carries a `beaconId`.
-- Crawler UA still gets OG HTML; browser UA behavior preserved; old `/shared/view?id=I…`
-  links still resolve.
-- Landing renders all five states + beacon overlay; TTI measured in a throttled mobile
-  webview; funnel events visible in analytics **before** WASM.
-- Caddy split verified on **both** prod (apex vs `app.`) and `dev.tentura.io`.
+
+| Criterion | Status |
+|-----------|--------|
+| `curl GET /api/v2/invite/:code/preview` — all `codeStatus`/`callerStatus` + beacon | **Unit tests done**; live curl on dev stack **owed** |
+| OG crawler `/shared/view?id=I…`; old links | **Verify on deploy** |
+| Landing: 5 states + beacon; Sentry before WASM | **Implemented**; TTI/funnel on deploy **owed** |
+| Caddy: landing no COOP; app COOP/COEP; both proxy `/api` | **`caddy validate` + local curl done**; live dev hosts **owed** |
+
+**curl matrix (when dev stack is up):** anonymous / issuer JWT / friend / stranger /
+consumed / expired / invalid id / invite with `beaconId` — see Phase 0 line-level plan or
+handoff session notes.
 
 ---
 
@@ -327,14 +423,16 @@ skip the landing when the app is installed).
    handoff route. **Validate empirically early in Phase 1.**
 2. **iOS in-app webview escape is not programmatic** — accept the explicit user tap as the
    design; do not engineer an escape.
-3. **`dev.tentura.io` is single-host** — the landing/app split must be parameterized
-   (path-based on dev recommended) and verified in CICD, not just on prod.
+3. **`dev.tentura.io` uses subdomain split** (`app.dev.tentura.io`) — same topology as
+   prod; verified in CICD and via `Caddyfile.local` locally, not only on prod hosts.
 4. **Hasura coupling** — `users`/credentials schema changes require `hasura/metadata.json`
    regen + permission review, and possibly Ferry `_g` codegen regen.
 5. **Migration safety** — `users.public_key` → `account_credentials` backfill must be
    idempotent/reversible; verify via `drift_schemas/` snapshot diffing.
-6. **Cross-origin session** — cookie/localStorage scoping across `.tentura.io` (and the
-   dev host) must be exact, documented, and CI-pinned to prevent landing↔app drift.
+6. **Cross-origin session** — landing and app are on **different subdomains** on both dev
+   (`.dev.tentura.io`) and prod (`.tentura.io`). localStorage is not shared; handoff keys
+   are pinned in `docs/handoff-contract.md`; Phase 1 must implement cookie or transfer.
+   CI pin for key names is planned.
 7. **Link compatibility** — old `/shared/view?id=I…` links must keep resolving after the
    new `/invite/:code` scheme; beacon-forward invites (`beaconId` present) must render and
    accept correctly on all surfaces.

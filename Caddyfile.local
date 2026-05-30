@@ -1,0 +1,121 @@
+# Local two-host simulation (subdomain split, mirrors dev/prod topology).
+#
+#   http://dev.lvh.me:9080       -> static landing (packages/landing)
+#   http://app.dev.lvh.me:9080   -> Flutter dev server :8888 + COOP/COEP
+#
+# lvh.me resolves to 127.0.0.1 (subdomain cookies testable without /etc/hosts).
+# Offline: add to /etc/hosts:
+#   127.0.0.1 dev.tentura.test app.dev.tentura.test
+# and set LOCAL_LANDING_HOST / LOCAL_APP_HOST accordingly.
+#
+# Usage:
+#   1. docker compose up -d
+#   2. cd packages/server && dart run bin/tentura.dart
+#   3. cd packages/client && flutter run -d web-server --web-port=8888 \
+#        --dart-define=SERVER_NAME=http://app.dev.lvh.me:9080 \
+#        --dart-define=WS_SERVER_NAME=http://app.dev.lvh.me:9080
+#   4. caddy run --config Caddyfile.local
+#
+# Landing config.js: appBase 'http://app.dev.lvh.me:9080/', apiBase ''.
+# HTTPS mode (Phase 1 WebAuthn): use `caddy run --config Caddyfile.local --adapter caddyfile`
+# with tls internal on both blocks and port 9443.
+
+{
+	admin off
+	auto_https off
+	http_port {$LOCAL_HTTP_PORT:9080}
+}
+
+(local_api) {
+	handle /api/v1/graphql {
+		rewrite * /v1/graphql
+		reverse_proxy 127.0.0.1:8080 {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	handle /api/v2/graphql {
+		reverse_proxy 127.0.0.1:2080 {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+	handle /api/v2/ws {
+		reverse_proxy 127.0.0.1:2080 {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	handle /api/v2/room-attachments/* {
+		reverse_proxy 127.0.0.1:2080 {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	handle /firebase-messaging-sw.js {
+		reverse_proxy 127.0.0.1:2080
+	}
+	handle /shared/* {
+		reverse_proxy 127.0.0.1:2080
+	}
+
+	handle_path /api/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+}
+
+http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
+	encode gzip
+	import local_api
+
+	handle_errors {
+		@landing_404 expression {http.error.status_code} == 404
+		handle @landing_404 {
+			respond "Landing is being deployed. Please try again shortly." 503
+		}
+	}
+
+	handle {
+		root * {$LOCAL_LANDING_ROOT:./packages/landing}
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+http://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
+	encode gzip
+	import local_api
+
+	# Hot reload: proxy to flutter run --web-port=8888 (default).
+	# Static-only: LOCAL_USE_FLUTTER_PROXY=off → serve packages/client/build/web.
+	@use_flutter {
+		expression "{$LOCAL_USE_FLUTTER_PROXY:}" != "off"
+		not path /api/* /shared/* /firebase-messaging-sw.js
+	}
+	handle @use_flutter {
+		reverse_proxy {$LOCAL_FLUTTER_UPSTREAM:127.0.0.1:8888} {
+			header_up Host {host}
+		}
+		header Cross-Origin-Opener-Policy "same-origin"
+		header Cross-Origin-Embedder-Policy "credentialless"
+	}
+
+	handle {
+		root * {$LOCAL_APP_ROOT:./packages/client/build/web}
+		try_files {path} /index.html
+		file_server
+		header Cross-Origin-Opener-Policy "same-origin"
+		header Cross-Origin-Embedder-Policy "credentialless"
+	}
+}
