@@ -19,7 +19,11 @@ the JSON preview from the Dart server and renders one of five states.
 | `preview.js`  | fetches `GET /api/v2/invite/:code/preview`                  |
 | `webview.js`  | in-app-webview detection / Android `intent://`              |
 | `analytics.js`| funnel events via the CDN Sentry global                     |
+| `handoff.js`  | builds the `#th=…` URL + redirects to the app (transport)   |
 | `styles.css`  | styling                                                     |
+
+`handoff-dev.html` is a **dev-only** harness (not part of the shipped flow) for
+exercising the session handoff by hand — see "Session handoff" below.
 
 The browser resolves the relative ES-module imports (`main.js` → `./preview.js`
 etc.) natively — nothing is bundled.
@@ -70,3 +74,18 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - Ed25519 (Phase 1) will be loaded **in-browser** (CDN ESM or a vendored single
   file), never via npm.
 - Session handoff key names are pinned in `docs/handoff-contract.md`.
+
+## Session handoff (landing → WASM app)
+
+Landing and app are different origins, so localStorage is not shared. After auth,
+`handoff.js` redirects to the app with the account `{ userId, seed }` in the URL
+**fragment** (`{appBase}#th=<base64url(utf8(json))>`); the WASM app captures it
+before boot, writes it to its own secure storage, and scrubs it. The fragment
+never reaches the server. Field names (`th`, `v`, `userId`, `seed`,
+`displayName`) are the contract in `docs/handoff-contract.md`, pinned across both
+sides by `scripts/check_handoff_contract.sh` (CI).
+
+`redirectToApp({ userId, seed, displayName? })` is the transport entry point; the
+real auth that produces the seed lands in a later slice. To exercise it now, serve
+the landing locally and open `handoff-dev.html`, paste a known `userId` + `seed`,
+and click through — the app should boot already signed in.

@@ -101,6 +101,22 @@
       document.body.style.background = "transparent";
     }
   </script>
+  <script id="handoff-capture-script">
+    // Landing -> app session handoff (see docs/handoff-contract.md).
+    // Stash the handoff fragment BEFORE Flutter boots: the app uses the hash URL
+    // strategy, which normalizes `#th=...` away during engine init, so reading
+    // location.hash from Dart later is unreliable. web_handoff_web.dart reads
+    // window.__tenturaHandoff instead. Scrub it immediately so the seed does not
+    // linger in the address bar or back stack.
+    //
+    // Gate strictly on the `#th=` prefix: the hash strategy also carries the
+    // app's OWN routes (`#/home/friends`, deep links). Capturing/scrubbing those
+    // would bounce every refresh and shared link back to root.
+    if (window.location.hash.indexOf("#th=") === 0) {
+      window.__tenturaHandoff = window.location.hash;
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  </script>
 </head>
 <body>
   <picture id="splash">

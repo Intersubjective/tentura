@@ -9,11 +9,26 @@
 #   OVERRIDE_FILE   - override compose file; auto-detected if not set
 #   WEB_DIR         - web assets directory (default: ./web)
 #   LANDING_DIR     - static landing directory (default: ./landing)
+#   LANDING_ARCHIVE - explicit path to landing tarball (CI sets this; avoids
+#                     picking a stale /tmp/landing-*.tar.gz from manual uploads)
 #
 # Deploy order: extract web + landing archives BEFORE docker compose up -d so
 # Caddy never serves an empty {$LANDING_ROOT} or stale assets at cutover.
 
 set -euo pipefail
+
+# Best-effort /tmp cleanup — never fail deploy if another user's file is left behind.
+cleanup_tmp_archive() {
+  local path="$1"
+  if [[ "$path" != /tmp/* ]]; then
+    return 0
+  fi
+  if rm -f "$path" 2>/dev/null; then
+    echo "Cleaned up archive from /tmp: $path"
+  else
+    echo "Warning: could not remove $path (non-fatal; check permissions)" >&2
+  fi
+}
 
 # Configuration
 DEPLOY_DIR="${DEPLOY_DIR:-/srv/tentura_server}"
@@ -55,15 +70,16 @@ tar -xzf "$ARCHIVE_PATH" -C "$WEB_DIR/"
 echo "Web archive extracted successfully"
 
 # Extract landing archive (optional) — static landing served at {$LANDING_ROOT}.
-LANDING_ARCHIVE="${LANDING_ARCHIVE:-$(ls /tmp/landing-*.tar.gz 2>/dev/null | head -1 || true)}"
+# Prefer LANDING_ARCHIVE from CI; fallback only when unset (e.g. manual deploy).
+if [ -z "${LANDING_ARCHIVE:-}" ]; then
+  LANDING_ARCHIVE="$(ls /tmp/landing-dev.tar.gz /tmp/landing-*.tar.gz 2>/dev/null | head -1 || true)"
+fi
 if [ -n "$LANDING_ARCHIVE" ] && [ -f "$LANDING_ARCHIVE" ]; then
-  echo "Extracting landing archive to $LANDING_DIR..."
+  echo "Extracting landing archive to $LANDING_DIR from $LANDING_ARCHIVE..."
   mkdir -p "$LANDING_DIR"
   tar -xzf "$LANDING_ARCHIVE" -C "$LANDING_DIR/"
   echo "Landing archive extracted successfully"
-  if [[ "$LANDING_ARCHIVE" == /tmp/* ]]; then
-    rm -f "$LANDING_ARCHIVE"
-  fi
+  cleanup_tmp_archive "$LANDING_ARCHIVE"
 else
   echo "No landing archive found; skipping landing extraction"
 fi
@@ -80,11 +96,7 @@ EOF
 fi
 
 # --- Assets ready; restart stack (pull/down/up) -------------------------------
-# Clean up archive if it's in /tmp
-if [[ "$ARCHIVE_PATH" == /tmp/* ]]; then
-  rm -f "$ARCHIVE_PATH"
-  echo "Cleaned up archive from /tmp"
-fi
+cleanup_tmp_archive "$ARCHIVE_PATH"
 
 # Build compose arguments (append override file if it exists)
 COMPOSE_ARGS=(-f "$COMPOSE_FILE")

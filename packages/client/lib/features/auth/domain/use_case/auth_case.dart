@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:meta/meta.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
@@ -9,6 +10,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import 'package:tentura/domain/port/device_push_port.dart';
 
+import '../../data/service/web_handoff.dart';
 import '../port/auth_local_repository_port.dart';
 import '../port/auth_remote_repository_port.dart';
 import '../exception.dart';
@@ -73,6 +75,45 @@ final class AuthCase extends UseCaseBase {
     );
     await _authLocalRepository.setCurrentAccountId(userId);
     return userId;
+  }
+
+  ///
+  /// Web only: consumes a landing -> app session handoff carried in the URL
+  /// fragment (`#th=...`, captured before boot — see `docs/handoff-contract.md`).
+  /// Writes the account seed to local storage and makes it current so the normal
+  /// hydration path lands authenticated, then scrubs the fragment. Idempotent;
+  /// a malformed/absent handoff is ignored and never blocks boot. No-op off web.
+  ///
+  Future<void> consumeHandoff() async {
+    final payload = readHandoff();
+    if (payload == null) {
+      return;
+    }
+    try {
+      await applyHandoff(payload);
+    } catch (e, s) {
+      logger.warning('Failed to consume session handoff', e, s);
+    } finally {
+      scrubHandoff();
+    }
+  }
+
+  ///
+  /// Writes a handoff [payload] to local storage and makes it the current
+  /// account. Idempotent: skips the insert when the account already exists
+  /// (avoids the `InsertMode.insert` duplicate throw) and just re-activates it.
+  ///
+  @visibleForTesting
+  Future<void> applyHandoff(HandoffPayload payload) async {
+    final existing = await _authLocalRepository.getAccountById(payload.userId);
+    if (existing == null) {
+      await _authLocalRepository.addAccount(
+        payload.userId,
+        payload.seed,
+        payload.displayName,
+      );
+    }
+    await _authLocalRepository.setCurrentAccountId(payload.userId);
   }
 
   ///
