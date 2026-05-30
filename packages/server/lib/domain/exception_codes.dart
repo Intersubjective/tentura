@@ -30,6 +30,8 @@ enum AuthExceptionCode {
   authUnauthorizedException,
   authInvitationWrongException,
   authAuthorizationHeaderWrongException,
+  authCredentialConflictException,
+  authLastCredentialException,
 }
 
 class AuthExceptionCodes extends ExceptionCodes {

@@ -118,6 +118,30 @@ final class InvitationWrongException extends ExceptionBase {
       );
 }
 
+/// Linking a credential whose `(type, identifier)` already exists (on this or
+/// another account). Conflict policy: never auto-merge — refuse. Maps to 409.
+final class CredentialConflictException extends ExceptionBase {
+  const CredentialConflictException({String? description})
+    : super(
+        code: const AuthExceptionCodes(
+          AuthExceptionCode.authCredentialConflictException,
+        ),
+        description: description ?? 'Credential already linked',
+      );
+}
+
+/// Removing the account's only remaining credential. Removal policy: an account
+/// must keep at least one credential. Maps to 409.
+final class LastCredentialException extends ExceptionBase {
+  const LastCredentialException({String? description})
+    : super(
+        code: const AuthExceptionCodes(
+          AuthExceptionCode.authLastCredentialException,
+        ),
+        description: description ?? 'Cannot remove the last credential',
+      );
+}
+
 final class BeaconCreateException extends ExceptionBase {
   const BeaconCreateException({String? description})
     : super(
