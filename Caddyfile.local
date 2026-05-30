@@ -63,6 +63,15 @@
 		}
 	}
 
+	handle /api/v2/invite/* {
+		reverse_proxy 127.0.0.1:2080 {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
 	handle /firebase-messaging-sw.js {
 		reverse_proxy 127.0.0.1:2080
 	}

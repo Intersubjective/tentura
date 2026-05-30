@@ -48,6 +48,16 @@
 		}
 	}
 
+	# Invite preview (Phase 0) — must hit Tentura, not Hasura catch-all below.
+	handle /api/v2/invite/* {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
 	handle /firebase-messaging-sw.js {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080}
 	}
