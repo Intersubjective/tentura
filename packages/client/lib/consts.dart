@@ -93,9 +93,38 @@ const kInviteLinkHost = String.fromEnvironment(
   defaultValue: 'http://localhost:2080',
 );
 
+/// Resolves invite link base when [inviteLinkHost] is empty (CI passed
+/// `--dart-define=INVITE_LINK_HOST=` with unset GitHub var — `fromEnvironment`
+/// then ignores [defaultValue] and yields a path-only URI).
+String resolveInviteLinkHost({
+  required String inviteLinkHost,
+  required String serverName,
+}) {
+  final explicit = inviteLinkHost.trim();
+  if (explicit.isNotEmpty) return explicit;
+
+  final server = Uri.parse(serverName);
+  final host = server.host;
+  if (host.startsWith('app.')) {
+    return server.replace(host: host.substring(4)).toString();
+  }
+  return serverName;
+}
+
 /// Share URL for invitation codes — `/invite/I…` on the landing host.
-Uri inviteShareUri(String invitationId) =>
-    Uri.parse(kInviteLinkHost).replace(path: '/invite/$invitationId');
+Uri inviteShareUri(String invitationId) {
+  final base = Uri.parse(
+    resolveInviteLinkHost(
+      inviteLinkHost: kInviteLinkHost,
+      serverName: kServerName,
+    ),
+  );
+  return base.replace(
+    path: '/invite/$invitationId',
+    queryParameters: const {},
+    fragment: '',
+  );
+}
 
 /// WebSocket server base URL; defaults to [kServerName].
 /// In dev without a reverse proxy, set to the Tentura API directly

@@ -102,16 +102,24 @@ jobs:
           INVITE_LINK_HOST: ${{ vars.INVITE_LINK_HOST }}
         run: |
           set -euo pipefail
+          # Empty GitHub var → --dart-define=INVITE_LINK_HOST= → path-only /invite/… URLs.
+          INVITE_LINK_HOST="${INVITE_LINK_HOST:-}"
+          if [ -z "$INVITE_LINK_HOST" ] && [ -n "${CLIENT_SERVER_NAME:-}" ]; then
+            INVITE_LINK_HOST="$(printf '%s' "$CLIENT_SERVER_NAME" | sed -E 's#(https?://)app\.#\1#')"
+          fi
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
             --env IMAGE_SERVER="${{ vars.IMAGE_SERVER }}" \
             --env CLIENT_SERVER_NAME="${{ vars.CLIENT_SERVER_NAME }}" \
-            --env INVITE_LINK_HOST="${{ vars.INVITE_LINK_HOST }}" \
+            --env INVITE_LINK_HOST="${INVITE_LINK_HOST}" \
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c "
               set -euo pipefail
+              if [ -z \"\${INVITE_LINK_HOST}\" ] && [ -n \"\${CLIENT_SERVER_NAME}\" ]; then
+                INVITE_LINK_HOST=\$(printf '%s' \"\${CLIENT_SERVER_NAME}\" | sed -E 's#(https?://)app\\.#\\1#')
+              fi
               git config --global --add safe.directory \"*\"
               flutter pub get
               cd packages/client && flutter gen-l10n && dart run build_runner build -d
