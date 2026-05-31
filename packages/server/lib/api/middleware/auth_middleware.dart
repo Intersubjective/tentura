@@ -1,15 +1,23 @@
 import 'package:injectable/injectable.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
+import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/enum.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
+import 'package:tentura_server/domain/use_case/session_case.dart';
 
 @Injectable(order: 3)
 class AuthMiddleware {
-  const AuthMiddleware(this._authCase);
+  AuthMiddleware(
+    this._authCase,
+    this._sessionCase,
+  );
 
   final AuthCase _authCase;
+  final SessionCase _sessionCase;
 
   ///
   /// Extract and verify bearer JWT.
@@ -37,18 +45,50 @@ class AuthMiddleware {
   ///
   Middleware get extractJwtClaims =>
       (innerHandler) => (request) {
-        if (request.headers.containsKey(kHeaderAuthorization)) {
-          try {
-            final jwt = _authCase.parseAndVerifyJwt(
-              token: _extractAuthTokenFromHeaders(request.headers),
-            );
-            return innerHandler(request.change(context: {kContextJwtKey: jwt}));
-          } catch (e) {
-            print(e);
-          }
+        final jwt = _tryExtractJwt(request);
+        if (jwt != null) {
+          return innerHandler(request.change(context: {kContextJwtKey: jwt}));
         }
         return innerHandler(request);
       };
+
+  /// Bearer JWT first, then session cookie (preview / optional-auth paths).
+  Middleware get extractJwtOrSessionClaims =>
+      (innerHandler) => (request) async {
+        final bearerJwt = _tryExtractJwt(request);
+        if (bearerJwt != null) {
+          return innerHandler(
+            request.change(context: {kContextJwtKey: bearerJwt}),
+          );
+        }
+        final sessionToken = readCookie(
+          request,
+          _sessionCase.sessionCookieName(),
+        );
+        final accountId = await _sessionCase.resolveAccountId(sessionToken);
+        if (accountId != null) {
+          final jwt = JwtEntity(
+            sub: accountId,
+            roles: {UserRoles.user},
+          )..validate();
+          return innerHandler(request.change(context: {kContextJwtKey: jwt}));
+        }
+        return innerHandler(request);
+      };
+
+  JwtEntity? _tryExtractJwt(Request request) {
+    if (!request.headers.containsKey(kHeaderAuthorization)) {
+      return null;
+    }
+    try {
+      return _authCase.parseAndVerifyJwt(
+        token: _extractAuthTokenFromHeaders(request.headers),
+      );
+    } catch (e) {
+      print(e);
+      return null;
+    }
+  }
 
   //
   //

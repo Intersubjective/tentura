@@ -105,6 +105,7 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
   Future<void> removeAccount(String id) async {
     await _database.managers.accounts.filter((e) => e.id.equals(id)).delete();
     await _localSecureStorage.delete(_getAccountKey(id));
+    await _localSecureStorage.delete(_sessionMarkerKey(id));
   }
 
   //
@@ -148,6 +149,25 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
       mode: InsertMode.insert,
     );
   }
+
+  @override
+  Future<void> addSessionAccount(String id, [String? displayName]) async {
+    await _localSecureStorage.write(_sessionMarkerKey(id), '1');
+    final existing = await getAccountById(id);
+    if (existing != null) return;
+    await _database.managers.accounts.create(
+      (o) => displayName == null
+          ? o(id: id)
+          : o(id: id, displayName: Value(displayName)),
+      mode: InsertMode.insert,
+    );
+  }
+
+  @override
+  Future<bool> isSessionAccount(String id) async =>
+      (await _localSecureStorage.read(_sessionMarkerKey(id))) == '1';
+
+  static String _sessionMarkerKey(String id) => 'Auth:Session:$id';
 
   static const _repositoryKey = 'Auth';
 

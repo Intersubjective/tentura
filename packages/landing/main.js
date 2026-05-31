@@ -6,6 +6,7 @@ import { signUpWithSeed, webcryptoEd25519Available } from './auth.js';
 
 // Absolute app origin (app.dev.tentura.io / app.tentura.io); see config.js.
 const APP_BASE = (window.TENTURA || {}).appBase || 'https://app.dev.tentura.io/';
+const GOOGLE_ENABLED = Boolean((window.TENTURA || {}).googleEnabled);
 
 const app = document.getElementById('app');
 const card = document.getElementById('card');
@@ -116,6 +117,21 @@ function ctaExisting() {
     'a',
     { class: 'btn btn-secondary', href: openAppUrl(), onclick: () => track('cta_existing') },
     'I already have an account',
+  );
+}
+
+function ctaGoogleSignIn(inviteCode) {
+  if (!GOOGLE_ENABLED) return null;
+  const url = new URL('/api/auth/google/start', APP_BASE);
+  if (inviteCode) url.searchParams.set('invite', inviteCode);
+  return el(
+    'a',
+    {
+      class: 'btn btn-secondary',
+      href: url.toString(),
+      onclick: () => track('cta_google_sign_in', { hasInvite: Boolean(inviteCode) }),
+    },
+    'Continue with Google',
   );
 }
 
@@ -262,6 +278,7 @@ function renderExistingUser(p) {
 
 function renderAnonymous(p) {
   setState('anonymous');
+  const code = parseInviteCode();
   return el(
     'div',
     { class: 'content' },
@@ -269,6 +286,7 @@ function renderAnonymous(p) {
     el('h1', {}, `${inviterName(p)} invited you to Tentura`),
     el('p', {}, 'Tentura is invite-only. Three ways to continue:'),
     ctaOpenApp('Open the app'),
+    ctaGoogleSignIn(code),
     ctaExisting(),
     signupReady
       ? ctaSignUp(p)
@@ -340,7 +358,17 @@ function renderNoInvite() {
         'p',
         {},
         'Ask a friend for an invite link to join. If you already have an ' +
-          'account, open Tentura on your phone to sign in.',
+          'account, sign in below or open Tentura on your phone.',
+      ),
+      ctaGoogleSignIn(''),
+      el(
+        'a',
+        {
+          class: 'btn btn-secondary',
+          href: APP_BASE,
+          onclick: () => track('cta_open_app_no_invite'),
+        },
+        'Open Tentura',
       ),
     ),
   );

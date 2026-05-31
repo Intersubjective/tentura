@@ -40,6 +40,18 @@ const kJwtExpiresIn = 3_600;
 
 const kAuthJwtExpiresIn = 30;
 
+/// Web session cookie lifetime (seconds). Default 30 days.
+const kSessionExpiresIn = 30 * 24 * 3600;
+
+/// OAuth state cookie lifetime (seconds).
+const kOAuthStateExpiresIn = 600;
+
+/// HttpOnly session cookie on the app host (`__Host-` prefix rules).
+const kCookieSessionName = '__Host-tentura_session';
+
+/// Short-lived OAuth transaction cookie (PKCE verifier + state).
+const kCookieOAuthStateName = '__Host-tentura_oauth';
+
 const kRequestTimeout = 15;
 
 const kUserOfflineAfterSeconds = 3;

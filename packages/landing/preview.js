@@ -1,8 +1,8 @@
-// Talks to the Dart server preview endpoint added in Phase 0:
-//   GET /api/v2/invite/:code/preview  (guarded by extractJwtClaims, non-failing)
+// Talks to the Dart server preview endpoint on the app host (cross-origin cookie):
+//   GET ${appBase}/api/v2/invite/:code/preview  (extractJwtOrSessionClaims)
 // Response shape (see invite_preview_result.dart):
 //   { inviter:{id,displayName,image}, codeStatus, callerStatus, beacon?, suggestedAction }
-const API_BASE = (window.TENTURA || {}).apiBase || ''; // '' = same origin
+const APP_BASE = ((window.TENTURA || {}).appBase || '').replace(/\/$/, '');
 
 /// Invite URLs: `/invite/:code` on the landing host.
 export function parseInviteCode() {
@@ -11,11 +11,13 @@ export function parseInviteCode() {
 }
 
 export async function fetchPreview(code) {
+  if (!APP_BASE) {
+    throw new Error('appBase is not configured');
+  }
   const res = await fetch(
-    `${API_BASE}/api/v2/invite/${encodeURIComponent(code)}/preview`,
+    `${APP_BASE}/api/v2/invite/${encodeURIComponent(code)}/preview`,
     {
       headers: { Accept: 'application/json' },
-      // Send the session cookie/JWT when present so callerStatus is accurate.
       credentials: 'include',
     },
   );

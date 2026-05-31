@@ -58,6 +58,26 @@
 		}
 	}
 
+	# Session cookie endpoints (TMB) — must hit Tentura, not Hasura catch-all below.
+	handle /api/v2/session/* {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
+	# Google OAuth on app host — must hit Tentura, not Hasura catch-all below.
+	handle /api/auth/* {
+		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {
+			transport http {
+				read_timeout 1h
+				write_timeout 1h
+			}
+		}
+	}
+
 	# Credential management (Phase 1) — must hit Tentura, not Hasura catch-all below.
 	handle /api/v2/accounts/* {
 		reverse_proxy {$TENTURA_UPSTREAM:tentura:2080} {

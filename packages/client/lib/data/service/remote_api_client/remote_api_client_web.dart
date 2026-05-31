@@ -21,6 +21,23 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
 
   @override
   @mustCallSuper
+  Future<void> setSessionAuth() async {
+    await _gqlClient?.dispose();
+    _gqlClient = null;
+    await super.setSessionAuth();
+    _gqlClient = await buildClient(
+      params: (
+        apiEndpointUrl: apiEndpointUrl,
+        apiEndpointUrlV2: apiEndpointUrlV2,
+        userAgent: userAgent,
+        requestTimeout: requestTimeout,
+      ),
+      getToken: () async => (await getAuthToken()).accessToken,
+    );
+  }
+
+  @override
+  @mustCallSuper
   Future<String?> setAuth({
     required String seed,
     required AuthTokenFetcher authTokenFetcher,

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/enum.dart';
@@ -39,10 +40,25 @@ final class InvitePreviewController extends BaseController {
       );
       return Response.ok(
         jsonEncode(result.toJson()),
-        headers: {kHeaderContentType: 'application/json'},
+        headers: _previewHeaders(request),
       );
     } catch (_) {
       return Response.internalServerError();
     }
+  }
+
+  Map<String, Object> _previewHeaders(Request request) {
+    final headers = <String, Object>{
+      kHeaderContentType: kContentApplicationJson,
+    };
+    final origin = request.headers['origin'];
+    if (origin != null &&
+        env.landingOrigin.isNotEmpty &&
+        origin == env.landingOrigin) {
+      headers['Access-Control-Allow-Origin'] = origin;
+      headers['Access-Control-Allow-Credentials'] = 'true';
+      headers[kHeaderVary] = 'Origin';
+    }
+    return headers;
   }
 }

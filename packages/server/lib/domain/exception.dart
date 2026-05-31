@@ -142,6 +142,50 @@ final class LastCredentialException extends ExceptionBase {
       );
 }
 
+final class OidcStateMismatchException extends ExceptionBase {
+  const OidcStateMismatchException({String? description})
+    : super(
+        code: const AuthExceptionCodes(AuthExceptionCode.oidcStateMismatch),
+        description: description ?? 'OAuth state mismatch',
+      );
+}
+
+final class OidcTokenExchangeFailedException extends ExceptionBase {
+  const OidcTokenExchangeFailedException({String? description})
+    : super(
+        code: const AuthExceptionCodes(
+          AuthExceptionCode.oidcTokenExchangeFailed,
+        ),
+        description: description ?? 'OAuth token exchange failed',
+      );
+}
+
+final class OidcIdTokenInvalidException extends ExceptionBase {
+  const OidcIdTokenInvalidException({String? description})
+    : super(
+        code: const AuthExceptionCodes(AuthExceptionCode.oidcIdTokenInvalid),
+        description: description ?? 'OIDC id_token invalid',
+      );
+}
+
+final class OidcProviderDisabledException extends ExceptionBase {
+  const OidcProviderDisabledException({String? description})
+    : super(
+        code: const AuthExceptionCodes(
+          AuthExceptionCode.oidcProviderDisabled,
+        ),
+        description: description ?? 'OIDC provider is not configured',
+      );
+}
+
+final class OidcInviteRequiredException extends ExceptionBase {
+  const OidcInviteRequiredException({String? description})
+    : super(
+        code: const AuthExceptionCodes(AuthExceptionCode.oidcInviteRequired),
+        description: description ?? 'Invite required for new accounts',
+      );
+}
+
 final class BeaconCreateException extends ExceptionBase {
   const BeaconCreateException({String? description})
     : super(

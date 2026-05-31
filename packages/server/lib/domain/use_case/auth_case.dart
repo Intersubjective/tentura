@@ -170,8 +170,9 @@ final class AuthCase extends UseCaseBase {
     );
   }
 
-  //
-  //
+  /// Short-lived API access token (Hasura V1 + V2 + WS). Same shape as signIn.
+  JwtEntity issueAccessToken(String accountId) => _issueJwt(accountId);
+
   JwtEntity _issueJwt(String subject) {
     final jwtId = _uuid.v8();
     return JwtEntity(

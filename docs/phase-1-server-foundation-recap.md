@@ -4,6 +4,21 @@
 > This is what **shipped** in the server-foundation slice and what the **next
 > slices** need. Read this before continuing Phase 1.
 
+> **⚠️ Direction change for remaining auth work.** Slices 1–4 shipped on the **seed-in-URL
+> handoff** (`#th=<seed>`) with **Ed25519 as the cross-surface identity**. That approach is
+> **superseded** going forward: a seed in a URL fragment is a JS-readable durable credential
+> (negates the app's encrypted storage), and Ed25519 was only ever meant to be **one**
+> credential, not the bridge. **All remaining auth work — the deferred providers
+> (Google/Apple/passkey/email), session revocation, and any web-session rework — MUST follow
+> the OAuth/OIDC + session-cookie (BFF) model in
+> [`invite-onboarding-auth-plan.md` § Architecture revision](invite-onboarding-auth-plan.md).**
+> Net: app-host backend is a confidential OAuth client; web session = `__Host-` HttpOnly
+> cookie; landing = preview + top-level-redirect auth launcher (auth-state probed via a
+> same-site credentialed fetch); signup-vs-login decided at the OAuth `/callback` by a
+> `(provider, sub)` lookup; Ed25519 becomes an optional post-login `account_credential`. The
+> shipped `#th=` handoff and device-seed signup keep working as a **fallback** — do not extend
+> them for new providers.
+
 **Branch:** `feat/phase-1-account-credentials` (not yet merged or pushed). Shipped so far
 (all committed):
 1. `feat(phase-1): multi-credential auth model + split invite accept endpoints` (17 files).
@@ -338,10 +353,25 @@ page. Added `renderNoInvite()`: a neutral "invite-only" message (no credentials 
    no-invite fallback. See "What shipped — slice 4" above. **Add deferred** (in-app action,
    no popup, COOP non-issue). **Owed:** live cross-subdomain E2E; live remove-non-last E2E
    (needs a second credential server-side). **Session revocation** still owed from slice 2.
+5. ✅ **OAuth/OIDC + BFF session (Google) — SHIPPED (code).** `account_session` (m0081),
+   `/api/v2/session/{access-token,logout,from-bearer}`, Google `/api/auth/google/{start,callback}`,
+   signed `__Host-tentura_oauth` PKCE state, `OidcCase` + placeholder `public_key` for OIDC
+   accounts, preview credentialed CORS (landing origin only), landing Google CTA + appBase
+   preview fetch, client cookie bootstrap + `Auth:Session:{userId}` marker. **Deferred:** live
+   Google OAuth on HTTPS dev stack; session revoke on credential removal; Apple/passkey/email.
 
 ## Key files (this slice)
 `packages/server/lib/data/database/migration/m0080.dart` ·
-`…/table/account_credentials.dart` · `…/domain/entity/account_credential_entity.dart` ·
-`…/data/repository/user_repository.dart` · `…/domain/use_case/auth_case.dart` ·
+`packages/server/lib/data/database/migration/m0081.dart` ·
+`…/table/account_credentials.dart` · `…/table/account_sessions.dart` ·
+`…/domain/entity/account_credential_entity.dart` ·
+`…/data/repository/user_repository.dart` · `…/data/repository/session_repository.dart` ·
+`…/domain/use_case/auth_case.dart` · `…/domain/use_case/session_case.dart` ·
+`…/domain/use_case/oidc_case.dart` · `…/data/service/oidc/google_oidc_service.dart` ·
+`…/api/http/cookies.dart` · `…/api/http/oauth_state_codec.dart` ·
+`…/api/controllers/session_controller.dart` · `…/api/controllers/auth_google_controller.dart` ·
 `…/domain/use_case/invitation_case.dart` · `…/api/controllers/invite_accept_{new,existing}_controller.dart` ·
-`…/api/root_router.dart` · tests under `…/test/domain/use_case/`.
+`…/api/root_router.dart` · `packages/landing/preview.js` · `packages/landing/main.js` ·
+`packages/client/lib/data/service/remote_api_client/remote_api_client_base.dart` ·
+`packages/client/lib/features/auth/domain/use_case/auth_case.dart` ·
+tests under `…/test/domain/use_case/` and `…/test/api/http/`.

@@ -6,6 +6,17 @@
 > against the phase's Acceptance Criteria, then move to the next phase. Phases are ordered
 > by dependency; later phases assume earlier ones shipped.
 
+> **⚠️ ARCHITECTURE REVISION — read before any auth work.** After the server-foundation
+> slice we changed two things: (1) the web→app **session transport** and (2) the **role of
+> Ed25519**. The seed-in-URL handoff (`#th=<seed>`) and the "device key is the cross-surface
+> identity" assumption are **superseded** for all remaining auth work by an **OAuth/OIDC +
+> session-cookie (BFF)** model — see the canonical **§ Architecture revision** below (after
+> Target Architecture). Slices already shipped on the old model still run, but **do not
+> extend them**: build new providers (Google/Apple/passkey/email) and the WASM login removal
+> on the revised model (the WASM login *removal* already shipped; its session now moves from
+> the `#th=` handoff to the `__Host-` cookie). Ed25519 is now **one optional
+> `account_credential`**, not the bridge.
+
 ---
 
 ## Context
@@ -22,7 +33,9 @@ also blocked.
 keep the WASM app (no login UI) at **`app.tentura.io`**, and replace the
 "device Ed25519 keypair *is* the account" model with a server-side multi-credential
 account model so users can add/recover passkey, Google, Apple, and email alongside the
-device key.
+device key. **The device key is just one `account_credential`, not the cross-surface
+identity transport: web sessions ride an `__Host-` HttpOnly cookie issued by the app-host
+backend acting as a confidential OAuth client (BFF) — see § Architecture revision.**
 
 **Domains.** Production: `tentura.io` (landing) + `app.tentura.io` (WASM app).
 **`dev.tentura.io`** is the **only live deploy today** (no prod users yet) and uses the
@@ -112,14 +125,18 @@ The preview endpoint needs the **non-failing** variant.
   toolchain** — plain static HTML/CSS/JS served as-is. Pull in a JS library only when truly
   needed, loaded **in-browser** (CDN ESM `import`, or a single vendored file checked into the
   repo) — never via a Node/npm build. Keep external scripts to the minimum (see analytics).
-- **`app.tentura.io`** — existing Flutter WASM app, **no login UI**; unauthenticated →
-  redirect to landing; receives session via same-origin handoff; keeps `Settings >
-  Sign-in methods`.
-- **Native iOS/Android** — native auth (passkey/Google/Apple SDKs), never the landing;
-  same preview endpoint, same UI states, native sheets.
+- **`app.tentura.io`** — existing Flutter WASM app + **auth backend (BFF / session owner)**,
+  **no login UI**; unauthenticated → redirect to landing; receives its session as an
+  `__Host-` HttpOnly cookie from the backend (the seed-in-URL handoff is **superseded** — see
+  § Architecture revision); keeps `Settings > Sign-in methods`.
+- **Native iOS/Android (and future Linux/Windows/macOS)** — **system-browser** OAuth/OIDC
+  with Authorization Code + PKCE (RFC 8252), **never embedded webviews**; Universal Links /
+  App Links for invites (installed → app, else → landing); refresh/session in
+  Keychain/Keystore/Secret Service/Credential Manager. Same preview endpoint, same UI states.
 - **Server** — one `accounts` row, many `account_credentials` rows
   (`ed25519_device`, `webauthn`, `oidc:google`, `oidc:apple`, `email_otp`). Invite
-  consumption at account creation only.
+  consumption at account creation only; **signup-vs-login is decided at the OAuth callback by
+  a `(provider, sub)` lookup** (see § Architecture revision).
 - **Preview endpoint** decides what an invite means for *this* clicker before any UI,
   including the **beacon-forward** variant.
 
@@ -134,6 +151,154 @@ Phase 2  intro tour on static HTML before WASM handoff
    ▼
 Phase 3  (optional) deferred deep link / pending-invite pickup (native)
 ```
+
+---
+
+## Architecture revision: session-cookie (BFF) + OAuth/OIDC model
+
+> **Status: canonical for all remaining auth work.** Supersedes the seed-in-URL handoff
+> (recap slice 1) and the "Ed25519 device key is the cross-surface identity" assumption for
+> **slice 4+ and every deferred provider**. The shipped device-seed signup (slice 3) and
+> `#th=` fragment handoff still run and may remain as a *fallback*, but **new providers
+> (Google/Apple/passkey/email) and the WASM session rework MUST follow this model, not extend
+> the seed handoff** (the WASM login *removal* itself already shipped in slice 4). Grounded in
+> [RFC 9700](https://www.rfc-editor.org/info/rfc9700/) (OAuth
+> 2.0 Security BCP), [RFC 8252](https://datatracker.ietf.org/doc/html/rfc8252) (OAuth for
+> Native Apps), and the IETF *OAuth 2.0 for Browser-Based Apps* BCP draft (BFF pattern).
+
+### Why the change (two defects in the seed-handoff model)
+
+1. **Seed in a URL fragment is an exposed long-lived credential.** `{appBase}#th=<seed>`
+   keeps the secret out of the HTTP *request* (fragments aren't sent to servers), but it is
+   still readable by page JS, browser extensions, `history`/session-restore, screenshots, and
+   malware. Shipping the durable account seed there negates the app's encrypted
+   `LocalSecureStorage` — the secret already crossed an unsafe channel before storage.
+2. **Ed25519 was never meant to be the primary identity bridge.** The goal is Ed25519 as
+   *one* credential among many (`account_credential`), not the mandatory transport tying
+   landing ↔ web ↔ native together. Forcing every provider to mint and ship a device seed is
+   backwards.
+
+### The rule (pin this)
+
+> **Cross-origin navigation may carry only opaque, short-lived, single-use transaction
+> identifiers. Durable credentials, account seeds, refresh tokens, and OAuth tokens never
+> travel through URLs or JS-readable cross-domain payloads.**
+
+### The one fact everything depends on (same-site, cross-origin)
+
+`tentura.io` (landing) and `app.tentura.io` (app + auth backend) are **different origins but
+the same _site_** (shared registrable domain `tentura.io`). Therefore:
+
+- **cross-origin** → no shared `localStorage`; the app's `__Host-` session cookie is not
+  readable by landing JS;
+- **same-site** → `SameSite=Lax` cookies *are* sent on requests between them, and Safari ITP
+  / third-party-cookie blocking does **not** apply.
+
+**Do not move the app to a separate registrable domain** (e.g. `tenturaapp.com`) — that makes
+the two cross-*site*, forcing `SameSite=None` and reintroducing third-party-cookie problems.
+The subdomain split is load-bearing.
+
+### Session model (web = BFF / token-mediating backend)
+
+- The **app-host backend is a confidential OAuth client** and the **session owner**.
+- Browser holds only `__Host-tentura_session` — **Secure, HttpOnly, SameSite=Lax, Path=/, no
+  Domain** (`__Host-` ⇒ bound to `app.tentura.io` exactly). OAuth access/refresh tokens stay
+  server-side; JS never sees them; nothing durable in `localStorage`.
+- If pure-cookie API auth is hard with the Hasura/V2 split, use a **token-mediating backend**:
+  HttpOnly session cookie + `GET /api/session/access-token` returning short-lived access
+  tokens held **in memory only**.
+
+### Auth-state detection from the landing (`credentials: 'include'`)
+
+The landing learns who the clicker is via a **same-site credentialed fetch to the app host**
+(not via the landing-host `/api` proxy):
+
+```js
+fetch('https://app.tentura.io/api/v2/invite/:code/preview', { credentials: 'include' })
+```
+
+`credentials: 'include'` is a *mode*, **not** an assertion that a credential exists: the
+browser attaches the `app.tentura.io` session cookie **iff one exists**, else sends none.
+
+- logged-in → cookie rides along (same-site) → server returns `existing-user` /
+  `already-friends` / `is-inviter`;
+- logged-out / new → no cookie → server returns `anonymous`.
+
+CORS on the app host must return `Access-Control-Allow-Origin: https://tentura.io` +
+`Access-Control-Allow-Credentials: true` (origin cannot be `*` with credentials). COOP/COEP on
+the app host do **not** block *receiving* a credentialed fetch — they only constrain what the
+app host embeds/popups. HttpOnly is preserved: the landing reads only the JSON, never the
+cookie value.
+
+### Auth launch (top-level redirect, not popup)
+
+Provider CTAs are **top-level navigations** to app-host backend endpoints — **not popups**:
+
+- `GET /api/auth/{provider}/start?invite=I…` — generate PKCE verifier + `state` + `nonce`;
+  persist a server-side auth-transaction `{inviteId, returnTo, createdAt}` **keyed by
+  `state`**; set a short-lived `__Host-tentura_oauth` cookie binding `state` to the UA
+  (login-CSRF / mix-up defense); 302 to the provider.
+- `GET /api/auth/{provider}/callback` — verify `state` vs cookie, exchange `code` + verifier
+  (Authorization Code + PKCE — **never implicit, never tokens in URL**), validate the ID token
+  (`iss`/`aud`/`exp`/`nonce`), read `sub`.
+
+Because launch is a top-level redirect, **COOP `same-origin` is irrelevant to it** — this
+removes Risk #1 for the boot/login path (it survives only for an optional Settings-linking
+popup, if one is ever used).
+
+**Invite code travels in the server-side `state`-keyed record, NEVER in `redirect_uri`**
+(RFC 9700 requires exact pre-registered redirect URIs → one fixed callback per provider).
+
+### Signup-vs-login is decided at the callback, not on the landing
+
+At `/callback`, look up `(provider, sub)` in `account_credential`:
+
+- **not found → new account** → run **`accept-as-new`** (create account + store credential +
+  consume invite + befriend issuer + forward beacon, atomically);
+- **found → existing account** → run **`accept-as-existing`** (befriend + forward beacon; no
+  account creation, no signup-slot consumption).
+
+This is why **one** "Continue with Google" button serves both signup and login, and why a
+**logged-out existing user is indistinguishable from a new user at preview time** — the server
+disambiguates *after* auth.
+
+### Invite flow — the three cases (web + native)
+
+| Case | Web | Native (mobile) |
+|---|---|---|
+| **1. New user (signup)** | landing preview = `anonymous` → provider CTAs → `/auth/start` → callback: `(sub)` not found → `accept-as-new` → set session cookie → 302 to app | not installed → landing in browser (web flow). installed → App/Universal Link opens app → app launches **system-browser** OAuth (`ASWebAuthenticationSession`/Custom Tab, never embedded webview) + invite → backend `accept-as-new` → session to app |
+| **2. Existing, authenticated** | landing preview (credentialed) = `existing-user` / `already-friends` / `is-inviter` → open app; befriend runs via authenticated `accept-as-existing` (app-on-boot or app-host call) | Universal/App Link **bypasses landing**, opens app directly → app has session → `accept-as-existing` (befriend + beacon) |
+| **3. Existing, logged out** | preview = `anonymous` (same as case 1) → **same provider CTAs** → callback: `(sub)` **found** → login → `accept-as-existing` (not `accept-as-new`) → session cookie | installed + logged-out → App Link opens app → no session → system-browser OAuth → backend login → `accept-as-existing`. not installed → web flow |
+
+**Hard variant (OUT OF SCOPE — needs account merge):** a logged-out existing user signs up
+with a *different* method than they joined with → a second account is created. Merge is
+deliberately out of scope. **Cheap mitigations to add now so fewer orphans accrue:** (a) at
+callback, if the new credential's *verified email* already belongs to another account, **refuse
+to create** and redirect to "you already have an account — continue with <original provider>";
+(b) a UX nudge "use the method you joined with". Both require storing/normalizing a verified
+email per account.
+
+### Ed25519 demoted to an optional device credential
+
+Ed25519 is linked **after** an authenticated session exists, **generated in the app origin**
+(so app-origin secure storage stays meaningful), via the existing
+`POST /api/v2/accounts/me/credentials`. It is **never** the cross-domain transport. For
+user-facing public-key auth on web, **prefer WebAuthn/passkeys** over custom Ed25519 (origin
+binding, phishing resistance, platform sync/recovery, non-exportable keys).
+
+### Native / desktop (future Android, iOS, Linux, Windows, macOS)
+
+- **Authorization Code + PKCE in the system browser** (`ASWebAuthenticationSession` iOS,
+  Custom Tabs + App Links Android, system browser + loopback `127.0.0.1:{random_port}` on
+  desktop). **Never embedded webviews** for OAuth (RFC 8252).
+- Invite deep links via **Universal Links (iOS) / App Links (Android)** on
+  `tentura.io/invite/*`: installed → app (skip landing); not installed → landing in browser.
+- Refresh/session material in **Keychain / Android Keystore / Secret Service (libsecret) /
+  Windows Credential Manager** — not plaintext, never in URLs.
+- Invite always travels as **server-side auth state keyed by `state`**, never as a
+  secret-bearing client payload. Phase 3 (deferred deep-link pickup) covers
+  install-after-click.
+- Normalize every provider server-side into the same `account_credential` table.
 
 ---
 
@@ -272,6 +437,12 @@ empty.
 
 ### Handoff contract (define now; exercised in Phase 1)
 
+> **⚠️ SUPERSEDED as the path forward.** The `#th=<seed>` fragment handoff below shipped and
+> still runs, but it carries a durable seed through a JS-readable channel and is **replaced**
+> for slice 4+ by the `__Host-` cookie session from the app-host backend — see
+> **§ Architecture revision**. Keep this section for historical/fallback context only; do not
+> build new providers on it.
+
 Authoritative payload + cross-subdomain notes: [`docs/handoff-contract.md`](handoff-contract.md).
 
 - Dev/prod are **cross-subdomain** (`dev.tentura.io` ↔ `app.dev.tentura.io`).
@@ -335,6 +506,7 @@ program-level summary.
 | `/accounts/me/credentials` link/list/remove (slice 2) | **Done (infra + `ed25519_device`)** | Conflict→409, last-credential→409. **Deferred:** WebAuthn/OIDC/email-OTP providers; immediate session revocation (1h JWT expiry is interim). |
 | Landing real auth | **Done (device-seed, Tier-1 only)** | Slice 3. `auth.js`: WebCrypto-Ed25519 signup → `accept-as-new` → handoff. **Deferred:** passkey/Google/Apple/email providers; **Tier-2 in-app webviews never get device-seed signup** (unrecoverable key loss) — email path is their future method. Live E2E owed on HTTPS dev stack. |
 | Client WASM (remove login UI, Settings sign-in methods) | **Pending** | Slice 4 — where the COOP/popup constraint (Risk #1) gets validated. |
+| OAuth/OIDC + BFF session (Architecture revision) | **Done (code)** | `account_session` (m0081), `/api/v2/session/*`, Google `/api/auth/google/*`, preview credentialed CORS, landing Google CTA + appBase preview, client cookie bootstrap. **Deferred:** live Google OAuth on HTTPS dev stack; session revoke on credential removal. |
 
 ### Server — Drift migration m0073+
 - New table `account_credentials(account_id, type, identifier, public_data, created_at, …)`,
@@ -346,36 +518,51 @@ program-level summary.
   existing user from `users.public_key`. Regenerate `drift_schemas/` snapshot and
   **`hasura/metadata.json`**; regenerate Ferry `_g` GraphQL codegen if shapes change.
 
-### Server — auth + credential endpoints
-- `auth_case.dart`: `signIn` resolves credential → account → session (instead of
-  `getByPublicKey`). Add WebAuthn challenge/verify and OIDC (Google/Apple) token-validation
-  paths. Invite consumption stays at **account creation**, independent of credential type.
-- `POST /accounts/me/credentials` (authenticated, `verifyBearerJwt`) to link an alt method
-  from Settings. **Conflict policy:** refuse linking an OIDC `sub`/credential already on
-  another account — never auto-merge. **Removal policy:** cannot remove the last
-  credential; removing one invalidates sessions minted from it.
+### Server — auth + credential endpoints (revised model — see § Architecture revision)
+- **OAuth/OIDC backend on the app host (BFF):** `GET /api/auth/{provider}/start?invite=I…`
+  (PKCE + `state` + `nonce`; invite stashed in a server-side `state`-keyed auth-transaction;
+  `__Host-tentura_oauth` cookie binds `state` to the UA) and `GET /api/auth/{provider}/callback`
+  (Authorization Code + PKCE exchange; validate ID token `iss/aud/exp/nonce`; read `sub`).
+  On success the backend sets the `__Host-tentura_session` cookie — **no seed/token in any URL**.
+- **Signup-vs-login at the callback:** look up `(provider, sub)` in `account_credential` →
+  not found ⇒ `accept-as-new`; found ⇒ `accept-as-existing`. Invite consumption stays bound to
+  **account creation**, independent of credential type.
+- `auth_case.dart`: keep `signIn` resolving credential → account (used by the device-key path);
+  add OIDC token-validation + WebAuthn challenge/verify behind the backend endpoints above.
+- `POST /accounts/me/credentials` (authenticated) links an alt method **after** login, the key
+  being generated **in the app origin** for Ed25519. **Conflict policy:** refuse linking a
+  `(type, identifier)` already on another account — never auto-merge. **Removal policy:** cannot
+  remove the last credential; removing one invalidates sessions minted from it.
 
 ### Server — split invite acceptance (preserve beacon-forward)
+> The acceptance *logic* below is reused verbatim; only the **trigger** moves — instead of a
+> client-supplied EdDSA `authRequestToken`, it is invoked from the **OAuth `/callback`** with
+> the invite read from the `state`-keyed transaction (see § Architecture revision).
 - `POST /api/v2/invite/:code/accept-as-new` — wraps `createInvited`: signup + friendship
   atomic, **consumes** a slot, and (since `createInvited` already does it) **forwards the
-  beacon** when `beaconId != null`.
+  beacon** when `beaconId != null`. Run **only** when the callback created a new account.
 - `POST /api/v2/invite/:code/accept-as-existing` — wraps `accept`/`bindMutual`: befriend
   only, idempotent, **never consumes** a slot, and **forwards the beacon** when present. A
   0-slot code still works for befriend until expired/revoked.
 - Rate-limit anonymous signups per IP; invite slots are the natural limiter.
 
 ### Landing — real auth (Tier 1) + degraded webview path (Tier 2)
-- Tier 1 system browsers: Passkey/Google/Apple/Email; on success write the session via the
-  Phase-0 handoff contract; redirect to the app root.
-- Tier 2 webviews: degraded email/Ed25519 signup → account with a single device
-  credential; email the user to add a stronger method later in a real browser.
+> Revised: the landing is a **preview + auth launcher**, not a session writer. Auth-state is
+> probed via a same-site credentialed fetch to the app host; provider CTAs are **top-level
+> redirects** to `/api/auth/{provider}/start` (no popup). The session arrives as the
+> `__Host-` cookie set by the backend — see § Architecture revision.
+- Tier 1 system browsers: Passkey/Google/Apple/Email CTAs → app-host `/api/auth/{provider}/start`;
+  on callback the backend sets the session cookie and 302s to the app root.
+- Tier 2 webviews: keep the "open in your browser" escape; the recoverable **email** path is the
+  eventual Tier-2 method. **Never** offer device-seed signup in a webview (unrecoverable key loss).
 
 ### Client (WASM)
 - Remove unauthenticated web login UI (`auth_login_screen`, `auth_register_screen` entry);
-  unauthenticated → redirect to landing; read session from handoff.
-- Add `Settings > Sign-in methods` (list/add/remove). On web, linking opens a landing
-  popup for OIDC/WebAuthn then `postMessage` back — **subject to the COOP constraint
-  (Risks);** validate empirically before committing to popups.
+  unauthenticated → redirect to landing; **read the session from the `__Host-` cookie (BFF)**,
+  not from the `#th=` handoff (handoff consume from slice 1 stays only as a fallback).
+- Add `Settings > Sign-in methods` (list/add/remove). On web, prefer **redirect-based** OIDC/
+  WebAuthn linking (same top-level-redirect pattern as login) over a popup; only if a popup is
+  truly required does the COOP constraint (Risk #1) apply — validate empirically then.
 - Native apps keep native auth UI.
 
 ### Files (representative)
@@ -435,13 +622,13 @@ skip the landing when the app is installed).
 
 ## Risks / Constraints (carry into each phase's detailed plan)
 
-1. **COOP `same-origin` vs popup `postMessage`** (Caddy WASM headers) can break the
-   landing↔WASM popup handoff for OIDC/WebAuthn linking. **Update:** the boot handoff
-   (slice 1) is a top-level **fragment redirect** and is *unaffected* by COOP — so this
-   risk does **not** apply there. It now applies only to the **Settings credential-linking
-   popup (slice 4)**. Options when that lands: relax to `same-origin-allow-popups` on the
-   app root, use redirect-based OIDC, or a dedicated handoff route. **Validate empirically
-   in slice 4.**
+1. **COOP `same-origin` vs popup `postMessage`** (Caddy WASM headers) can break a
+   landing↔WASM **popup** handoff for OIDC/WebAuthn linking. **Update (revised model):** both
+   the boot handoff *and* login are now **top-level redirects** (fragment redirect in slice 1;
+   `/api/auth/{provider}/start` in the revised model) and are *unaffected* by COOP. This risk
+   only bites if slice 4 Settings linking uses a **popup** — prefer **redirect-based** linking
+   to avoid it entirely. If a popup is unavoidable: relax to `same-origin-allow-popups` on the
+   app root or use a dedicated handoff route. **Validate empirically in slice 4.**
 2. **iOS in-app webview escape is not programmatic** — accept the explicit user tap as the
    design; do not engineer an escape.
 3. **`dev.tentura.io` uses subdomain split** (`app.dev.tentura.io`) — same topology as
@@ -450,12 +637,15 @@ skip the landing when the app is installed).
    regen + permission review, and possibly Ferry `_g` codegen regen.
 5. **Migration safety** — `users.public_key` → `account_credentials` backfill must be
    idempotent/reversible; verify via `drift_schemas/` snapshot diffing.
-6. **Cross-origin session** — landing and app are on **different subdomains** on both dev
-   (`.dev.tentura.io`) and prod (`.tentura.io`); localStorage is not shared. **Resolved
-   (slice 1):** transfer is a one-time **URL-fragment redirect**, with the WASM app writing
-   its own (encrypted, key-prefixed) secure storage; payload pinned in
-   `docs/handoff-contract.md` and enforced by `scripts/check_handoff_contract.sh` in CI.
-   **Owed:** live cross-subdomain E2E on the dev stack.
+6. **Cross-origin session** — landing and app are **different origins but the same _site_**
+   (registrable domain `tentura.io`) on dev (`.dev.tentura.io`) and prod (`.tentura.io`);
+   `localStorage` is not shared, but `SameSite=Lax` cookies flow between them and ITP/3p-cookie
+   blocking does not apply (see § Architecture revision — do **not** split to a separate
+   registrable domain). **Revised model:** the session is a `__Host-` HttpOnly cookie set by
+   the app-host backend; the landing detects auth via a same-site credentialed fetch. The
+   slice-1 `#th=` fragment handoff (WASM writes its own encrypted secure storage; pinned in
+   `docs/handoff-contract.md` + `scripts/check_handoff_contract.sh`) remains only as a
+   fallback. **Owed:** live cross-subdomain E2E on the dev stack.
 7. **Beacon-forward invites** — when `beaconId` is present, preview + landing must render
    and accept correctly on all surfaces (`/invite/:code` only).
 
