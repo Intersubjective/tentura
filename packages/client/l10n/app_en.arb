@@ -786,6 +786,26 @@
   "@logout": {
     "context": "SettingsScreen"
   },
+  "signInMethods": "Sign-in methods",
+  "@signInMethods": {
+    "context": "SettingsScreen, CredentialsScreen"
+  },
+  "signInMethodsEmpty": "No sign-in methods linked yet",
+  "@signInMethodsEmpty": {
+    "context": "CredentialsScreen"
+  },
+  "credentialDeviceKey": "Device key",
+  "@credentialDeviceKey": {
+    "context": "CredentialsScreen"
+  },
+  "removeCredentialTitle": "Remove sign-in method?",
+  "@removeCredentialTitle": {
+    "context": "CredentialsScreen"
+  },
+  "removeCredentialBody": "You won't be able to sign in with this method afterwards.",
+  "@removeCredentialBody": {
+    "context": "CredentialsScreen"
+  },
   "light": "Light",
   "@light": {
     "context": "ThemeSwitchButton"

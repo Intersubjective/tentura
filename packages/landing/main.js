@@ -325,13 +325,34 @@ function renderError() {
   );
 }
 
+// Landing visited with no `/invite/:code` — e.g. the WASM app bounced a
+// logged-out / unauthenticated web user here (the app has no login UI). Tentura
+// is invite-only, so there is no public signup; show a neutral message rather
+// than the link-specific "Something went wrong" error.
+function renderNoInvite() {
+  setState('invalid');
+  card.replaceChildren(
+    el(
+      'div',
+      { class: 'content' },
+      el('h1', {}, 'Tentura is invite-only'),
+      el(
+        'p',
+        {},
+        'Ask a friend for an invite link to join. If you already have an ' +
+          'account, open Tentura on your phone to sign in.',
+      ),
+    ),
+  );
+}
+
 async function main() {
   initAnalytics();
   const code = parseInviteCode();
   // Funnel event fires BEFORE any WASM — the Phase 0 analytics deliverable.
   track('landing_view', { tier: env.tier, hasCode: Boolean(code) });
   if (!code) {
-    renderError();
+    renderNoInvite();
     return;
   }
   try {

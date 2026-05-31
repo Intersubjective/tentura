@@ -786,6 +786,26 @@
   "@logout": {
     "context": "SettingsScreen"
   },
+  "signInMethods": "Способы входа",
+  "@signInMethods": {
+    "context": "SettingsScreen, CredentialsScreen"
+  },
+  "signInMethodsEmpty": "Способы входа ещё не привязаны",
+  "@signInMethodsEmpty": {
+    "context": "CredentialsScreen"
+  },
+  "credentialDeviceKey": "Ключ устройства",
+  "@credentialDeviceKey": {
+    "context": "CredentialsScreen"
+  },
+  "removeCredentialTitle": "Удалить способ входа?",
+  "@removeCredentialTitle": {
+    "context": "CredentialsScreen"
+  },
+  "removeCredentialBody": "После этого вы не сможете войти этим способом.",
+  "@removeCredentialBody": {
+    "context": "CredentialsScreen"
+  },
   "light": "Светлая",
   "@light": {
     "context": "ThemeSwitchButton"

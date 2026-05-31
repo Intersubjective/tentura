@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
 
+import 'package:tentura/features/auth/data/service/web_redirect.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
@@ -116,19 +117,23 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
-    // Login
+    // Login — web has no login UI: bounce unauthenticated users to the landing
+    // (`goToLanding` is a no-op on native, where the login screen still shows).
     AutoRoute(
       maintainState: false,
       page: AuthLoginRoute.page,
       path: kPathSignIn,
       guards: [
-        AutoRouteGuard.redirect(
-          (_) => _authCubit.state.isAuthenticated ? const ProfileRoute() : null,
-        ),
+        AutoRouteGuard.redirect((_) {
+          if (_authCubit.state.isAuthenticated) return const ProfileRoute();
+          goToLanding();
+          return null;
+        }),
       ],
     ),
 
-    // Profile Register
+    // Profile Register — web invite deep-links belong to the landing; bounce to
+    // its `/invite/:id` page. Native keeps the in-app register screen.
     AutoRoute(
       keepHistory: false,
       maintainState: false,
@@ -136,9 +141,13 @@ class RootRouter extends RootStackRouter {
       page: AuthRegisterRoute.page,
       path: '$kPathSignUp/:id',
       guards: [
-        AutoRouteGuard.redirect(
-          (_) => _authCubit.state.isAuthenticated ? const ProfileRoute() : null,
-        ),
+        AutoRouteGuard.redirect((resolver) {
+          if (_authCubit.state.isAuthenticated) return const ProfileRoute();
+          goToLanding(
+            invitePath: '/invite/${resolver.route.params.getString('id')}',
+          );
+          return null;
+        }),
       ],
     ),
 
@@ -173,6 +182,15 @@ class RootRouter extends RootStackRouter {
       fullscreenDialog: true,
       page: SettingsRoute.page,
       path: kPathSettings,
+    ),
+
+    // Settings > Sign-in methods (list / remove account credentials)
+    AutoRoute(
+      keepHistory: false,
+      maintainState: false,
+      fullscreenDialog: true,
+      page: CredentialsRoute.page,
+      path: kPathSignInMethods,
     ),
 
     // Beacon Create New

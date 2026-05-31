@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
@@ -134,6 +135,44 @@ abstract base class RemoteApiClientBase {
       throw const ServerUnknownException();
     }
     return response.bodyBytes;
+  }
+
+  /// Authenticated GET returning a decoded JSON object (REST `/api/v2/…`).
+  Future<Map<String, dynamic>> getAuthenticatedJson(Uri uri) async {
+    final token = (await getAuthToken()).accessToken;
+    final response = await http
+        .get(
+          uri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            kHeaderUserAgent: userAgent,
+            kHeaderAccept: 'application/json',
+          },
+        )
+        .timeout(requestTimeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ServerStatusException(response.statusCode);
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Authenticated DELETE; throws [ServerStatusException] on non-2xx so callers
+  /// can map the status (e.g. 404/409) to a domain exception.
+  Future<void> deleteAuthenticated(Uri uri) async {
+    final token = (await getAuthToken()).accessToken;
+    final response = await http
+        .delete(
+          uri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            kHeaderUserAgent: userAgent,
+            kHeaderAccept: 'application/json',
+          },
+        )
+        .timeout(requestTimeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ServerStatusException(response.statusCode);
+    }
   }
 
   //
