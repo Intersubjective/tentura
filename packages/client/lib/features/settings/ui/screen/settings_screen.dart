@@ -1,7 +1,7 @@
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/ui/dialog/show_seed_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -58,6 +58,13 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                   await ShowSeedDialog.show(context, seed: seed);
                 }
               },
+            ),
+
+            // Sign-in methods
+            OutlinedButton.icon(
+              icon: const Icon(Icons.key_outlined),
+              label: Text(l10n.signInMethods),
+              onPressed: () => context.router.push(const CredentialsRoute()),
             ),
 
             // Intro

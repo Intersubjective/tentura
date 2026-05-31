@@ -13,6 +13,8 @@
    below) — link/list/remove on the `ed25519_device` provider.
 4. Landing device-seed signup (slice 3 below) — Tier-1-only Ed25519 signup on the static
    landing (WebCrypto + `accept-as-new` + handoff); auth flipped on.
+5. Client WASM (slice 4 below) — unauthenticated web → landing redirect; `Settings > Sign-in
+   methods` list+remove; landing no-invite fallback.
 
 ---
 
@@ -227,6 +229,89 @@ changes** — this slice is landing-only.
 
 ---
 
+## What shipped — slice 4: client WASM (web redirect + Settings sign-in methods)
+
+Scoped with the user: **no "Add" flow** (deferred — the COOP popup experiment is not needed
+because only `ed25519_device` exists today and adding a second device key is an in-app
+action, not a landing popup). **Server-side: no changes.** All changes are client + landing.
+
+### Part A — unauthenticated web → landing
+
+- **`web_redirect{,_stub,_web}.dart`** (new conditional-import helper, mirrors
+  `web_handoff`): exports `goToLanding({String? invitePath})` — on web executes
+  `window.location.assign(landingUrl)`, on native is a silent no-op returning `false`.
+- **`root_router.dart`** `AuthLoginRoute` / `AuthRegisterRoute` guards now call
+  `goToLanding(invitePath: …)` for unauthenticated web visitors; register carries the
+  original `/invite/:id` path as a query param so the landing keeps invite context. Native
+  login / register / recovery guards are **untouched**.
+
+### Part B — Settings › Sign-in methods
+
+- **`RemoteApiClientBase`** gained `getAuthenticatedJson` and `deleteAuthenticated` (beside
+  the existing `fetchAuthenticatedBytes`); any non-2xx response raises `ServerStatusException(code)`.
+- **`features/credentials/`** (new package):
+  - `entity/credential_entity.dart` — `CredentialEntity(id, type, identifier, createdAt)`.
+  - `data/repository/credentials_repository.dart` — `@Singleton`; `getCredentials()` /
+    `deleteCredential(id)` over the two new `RemoteApiClientBase` helpers.
+  - `ui/bloc/credentials_cubit.dart` + `credentials_state.dart` (`@freezed`) — loads on
+    init, optimistically removes on delete, re-fetches on error.
+  - `ui/screen/credentials_screen.dart` (`@RoutePage`) — list + per-row delete icon;
+    `409` → `LastCredentialException` shown as snackbar; `404` → `CredentialNotFoundException`.
+- **`domain/exception/credential_exception.dart`** (new): `LastCredentialException` /
+  `CredentialNotFoundException`.
+- **`consts.dart`**: `kPathSignInMethods` added.
+- **`settings_screen.dart`**: "Sign-in methods" tile wired to the new route.
+- **`app_en.arb` / `app_ru.arb`**: l10n keys for screen title, empty state, last-credential
+  error, not-found error, and the Settings tile label.
+
+### Landing fix — no-invite root fallback
+
+Logout on web → guard chain → landing root, which previously dead-ended on a generic error
+page. Added `renderNoInvite()`: a neutral "invite-only" message (no credentials disclosed).
+
+### Decisions (locked with user)
+
+- **Add deferred.** Adding a credential requires a device-auth-request keypair generated
+  in the app — it is an in-app action, not a landing flow. No popup, COOP non-issue.
+- **Web recovery / account-switching** deferred to native (a later slice).
+- **Multi-use invites** untouched.
+
+### Verified
+
+- `build_runner` codegen clean · `flutter analyze` no issues on changed files.
+- 283 tests pass (277 existing + 6 new credential tests, 0 regressions).
+- `flutter build web` compiles (Wasm dry-run OK).
+- `check_handoff_contract.sh` OK · landing `node --check` OK.
+
+### Gotchas (slice 4)
+
+- **Remove happy-path caveat.** Every account currently has exactly one `ed25519_device`
+  credential (m0080 backfill + each `accept-as-new` mints one), so live "remove a non-last
+  credential" requires manually inserting a second credential server-side. The 409-on-last
+  guard is what you'll see in the field — correct behavior, just a testing note.
+- **Session revocation still owed** (from slice 2). Removing a credential does not kill its
+  live sessions; the 1h JWT expiry is the interim mitigation.
+
+### Owed (needs HTTPS dev stack / real browser)
+
+- Live cross-subdomain E2E (same as slices 1–3).
+- Live remove-non-last-credential E2E (needs a second credential inserted server-side).
+
+### Key files (slice 4)
+
+`packages/client/lib/features/auth/data/service/web_redirect{,_stub,_web}.dart` (new) ·
+`…/lib/app/router/root_router.dart` ·
+`…/lib/features/credentials/` (new: entity · repo · cubit · state · screen) ·
+`…/lib/domain/exception/credential_exception.dart` (new) ·
+`…/lib/domain/exception/server_exception.dart` ·
+`…/lib/data/service/remote_api_client/remote_api_client_base.dart` ·
+`…/lib/consts.dart` · `…/lib/features/settings/ui/screen/settings_screen.dart` ·
+`…/l10n/app_{en,ru}.arb` ·
+`packages/landing/main.js` (renderNoInvite) ·
+`packages/client/test/features/credentials/` (new, 6 tests).
+
+---
+
 ## Follow-up slices (ordered; each its own plan-mode pass)
 
 1. ✅ **Cross-subdomain session handoff — SHIPPED (transport).** Implemented as a URL-fragment
@@ -248,11 +333,11 @@ changes** — this slice is landing-only.
    only** — in-app webviews are **never** offered device-seed signup (unrecoverable key
    loss); the recoverable **email** path is the eventual Tier-2 method, a later slice.
    **Owed:** live browser execution + E2E on the HTTPS dev stack.
-4. **Client WASM.** Remove the web login UI (`auth_login_screen`/`auth_register_screen`
-   entry), redirect unauthenticated → landing, hydrate from the handoff (the consume side
-   from slice 1 is done). Add `Settings > Sign-in methods` (list/add/remove) — linking opens
-   a landing popup. **This is where the COOP `same-origin` vs popup `postMessage` constraint
-   (plan Risk #1) must be validated empirically** — it did not affect the slice-1 redirect.
+4. ✅ **Client WASM — SHIPPED (web redirect + Settings list/remove).** Unauthenticated web
+   → landing redirect; `Settings > Sign-in methods` list + remove (409/404 handled); landing
+   no-invite fallback. See "What shipped — slice 4" above. **Add deferred** (in-app action,
+   no popup, COOP non-issue). **Owed:** live cross-subdomain E2E; live remove-non-last E2E
+   (needs a second credential server-side). **Session revocation** still owed from slice 2.
 
 ## Key files (this slice)
 `packages/server/lib/data/database/migration/m0080.dart` ·

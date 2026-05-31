@@ -23,3 +23,17 @@ final class ServerNoDataException extends ServerException {
   @override
   String get toRu => 'Нет данных';
 }
+
+/// Non-2xx response from a REST endpoint; carries the HTTP [statusCode] so
+/// callers can map it to a domain exception (e.g. 404/409).
+final class ServerStatusException extends ServerException {
+  const ServerStatusException(this.statusCode);
+
+  final int statusCode;
+
+  @override
+  String get toEn => 'Server error ($statusCode)';
+
+  @override
+  String get toRu => 'Ошибка сервера ($statusCode)';
+}

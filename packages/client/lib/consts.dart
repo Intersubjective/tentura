@@ -23,6 +23,7 @@ const kPathRating = '/rating';
 const kPathSignIn = '/sign/in';
 const kPathSignUp = '/sign/up';
 const kPathSettings = '/settings';
+const kPathSignInMethods = '/settings/sign-in-methods';
 const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
 const kPathInboxRejected = '$kPathInbox/rejected';
