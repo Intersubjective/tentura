@@ -5,6 +5,7 @@ import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:tentura_server/env.dart';
 
 import 'controllers/account_credentials_controller.dart';
+import 'controllers/auth_google_controller.dart';
 import 'controllers/firebase_sw_controller.dart';
 import 'controllers/websocket_controller.dart';
 import 'controllers/graphiql_controller.dart';
@@ -13,6 +14,7 @@ import 'controllers/invite_accept_existing_controller.dart';
 import 'controllers/invite_accept_new_controller.dart';
 import 'controllers/invite_preview_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
+import 'controllers/session_controller.dart';
 import 'controllers/shared_view_controller.dart';
 import 'middleware/auth_middleware.dart';
 
@@ -31,6 +33,8 @@ class RootRouter {
     this._inviteAcceptNewController,
     this._inviteAcceptExistingController,
     this._accountCredentialsController,
+    this._sessionController,
+    this._authGoogleController,
   );
 
   final Env _env;
@@ -56,6 +60,10 @@ class RootRouter {
   final InviteAcceptExistingController _inviteAcceptExistingController;
 
   final AccountCredentialsController _accountCredentialsController;
+
+  final SessionController _sessionController;
+
+  final AuthGoogleController _authGoogleController;
 
   Handler routeHandler() {
     final router = Router().plus
@@ -86,7 +94,28 @@ class RootRouter {
       ..get(
         '/api/v2/invite/<code>/preview',
         _invitePreviewController.handler,
-        use: _authMiddleware.extractJwtClaims,
+        use: _authMiddleware.extractJwtOrSessionClaims,
+      )
+      ..post(
+        '/api/v2/session/access-token',
+        _sessionController.accessToken,
+      )
+      ..post(
+        '/api/v2/session/logout',
+        _sessionController.logout,
+      )
+      ..post(
+        '/api/v2/session/from-bearer',
+        _sessionController.fromBearer,
+        use: _authMiddleware.verifyBearerJwt,
+      )
+      ..get(
+        '/api/auth/google/start',
+        _authGoogleController.start,
+      )
+      ..get(
+        '/api/auth/google/callback',
+        _authGoogleController.callback,
       )
       ..post(
         '/api/v2/invite/<code>/accept-as-new',

@@ -26,4 +26,8 @@ abstract class AuthLocalRepositoryPort {
   Future<void> setCurrentAccountId(String? id);
 
   Future<void> addAccount(String id, String seed, [String? displayName]);
+
+  Future<void> addSessionAccount(String id, [String? displayName]);
+
+  Future<bool> isSessionAccount(String id);
 }

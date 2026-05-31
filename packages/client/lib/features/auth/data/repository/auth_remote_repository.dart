@@ -64,13 +64,32 @@ class AuthRemoteRepository extends RemoteRepository
       authTokenFetcher: authTokenFetcher,
     );
     final authToken = await remoteApiService.getAuthToken();
+    await remoteApiService.establishSessionFromBearer();
     return authToken.userId;
   }
+
+  @override
+  Future<String> signInWithSession() async {
+    await remoteApiService.dropAuth();
+    await remoteApiService.setSessionAuth();
+    final authToken = await remoteApiService.getAuthToken();
+    return authToken.userId;
+  }
+
+  @override
+  Future<void> establishSessionFromBearer() =>
+      remoteApiService.establishSessionFromBearer();
+
+  @override
+  Future<void> sessionLogout() => remoteApiService.sessionLogout();
 
   //
   //
   @override
   Future<void> signOut() async {
+    if (remoteApiService.isSessionAuth) {
+      await remoteApiService.sessionLogout();
+    }
     if (remoteApiService.hasValidToken) {
       await remoteApiService
           .request(GSignOutReq())

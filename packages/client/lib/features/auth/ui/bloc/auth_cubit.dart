@@ -36,10 +36,12 @@ class AuthCubit extends Cubit<AuthState> {
     // Web: pick up a landing -> app session handoff before reading local state,
     // so the account it writes is visible to the hydration below.
     await authCase.consumeHandoff();
+    final sessionUserId = await authCase.tryBootstrapSession();
     final accounts = await accountCase.getAccountsAll();
     var state = AuthState(
       accounts: accounts..sort(_compareAccounts),
-      currentAccountId: await authCase.getCurrentAccountId(),
+      currentAccountId:
+          sessionUserId ?? await authCase.getCurrentAccountId(),
       updatedAt: DateTime.timestamp(),
     );
     if (state.isAuthenticated) {

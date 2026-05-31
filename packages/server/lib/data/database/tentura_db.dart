@@ -7,6 +7,7 @@ import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
@@ -19,6 +20,7 @@ import 'package:tentura_server/domain/entity/user_entity.dart';
 
 import 'custom_types/mentions_text_array_type.dart';
 import 'table/account_credentials.dart';
+import 'table/account_sessions.dart';
 import 'table/beacon_help_offers.dart';
 import 'table/beacon_help_offer_coordinations.dart';
 import 'table/beacon_evaluation_participants.dart';
@@ -62,6 +64,7 @@ part 'tentura_db.g.dart';
 @DriftDatabase(
   tables: [
     AccountCredentials,
+    AccountSessions,
     BeaconHelpOffers,
     BeaconHelpOfferCoordinations,
     BeaconEvaluationParticipants,

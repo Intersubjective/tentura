@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
@@ -129,6 +132,135 @@ class UserRepository implements UserRepositoryPort {
     }
 
     return userModelToEntity(user);
+  });
+
+  /// Unique 44-char placeholder satisfying Hasura `String!` on `user.public_key`.
+  Future<String> _generatePlaceholderPublicKey() async {
+    for (var attempt = 0; attempt < 5; attempt++) {
+      final bytes = List<int>.generate(32, (_) => Random.secure().nextInt(256));
+      var key = base64UrlEncode(bytes).replaceAll('=', '');
+      if (key.length < 44) {
+        key = key.padRight(44, 'A');
+      } else if (key.length > 44) {
+        key = key.substring(0, 44);
+      }
+      final exists = await _database.managers.users
+          .filter((e) => e.publicKey(key))
+          .getSingleOrNull();
+      if (exists == null) return key;
+    }
+    throw const IdDuplicateException(description: 'Could not allocate public_key');
+  }
+
+  Future<UserEntity> _createUserWithCredential({
+    required CredentialType type,
+    required String identifier,
+    required String displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  }) async {
+    final publicKey = await _generatePlaceholderPublicKey();
+    final user = await _database.managers.users.createReturning(
+      (o) => o(
+        displayName: displayName,
+        publicKey: publicKey,
+        handle: handle == null || handle.trim().isEmpty
+            ? const Value.absent()
+            : Value(handle.trim().toLowerCase()),
+      ),
+    );
+    await _database.managers.accountCredentials.create(
+      (o) => o(
+        accountId: user.id,
+        type: type.wire,
+        identifier: identifier,
+        publicData: publicData == null
+            ? const Value.absent()
+            : Value(publicData),
+      ),
+    );
+    return userModelToEntity(user);
+  }
+
+  @override
+  Future<UserEntity> createWithCredential({
+    required CredentialType type,
+    required String identifier,
+    required String displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  }) => _database.transaction<UserEntity>(
+    () => _createUserWithCredential(
+      type: type,
+      identifier: identifier,
+      displayName: displayName,
+      handle: handle,
+      publicData: publicData,
+    ),
+  );
+
+  @override
+  Future<UserEntity> createInvitedWithCredential({
+    required String invitationId,
+    required CredentialType type,
+    required String identifier,
+    required String displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  }) => _database.transaction<UserEntity>(() async {
+    final invitation = await _database.managers.invitations
+        .filter((e) => e.id(invitationId))
+        .getSingle();
+    if (invitation.invitedId != null) {
+      throw const InvitationWrongException(
+        description: 'Invitation already used!',
+      );
+    }
+    if (invitation.createdAt.dateTime
+        .add(_env.invitationTTL)
+        .isBefore(DateTime.timestamp())) {
+      throw const InvitationWrongException(description: 'Invitation expired!');
+    }
+
+    final user = await _createUserWithCredential(
+      type: type,
+      identifier: identifier,
+      displayName: displayName,
+      handle: handle,
+      publicData: publicData,
+    );
+    final changedRowCount = await _database.managers.invitations
+        .filter((e) => e.id(invitationId))
+        .update((o) => o(invitedId: Value(user.id)));
+    if (changedRowCount == 0) {
+      throw const InvitationWrongException(
+        description: 'Can`t update invitation!',
+      );
+    }
+
+    await _database.managers.voteUsers.bulkCreate(
+      (o) => [
+        o(subject: user.id, object: invitation.userId, amount: 1),
+        o(subject: invitation.userId, object: user.id, amount: 1),
+      ],
+    );
+
+    if (invitation.beaconId != null) {
+      await _database.into(_database.inboxItems).insert(
+        InboxItemsCompanion.insert(
+          userId: user.id,
+          beaconId: invitation.beaconId!,
+          status: const Value(0),
+          forwardCount: const Value(1),
+          latestForwardAt: Value(PgDateTime(DateTime.timestamp())),
+          latestNotePreview: const Value(''),
+          rejectionMessage: const Value(''),
+        ),
+        onConflict: DoNothing(),
+      );
+    }
+
+    return user;
   });
 
   //

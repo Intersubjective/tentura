@@ -117,10 +117,34 @@ final class AuthCase extends UseCaseBase {
   }
 
   ///
+  /// Web: bootstrap from HttpOnly session cookie when present (Google OAuth).
+  /// Returns the account id or null when no valid cookie session exists.
+  ///
+  Future<String?> tryBootstrapSession() async {
+    try {
+      final userId = await _authRemoteRepository.signInWithSession();
+      final existing = await _authLocalRepository.getAccountById(userId);
+      if (existing == null) {
+        await _authLocalRepository.addSessionAccount(userId);
+      }
+      await _authLocalRepository.setCurrentAccountId(userId);
+      return userId;
+    } catch (e, s) {
+      logger.fine('No cookie session to bootstrap', e, s);
+      return null;
+    }
+  }
+
+  ///
   /// Signs in with the account corresponding to the given [userId].
   /// Throws [AuthSeedIsWrongException] if the seed for the account is not found.
   ///
   Future<void> signIn({required String userId}) async {
+    if (await _authLocalRepository.isSessionAccount(userId)) {
+      await _authRemoteRepository.signInWithSession();
+      await _authLocalRepository.setCurrentAccountId(userId);
+      return;
+    }
     final seed = await _authLocalRepository.getSeedByAccountId(userId);
     if (seed.isEmpty) {
       throw const AuthSeedIsWrongException();
@@ -130,9 +154,20 @@ final class AuthCase extends UseCaseBase {
   }
 
   ///
+  /// Converge seed Bearer auth to HttpOnly session cookie (web preview CORS).
+  ///
+  Future<void> establishSessionCookie() =>
+      _authRemoteRepository.establishSessionFromBearer();
+
+  ///
   /// Signs out the current user.
   ///
   Future<void> signOut() async {
+    final currentId = await _authLocalRepository.getCurrentAccountId();
+    if (currentId.isNotEmpty &&
+        await _authLocalRepository.isSessionAccount(currentId)) {
+      await _authRemoteRepository.sessionLogout();
+    }
     await _devicePushPort.unregisterCurrentDevice();
     await _authRemoteRepository.signOut();
     await _authLocalRepository.setCurrentAccountId(null);

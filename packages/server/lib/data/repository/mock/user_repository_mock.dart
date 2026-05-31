@@ -42,6 +42,29 @@ class UserRepositoryMock implements UserRepositoryPort {
   }
 
   @override
+  Future<UserEntity> createWithCredential({
+    required CredentialType type,
+    required String identifier,
+    required String displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<UserEntity> createInvitedWithCredential({
+    required String invitationId,
+    required CredentialType type,
+    required String identifier,
+    required String displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<UserEntity> getById(String id) async =>
       storageByPublicKey.values.where((e) => e.id == id).firstOrNull ??
       (throw IdNotFoundException(id: id));

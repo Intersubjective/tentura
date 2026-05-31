@@ -130,6 +130,11 @@ services:
       - JWT_PRIVATE_PEM
       - JWT_PUBLIC_PEM
       - JWT_EXPIRES_IN
+      - APP_ORIGIN
+      - LANDING_ORIGIN
+      - GOOGLE_CLIENT_ID
+      - GOOGLE_CLIENT_SECRET
+      - SESSION_EXPIRES_IN
       - S3_ACCESS_KEY
       - S3_SECRET_KEY
       - S3_ENDPOINT

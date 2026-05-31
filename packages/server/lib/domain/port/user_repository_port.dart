@@ -16,6 +16,25 @@ abstract class UserRepositoryPort {
     String? handle,
   });
 
+  /// Seedless account with a single non-device credential (e.g. OIDC).
+  Future<UserEntity> createWithCredential({
+    required CredentialType type,
+    required String identifier,
+    required String displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  });
+
+  /// Invite acceptance for seedless credential accounts (no `ed25519_device`).
+  Future<UserEntity> createInvitedWithCredential({
+    required String invitationId,
+    required CredentialType type,
+    required String identifier,
+    required String displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  });
+
   Future<UserEntity> getById(String id);
 
   Future<UserEntity> getByPublicKey(String publicKey);

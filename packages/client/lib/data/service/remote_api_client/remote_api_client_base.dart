@@ -13,6 +13,7 @@ import 'package:tentura/domain/exception/server_exception.dart';
 import 'auth_box.dart';
 import 'credentials.dart';
 import 'exception.dart';
+import 'session_fetch.dart';
 
 typedef GqlFetcher =
     Stream<OperationResponse<TData, TVars>> Function<TData, TVars>(
@@ -46,7 +47,16 @@ abstract base class RemoteApiClientBase {
 
   AuthBox? _authBox;
 
-  bool get hasValidToken => _authBox?.hasValidToken ?? false;
+  bool _sessionAuth = false;
+
+  Credentials? _sessionCredentials;
+
+  bool get isSessionAuth => _sessionAuth;
+
+  bool get hasValidToken =>
+      _sessionAuth
+          ? (_sessionCredentials?.hasValidToken ?? false)
+          : (_authBox?.hasValidToken ?? false);
 
   //
   //
@@ -69,6 +79,8 @@ abstract base class RemoteApiClientBase {
       throw const AuthenticationNoKeyException();
     }
     _tokenLocked = false;
+    _sessionAuth = false;
+    _sessionCredentials = null;
     _authBox = AuthBox.fromSeed(
       seed: seed,
       authTokenFetcher: authTokenFetcher,
@@ -78,6 +90,44 @@ abstract base class RemoteApiClientBase {
         : _authBox!.getAuthRequestToken(returnAuthRequestToken);
   }
 
+  /// Cookie-session auth (web TMB). Clears seed-based auth state.
+  @mustCallSuper
+  Future<void> setSessionAuth() async {
+    _tokenLocked = false;
+    _authBox = null;
+    _sessionAuth = true;
+    _sessionCredentials = null;
+  }
+
+  /// After seed Bearer sign-in, converge to HttpOnly session cookie (web preview).
+  Future<void> establishSessionFromBearer() async {
+    if (_sessionAuth) return;
+    if (_authBox == null) {
+      throw const AuthenticationNoKeyException();
+    }
+    final bearer = (await getAuthToken()).accessToken;
+    await postSessionRequest(
+      uri: _sessionUri('/api/v2/session/from-bearer'),
+      userAgent: userAgent,
+      timeout: requestTimeout,
+      bearerToken: bearer,
+    );
+  }
+
+  /// Revoke server session cookie (best-effort).
+  Future<void> sessionLogout() async {
+    if (!_sessionAuth) return;
+    try {
+      await postSessionRequest(
+        uri: _sessionUri('/api/v2/session/logout'),
+        userAgent: userAgent,
+        timeout: requestTimeout,
+      );
+    } on SessionHttpException {
+      /* already logged out */
+    }
+  }
+
   //
   //
   //
@@ -85,6 +135,8 @@ abstract base class RemoteApiClientBase {
   Future<void> dropAuth() async {
     _authBox = null;
     _tokenLocked = false;
+    _sessionAuth = false;
+    _sessionCredentials = null;
   }
 
   //
@@ -92,6 +144,28 @@ abstract base class RemoteApiClientBase {
   //
   @mustCallSuper
   Future<Credentials> getAuthToken() async {
+    if (_sessionAuth) {
+      if (_sessionCredentials != null && _sessionCredentials!.hasValidToken) {
+        return _sessionCredentials!;
+      }
+      if (_tokenLocked) {
+        for (var i = 0; i < 5; i++) {
+          await Future<void>.delayed(Duration(milliseconds: 100 + 100 * i));
+          if (!_tokenLocked &&
+              (_sessionCredentials?.hasValidToken ?? false)) {
+            return _sessionCredentials!;
+          }
+        }
+        throw TimeoutException('Timeout while refreshing session token!');
+      }
+      _tokenLocked = true;
+      try {
+        _sessionCredentials = await _fetchSessionCredentials();
+        return _sessionCredentials!;
+      } finally {
+        _tokenLocked = false;
+      }
+    }
     if (_authBox == null) {
       throw const AuthenticationNoKeyException();
     }
@@ -185,4 +259,23 @@ abstract base class RemoteApiClientBase {
     )?
     forward,
   ]);
+
+  Uri _sessionUri(String path) =>
+      Uri.parse(apiEndpointUrlV2).replace(path: path, query: '');
+
+  Future<Credentials> _fetchSessionCredentials() async {
+    final response = await postSessionRequest(
+      uri: _sessionUri('/api/v2/session/access-token'),
+      userAgent: userAgent,
+      timeout: requestTimeout,
+    );
+    final json = await decodeJsonResponse(response);
+    return Credentials(
+      userId: json['subject'] as String,
+      accessToken: json['access_token'] as String,
+      expiresAt: DateTime.timestamp().add(
+        Duration(seconds: json['expires_in'] as int),
+      ),
+    );
+  }
 }

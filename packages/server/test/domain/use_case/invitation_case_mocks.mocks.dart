@@ -172,6 +172,71 @@ class MockUserRepositoryPort extends _i1.Mock
           as _i7.Future<_i3.UserEntity>);
 
   @override
+  _i7.Future<_i3.UserEntity> createWithCredential({
+    required _i4.CredentialType? type,
+    required String? identifier,
+    required String? displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#createWithCredential, [], {
+              #type: type,
+              #identifier: identifier,
+              #displayName: displayName,
+              #handle: handle,
+              #publicData: publicData,
+            }),
+            returnValue: _i7.Future<_i3.UserEntity>.value(
+              _FakeUserEntity_1(
+                this,
+                Invocation.method(#createWithCredential, [], {
+                  #type: type,
+                  #identifier: identifier,
+                  #displayName: displayName,
+                  #handle: handle,
+                  #publicData: publicData,
+                }),
+              ),
+            ),
+          )
+          as _i7.Future<_i3.UserEntity>);
+
+  @override
+  _i7.Future<_i3.UserEntity> createInvitedWithCredential({
+    required String? invitationId,
+    required _i4.CredentialType? type,
+    required String? identifier,
+    required String? displayName,
+    String? handle,
+    Map<String, Object?>? publicData,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#createInvitedWithCredential, [], {
+              #invitationId: invitationId,
+              #type: type,
+              #identifier: identifier,
+              #displayName: displayName,
+              #handle: handle,
+              #publicData: publicData,
+            }),
+            returnValue: _i7.Future<_i3.UserEntity>.value(
+              _FakeUserEntity_1(
+                this,
+                Invocation.method(#createInvitedWithCredential, [], {
+                  #invitationId: invitationId,
+                  #type: type,
+                  #identifier: identifier,
+                  #displayName: displayName,
+                  #handle: handle,
+                  #publicData: publicData,
+                }),
+              ),
+            ),
+          )
+          as _i7.Future<_i3.UserEntity>);
+
+  @override
   _i7.Future<_i3.UserEntity> getById(String? id) =>
       (super.noSuchMethod(
             Invocation.method(#getById, [id]),

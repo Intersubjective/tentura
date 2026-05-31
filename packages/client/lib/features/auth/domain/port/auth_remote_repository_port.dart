@@ -11,5 +11,11 @@ abstract class AuthRemoteRepositoryPort {
 
   Future<String> signIn(String seed);
 
+  Future<String> signInWithSession();
+
+  Future<void> establishSessionFromBearer();
+
+  Future<void> sessionLogout();
+
   Future<void> signOut();
 }

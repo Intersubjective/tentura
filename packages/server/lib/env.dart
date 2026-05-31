@@ -23,9 +23,14 @@ class Env {
     // Auth
     bool? isNeedInvite,
     Duration? jwtExpiresIn,
+    Duration? sessionExpiresIn,
     Duration? invitationTTL,
     String? publicKey,
     String? privateKey,
+    String? appOrigin,
+    String? landingOrigin,
+    String? googleClientId,
+    String? googleClientSecret,
 
     // Web server
     String? bindAddress,
@@ -85,7 +90,18 @@ class Env {
        // Auth
        invitationTTL = invitationTTL ?? kInvitationTTL,
        jwtExpiresIn = jwtExpiresIn ?? const Duration(seconds: kJwtExpiresIn),
+       sessionExpiresIn = sessionExpiresIn ??
+           Duration(
+             seconds:
+                 int.tryParse(_env['SESSION_EXPIRES_IN'] ?? '') ??
+                 kSessionExpiresIn,
+           ),
        isNeedInvite = isNeedInvite ?? _env['NEED_INVITE'] == 'true',
+       appOrigin = appOrigin ?? _env['APP_ORIGIN'] ?? '',
+       landingOrigin = landingOrigin ?? _env['LANDING_ORIGIN'] ?? '',
+       googleClientId = googleClientId ?? _env['GOOGLE_CLIENT_ID'] ?? '',
+       googleClientSecret =
+           googleClientSecret ?? _env['GOOGLE_CLIENT_SECRET'] ?? '',
        publicKey = EdDSAPublicKey.fromPEM(
          (publicKey ?? _env['JWT_PUBLIC_PEM'] ?? kJwtPublicKey).replaceAll(
            r'\n',
@@ -218,11 +234,24 @@ class Env {
 
   final Duration jwtExpiresIn;
 
+  final Duration sessionExpiresIn;
+
   final Duration invitationTTL;
 
   final EdDSAPublicKey publicKey;
 
   final EdDSAPrivateKey privateKey;
+
+  /// App host origin for OAuth redirects (e.g. `https://app.tentura.io`).
+  final String appOrigin;
+
+  /// Landing host origin for preview CORS (e.g. `https://tentura.io`).
+  final String landingOrigin;
+
+  /// Google OAuth client id; empty disables `/api/auth/google/start`.
+  final String googleClientId;
+
+  final String googleClientSecret;
 
   // Web server
   final String bindAddress;

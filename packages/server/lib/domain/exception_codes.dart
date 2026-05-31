@@ -32,6 +32,11 @@ enum AuthExceptionCode {
   authAuthorizationHeaderWrongException,
   authCredentialConflictException,
   authLastCredentialException,
+  oidcStateMismatch,
+  oidcTokenExchangeFailed,
+  oidcIdTokenInvalid,
+  oidcProviderDisabled,
+  oidcInviteRequired,
 }
 
 class AuthExceptionCodes extends ExceptionCodes {
