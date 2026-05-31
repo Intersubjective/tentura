@@ -20,6 +20,7 @@ the JSON preview from the Dart server and renders one of five states.
 | `webview.js`  | in-app-webview detection / Android `intent://`              |
 | `analytics.js`| funnel events via the CDN Sentry global                     |
 | `handoff.js`  | builds the `#th=…` URL + redirects to the app (transport)   |
+| `auth.js`     | device-seed signup: WebCrypto Ed25519 + auth-request JWT + accept-as-new |
 | `styles.css`  | styling                                                     |
 
 `handoff-dev.html` is a **dev-only** harness (not part of the shipped flow) for
@@ -65,15 +66,39 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - **Beacon overlay** shown above the CTA in every state when `beacon` is present.
 - Funnel events fire via Sentry **before** any WASM.
 
-## Phase 0 scope / not yet wired
+## Auth (slice 3) — device-seed signup, Tier-1 only
 
-- Auth CTAs (passkey/Google/Apple/email) are **feature-flagged off**
-  (`AUTH_ENABLED = false` in `main.js`) — real auth is **Phase 1**.
+- **Live:** anonymous device-seed signup. `auth.js` generates an Ed25519 keypair
+  with **native WebCrypto** (`crypto.subtle`, no npm, no vendored lib), self-signs
+  an EdDSA auth-request JWT, and POSTs `accept-as-new`; on success it hands the
+  **seed** to the app via `handoff.js`. `AUTH_ENABLED` (in `main.js`) is the
+  master kill-switch.
+- **Secure context required.** `crypto.subtle` exists only in a secure context
+  (HTTPS, or a `localhost`/`127.0.0.1` host). Over plain `http://dev.lvh.me:9080`
+  it is absent, so the signup CTA is hidden (feature-detect returns false) — local
+  signup E2E needs HTTPS or a `localhost`-named host; the dev stack is HTTPS.
+- **Tier-1 only.** Signup is offered **only** in system browsers with native
+  WebCrypto Ed25519. It is deliberately **never** offered in Tier-2 in-app
+  webviews: a device key minted in an ephemeral/siloed webview would be lost when
+  the webview closes (and is unrecoverable without a second credential). Tier-2
+  keeps the "open in your browser" escape; the **email** path (recoverable) is
+  the eventual Tier-2 method — a later slice.
+- **Deferred:** passkey/Google/Apple/email providers (need their server providers,
+  deferred in slice 2); per-IP signup rate-limiting (invite slots are the interim
+  limiter); befriend-on-open for existing accounts (slice-4 client work — here
+  "I already have an account" just opens the app).
 - Tier-2 (in-app webview) browser escape: Android `intent://`, iOS copy-link +
   Safari coaching (no programmatic iOS escape, Risk #2).
-- Ed25519 (Phase 1) will be loaded **in-browser** (CDN ESM or a vendored single
-  file), never via npm.
 - Session handoff key names are pinned in `docs/handoff-contract.md`.
+
+### Seed encoding (do not break)
+
+The seed string in the handoff payload must be url-safe base64 **with `=`
+padding** — the app decodes it with `base64Decode` (no normalize), which throws
+on un-padded input. `auth.js` has its own padded helper; do **not** reuse
+`handoff.js`'s `base64url()` (it strips padding — correct for the fragment, fatal
+for the seed). The auth-request JWT segments use JWT-standard base64url *without*
+padding.
 
 ## Session handoff (landing → WASM app)
 
@@ -85,7 +110,8 @@ never reaches the server. Field names (`th`, `v`, `userId`, `seed`,
 `displayName`) are the contract in `docs/handoff-contract.md`, pinned across both
 sides by `scripts/check_handoff_contract.sh` (CI).
 
-`redirectToApp({ userId, seed, displayName? })` is the transport entry point; the
-real auth that produces the seed lands in a later slice. To exercise it now, serve
-the landing locally and open `handoff-dev.html`, paste a known `userId` + `seed`,
-and click through — the app should boot already signed in.
+`redirectToApp({ userId, seed, displayName? })` is the transport entry point;
+`auth.js`'s `signUpWithSeed(...)` produces that payload on a successful signup. To
+exercise the transport by hand, serve the landing locally and open
+`handoff-dev.html`, paste a known `userId` + `seed`, and click through — the app
+should boot already signed in.

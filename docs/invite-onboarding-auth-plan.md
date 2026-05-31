@@ -333,7 +333,7 @@ program-level summary.
 | Split invite accept endpoints | **Done** | `accept-as-new` / `accept-as-existing` (REST, additive; GraphQL stays). |
 | Session handoff (slice 1) | **Done** | URL-fragment redirect; CI-pinned. Live cross-subdomain E2E **owed**. |
 | `/accounts/me/credentials` link/list/remove (slice 2) | **Done (infra + `ed25519_device`)** | Conflict→409, last-credential→409. **Deferred:** WebAuthn/OIDC/email-OTP providers; immediate session revocation (1h JWT expiry is interim). |
-| Landing real auth (Tier 1/2) | **Pending** | Slice 3. |
+| Landing real auth | **Done (device-seed, Tier-1 only)** | Slice 3. `auth.js`: WebCrypto-Ed25519 signup → `accept-as-new` → handoff. **Deferred:** passkey/Google/Apple/email providers; **Tier-2 in-app webviews never get device-seed signup** (unrecoverable key loss) — email path is their future method. Live E2E owed on HTTPS dev stack. |
 | Client WASM (remove login UI, Settings sign-in methods) | **Pending** | Slice 4 — where the COOP/popup constraint (Risk #1) gets validated. |
 
 ### Server — Drift migration m0073+
