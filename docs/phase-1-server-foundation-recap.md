@@ -11,6 +11,8 @@
    incl. CI pin (`check_handoff_contract.sh`) and landing/web deploy plumbing.
 3. `feat(phase-1): credential management endpoints (/accounts/me/credentials)` (slice 2
    below) — link/list/remove on the `ed25519_device` provider.
+4. Landing device-seed signup (slice 3 below) — Tier-1-only Ed25519 signup on the static
+   landing (WebCrypto + `accept-as-new` + handoff); auth flipped on.
 
 ---
 
@@ -168,6 +170,63 @@ revocation are deferred to follow-up slices.
 
 ---
 
+## What shipped — slice 3: landing device-seed signup (Tier-1 only)
+
+Scoped with the user: **device-seed (Ed25519) signup only**, **Tier-1 system browsers
+only**. The other Tier-1 providers (passkey/Google/Apple/email) stay deferred — their
+server providers were deferred in slice 2, and the only signup endpoint that exists today
+(`accept-as-new`) takes just `{authRequestToken, displayName, handle?}`. **Server-side: no
+changes** — this slice is landing-only.
+
+- **`packages/landing/auth.js`** (new): generates an Ed25519 keypair with **native
+  WebCrypto** (`crypto.subtle`, no npm, no vendored lib), self-signs an EdDSA auth-request
+  JWT (only `pk` + signature needed — `accept-as-new` reads the code from the URL), POSTs
+  `POST /api/v2/invite/:code/accept-as-new`, and returns `{userId, seed, displayName}` for
+  `redirectToApp`. Exports `webcryptoEd25519Available()` (feature-detect) + `signUpWithSeed()`.
+- **`main.js`:** `AUTH_ENABLED` is now a master kill-switch; the resolved gate is
+  `signupReady = Tier-1 && WebCrypto-available`. "I'm new — sign up" reveals an inline
+  displayName(+optional handle) form → signup → handoff. "I already have an account" opens
+  the app (befriend-on-open is slice-4 client work). Funnel events `signup_start/success/error`.
+- **Tier-2 policy (locked with user):** device-seed signup is **never** offered in in-app
+  webviews. A device key minted in an ephemeral/siloed webview is lost when the webview
+  closes (unrecoverable without a second credential). Tier-2 keeps the "open in your browser"
+  escape; the **email** path (recoverable) is the eventual Tier-2 method — a later slice.
+- **Verified:** the cross-language seed interop is pinned by a new Dart regression test
+  (`packages/client/test/features/auth/landing_seed_interop_test.dart`, 3 cases): WebCrypto
+  seed → `newKeyFromSeed`/`public` derives a **byte-identical** public key (the exact string
+  `signIn`→`getByCredential('ed25519_device', pk)` matches on), the auth-request JWT passes
+  `AuthCase._verifyAuthRequest`, and an un-padded seed throws. Server suite still green (144);
+  `check_handoff_contract.sh` OK; landing JS passes `node --check`.
+
+### Gotchas (slice 3)
+- **Seed encoding is padding-sensitive.** The app decodes the seed with `base64Decode`
+  (**no** `base64.normalize`, `auth_box.dart`), which **throws on un-padded** input. So the
+  landing must emit the seed as url-safe base64 **with `=` padding** — `auth.js` has its own
+  padded helper; **do NOT reuse `handoff.js`'s `base64url()`** (it strips padding, correct
+  for the fragment, fatal for the seed). JWT segments stay base64url **no-pad**. (`pk` is
+  normalized server-side, so its padding is tolerated; `exp` omitted — `dart_jsonwebtoken`
+  only checks it when present, avoiding landing clock-skew.)
+- **Landing deploy tar is an explicit allowlist** (`pipeline.yml`, not a dir glob). `auth.js`
+  was added to it — a new landing file otherwise 404s in deploy and blanks the page (same
+  shape as the slice-2 Caddy gotcha; passes every local check).
+- **`crypto.subtle` needs a secure context** (HTTPS or `localhost`/`127.0.0.1`). Over plain
+  `http://dev.lvh.me:9080` it is absent → signup CTA hidden by feature-detect. The first real
+  signup E2E **requires the HTTPS dev stack** — there is no purely-local path.
+- **Client tests run with `flutter test`, not `dart test`** — the standalone Dart 3.12 here
+  mismatches the Flutter SDK and fails to compile `flutter_test` (affects all client tests).
+
+### Owed (needs the HTTPS dev stack / a real browser)
+- Live browser execution of `auth.js` + full E2E: invite link → landing signup (system
+  browser) → `#th=…` handoff → WASM app boots authenticated; issuer↔new-user friendship
+  (and beacon forward if present) appears. No automated test executes the JS itself.
+
+### Key files (slice 3)
+`packages/landing/auth.js` (new) · `…/main.js` · `…/styles.css` · `…/README.md` ·
+`.github/workflows/pipeline.yml` (landing tar allowlist) ·
+`packages/client/test/features/auth/landing_seed_interop_test.dart` (new).
+
+---
+
 ## Follow-up slices (ordered; each its own plan-mode pass)
 
 1. ✅ **Cross-subdomain session handoff — SHIPPED (transport).** Implemented as a URL-fragment
@@ -181,10 +240,14 @@ revocation are deferred to follow-up slices.
    with the user — each needs external setup): the concrete providers (WebAuthn
    challenge/verify, OIDC Google/Apple token validation, email-OTP) and **immediate session
    revocation on removal** (JWTs are stateless, 1h expiry is the interim mitigation).
-3. **Landing real auth (Tier 1) + degraded webview path (Tier 2).** Flip `AUTH_ENABLED`
-   in `packages/landing/main.js`; on success call `redirectToApp({userId, seed, displayName})`
-   from the **already-built** `packages/landing/handoff.js` (slice 1). Tier 2 = degraded
-   email/device-seed signup. Static, no npm (see landing constraints).
+3. ✅ **Landing real auth — SHIPPED (device-seed signup, Tier-1 only).** `AUTH_ENABLED`
+   flipped; `auth.js` does WebCrypto-Ed25519 signup → `accept-as-new` →
+   `redirectToApp({userId, seed, displayName})`. See "What shipped — slice 3" above.
+   **Scoped narrower than the original line** (decided with user): **device-seed only**
+   (passkey/Google/Apple/email still need their deferred server providers) and **Tier-1
+   only** — in-app webviews are **never** offered device-seed signup (unrecoverable key
+   loss); the recoverable **email** path is the eventual Tier-2 method, a later slice.
+   **Owed:** live browser execution + E2E on the HTTPS dev stack.
 4. **Client WASM.** Remove the web login UI (`auth_login_screen`/`auth_register_screen`
    entry), redirect unauthenticated → landing, hydrate from the handoff (the consume side
    from slice 1 is done). Add `Settings > Sign-in methods` (list/add/remove) — linking opens
