@@ -1,29 +1,39 @@
 # Local two-host simulation (subdomain split, mirrors dev/prod topology).
 #
-#   http://dev.lvh.me:9080       -> static landing (packages/landing)
-#   http://app.dev.lvh.me:9080   -> Flutter dev server :8888 + COOP/COEP
+#   http://dev.lvh.me:9080       -> landing (HTTP — handoff smoke tests only)
+#   http://app.dev.lvh.me:9080   -> Flutter dev server :8888 (no Secure cookies)
+#
+#   https://dev.lvh.me:9443      -> landing (Google OAuth + session cookies)
+#   https://app.dev.lvh.me:9443  -> Flutter dev server :8888 + COOP/COEP
 #
 # lvh.me resolves to 127.0.0.1 (subdomain cookies testable without /etc/hosts).
 # Offline: add to /etc/hosts:
 #   127.0.0.1 dev.tentura.test app.dev.tentura.test
 # and set LOCAL_LANDING_HOST / LOCAL_APP_HOST accordingly.
 #
-# Usage:
-#   1. docker compose up -d
-#   2. cd packages/server && dart run bin/tentura.dart
-#   3. cd packages/client && flutter run -d web-server --web-port=8888 \
-#        --dart-define=SERVER_NAME=http://app.dev.lvh.me:9080 \
-#        --dart-define=WS_SERVER_NAME=http://app.dev.lvh.me:9080
-#   4. caddy run --config Caddyfile.local
+# Google Cloud Console (Web OAuth client) redirect URI:
+#   https://app.dev.lvh.me:9443/api/auth/google/callback
 #
-# Landing config.js: appBase 'http://app.dev.lvh.me:9080/', apiBase ''.
-# HTTPS mode (Phase 1 WebAuthn): use `caddy run --config Caddyfile.local --adapter caddyfile`
-# with tls internal on both blocks and port 9443.
+# Usage (Google OAuth — HTTPS):
+#   1. docker compose up -d
+#   2. ./scripts/run-server-local.sh
+#      (.env: APP_ORIGIN, LANDING_ORIGIN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
+#   3. cd packages/client && flutter run -d web-server --web-port=8888 \
+#        --dart-define=SERVER_NAME=https://app.dev.lvh.me:9443 \
+#        --dart-define=WS_SERVER_NAME=https://app.dev.lvh.me:9443
+#   4. caddy run --config Caddyfile.local
+#   5. Trust Caddy's local CA (once): ./scripts/trust-caddy-local-ca.sh
+#      (Plain `caddy trust` is not enough for Firefox snap — separate cert DB.)
+#   Open https://dev.lvh.me:9443/ (landing) and https://app.dev.lvh.me:9443/ (app).
+#
+# Landing config.js: appBase 'https://app.dev.lvh.me:9443/', googleEnabled true.
 
 {
 	admin off
-	auto_https off
+	# disable_redirects: keep HTTP :9080 without auto-upgrade; explicit https:// blocks use tls internal.
+	auto_https disable_redirects
 	http_port {$LOCAL_HTTP_PORT:9080}
+	https_port {$LOCAL_HTTPS_PORT:9443}
 }
 
 (local_api) {
@@ -114,7 +124,7 @@
 	}
 }
 
-http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
+(local_landing_site) {
 	encode gzip
 
 	import local_api
@@ -133,7 +143,7 @@ http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
 	}
 }
 
-http://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
+(local_app_site) {
 	encode gzip
 
 	import local_api
@@ -159,4 +169,34 @@ http://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
 		header Cross-Origin-Opener-Policy "same-origin"
 		header Cross-Origin-Embedder-Policy "credentialless"
 	}
+}
+
+http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
+	import local_landing_site
+}
+
+http://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
+	import local_app_site
+}
+
+https://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
+	tls internal
+	import local_landing_site
+}
+
+https://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
+	tls internal
+	import local_app_site
+}
+
+# Fallback when system DNS does not resolve *.lvh.me (no /etc/hosts): browse via 127.0.0.1.
+# Google Console redirect URI: https://127.0.0.1:9443/api/auth/google/callback
+https://127.0.0.1:9443 {
+	tls internal
+	import local_app_site
+}
+
+https://127.0.0.1:9444 {
+	tls internal
+	import local_landing_site
 }

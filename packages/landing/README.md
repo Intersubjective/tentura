@@ -35,11 +35,14 @@ etc.) natively — nothing is bundled.
 window.TENTURA = { sentryDsn: '', apiBase: '', appBase: 'https://app.dev.tentura.io/' };
 ```
 
-| Key         | Meaning                                          | Default  |
-|-------------|--------------------------------------------------|----------|
-| `sentryDsn` | Sentry DSN; empty = analytics no-op              | `''`     |
-| `apiBase`   | Origin for the preview API; empty = same origin  | `''`     |
-| `appBase`   | Absolute WASM-app origin (subdomain)             | `https://app.dev.tentura.io/` |
+| Key              | Meaning                                          | Default  |
+|------------------|--------------------------------------------------|----------|
+| `sentryDsn`      | Sentry DSN; empty = analytics no-op              | `''`     |
+| `apiBase`        | Origin for the preview API; empty = same origin  | `''`     |
+| `appBase`        | Absolute WASM-app origin (subdomain)             | `https://app.dev.tentura.io/` |
+| `googleEnabled`  | Show Google OAuth CTA (needs server `GOOGLE_*`)  | `false`  |
+
+Local Google OAuth (Caddy HTTPS `:9443`): `appBase: 'https://app.dev.lvh.me:9443/'`, `googleEnabled: true` — match repo-root `.env` `APP_ORIGIN` / `LANDING_ORIGIN`.
 
 Edit `config.js` per-deploy, or substitute its values at deploy time.
 
