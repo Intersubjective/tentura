@@ -89,6 +89,22 @@ final class AccountCase extends UseCaseBase {
       _authLocalRepository.getSeedByAccountId(id);
 
   ///
+  /// Returns the device seed when [id] is a local seed account; null for
+  /// session/OAuth-only accounts (no seed stored).
+  ///
+  Future<String?> tryGetSeedForAccount(String id) async {
+    if (await _authLocalRepository.isSessionAccount(id)) {
+      return null;
+    }
+    try {
+      final seed = await _authLocalRepository.getSeedByAccountId(id);
+      return seed.isEmpty ? null : seed;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  ///
   /// A stream that emits the current account ID whenever it changes.
   /// It immediately emits the last known account ID upon subscription.
   ///

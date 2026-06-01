@@ -48,15 +48,23 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
           children: [
             const ThemeSwitchButton(),
 
-            // Seed
-            OutlinedButton.icon(
-              icon: const Icon(Icons.remove_red_eye_outlined),
-              label: Text(l10n.showSeed),
-              onPressed: () async {
-                final seed = await cubit.getCurrentAccountSeed();
-                if (context.mounted) {
-                  await ShowSeedDialog.show(context, seed: seed);
+            // Seed (device-key accounts only; OAuth/session accounts have no local seed)
+            FutureBuilder<String?>(
+              future: cubit.tryGetCurrentAccountSeed(),
+              builder: (context, snapshot) {
+                final seed = snapshot.data;
+                if (seed == null || seed.isEmpty) {
+                  return const SizedBox.shrink();
                 }
+                return OutlinedButton.icon(
+                  icon: const Icon(Icons.remove_red_eye_outlined),
+                  label: Text(l10n.showSeed),
+                  onPressed: () async {
+                    if (context.mounted) {
+                      await ShowSeedDialog.show(context, seed: seed);
+                    }
+                  },
+                );
               },
             ),
 

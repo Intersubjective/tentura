@@ -1,0 +1,30 @@
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import '../../hook/build/wasm_preload_artifacts.dart' as hook;
+
+void main() {
+  test('generateWasmPreloadArtifacts writes manifest and service worker', () {
+    final dir = Directory.systemTemp.createTempSync('tentura_web_test');
+    try {
+      File('${dir.path}/main.dart.wasm').writeAsStringSync('');
+      File('${dir.path}/flutter_bootstrap.js').writeAsStringSync('');
+      File('${dir.path}/index.html').writeAsStringSync(
+        '<script src="flutter_bootstrap.js?v=9.9.9"></script>',
+      );
+      if (!File('pubspec.yaml').existsSync()) {
+        return;
+      }
+      hook.generateWasmPreloadArtifacts(buildWebDir: dir.path);
+
+      final manifest = File('${dir.path}/wasm-preload-manifest.json');
+      final sw = File('${dir.path}/tentura-app-cache-sw.js');
+      expect(manifest.existsSync(), isTrue);
+      expect(sw.existsSync(), isTrue);
+      expect(manifest.readAsStringSync(), contains('main.dart.wasm'));
+      expect(sw.readAsStringSync(), contains('tentura-app-assets-'));
+    } finally {
+      dir.deleteSync(recursive: true);
+    }
+  });
+}

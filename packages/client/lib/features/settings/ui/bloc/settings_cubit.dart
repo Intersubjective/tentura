@@ -71,8 +71,8 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   //
   //
-  Future<String> getCurrentAccountSeed() async =>
-      _accountCase.getSeedByAccountId(await _authCase.getCurrentAccountId());
+  Future<String?> tryGetCurrentAccountSeed() async =>
+      _accountCase.tryGetSeedForAccount(await _authCase.getCurrentAccountId());
 
   //
   //

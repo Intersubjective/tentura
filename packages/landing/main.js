@@ -3,10 +3,11 @@ import { detectEnvironment, androidIntentUrl } from './webview.js';
 import { parseInviteCode, fetchPreview } from './preview.js';
 import { redirectToApp } from './handoff.js';
 import { signUpWithSeed, webcryptoEd25519Available } from './auth.js';
+import { resolveAppBase } from './resolve_app_base.js';
 
-// Absolute app origin (app.dev.tentura.io / app.tentura.io); see config.js.
-const APP_BASE = (window.TENTURA || {}).appBase || 'https://app.dev.tentura.io/';
 const GOOGLE_ENABLED = Boolean((window.TENTURA || {}).googleEnabled);
+
+let APP_BASE = '';
 
 const app = document.getElementById('app');
 const card = document.getElementById('card');
@@ -347,6 +348,23 @@ function renderError() {
 // logged-out / unauthenticated web user here (the app has no login UI). Tentura
 // is invite-only, so there is no public signup; show a neutral message rather
 // than the link-specific "Something went wrong" error.
+function renderConfigError(message) {
+  setState('invalid');
+  card.replaceChildren(
+    el(
+      'div',
+      { class: 'content' },
+      el('h1', {}, 'Configuration error'),
+      el('p', {}, message),
+      el(
+        'p',
+        {},
+        'Local dev: copy .env.example to .env, then run ./scripts/sync-landing-local-config.sh',
+      ),
+    ),
+  );
+}
+
 function renderNoInvite() {
   setState('invalid');
   card.replaceChildren(
@@ -374,7 +392,29 @@ function renderNoInvite() {
   );
 }
 
+function addAppPreconnect(appBase) {
+  try {
+    const origin = new URL(appBase).origin;
+    if (document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) {
+      return;
+    }
+    const link = document.createElement('link');
+    link.rel = 'preconnect';
+    link.href = origin;
+    document.head.appendChild(link);
+  } catch (_) {
+    /* invalid appBase */
+  }
+}
+
 async function main() {
+  try {
+    APP_BASE = resolveAppBase();
+    addAppPreconnect(APP_BASE);
+  } catch (e) {
+    renderConfigError(String(e.message || e));
+    return;
+  }
   initAnalytics();
   const code = parseInviteCode();
   // Funnel event fires BEFORE any WASM — the Phase 0 analytics deliverable.

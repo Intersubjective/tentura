@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/api/http/oauth_state_codec.dart';
+import 'package:tentura_server/api/http/oauth_warmup_interstitial_page.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/oidc_provider_port.dart';
@@ -57,15 +58,28 @@ final class AuthGoogleController extends BaseController {
       codeChallenge: _codeChallenge(codeVerifier),
       nonce: nonce,
     );
+    final oauthCookie = buildSetCookie(
+      name: kCookieOAuthStateName,
+      value: signed,
+      maxAgeSeconds: kOAuthStateExpiresIn,
+    );
+    if (env.oauthPreloadEnabled) {
+      return Response.ok(
+        renderOAuthWarmupInterstitial(redirectUri: authorizeUri.toString()),
+        headers: withSetCookie(
+          {
+            kHeaderContentType: 'text/html; charset=utf-8',
+            kHeaderCacheControl: kCacheControlNoStore,
+          },
+          oauthCookie,
+        ),
+      );
+    }
     return Response.found(
       authorizeUri.toString(),
       headers: withSetCookie(
         {kHeaderCacheControl: kCacheControlNoStore},
-        buildSetCookie(
-          name: kCookieOAuthStateName,
-          value: signed,
-          maxAgeSeconds: kOAuthStateExpiresIn,
-        ),
+        oauthCookie,
       ),
     );
   }
@@ -103,47 +117,46 @@ final class AuthGoogleController extends BaseController {
     final destination = payload.returnTo.isNotEmpty
         ? payload.returnTo
         : _defaultAppUrl();
-    return Response.found(
-      destination,
-      headers: withSetCookie(
-        withSetCookie(
-          {kHeaderCacheControl: kCacheControlNoStore},
-          buildClearCookie(kCookieOAuthStateName),
-        ),
-        buildSetCookie(
-          name: _sessionCase.sessionCookieName(),
-          value: sessionToken,
-          maxAgeSeconds: _sessionCase.sessionCookieMaxAge().inSeconds,
-        ),
+    final headers = withSetCookie(
+      withSetCookie(
+        {kHeaderCacheControl: kCacheControlNoStore},
+        buildClearCookie(kCookieOAuthStateName),
+      ),
+      buildSetCookie(
+        name: _sessionCase.sessionCookieName(),
+        value: sessionToken,
+        maxAgeSeconds: _sessionCase.sessionCookieMaxAge().inSeconds,
       ),
     );
+    if (env.oauthPreloadEnabled) {
+      return Response.ok(
+        renderOAuthWarmupInterstitial(redirectUri: destination),
+        headers: {
+          ...headers,
+          kHeaderContentType: 'text/html; charset=utf-8',
+        },
+      );
+    }
+    return Response.found(destination, headers: headers);
   }
 
   Uri _callbackUri() {
-    final origin = env.appOrigin.isNotEmpty
-        ? env.appOrigin
-        : env.serverUri.origin;
-    return Uri.parse(origin).replace(
+    return Uri.parse(env.appOrigin).replace(
       path: '/api/auth/google/callback',
     );
   }
 
   String _defaultAppUrl() {
-    if (env.appOrigin.isNotEmpty) {
-      return env.appOrigin.endsWith('/')
-          ? env.appOrigin
-          : '${env.appOrigin}/';
-    }
-    return env.serverUri.toString();
+    return env.appOrigin.endsWith('/')
+        ? env.appOrigin
+        : '${env.appOrigin}/';
   }
 
   String _sanitizeReturnTo(String? raw) {
     if (raw == null || raw.isEmpty) return '';
     final uri = Uri.tryParse(raw);
     if (uri == null || !uri.hasScheme) return '';
-    final allowedOrigin = env.appOrigin.isNotEmpty
-        ? Uri.parse(env.appOrigin).origin
-        : env.serverUri.origin;
+    final allowedOrigin = Uri.parse(env.appOrigin).origin;
     if (uri.origin != allowedOrigin) return '';
     return uri.toString();
   }
