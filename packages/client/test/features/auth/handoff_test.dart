@@ -128,6 +128,12 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
   }
 
   @override
+  Future<void> addSessionAccount(String id, [String? displayName]) async {}
+
+  @override
+  Future<bool> isSessionAccount(String id) async => false;
+
+  @override
   Future<void> setCurrentAccountId(String? id) async {
     currentAccountId = id;
   }
@@ -155,6 +161,12 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
   Future<void> signOut() async {}
   @override
   Future<String> signIn(String seed) async => '';
+  @override
+  Future<String> signInWithSession() async => '';
+  @override
+  Future<void> establishSessionFromBearer() async {}
+  @override
+  Future<void> sessionLogout() async {}
   @override
   Future<String> signUp({
     required String seed,

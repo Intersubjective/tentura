@@ -125,7 +125,6 @@ final class AuthGoogleController extends BaseController {
         : env.serverUri.origin;
     return Uri.parse(origin).replace(
       path: '/api/auth/google/callback',
-      query: '',
     );
   }
 

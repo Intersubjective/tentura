@@ -4,6 +4,8 @@
 //   appBase  absolute WASM-app origin (subdomain); CI sets APP_BASE for dev/prod
 //   googleEnabled  show Google OAuth CTA when true (requires server GOOGLE_CLIENT_ID)
 //   sentryDsn '' = analytics disabled (no-op)
+//
+// Local OAuth dev: match repo-root .env APP_ORIGIN / LANDING_ORIGIN (lvh.me :9443).
 window.TENTURA = {
   sentryDsn: '',
   apiBase: '',
