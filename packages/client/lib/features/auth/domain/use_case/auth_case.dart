@@ -11,6 +11,8 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/domain/port/device_push_port.dart';
 
 import '../../data/service/web_handoff.dart';
+import '../../data/service/web_post_sign_out.dart';
+import '../entity/web_bootstrap_result.dart';
 import '../port/auth_local_repository_port.dart';
 import '../port/auth_remote_repository_port.dart';
 import '../exception.dart';
@@ -85,16 +87,79 @@ final class AuthCase extends UseCaseBase {
   /// a malformed/absent handoff is ignored and never blocks boot. No-op off web.
   ///
   Future<void> consumeHandoff() async {
-    final payload = readHandoff();
-    if (payload == null) {
-      return;
+    await bootstrapWebSession();
+  }
+
+  ///
+  /// Web bootstrap: consume optional `#th=` handoff, probe session cookie, pick
+  /// account id (fresh handoff wins over cookie). No-op handoff path off-web.
+  ///
+  Future<WebBootstrapResult> bootstrapWebSession({
+    @visibleForTesting HandoffPayload? handoffForTest,
+  }) async {
+    final handoffPayload = handoffForTest ?? readHandoff();
+    String? handoffUserId;
+    if (handoffPayload != null) {
+      try {
+        await applyHandoff(handoffPayload);
+        handoffUserId = handoffPayload.userId;
+      } catch (e, s) {
+        logger.warning('Failed to consume session handoff', e, s);
+      } finally {
+        scrubHandoff();
+      }
+    }
+
+    final sessionUserId = await _probeSessionUserId();
+
+    if (handoffUserId != null) {
+      if (sessionUserId != null && sessionUserId != handoffUserId) {
+        await _revokeStaleSessionCookie();
+      }
+      await _authLocalRepository.setCurrentAccountId(handoffUserId);
+      return WebBootstrapResult(
+        currentAccountId: handoffUserId,
+        freshHandoffUserId: handoffUserId,
+        sessionUserId: sessionUserId,
+      );
+    }
+
+    if (sessionUserId != null) {
+      await _authLocalRepository.setCurrentAccountId(sessionUserId);
+      return WebBootstrapResult(
+        currentAccountId: sessionUserId,
+        sessionUserId: sessionUserId,
+      );
+    }
+
+    final localId = await getCurrentAccountId();
+    return WebBootstrapResult(currentAccountId: localId);
+  }
+
+  Future<String?> _probeSessionUserId() async {
+    try {
+      final userId = await _authRemoteRepository.signInWithSession();
+      final existing = await _authLocalRepository.getAccountById(userId);
+      if (existing == null) {
+        await _authLocalRepository.addSessionAccount(userId);
+      }
+      return userId;
+    } catch (e, s) {
+      logger.fine('No cookie session to bootstrap', e, s);
+      return null;
+    }
+  }
+
+  Future<void> _revokeStaleSessionCookie() async {
+    try {
+      await _authRemoteRepository.sessionLogout();
+    } catch (e, s) {
+      logger.fine('Session logout during handoff takeover', e, s);
     }
     try {
-      await applyHandoff(payload);
+      await _authRemoteRepository.signOut();
     } catch (e, s) {
-      logger.warning('Failed to consume session handoff', e, s);
-    } finally {
-      scrubHandoff();
+      logger.fine('Remote sign-out during handoff takeover', e, s);
     }
   }
 
@@ -121,18 +186,12 @@ final class AuthCase extends UseCaseBase {
   /// Returns the account id or null when no valid cookie session exists.
   ///
   Future<String?> tryBootstrapSession() async {
-    try {
-      final userId = await _authRemoteRepository.signInWithSession();
-      final existing = await _authLocalRepository.getAccountById(userId);
-      if (existing == null) {
-        await _authLocalRepository.addSessionAccount(userId);
-      }
-      await _authLocalRepository.setCurrentAccountId(userId);
-      return userId;
-    } catch (e, s) {
-      logger.fine('No cookie session to bootstrap', e, s);
+    final userId = await _probeSessionUserId();
+    if (userId == null) {
       return null;
     }
+    await _authLocalRepository.setCurrentAccountId(userId);
+    return userId;
   }
 
   ///
@@ -171,6 +230,7 @@ final class AuthCase extends UseCaseBase {
     await _devicePushPort.unregisterCurrentDevice();
     await _authRemoteRepository.signOut();
     await _authLocalRepository.setCurrentAccountId(null);
+    redirectToLandingAfterSignOut();
   }
 
   //

@@ -182,6 +182,13 @@ class RootRouter extends RootStackRouter {
       fullscreenDialog: true,
       page: SettingsRoute.page,
       path: kPathSettings,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _authCubit.state.isNotAuthenticated
+              ? const AuthLoginRoute()
+              : null,
+        ),
+      ],
     ),
 
     // Settings > Sign-in methods (list / remove account credentials)
@@ -191,6 +198,13 @@ class RootRouter extends RootStackRouter {
       fullscreenDialog: true,
       page: CredentialsRoute.page,
       path: kPathSignInMethods,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _authCubit.state.isNotAuthenticated
+              ? const AuthLoginRoute()
+              : null,
+        ),
+      ],
     ),
 
     // Beacon Create New

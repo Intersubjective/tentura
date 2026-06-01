@@ -31,6 +31,7 @@ class Env {
     String? landingOrigin,
     String? googleClientId,
     String? googleClientSecret,
+    bool? oauthPreloadEnabled,
 
     // Web server
     String? bindAddress,
@@ -102,6 +103,8 @@ class Env {
        googleClientId = googleClientId ?? _env['GOOGLE_CLIENT_ID'] ?? '',
        googleClientSecret =
            googleClientSecret ?? _env['GOOGLE_CLIENT_SECRET'] ?? '',
+       oauthPreloadEnabled =
+           oauthPreloadEnabled ?? _env['OAUTH_PRELOAD_ENABLED'] == 'true',
        publicKey = EdDSAPublicKey.fromPEM(
          (publicKey ?? _env['JWT_PUBLIC_PEM'] ?? kJwtPublicKey).replaceAll(
            r'\n',
@@ -181,6 +184,16 @@ class Env {
        fbClientId = fbClientId ?? _env['FB_CLIENT_ID'] ?? ''
   //
   {
+    if (environment == Environment.dev || environment == Environment.prod) {
+      _assertServingUrls(
+        serverName: kServerName,
+        imageServer: kImageServer,
+        appOrigin: this.appOrigin,
+        landingOrigin: this.landingOrigin,
+        googleClientId: this.googleClientId,
+        googleClientSecret: this.googleClientSecret,
+      );
+    }
     _printEnvInfo();
     Logger.root.level =
         logLevel ??
@@ -252,6 +265,9 @@ class Env {
   final String googleClientId;
 
   final String googleClientSecret;
+
+  /// When true, Google OAuth start/callback return HTML that warms WASM assets.
+  final bool oauthPreloadEnabled;
 
   // Web server
   final String bindAddress;
@@ -363,6 +379,40 @@ class Env {
 
   //
   //
+  static void _assertServingUrls({
+    required String serverName,
+    required String imageServer,
+    required String appOrigin,
+    required String landingOrigin,
+    required String googleClientId,
+    required String googleClientSecret,
+  }) {
+    void requireUrl(String name, String value) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty) {
+        throw StateError('$name is required (non-empty absolute http(s) URL).');
+      }
+      final uri = Uri.tryParse(trimmed);
+      if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
+        throw StateError('$name must be an absolute URL (got: $value).');
+      }
+      if (uri.scheme != 'http' && uri.scheme != 'https') {
+        throw StateError('$name must use http or https (got: $value).');
+      }
+    }
+
+    requireUrl('SERVER_NAME', serverName);
+    requireUrl('IMAGE_SERVER', imageServer);
+    requireUrl('APP_ORIGIN', appOrigin);
+    requireUrl('LANDING_ORIGIN', landingOrigin);
+
+    if (googleClientId.isNotEmpty && googleClientSecret.trim().isEmpty) {
+      throw StateError(
+        'GOOGLE_CLIENT_SECRET is required when GOOGLE_CLIENT_ID is set.',
+      );
+    }
+  }
+
   void _printEnvInfo() {
     if (printEnv) {
       print('Debug Mode: [$isDebugModeOn]');
