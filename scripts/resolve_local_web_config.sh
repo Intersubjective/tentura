@@ -60,6 +60,11 @@ require_absolute_url "LANDING_ORIGIN" "$LANDING_ORIGIN"
 require_absolute_url "IMAGE_SERVER" "$IMAGE_SERVER"
 require_absolute_url "SERVER_NAME" "$SERVER_NAME"
 
+if [[ "$APP_ORIGIN" != "$LANDING_ORIGIN" ]]; then
+  echo "::error::APP_ORIGIN and LANDING_ORIGIN must match (single-host); got APP_ORIGIN=${APP_ORIGIN} LANDING_ORIGIN=${LANDING_ORIGIN}" >&2
+  exit 1
+fi
+
 if [[ -n "$GOOGLE_CLIENT_ID" && -z "${GOOGLE_CLIENT_SECRET// }" ]]; then
   echo "::error::GOOGLE_CLIENT_SECRET is required when GOOGLE_CLIENT_ID is set." >&2
   exit 1

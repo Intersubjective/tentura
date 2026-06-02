@@ -93,8 +93,8 @@ jobs:
           bash scripts/validate_client_firebase_env.sh .env
           echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
 
-      # Required dev vars: CLIENT_SERVER_NAME, IMAGE_SERVER.
-      # Derived when unset: INVITE_LINK_HOST (app. → apex), APP_BASE (CLIENT_SERVER_NAME + /).
+      # Required dev vars: CLIENT_SERVER_NAME, IMAGE_SERVER (single public origin).
+      # Derived when unset: INVITE_LINK_HOST (app. → apex when legacy), APP_BASE (CLIENT_SERVER_NAME + /).
       - name: Resolve deploy web config
         id: webcfg
         env:
@@ -104,8 +104,8 @@ jobs:
           APP_BASE: ${{ vars.APP_BASE }}
         run: bash scripts/resolve_deploy_web_config.sh --github-output "$GITHUB_OUTPUT"
 
-      # WASM app at app.dev.tentura.io (subdomain root, base-href /).
-      # VPS .env keeps SERVER_NAME=https://dev.tentura.io (OG/share URLs on landing host).
+      # WASM app + landing on same origin (base-href /).
+      # VPS .env SERVER_NAME = Caddy site hostname; CLIENT_SERVER_NAME = full public origin URL.
       - name: Build dev web in builder container
         run: |
           set -euo pipefail
@@ -149,7 +149,7 @@ jobs:
               cd build/web && tar -czf /app/web-dev-\${SERVER_VERSION}.tar.gz . && cd ../..
             "
 
-      # Static landing at dev.tentura.io — plain files, no build/npm.
+      # Static landing at /invite/* on same origin — plain files, no build/npm.
       # appBase resolved in webcfg step; deploy.sh extracts to ./landing.
       - name: Package static landing
         env:
