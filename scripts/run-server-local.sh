@@ -21,6 +21,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   export "$line"
 done < "$ROOT/.env"
 
+bash "$ROOT/scripts/validate_local_server_env.sh"
+
 PORT="${PORT:-2080}"
 if command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -qE "[.:]${PORT} "; then
   echo "Port ${PORT} is already in use. Stop the other process first, e.g.:" >&2

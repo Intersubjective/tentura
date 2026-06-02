@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
+import 'package:tentura/config/web_build_config.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/app_update_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -36,6 +37,7 @@ class App extends StatelessWidget {
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
+    assertWebBuildConfig();
     await configureDependencies();
     // Start global FCM registration (permission, token, server upload).
     GetIt.I<FcmCubit>();

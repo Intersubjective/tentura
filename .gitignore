@@ -43,4 +43,6 @@ packages/server/bin/tentura
 temp/
 /compose.override.yaml
 .env
+packages/landing/config.local.js
+packages/client/env/local-web.env
 .enable-ollama-compress

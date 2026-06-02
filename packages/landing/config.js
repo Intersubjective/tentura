@@ -9,6 +9,6 @@
 window.TENTURA = {
   sentryDsn: '',
   apiBase: '',
-  appBase: 'https://app.dev.tentura.io/',
+  appBase: '',
   googleEnabled: false,
 };

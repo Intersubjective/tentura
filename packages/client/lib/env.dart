@@ -32,11 +32,7 @@ class Env {
   }) : // Common
        logLevel = logLevel ?? const String.fromEnvironment('LOG_LEVEL'),
        serverUrlBase =
-           serverUrlBase ??
-           const String.fromEnvironment(
-             'SERVER_NAME',
-             defaultValue: 'http://localhost:2080',
-           ),
+           serverUrlBase ?? const String.fromEnvironment('SERVER_NAME'),
        pathAppLinkView = pathAppLinkView ?? kPathAppLinkView,
        complaintEmail =
            complaintEmail ?? const String.fromEnvironment('COMPLAINT_EMAIL'),

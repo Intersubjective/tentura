@@ -46,7 +46,7 @@ jobs:
               dart pub get
               flutter pub get
               ( cd packages/server && dart run build_runner build -d && dart analyze --no-fatal-warnings && dart run custom_lint && dart test ) &&
-              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && dart run custom_lint && flutter test --dart-define=ENV=test
+              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && dart run custom_lint && flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
             '
 
   build-web:
@@ -161,11 +161,12 @@ jobs:
             sed -i "s|sentryDsn: ''|sentryDsn: '${LANDING_SENTRY_DSN}'|" packages/landing/config.js
           fi
           sed -i "s|appBase: '[^']*'|appBase: '${APP_BASE}'|" packages/landing/config.js
+          bash scripts/validate_landing_config.sh
           # Explicit allowlist: ships handoff.js (transport), excludes the
           # dev-only handoff-dev.html harness.
           tar -czf landing-dev-${{ steps.versions.outputs.server_version }}.tar.gz \
             -C packages/landing \
-            index.html config.js main.js preview.js webview.js analytics.js handoff.js auth.js styles.css
+            index.html config.js resolve_app_base.js main.js preview.js webview.js analytics.js handoff.js auth.js styles.css
 
       - name: Upload web archive artifacts
         uses: actions/upload-artifact@v6

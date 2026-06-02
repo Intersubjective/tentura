@@ -16,8 +16,7 @@
 const HANDOFF_KEY = 'th';
 const HANDOFF_VERSION = 1;
 
-// Absolute app origin (app.dev.tentura.io / app.tentura.io); see config.js.
-const APP_BASE = (window.TENTURA || {}).appBase || 'https://app.dev.tentura.io/';
+import { resolveAppBase } from './resolve_app_base.js';
 
 // UTF-8-safe base64url. Bare btoa() throws on non-ASCII (Cyrillic/accented
 // display names); encode to UTF-8 bytes first, then make it URL-safe.
@@ -34,6 +33,6 @@ export function buildHandoffUrl(appBase, { userId, seed, displayName }) {
   return `${base}#${HANDOFF_KEY}=${encoded}`;
 }
 
-export function redirectToApp(payload, appBase = APP_BASE) {
+export function redirectToApp(payload, appBase = resolveAppBase()) {
   location.assign(buildHandoffUrl(appBase, payload));
 }

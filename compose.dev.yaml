@@ -1,20 +1,22 @@
 # Local development: Postgres, MeritRank, MinIO, Hasura, optional tools.
 #
-# Quick path (Flutter dev proxy only):
+# Quick path (Flutter dev proxy only — pass explicit dart-defines; no silent defaults):
 #   1. docker compose up -d
 #   2. cd packages/server && dart run bin/tentura.dart
+#      (requires SERVER_NAME, APP_ORIGIN, LANDING_ORIGIN, IMAGE_SERVER in .env for Env.prod)
 #   3. cd packages/client && flutter run -d chrome --web-port=8888 \
+#        --dart-define-from-file=env/test.env \
 #        --dart-define=SERVER_NAME=http://localhost:8888 \
-#        --dart-define=WS_SERVER_NAME=http://localhost:2080
+#        --dart-define=WS_SERVER_NAME=http://localhost:2080 \
+#        --dart-define=INVITE_LINK_HOST=http://localhost:8888
 #
 # Subdomain split (mirrors dev.tentura.io + app.dev.tentura.io) — see Caddyfile.local:
 #   1. docker compose up -d
-#   2. ./scripts/run-server-local.sh
-#      (.env: APP_ORIGIN, LANDING_ORIGIN, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
-#   3. cd packages/client && flutter run -d web-server --web-port=8888 \
-#        --dart-define=SERVER_NAME=https://app.dev.lvh.me:9443 \
-#        --dart-define=WS_SERVER_NAME=https://app.dev.lvh.me:9443
-#   4. caddy run --config Caddyfile.local
+#   2. Copy .env.example → .env; fill APP_ORIGIN, LANDING_ORIGIN, IMAGE_SERVER, SERVER_NAME
+#   3. ./scripts/sync-landing-local-config.sh && ./scripts/sync-client-local-config.sh
+#   4. ./scripts/run-server-local.sh
+#   5. ./scripts/run-flutter-web-local.sh
+#   6. caddy run --config Caddyfile.local
 #   Open https://dev.lvh.me:9443/ (landing) and https://app.dev.lvh.me:9443/ (app).
 #   Requires dev.lvh.me / app.dev.lvh.me → 127.0.0.1 (lvh.me DNS or /etc/hosts).
 #   HTTP :9080 remains for handoff smoke tests; Google OAuth needs HTTPS :9443.
