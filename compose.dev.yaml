@@ -3,7 +3,7 @@
 # Quick path (Flutter dev proxy only — pass explicit dart-defines; no silent defaults):
 #   1. docker compose up -d
 #   2. cd packages/server && dart run bin/tentura.dart
-#      (requires SERVER_NAME, APP_ORIGIN, LANDING_ORIGIN, IMAGE_SERVER in .env for Env.prod)
+#      (requires SERVER_NAME, IMAGE_SERVER in .env for Env.prod)
 #   3. cd packages/client && flutter run -d chrome --web-port=8888 \
 #        --dart-define-from-file=env/test.env \
 #        --dart-define=SERVER_NAME=http://localhost:8888 \
@@ -12,7 +12,7 @@
 #
 # Single-host local stack (mirrors dev.tentura.io) — see Caddyfile.local:
 #   1. docker compose up -d
-#   2. Copy .env.example → .env; fill APP_ORIGIN, LANDING_ORIGIN (same value), IMAGE_SERVER, SERVER_NAME
+#   2. Copy .env.example → .env; fill SERVER_NAME, IMAGE_SERVER
 #   3. ./scripts/sync-landing-local-config.sh && ./scripts/sync-client-local-config.sh
 #   4. ./scripts/run-server-local.sh
 #   5. ./scripts/run-flutter-web-local.sh

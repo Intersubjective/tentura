@@ -27,8 +27,7 @@ class Env {
     Duration? invitationTTL,
     String? publicKey,
     String? privateKey,
-    String? appOrigin,
-    String? landingOrigin,
+    String? publicOrigin,
     String? googleClientId,
     String? googleClientSecret,
     bool? oauthPreloadEnabled,
@@ -98,8 +97,7 @@ class Env {
                  kSessionExpiresIn,
            ),
        isNeedInvite = isNeedInvite ?? _env['NEED_INVITE'] == 'true',
-       appOrigin = appOrigin ?? _env['APP_ORIGIN'] ?? '',
-       landingOrigin = landingOrigin ?? _env['LANDING_ORIGIN'] ?? '',
+       publicOrigin = publicOrigin ?? kServerName,
        googleClientId = googleClientId ?? _env['GOOGLE_CLIENT_ID'] ?? '',
        googleClientSecret =
            googleClientSecret ?? _env['GOOGLE_CLIENT_SECRET'] ?? '',
@@ -188,8 +186,6 @@ class Env {
       _assertServingUrls(
         serverName: kServerName,
         imageServer: kImageServer,
-        appOrigin: this.appOrigin,
-        landingOrigin: this.landingOrigin,
         googleClientId: this.googleClientId,
         googleClientSecret: this.googleClientSecret,
       );
@@ -255,11 +251,8 @@ class Env {
 
   final EdDSAPrivateKey privateKey;
 
-  /// App host origin for OAuth redirects (e.g. `https://app.tentura.io`).
-  final String appOrigin;
-
-  /// Landing host origin for preview CORS (e.g. `https://tentura.io`).
-  final String landingOrigin;
+  /// Public web origin (`SERVER_NAME` env var): OAuth callbacks, invite preview CORS, OG URLs.
+  final String publicOrigin;
 
   /// Google OAuth client id; empty disables `/api/auth/google/start`.
   final String googleClientId;
@@ -382,8 +375,6 @@ class Env {
   static void _assertServingUrls({
     required String serverName,
     required String imageServer,
-    required String appOrigin,
-    required String landingOrigin,
     required String googleClientId,
     required String googleClientSecret,
   }) {
@@ -403,8 +394,6 @@ class Env {
 
     requireUrl('SERVER_NAME', serverName);
     requireUrl('IMAGE_SERVER', imageServer);
-    requireUrl('APP_ORIGIN', appOrigin);
-    requireUrl('LANDING_ORIGIN', landingOrigin);
 
     if (googleClientId.isNotEmpty && googleClientSecret.trim().isEmpty) {
       throw StateError(

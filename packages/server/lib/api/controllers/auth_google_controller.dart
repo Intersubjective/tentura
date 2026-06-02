@@ -141,22 +141,22 @@ final class AuthGoogleController extends BaseController {
   }
 
   Uri _callbackUri() {
-    return Uri.parse(env.appOrigin).replace(
+    return Uri.parse(env.publicOrigin).replace(
       path: '/api/auth/google/callback',
     );
   }
 
   String _defaultAppUrl() {
-    return env.appOrigin.endsWith('/')
-        ? env.appOrigin
-        : '${env.appOrigin}/';
+    return env.publicOrigin.endsWith('/')
+        ? env.publicOrigin
+        : '${env.publicOrigin}/';
   }
 
   String _sanitizeReturnTo(String? raw) {
     if (raw == null || raw.isEmpty) return '';
     final uri = Uri.tryParse(raw);
     if (uri == null || !uri.hasScheme) return '';
-    final allowedOrigin = Uri.parse(env.appOrigin).origin;
+    final allowedOrigin = Uri.parse(env.publicOrigin).origin;
     if (uri.origin != allowedOrigin) return '';
     return uri.toString();
   }

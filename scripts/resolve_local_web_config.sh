@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Resolves and validates local web-stack URLs from repo-root .env.
 #
-# Required in .env: APP_ORIGIN, LANDING_ORIGIN, IMAGE_SERVER, SERVER_NAME
-# Derived: WS_SERVER_NAME (= APP_ORIGIN), APP_BASE (= APP_ORIGIN + /)
+# Required in .env: SERVER_NAME (public origin URL), IMAGE_SERVER
+# Derived: APP_BASE (= SERVER_NAME + trailing /)
 #
 # Usage:
 #   bash scripts/resolve_local_web_config.sh --check-only
@@ -48,34 +48,20 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   export "$line"
 done <"$ROOT/.env"
 
-APP_ORIGIN="${APP_ORIGIN:-}"
-LANDING_ORIGIN="${LANDING_ORIGIN:-}"
-IMAGE_SERVER="${IMAGE_SERVER:-}"
 SERVER_NAME="${SERVER_NAME:-}"
+IMAGE_SERVER="${IMAGE_SERVER:-}"
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
 
-require_absolute_url "APP_ORIGIN" "$APP_ORIGIN"
-require_absolute_url "LANDING_ORIGIN" "$LANDING_ORIGIN"
-require_absolute_url "IMAGE_SERVER" "$IMAGE_SERVER"
 require_absolute_url "SERVER_NAME" "$SERVER_NAME"
-
-if [[ "$APP_ORIGIN" != "$LANDING_ORIGIN" ]]; then
-  echo "::error::APP_ORIGIN and LANDING_ORIGIN must match (single-host); got APP_ORIGIN=${APP_ORIGIN} LANDING_ORIGIN=${LANDING_ORIGIN}" >&2
-  exit 1
-fi
+require_absolute_url "IMAGE_SERVER" "$IMAGE_SERVER"
 
 if [[ -n "$GOOGLE_CLIENT_ID" && -z "${GOOGLE_CLIENT_SECRET// }" ]]; then
   echo "::error::GOOGLE_CLIENT_SECRET is required when GOOGLE_CLIENT_ID is set." >&2
   exit 1
 fi
 
-WS_SERVER_NAME="${WS_SERVER_NAME:-$APP_ORIGIN}"
-require_absolute_url "WS_SERVER_NAME" "$WS_SERVER_NAME"
-
-APP_BASE="$(derive_app_base "$APP_ORIGIN")"
-CLIENT_SERVER_NAME="$APP_ORIGIN"
-INVITE_LINK_HOST="$LANDING_ORIGIN"
+APP_BASE="$(derive_app_base "$SERVER_NAME")"
 
 _log() {
   if [[ "$EXPORT" -eq 0 ]]; then
@@ -84,22 +70,14 @@ _log() {
 }
 
 _log "resolve_local_web_config: SERVER_NAME=${SERVER_NAME}"
-_log "resolve_local_web_config: APP_ORIGIN=${APP_ORIGIN}"
-_log "resolve_local_web_config: LANDING_ORIGIN=${LANDING_ORIGIN}"
 _log "resolve_local_web_config: IMAGE_SERVER=${IMAGE_SERVER}"
-_log "resolve_local_web_config: WS_SERVER_NAME=${WS_SERVER_NAME}"
 _log "resolve_local_web_config: APP_BASE=${APP_BASE}"
 
 if [[ "$EXPORT" -eq 1 ]]; then
   cat <<EOF
 export SERVER_NAME='${SERVER_NAME}'
-export APP_ORIGIN='${APP_ORIGIN}'
-export LANDING_ORIGIN='${LANDING_ORIGIN}'
 export IMAGE_SERVER='${IMAGE_SERVER}'
-export WS_SERVER_NAME='${WS_SERVER_NAME}'
 export APP_BASE='${APP_BASE}'
-export CLIENT_SERVER_NAME='${CLIENT_SERVER_NAME}'
-export INVITE_LINK_HOST='${INVITE_LINK_HOST}'
 export GOOGLE_CLIENT_ID='${GOOGLE_CLIENT_ID}'
 EOF
 fi

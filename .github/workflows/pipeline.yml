@@ -94,13 +94,12 @@ jobs:
           echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
 
       # Required dev vars: CLIENT_SERVER_NAME, IMAGE_SERVER (single public origin).
-      # Derived when unset: INVITE_LINK_HOST (app. → apex when legacy), APP_BASE (CLIENT_SERVER_NAME + /).
+      # Derived when unset: APP_BASE (CLIENT_SERVER_NAME + /). Invite links derive from SERVER_NAME at runtime.
       - name: Resolve deploy web config
         id: webcfg
         env:
           CLIENT_SERVER_NAME: ${{ vars.CLIENT_SERVER_NAME }}
           IMAGE_SERVER: ${{ vars.IMAGE_SERVER }}
-          INVITE_LINK_HOST: ${{ vars.INVITE_LINK_HOST }}
           APP_BASE: ${{ vars.APP_BASE }}
         run: bash scripts/resolve_deploy_web_config.sh --github-output "$GITHUB_OUTPUT"
 
@@ -115,7 +114,6 @@ jobs:
             --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
             --env IMAGE_SERVER="${{ steps.webcfg.outputs.image_server }}" \
             --env CLIENT_SERVER_NAME="${{ steps.webcfg.outputs.client_server_name }}" \
-            --env INVITE_LINK_HOST="${{ steps.webcfg.outputs.invite_link_host }}" \
             ${{ env.BUILDER_IMAGE }}:latest \
             bash -c "
               set -euo pipefail
@@ -131,7 +129,6 @@ jobs:
                   --base-href=/ \\
                   --dart-define-from-file=/app/.env \\
                   --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
-                  --dart-define=INVITE_LINK_HOST=\${INVITE_LINK_HOST} \\
                   --dart-define=NEED_INVITE_CODE=true \\
                   --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
               else
@@ -142,7 +139,6 @@ jobs:
                   --source-maps \\
                   --base-href=/ \\
                   --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
-                  --dart-define=INVITE_LINK_HOST=\${INVITE_LINK_HOST} \\
                   --dart-define=NEED_INVITE_CODE=true \\
                   --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
               fi
