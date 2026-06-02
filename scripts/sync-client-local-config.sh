@@ -8,9 +8,7 @@ mkdir -p "$(dirname "$OUT")"
 eval "$(bash "$ROOT/scripts/resolve_local_web_config.sh" --export)"
 
 cat >"$OUT" <<EOF
-SERVER_NAME=${CLIENT_SERVER_NAME}
-WS_SERVER_NAME=${WS_SERVER_NAME}
-INVITE_LINK_HOST=${INVITE_LINK_HOST}
+SERVER_NAME=${SERVER_NAME}
 IMAGE_SERVER=${IMAGE_SERVER}
 EOF
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Writes packages/landing/config.local.js from repo-root .env (APP_ORIGIN, Google OAuth).
+# Writes packages/landing/config.local.js from repo-root .env (SERVER_NAME, Google OAuth).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LANDING_DIR="$ROOT/packages/landing"

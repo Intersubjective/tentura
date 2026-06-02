@@ -53,8 +53,8 @@ final class InvitePreviewController extends BaseController {
     };
     final origin = request.headers['origin'];
     if (origin != null &&
-        env.landingOrigin.isNotEmpty &&
-        origin == env.landingOrigin) {
+        env.publicOrigin.isNotEmpty &&
+        origin == Uri.parse(env.publicOrigin).origin) {
       headers['Access-Control-Allow-Origin'] = origin;
       headers['Access-Control-Allow-Credentials'] = 'true';
       headers[kHeaderVary] = 'Origin';
