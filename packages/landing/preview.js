@@ -2,7 +2,7 @@
 //   GET ${appBase}/api/v2/invite/:code/preview  (extractJwtOrSessionClaims)
 // Response shape (see invite_preview_result.dart):
 //   { inviter:{id,displayName,image}, codeStatus, callerStatus, beacon?, suggestedAction }
-const APP_BASE = ((window.TENTURA || {}).appBase || '').replace(/\/$/, '');
+import { resolveAppBase } from './resolve_app_base.js';
 
 /// Invite URLs: `/invite/:code` on the landing host.
 export function parseInviteCode() {
@@ -11,11 +11,9 @@ export function parseInviteCode() {
 }
 
 export async function fetchPreview(code) {
-  if (!APP_BASE) {
-    throw new Error('appBase is not configured');
-  }
+  const appBase = resolveAppBase().replace(/\/$/, '');
   const res = await fetch(
-    `${APP_BASE}/api/v2/invite/${encodeURIComponent(code)}/preview`,
+    `${appBase}/api/v2/invite/${encodeURIComponent(code)}/preview`,
     {
       headers: { Accept: 'application/json' },
       credentials: 'include',

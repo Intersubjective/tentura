@@ -1,3 +1,4 @@
+import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
@@ -11,7 +12,7 @@ void main() {
     final repo = FakeFcmTokenRepository();
     final case_ = FcmCase(
       repo,
-      env: Env(),
+      env: Env(environment: Environment.test),
       logger: Logger('test'),
     );
 

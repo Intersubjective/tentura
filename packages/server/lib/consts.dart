@@ -13,8 +13,7 @@ final kInvitationTTL = Duration(
 );
 
 /// Part of FQDN before path: `https://app.server.name`
-final kServerName =
-    Platform.environment['SERVER_NAME'] ?? 'http://localhost:2080';
+final kServerName = Platform.environment['SERVER_NAME'] ?? '';
 
 /// Part of FQDN before path: `https://image.server.name`
 final kImageServer = Platform.environment['IMAGE_SERVER'] ?? '';

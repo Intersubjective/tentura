@@ -83,16 +83,10 @@ const kBeaconEntryUnknown = 'unknown';
 const kBeaconAllowForceCloseWhenBlocked = false;
 
 /// First part of FQDN: `https://app.server.name`
-const kServerName = String.fromEnvironment(
-  'SERVER_NAME',
-  defaultValue: 'http://localhost:2080',
-);
+const kServerName = String.fromEnvironment('SERVER_NAME');
 
 /// Landing host for invite share links (`https://dev.tentura.io`, not app subdomain).
-const kInviteLinkHost = String.fromEnvironment(
-  'INVITE_LINK_HOST',
-  defaultValue: 'http://localhost:2080',
-);
+const kInviteLinkHost = String.fromEnvironment('INVITE_LINK_HOST');
 
 /// Resolves invite link base when [inviteLinkHost] is empty (CI passed
 /// `--dart-define=INVITE_LINK_HOST=` with unset GitHub var — `fromEnvironment`

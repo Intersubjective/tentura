@@ -11,11 +11,13 @@ the JSON preview from the Dart server and renders one of five states.
 
 ## Files (all served directly)
 
-| File          | Role                                                        |
-|---------------|-------------------------------------------------------------|
-| `index.html`  | markup; loads Sentry CDN, `config.js`, then `main.js`       |
-| `config.js`   | runtime config (no build injects values) — see below       |
-| `main.js`     | entry ES module; renders the 5 states + beacon overlay      |
+| File                 | Role                                                        |
+|----------------------|-------------------------------------------------------------|
+| `index.html`         | markup; loads Sentry CDN, `config.js`, optional `config.local.js`, `main.js` |
+| `config.js`          | runtime config template (`appBase: ''` — CI sed injects deploy URL) |
+| `config.local.js`    | gitignored local overlay — run `./scripts/sync-landing-local-config.sh` |
+| `resolve_app_base.js`| shared resolver; throws if `appBase` missing/invalid        |
+| `main.js`            | entry ES module; renders the 5 states + beacon overlay      |
 | `preview.js`  | fetches `GET /api/v2/invite/:code/preview`                  |
 | `webview.js`  | in-app-webview detection / Android `intent://`              |
 | `analytics.js`| funnel events via the CDN Sentry global                     |
@@ -29,22 +31,31 @@ exercising the session handoff by hand — see "Session handoff" below.
 The browser resolves the relative ES-module imports (`main.js` → `./preview.js`
 etc.) natively — nothing is bundled.
 
-## Runtime config (`config.js`, no build step)
+## Runtime config (`config.js` + optional `config.local.js`, no build step)
 
 ```js
-window.TENTURA = { sentryDsn: '', apiBase: '', appBase: 'https://app.dev.tentura.io/' };
+window.TENTURA = { sentryDsn: '', apiBase: '', appBase: '', googleEnabled: false };
 ```
 
 | Key              | Meaning                                          | Default  |
 |------------------|--------------------------------------------------|----------|
 | `sentryDsn`      | Sentry DSN; empty = analytics no-op              | `''`     |
 | `apiBase`        | Origin for the preview API; empty = same origin  | `''`     |
-| `appBase`        | Absolute WASM-app origin (subdomain)             | `https://app.dev.tentura.io/` |
+| `appBase`        | Absolute WASM-app origin (subdomain) — **required** | `''` (CI/local overlay) |
 | `googleEnabled`  | Show Google OAuth CTA (needs server `GOOGLE_*`)  | `false`  |
 
-Local Google OAuth (Caddy HTTPS `:9443`): `appBase: 'https://app.dev.lvh.me:9443/'`, `googleEnabled: true` — match repo-root `.env` `APP_ORIGIN` / `LANDING_ORIGIN`.
+There are **no silent prod fallbacks**. `resolve_app_base.js` throws if `appBase` is empty or invalid; `main.js` shows a configuration error card.
 
-Edit `config.js` per-deploy, or substitute its values at deploy time.
+**Local dev:** copy repo-root `.env.example` → `.env`, then:
+
+```bash
+./scripts/sync-landing-local-config.sh   # writes config.local.js from APP_ORIGIN
+./scripts/validate_landing_config.sh --local
+```
+
+**CI/deploy:** `pipeline.yml` sed-injects `appBase` from resolved `APP_BASE`; `validate_landing_config.sh` fails the job if still empty.
+
+See also `config.local.example.js` for a manual template.
 
 ## Local preview
 
