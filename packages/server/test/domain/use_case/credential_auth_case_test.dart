@@ -4,12 +4,10 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
-import 'package:tentura_server/domain/entity/oidc_identity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
-import 'package:tentura_server/domain/use_case/oidc_case.dart';
 import 'package:tentura_server/env.dart';
 
 import 'invitation_case_mocks.mocks.dart';
@@ -20,7 +18,7 @@ void main() {
   late MockBeaconRepositoryPort beaconRepo;
   late MockVoteUserFriendshipLookup friendshipLookup;
   late InvitationCase invitationCase;
-  late OidcCase case_;
+  late CredentialAuthCase case_;
   late Env env;
 
   setUp(() {
@@ -37,46 +35,50 @@ void main() {
       env: env,
       logger: Logger('InvitationCaseTest'),
     );
-    case_ = OidcCase(
-      CredentialAuthCase(
-        userRepo,
-        invitationCase,
-        env: env,
-        logger: Logger('CredentialAuthCaseTest'),
-      ),
+    case_ = CredentialAuthCase(
+      userRepo,
+      invitationCase,
       env: env,
-      logger: Logger('OidcCaseTest'),
+      logger: Logger('CredentialAuthCaseTest'),
     );
   });
 
-  const identity = OidcIdentity(sub: 'google-sub', name: 'Ada');
-
-  test('existing credential login without invite', () async {
+  test('existing email credential logs in', () async {
     when(
       userRepo.getByCredential(
         type: anyNamed('type'),
         identifier: anyNamed('identifier'),
       ),
-    ).thenAnswer((_) async => const UserEntity(id: 'Uabc', displayName: 'Ada'));
+    ).thenAnswer(
+      (_) async => const UserEntity(id: 'Uabc', displayName: 'Ada'),
+    );
 
-    expect(await case_.completeGoogle(identity), 'Uabc');
-  });
+    final id = await case_.resolveOrCreate(
+      type: CredentialType.emailOtp,
+      identifier: 'ada@example.com',
+      displayName: 'ada',
+    );
 
-  test('new account without invite on invite-only server is rejected', () async {
-    when(
+    expect(id, 'Uabc');
+    verify(
       userRepo.getByCredential(
+        type: 'email_otp',
+        identifier: 'ada@example.com',
+      ),
+    ).called(1);
+    verifyNever(
+      userRepo.createInvitedWithCredential(
+        invitationId: anyNamed('invitationId'),
         type: anyNamed('type'),
         identifier: anyNamed('identifier'),
+        displayName: anyNamed('displayName'),
+        handle: anyNamed('handle'),
+        publicData: anyNamed('publicData'),
       ),
-    ).thenThrow(const IdNotFoundException());
-
-    expect(
-      () => case_.completeGoogle(identity),
-      throwsA(isA<OidcInviteRequiredException>()),
     );
   });
 
-  test('new account with invite creates invited credential account', () async {
+  test('new email credential with invite creates invited account', () async {
     when(
       userRepo.getByCredential(
         type: anyNamed('type'),
@@ -92,18 +94,45 @@ void main() {
         handle: anyNamed('handle'),
         publicData: anyNamed('publicData'),
       ),
-    ).thenAnswer((_) async => const UserEntity(id: 'Unew', displayName: 'Ada'));
+    ).thenAnswer(
+      (_) async => const UserEntity(id: 'Unew', displayName: 'ada'),
+    );
 
-    expect(await case_.completeGoogle(identity, inviteId: 'Iabc'), 'Unew');
+    final id = await case_.resolveOrCreate(
+      type: CredentialType.emailOtp,
+      identifier: 'ada@example.com',
+      displayName: 'ada',
+      inviteId: 'Iabc',
+    );
+
+    expect(id, 'Unew');
     verify(
       userRepo.createInvitedWithCredential(
         invitationId: 'Iabc',
-        type: CredentialType.oidcGoogle,
-        identifier: 'google-sub',
-        displayName: 'Ada',
+        type: CredentialType.emailOtp,
+        identifier: 'ada@example.com',
+        displayName: 'ada',
         handle: null,
         publicData: null,
       ),
     ).called(1);
+  });
+
+  test('new credential without invite on invite-only server is rejected', () async {
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+
+    expect(
+      () => case_.resolveOrCreate(
+        type: CredentialType.emailOtp,
+        identifier: 'new@example.com',
+        displayName: 'new',
+      ),
+      throwsA(isA<OidcInviteRequiredException>()),
+    );
   });
 }

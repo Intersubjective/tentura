@@ -31,6 +31,13 @@ class Env {
     String? googleClientId,
     String? googleClientSecret,
     bool? oauthPreloadEnabled,
+    String? resendApiKey,
+    String? resendFromEmail,
+    Duration? emailAuthTtl,
+    Duration? emailAuthRateLimitWindow,
+    int? emailAuthMaxPerEmail,
+    int? emailAuthMaxPerIp,
+    int? emailAuthMaxPerInvite,
 
     // Web server
     String? bindAddress,
@@ -103,6 +110,29 @@ class Env {
            googleClientSecret ?? _env['GOOGLE_CLIENT_SECRET'] ?? '',
        oauthPreloadEnabled =
            oauthPreloadEnabled ?? _env['OAUTH_PRELOAD_ENABLED'] == 'true',
+       resendApiKey = resendApiKey ?? _env['RESEND_API_KEY'] ?? '',
+       resendFromEmail = resendFromEmail ?? _env['RESEND_FROM_EMAIL'] ?? '',
+       emailAuthTtl = emailAuthTtl ??
+           Duration(
+             seconds: int.tryParse(_env['EMAIL_AUTH_TTL_SECONDS'] ?? '') ??
+                 900,
+           ),
+       emailAuthRateLimitWindow = emailAuthRateLimitWindow ??
+           Duration(
+             seconds: int.tryParse(
+                   _env['EMAIL_AUTH_RATE_WINDOW_SECONDS'] ?? '',
+                 ) ??
+                 3600,
+           ),
+       emailAuthMaxPerEmail = emailAuthMaxPerEmail ??
+           int.tryParse(_env['EMAIL_AUTH_MAX_PER_EMAIL'] ?? '') ??
+           5,
+       emailAuthMaxPerIp = emailAuthMaxPerIp ??
+           int.tryParse(_env['EMAIL_AUTH_MAX_PER_IP'] ?? '') ??
+           20,
+       emailAuthMaxPerInvite = emailAuthMaxPerInvite ??
+           int.tryParse(_env['EMAIL_AUTH_MAX_PER_INVITE'] ?? '') ??
+           10,
        publicKey = EdDSAPublicKey.fromPEM(
          (publicKey ?? _env['JWT_PUBLIC_PEM'] ?? kJwtPublicKey).replaceAll(
            r'\n',
@@ -261,6 +291,23 @@ class Env {
 
   /// When true, Google OAuth start/callback return HTML that warms WASM assets.
   final bool oauthPreloadEnabled;
+
+  final String resendApiKey;
+
+  final String resendFromEmail;
+
+  final Duration emailAuthTtl;
+
+  final Duration emailAuthRateLimitWindow;
+
+  final int emailAuthMaxPerEmail;
+
+  final int emailAuthMaxPerIp;
+
+  final int emailAuthMaxPerInvite;
+
+  bool get isEmailAuthConfigured =>
+      resendApiKey.isNotEmpty && resendFromEmail.isNotEmpty;
 
   // Web server
   final String bindAddress;
