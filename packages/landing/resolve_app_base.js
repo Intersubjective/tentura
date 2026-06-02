@@ -5,9 +5,8 @@
 export function resolveAppBase() {
   const raw = String((window.TENTURA || {}).appBase || '').trim();
   if (!raw) {
-    throw new Error(
-      'Landing misconfigured: set appBase in config.js (CI) or config.local.js (local dev)',
-    );
+    // Single-origin deploy: landing and WASM share the public host.
+    return `${window.location.origin}/`;
   }
   let parsed;
   try {

@@ -5,6 +5,7 @@ import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:tentura_server/env.dart';
 
 import 'controllers/account_credentials_controller.dart';
+import 'controllers/auth_email_controller.dart';
 import 'controllers/auth_google_controller.dart';
 import 'controllers/firebase_sw_controller.dart';
 import 'controllers/websocket_controller.dart';
@@ -35,6 +36,7 @@ class RootRouter {
     this._accountCredentialsController,
     this._sessionController,
     this._authGoogleController,
+    this._authEmailController,
   );
 
   final Env _env;
@@ -64,6 +66,8 @@ class RootRouter {
   final SessionController _sessionController;
 
   final AuthGoogleController _authGoogleController;
+
+  final AuthEmailController _authEmailController;
 
   Handler routeHandler() {
     final router = Router().plus
@@ -116,6 +120,14 @@ class RootRouter {
       ..get(
         '/api/auth/google/callback',
         _authGoogleController.callback,
+      )
+      ..post(
+        '/api/v2/auth/email/start',
+        _authEmailController.start,
+      )
+      ..get(
+        '/auth/email/verify',
+        _authEmailController.verify,
       )
       ..post(
         '/api/v2/invite/<code>/accept-as-new',

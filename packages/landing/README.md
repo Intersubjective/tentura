@@ -22,7 +22,7 @@ the JSON preview from the Dart server and renders one of five states.
 | `webview.js`  | in-app-webview detection / Android `intent://`              |
 | `analytics.js`| funnel events via the CDN Sentry global                     |
 | `handoff.js`  | builds the `#th=…` URL + redirects to the app (transport)   |
-| `auth.js`     | device-seed signup: WebCrypto Ed25519 + auth-request JWT + accept-as-new |
+| `auth.js`     | device-seed signup + `startEmailMagicLink` → `POST /api/v2/auth/email/start` |
 | `styles.css`  | styling                                                     |
 
 `handoff-dev.html` is a **dev-only** harness (not part of the shipped flow) for
@@ -41,10 +41,10 @@ window.TENTURA = { sentryDsn: '', apiBase: '', appBase: '', googleEnabled: false
 |------------------|--------------------------------------------------|----------|
 | `sentryDsn`      | Sentry DSN; empty = analytics no-op              | `''`     |
 | `apiBase`        | Origin for the preview API; empty = same origin  | `''`     |
-| `appBase`        | Absolute WASM-app origin (subdomain) — **required** | `''` (CI/local overlay) |
+| `appBase`        | WASM app origin; empty = same host as landing (`location.origin`) | `''` |
 | `googleEnabled`  | Show Google OAuth CTA (needs server `GOOGLE_*`)  | `false`  |
 
-There are **no silent prod fallbacks**. `resolve_app_base.js` throws if `appBase` is empty or invalid; `main.js` shows a configuration error card.
+`resolve_app_base.js` uses `appBase` when set; otherwise it defaults to `location.origin/` (single-origin deploy). Invalid URLs still throw.
 
 **Local dev:** copy repo-root `.env.example` → `.env`, then:
 

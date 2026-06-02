@@ -2,10 +2,15 @@ import { initAnalytics, track } from './analytics.js';
 import { detectEnvironment, androidIntentUrl } from './webview.js';
 import { parseInviteCode, fetchPreview } from './preview.js';
 import { redirectToApp } from './handoff.js';
-import { signUpWithSeed, webcryptoEd25519Available } from './auth.js';
+import {
+  signUpWithSeed,
+  startEmailMagicLink,
+  webcryptoEd25519Available,
+} from './auth.js';
 import { resolveAppBase } from './resolve_app_base.js';
 
 const GOOGLE_ENABLED = Boolean((window.TENTURA || {}).googleEnabled);
+const API_BASE = (window.TENTURA || {}).apiBase || '';
 
 let APP_BASE = '';
 
@@ -122,8 +127,11 @@ function ctaExisting() {
 }
 
 function ctaGoogleSignIn(inviteCode) {
-  if (!GOOGLE_ENABLED) return null;
-  const url = new URL('/api/auth/google/start', APP_BASE);
+  if (!GOOGLE_ENABLED || env.inApp) return null;
+  const origin = API_BASE
+    ? new URL(API_BASE, window.location.href).origin
+    : window.location.origin;
+  const url = new URL('/api/auth/google/start', origin);
   if (inviteCode) url.searchParams.set('invite', inviteCode);
   return el(
     'a',
@@ -225,6 +233,66 @@ function showSignupForm(p) {
   card.append(renderSignupForm(p));
 }
 
+function renderEmailMagicLinkForm(p) {
+  const emailInput = el('input', {
+    class: 'input',
+    type: 'email',
+    placeholder: 'your@email.com',
+    autocomplete: 'email',
+    inputmode: 'email',
+  });
+  const errorEl = el('p', { class: 'error' });
+  const successEl = el('p', { class: 'hint' });
+  const submit = el('button', { class: 'btn btn-secondary' }, 'Email me a sign-in link');
+
+  submit.addEventListener('click', async () => {
+    errorEl.textContent = '';
+    successEl.textContent = '';
+    const label = submit.textContent;
+    submit.disabled = true;
+    submit.textContent = 'Sending…';
+    track('email_link_start');
+    try {
+      await startEmailMagicLink({
+        email: emailInput.value,
+        code: parseInviteCode(),
+      });
+      track('email_link_sent');
+      successEl.textContent =
+        'If that address can sign in, we sent a link. Open it in your browser (not this in-app viewer).';
+      submit.textContent = 'Link sent';
+    } catch (e) {
+      track('email_link_error', { message: String(e) });
+      errorEl.textContent = e.message || 'Could not send link. Try again.';
+      submit.disabled = false;
+      submit.textContent = label;
+    }
+  });
+
+  return el(
+    'div',
+    { class: 'email-auth' },
+    emailInput,
+    submit,
+    errorEl,
+    successEl,
+    el(
+      'p',
+      { class: 'hint' },
+      'We never confirm whether an account exists for this address.',
+    ),
+  );
+}
+
+function signedInFlash() {
+  if (new URLSearchParams(location.search).get('signed_in') !== '1') return null;
+  return el(
+    'p',
+    { class: 'hint' },
+    'You are signed in. Open Tentura below to continue.',
+  );
+}
+
 // --- State renderers -------------------------------------------------------
 function renderInvalid(p) {
   setState('invalid');
@@ -280,25 +348,30 @@ function renderExistingUser(p) {
 function renderAnonymous(p) {
   setState('anonymous');
   const code = parseInviteCode();
-  return el(
-    'div',
-    { class: 'content' },
+  const children = [
     beaconOverlay(p),
+    signedInFlash(),
     el('h1', {}, `${inviterName(p)} invited you to Tentura`),
-    el('p', {}, 'Tentura is invite-only. Three ways to continue:'),
+    el(
+      'p',
+      {},
+      env.inApp
+        ? 'Open this link in your browser, or use email to get a sign-in link.'
+        : 'Tentura is invite-only. Continue with email, Google, or the app.',
+    ),
+    renderEmailMagicLinkForm(p),
     ctaOpenApp('Open the app'),
     ctaGoogleSignIn(code),
     ctaExisting(),
-    signupReady
-      ? ctaSignUp(p)
-      : el(
-          'p',
-          { class: 'hint' },
-          env.inApp
-            ? 'To sign up, open this link in your browser.'
-            : 'Sign-up needs an up-to-date browser.',
-        ),
-  );
+  ];
+  if (!env.inApp && signupReady) {
+    children.push(ctaSignUp(p));
+  } else if (!env.inApp) {
+    children.push(
+      el('p', { class: 'hint' }, 'Sign-up needs an up-to-date browser.'),
+    );
+  }
+  return el('div', { class: 'content' }, ...children);
 }
 
 function render(p) {
@@ -367,29 +440,34 @@ function renderConfigError(message) {
 
 function renderNoInvite() {
   setState('invalid');
-  card.replaceChildren(
+  const noInviteChildren = [
+    el('h1', {}, 'Tentura is invite-only'),
     el(
-      'div',
-      { class: 'content' },
-      el('h1', {}, 'Tentura is invite-only'),
-      el(
-        'p',
-        {},
-        'Ask a friend for an invite link to join. If you already have an ' +
-          'account, sign in below or open Tentura on your phone.',
-      ),
-      ctaGoogleSignIn(''),
-      el(
-        'a',
-        {
-          class: 'btn btn-secondary',
-          href: APP_BASE,
-          onclick: () => track('cta_open_app_no_invite'),
-        },
-        'Open Tentura',
-      ),
+      'p',
+      {},
+      'Ask a friend for an invite link to join. If you already have an ' +
+        'account, sign in below or open Tentura on your phone.',
+    ),
+    signedInFlash(),
+  ];
+  if (!env.inApp) {
+    noInviteChildren.push(
+      el('p', { class: 'hint' }, 'Have an invite link? Open it to sign in with email.'),
+    );
+  }
+  noInviteChildren.push(
+    ctaGoogleSignIn(''),
+    el(
+      'a',
+      {
+        class: 'btn btn-secondary',
+        href: APP_BASE,
+        onclick: () => track('cta_open_app_no_invite'),
+      },
+      'Open Tentura',
     ),
   );
+  card.replaceChildren(el('div', { class: 'content' }, ...noInviteChildren));
 }
 
 function addAppPreconnect(appBase) {
