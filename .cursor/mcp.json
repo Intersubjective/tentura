@@ -8,7 +8,7 @@
     },
     "serena": {
       "type": "stdio",
-      "command": "serena",
+      "command": "/home/vader/.local/bin/serena",
       "args": [
         "start-mcp-server",
         "--context",
