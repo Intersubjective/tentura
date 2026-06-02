@@ -1,31 +1,27 @@
-# Local two-host simulation (subdomain split, mirrors dev/prod topology).
+# Local single-host simulation (mirrors prod single-origin topology).
 #
-#   http://dev.lvh.me:9080       -> landing (HTTP — handoff smoke tests only)
-#   http://app.dev.lvh.me:9080   -> Flutter dev server :8888 (no Secure cookies)
+#   http://dev.lvh.me:9080       -> invite static + Flutter dev proxy (HTTP — no Secure cookies)
+#   https://dev.lvh.me:9443      -> invite static + Flutter dev proxy + COOP/COEP on app paths
 #
-#   https://dev.lvh.me:9443      -> landing (Google OAuth + session cookies)
-#   https://app.dev.lvh.me:9443  -> Flutter dev server :8888 + COOP/COEP
-#
-# lvh.me resolves to 127.0.0.1 (subdomain cookies testable without /etc/hosts).
-# Offline: add to /etc/hosts:
-#   127.0.0.1 dev.tentura.test app.dev.tentura.test
-# and set LOCAL_LANDING_HOST / LOCAL_APP_HOST accordingly.
+# lvh.me resolves to 127.0.0.1 (no /etc/hosts needed). Offline: add to /etc/hosts:
+#   127.0.0.1 dev.tentura.test
+# and set LOCAL_HOST=dev.tentura.test.
 #
 # Google Cloud Console (Web OAuth client) redirect URI:
-#   https://app.dev.lvh.me:9443/api/auth/google/callback
+#   https://dev.lvh.me:9443/api/auth/google/callback
 #
 # Usage (Google OAuth — HTTPS):
 #   1. docker compose up -d
 #   2. Copy .env.example → .env; fill required URL vars (see resolve_local_web_config.sh)
-#   3. ./scripts/sync-landing-local-config.sh
+#   3. ./scripts/sync-landing-local-config.sh && ./scripts/sync-client-local-config.sh
 #   4. ./scripts/run-server-local.sh
 #   5. ./scripts/run-flutter-web-local.sh
 #   6. caddy run --config Caddyfile.local
 #   7. Trust Caddy's local CA (once): ./scripts/trust-caddy-local-ca.sh
 #      (Plain `caddy trust` is not enough for Firefox snap — separate cert DB.)
-#   Open https://dev.lvh.me:9443/ (landing) and https://app.dev.lvh.me:9443/ (app).
+#   Open https://dev.lvh.me:9443/ (WASM app) and https://dev.lvh.me:9443/invite/I… (static invite).
 #
-# Landing: config.js has empty appBase; config.local.js (generated) supplies local URLs.
+# Landing: config.js has empty appBase; config.local.js (generated) supplies same-origin URL.
 
 {
 	admin off
@@ -91,7 +87,7 @@
 		}
 	}
 
-	# Google OAuth on app host — must hit Tentura, not Hasura catch-all below.
+	# Google OAuth — must hit Tentura, not Hasura catch-all below.
 	handle /api/auth/* {
 		reverse_proxy 127.0.0.1:2080 {
 			transport http {
@@ -123,35 +119,23 @@
 	}
 }
 
-(local_landing_site) {
+(local_site) {
 	encode gzip
 
 	import local_api
 
-	handle_errors {
-		@landing_404 expression {http.error.status_code} == 404
-		handle @landing_404 {
-			respond "Landing is being deployed. Please try again shortly." 503
-		}
-	}
-
-	handle {
+	# Static invite shell — NO COOP/COEP. Prefix strip keeps assets under /invite/*.
+	handle_path /invite/* {
 		root * {$LOCAL_LANDING_ROOT:./packages/landing}
 		try_files {path} /index.html
 		file_server
 	}
-}
-
-(local_app_site) {
-	encode gzip
-
-	import local_api
 
 	# Hot reload: proxy to flutter run --web-port=8888 (default).
 	# Static-only: LOCAL_USE_FLUTTER_PROXY=off → serve packages/client/build/web.
 	@use_flutter {
 		expression "{$LOCAL_USE_FLUTTER_PROXY:}" != "off"
-		not path /api/* /shared/* /firebase-messaging-sw.js
+		not path /api/* /shared/* /firebase-messaging-sw.js /invite/*
 	}
 	handle @use_flutter {
 		reverse_proxy {$LOCAL_FLUTTER_UPSTREAM:127.0.0.1:8888} {
@@ -170,32 +154,28 @@
 	}
 }
 
-http://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
-	import local_landing_site
+http://{$LOCAL_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
+	import local_site
 }
 
-http://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
-	import local_app_site
-}
-
-https://{$LOCAL_LANDING_HOST:dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
+https://{$LOCAL_HOST:dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
 	tls internal
-	import local_landing_site
-}
-
-https://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
-	tls internal
-	import local_app_site
+	import local_site
 }
 
 # Fallback when system DNS does not resolve *.lvh.me (no /etc/hosts): browse via 127.0.0.1.
 # Google Console redirect URI: https://127.0.0.1:9443/api/auth/google/callback
 https://127.0.0.1:9443 {
 	tls internal
-	import local_app_site
+	import local_site
 }
 
-https://127.0.0.1:9444 {
+# Rollback alias: old app subdomain → single origin (remove when no longer needed).
+http://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
+	redir http://{$LOCAL_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080}{uri} permanent
+}
+
+https://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
 	tls internal
-	import local_landing_site
+	redir https://{$LOCAL_HOST:dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443}{uri} permanent
 }

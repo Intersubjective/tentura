@@ -10,17 +10,17 @@
 #        --dart-define=WS_SERVER_NAME=http://localhost:2080 \
 #        --dart-define=INVITE_LINK_HOST=http://localhost:8888
 #
-# Subdomain split (mirrors dev.tentura.io + app.dev.tentura.io) — see Caddyfile.local:
+# Single-host local stack (mirrors dev.tentura.io) — see Caddyfile.local:
 #   1. docker compose up -d
-#   2. Copy .env.example → .env; fill APP_ORIGIN, LANDING_ORIGIN, IMAGE_SERVER, SERVER_NAME
+#   2. Copy .env.example → .env; fill APP_ORIGIN, LANDING_ORIGIN (same value), IMAGE_SERVER, SERVER_NAME
 #   3. ./scripts/sync-landing-local-config.sh && ./scripts/sync-client-local-config.sh
 #   4. ./scripts/run-server-local.sh
 #   5. ./scripts/run-flutter-web-local.sh
 #   6. caddy run --config Caddyfile.local
-#   Open https://dev.lvh.me:9443/ (landing) and https://app.dev.lvh.me:9443/ (app).
-#   Requires dev.lvh.me / app.dev.lvh.me → 127.0.0.1 (lvh.me DNS or /etc/hosts).
-#   HTTP :9080 remains for handoff smoke tests; Google OAuth needs HTTPS :9443.
-#   Offline hosts: dev.tentura.test / app.dev.tentura.test in /etc/hosts (see Caddyfile.local).
+#   Open https://dev.lvh.me:9443/ (WASM app) and https://dev.lvh.me:9443/invite/I… (static invite).
+#   Requires dev.lvh.me → 127.0.0.1 (lvh.me DNS or /etc/hosts).
+#   HTTP :9080 remains for non-cookie smoke; Google OAuth needs HTTPS :9443.
+#   Offline hosts: dev.tentura.test in /etc/hosts (see Caddyfile.local).
 #   Static app only (no flutter): LOCAL_USE_FLUTTER_PROXY=off caddy run --config Caddyfile.local
 #
 # Point server Env at localhost: POSTGRES_HOST=127.0.0.1, S3_ENDPOINT=localhost:9000,

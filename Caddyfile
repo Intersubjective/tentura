@@ -1,10 +1,14 @@
-# Subdomain split (dev mimics prod):
-#   {$SERVER_NAME}     -> static landing (dev.tentura.io / tentura.io)
-#   {$APP_HOST}        -> Flutter WASM app + /api/* + /shared/* (app.dev.tentura.io / app.tentura.io)
+# Single public origin (Phase 1):
+#   {$SERVER_NAME} -> /invite/* static landing (no COOP/COEP), / WASM app (COOP/COEP), /api/* unchanged
 #
-# VPS .env: SERVER_NAME=https://dev.tentura.io, APP_HOST=app.dev.tentura.io,
-#   APP_ROOT=/srv/web, LANDING_ROOT=/srv/landing, ACME_EMAIL=...
-# Client build uses CLIENT_SERVER_NAME=https://app.dev.tentura.io (see pipeline.yml).
+# VPS .env: SERVER_NAME=dev.tentura.io (site hostname), APP_ROOT=/srv/web,
+#   LANDING_ROOT=/srv/landing, ACME_EMAIL=...
+# Optional rollback alias: old app.* subdomain → single origin (remove when app.* traffic is zero).
+# Uncomment and set APP_HOST in VPS .env during migration:
+# {$APP_HOST} {
+# 	tls {$ACME_EMAIL:internal}
+# 	redir https://{$SERVER_NAME:localhost}{uri} permanent
+# }
 {
 	auto_https disable_redirects
 	admin off
@@ -100,7 +104,7 @@
 	}
 }
 
-# Landing host — no COOP/COEP (fast TTI in webviews).
+# Single host — invite static shell + WASM app + API (same origin).
 {$SERVER_NAME:localhost} {
 	tls {$ACME_EMAIL:internal}
 
@@ -118,34 +122,22 @@
 		}
 	}
 
-	# Empty or missing landing files → friendly page instead of bare 404.
-	handle_errors {
-		@landing_404 expression {http.error.status_code} == 404
-		handle @landing_404 {
-			respond "Landing is being deployed. Please try again shortly." 503
-		}
-	}
-
-	handle {
+	# Static invite shell — NO COOP/COEP. Prefix strip keeps assets under /invite/*.
+	handle_path /invite/* {
 		root * {$LANDING_ROOT:/srv/landing}
 		try_files {path} /index.html
 		file_server
 		header Access-Control-Allow-Origin "{$CORS:*}"
 	}
-}
 
-# WASM app host — base-href /; COOP/COEP scoped here only (Risk #1).
-{$APP_HOST:app.localhost} {
-	tls {$ACME_EMAIL:internal}
-
-	request_body {
-		max_size {$CLIENT_MAX_BODY_SIZE:12MB}
+	handle_errors {
+		@e404 expression {http.error.status_code} == 404
+		handle @e404 {
+			respond "Service is being deployed. Please try again shortly." 503
+		}
 	}
 
-	encode gzip
-
-	import api
-
+	# WASM app catch-all — COOP/COEP scoped here only.
 	handle {
 		root * {$APP_ROOT:/srv/web}
 		try_files {path} /index.html
