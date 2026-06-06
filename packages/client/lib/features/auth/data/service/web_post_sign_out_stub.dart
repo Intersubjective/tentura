@@ -1,2 +1,2 @@
 /// No-op off web.
-void redirectToLandingAfterSignOut() {}
+void redirectToLandingAfterSignOut({bool clearAcknowledged = true}) {}

@@ -76,3 +76,14 @@ class InvitationCodeIsWrongException extends AuthException {
   @override
   String get toRu => '${super.toRu} неверный код приглашения!';
 }
+
+/// HttpOnly browser session was present but rejected by the server (401/403).
+final class SessionAuthRejectedException extends AuthException {
+  const SessionAuthRejectedException();
+
+  @override
+  String get toEn => '${super.toEn} session expired or invalid';
+
+  @override
+  String get toRu => '${super.toRu} сессия истекла или недействительна';
+}

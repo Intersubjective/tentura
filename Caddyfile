@@ -155,6 +155,31 @@
 		}
 	}
 
+	# Public root: cookie present → WASM; absent → landing (Level 1).
+	@rootWithSession {
+		path /
+		header Cookie *__Host-tentura_session=*
+	}
+	@publicRoot {
+		path /
+	}
+	handle @rootWithSession {
+		root * {$APP_ROOT:/srv/web}
+		try_files {path} /index.html
+		file_server
+		header Cross-Origin-Opener-Policy "same-origin"
+		header Cross-Origin-Embedder-Policy "credentialless"
+		header Vary "Cookie"
+		header Cache-Control "no-store"
+	}
+	handle @publicRoot {
+		root * {$LANDING_ROOT:/srv/landing}
+		try_files {path} /index.html
+		file_server
+		header Vary "Cookie"
+		header Cache-Control "no-store"
+	}
+
 	# WASM app catch-all — COOP/COEP scoped here only.
 	handle {
 		root * {$APP_ROOT:/srv/web}

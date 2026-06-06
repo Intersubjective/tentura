@@ -118,15 +118,29 @@ abstract base class RemoteApiClientBase {
   Future<void> sessionLogout() async {
     if (!_sessionAuth) return;
     try {
-      await postSessionRequest(
-        uri: _sessionUri('/api/v2/session/logout'),
-        userAgent: userAgent,
-        timeout: requestTimeout,
-      );
+      await _postSessionLogout();
     } on SessionHttpException {
       /* already logged out */
     }
   }
+
+  /// Idempotent browser cookie clear; ignores [_sessionAuth] guard.
+  Future<bool> clearSessionCookie() async {
+    try {
+      final response = await _postSessionLogout();
+      await dropAuth();
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {
+      await dropAuth();
+      return false;
+    }
+  }
+
+  Future<http.Response> _postSessionLogout() => postSessionRequest(
+    uri: _sessionUri('/api/v2/session/logout'),
+    userAgent: userAgent,
+    timeout: requestTimeout,
+  );
 
   //
   //

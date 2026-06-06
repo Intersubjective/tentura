@@ -110,56 +110,65 @@ final class AuthCase extends UseCaseBase {
       }
     }
 
-    final sessionUserId = await _probeSessionUserId();
+    final probe = await _probeSessionUserId();
 
     if (handoffUserId != null) {
-      if (sessionUserId != null && sessionUserId != handoffUserId) {
-        await _revokeStaleSessionCookie();
+      if (probe.userId != null && probe.userId != handoffUserId) {
+        await _authRemoteRepository.clearSessionCookie();
       }
       await _authLocalRepository.setCurrentAccountId(handoffUserId);
       return WebBootstrapResult(
         currentAccountId: handoffUserId,
         freshHandoffUserId: handoffUserId,
-        sessionUserId: sessionUserId,
+        sessionUserId: probe.userId,
       );
     }
 
-    if (sessionUserId != null) {
-      await _authLocalRepository.setCurrentAccountId(sessionUserId);
+    if (probe.userId != null) {
+      await _authLocalRepository.setCurrentAccountId(probe.userId);
       return WebBootstrapResult(
-        currentAccountId: sessionUserId,
-        sessionUserId: sessionUserId,
+        currentAccountId: probe.userId!,
+        sessionUserId: probe.userId,
       );
     }
 
     final localId = await getCurrentAccountId();
-    return WebBootstrapResult(currentAccountId: localId);
+    return WebBootstrapResult(
+      currentAccountId: localId,
+      invalidSessionCookieRejected: probe.invalidSessionCookieRejected,
+      sessionCookieClearAcknowledged: probe.sessionCookieClearAcknowledged,
+    );
   }
 
-  Future<String?> _probeSessionUserId() async {
+  Future<_SessionProbeResult> _probeSessionUserId() async {
     try {
       final userId = await _authRemoteRepository.signInWithSession();
       final existing = await _authLocalRepository.getAccountById(userId);
       if (existing == null) {
         await _authLocalRepository.addSessionAccount(userId);
       }
-      return userId;
+      return _SessionProbeResult(userId: userId);
+    } on SessionAuthRejectedException {
+      final clearResult = await _authRemoteRepository.clearSessionCookie();
+      await _clearGhostSessionOnlyLocalId();
+      return _SessionProbeResult(
+        invalidSessionCookieRejected: true,
+        sessionCookieClearAcknowledged: clearResult.acknowledged,
+      );
     } catch (e, s) {
       logger.fine('No cookie session to bootstrap', e, s);
-      return null;
+      return const _SessionProbeResult();
     }
   }
 
-  Future<void> _revokeStaleSessionCookie() async {
+  Future<void> _clearGhostSessionOnlyLocalId() async {
+    final currentId = await getCurrentAccountId();
+    if (currentId.isEmpty) return;
+    if (!await _authLocalRepository.isSessionAccount(currentId)) return;
     try {
-      await _authRemoteRepository.sessionLogout();
-    } catch (e, s) {
-      logger.fine('Session logout during handoff takeover', e, s);
-    }
-    try {
-      await _authRemoteRepository.signOut();
-    } catch (e, s) {
-      logger.fine('Remote sign-out during handoff takeover', e, s);
+      await _authLocalRepository.getSeedByAccountId(currentId);
+    } on AuthIdNotFoundException {
+      await _authLocalRepository.setCurrentAccountId(null);
     }
   }
 
@@ -186,7 +195,8 @@ final class AuthCase extends UseCaseBase {
   /// Returns the account id or null when no valid cookie session exists.
   ///
   Future<String?> tryBootstrapSession() async {
-    final userId = await _probeSessionUserId();
+    final probe = await _probeSessionUserId();
+    final userId = probe.userId;
     if (userId == null) {
       return null;
     }
@@ -230,9 +240,24 @@ final class AuthCase extends UseCaseBase {
     await _devicePushPort.unregisterCurrentDevice();
     await _authRemoteRepository.signOut();
     await _authLocalRepository.setCurrentAccountId(null);
-    redirectToLandingAfterSignOut();
+    final clearResult = await _authRemoteRepository.clearSessionCookie();
+    redirectToLandingAfterSignOut(
+      clearAcknowledged: clearResult.acknowledged,
+    );
   }
 
   //
   static final _random = Random.secure();
+}
+
+final class _SessionProbeResult {
+  const _SessionProbeResult({
+    this.userId,
+    this.invalidSessionCookieRejected = false,
+    this.sessionCookieClearAcknowledged = false,
+  });
+
+  final String? userId;
+  final bool invalidSessionCookieRejected;
+  final bool sessionCookieClearAcknowledged;
 }

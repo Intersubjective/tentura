@@ -17,6 +17,20 @@ _Avoid_: Using “plan” in UI for the NOW orientation field.
 - A **Beacon** has at most one **current line** on **BeaconRoomState** (room-private).
 - Publishing or updating a root coordination **Plan** may sync text into the **current line**; they remain distinct concepts.
 
+## Public web entry
+
+**Public root (`/`)**:
+The main entry URL on the public host. Shows the full product when a valid **browser session** exists; otherwise shows the invite-only **landing surface**.
+
+**Browser session**:
+Server-owned sign-in state carried by an HttpOnly cookie on the public host. Not the same as a device seed or a short-lived API bearer token.
+
+**Landing surface**:
+Lightweight static HTML/JS for invite preview and sign-in entry (`/invite/…`, and `/` when signed out).
+
+**WASM surface**:
+The Flutter web application (`/` when a session cookie is present; deep app routes always).
+
 ## Room coordination UI
 
 **Promoted message**:

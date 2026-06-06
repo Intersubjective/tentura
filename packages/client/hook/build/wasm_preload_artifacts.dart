@@ -111,6 +111,7 @@ const BYPASS_PREFIXES = [
   '/api/',
   '/shared/',
   '/firebase-messaging-sw.js',
+  '/invite/',
 ];
 
 function shouldHandle(url, request) {

@@ -5,6 +5,9 @@ import 'package:tentura_root/domain/entity/auth_request_intent.dart';
 import 'package:tentura/data/repository/remote_repository.dart';
 import 'package:tentura/data/service/remote_api_client/credentials.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/data/service/remote_api_client/session_fetch.dart';
+import 'package:tentura/features/auth/domain/entity/session_cookie_clear_result.dart';
+import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 
 import '../gql/_g/sign_in.req.gql.dart';
@@ -72,8 +75,15 @@ class AuthRemoteRepository extends RemoteRepository
   Future<String> signInWithSession() async {
     await remoteApiService.dropAuth();
     await remoteApiService.setSessionAuth();
-    final authToken = await remoteApiService.getAuthToken();
-    return authToken.userId;
+    try {
+      final authToken = await remoteApiService.getAuthToken();
+      return authToken.userId;
+    } on SessionHttpException catch (e) {
+      if (e.statusCode == 401 || e.statusCode == 403) {
+        throw const SessionAuthRejectedException();
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -82,6 +92,14 @@ class AuthRemoteRepository extends RemoteRepository
 
   @override
   Future<void> sessionLogout() => remoteApiService.sessionLogout();
+
+  @override
+  Future<SessionCookieClearResult> clearSessionCookie() async {
+    final ok = await remoteApiService.clearSessionCookie();
+    return ok
+        ? SessionCookieClearResult.succeeded
+        : SessionCookieClearResult.failed;
+  }
 
   //
   //

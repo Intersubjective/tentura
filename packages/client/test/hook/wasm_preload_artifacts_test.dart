@@ -23,6 +23,9 @@ void main() {
       expect(sw.existsSync(), isTrue);
       expect(manifest.readAsStringSync(), contains('main.dart.wasm'));
       expect(sw.readAsStringSync(), contains('tentura-app-assets-'));
+      expect(sw.readAsStringSync(), contains("'/invite/'"));
+      final swBody = sw.readAsStringSync();
+      expect(swBody.contains('"/"') || swBody.contains("'/'"), isFalse);
     } finally {
       dir.deleteSync(recursive: true);
     }

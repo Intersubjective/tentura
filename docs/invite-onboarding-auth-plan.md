@@ -65,13 +65,6 @@ Critical routing invariant:
 > `/invite/*` must be handled before the Flutter SPA fallback. It must never
 > fall through to `build/web/index.html`.
 
-`/invite-web/*` is allowed only as a temporary migration alias:
-
-- `/invite-web/<code>` may issue a server-side 302 to `/invite/<code>`.
-- New share links should use `/invite/<code>` once route ordering is proven.
-- Client-side redirect HTML is discouraged because it adds JS latency in
-  webviews.
-
 ## Header Model
 
 Static invite routes should not carry WASM isolation headers:
@@ -454,8 +447,12 @@ Tasks:
 Acceptance:
 
 - After Google login, opening a new tab to `/` enters the app authenticated.
+- Opening `/` without a session cookie serves landing `renderNoInvite()` (Caddy Level 1).
+- Opening `/` with a stale session cookie: WASM loads once, client clears cookie, reloads to landing (or `/invite/` fallback if clear fails); no infinite loop.
 - Opening `/invite/<code>` while signed in renders caller-aware static state.
 - Opening `/invite/<code>` while signed out renders anonymous state.
+
+Implementation note: see `docs/adr/0002-root-session-routing.md`.
 
 ### Phase 2: Email Magic Link
 
