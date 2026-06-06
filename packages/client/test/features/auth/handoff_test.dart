@@ -5,6 +5,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/domain/port/device_push_port.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/entity/account_entity.dart';
+import 'package:tentura/features/auth/domain/entity/session_cookie_clear_result.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
@@ -167,6 +168,10 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
   Future<void> establishSessionFromBearer() async {}
   @override
   Future<void> sessionLogout() async {}
+
+  @override
+  Future<SessionCookieClearResult> clearSessionCookie() async =>
+      SessionCookieClearResult.succeeded;
   @override
   Future<String> signUp({
     required String seed,

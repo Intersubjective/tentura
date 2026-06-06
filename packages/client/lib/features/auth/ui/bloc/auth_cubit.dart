@@ -15,6 +15,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import '../../domain/exception.dart';
 import '../../domain/entity/account_entity.dart';
 import '../../domain/use_case/account_case.dart';
+import '../../data/service/web_rejected_session_redirect.dart';
 import '../../domain/use_case/auth_case.dart';
 import 'auth_state.dart';
 
@@ -40,7 +41,20 @@ class AuthCubit extends Cubit<AuthState> {
       currentAccountId: bootstrap.currentAccountId,
       updatedAt: DateTime.timestamp(),
     );
+    if (bootstrap.invalidSessionCookieRejected && state.isNotAuthenticated) {
+      reloadAfterRejectedSession(
+        clearAcknowledged: bootstrap.sessionCookieClearAcknowledged,
+      );
+      return AuthCubit(
+        env,
+        authCase,
+        accountCase,
+        profileRepository,
+        state,
+      );
+    }
     if (state.isAuthenticated) {
+      noteAuthenticatedBoot();
       try {
         await authCase.signIn(
           userId: state.currentAccountId,

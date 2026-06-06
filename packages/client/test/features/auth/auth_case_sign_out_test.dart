@@ -3,12 +3,13 @@ import 'package:logging/logging.dart';
 import 'package:tentura/domain/port/device_push_port.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/entity/account_entity.dart';
+import 'package:tentura/features/auth/domain/entity/session_cookie_clear_result.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
 void main() {
-  test('signOut unregisters push before remote signOut and clearing account',
+  test('signOut unregisters push before remote signOut then clears cookie',
       () async {
     final order = <String>[];
     final local = FakeAuthLocal(order);
@@ -26,7 +27,7 @@ void main() {
 
     expect(
       order,
-      ['unregister', 'signOut', 'clearAccount'],
+      ['unregister', 'signOut', 'clearAccount', 'clearSessionCookie'],
     );
   });
 }
@@ -72,6 +73,12 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
   Future<void> addAccount(String id, String seed, [String? displayName]) async {}
 
   @override
+  Future<void> addSessionAccount(String id, [String? displayName]) async {}
+
+  @override
+  Future<bool> isSessionAccount(String id) async => false;
+
+  @override
   Future<void> removeAccount(String id) async {}
 
   @override
@@ -95,6 +102,21 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
 
   @override
   Future<String> signIn(String seed) async => '';
+
+  @override
+  Future<String> signInWithSession() async => '';
+
+  @override
+  Future<void> establishSessionFromBearer() async {}
+
+  @override
+  Future<void> sessionLogout() async {}
+
+  @override
+  Future<SessionCookieClearResult> clearSessionCookie() async {
+    order.add('clearSessionCookie');
+    return SessionCookieClearResult.succeeded;
+  }
 
   @override
   Future<String> signUp({
