@@ -69,18 +69,19 @@ SET consumed_at = now()
 WHERE token_hash = \$1
   AND consumed_at IS NULL
   AND expires_at > now()
-RETURNING id, normalized_email, invite_code, created_at, expires_at
+RETURNING id, normalized_email, invite_code
 ''',
       variables: [Variable<String>(tokenHash)],
     ).get();
     if (rows.isEmpty) return null;
     final row = rows.first;
+    final now = DateTime.timestamp();
     return EmailAuthTransactionEntity(
       id: row.read<String>('id'),
       normalizedEmail: row.read<String>('normalized_email'),
       inviteCode: row.readNullable<String>('invite_code'),
-      createdAt: (row.read<PgDateTime>('created_at')).dateTime,
-      expiresAt: (row.read<PgDateTime>('expires_at')).dateTime,
+      createdAt: now,
+      expiresAt: now,
     );
   }
 
