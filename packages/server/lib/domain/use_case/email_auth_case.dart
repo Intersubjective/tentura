@@ -54,6 +54,17 @@ final class EmailAuthCase extends UseCaseBase {
       return;
     }
 
+    if (inviteCode == null || inviteCode.isEmpty) {
+      final registered = await _credentialAuthCase.credentialExists(
+        type: CredentialType.emailOtp,
+        identifier: normalized,
+      );
+      if (!registered && env.isNeedInvite) {
+        logger.info('email auth start skipped: unregistered email, invite required');
+        return;
+      }
+    }
+
     final token = await _transactionRepository.create(
       normalizedEmail: normalized,
       inviteCode: inviteCode,

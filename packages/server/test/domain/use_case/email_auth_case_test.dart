@@ -142,6 +142,102 @@ void main() {
     expect(sender.lastVerifyUrl, contains('/auth/email/verify?t=opaque-token'));
   });
 
+  test('start skips unregistered email on invite-only without invite', () async {
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+
+    await case_.start(
+      email: 'new@example.com',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+
+    expect(sender.lastTo, isNull);
+    expect(sender.lastVerifyUrl, isNull);
+  });
+
+  test('start sends to registered email_otp on invite-only without invite', () async {
+    when(
+      userRepo.getByCredential(
+        type: CredentialType.emailOtp.wire,
+        identifier: 'existing@example.com',
+      ),
+    ).thenAnswer(
+      (_) async => const UserEntity(id: 'Uexist', displayName: 'existing'),
+    );
+
+    await case_.start(
+      email: 'existing@example.com',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+
+    expect(sender.lastTo, 'existing@example.com');
+    expect(sender.lastVerifyUrl, contains('/auth/email/verify?t=opaque-token'));
+  });
+
+  test('start sends to unregistered when invite code present', () async {
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+
+    await case_.start(
+      email: 'new@example.com',
+      inviteCode: 'Iabc',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+
+    expect(sender.lastTo, 'new@example.com');
+    expect(sender.lastVerifyUrl, contains('/auth/email/verify?t=opaque-token'));
+  });
+
+  test('start sends to unregistered on open-signup without invite', () async {
+    final openEnv = Env(
+      environment: Environment.test,
+      isNeedInvite: false,
+      resendApiKey: 're_test',
+      resendFromEmail: 'Tentura <auth@test.local>',
+      publicOrigin: 'https://dev.tentura.io',
+    );
+    final openCredentialAuthCase = CredentialAuthCase(
+      userRepo,
+      invitationCase,
+      env: openEnv,
+      logger: Logger('CredentialAuthCaseTest'),
+    );
+    final openCase = EmailAuthCase(
+      txRepo,
+      sender,
+      openCredentialAuthCase,
+      env: openEnv,
+      logger: Logger('EmailAuthCaseTest'),
+    );
+
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+
+    await openCase.start(
+      email: 'new@example.com',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+
+    expect(sender.lastTo, 'new@example.com');
+    expect(sender.lastVerifyUrl, contains('/auth/email/verify?t=opaque-token'));
+  });
+
   test('verify consumes token and creates invited account', () async {
     await case_.start(
       email: 'new@example.com',
