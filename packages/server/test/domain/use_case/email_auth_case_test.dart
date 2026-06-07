@@ -330,4 +330,70 @@ void main() {
       throwsA(isA<EmailAuthTokenInvalidException>()),
     );
   });
+
+  test('verify consumes token and creates account on open signup', () async {
+    final openEnv = Env(
+      environment: Environment.test,
+      isNeedInvite: false,
+      resendApiKey: 're_test',
+      resendFromEmail: 'Tentura <auth@test.local>',
+      publicOrigin: 'https://dev.tentura.io',
+    );
+    final openCredentialAuthCase = CredentialAuthCase(
+      userRepo,
+      contactRepo,
+      invitationCase,
+      env: openEnv,
+      logger: Logger('CredentialAuthCaseTest'),
+    );
+    final openCase = EmailAuthCase(
+      txRepo,
+      sender,
+      openCredentialAuthCase,
+      env: openEnv,
+      logger: Logger('EmailAuthCaseTest'),
+    );
+
+    await openCase.start(
+      email: 'open@example.com',
+      ipFingerprint: 'ip',
+      userAgentFingerprint: 'ua',
+    );
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
+    when(
+      userRepo.createWithCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+        displayName: anyNamed('displayName'),
+        handle: anyNamed('handle'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).thenAnswer(
+      (_) async => const UserEntity(id: 'Uopen', displayName: 'open'),
+    );
+
+    final result = await openCase.verify('opaque-token');
+
+    expect(result.accountId, 'Uopen');
+    expect(result.inviteCode, isNull);
+    verify(
+      userRepo.createWithCredential(
+        type: CredentialType.emailOtp,
+        identifier: 'open@example.com',
+        displayName: 'open',
+        handle: null,
+        publicData: null,
+        contacts: anyNamed('contacts'),
+      ),
+    ).called(1);
+  });
 }
