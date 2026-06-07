@@ -6,17 +6,23 @@
 import 'dart:async' as _i7;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i10;
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
-    as _i10;
+    as _i12;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i4;
+import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i9;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i5;
 import 'package:tentura_server/domain/entity/invitation_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i3;
-import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i9;
+import 'package:tentura_server/domain/entity/verified_contact_entity.dart'
+    as _i14;
+import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i11;
 import 'package:tentura_server/domain/port/invitation_repository_port.dart'
     as _i6;
 import 'package:tentura_server/domain/port/user_repository_port.dart' as _i8;
+import 'package:tentura_server/domain/port/verified_contact_repository_port.dart'
+    as _i13;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -178,6 +184,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<_i9.AssertedContact>? contacts = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createWithCredential, [], {
@@ -186,6 +193,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #displayName: displayName,
               #handle: handle,
               #publicData: publicData,
+              #contacts: contacts,
             }),
             returnValue: _i7.Future<_i3.UserEntity>.value(
               _FakeUserEntity_1(
@@ -196,6 +204,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #displayName: displayName,
                   #handle: handle,
                   #publicData: publicData,
+                  #contacts: contacts,
                 }),
               ),
             ),
@@ -210,6 +219,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<_i9.AssertedContact>? contacts = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvitedWithCredential, [], {
@@ -219,6 +229,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #displayName: displayName,
               #handle: handle,
               #publicData: publicData,
+              #contacts: contacts,
             }),
             returnValue: _i7.Future<_i3.UserEntity>.value(
               _FakeUserEntity_1(
@@ -230,6 +241,7 @@ class MockUserRepositoryPort extends _i1.Mock
                   #displayName: displayName,
                   #handle: handle,
                   #publicData: publicData,
+                  #contacts: contacts,
                 }),
               ),
             ),
@@ -337,6 +349,54 @@ class MockUserRepositoryPort extends _i1.Mock
           as _i7.Future<void>);
 
   @override
+  _i7.Future<String> linkCredentialWithContacts({
+    required String? accountId,
+    required _i4.CredentialType? type,
+    required String? identifier,
+    Map<String, Object?>? publicData,
+    List<_i9.AssertedContact>? contacts = const [],
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#linkCredentialWithContacts, [], {
+              #accountId: accountId,
+              #type: type,
+              #identifier: identifier,
+              #publicData: publicData,
+              #contacts: contacts,
+            }),
+            returnValue: _i7.Future<String>.value(
+              _i10.dummyValue<String>(
+                this,
+                Invocation.method(#linkCredentialWithContacts, [], {
+                  #accountId: accountId,
+                  #type: type,
+                  #identifier: identifier,
+                  #publicData: publicData,
+                  #contacts: contacts,
+                }),
+              ),
+            ),
+          )
+          as _i7.Future<String>);
+
+  @override
+  _i7.Future<void> addVerifiedContacts({
+    required String? accountId,
+    required _i4.CredentialType? source,
+    List<_i9.AssertedContact>? contacts = const [],
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#addVerifiedContacts, [], {
+              #accountId: accountId,
+              #source: source,
+              #contacts: contacts,
+            }),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
   _i7.Future<void> update({
     required String? id,
     String? displayName,
@@ -389,7 +449,7 @@ class MockUserRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRepositoryPort extends _i1.Mock
-    implements _i9.BeaconRepositoryPort {
+    implements _i11.BeaconRepositoryPort {
   MockBeaconRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
@@ -717,7 +777,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVoteUserFriendshipLookup extends _i1.Mock
-    implements _i10.VoteUserFriendshipLookup {
+    implements _i12.VoteUserFriendshipLookup {
   MockVoteUserFriendshipLookup() {
     _i1.throwOnMissingStub(this);
   }
@@ -763,4 +823,38 @@ class MockVoteUserFriendshipLookup extends _i1.Mock
             returnValue: _i7.Future<bool>.value(false),
           )
           as _i7.Future<bool>);
+}
+
+/// A class which mocks [VerifiedContactRepositoryPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockVerifiedContactRepositoryPort extends _i1.Mock
+    implements _i13.VerifiedContactRepositoryPort {
+  MockVerifiedContactRepositoryPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i7.Future<String?> getAccountIdByContact({
+    required _i14.ContactKind? kind,
+    required String? value,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getAccountIdByContact, [], {
+              #kind: kind,
+              #value: value,
+            }),
+            returnValue: _i7.Future<String?>.value(),
+          )
+          as _i7.Future<String?>);
+
+  @override
+  _i7.Future<Set<String>> findAccountIdsByContacts(
+    Iterable<({_i14.ContactKind kind, String value})>? contacts,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#findAccountIdsByContacts, [contacts]),
+            returnValue: _i7.Future<Set<String>>.value(<String>{}),
+          )
+          as _i7.Future<Set<String>>);
 }

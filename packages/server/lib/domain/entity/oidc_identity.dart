@@ -9,6 +9,7 @@ abstract class OidcIdentity with _$OidcIdentity {
     required String sub,
     @Default('') String email,
     @Default('') String name,
+    @Default(false) bool emailVerified,
     Map<String, Object?>? publicData,
   }) = _OidcIdentity;
 

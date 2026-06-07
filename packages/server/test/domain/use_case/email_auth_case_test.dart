@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
@@ -87,6 +88,7 @@ final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
 
 void main() {
   late MockUserRepositoryPort userRepo;
+  late MockVerifiedContactRepositoryPort contactRepo;
   late InvitationCase invitationCase;
   late CredentialAuthCase credentialAuthCase;
   late _FakeTxRepo txRepo;
@@ -96,6 +98,7 @@ void main() {
 
   setUp(() {
     userRepo = MockUserRepositoryPort();
+    contactRepo = MockVerifiedContactRepositoryPort();
     final invitationRepo = MockInvitationRepositoryPort();
     final beaconRepo = MockBeaconRepositoryPort();
     final friendshipLookup = MockVoteUserFriendshipLookup();
@@ -116,6 +119,7 @@ void main() {
     );
     credentialAuthCase = CredentialAuthCase(
       userRepo,
+      contactRepo,
       invitationCase,
       env: env,
       logger: Logger('CredentialAuthCaseTest'),
@@ -149,6 +153,12 @@ void main() {
         identifier: anyNamed('identifier'),
       ),
     ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.getAccountIdByContact(
+        kind: ContactKind.email,
+        value: 'new@example.com',
+      ),
+    ).thenAnswer((_) async => null);
 
     await case_.start(
       email: 'new@example.com',
@@ -158,6 +168,30 @@ void main() {
 
     expect(sender.lastTo, isNull);
     expect(sender.lastVerifyUrl, isNull);
+  });
+
+  test('start sends to registered verified contact on invite-only without invite', () async {
+    when(
+      userRepo.getByCredential(
+        type: CredentialType.emailOtp.wire,
+        identifier: 'google@example.com',
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.getAccountIdByContact(
+        kind: ContactKind.email,
+        value: 'google@example.com',
+      ),
+    ).thenAnswer((_) async => 'Ugoogle');
+
+    await case_.start(
+      email: 'google@example.com',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+
+    expect(sender.lastTo, 'google@example.com');
+    expect(sender.lastVerifyUrl, contains('/auth/email/verify?t=opaque-token'));
   });
 
   test('start sends to registered email_otp on invite-only without invite', () async {
@@ -209,6 +243,7 @@ void main() {
     );
     final openCredentialAuthCase = CredentialAuthCase(
       userRepo,
+      contactRepo,
       invitationCase,
       env: openEnv,
       logger: Logger('CredentialAuthCaseTest'),
@@ -252,6 +287,9 @@ void main() {
       ),
     ).thenThrow(const IdNotFoundException());
     when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
+    when(
       userRepo.createInvitedWithCredential(
         invitationId: anyNamed('invitationId'),
         type: anyNamed('type'),
@@ -259,6 +297,7 @@ void main() {
         displayName: anyNamed('displayName'),
         handle: anyNamed('handle'),
         publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
       ),
     ).thenAnswer(
       (_) async => const UserEntity(id: 'Unew', displayName: 'new'),
@@ -275,6 +314,7 @@ void main() {
         displayName: 'new',
         handle: null,
         publicData: null,
+        contacts: anyNamed('contacts'),
       ),
     ).called(1);
 

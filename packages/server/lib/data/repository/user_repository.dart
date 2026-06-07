@@ -5,6 +5,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -158,6 +159,7 @@ class UserRepository implements UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   }) async {
     final publicKey = await _generatePlaceholderPublicKey();
     final user = await _database.managers.users.createReturning(
@@ -179,6 +181,11 @@ class UserRepository implements UserRepositoryPort {
             : Value(publicData),
       ),
     );
+    await _insertAuthoritativeContacts(
+      accountId: user.id,
+      source: type,
+      contacts: contacts,
+    );
     return userModelToEntity(user);
   }
 
@@ -189,6 +196,7 @@ class UserRepository implements UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   }) => _database.transaction<UserEntity>(
     () => _createUserWithCredential(
       type: type,
@@ -196,6 +204,7 @@ class UserRepository implements UserRepositoryPort {
       displayName: displayName,
       handle: handle,
       publicData: publicData,
+      contacts: contacts,
     ),
   );
 
@@ -207,6 +216,7 @@ class UserRepository implements UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   }) => _database.transaction<UserEntity>(() async {
     final invitation = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -228,6 +238,7 @@ class UserRepository implements UserRepositoryPort {
       displayName: displayName,
       handle: handle,
       publicData: publicData,
+      contacts: contacts,
     );
     final changedRowCount = await _database.managers.invitations
         .filter((e) => e.id(invitationId))
@@ -326,10 +337,168 @@ class UserRepository implements UserRepositoryPort {
       );
       return _credentialModelToEntity(row);
     } on UniqueViolationException catch (_) {
-      // Unique (type, identifier) index — the pair is already linked (on this
-      // or another account). Conflict policy: refuse, never auto-merge.
-      throw const CredentialConflictException();
+      final owner = await _findCredentialOwner(type: type, identifier: identifier);
+      if (owner != null && owner != accountId) {
+        throw const CredentialConflictException();
+      }
+      rethrow;
     }
+  }
+
+  //
+  //
+  @override
+  Future<String> linkCredentialWithContacts({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
+  }) async {
+    final existingOwner = await _findCredentialOwner(
+      type: type,
+      identifier: identifier,
+    );
+    if (existingOwner != null) {
+      if (existingOwner == accountId) {
+        await addVerifiedContacts(
+          accountId: accountId,
+          source: type,
+          contacts: contacts,
+        );
+      }
+      return existingOwner;
+    }
+
+    try {
+      return await _database.transaction<String>(() async {
+        await _database.managers.accountCredentials.create(
+          (o) => o(
+            accountId: accountId,
+            type: type.wire,
+            identifier: identifier,
+            publicData: publicData == null
+                ? const Value.absent()
+                : Value(publicData),
+          ),
+        );
+        await _insertAuthoritativeContacts(
+          accountId: accountId,
+          source: type,
+          contacts: contacts,
+        );
+        return accountId;
+      });
+    } on UniqueViolationException catch (_) {
+      final contactOwner = await _findConflictingContactOwner(
+        contacts: AssertedContact.authoritativeOnly(contacts),
+      );
+      if (contactOwner != null && contactOwner != accountId) {
+        throw const ContactConflictException();
+      }
+      final credentialOwner = await _findCredentialOwner(
+        type: type,
+        identifier: identifier,
+      );
+      if (credentialOwner != null) {
+        return credentialOwner;
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> addVerifiedContacts({
+    required String accountId,
+    required CredentialType source,
+    List<AssertedContact> contacts = const [],
+  }) async {
+    for (final contact in AssertedContact.authoritativeOnly(contacts)) {
+      final owner = await _database.managers.accountVerifiedContacts
+          .filter(
+            (e) => e.kind(contact.kind.wire) & e.value(contact.value),
+          )
+          .getSingleOrNull();
+      if (owner == null) {
+        try {
+          await _database.managers.accountVerifiedContacts.create(
+            (o) => o(
+              accountId: accountId,
+              kind: contact.kind.wire,
+              value: contact.value,
+              lastSource: source.wire,
+            ),
+          );
+        } on UniqueViolationException catch (_) {
+          // Concurrent insert won the race — skip without blocking login.
+        }
+        continue;
+      }
+      if (owner.accountId == accountId) {
+        await _database.managers.accountVerifiedContacts
+            .filter((e) => e.id(owner.id))
+            .update(
+              (o) => o(
+                lastSource: Value(source.wire),
+                verifiedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
+      }
+    }
+  }
+
+  Future<void> _insertAuthoritativeContacts({
+    required String accountId,
+    required CredentialType source,
+    required List<AssertedContact> contacts,
+  }) async {
+    for (final contact in AssertedContact.authoritativeOnly(contacts)) {
+      try {
+        await _database.managers.accountVerifiedContacts.create(
+          (o) => o(
+            accountId: accountId,
+            kind: contact.kind.wire,
+            value: contact.value,
+            lastSource: source.wire,
+          ),
+        );
+      } on UniqueViolationException catch (_) {
+        final owner = await _database.managers.accountVerifiedContacts
+            .filter(
+              (e) => e.kind(contact.kind.wire) & e.value(contact.value),
+            )
+            .getSingleOrNull();
+        if (owner?.accountId != accountId) {
+          throw const ContactConflictException();
+        }
+      }
+    }
+  }
+
+  Future<String?> _findCredentialOwner({
+    required CredentialType type,
+    required String identifier,
+  }) async {
+    final row = await _database.managers.accountCredentials
+        .filter((e) => e.type(type.wire) & e.identifier(identifier))
+        .getSingleOrNull();
+    return row?.accountId;
+  }
+
+  Future<String?> _findConflictingContactOwner({
+    required List<AssertedContact> contacts,
+  }) async {
+    for (final contact in contacts) {
+      final row = await _database.managers.accountVerifiedContacts
+          .filter(
+            (e) => e.kind(contact.kind.wire) & e.value(contact.value),
+          )
+          .getSingleOrNull();
+      if (row != null) {
+        return row.accountId;
+      }
+    }
+    return null;
   }
 
   //

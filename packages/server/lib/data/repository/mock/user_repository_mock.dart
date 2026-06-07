@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -48,6 +49,7 @@ class UserRepositoryMock implements UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   }) {
     throw UnimplementedError();
   }
@@ -60,6 +62,7 @@ class UserRepositoryMock implements UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   }) {
     throw UnimplementedError();
   }
@@ -104,6 +107,26 @@ class UserRepositoryMock implements UserRepositoryPort {
   Future<void> removeCredential({
     required String accountId,
     required String credentialId,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String> linkCredentialWithContacts({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> addVerifiedContacts({
+    required String accountId,
+    required CredentialType source,
+    List<AssertedContact> contacts = const [],
   }) {
     throw UnimplementedError();
   }

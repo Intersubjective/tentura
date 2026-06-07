@@ -37,6 +37,7 @@ enum AuthExceptionCode {
   oidcIdTokenInvalid,
   oidcProviderDisabled,
   oidcInviteRequired,
+  authAmbiguousIdentity,
 }
 
 class AuthExceptionCodes extends ExceptionCodes {
