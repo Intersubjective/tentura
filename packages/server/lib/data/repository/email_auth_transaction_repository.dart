@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
@@ -123,7 +124,7 @@ WHERE $whereClause AND created_at >= \$2
 ''',
       variables: [
         Variable<String>(args.first),
-        Variable<PgDateTime>(PgDateTime(since)),
+        Variable(TypedValue(Type.timestampTz, since)),
       ],
     ).getSingle();
     return rows.read<int>('c');
