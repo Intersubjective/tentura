@@ -9,6 +9,8 @@ import 'package:tentura/features/auth/data/service/web_redirect.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
+import 'accept_invite_guard.dart';
+import 'invite_deep_link.dart';
 import 'notification_deep_link.dart';
 import 'root_router.gr.dart';
 
@@ -147,6 +149,30 @@ class RootRouter extends RootStackRouter {
             invitePath: '/invite/${resolver.route.params.getString('id')}',
           );
           return null;
+        }),
+      ],
+    ),
+
+    // Accept invite — existing authenticated user confirms, then befriends issuer.
+    AutoRoute(
+      keepHistory: false,
+      maintainState: false,
+      fullscreenDialog: true,
+      page: AcceptInviteRoute.page,
+      path: '$kPathAcceptInvite/:id',
+      guards: [
+        AutoRouteGuard.redirect((resolver) {
+          final code = resolver.route.params.getString('id');
+          final bounced = goToLanding(invitePath: '/invite/$code');
+          return switch (resolveAcceptInviteGuard(
+            isAuthenticated: _authCubit.state.isAuthenticated,
+            code: code,
+            bouncedToLanding: bounced,
+          )) {
+            AcceptInviteGuardAllow() => null,
+            AcceptInviteGuardLeaving() => null,
+            AcceptInviteGuardSignup(:final code) => AuthRegisterRoute(id: code),
+          };
         }),
       ],
     ),
@@ -317,34 +343,43 @@ class RootRouter extends RootStackRouter {
   }
 
   Future<Uri> deepLinkTransformer(Uri uri) => SynchronousFuture(
-    uri.path == kPathAppLinkView
-        ? switch (uri.queryParameters['id']) {
-            final String id when id.startsWith('B') || id.startsWith('C') =>
-              transformBeaconAppLink(uri, id),
-            final String id when id.startsWith('O') || id.startsWith('U') =>
-              uri.replace(
-                path: '$kPathProfileView/$id',
-                queryParameters: {
-                  kQueryIsDeepLink: 'true',
-                },
-              ),
-            final String id when id.startsWith('I') => uri.replace(
-              path: _authCubit.state.isAuthenticated
-                  ? kPathNetwork
-                  : '$kPathSignUp/$id',
-              queryParameters: {
-                kQueryIsDeepLink: 'true',
-              },
-            ),
-            _ => uri.replace(
-              path: kPathNetwork,
-              queryParameters: {
-                kQueryIsDeepLink: 'true',
-              },
-            ),
-          }
-        : uri,
+    _transformDeepLink(uri),
   );
+
+  Uri _transformDeepLink(Uri uri) {
+    final invitePath = transformInviteDeepLink(
+      uri: uri,
+      isAuthenticated: _authCubit.state.isAuthenticated,
+    );
+    if (invitePath.path != uri.path) {
+      return invitePath;
+    }
+    if (uri.path != kPathAppLinkView) {
+      return uri;
+    }
+    return switch (uri.queryParameters['id']) {
+      final String id when id.startsWith('B') || id.startsWith('C') =>
+        transformBeaconAppLink(uri, id),
+      final String id when id.startsWith('O') || id.startsWith('U') =>
+        uri.replace(
+          path: '$kPathProfileView/$id',
+          queryParameters: {
+            kQueryIsDeepLink: 'true',
+          },
+        ),
+      final String id when id.startsWith('I') => transformSharedViewInviteDeepLink(
+        uri: uri,
+        id: id,
+        isAuthenticated: _authCubit.state.isAuthenticated,
+      ),
+      _ => uri.replace(
+        path: kPathNetwork,
+        queryParameters: {
+          kQueryIsDeepLink: 'true',
+        },
+      ),
+    };
+  }
 
   /// Opens a notification [rawLink] (`/#/shared/view?…` or absolute URL).
   Future<void> openFromNotificationLink(String rawLink) async {

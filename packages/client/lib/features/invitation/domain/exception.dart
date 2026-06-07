@@ -15,3 +15,18 @@ class InvitationAcceptException implements InvitationException {
 
   final String id;
 }
+
+/// Invite row missing, consumed, or expired at accept time.
+class InvitationNoLongerValid implements InvitationException {
+  const InvitationNoLongerValid();
+}
+
+/// Self-invite or other bad request from accept-as-existing.
+class InvitationSelfOrInvalid implements InvitationException {
+  const InvitationSelfOrInvalid();
+}
+
+/// Bearer rejected while accepting (stale session).
+class InvitationAuthLost implements InvitationException {
+  const InvitationAuthLost();
+}

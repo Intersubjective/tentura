@@ -3,6 +3,10 @@
 > This document replaces the earlier subdomain-split plan. The new target is an
 > Instagram-style single public domain: invite links stay fast and static, while
 > returning signed-in users opening the root domain land in the full WASM app.
+>
+> **Implemented client/landing routing** (`/accept-invite/<code>`, landing hash CTAs,
+> deep-link normalization): see
+> [`invite-signup-landing-flow.md`](invite-signup-landing-flow.md).
 
 ## North Star
 

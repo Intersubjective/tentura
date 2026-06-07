@@ -22,6 +22,7 @@ const kPathForwardsGraph = '/graph/forwards';
 const kPathRating = '/rating';
 const kPathSignIn = '/sign/in';
 const kPathSignUp = '/sign/up';
+const kPathAcceptInvite = '/accept-invite';
 const kPathSettings = '/settings';
 const kPathSignInMethods = '/settings/sign-in-methods';
 const kPathComplaint = '/complaint';
