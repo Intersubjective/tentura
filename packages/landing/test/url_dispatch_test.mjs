@@ -21,9 +21,34 @@ test('anonymous render does not offer generic open-app CTA', () => {
   assert.doesNotMatch(anonymousBlock, /ctaOpenApp\('Open the app'\)/);
 });
 
-test('Google CTA includes returnTo invite path', () => {
+test('Google CTA uses full same-origin returnTo for invite', () => {
+  assert.match(mainJs, /function googleReturnTo\(inviteCode\)/);
   assert.match(
     mainJs,
-    /searchParams\.set\('returnTo', `\/invite\/\$\{encodeURIComponent\(inviteCode\)\}`\)/,
+    /url\.searchParams\.set\('returnTo', returnTo\)/,
   );
+});
+
+test('renderNoInvite has email sign-in and invite entry', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderNoInvite'),
+    mainJs.indexOf('function addAppPreconnect'),
+  );
+  assert.match(block, /setState\('no-invite'\)/);
+  assert.match(block, /renderEmailMagicLinkForm/);
+  assert.match(block, /renderInviteEntryForm/);
+  assert.doesNotMatch(block, /cta_open_app_no_invite/);
+  assert.doesNotMatch(block, /Open Tentura/);
+});
+
+test('renderNoInvite includes Tier-2 browser escape', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderNoInvite'),
+    mainJs.indexOf('function addAppPreconnect'),
+  );
+  assert.match(block, /ctaOpenInBrowser/);
+});
+
+test('Google CTA hidden in in-app browser via env.inApp guard', () => {
+  assert.match(mainJs, /if \(!GOOGLE_ENABLED \|\| env\.inApp\) return null/);
 });

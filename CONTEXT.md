@@ -35,6 +35,11 @@ The Flutter web application (`/` when a session cookie is present; deep app rout
 The shareable public invite entry (`/invite/<code>`). It is the URL users copy,
 share, and open from messages; it is not itself the signup or accept operation.
 
+**Manual invite entry**:
+A root-only convenience on signed-out `/` where a visitor pastes an invite link
+or code; the landing normalizes it and redirects to the **basic invite URL**
+without consuming the invite.
+
 **Signup-with-invite route**:
 The onboarding route (`/sign/up/<code>`) for a user who arrived from a **basic
 invite URL** without an authenticated account/session. On native it shows the

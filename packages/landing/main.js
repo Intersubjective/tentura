@@ -8,6 +8,7 @@ import {
   webcryptoEd25519Available,
 } from './auth.js';
 import { resolveAppBase } from './resolve_app_base.js';
+import { parseInviteEntryInput, invitePathForCode } from './invite_entry.js';
 
 const GOOGLE_ENABLED = Boolean((window.TENTURA || {}).googleEnabled);
 const API_BASE = (window.TENTURA || {}).apiBase || '';
@@ -45,6 +46,11 @@ function el(tag, attrs = {}, ...children) {
 const setState = (name) => {
   app.className = `state-${name}`;
 };
+
+function setPageTitle(title) {
+  document.title = title;
+}
+
 const inviterName = (p) => p.inviter?.displayName?.trim() || 'Someone';
 
 // Shared beacon context — shown above the CTA in EVERY state when present.
@@ -127,6 +133,7 @@ function ctaOpenInBrowser() {
     'button',
     {
       class: 'btn btn-primary',
+      type: 'button',
       onclick: async () => {
         track('cta_open_browser', { os: 'ios' });
         try {
@@ -141,12 +148,13 @@ function ctaOpenInBrowser() {
   );
 }
 
-// "I already have an account" — focus email/Google sign-in on the landing.
+// "I already have an account" — focus email sign-in on the landing.
 function ctaExisting() {
   return el(
     'button',
     {
       class: 'btn btn-secondary',
+      type: 'button',
       onclick: () => {
         track('cta_existing');
         document.querySelector('.email-auth input')?.focus();
@@ -154,6 +162,14 @@ function ctaExisting() {
     },
     'I already have an account',
   );
+}
+
+function googleReturnTo(inviteCode) {
+  if (!inviteCode) return null;
+  const origin = API_BASE
+    ? new URL(API_BASE, window.location.href).origin
+    : window.location.origin;
+  return `${origin}/invite/${encodeURIComponent(inviteCode)}`;
 }
 
 function ctaGoogleSignIn(inviteCode) {
@@ -164,7 +180,8 @@ function ctaGoogleSignIn(inviteCode) {
   const url = new URL('/api/auth/google/start', origin);
   if (inviteCode) {
     url.searchParams.set('invite', inviteCode);
-    url.searchParams.set('returnTo', `/invite/${encodeURIComponent(inviteCode)}`);
+    const returnTo = googleReturnTo(inviteCode);
+    if (returnTo) url.searchParams.set('returnTo', returnTo);
   }
   return el(
     'a',
@@ -183,6 +200,7 @@ function ctaSignUp(p) {
     'button',
     {
       class: 'btn btn-secondary',
+      type: 'button',
       onclick: () => {
         track('cta_sign_up');
         showSignupForm(p);
@@ -196,9 +214,12 @@ function ctaSignUp(p) {
 // generate the device key, consume the invite (accept-as-new), and hand off the
 // resulting seed to the app.
 function renderSignupForm(p) {
+  setPageTitle(`Join ${inviterName(p)} on Tentura`);
   const nameInput = el('input', {
     class: 'input',
     type: 'text',
+    id: 'signup-name',
+    name: 'displayName',
     placeholder: 'Your name',
     maxlength: '50',
     autocomplete: 'name',
@@ -206,20 +227,24 @@ function renderSignupForm(p) {
   const handleInput = el('input', {
     class: 'input',
     type: 'text',
+    id: 'signup-handle',
+    name: 'handle',
     placeholder: 'handle (optional)',
     maxlength: '30',
     autocapitalize: 'none',
     autocorrect: 'off',
     spellcheck: 'false',
   });
-  const errorEl = el('p', { class: 'error' });
-  const submit = el('button', { class: 'btn btn-primary' }, 'Create account');
+  const errorEl = el('p', { class: 'error', role: 'alert' });
+  const submit = el('button', { class: 'btn btn-primary', type: 'submit' }, 'Create account');
 
-  submit.addEventListener('click', async () => {
+  const onSubmit = async (e) => {
+    e.preventDefault();
     errorEl.textContent = '';
     const displayName = nameInput.value.trim();
     if (!displayName) {
       errorEl.textContent = 'Please enter a display name.';
+      nameInput.focus();
       return;
     }
     const label = submit.textContent;
@@ -234,20 +259,22 @@ function renderSignupForm(p) {
       });
       track('signup_success');
       redirectToApp(payload); // leaves the page; the app boots authenticated
-    } catch (e) {
-      track('signup_error', { message: String(e), code: e.code });
-      errorEl.textContent = e.message || 'Sign-up failed. Please try again.';
+    } catch (err) {
+      track('signup_error', { message: String(err), code: err.code });
+      errorEl.textContent = err.message || 'Sign-up failed. Please try again.';
       submit.disabled = false;
       submit.textContent = label;
     }
-  });
+  };
 
   return el(
-    'div',
-    { class: 'content' },
+    'form',
+    { class: 'content signup-form', onsubmit: onSubmit },
     beaconOverlay(p),
     el('h1', {}, `Join ${inviterName(p)} on Tentura`),
+    el('label', { class: 'field-label', for: 'signup-name' }, 'Display name'),
     nameInput,
+    el('label', { class: 'field-label', for: 'signup-handle' }, 'Handle (optional)'),
     handleInput,
     el(
       'p',
@@ -256,7 +283,11 @@ function renderSignupForm(p) {
     ),
     submit,
     errorEl,
-    el('button', { class: 'btn btn-secondary', onclick: () => render(p) }, 'Back'),
+    el(
+      'button',
+      { class: 'btn btn-secondary', type: 'button', onclick: () => render(p) },
+      'Back',
+    ),
   );
 }
 
@@ -266,19 +297,26 @@ function showSignupForm(p) {
   card.append(renderSignupForm(p));
 }
 
-function renderEmailMagicLinkForm(p) {
+function renderEmailMagicLinkForm() {
   const emailInput = el('input', {
     class: 'input',
     type: 'email',
+    id: 'email-signin',
+    name: 'email',
     placeholder: 'your@email.com',
     autocomplete: 'email',
     inputmode: 'email',
   });
-  const errorEl = el('p', { class: 'error' });
+  const errorEl = el('p', { class: 'error', role: 'alert' });
   const successEl = el('p', { class: 'hint' });
-  const submit = el('button', { class: 'btn btn-secondary' }, 'Email me a sign-in link');
+  const submit = el(
+    'button',
+    { class: 'btn btn-secondary', type: 'submit' },
+    'Email me a sign-in link',
+  );
 
-  submit.addEventListener('click', async () => {
+  const onSubmit = async (e) => {
+    e.preventDefault();
     errorEl.textContent = '';
     successEl.textContent = '';
     const label = submit.textContent;
@@ -294,17 +332,18 @@ function renderEmailMagicLinkForm(p) {
       successEl.textContent =
         'If that address can sign in, we sent a link. Open it in your browser (not this in-app viewer).';
       submit.textContent = 'Link sent';
-    } catch (e) {
-      track('email_link_error', { message: String(e) });
-      errorEl.textContent = e.message || 'Could not send link. Try again.';
+    } catch (err) {
+      track('email_link_error', { message: String(err) });
+      errorEl.textContent = err.message || 'Could not send link. Try again.';
       submit.disabled = false;
       submit.textContent = label;
     }
-  });
+  };
 
   return el(
-    'div',
-    { class: 'email-auth' },
+    'form',
+    { class: 'email-auth', onsubmit: onSubmit },
+    el('label', { class: 'field-label', for: 'email-signin' }, 'Email'),
     emailInput,
     submit,
     errorEl,
@@ -313,6 +352,51 @@ function renderEmailMagicLinkForm(p) {
       'p',
       { class: 'hint' },
       'We never confirm whether an account exists for this address.',
+    ),
+  );
+}
+
+function renderInviteEntryForm() {
+  const errorEl = el('p', { class: 'error', role: 'alert' });
+  const input = el('input', {
+    class: 'input',
+    type: 'text',
+    id: 'invite-entry',
+    name: 'invite',
+    placeholder: 'Iabc123 or https://…/invite/Iabc123',
+    autocomplete: 'off',
+    autocapitalize: 'none',
+    spellcheck: 'false',
+  });
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    errorEl.textContent = '';
+    const result = parseInviteEntryInput(input.value);
+    if (!result.ok) {
+      errorEl.textContent = result.error;
+      input.focus();
+      return;
+    }
+    track('cta_invite_entry', { method: 'manual' });
+    location.assign(invitePathForCode(result.code));
+  };
+
+  return el(
+    'form',
+    { class: 'invite-entry', onsubmit: onSubmit },
+    el('label', { class: 'field-label', for: 'invite-entry' }, 'Invite link or code'),
+    input,
+    el(
+      'button',
+      { type: 'submit', class: 'btn btn-primary' },
+      'Continue with invite',
+    ),
+    errorEl,
+    el(
+      'p',
+      { class: 'hint' },
+      'New here? Paste the invite link a friend sent you.',
     ),
   );
 }
@@ -329,6 +413,7 @@ function signedInFlash() {
 // --- State renderers -------------------------------------------------------
 function renderInvalid(p) {
   setState('invalid');
+  setPageTitle('Invite link invalid — Tentura');
   const msg =
     p.codeStatus === 'consumed'
       ? 'This invite has already been used.'
@@ -345,6 +430,7 @@ function renderInvalid(p) {
 
 function renderIsInviter(p) {
   setState('is-inviter');
+  setPageTitle('Your invite — Tentura');
   return el(
     'div',
     { class: 'content' },
@@ -357,6 +443,7 @@ function renderIsInviter(p) {
 
 function renderAlreadyFriends(p) {
   setState('already-friends');
+  setPageTitle('Already connected — Tentura');
   return el(
     'div',
     { class: 'content' },
@@ -368,6 +455,7 @@ function renderAlreadyFriends(p) {
 
 function renderExistingUser(p) {
   setState('existing-user');
+  setPageTitle(`${inviterName(p)} invited you — Tentura`);
   return el(
     'div',
     { class: 'content' },
@@ -380,6 +468,7 @@ function renderExistingUser(p) {
 
 function renderAnonymous(p) {
   setState('anonymous');
+  setPageTitle(`${inviterName(p)} invited you — Tentura`);
   const code = parseInviteCode();
   const children = [
     beaconOverlay(p),
@@ -390,9 +479,9 @@ function renderAnonymous(p) {
       {},
       env.inApp
         ? 'Open this link in your browser, or use email to get a sign-in link.'
-        : 'Tentura is invite-only. Continue with email, Google, or the app.',
+        : 'Tentura is invite-only. Sign in with email or Google, or create an account below.',
     ),
-    renderEmailMagicLinkForm(p),
+    renderEmailMagicLinkForm(),
     ctaGoogleSignIn(code),
     ctaExisting(),
   ];
@@ -439,6 +528,7 @@ function render(p) {
 
 function renderError() {
   setState('invalid');
+  setPageTitle('Something went wrong — Tentura');
   card.replaceChildren(
     el(
       'div',
@@ -455,6 +545,7 @@ function renderError() {
 // than the link-specific "Something went wrong" error.
 function renderConfigError(message) {
   setState('invalid');
+  setPageTitle('Configuration error — Tentura');
   card.replaceChildren(
     el(
       'div',
@@ -471,35 +562,33 @@ function renderConfigError(message) {
 }
 
 function renderNoInvite() {
-  setState('invalid');
-  const noInviteChildren = [
+  setState('no-invite');
+  setPageTitle('Tentura — invite-only');
+  const children = [
+    el('p', { class: 'eyebrow' }, 'Private coordination network'),
     el('h1', {}, 'Tentura is invite-only'),
     el(
       'p',
       {},
-      'Ask a friend for an invite link to join. If you already have an ' +
-        'account, sign in below or open Tentura on your phone.',
+      'Join with a personal invite from someone you know. Already have an account? Sign in below.',
     ),
     signedInFlash(),
+    renderInviteEntryForm(),
   ];
+
   if (!env.inApp) {
-    noInviteChildren.push(
-      el('p', { class: 'hint' }, 'Have an invite link? Open it to sign in with email.'),
-    );
+    children.push(el('p', { class: 'section-label' }, 'Sign in'));
+    children.push(renderEmailMagicLinkForm());
+    const google = ctaGoogleSignIn('');
+    if (google) children.push(google);
+    children.push(ctaExisting());
+  } else {
+    children.push(el('p', { class: 'section-label' }, 'Sign in'));
+    children.push(renderEmailMagicLinkForm());
+    children.push(ctaOpenInBrowser());
   }
-  noInviteChildren.push(
-    ctaGoogleSignIn(''),
-    el(
-      'a',
-      {
-        class: 'btn btn-secondary',
-        href: APP_BASE,
-        onclick: () => track('cta_open_app_no_invite'),
-      },
-      'Open Tentura',
-    ),
-  );
-  card.replaceChildren(el('div', { class: 'content' }, ...noInviteChildren));
+
+  card.replaceChildren(el('div', { class: 'content' }, ...children));
 }
 
 function addAppPreconnect(appBase) {

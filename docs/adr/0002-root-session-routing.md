@@ -18,7 +18,7 @@ Stale, revoked, or fake cookies still match presence routing and would otherwise
 
 3. **Client stale-session reconciliation:** On server rejection (401/403 from session bootstrap), POST logout to clear the cookie, clean ghost session-only local identity, then navigate. Reload `/` only after an acknowledged logout response **and** at most once per tab (one-shot `sessionStorage` guard). If clear fails or the guard is already set, fall back to `/invite/` (cookie-independent static path).
 
-4. **Local dev:** Root split is opt-in via `LOCAL_ROOT_SPLIT=on` so `flutter run` at `/` is unchanged by default.
+4. **Local dev:** Root split mirrors prod by default (`LOCAL_ROOT_SPLIT` defaults to on in `Caddyfile.local`). Set `LOCAL_ROOT_SPLIT=off` when raw app-at-root Flutter dev is needed. Signed-out `/` landing assets (`*.js`, `*.css` under `LANDING_ROOT`) are served at site root so the static shell can boot.
 
 5. **Service worker:** App preload worker bypasses `/invite/`; it must not intercept `/` or landing assets.
 
