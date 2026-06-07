@@ -564,31 +564,60 @@ function renderConfigError(message) {
 function renderNoInvite() {
   setState('no-invite');
   setPageTitle('Tentura — invite-only');
-  const children = [
-    el('p', { class: 'eyebrow' }, 'Private coordination network'),
-    el('h1', {}, 'Tentura is invite-only'),
-    el(
-      'p',
-      {},
-      'Join with a personal invite from someone you know. Already have an account? Sign in below.',
-    ),
-    signedInFlash(),
-    renderInviteEntryForm(),
+
+  const signInItems = [
+    el('p', { class: 'section-label' }, 'Sign in'),
+    renderEmailMagicLinkForm(),
   ];
-
   if (!env.inApp) {
-    children.push(el('p', { class: 'section-label' }, 'Sign in'));
-    children.push(renderEmailMagicLinkForm());
     const google = ctaGoogleSignIn('');
-    if (google) children.push(google);
-    children.push(ctaExisting());
+    if (google) signInItems.push(google);
   } else {
-    children.push(el('p', { class: 'section-label' }, 'Sign in'));
-    children.push(renderEmailMagicLinkForm());
-    children.push(ctaOpenInBrowser());
+    signInItems.push(ctaOpenInBrowser());
   }
+  const signInBlock = el(
+    'div',
+    {
+      class: 'signin-options',
+      id: 'signin-options',
+      role: 'region',
+      'aria-label': 'Sign in',
+      hidden: 'hidden',
+    },
+    ...signInItems,
+  );
 
-  card.replaceChildren(el('div', { class: 'content' }, ...children));
+  const existingToggle = el(
+    'button',
+    {
+      class: 'btn btn-secondary',
+      type: 'button',
+      'aria-expanded': 'false',
+      'aria-controls': 'signin-options',
+      onclick: () => {
+        track('cta_existing');
+        signInBlock.hidden = false;
+        existingToggle.setAttribute('aria-expanded', 'true');
+        existingToggle.hidden = true;
+        signInBlock.querySelector('input')?.focus();
+      },
+    },
+    'I already have an account',
+  );
+
+  card.replaceChildren(
+    el(
+      'div',
+      { class: 'content' },
+      el('p', { class: 'eyebrow' }, 'Private coordination network'),
+      el('h1', {}, 'Tentura is invite-only'),
+      el('p', {}, 'Join with a personal invite from someone you know.'),
+      signedInFlash(),
+      renderInviteEntryForm(),
+      existingToggle,
+      signInBlock,
+    ),
+  );
 }
 
 function addAppPreconnect(appBase) {

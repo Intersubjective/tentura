@@ -63,6 +63,12 @@ final class CredentialAuthCase extends UseCaseBase {
     return user.id;
   }
 
+  /// Whether an account already owns the `(type, identifier)` credential.
+  Future<bool> credentialExists({
+    required CredentialType type,
+    required String identifier,
+  }) async => await _findByCredential(type, identifier) != null;
+
   Future<UserEntity?> _findByCredential(
     CredentialType type,
     String identifier,
