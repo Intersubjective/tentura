@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/oidc_identity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/oidc_provider_port.dart';
+import 'package:tentura_server/domain/util/oidc_claim_util.dart';
 import 'package:tentura_server/env.dart';
 
 @Injectable(as: OidcProviderPort, order: 1)
@@ -120,6 +121,7 @@ class GoogleOidcService implements OidcProviderPort {
       sub: sub,
       email: payload['email'] as String? ?? '',
       name: payload['name'] as String? ?? '',
+      emailVerified: parseOidcEmailVerified(payload['email_verified']),
       publicData: {
         if (payload['picture'] != null) 'picture': payload['picture'],
         if (payload['email_verified'] != null)

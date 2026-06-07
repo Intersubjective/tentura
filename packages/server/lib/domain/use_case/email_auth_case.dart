@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
@@ -54,12 +55,9 @@ final class EmailAuthCase extends UseCaseBase {
       return;
     }
 
-    if (inviteCode == null || inviteCode.isEmpty) {
-      final registered = await _credentialAuthCase.credentialExists(
-        type: CredentialType.emailOtp,
-        identifier: normalized,
-      );
-      if (!registered && env.isNeedInvite) {
+    if ((inviteCode == null || inviteCode.isEmpty) && env.isNeedInvite) {
+      final registered = await _credentialAuthCase.emailIsRegistered(normalized);
+      if (!registered) {
         logger.info('email auth start skipped: unregistered email, invite required');
         return;
       }
@@ -94,6 +92,12 @@ final class EmailAuthCase extends UseCaseBase {
       identifier: tx.normalizedEmail,
       displayName: displayNameFromEmail(tx.normalizedEmail),
       inviteId: tx.inviteCode,
+      assertedContacts: [
+        AssertedContact.email(
+          rawEmail: tx.normalizedEmail,
+          authoritative: true,
+        )!,
+      ],
     );
     return EmailAuthVerifyResult(
       accountId: accountId,

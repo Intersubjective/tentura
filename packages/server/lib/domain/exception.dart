@@ -186,6 +186,28 @@ final class OidcInviteRequiredException extends ExceptionBase {
       );
 }
 
+/// Multiple distinct accounts matched the same authoritative contact(s).
+final class AmbiguousIdentityException extends ExceptionBase {
+  const AmbiguousIdentityException({String? description})
+    : super(
+        code: const AuthExceptionCodes(
+          AuthExceptionCode.authAmbiguousIdentity,
+        ),
+        description: description ?? 'Ambiguous identity match',
+      );
+}
+
+/// A verified contact is already owned by another account during create/link.
+final class ContactConflictException extends ExceptionBase {
+  const ContactConflictException({String? description})
+    : super(
+        code: const AuthExceptionCodes(
+          AuthExceptionCode.authCredentialConflictException,
+        ),
+        description: description ?? 'Verified contact conflict',
+      );
+}
+
 final class BeaconCreateException extends ExceptionBase {
   const BeaconCreateException({String? description})
     : super(

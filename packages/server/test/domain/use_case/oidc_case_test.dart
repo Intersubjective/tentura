@@ -16,15 +16,18 @@ import 'invitation_case_mocks.mocks.dart';
 
 void main() {
   late MockUserRepositoryPort userRepo;
+  late MockVerifiedContactRepositoryPort contactRepo;
   late MockInvitationRepositoryPort invitationRepo;
   late MockBeaconRepositoryPort beaconRepo;
   late MockVoteUserFriendshipLookup friendshipLookup;
   late InvitationCase invitationCase;
+  late CredentialAuthCase credentialAuthCase;
   late OidcCase case_;
   late Env env;
 
   setUp(() {
     userRepo = MockUserRepositoryPort();
+    contactRepo = MockVerifiedContactRepositoryPort();
     invitationRepo = MockInvitationRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
     friendshipLookup = MockVoteUserFriendshipLookup();
@@ -37,13 +40,15 @@ void main() {
       env: env,
       logger: Logger('InvitationCaseTest'),
     );
+    credentialAuthCase = CredentialAuthCase(
+      userRepo,
+      contactRepo,
+      invitationCase,
+      env: env,
+      logger: Logger('CredentialAuthCaseTest'),
+    );
     case_ = OidcCase(
-      CredentialAuthCase(
-        userRepo,
-        invitationCase,
-        env: env,
-        logger: Logger('CredentialAuthCaseTest'),
-      ),
+      credentialAuthCase,
       env: env,
       logger: Logger('OidcCaseTest'),
     );
@@ -69,6 +74,9 @@ void main() {
         identifier: anyNamed('identifier'),
       ),
     ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
 
     expect(
       () => case_.completeGoogle(identity),
@@ -84,6 +92,9 @@ void main() {
       ),
     ).thenThrow(const IdNotFoundException());
     when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
+    when(
       userRepo.createInvitedWithCredential(
         invitationId: anyNamed('invitationId'),
         type: anyNamed('type'),
@@ -91,6 +102,7 @@ void main() {
         displayName: anyNamed('displayName'),
         handle: anyNamed('handle'),
         publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
       ),
     ).thenAnswer((_) async => const UserEntity(id: 'Unew', displayName: 'Ada'));
 
@@ -103,7 +115,108 @@ void main() {
         displayName: 'Ada',
         handle: null,
         publicData: null,
+        contacts: anyNamed('contacts'),
       ),
     ).called(1);
+  });
+
+  test('verified google email passes authoritative contact into resolver', () async {
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {'Uemail'});
+    when(
+      userRepo.linkCredentialWithContacts(
+        accountId: anyNamed('accountId'),
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).thenAnswer((_) async => 'Uemail');
+
+    final id = await case_.completeGoogle(
+      const OidcIdentity(
+        sub: 'google-sub',
+        email: 'Ada@Example.COM',
+        name: 'Ada',
+        emailVerified: true,
+      ),
+    );
+
+    expect(id, 'Uemail');
+    final captured = verify(
+      userRepo.linkCredentialWithContacts(
+        accountId: 'Uemail',
+        type: CredentialType.oidcGoogle,
+        identifier: 'google-sub',
+        publicData: null,
+        contacts: captureAnyNamed('contacts'),
+      ),
+    ).captured.single as List;
+    expect(captured.single.value, 'ada@example.com');
+    expect(captured.single.authoritative, isTrue);
+  });
+
+  test('unverified google email does not link by contact', () async {
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
+    env = Env(environment: Environment.test, isNeedInvite: false);
+    credentialAuthCase = CredentialAuthCase(
+      userRepo,
+      contactRepo,
+      invitationCase,
+      env: env,
+      logger: Logger('CredentialAuthCaseTest'),
+    );
+    case_ = OidcCase(
+      credentialAuthCase,
+      env: env,
+      logger: Logger('OidcCaseTest'),
+    );
+    when(
+      userRepo.createWithCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+        displayName: anyNamed('displayName'),
+        handle: anyNamed('handle'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).thenAnswer((_) async => const UserEntity(id: 'Unew', displayName: 'Ada'));
+
+    await case_.completeGoogle(
+      const OidcIdentity(
+        sub: 'google-sub',
+        email: 'ada@example.com',
+        name: 'Ada',
+        emailVerified: false,
+      ),
+    );
+
+    final captured = verify(
+      userRepo.createWithCredential(
+        type: CredentialType.oidcGoogle,
+        identifier: 'google-sub',
+        displayName: 'Ada',
+        handle: null,
+        publicData: null,
+        contacts: captureAnyNamed('contacts'),
+      ),
+    ).captured.single as List;
+    expect(captured, isEmpty);
+    verify(contactRepo.findAccountIdsByContacts(any)).called(1);
   });
 }

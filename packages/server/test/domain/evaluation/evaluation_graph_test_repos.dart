@@ -4,6 +4,7 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 /// Minimal fakes so `EvaluationParticipantGraphBuilder` returns an empty graph.
@@ -152,6 +153,7 @@ final class StubUserRepository implements UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   }) =>
       throw UnimplementedError();
 
@@ -163,6 +165,7 @@ final class StubUserRepository implements UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   }) =>
       throw UnimplementedError();
 
@@ -196,6 +199,24 @@ final class StubUserRepository implements UserRepositoryPort {
   Future<void> removeCredential({
     required String accountId,
     required String credentialId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> linkCredentialWithContacts({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> addVerifiedContacts({
+    required String accountId,
+    required CredentialType source,
+    List<AssertedContact> contacts = const [],
   }) =>
       throw UnimplementedError();
 

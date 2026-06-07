@@ -1,4 +1,5 @@
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
 /// Persistence port for users (implemented by the server user repository).
@@ -23,6 +24,7 @@ abstract class UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   });
 
   /// Invite acceptance for seedless credential accounts (no `ed25519_device`).
@@ -33,6 +35,7 @@ abstract class UserRepositoryPort {
     required String displayName,
     String? handle,
     Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
   });
 
   Future<UserEntity> getById(String id);
@@ -52,8 +55,8 @@ abstract class UserRepositoryPort {
   });
 
   /// Link a credential to [accountId]. Throws `CredentialConflictException`
-  /// when the `(type, identifier)` pair is already linked (on this or another
-  /// account) — conflict policy never auto-merges.
+  /// when the `(type, identifier)` pair is already linked to a **different**
+  /// account — verified-contact unification may still auto-link by policy.
   Future<AccountCredentialEntity> addCredential({
     required String accountId,
     required CredentialType type,
@@ -67,6 +70,25 @@ abstract class UserRepositoryPort {
   Future<void> removeCredential({
     required String accountId,
     required String credentialId,
+  });
+
+  /// Atomically link [type]/[identifier] and authoritative [contacts] to
+  /// [accountId]. When the credential is already linked to [accountId], treats
+  /// the call as idempotent. When linked elsewhere, returns that account id.
+  Future<String> linkCredentialWithContacts({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
+  });
+
+  /// Soft upsert for existing-credential login: attach unclaimed or same-account
+  /// contacts; skip contacts owned by another account without throwing.
+  Future<void> addVerifiedContacts({
+    required String accountId,
+    required CredentialType source,
+    List<AssertedContact> contacts = const [],
   });
 
   Future<void> update({

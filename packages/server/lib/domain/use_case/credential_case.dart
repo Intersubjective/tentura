@@ -13,11 +13,12 @@ import '_use_case_base.dart';
 /// possession of a new device key via [AuthCase.verifyDeviceAuthRequest]. The
 /// externally-gated providers (WebAuthn, OIDC, email-OTP) land in later slices.
 ///
-/// Conflict policy (refuse a `(type, identifier)` already linked, never
-/// auto-merge) and removal policy (cannot remove the last credential) are
-/// enforced in [UserRepositoryPort]. Removing a credential does **not** yet
-/// revoke its live sessions — JWTs are stateless and expire in ~1h; immediate
-/// revocation is owed.
+/// Conflict policy: refuse a `(type, identifier)` already linked to a different
+/// account. Verified-contact unification may auto-link new credentials when
+/// an authoritative contact matches exactly one existing account. Removal policy
+/// (cannot remove the last credential) is enforced in [UserRepositoryPort].
+/// Removing a credential does **not** yet revoke its live sessions — JWTs are
+/// stateless and expire in ~1h; immediate revocation is owed.
 @Injectable(order: 2)
 final class CredentialCase extends UseCaseBase {
   CredentialCase(
