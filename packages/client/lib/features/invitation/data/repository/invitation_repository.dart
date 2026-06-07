@@ -1,14 +1,18 @@
 import 'dart:async';
 
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/model/user_public_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/exception/server_exception.dart';
 
+import '../../domain/entity/invite_preview.dart';
 import '../../domain/exception.dart';
+import '../../domain/port/invitation_accept_port.dart';
 import '../gql/_g/invitation_accept.req.gql.dart';
 import '../gql/_g/invitation_create.req.gql.dart';
 import '../gql/_g/invitation_delete_by_id.req.gql.dart';
@@ -21,7 +25,7 @@ typedef InvitationFetchByIdResult = ({
 });
 
 @Singleton(env: [Environment.dev, Environment.prod])
-class InvitationRepository {
+class InvitationRepository implements InvitationAcceptPort {
   InvitationRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
@@ -132,6 +136,54 @@ class InvitationRepository {
       throw InvitationAcceptException(id);
     }
   }
+
+  /// Caller-aware preview (`GET /api/v2/invite/:code/preview`).
+  Future<InvitePreview> fetchInvitePreview(String code) async {
+    try {
+      final json = await _remoteApiService.getAuthenticatedJson(
+        _inviteApiUri('/api/v2/invite/${Uri.encodeComponent(code)}/preview'),
+      );
+      return InvitePreview.fromJson(json);
+    } on ServerStatusException catch (e) {
+      final mapped = mapPreviewAuthStatus(e.statusCode);
+      if (mapped != null) {
+        throw mapped;
+      }
+      rethrow;
+    }
+  }
+
+  /// Befriend issuer as an already-authenticated user (V2 REST).
+  Future<void> acceptExistingInvite(String code) async {
+    try {
+      await _remoteApiService.postAuthenticatedJson(
+        _inviteApiUri(
+          '/api/v2/invite/${Uri.encodeComponent(code)}/accept-as-existing',
+        ),
+      );
+    } on ServerStatusException catch (e) {
+      throw mapAcceptExistingStatus(e.statusCode, code);
+    }
+  }
+
+  Uri _inviteApiUri(String path) =>
+      Uri.parse(_remoteApiService.apiEndpointUrlV2).replace(path: path, query: '');
+
+  @visibleForTesting
+  static InvitationException mapAcceptExistingStatus(int statusCode, String code) =>
+      switch (statusCode) {
+        404 => const InvitationNoLongerValid(),
+        400 => const InvitationSelfOrInvalid(),
+        401 || 403 => const InvitationAuthLost(),
+        _ => InvitationAcceptException(code),
+      };
+
+  @visibleForTesting
+  static InvitationException? mapPreviewAuthStatus(int statusCode) =>
+      switch (statusCode) {
+        401 || 403 => const InvitationAuthLost(),
+        _ => null,
+      };
 
   static const _label = 'Invitation';
 }

@@ -70,15 +70,41 @@ function header(p) {
 }
 
 // --- CTAs ------------------------------------------------------------------
-function openAppUrl() {
-  const code = parseInviteCode();
-  return `${APP_BASE}?invite=${encodeURIComponent(code)}`;
+function appHashUrl(path) {
+  const base = APP_BASE.replace(/\/$/, '');
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return `${base}#${normalized}`;
+}
+
+function openProductUrl() {
+  return APP_BASE.endsWith('/') ? APP_BASE : `${APP_BASE}/`;
+}
+
+function openAcceptInviteUrl(code) {
+  return appHashUrl(`/accept-invite/${encodeURIComponent(code)}`);
 }
 
 function ctaOpenApp(label = 'Open Tentura') {
   return el(
     'a',
-    { class: 'btn btn-primary', href: openAppUrl(), onclick: () => track('cta_open_app') },
+    {
+      class: 'btn btn-primary',
+      href: openProductUrl(),
+      onclick: () => track('cta_open_app'),
+    },
+    label,
+  );
+}
+
+function ctaOpenAcceptInvite(label = 'Open Tentura to accept') {
+  const code = parseInviteCode();
+  return el(
+    'a',
+    {
+      class: 'btn btn-primary',
+      href: openAcceptInviteUrl(code),
+      onclick: () => track('cta_open_accept_invite'),
+    },
     label,
   );
 }
@@ -115,13 +141,17 @@ function ctaOpenInBrowser() {
   );
 }
 
-// "I already have an account" — open the app (it holds/recreates the session,
-// and consumes ?invite= to befriend in a later slice). The landing cannot sign
-// in an existing account itself: it has no seed.
+// "I already have an account" — focus email/Google sign-in on the landing.
 function ctaExisting() {
   return el(
-    'a',
-    { class: 'btn btn-secondary', href: openAppUrl(), onclick: () => track('cta_existing') },
+    'button',
+    {
+      class: 'btn btn-secondary',
+      onclick: () => {
+        track('cta_existing');
+        document.querySelector('.email-auth input')?.focus();
+      },
+    },
     'I already have an account',
   );
 }
@@ -132,7 +162,10 @@ function ctaGoogleSignIn(inviteCode) {
     ? new URL(API_BASE, window.location.href).origin
     : window.location.origin;
   const url = new URL('/api/auth/google/start', origin);
-  if (inviteCode) url.searchParams.set('invite', inviteCode);
+  if (inviteCode) {
+    url.searchParams.set('invite', inviteCode);
+    url.searchParams.set('returnTo', `/invite/${encodeURIComponent(inviteCode)}`);
+  }
   return el(
     'a',
     {
@@ -341,7 +374,7 @@ function renderExistingUser(p) {
     beaconOverlay(p),
     el('h1', {}, `${inviterName(p)} wants to connect`),
     el('p', {}, 'Accept the invite in the app to become friends.'),
-    ctaOpenApp('Open Tentura to accept'),
+    ctaOpenAcceptInvite('Open Tentura to accept'),
   );
 }
 
@@ -360,7 +393,6 @@ function renderAnonymous(p) {
         : 'Tentura is invite-only. Continue with email, Google, or the app.',
     ),
     renderEmailMagicLinkForm(p),
-    ctaOpenApp('Open the app'),
     ctaGoogleSignIn(code),
     ctaExisting(),
   ];

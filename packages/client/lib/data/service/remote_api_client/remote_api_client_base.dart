@@ -244,6 +244,33 @@ abstract base class RemoteApiClientBase {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  /// Authenticated POST returning a decoded JSON object (REST `/api/v2/…`).
+  Future<Map<String, dynamic>> postAuthenticatedJson(
+    Uri uri, {
+    Object? body,
+  }) async {
+    final token = (await getAuthToken()).accessToken;
+    final response = await http
+        .post(
+          uri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            kHeaderUserAgent: userAgent,
+            kHeaderAccept: 'application/json',
+            if (body != null) kHeaderContentType: kContentApplicationJson,
+          },
+          body: body == null ? null : jsonEncode(body),
+        )
+        .timeout(requestTimeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ServerStatusException(response.statusCode);
+    }
+    if (response.body.isEmpty) {
+      return const {};
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   /// Authenticated DELETE; throws [ServerStatusException] on non-2xx so callers
   /// can map the status (e.g. 404/409) to a domain exception.
   Future<void> deleteAuthenticated(Uri uri) async {

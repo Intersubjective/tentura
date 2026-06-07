@@ -31,6 +31,29 @@ Lightweight static HTML/JS for invite preview and sign-in entry (`/invite/…`, 
 **WASM surface**:
 The Flutter web application (`/` when a session cookie is present; deep app routes always).
 
+**Basic invite URL**:
+The shareable public invite entry (`/invite/<code>`). It is the URL users copy,
+share, and open from messages; it is not itself the signup or accept operation.
+
+**Signup-with-invite route**:
+The onboarding route (`/sign/up/<code>`) for a user who arrived from a **basic
+invite URL** without an authenticated account/session. On native it shows the
+register screen and the server consumes the invite during account creation; on
+web it defers to the **landing surface** (which owns signup). Future onboarding
+may move into landing so the **WASM surface** can preload during it.
+
+**Accept-invite route**:
+The authenticated route (`/accept-invite/<code>`) for accepting a basic invite as
+an existing, already-signed-in user who is not yet connected. This is the only
+client route that mutates the social graph for invites, after the current account
+is known and confirmation is complete. New users never use it (the server already
+consumed their invite at signup).
+
+**Flow reference**:
+End-to-end routing (landing preview → WASM hash links → native deep links →
+accept/signup) is documented in
+[`docs/invite-signup-landing-flow.md`](docs/invite-signup-landing-flow.md).
+
 ## Room coordination UI
 
 **Promoted message**:

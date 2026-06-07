@@ -102,6 +102,21 @@ When adding a new V2 server query or mutation:
    proxied to Tentura in production (`Caddyfile`) and in local web dev
    (`packages/client/web_dev_config.yaml`).
 
+## Invite, landing, and deep links
+
+Flutter web uses **hash routing** (`#/…`). Landing → app handoff must use explicit
+hash paths (e.g. `#/accept-invite/<code>`), not root query params like `?invite=`.
+
+| Route | Constant | When |
+|-------|----------|------|
+| Basic invite URL | `/invite/<code>` (server/landing) | Share + static preview |
+| Signup-with-invite | `kPathSignUp` (`/sign/up/<code>`) | New user; invite consumed at signup |
+| Accept-invite | `kPathAcceptInvite` (`/accept-invite/<code>`) | Signed-in user; preview + confirm + REST accept |
+
+Deep-link normalization lives in `invite_deep_link.dart` and `root_router.dart`.
+Landing CTAs in `packages/landing/main.js`. Full flow diagrams and corner cases:
+[`docs/invite-signup-landing-flow.md`](docs/invite-signup-landing-flow.md).
+
 ## Entity invalidation (real-time)
 
 Near-real-time updates for entity changes (beacons, help offers, forwards) are
