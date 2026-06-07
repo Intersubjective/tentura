@@ -1,9 +1,10 @@
 # @tentura/landing
 
-Static invite/auth landing for **tentura.io** / **dev.tentura.io** (WASM app on
-**app.tentura.io** / **app.dev.tentura.io**). **Plain static HTML/CSS/JS, served as-is — no npm, no
-`node_modules`, no bundler, no build step.** Deps-light: the only external
-script is the Sentry browser SDK loaded from its CDN.
+Static invite/auth landing on the **same public origin** as the WASM app
+(**tentura.io**, **dev.tentura.io**, local **dev.lvh.me:9443**). **Plain static
+HTML/CSS/JS, served as-is — no npm, no `node_modules`, no bundler, no build
+step.** Deps-light: the only external script is the Sentry browser SDK loaded
+from its CDN.
 
 It exists so an invite click renders instantly (300–800ms TTI) in in-app
 webviews, instead of waiting 3–6s+ for the Flutter WASM app to boot. It fetches
@@ -17,7 +18,8 @@ the JSON preview from the Dart server and renders one of five states.
 | `config.js`          | runtime config template (`appBase: ''` — CI sed injects deploy URL) |
 | `config.local.js`    | gitignored local overlay — run `./scripts/sync-landing-local-config.sh` |
 | `resolve_app_base.js`| shared resolver; throws if `appBase` missing/invalid        |
-| `main.js`            | entry ES module; renders the 5 states + beacon overlay      |
+| `main.js`            | entry ES module; renders invite states + signed-out `/`     |
+| `invite_entry.js`    | manual invite link/code parsing for signed-out `/`            |
 | `preview.js`  | fetches `GET /api/v2/invite/:code/preview`                  |
 | `webview.js`  | in-app-webview detection / Android `intent://`              |
 | `analytics.js`| funnel events via the CDN Sentry global                     |
@@ -73,10 +75,12 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 
 ## Routes / states
 
-- URL scheme: `/invite/:code` on the landing host (e.g. `https://dev.tentura.io/invite/I…`)
-  (link compatibility, Risk #7).
-- Renders 5 states from `suggestedAction`: invalid · is-inviter ·
-  already-friends · existing-user (befriend) · anonymous (3 ordered CTAs).
+- **Signed-out `/`:** `renderNoInvite()` — invite-only explanation, manual invite
+  entry (paste link/code → `/invite/:code`), email/Google sign-in (Tier 1), Tier-2
+  browser escape. No generic “Open Tentura” for anonymous visitors.
+- **Invite URL:** `/invite/:code` (e.g. `https://dev.tentura.io/invite/I…`).
+- Renders 5 preview states from `suggestedAction`: invalid · is-inviter ·
+  already-friends · existing-user (befriend) · anonymous (email/Google/signup CTAs).
 - **Beacon overlay** shown above the CTA in every state when `beacon` is present.
 - Funnel events fire via Sentry **before** any WASM.
 

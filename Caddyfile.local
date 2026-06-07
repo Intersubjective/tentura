@@ -19,8 +19,8 @@
 #   6. caddy run --config Caddyfile.local
 #   7. Trust Caddy's local CA (once): ./scripts/trust-caddy-local-ca.sh
 #      (Plain `caddy trust` is not enough for Firefox snap — separate cert DB.)
-#   Open https://dev.lvh.me:9443/ (WASM app) and https://dev.lvh.me:9443/invite/I… (static invite).
-#   Level 1 root split: set LOCAL_ROOT_SPLIT=on in env when testing signed-out `/` → landing.
+#   Open https://dev.lvh.me:9443/ (signed-out → landing; signed-in → WASM) and /invite/I… (static invite).
+#   Root split is default-on (mirrors prod). Set LOCAL_ROOT_SPLIT=off for raw app-at-root dev.
 #
 # Landing: config.js has empty appBase; config.local.js (generated) supplies same-origin URL.
 
@@ -149,48 +149,59 @@
 		file_server
 	}
 
-	# Public root split (opt-in): LOCAL_ROOT_SPLIT=on mirrors prod Level 1 at `/`.
-	@root_split_enabled {
-		expression "{$LOCAL_ROOT_SPLIT:}" == "on"
+	# Signed-out `/` serves landing index.html with relative *.js / *.css at site root.
+	@landing_static_file {
+		path *.js *.css
+		file {
+			root {$LOCAL_LANDING_ROOT:./packages/landing}
+			try_files {path}
+		}
 	}
+	handle @landing_static_file {
+		root * {$LOCAL_LANDING_ROOT:./packages/landing}
+		file_server
+	}
+
+	# Public root split (default-on; LOCAL_ROOT_SPLIT=off for raw app-at-root dev).
 	@rootWithSession {
 		path /
+		expression "{$LOCAL_ROOT_SPLIT:on}" != "off"
 		header Cookie *__Host-tentura_session=*
 	}
 	@publicRoot {
 		path /
+		expression "{$LOCAL_ROOT_SPLIT:on}" != "off"
+		not header Cookie *__Host-tentura_session=*
 	}
-	handle @root_split_enabled {
-		handle @rootWithSession {
-			@use_flutter_root {
-				expression "{$LOCAL_USE_FLUTTER_PROXY:}" != "off"
-			}
-			handle @use_flutter_root {
-				reverse_proxy {$LOCAL_FLUTTER_UPSTREAM:127.0.0.1:8888} {
-					header_up Host {host}
-				}
-				header Cross-Origin-Opener-Policy "same-origin"
-				header Cross-Origin-Embedder-Policy "credentialless"
-				header Vary "Cookie"
-				header Cache-Control "no-store"
-			}
-			handle {
-				root * {$LOCAL_APP_ROOT:./packages/client/build/web}
-				try_files {path} /index.html
-				file_server
-				header Cross-Origin-Opener-Policy "same-origin"
-				header Cross-Origin-Embedder-Policy "credentialless"
-				header Vary "Cookie"
-				header Cache-Control "no-store"
-			}
+	handle @rootWithSession {
+		@use_flutter_root {
+			expression "{$LOCAL_USE_FLUTTER_PROXY:}" != "off"
 		}
-		handle @publicRoot {
-			root * {$LOCAL_LANDING_ROOT:./packages/landing}
-			try_files {path} /index.html
-			file_server
+		handle @use_flutter_root {
+			reverse_proxy {$LOCAL_FLUTTER_UPSTREAM:127.0.0.1:8888} {
+				header_up Host {host}
+			}
+			header Cross-Origin-Opener-Policy "same-origin"
+			header Cross-Origin-Embedder-Policy "credentialless"
 			header Vary "Cookie"
 			header Cache-Control "no-store"
 		}
+		handle {
+			root * {$LOCAL_APP_ROOT:./packages/client/build/web}
+			try_files {path} /index.html
+			file_server
+			header Cross-Origin-Opener-Policy "same-origin"
+			header Cross-Origin-Embedder-Policy "credentialless"
+			header Vary "Cookie"
+			header Cache-Control "no-store"
+		}
+	}
+	handle @publicRoot {
+		root * {$LOCAL_LANDING_ROOT:./packages/landing}
+		try_files {path} /index.html
+		file_server
+		header Vary "Cookie"
+		header Cache-Control "no-store"
 	}
 
 	# Hot reload: proxy to flutter run --web-port=8888 (default).

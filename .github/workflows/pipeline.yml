@@ -162,7 +162,10 @@ jobs:
           # dev-only handoff-dev.html harness.
           tar -czf landing-dev-${{ steps.versions.outputs.server_version }}.tar.gz \
             -C packages/landing \
-            index.html config.js resolve_app_base.js main.js preview.js webview.js analytics.js handoff.js auth.js styles.css
+            index.html config.js resolve_app_base.js main.js invite_entry.js preview.js webview.js analytics.js handoff.js auth.js styles.css
+
+      - name: Test static landing
+        run: node --test packages/landing/test/*.mjs
 
       - name: Upload web archive artifacts
         uses: actions/upload-artifact@v6

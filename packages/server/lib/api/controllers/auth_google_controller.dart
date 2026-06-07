@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
+import 'package:tentura_server/api/http/oauth_return_uri.dart';
 import 'package:tentura_server/api/http/oauth_state_codec.dart';
 import 'package:tentura_server/api/http/oauth_warmup_interstitial_page.dart';
 import 'package:tentura_server/consts.dart';
@@ -37,8 +38,9 @@ final class AuthGoogleController extends BaseController {
       return Response(503, body: 'Google OAuth is not configured');
     }
     final inviteId = request.url.queryParameters['invite'];
-    final returnTo = _sanitizeReturnTo(
-      request.url.queryParameters['returnTo'],
+    final returnTo = sanitizeOAuthReturnTo(
+      raw: request.url.queryParameters['returnTo'],
+      publicOrigin: env.publicOrigin,
     );
     final state = _randomUrlSafe(16);
     final codeVerifier = _randomUrlSafe(32);
@@ -114,9 +116,10 @@ final class AuthGoogleController extends BaseController {
       inviteId: payload.inviteId,
     );
     final sessionToken = await _sessionCase.createSession(accountId: accountId);
-    final destination = payload.returnTo.isNotEmpty
-        ? payload.returnTo
-        : _defaultAppUrl();
+    final destination = destinationAfterOAuthCallback(
+      returnTo: payload.returnTo,
+      publicOrigin: env.publicOrigin,
+    );
     final headers = withSetCookie(
       withSetCookie(
         {kHeaderCacheControl: kCacheControlNoStore},
@@ -144,21 +147,6 @@ final class AuthGoogleController extends BaseController {
     return Uri.parse(env.publicOrigin).replace(
       path: '/api/auth/google/callback',
     );
-  }
-
-  String _defaultAppUrl() {
-    return env.publicOrigin.endsWith('/')
-        ? env.publicOrigin
-        : '${env.publicOrigin}/';
-  }
-
-  String _sanitizeReturnTo(String? raw) {
-    if (raw == null || raw.isEmpty) return '';
-    final uri = Uri.tryParse(raw);
-    if (uri == null || !uri.hasScheme) return '';
-    final allowedOrigin = Uri.parse(env.publicOrigin).origin;
-    if (uri.origin != allowedOrigin) return '';
-    return uri.toString();
   }
 
   static String _randomUrlSafe(int byteCount) =>

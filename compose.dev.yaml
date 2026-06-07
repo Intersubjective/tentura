@@ -17,7 +17,8 @@
 #   4. ./scripts/run-server-local.sh
 #   5. ./scripts/run-flutter-web-local.sh
 #   6. caddy run --config Caddyfile.local
-#   Open https://dev.lvh.me:9443/ (WASM app) and https://dev.lvh.me:9443/invite/I… (static invite).
+#   Open https://dev.lvh.me:9443/ (signed-out → landing; signed-in → WASM) and /invite/I… (static invite).
+#   Root split is default-on (mirrors prod). LOCAL_ROOT_SPLIT=off for raw app-at-root dev.
 #   Requires dev.lvh.me → 127.0.0.1 (lvh.me DNS or /etc/hosts).
 #   HTTP :9080 remains for non-cookie smoke; Google OAuth needs HTTPS :9443.
 #   Offline hosts: dev.tentura.test in /etc/hosts (see Caddyfile.local).

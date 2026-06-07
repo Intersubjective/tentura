@@ -291,6 +291,8 @@ flowchart TD
 
 ## Manual smoke checklist
 
+- [ ] Signed-out `/` (no cookie): landing with invite entry, email sign-in, no “Open Tentura”
+- [ ] Signed-out `/`: paste invite code/link → redirects to `/invite/I…` preview
 - [ ] Signed-in desktop web: `/invite/I…` → landing → `#/accept-invite/I…` → confirm → home once
 - [ ] Signed-out web: `/invite/I…` → landing signup only → after signup, product (no accept-as-existing)
 - [ ] Android prod App Link, authed: preview → confirm → accept; anon → register
