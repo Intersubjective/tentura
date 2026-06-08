@@ -105,6 +105,8 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - **Secure context required** for device-seed (`crypto.subtle`). Local E2E needs
   HTTPS (e.g. `dev.lvh.me:9443`).
 - **Tier-2 escape:** Android `intent://`, iOS copy-link + Safari coaching.
+  Telegram is also detected via `TelegramWebview*` globals when its UA matches
+  the system browser.
 - **Deferred:** passkey/Apple; link Google/email from Settings; per-IP signup
   rate-limiting beyond email-auth limits.
 - Session handoff (`#th=`) contract: `docs/handoff-contract.md` (device-seed
