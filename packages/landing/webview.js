@@ -1,17 +1,28 @@
 // In-app-webview detection -> two-tier UX.
 //   Tier 1 (system browser): full auth CTAs (wired in Phase 1).
 //   Tier 2 (in-app webview): "open in your browser" primary CTA.
-const ua = navigator.userAgent || '';
+const UA_IN_APP =
+  /(FBAN|FBAV|Instagram|Line\/|Twitter|TikTok|musical_ly|WhatsApp|Telegram|Snapchat|GSA|MicroMessenger)/i;
 
-export function detectEnvironment() {
+// Telegram often reuses the system-browser UA; the app injects these globals instead.
+export function isTelegramInAppWebview(win = globalThis) {
+  return (
+    typeof win.TelegramWebview !== 'undefined' ||
+    (typeof win.TelegramWebviewProxy !== 'undefined' &&
+      typeof win.TelegramWebviewProxyProto !== 'undefined')
+  );
+}
+
+export function detectEnvironment(signals = {}) {
+  const ua = signals.ua ?? (navigator.userAgent || '');
+  const win = signals.window ?? globalThis;
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
   const isAndroid = /Android/i.test(ua);
-  const inApp =
-    /(FBAN|FBAV|Instagram|Line\/|Twitter|TikTok|musical_ly|WhatsApp|Telegram|Snapchat|GSA|MicroMessenger)/i.test(
-      ua,
-    ) ||
+  const uaInApp =
+    UA_IN_APP.test(ua) ||
     // Generic Android System WebView marker.
     (isAndroid && /;\s*wv\)/i.test(ua));
+  const inApp = uaInApp || isTelegramInAppWebview(win);
   return { isIOS, isAndroid, inApp, tier: inApp ? 2 : 1 };
 }
 
