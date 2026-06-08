@@ -18,4 +18,14 @@ abstract class OidcProviderPort {
     required String codeVerifier,
     required String expectedNonce,
   });
+
+  /// Verify a Google-issued id token directly (native `google_sign_in` flow):
+  /// JWKS signature, issuer, and an `aud` allow-list (web + iOS client ids).
+  /// When [expectedNonce] is null the nonce check is skipped (native tokens
+  /// carry no server-issued nonce). Requires only the Google client id (no
+  /// client secret), so it works even when the web OAuth flow is unconfigured.
+  Future<OidcIdentity> verifyGoogleIdToken(
+    String idToken, {
+    String? expectedNonce,
+  });
 }

@@ -14,4 +14,8 @@ abstract class SessionRepositoryPort {
   Future<void> revokeByTokenHash(String tokenHash);
 
   Future<void> revokeAllForAccount(String accountId);
+
+  /// Revoke every active session tied to [credentialId]. Called transactionally
+  /// when its credential is removed, before the `ON DELETE SET NULL` FK fires.
+  Future<void> revokeByCredentialId(String credentialId);
 }

@@ -19,7 +19,7 @@
 | **0** | Single-domain routing; static `/invite/*` | **Done** — Caddy prod + local; COOP/COEP scoped to WASM only |
 | **1** | Session bootstrap on one origin | **Done** — `__Host-tentura_session`, cookie-presence `/` split, WASM bootstrap, stale-session reconciliation (ADR 0002) |
 | **2** | Email magic link (captive-browser auth) | **Done** — server + landing + Resend template; requires `RESEND_*` env |
-| **3** | Provider cleanup + credential Settings | **Partial** — list/remove credentials shipped; link Google/email from Settings, session revoke on remove, retire device-seed UI, topology cleanup remain |
+| **3** | Provider cleanup + credential Settings | **Partial** — list/remove + **link Google/email/recovery seed from Settings** shipped (strict link-mode, per-credential session revoke); retire device-seed landing UI, topology/`appBase` cleanup remain (ADR 0003) |
 | **4** | Native + deferred invite pickup | **Partial** — native deep links + Android App Links shipped; install-after-click server tracking not started |
 
 ## North Star

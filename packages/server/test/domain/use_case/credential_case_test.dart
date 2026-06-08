@@ -8,11 +8,46 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/entity/oidc_identity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/oidc_provider_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
+import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
 import 'package:tentura_server/domain/use_case/credential_case.dart';
+import 'package:tentura_server/domain/use_case/invitation_case.dart';
+import 'package:tentura_server/domain/use_case/oidc_case.dart';
 
 import 'invitation_case_mocks.mocks.dart';
+
+final class _FakeOidcProvider implements OidcProviderPort {
+  @override
+  bool get isConfigured => false;
+
+  @override
+  Uri buildGoogleAuthorizeUri({
+    required String redirectUri,
+    required String state,
+    required String codeChallenge,
+    required String nonce,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<OidcIdentity> exchangeGoogleCode({
+    required String code,
+    required String redirectUri,
+    required String codeVerifier,
+    required String expectedNonce,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<OidcIdentity> verifyGoogleIdToken(
+    String idToken, {
+    String? expectedNonce,
+  }) =>
+      throw UnimplementedError();
+}
 
 // Reuse the server's default Ed25519 key pair as a test "device key" (the pair
 // is self-consistent, so `verifyDeviceAuthRequest` accepts the auth-request).
@@ -51,9 +86,32 @@ void main() {
   setUp(() {
     userRepo = MockUserRepositoryPort();
     final env = Env(environment: Environment.test);
+    final authCase = AuthCase(userRepo, env: env, logger: Logger('AuthCaseTest'));
+    final credentialAuthCase = CredentialAuthCase(
+      userRepo,
+      MockVerifiedContactRepositoryPort(),
+      InvitationCase(
+        MockInvitationRepositoryPort(),
+        userRepo,
+        MockBeaconRepositoryPort(),
+        MockVoteUserFriendshipLookup(),
+        env: env,
+        logger: Logger('InvitationCaseTest'),
+      ),
+      env: env,
+      logger: Logger('CredentialAuthCaseTest'),
+    );
+    final oidcCase = OidcCase(
+      credentialAuthCase,
+      userRepo,
+      env: env,
+      logger: Logger('OidcCaseTest'),
+    );
     case_ = CredentialCase(
       userRepo,
-      AuthCase(userRepo, env: env, logger: Logger('AuthCaseTest')),
+      authCase,
+      _FakeOidcProvider(),
+      oidcCase,
       env: env,
       logger: Logger('CredentialCaseTest'),
     );

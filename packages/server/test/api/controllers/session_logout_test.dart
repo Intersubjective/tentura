@@ -42,6 +42,9 @@ final class _FakeSessionRepository implements SessionRepositoryPort {
 
   @override
   Future<void> revokeAllForAccount(String accountId) async {}
+
+  @override
+  Future<void> revokeByCredentialId(String credentialId) async {}
 }
 
 final class _FakeUserRepository implements UserRepositoryPort {

@@ -28,6 +28,19 @@ void main() {
     expect(decoded.nonce, payload.nonce);
     expect(decoded.inviteId, payload.inviteId);
     expect(decoded.returnTo, payload.returnTo);
+    expect(decoded.linkAccountId, isNull);
+  });
+
+  test('round-trip encodes Settings link-mode linkAccountId', () {
+    const payload = OAuthStatePayload(
+      state: 'state123',
+      codeVerifier: 'verifier',
+      nonce: 'nonce456',
+      returnTo: 'https://app.example/#/settings/sign-in-methods?linked=google',
+      linkAccountId: 'Uabc123456789012345678901234567890',
+    );
+    final decoded = codec.decode(codec.encode(payload));
+    expect(decoded.linkAccountId, payload.linkAccountId);
   });
 
   test('decode throws on tampered token', () {

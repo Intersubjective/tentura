@@ -380,6 +380,51 @@ class MockUserRepositoryPort extends _i1.Mock
           as _i7.Future<String>);
 
   @override
+  _i7.Future<_i4.AccountCredentialEntity> linkCredentialToAccountStrict({
+    required String? accountId,
+    required _i4.CredentialType? type,
+    required String? identifier,
+    Map<String, Object?>? publicData,
+    List<_i9.AssertedContact>? contacts = const [],
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#linkCredentialToAccountStrict, [], {
+              #accountId: accountId,
+              #type: type,
+              #identifier: identifier,
+              #publicData: publicData,
+              #contacts: contacts,
+            }),
+            returnValue: _i7.Future<_i4.AccountCredentialEntity>.value(
+              _FakeAccountCredentialEntity_2(
+                this,
+                Invocation.method(#linkCredentialToAccountStrict, [], {
+                  #accountId: accountId,
+                  #type: type,
+                  #identifier: identifier,
+                  #publicData: publicData,
+                  #contacts: contacts,
+                }),
+              ),
+            ),
+          )
+          as _i7.Future<_i4.AccountCredentialEntity>);
+
+  @override
+  _i7.Future<String?> findCredentialId({
+    required _i4.CredentialType? type,
+    required String? identifier,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#findCredentialId, [], {
+              #type: type,
+              #identifier: identifier,
+            }),
+            returnValue: _i7.Future<String?>.value(),
+          )
+          as _i7.Future<String?>);
+
+  @override
   _i7.Future<void> addVerifiedContacts({
     required String? accountId,
     required _i4.CredentialType? source,

@@ -13,6 +13,7 @@ class OAuthStatePayload {
     required this.nonce,
     required this.returnTo,
     this.inviteId,
+    this.linkAccountId,
   });
 
   final String state;
@@ -20,6 +21,11 @@ class OAuthStatePayload {
   final String nonce;
   final String? inviteId;
   final String returnTo;
+
+  /// Present in Settings Google link mode: the account the verified identity
+  /// must strict-link to. When set, the callback links instead of logging in
+  /// and mints NO session.
+  final String? linkAccountId;
 }
 
 @Injectable(order: 3)
@@ -34,6 +40,8 @@ class OAuthStateCodec {
     'nonce': payload.nonce,
     if (payload.inviteId != null && payload.inviteId!.isNotEmpty)
       'invite': payload.inviteId,
+    if (payload.linkAccountId != null && payload.linkAccountId!.isNotEmpty)
+      'lacc': payload.linkAccountId,
     'returnTo': payload.returnTo,
   }).sign(
     _env.privateKey,
@@ -57,6 +65,7 @@ class OAuthStateCodec {
         codeVerifier: cv,
         nonce: nonce,
         inviteId: map['invite'] as String?,
+        linkAccountId: map['lacc'] as String?,
         returnTo: returnTo,
       );
     } catch (e) {

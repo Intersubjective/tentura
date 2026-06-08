@@ -806,6 +806,50 @@
   "@removeCredentialBody": {
     "context": "CredentialsScreen"
   },
+  "addSignInMethod": "Добавить способ входа",
+  "@addSignInMethod": {
+    "context": "CredentialsScreen"
+  },
+  "credentialGoogle": "Google",
+  "@credentialGoogle": {
+    "context": "CredentialsScreen"
+  },
+  "credentialEmail": "Почта",
+  "@credentialEmail": {
+    "context": "CredentialsScreen"
+  },
+  "credentialRecoverySeed": "Seed восстановления",
+  "@credentialRecoverySeed": {
+    "context": "CredentialsScreen"
+  },
+  "linkEmailTitle": "Привязать почту",
+  "@linkEmailTitle": {
+    "context": "CredentialsScreen"
+  },
+  "linkEmailHint": "Адрес почты",
+  "@linkEmailHint": {
+    "context": "CredentialsScreen"
+  },
+  "linkEmailSend": "Отправить ссылку",
+  "@linkEmailSend": {
+    "context": "CredentialsScreen"
+  },
+  "seedBackupTitle": "Сохраните seed восстановления",
+  "@seedBackupTitle": {
+    "context": "CredentialsScreen"
+  },
+  "seedBackupBody": "Сохраните seed в надёжном месте. Повторно он не покажется.",
+  "@seedBackupBody": {
+    "context": "CredentialsScreen"
+  },
+  "seedBackupConfirm": "Я сохранил",
+  "@seedBackupConfirm": {
+    "context": "CredentialsScreen"
+  },
+  "credentialLinkConflict": "Этот способ входа уже привязан к другому аккаунту",
+  "@credentialLinkConflict": {
+    "context": "CredentialsScreen"
+  },
   "light": "Светлая",
   "@light": {
     "context": "ThemeSwitchButton"

@@ -36,6 +36,10 @@ abstract class JwtEntity with _$JwtEntity {
     /// subject roles
     @Default({UserRoles.anon}) Set<UserRoles> roles,
 
+    /// linked credential id (`cid` claim) that authenticated this token; used to
+    /// attribute `account_session.credential_id` for precise per-credential revoke
+    @Default('') String credentialId,
+
     /// raw token
     @Default('') String rawToken,
   }) = _JwtEntity;

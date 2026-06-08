@@ -29,6 +29,10 @@ class Env {
 
     // Feature flags
     bool? needInviteCode,
+
+    // Google OAuth (native linking)
+    String? googleServerClientId,
+    String? googleIosClientId,
   }) : // Common
        logLevel = logLevel ?? const String.fromEnvironment('LOG_LEVEL'),
        serverUrlBase =
@@ -76,7 +80,13 @@ class Env {
        // Feature flags
        clearDatabase = const bool.fromEnvironment('CLEAR_DATABASE'),
        needInviteCode =
-           needInviteCode ?? const bool.fromEnvironment('NEED_INVITE_CODE');
+           needInviteCode ?? const bool.fromEnvironment('NEED_INVITE_CODE'),
+
+       // Google OAuth (native linking; web uses server redirect)
+       googleServerClientId = googleServerClientId ??
+           const String.fromEnvironment('GOOGLE_CLIENT_ID'),
+       googleIosClientId = googleIosClientId ??
+           const String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
 
   @factoryMethod
   const factory Env.fromEnvironment() = Env;
@@ -105,4 +115,12 @@ class Env {
   // Feature flags
   final bool clearDatabase;
   final bool needInviteCode;
+
+  /// Web/server OAuth client id (= Android `serverClientId` for idToken `aud`).
+  final String googleServerClientId;
+
+  /// iOS OAuth client id for `google_sign_in` (optional on Android/web).
+  final String googleIosClientId;
+
+  bool get isGoogleNativeLinkConfigured => googleServerClientId.isNotEmpty;
 }

@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
+import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
 import 'package:tentura_server/domain/util/email_auth_util.dart';
 
@@ -18,7 +19,8 @@ final class EmailAuthCase extends UseCaseBase {
   EmailAuthCase(
     this._transactionRepository,
     this._emailSender,
-    this._credentialAuthCase, {
+    this._credentialAuthCase,
+    this._userRepository, {
     required super.env,
     required super.logger,
   });
@@ -26,6 +28,7 @@ final class EmailAuthCase extends UseCaseBase {
   final EmailAuthTransactionRepositoryPort _transactionRepository;
   final EmailSenderPort _emailSender;
   final CredentialAuthCase _credentialAuthCase;
+  final UserRepositoryPort _userRepository;
 
   static String hashFingerprint(String value) =>
       sha256.convert(utf8.encode(value)).toString();
@@ -37,7 +40,9 @@ final class EmailAuthCase extends UseCaseBase {
     required String ipFingerprint,
     required String userAgentFingerprint,
     String? inviteCode,
+    String? linkAccountId,
   }) async {
+    final isLink = linkAccountId != null && linkAccountId.isNotEmpty;
     final normalized = normalizeAuthEmail(email);
     if (!isValidAuthEmailFormat(normalized)) {
       return;
@@ -55,7 +60,12 @@ final class EmailAuthCase extends UseCaseBase {
       return;
     }
 
-    if ((inviteCode == null || inviteCode.isEmpty) && env.isNeedInvite) {
+    // Link mode is authenticated and adds a NEW address to an existing account,
+    // so it must NOT run the invite-only unregistered-email skip (that gate is
+    // for unauthenticated signup) — otherwise linking a fresh email no-ops.
+    if (!isLink &&
+        (inviteCode == null || inviteCode.isEmpty) &&
+        env.isNeedInvite) {
       final registered = await _credentialAuthCase.emailIsRegistered(normalized);
       if (!registered) {
         logger.info('email auth start skipped: unregistered email, invite required');
@@ -66,6 +76,7 @@ final class EmailAuthCase extends UseCaseBase {
     final token = await _transactionRepository.create(
       normalizedEmail: normalized,
       inviteCode: inviteCode,
+      linkAccountId: linkAccountId,
       expiresIn: env.emailAuthTtl,
       userAgentHash: hashFingerprint(userAgentFingerprint),
       ipHash: hashFingerprint(ipFingerprint),
@@ -80,28 +91,52 @@ final class EmailAuthCase extends UseCaseBase {
     );
   }
 
-  /// Consumes token and resolves account. Throws [OidcInviteRequiredException]
-  /// when invite-only and no invite on a new account.
+  /// Consumes token and resolves account. Throws `OidcInviteRequiredException`
+  /// when invite-only and no invite on a new account. In Settings link mode
+  /// (`tx.linkAccountId` present) strict-links `email_otp` to that account and
+  /// returns `isLink: true` so the controller mints NO session; conflicts
+  /// surface as `CredentialConflictException` / `ContactConflictException`.
   Future<EmailAuthVerifyResult> verify(String plaintextToken) async {
     final tx = await _transactionRepository.consumeByToken(plaintextToken);
     if (tx == null) {
       throw const EmailAuthTokenInvalidException();
     }
+
+    final emailContact = AssertedContact.email(
+      rawEmail: tx.normalizedEmail,
+      authoritative: true,
+    )!;
+
+    final linkAccountId = tx.linkAccountId;
+    if (linkAccountId != null && linkAccountId.isNotEmpty) {
+      final credential = await _userRepository.linkCredentialToAccountStrict(
+        accountId: linkAccountId,
+        type: CredentialType.emailOtp,
+        identifier: tx.normalizedEmail,
+        contacts: [emailContact],
+      );
+      return EmailAuthVerifyResult(
+        accountId: linkAccountId,
+        credentialId: credential.id,
+        isLink: true,
+      );
+    }
+
     final accountId = await _credentialAuthCase.resolveOrCreate(
       type: CredentialType.emailOtp,
       identifier: tx.normalizedEmail,
       displayName: displayNameFromEmail(tx.normalizedEmail),
       inviteId: tx.inviteCode,
-      assertedContacts: [
-        AssertedContact.email(
-          rawEmail: tx.normalizedEmail,
-          authoritative: true,
-        )!,
-      ],
+      assertedContacts: [emailContact],
+    );
+    final credentialId = await _userRepository.findCredentialId(
+      type: CredentialType.emailOtp,
+      identifier: tx.normalizedEmail,
     );
     return EmailAuthVerifyResult(
       accountId: accountId,
       inviteCode: tx.inviteCode,
+      credentialId: credentialId,
     );
   }
 

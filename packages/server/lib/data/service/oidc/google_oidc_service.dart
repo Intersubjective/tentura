@@ -82,9 +82,21 @@ class GoogleOidcService implements OidcProviderPort {
     return _verifyIdToken(idToken, expectedNonce: expectedNonce);
   }
 
+  @override
+  Future<OidcIdentity> verifyGoogleIdToken(
+    String idToken, {
+    String? expectedNonce,
+  }) {
+    // Native verify needs only the client id (no secret / web flow config).
+    if (_env.googleClientId.isEmpty) {
+      throw const OidcProviderDisabledException();
+    }
+    return _verifyIdToken(idToken, expectedNonce: expectedNonce);
+  }
+
   Future<OidcIdentity> _verifyIdToken(
     String idToken, {
-    required String expectedNonce,
+    String? expectedNonce,
   }) async {
     final header = JWT.decode(idToken).header;
     final kid = header?['kid'] as String?;
@@ -99,9 +111,16 @@ class GoogleOidcService implements OidcProviderPort {
       throw const OidcIdTokenInvalidException();
     }
     final payload = jwt.payload as Map<String, dynamic>;
+    // `aud` allow-list: the web/server client (= Android `serverClientId`) and
+    // the iOS client id when configured. iOS `google_sign_in` tokens use the
+    // iOS client as `aud`, not the web client.
+    final allowedAud = <String>{
+      _env.googleClientId,
+      if (_env.googleIosClientId.isNotEmpty) _env.googleIosClientId,
+    };
     final aud = payload['aud'];
-    final audOk = aud == _env.googleClientId ||
-        (aud is List && aud.contains(_env.googleClientId));
+    final audOk = (aud is String && allowedAud.contains(aud)) ||
+        (aud is List && aud.any(allowedAud.contains));
     if (!audOk) {
       throw const OidcIdTokenInvalidException();
     }
@@ -110,7 +129,8 @@ class GoogleOidcService implements OidcProviderPort {
         iss != 'accounts.google.com') {
       throw const OidcIdTokenInvalidException();
     }
-    if (payload['nonce'] != expectedNonce) {
+    // Native id tokens carry no server-issued nonce — skip when null.
+    if (expectedNonce != null && payload['nonce'] != expectedNonce) {
       throw const OidcStateMismatchException();
     }
     final sub = payload['sub'] as String? ?? '';

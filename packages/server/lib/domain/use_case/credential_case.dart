@@ -1,9 +1,11 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
+import 'package:tentura_server/domain/port/oidc_provider_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 
 import 'auth_case.dart';
+import 'oidc_case.dart';
 import '_use_case_base.dart';
 
 /// Authenticated credential management (`/accounts/me/credentials`): list, link
@@ -23,7 +25,9 @@ import '_use_case_base.dart';
 final class CredentialCase extends UseCaseBase {
   CredentialCase(
     this._userRepository,
-    this._authCase, {
+    this._authCase,
+    this._oidcProvider,
+    this._oidcCase, {
     required super.env,
     required super.logger,
   });
@@ -31,6 +35,10 @@ final class CredentialCase extends UseCaseBase {
   final UserRepositoryPort _userRepository;
 
   final AuthCase _authCase;
+
+  final OidcProviderPort _oidcProvider;
+
+  final OidcCase _oidcCase;
 
   /// All credentials linked to [accountId].
   Future<List<AccountCredentialEntity>> list({
@@ -47,6 +55,18 @@ final class CredentialCase extends UseCaseBase {
     type: CredentialType.ed25519Device,
     identifier: _authCase.verifyDeviceAuthRequest(authRequestToken),
   );
+
+  /// Link a Google identity proven by a native `google_sign_in` [idToken]
+  /// (verified directly — no redirect). Strict-links `oidc:google` to
+  /// [accountId]; throws `CredentialConflictException` /
+  /// `ContactConflictException` on cross-account ownership.
+  Future<AccountCredentialEntity> linkGoogleNative({
+    required String accountId,
+    required String idToken,
+  }) async {
+    final identity = await _oidcProvider.verifyGoogleIdToken(idToken);
+    return _oidcCase.linkGoogle(accountId: accountId, identity: identity);
+  }
 
   /// Remove credential [credentialId] from [accountId].
   Future<void> remove({

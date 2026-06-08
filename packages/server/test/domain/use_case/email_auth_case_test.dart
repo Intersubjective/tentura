@@ -41,6 +41,7 @@ final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   Future<String> create({
     required String normalizedEmail,
     String? inviteCode,
+    String? linkAccountId,
     required Duration expiresIn,
     required String userAgentHash,
     required String ipHash,
@@ -50,6 +51,7 @@ final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
       id: 'Etest',
       normalizedEmail: normalizedEmail,
       inviteCode: inviteCode,
+      linkAccountId: linkAccountId,
       createdAt: DateTime.timestamp(),
       expiresAt: DateTime.timestamp().add(expiresIn),
     );
@@ -130,9 +132,16 @@ void main() {
       txRepo,
       sender,
       credentialAuthCase,
+      userRepo,
       env: env,
       logger: Logger('EmailAuthCaseTest'),
     );
+    when(
+      userRepo.findCredentialId(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenAnswer((_) async => 'Ccred');
   });
 
   test('start sends magic link when configured', () async {
@@ -252,6 +261,7 @@ void main() {
       txRepo,
       sender,
       openCredentialAuthCase,
+      userRepo,
       env: openEnv,
       logger: Logger('EmailAuthCaseTest'),
     );
@@ -324,6 +334,73 @@ void main() {
     );
   });
 
+  test('link start bypasses invite-only gate for unregistered email', () async {
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.getAccountIdByContact(
+        kind: ContactKind.email,
+        value: 'brand-new@example.com',
+      ),
+    ).thenAnswer((_) async => null);
+
+    await case_.start(
+      email: 'brand-new@example.com',
+      linkAccountId: 'Uabc123456789012345678901234567890',
+      ipFingerprint: '1.2.3.4',
+      userAgentFingerprint: 'Mozilla',
+    );
+
+    expect(sender.lastTo, 'brand-new@example.com');
+    expect(sender.lastVerifyUrl, contains('/auth/email/verify?t=opaque-token'));
+  });
+
+  test('verify link mode strict-links without login resolve', () async {
+    const accountId = 'Uabc123456789012345678901234567890';
+    await case_.start(
+      email: 'link@example.com',
+      linkAccountId: accountId,
+      ipFingerprint: 'ip',
+      userAgentFingerprint: 'ua',
+    );
+    when(
+      userRepo.linkCredentialToAccountStrict(
+        accountId: anyNamed('accountId'),
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).thenAnswer(
+      (_) async => AccountCredentialEntity(
+        id: 'Cemail',
+        accountId: accountId,
+        type: CredentialType.emailOtp,
+        identifier: 'link@example.com',
+      ),
+    );
+
+    final result = await case_.verify('opaque-token');
+
+    expect(result.isLink, isTrue);
+    expect(result.accountId, accountId);
+    expect(result.credentialId, 'Cemail');
+    verifyNever(
+      userRepo.createWithCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+        displayName: anyNamed('displayName'),
+        handle: anyNamed('handle'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    );
+  });
+
   test('verify rejects unknown token', () async {
     expect(
       () => case_.verify('missing'),
@@ -350,6 +427,7 @@ void main() {
       txRepo,
       sender,
       openCredentialAuthCase,
+      userRepo,
       env: openEnv,
       logger: Logger('EmailAuthCaseTest'),
     );

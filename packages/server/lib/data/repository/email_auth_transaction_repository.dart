@@ -37,6 +37,7 @@ class EmailAuthTransactionRepository
     required String userAgentHash,
     required String ipHash,
     String? inviteCode,
+    String? linkAccountId,
   }) async {
     final token = generateToken();
     final tokenHash = hashToken(token);
@@ -48,6 +49,9 @@ class EmailAuthTransactionRepository
         inviteCode: inviteCode == null || inviteCode.isEmpty
             ? const Value.absent()
             : Value(inviteCode),
+        linkAccountId: linkAccountId == null || linkAccountId.isEmpty
+            ? const Value.absent()
+            : Value(linkAccountId),
         expiresAt: PgDateTime(expiresAt),
         userAgentHash: userAgentHash,
         ipHash: ipHash,
@@ -69,7 +73,7 @@ SET consumed_at = now()
 WHERE token_hash = \$1
   AND consumed_at IS NULL
   AND expires_at > now()
-RETURNING id, normalized_email, invite_code
+RETURNING id, normalized_email, invite_code, link_account_id
 ''',
       variables: [Variable<String>(tokenHash)],
     ).get();
@@ -80,6 +84,7 @@ RETURNING id, normalized_email, invite_code
       id: row.read<String>('id'),
       normalizedEmail: row.read<String>('normalized_email'),
       inviteCode: row.readNullable<String>('invite_code'),
+      linkAccountId: row.readNullable<String>('link_account_id'),
       createdAt: now,
       expiresAt: now,
     );

@@ -10,6 +10,7 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 import 'accept_invite_guard.dart';
+import 'credential_link_deep_link.dart';
 import 'invite_deep_link.dart';
 import 'notification_deep_link.dart';
 import 'root_router.gr.dart';
@@ -347,6 +348,11 @@ class RootRouter extends RootStackRouter {
   );
 
   Uri _transformDeepLink(Uri uri) {
+    final credentialLink = transformCredentialLinkDeepLink(uri: uri);
+    if (credentialLink.path == kPathSignInMethods &&
+        credentialLink.queryParameters.containsKey(kQueryCredentialLinked)) {
+      return credentialLink;
+    }
     final invitePath = transformInviteDeepLink(
       uri: uri,
       isAuthenticated: _authCubit.state.isAuthenticated,

@@ -43,6 +43,7 @@ final class AuthCase extends UseCaseBase {
     return JwtEntity(
       sub: jwt.subject!,
       roles: UserRoles.values.where((e) => roleList.contains(e.name)).toSet(),
+      credentialId: payload[_keyCredentialId] as String? ?? '',
     )..validate();
   }
 
@@ -52,12 +53,21 @@ final class AuthCase extends UseCaseBase {
     required String authRequestToken,
   }) async {
     final jwt = _verifyAuthRequest(authRequestToken);
+    final publicKey =
+        (jwt.payload as Map)[AuthRequestIntent.keyPublicKey] as String;
     final user = await _userRepository.getByCredential(
       type: CredentialType.ed25519Device.wire,
-      identifier: (jwt.payload as Map)[AuthRequestIntent.keyPublicKey] as String,
+      identifier: publicKey,
     );
-
-    return _issueJwt(user.id);
+    // Carry the device credential id in the access token (`cid`) so the
+    // session minted from it (`/session/from-bearer`) can attribute its
+    // `account_session.credential_id` — an account may hold several device
+    // keys, so an account-wide lookup would be ambiguous.
+    final credentialId = await _userRepository.findCredentialId(
+      type: CredentialType.ed25519Device,
+      identifier: publicKey,
+    );
+    return _issueJwt(user.id, credentialId: credentialId);
   }
 
   //
@@ -173,17 +183,22 @@ final class AuthCase extends UseCaseBase {
   /// Short-lived API access token (Hasura V1 + V2 + WS). Same shape as signIn.
   JwtEntity issueAccessToken(String accountId) => _issueJwt(accountId);
 
-  JwtEntity _issueJwt(String subject) {
+  JwtEntity _issueJwt(String subject, {String? credentialId}) {
     final jwtId = _uuid.v8();
+    final hasCid = credentialId != null && credentialId.isNotEmpty;
     return JwtEntity(
       jti: jwtId,
       sub: subject,
       roles: _roles,
       iss: _issuer,
       exp: env.jwtExpiresIn.inSeconds,
+      credentialId: hasCid ? credentialId : '',
       rawToken:
           JWT(
-            {AuthRequestIntent.keyRoles: _roles.join(',')},
+            {
+              AuthRequestIntent.keyRoles: _roles.join(','),
+              if (hasCid) _keyCredentialId: credentialId,
+            },
             jwtId: jwtId,
             subject: subject,
             issuer: _issuer,
@@ -197,4 +212,7 @@ final class AuthCase extends UseCaseBase {
 
   //
   static const _uuid = Uuid();
+
+  /// JWT claim carrying the authenticating `account_credential.id`.
+  static const _keyCredentialId = 'cid';
 }
