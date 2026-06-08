@@ -248,7 +248,19 @@ jobs:
 
   deploy-dev:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    needs: [test, build-web, build-server]
+    if: |
+      always() &&
+      !cancelled() &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'push' &&
+          needs.test.result == 'success' &&
+          needs.build-web.result == 'success' &&
+          needs.build-server.result == 'success'
+        )
+      )
     permissions:
       contents: read
       packages: write
