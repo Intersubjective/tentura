@@ -8,52 +8,48 @@ import 'package:tentura_server/data/repository/email_auth_transaction_repository
 import 'package:tentura_server/env.dart';
 
 /// Exercises real drift `customSelect` against Postgres (skipped when DB down).
-void main() {
-  var postgresReachable = false;
-  var schemaCurrent = false;
+Future<void> main() async {
+  final postgresReachable = await _canConnectPostgres();
+  final skipReason =
+      postgresReachable ? false : 'local Postgres not reachable';
+
   late TenturaDb db;
   late EmailAuthTransactionRepository repo;
 
-  setUpAll(() async {
-    postgresReachable = await _canConnectPostgres();
-    if (!postgresReachable) return;
-    final env = Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
-    db = TenturaDb(env);
-    repo = EmailAuthTransactionRepository(db);
-    schemaCurrent = await _hasLinkAccountIdColumn(db);
-    if (!schemaCurrent) {
-      await db.customStatement(
-        r'ALTER TABLE public.email_auth_transaction ADD COLUMN link_account_id text',
+  if (postgresReachable) {
+    setUpAll(() async {
+      final env = Env(
+        environment: Environment.test,
+        pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+        pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+        pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+        printEnv: false,
+        isDebugModeOn: false,
       );
-      schemaCurrent = true;
-    }
-  });
+      db = TenturaDb(env);
+      repo = EmailAuthTransactionRepository(db);
+      final schemaCurrent = await _hasLinkAccountIdColumn(db);
+      if (!schemaCurrent) {
+        await db.customStatement(
+          r'ALTER TABLE public.email_auth_transaction ADD COLUMN link_account_id text',
+        );
+      }
+    });
 
-  tearDownAll(() async {
-    if (!postgresReachable) return;
-    await db.close();
-  });
+    tearDownAll(() async {
+      await db.close();
+    });
 
-  tearDown(() async {
-    if (!postgresReachable) return;
-    await db.customStatement(
-      r"DELETE FROM public.email_auth_transaction WHERE normalized_email LIKE 'consume-test-%'",
-    );
-  });
+    tearDown(() async {
+      await db.customStatement(
+        r"DELETE FROM public.email_auth_transaction WHERE normalized_email LIKE 'consume-test-%'",
+      );
+    });
+  }
 
   test(
     'consumeByToken returns consumed row without reading timestamptz columns',
     () async {
-      if (!postgresReachable) {
-        markTestSkipped('local Postgres not reachable');
-      }
       const email = 'consume-test-ok@example.com';
       final token = await repo.create(
         normalizedEmail: email,
@@ -70,14 +66,16 @@ void main() {
       expect(consumed.inviteCode, 'Iinvite');
       expect(await repo.consumeByToken(token), isNull);
     },
+    skip: skipReason,
   );
 
-  test('consumeByToken returns null for empty token', () async {
-    if (!postgresReachable) {
-      markTestSkipped('local Postgres not reachable');
-    }
-    expect(await repo.consumeByToken(''), isNull);
-  });
+  test(
+    'consumeByToken returns null for empty token',
+    () async {
+      expect(await repo.consumeByToken(''), isNull);
+    },
+    skip: skipReason,
+  );
 }
 
 Future<bool> _hasLinkAccountIdColumn(TenturaDb db) async {
