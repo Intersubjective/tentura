@@ -150,6 +150,7 @@ jobs:
       - name: Package static landing
         env:
           LANDING_SENTRY_DSN: ${{ secrets.LANDING_SENTRY_DSN }}
+          LANDING_GOOGLE_ENABLED: ${{ vars.LANDING_GOOGLE_ENABLED }}
           APP_BASE: ${{ steps.webcfg.outputs.app_base }}
         run: |
           set -euo pipefail
@@ -157,6 +158,9 @@ jobs:
             sed -i "s|sentryDsn: ''|sentryDsn: '${LANDING_SENTRY_DSN}'|" packages/landing/config.js
           fi
           sed -i "s|appBase: '[^']*'|appBase: '${APP_BASE}'|" packages/landing/config.js
+          if [ "${LANDING_GOOGLE_ENABLED:-}" = "true" ]; then
+            sed -i 's|googleEnabled: false|googleEnabled: true|' packages/landing/config.js
+          fi
           bash scripts/validate_landing_config.sh
           # Explicit allowlist: ships handoff.js (transport), excludes the
           # dev-only handoff-dev.html harness.

@@ -44,7 +44,12 @@ window.TENTURA = { sentryDsn: '', apiBase: '', appBase: '', googleEnabled: false
 | `sentryDsn`      | Sentry DSN; empty = analytics no-op              | `''`     |
 | `apiBase`        | Origin for the preview API; empty = same origin  | `''`     |
 | `appBase`        | WASM app origin; empty = same host as landing (`location.origin`) | `''` |
-| `googleEnabled`  | Show Google OAuth CTA (needs server `GOOGLE_*`)  | `false`  |
+| `googleEnabled`  | Show Google OAuth in Tier-1 login reveal (needs server `GOOGLE_*`)  | `false`  |
+
+**CI/deploy:** set GitHub Environment variable `LANDING_GOOGLE_ENABLED=true` when
+server Google OAuth is configured; the pipeline injects it into `config.js`.
+Local dev: `./scripts/sync-landing-local-config.sh` sets `googleEnabled` from
+`GOOGLE_CLIENT_ID` in repo-root `.env`.
 
 `resolve_app_base.js` uses `appBase` when set; otherwise it defaults to `location.origin/` (single-origin deploy). Invalid URLs still throw.
 
@@ -76,11 +81,12 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 ## Routes / states
 
 - **Signed-out `/`:** `renderNoInvite()` — invite-only explanation, manual invite
-  entry (paste link/code → `/invite/:code`), email/Google sign-in (Tier 1), Tier-2
-  browser escape. No generic “Open Tentura” for anonymous visitors.
+  entry (paste link/code → `/invite/:code`), and “I already have an account” which
+  reveals tier-specific login options (Tier 1: email + Google; Tier 2: email +
+  browser escape). No generic “Open Tentura” for anonymous visitors.
 - **Invite URL:** `/invite/:code` (e.g. `https://dev.tentura.io/invite/I…`).
 - Renders 5 preview states from `suggestedAction`: invalid · is-inviter ·
-  already-friends · existing-user (befriend) · anonymous (email/Google/signup CTAs).
+  already-friends · existing-user (befriend) · anonymous (login reveal + Tier-1 signup).
 - **Beacon overlay** shown above the CTA in every state when `beacon` is present.
 - Funnel events fire via Sentry **before** any WASM.
 
@@ -89,8 +95,9 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - **Email magic link (Tier 1 + 2):** `startEmailMagicLink()` →
   `POST /api/v2/auth/email/start`. Verify sets `__Host-tentura_session` and
   redirects to `/invite/:code?signed_in=1`. Requires server `RESEND_*` env.
-- **Google OAuth (Tier 1 only):** `ctaGoogleSignIn()` when `googleEnabled` and
-  not `env.inApp` → `/api/auth/google/start`. Sets session cookie on callback.
+- **Google OAuth (Tier 1 only):** `ctaGoogleSignIn()` inside the “I already have an
+  account” login reveal when `googleEnabled` and not `env.inApp` →
+  `/api/auth/google/start`. Sets session cookie on callback.
 - **Device-seed signup (Tier 1 only):** `signUpWithSeed()` uses native WebCrypto
   Ed25519, POSTs `accept-as-new`, then `#th=` handoff via `handoff.js`.
   `AUTH_ENABLED` in `main.js` is the kill-switch. Never offered in Tier-2

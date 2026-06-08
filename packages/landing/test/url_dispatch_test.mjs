@@ -21,6 +21,16 @@ test('anonymous render does not offer generic open-app CTA', () => {
   assert.doesNotMatch(anonymousBlock, /ctaOpenApp\('Open the app'\)/);
 });
 
+test('anonymous render reveals login options behind existing-account CTA', () => {
+  const anonymousBlock = mainJs.slice(
+    mainJs.indexOf('function renderAnonymous'),
+    mainJs.indexOf('function render(p)'),
+  );
+  assert.match(anonymousBlock, /createSignInReveal\(code\)/);
+  assert.doesNotMatch(anonymousBlock, /renderEmailMagicLinkForm\(\)/);
+  assert.doesNotMatch(anonymousBlock, /ctaGoogleSignIn\(code\)/);
+});
+
 test('Google CTA uses full same-origin returnTo for invite', () => {
   assert.match(mainJs, /function googleReturnTo\(inviteCode\)/);
   assert.match(
@@ -29,17 +39,37 @@ test('Google CTA uses full same-origin returnTo for invite', () => {
   );
 });
 
-test('renderNoInvite has email sign-in and invite entry', () => {
+test('renderNoInvite has sign-in reveal and invite entry', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderNoInvite'),
     mainJs.indexOf('function addAppPreconnect'),
   );
   assert.match(block, /setState\('no-invite'\)/);
-  assert.match(block, /renderEmailMagicLinkForm/);
+  assert.match(block, /createSignInReveal\(''\)/);
   assert.match(block, /renderInviteEntryForm/);
-  assert.match(block, /mountSignInOptions/);
   assert.doesNotMatch(block, /cta_open_app_no_invite/);
   assert.doesNotMatch(block, /Open Tentura/);
+});
+
+test('login options include Google on Tier 1 and browser escape on Tier 2', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function buildLoginOptionItems'),
+    mainJs.indexOf('function createSignInReveal'),
+  );
+  assert.match(block, /renderEmailMagicLinkForm/);
+  assert.match(block, /if \(env\.inApp\)/);
+  assert.match(block, /ctaOpenInBrowser/);
+  assert.match(block, /ctaGoogleSignIn\(inviteCode\)/);
+});
+
+test('existing-account reveal mounts tier-specific login options', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function createSignInReveal'),
+    mainJs.indexOf('function googleReturnTo'),
+  );
+  assert.match(block, /buildLoginOptionItems\(inviteCode\)/);
+  assert.match(block, /I already have an account/);
+  assert.match(block, /aria-controls/);
 });
 
 test('email sign-in field avoids login/password autofill heuristics', () => {
@@ -61,12 +91,12 @@ test('invite entry field is scoped away from sign-in autofill', () => {
   assert.match(block, /name: 'invite-code'/);
 });
 
-test('renderNoInvite includes Tier-2 browser escape', () => {
+test('renderNoInvite uses shared sign-in reveal helper', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderNoInvite'),
     mainJs.indexOf('function addAppPreconnect'),
   );
-  assert.match(block, /ctaOpenInBrowser/);
+  assert.match(block, /createSignInReveal\(''\)/);
 });
 
 test('Google CTA hidden in in-app browser via env.inApp guard', () => {

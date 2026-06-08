@@ -278,8 +278,8 @@ returning to invite page. OAuth tokens never exposed to browser JS.
 | `/` | yes (cookie) | WASM boots authenticated |
 | `/` | no | Landing `renderNoInvite()` — invite entry, email/Google behind "I already have an account" |
 | `/invite/<code>` | yes | Caller-aware static preview |
-| `/invite/<code>` | no, Tier 1 | Email + Google + device-seed signup |
-| `/invite/<code>` | no, Tier 2 | Browser escape + email |
+| `/invite/<code>` | no, Tier 1 | “I already have an account” → email + Google; separate device-seed signup |
+| `/invite/<code>` | no, Tier 2 | “I already have an account” → email + browser escape; card-level browser escape also shown |
 
 ## WASM App Responsibilities
 
