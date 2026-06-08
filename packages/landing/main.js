@@ -401,8 +401,12 @@ function renderInviteEntryForm() {
   );
 }
 
+function isSignedInReturn() {
+  return new URLSearchParams(location.search).get('signed_in') === '1';
+}
+
 function signedInFlash() {
-  if (new URLSearchParams(location.search).get('signed_in') !== '1') return null;
+  if (!isSignedInReturn()) return null;
   return el(
     'p',
     { class: 'hint' },
@@ -443,12 +447,29 @@ function renderIsInviter(p) {
 
 function renderAlreadyFriends(p) {
   setState('already-friends');
-  setPageTitle('Already connected — Tentura');
+  const name = inviterName(p);
+  if (isSignedInReturn()) {
+    setPageTitle('You’re all set — Tentura');
+    return el(
+      'div',
+      { class: 'content' },
+      beaconOverlay(p),
+      el('h1', {}, 'You’re all set'),
+      el(
+        'p',
+        {},
+        `Your account is ready, and ${name} is connected with you. Open Tentura to continue.`,
+      ),
+      ctaOpenApp(),
+    );
+  }
+  setPageTitle(`Connected with ${name} — Tentura`);
   return el(
     'div',
     { class: 'content' },
     beaconOverlay(p),
-    el('h1', {}, `You’re already connected with ${inviterName(p)}`),
+    el('h1', {}, `You’re connected with ${name}`),
+    el('p', {}, 'Open Tentura to continue.'),
     ctaOpenApp(),
   );
 }
