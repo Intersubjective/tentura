@@ -84,30 +84,24 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - **Beacon overlay** shown above the CTA in every state when `beacon` is present.
 - Funnel events fire via Sentry **before** any WASM.
 
-## Auth (slice 3) — device-seed signup, Tier-1 only
+## Auth
 
-- **Live:** anonymous device-seed signup. `auth.js` generates an Ed25519 keypair
-  with **native WebCrypto** (`crypto.subtle`, no npm, no vendored lib), self-signs
-  an EdDSA auth-request JWT, and POSTs `accept-as-new`; on success it hands the
-  **seed** to the app via `handoff.js`. `AUTH_ENABLED` (in `main.js`) is the
-  master kill-switch.
-- **Secure context required.** `crypto.subtle` exists only in a secure context
-  (HTTPS, or a `localhost`/`127.0.0.1` host). Over plain `http://dev.lvh.me:9080`
-  it is absent, so the signup CTA is hidden (feature-detect returns false) — local
-  signup E2E needs HTTPS or a `localhost`-named host; the dev stack is HTTPS.
-- **Tier-1 only.** Signup is offered **only** in system browsers with native
-  WebCrypto Ed25519. It is deliberately **never** offered in Tier-2 in-app
-  webviews: a device key minted in an ephemeral/siloed webview would be lost when
-  the webview closes (and is unrecoverable without a second credential). Tier-2
-  keeps the "open in your browser" escape; the **email** path (recoverable) is
-  the eventual Tier-2 method — a later slice.
-- **Deferred:** passkey/Google/Apple/email providers (need their server providers,
-  deferred in slice 2); per-IP signup rate-limiting (invite slots are the interim
-  limiter); befriend-on-open for existing accounts (slice-4 client work — here
-  "I already have an account" just opens the app).
-- Tier-2 (in-app webview) browser escape: Android `intent://`, iOS copy-link +
-  Safari coaching (no programmatic iOS escape, Risk #2).
-- Session handoff key names are pinned in `docs/handoff-contract.md`.
+- **Email magic link (Tier 1 + 2):** `startEmailMagicLink()` →
+  `POST /api/v2/auth/email/start`. Verify sets `__Host-tentura_session` and
+  redirects to `/invite/:code?signed_in=1`. Requires server `RESEND_*` env.
+- **Google OAuth (Tier 1 only):** `ctaGoogleSignIn()` when `googleEnabled` and
+  not `env.inApp` → `/api/auth/google/start`. Sets session cookie on callback.
+- **Device-seed signup (Tier 1 only):** `signUpWithSeed()` uses native WebCrypto
+  Ed25519, POSTs `accept-as-new`, then `#th=` handoff via `handoff.js`.
+  `AUTH_ENABLED` in `main.js` is the kill-switch. Never offered in Tier-2
+  webviews (ephemeral storage would lose the key).
+- **Secure context required** for device-seed (`crypto.subtle`). Local E2E needs
+  HTTPS (e.g. `dev.lvh.me:9443`).
+- **Tier-2 escape:** Android `intent://`, iOS copy-link + Safari coaching.
+- **Deferred:** passkey/Apple; link Google/email from Settings; per-IP signup
+  rate-limiting beyond email-auth limits.
+- Session handoff (`#th=`) contract: `docs/handoff-contract.md` (device-seed
+  only — email/Google use the session cookie).
 
 ### Seed encoding (do not break)
 
@@ -118,18 +112,16 @@ on un-padded input. `auth.js` has its own padded helper; do **not** reuse
 for the seed). The auth-request JWT segments use JWT-standard base64url *without*
 padding.
 
-## Session handoff (landing → WASM app)
+## Session handoff (device-seed → WASM app)
 
-Landing and app are different origins, so localStorage is not shared. After auth,
-`handoff.js` redirects to the app with the account `{ userId, seed }` in the URL
-**fragment** (`{appBase}#th=<base64url(utf8(json))>`); the WASM app captures it
-before boot, writes it to its own secure storage, and scrubs it. The fragment
-never reaches the server. Field names (`th`, `v`, `userId`, `seed`,
-`displayName`) are the contract in `docs/handoff-contract.md`, pinned across both
-sides by `scripts/check_handoff_contract.sh` (CI).
+On single-origin deploy, landing and WASM share `location.origin` (`appBase`
+defaults empty). **Only device-seed signup** uses `#th=` handoff — email and
+Google set the HttpOnly session cookie instead.
 
-`redirectToApp({ userId, seed, displayName? })` is the transport entry point;
-`auth.js`'s `signUpWithSeed(...)` produces that payload on a successful signup. To
-exercise the transport by hand, serve the landing locally and open
-`handoff-dev.html`, paste a known `userId` + `seed`, and click through — the app
-should boot already signed in.
+`handoff.js` redirects with `{ userId, seed }` in the URL fragment
+(`{appBase}#th=<base64url(utf8(json))>`); WASM captures it before boot, writes
+secure storage, and scrubs the fragment. Field names are pinned in
+`docs/handoff-contract.md` (`scripts/check_handoff_contract.sh` in CI).
+
+`redirectToApp({ userId, seed, displayName? })` is the transport entry;
+`signUpWithSeed(...)` produces the payload. Dev harness: `handoff-dev.html`.

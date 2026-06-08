@@ -1,9 +1,9 @@
 # Invite, signup, and landing flow
 
 > **Status:** Implemented (client + landing). Describes current routing and UX as
-> shipped. For the broader auth/onboarding roadmap and Caddy/header model, see
-> [`invite-onboarding-auth-plan.md`](invite-onboarding-auth-plan.md). Domain terms
-> live in [`CONTEXT.md`](../CONTEXT.md) § Public web entry.
+> shipped. Phase completion summary and remaining work:
+> [`invite-onboarding-auth-plan.md`](invite-onboarding-auth-plan.md) (status table
+> at top). Domain terms: [`CONTEXT.md`](../CONTEXT.md) § Public web entry.
 
 ## Purpose
 
