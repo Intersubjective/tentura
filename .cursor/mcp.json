@@ -14,7 +14,11 @@
         "--context",
         "ide",
         "--project",
-        "${workspaceFolder}"
+        "/home/vader/MY_SRC/tentura",
+        "--open-web-dashboard",
+        "false",
+        "--enable-web-dashboard",
+        "false"
       ],
       "env": {}
     }
