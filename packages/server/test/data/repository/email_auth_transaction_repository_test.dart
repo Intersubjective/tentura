@@ -7,7 +7,9 @@ import 'package:tentura_server/data/database/tentura_db.dart' hide isNull, isNot
 import 'package:tentura_server/data/repository/email_auth_transaction_repository.dart';
 import 'package:tentura_server/env.dart';
 
-/// Exercises real drift `customSelect` against Postgres (skipped when DB down).
+/// Postgres integration test — skipped in CI when DB is down.
+///
+/// See `packages/server/README.md` § Tests for the full list and how to run locally.
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
   final skipReason =
