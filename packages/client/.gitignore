@@ -68,4 +68,5 @@ test/test_test.dart
 
 # Env
 *.env
+!env/test.env
 .cert/
