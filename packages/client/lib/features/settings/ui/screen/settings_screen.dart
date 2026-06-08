@@ -72,7 +72,7 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
             OutlinedButton.icon(
               icon: const Icon(Icons.key_outlined),
               label: Text(l10n.signInMethods),
-              onPressed: () => context.router.push(const CredentialsRoute()),
+              onPressed: () => context.router.push(CredentialsRoute()),
             ),
 
             // Intro
