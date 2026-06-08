@@ -1,24 +1,23 @@
 # Landing ↔ WASM-app session handoff contract
 
-> **The contract is *defined and pinned* here; it is *exercised* (written by the
-> landing, read by the WASM app) in Phase 1, slice 1.** This doc is the single
-> source of truth for the handoff payload so `packages/landing` and the Flutter
-> WASM app at `app.tentura.io` cannot drift. A CI check pins it (see "CI pin").
+> **Scope:** `#th=` fragment handoff for **device-seed signup only**. Email magic
+> link and Google OAuth set `__Host-tentura_session` and do **not** use this
+> transport. The payload field names are CI-pinned (see "CI pin").
+>
+> Broader auth/onboarding status: [`invite-onboarding-auth-plan.md`](invite-onboarding-auth-plan.md).
 
 ## Origin / scope
 
-The landing and the WASM app are on **different subdomains**, so storage is **not**
-shared between them:
+Production and dev use a **single public origin** for landing and WASM
+(`tentura.io`, `dev.tentura.io`, local `dev.lvh.me:9443`). `resolve_app_base.js`
+defaults `appBase` to `location.origin` when unset.
 
-- **prod:** landing `tentura.io`, app `app.tentura.io`.
-- **dev (subdomain split, mirrors prod):** landing `dev.tentura.io`, app
-  `app.dev.tentura.io`.
-- **local simulation:** `dev.lvh.me:9080` + `app.dev.lvh.me:9080` via
-  `Caddyfile.local` (or `dev.tentura.test` / `app.dev.tentura.test` with
-  `/etc/hosts`).
+Legacy subdomain split (`app.tentura.io`) may still be configured via explicit
+`appBase` in `config.js` for rollback — the handoff mechanics are unchanged.
 
-Because the origins differ, the landing **cannot** write into the app's storage
-directly.
+Regardless of same- vs cross-origin deploy, the landing **cannot** write the
+app's encrypted `LocalSecureStorage` keys directly — only a one-time fragment
+payload the app consumes on boot.
 
 ## Why the landing does NOT write the app's storage keys
 
@@ -84,11 +83,10 @@ Cyrillic/accented). Bare `btoa(json)` throws on non-ASCII; use
 `btoa(unescape(encodeURIComponent(json)))` then the base64url transform. The app
 decodes symmetrically (`utf8.decode(base64Url.decode(base64.normalize(...)))`).
 
-## Direction of flow (Phase 1)
+## Direction of flow (device-seed only)
 
-1. Landing completes auth (device-seed / passkey / OIDC / email) and obtains the
-   account `{ userId, seed, displayName? }`. *(Producing the seed is slice 3; the
-   transport is slice 1.)*
+1. Landing completes **device-seed signup** (`auth.js` `signUpWithSeed`) and
+   obtains `{ userId, seed, displayName? }` from `accept-as-new`.
 2. Landing builds `{appBase}#th=<payload>` (`packages/landing/handoff.js`
    `buildHandoffUrl` / `redirectToApp`) and **redirects** to the app root.
 3. The app captures the raw fragment into `window.__tenturaHandoff` in an inline
