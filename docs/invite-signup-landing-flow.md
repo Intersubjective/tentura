@@ -56,7 +56,7 @@ flowchart TB
 
   subgraph landingDispatch["Landing (preview callerStatus)"]
     landing --> lp{"callerStatus"}
-    lp -->|"anonymous"| stay["Stay on landing<br/>email / Google / device-seed"]
+    lp -->|"anonymous"| stay["Stay on landing<br/>login reveal + signup (Tier 1)"]
     lp -->|"existing-user"| hashAccept["CTA → APP_BASE#/accept-invite/I…"]
     lp -->|"already-friends"| openProd1["CTA → APP_BASE product"]
     lp -->|"is-inviter"| openProd2["CTA → APP_BASE product"]
@@ -112,7 +112,7 @@ and/or bearer). Response drives UI and CTAs in `packages/landing/main.js`.
 
 | `callerStatus` | `suggestedAction` | Landing behavior | App URL opened |
 |----------------|-------------------|------------------|----------------|
-| `anonymous` | `accept-as-new` | Email magic link, Google, device-seed signup; **no** generic “Open the app” | *(stay on landing)* |
+| `anonymous` | `accept-as-new` | **Tier 1:** “I already have an account” reveals email + Google; separate device-seed signup. **Tier 2:** login reveal shows email + browser escape; no Google/signup. **No** generic “Open the app” | *(stay on landing)* |
 | `existing-user` | `accept-as-existing` | “Open Tentura to accept” | `{APP_BASE}#/accept-invite/{code}` |
 | `already-friends` | `accept-as-new` *(re-preview)* | “Open Tentura” | `{APP_BASE}` (product only) |
 | `is-inviter` | `self` | Share hint + open product | `{APP_BASE}` |
@@ -121,8 +121,13 @@ and/or bearer). Response drives UI and CTAs in `packages/landing/main.js`.
 the user returns to the invite page, re-previews as `already-friends`, and opens the
 product without calling accept-as-existing.
 
-**“I already have an account”** focuses the email sign-in field instead of opening WASM
-with a broken `?invite=` query param.
+**“I already have an account”** reveals tier-specific login options on the landing
+instead of opening WASM with a broken `?invite=` query param:
+
+- **Tier 1 (system browser):** email magic link + Google OAuth (when `googleEnabled`).
+- **Tier 2 (in-app browser):** email magic link + browser escape; Google and device-seed signup stay hidden.
+
+Signup for new users remains a separate CTA on Tier 1 invite pages.
 
 ## WASM hash routing
 

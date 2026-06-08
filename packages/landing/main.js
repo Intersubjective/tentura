@@ -148,20 +148,56 @@ function ctaOpenInBrowser() {
   );
 }
 
-// "I already have an account" — focus email sign-in on the landing.
-function ctaExisting() {
-  return el(
+// Tier-specific returning-user login methods (email + Google on Tier 1; email +
+// browser escape on Tier 2). Signup stays a separate CTA on invite pages.
+function buildLoginOptionItems(inviteCode) {
+  const items = [
+    el('p', { class: 'section-label' }, 'Sign in'),
+    renderEmailMagicLinkForm(),
+  ];
+  if (env.inApp) {
+    items.push(ctaOpenInBrowser());
+  } else {
+    const google = ctaGoogleSignIn(inviteCode);
+    if (google) items.push(google);
+  }
+  return items;
+}
+
+function createSignInReveal(inviteCode, { blockId = 'signin-options' } = {}) {
+  const signInBlock = el('div', {
+    class: 'signin-options',
+    id: blockId,
+    role: 'region',
+    'aria-label': 'Sign in',
+    hidden: 'hidden',
+  });
+
+  const mountSignInOptions = () => {
+    if (signInBlock.querySelector('.email-auth')) return;
+    signInBlock.replaceChildren(...buildLoginOptionItems(inviteCode));
+  };
+
+  const existingToggle = el(
     'button',
     {
       class: 'btn btn-secondary',
       type: 'button',
+      'aria-expanded': 'false',
+      'aria-controls': blockId,
       onclick: () => {
         track('cta_existing');
-        document.querySelector('.email-auth input')?.focus();
+        mountSignInOptions();
+        signInBlock.hidden = false;
+        existingToggle.setAttribute('aria-expanded', 'true');
+        existingToggle.hidden = true;
+        signInBlock.querySelector('input')?.focus();
       },
     },
     'I already have an account',
   );
+
+  return { existingToggle, signInBlock };
 }
 
 function googleReturnTo(inviteCode) {
@@ -509,6 +545,7 @@ function renderAnonymous(p) {
   setState('anonymous');
   setPageTitle(`${inviterName(p)} invited you — Tentura`);
   const code = parseInviteCode();
+  const { existingToggle, signInBlock } = createSignInReveal(code);
   const children = [
     beaconOverlay(p),
     signedInFlash(),
@@ -517,12 +554,11 @@ function renderAnonymous(p) {
       'p',
       {},
       env.inApp
-        ? 'Open this link in your browser, or use email to get a sign-in link.'
-        : 'Tentura is invite-only. Sign in with email or Google, or create an account below.',
+        ? 'Open this link in your browser, or sign in with email.'
+        : 'Tentura is invite-only. Sign in if you already have an account, or create one below.',
     ),
-    renderEmailMagicLinkForm(),
-    ctaGoogleSignIn(code),
-    ctaExisting(),
+    existingToggle,
+    signInBlock,
   ];
   if (!env.inApp && signupReady) {
     children.push(ctaSignUp(p));
@@ -604,47 +640,7 @@ function renderNoInvite() {
   setState('no-invite');
   setPageTitle('Tentura — invite-only');
 
-  const signInBlock = el('div', {
-    class: 'signin-options',
-    id: 'signin-options',
-    role: 'region',
-    'aria-label': 'Sign in',
-    hidden: 'hidden',
-  });
-
-  const mountSignInOptions = () => {
-    if (signInBlock.querySelector('.email-auth')) return;
-    const signInItems = [
-      el('p', { class: 'section-label' }, 'Sign in'),
-      renderEmailMagicLinkForm(),
-    ];
-    if (!env.inApp) {
-      const google = ctaGoogleSignIn('');
-      if (google) signInItems.push(google);
-    } else {
-      signInItems.push(ctaOpenInBrowser());
-    }
-    signInBlock.replaceChildren(...signInItems);
-  };
-
-  const existingToggle = el(
-    'button',
-    {
-      class: 'btn btn-secondary',
-      type: 'button',
-      'aria-expanded': 'false',
-      'aria-controls': 'signin-options',
-      onclick: () => {
-        track('cta_existing');
-        mountSignInOptions();
-        signInBlock.hidden = false;
-        existingToggle.setAttribute('aria-expanded', 'true');
-        existingToggle.hidden = true;
-        signInBlock.querySelector('input')?.focus();
-      },
-    },
-    'I already have an account',
-  );
+  const { existingToggle, signInBlock } = createSignInReveal('');
 
   card.replaceChildren(
     el(
