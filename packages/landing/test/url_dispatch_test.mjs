@@ -52,3 +52,16 @@ test('renderNoInvite includes Tier-2 browser escape', () => {
 test('Google CTA hidden in in-app browser via env.inApp guard', () => {
   assert.match(mainJs, /if \(!GOOGLE_ENABLED \|\| env\.inApp\) return null/);
 });
+
+test('already-friends uses completion copy after signed-in return', () => {
+  assert.match(mainJs, /function isSignedInReturn\(\)/);
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderAlreadyFriends'),
+    mainJs.indexOf('function renderExistingUser'),
+  );
+  assert.match(block, /isSignedInReturn\(\)/);
+  assert.match(block, /You’re all set/);
+  assert.match(block, /Your account is ready, and \$\{name\} is connected with you/);
+  assert.match(block, /You’re connected with \$\{name\}/);
+  assert.doesNotMatch(block, /already connected/i);
+});
