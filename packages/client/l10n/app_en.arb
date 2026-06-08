@@ -230,12 +230,20 @@
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
   },
-  "friendsEnterCode": "Enter code",
-  "@friendsEnterCode": {
+  "friendsScanInviteCode": "Scan invite code",
+  "@friendsScanInviteCode": {
     "context": "FriendsScreen"
   },
   "friendsCreateInvitation": "Create invitation",
   "@friendsCreateInvitation": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesEmptyTitle": "No invitations yet",
+  "@friendsInvitesEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesEmptyBody": "Create an invite to share with someone so they can join Tentura.",
+  "@friendsInvitesEmptyBody": {
     "context": "FriendsScreen"
   },
   "confirmInvitationRemoval": "Are you sure you want to cancel this invite? They won’t be able to sign up after that.",
