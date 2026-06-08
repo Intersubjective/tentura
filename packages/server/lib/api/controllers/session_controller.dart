@@ -60,6 +60,7 @@ final class SessionController extends BaseController {
     }
     final sessionToken = await _sessionCase.createSession(
       accountId: jwt.sub,
+      credentialId: jwt.credentialId.isEmpty ? null : jwt.credentialId,
     );
     final maxAge = _sessionCase.sessionCookieMaxAge().inSeconds;
     return Response.ok(

@@ -9,7 +9,8 @@ import 'package:tentura_server/env.dart';
 
 /// Exercises real drift `customSelect` against Postgres (skipped when DB down).
 void main() {
-  late bool postgresReachable;
+  var postgresReachable = false;
+  var schemaCurrent = false;
   late TenturaDb db;
   late EmailAuthTransactionRepository repo;
 
@@ -26,6 +27,13 @@ void main() {
     );
     db = TenturaDb(env);
     repo = EmailAuthTransactionRepository(db);
+    schemaCurrent = await _hasLinkAccountIdColumn(db);
+    if (!schemaCurrent) {
+      await db.customStatement(
+        r'ALTER TABLE public.email_auth_transaction ADD COLUMN link_account_id text',
+      );
+      schemaCurrent = true;
+    }
   });
 
   tearDownAll(() async {
@@ -70,6 +78,20 @@ void main() {
     }
     expect(await repo.consumeByToken(''), isNull);
   });
+}
+
+Future<bool> _hasLinkAccountIdColumn(TenturaDb db) async {
+  final rows = await db.customSelect(
+    r'''
+SELECT 1
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'email_auth_transaction'
+  AND column_name = 'link_account_id'
+LIMIT 1
+''',
+  ).get();
+  return rows.isNotEmpty;
 }
 
 Future<bool> _canConnectPostgres() async {

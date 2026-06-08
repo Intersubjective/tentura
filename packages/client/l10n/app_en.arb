@@ -806,6 +806,50 @@
   "@removeCredentialBody": {
     "context": "CredentialsScreen"
   },
+  "addSignInMethod": "Add sign-in method",
+  "@addSignInMethod": {
+    "context": "CredentialsScreen"
+  },
+  "credentialGoogle": "Google",
+  "@credentialGoogle": {
+    "context": "CredentialsScreen"
+  },
+  "credentialEmail": "Email",
+  "@credentialEmail": {
+    "context": "CredentialsScreen"
+  },
+  "credentialRecoverySeed": "Recovery seed",
+  "@credentialRecoverySeed": {
+    "context": "CredentialsScreen"
+  },
+  "linkEmailTitle": "Link email",
+  "@linkEmailTitle": {
+    "context": "CredentialsScreen"
+  },
+  "linkEmailHint": "Email address",
+  "@linkEmailHint": {
+    "context": "CredentialsScreen"
+  },
+  "linkEmailSend": "Send link",
+  "@linkEmailSend": {
+    "context": "CredentialsScreen"
+  },
+  "seedBackupTitle": "Save your recovery seed",
+  "@seedBackupTitle": {
+    "context": "CredentialsScreen"
+  },
+  "seedBackupBody": "Store this seed somewhere safe. You will not see it again.",
+  "@seedBackupBody": {
+    "context": "CredentialsScreen"
+  },
+  "seedBackupConfirm": "I saved it",
+  "@seedBackupConfirm": {
+    "context": "CredentialsScreen"
+  },
+  "credentialLinkConflict": "This sign-in method is already linked to another account",
+  "@credentialLinkConflict": {
+    "context": "CredentialsScreen"
+  },
   "light": "Light",
   "@light": {
     "context": "ThemeSwitchButton"

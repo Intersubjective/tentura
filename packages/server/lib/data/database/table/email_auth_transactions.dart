@@ -14,6 +14,10 @@ class EmailAuthTransactions extends Table {
 
   late final inviteCode = text().named('invite_code').nullable()();
 
+  /// Present when the magic link links an email to an existing account (link
+  /// mode) rather than resolve-or-create (login mode).
+  late final linkAccountId = text().named('link_account_id').nullable()();
+
   late final createdAt = customType(PgTypes.timestampWithTimezone)
       .named('created_at')
       .clientDefault(() => PgDateTime(DateTime.timestamp()))();

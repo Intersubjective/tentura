@@ -5,6 +5,8 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/api/http/email_auth_failure_page.dart';
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/email_auth_case.dart';
 import 'package:tentura_server/domain/use_case/session_case.dart';
 
@@ -46,13 +48,57 @@ final class AuthEmailController extends BaseController {
     );
   }
 
+  /// `POST /api/v2/auth/email/link/start` (Bearer) — add an email to the
+  /// authenticated account. Unlike `/start` this bypasses the invite-only
+  /// unregistered-email gate (the caller is already authenticated).
+  Future<Response> linkStart(Request request) async {
+    final jwt = request.context[kContextJwtKey] as JwtEntity?;
+    if (jwt == null || jwt.sub.isEmpty) {
+      return Response.unauthorized(null);
+    }
+    Map<String, dynamic> body;
+    try {
+      body = (await request.body.asJson as Map).cast<String, dynamic>();
+    } catch (_) {
+      return Response.badRequest(body: 'invalid JSON body');
+    }
+    final email = body['email'] as String? ?? '';
+    await _emailAuthCase.start(
+      email: email,
+      linkAccountId: jwt.sub,
+      ipFingerprint: _clientIp(request),
+      userAgentFingerprint: request.headers['user-agent'] ?? '',
+    );
+    return Response.ok(
+      jsonEncode({'ok': true}),
+      headers: {
+        kHeaderContentType: kContentApplicationJson,
+        kHeaderCacheControl: kCacheControlNoStore,
+      },
+    );
+  }
+
   /// `GET /auth/email/verify?t=...`
   Future<Response> verify(Request request) async {
     final token = request.url.queryParameters['t'] ?? '';
     try {
       final result = await _emailAuthCase.verify(token);
+
+      // Settings link mode: the credential is attached to the existing account;
+      // never mint a session here (would switch/clobber the originating one).
+      if (result.isLink) {
+        return Response.ok(
+          renderEmailLinkedSuccessPage(),
+          headers: {
+            kHeaderContentType: 'text/html; charset=utf-8',
+            kHeaderCacheControl: kCacheControlNoStore,
+          },
+        );
+      }
+
       final sessionToken = await _sessionCase.createSession(
         accountId: result.accountId,
+        credentialId: result.credentialId,
       );
       final destination = _redirectAfterVerify(result.inviteCode);
       return Response.found(
@@ -66,26 +112,34 @@ final class AuthEmailController extends BaseController {
           ),
         ),
       );
+    } on CredentialConflictException {
+      return _conflictPage();
+    } on ContactConflictException {
+      return _conflictPage();
     } on EmailAuthTokenInvalidException {
-      return Response(
-        400,
-        body: renderEmailAuthFailurePage(),
-        headers: {
-          kHeaderContentType: 'text/html; charset=utf-8',
-          kHeaderCacheControl: kCacheControlNoStore,
-        },
-      );
+      return _failurePage();
     } catch (_) {
-      return Response(
-        400,
-        body: renderEmailAuthFailurePage(),
-        headers: {
-          kHeaderContentType: 'text/html; charset=utf-8',
-          kHeaderCacheControl: kCacheControlNoStore,
-        },
-      );
+      return _failurePage();
     }
   }
+
+  Response _failurePage() => Response(
+    400,
+    body: renderEmailAuthFailurePage(),
+    headers: {
+      kHeaderContentType: 'text/html; charset=utf-8',
+      kHeaderCacheControl: kCacheControlNoStore,
+    },
+  );
+
+  Response _conflictPage() => Response(
+    409,
+    body: renderEmailLinkConflictPage(),
+    headers: {
+      kHeaderContentType: 'text/html; charset=utf-8',
+      kHeaderCacheControl: kCacheControlNoStore,
+    },
+  );
 
   String _redirectAfterVerify(String? inviteCode) {
     if (inviteCode != null && inviteCode.isNotEmpty) {

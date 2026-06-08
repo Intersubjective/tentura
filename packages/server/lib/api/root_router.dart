@@ -117,6 +117,15 @@ class RootRouter {
         '/api/auth/google/start',
         _authGoogleController.start,
       )
+      ..post(
+        '/api/auth/google/link/intent',
+        _authGoogleController.linkIntent,
+        use: _authMiddleware.verifyBearerJwt,
+      )
+      ..get(
+        '/api/auth/google/link/start',
+        _authGoogleController.linkStart,
+      )
       ..get(
         '/api/auth/google/callback',
         _authGoogleController.callback,
@@ -124,6 +133,11 @@ class RootRouter {
       ..post(
         '/api/v2/auth/email/start',
         _authEmailController.start,
+      )
+      ..post(
+        '/api/v2/auth/email/link/start',
+        _authEmailController.linkStart,
+        use: _authMiddleware.verifyBearerJwt,
       )
       ..get(
         '/auth/email/verify',
@@ -146,6 +160,11 @@ class RootRouter {
       ..post(
         '/api/v2/accounts/me/credentials',
         _accountCredentialsController.link,
+        use: _authMiddleware.verifyBearerJwt,
+      )
+      ..post(
+        '/api/v2/accounts/me/credentials/google',
+        _accountCredentialsController.linkGoogle,
         use: _authMiddleware.verifyBearerJwt,
       )
       ..delete(

@@ -49,10 +49,19 @@ void main() {
         identifier: anyNamed('identifier'),
       ),
     ).thenAnswer((_) async => const UserEntity(id: 'Uacc', displayName: 'Bob'));
+    when(
+      userRepo.findCredentialId(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenAnswer((_) async => 'Cdevice');
 
     final jwt = await case_.signIn(authRequestToken: _authRequestToken());
 
     expect(jwt.sub, 'Uacc');
+    expect(jwt.credentialId, 'Cdevice');
+    final payload = JWT.decode(jwt.rawToken).payload as Map<String, dynamic>;
+    expect(payload['cid'], 'Cdevice');
     verify(
       userRepo.getByCredential(type: 'ed25519_device', identifier: _pkB64),
     ).called(1);

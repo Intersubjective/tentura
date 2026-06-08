@@ -213,6 +213,23 @@ final class StubUserRepository implements UserRepositoryPort {
       throw UnimplementedError();
 
   @override
+  Future<AccountCredentialEntity> linkCredentialToAccountStrict({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String?> findCredentialId({
+    required CredentialType type,
+    required String identifier,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<void> addVerifiedContacts({
     required String accountId,
     required CredentialType source,

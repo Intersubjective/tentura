@@ -30,6 +30,7 @@ class Env {
     String? publicOrigin,
     String? googleClientId,
     String? googleClientSecret,
+    String? googleIosClientId,
     bool? oauthPreloadEnabled,
     String? resendApiKey,
     String? resendFromEmail,
@@ -108,6 +109,8 @@ class Env {
        googleClientId = googleClientId ?? _env['GOOGLE_CLIENT_ID'] ?? '',
        googleClientSecret =
            googleClientSecret ?? _env['GOOGLE_CLIENT_SECRET'] ?? '',
+       googleIosClientId =
+           googleIosClientId ?? _env['GOOGLE_IOS_CLIENT_ID'] ?? '',
        oauthPreloadEnabled =
            oauthPreloadEnabled ?? _env['OAUTH_PRELOAD_ENABLED'] == 'true',
        resendApiKey = resendApiKey ?? _env['RESEND_API_KEY'] ?? '',
@@ -288,6 +291,11 @@ class Env {
   final String googleClientId;
 
   final String googleClientSecret;
+
+  /// Google iOS OAuth client id. Native iOS `google_sign_in` mints id tokens
+  /// whose `aud` is this client (not the web client), so it joins the verify
+  /// `aud` allow-list. Empty disables the iOS audience.
+  final String googleIosClientId;
 
   /// When true, Google OAuth start/callback return HTML that warms WASM assets.
   final bool oauthPreloadEnabled;

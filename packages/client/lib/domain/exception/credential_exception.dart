@@ -25,3 +25,48 @@ final class CredentialNotFoundException extends CredentialException {
   @override
   String get toRu => 'Способ входа не найден';
 }
+
+/// Another account already owns this sign-in method (HTTP 409).
+final class CredentialConflictException extends CredentialException {
+  const CredentialConflictException();
+
+  @override
+  String get toEn =>
+      'This sign-in method is already linked to another account';
+
+  @override
+  String get toRu =>
+      'Этот способ входа уже привязан к другому аккаунту';
+}
+
+final class CredentialLinkedMessage extends LocalizableMessage {
+  const CredentialLinkedMessage(this.method);
+
+  final String method;
+
+  @override
+  String get toEn => switch (method) {
+    'google' => 'Google linked',
+    'email' => 'Email linked',
+    'seed' => 'Recovery seed linked',
+    _ => 'Sign-in method linked',
+  };
+
+  @override
+  String get toRu => switch (method) {
+    'google' => 'Google привязан',
+    'email' => 'Почта привязана',
+    'seed' => 'Seed восстановления привязан',
+    _ => 'Способ входа привязан',
+  };
+}
+
+final class CredentialEmailLinkSentMessage extends LocalizableMessage {
+  const CredentialEmailLinkSentMessage();
+
+  @override
+  String get toEn => 'Check your email for a confirmation link';
+
+  @override
+  String get toRu => 'Проверьте почту — мы отправили ссылку для подтверждения';
+}

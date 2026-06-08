@@ -82,6 +82,14 @@ class SessionRepository implements SessionRepositoryPort {
             (o) => o(revokedAt: Value(PgDateTime(DateTime.timestamp()))),
           );
 
+  @override
+  Future<void> revokeByCredentialId(String credentialId) =>
+      _database.customStatement(
+        'UPDATE public.account_session SET revoked_at = now() '
+        r'WHERE credential_id = $1 AND revoked_at IS NULL',
+        [credentialId],
+      );
+
   AccountSessionEntity _toEntity(AccountSession row) => AccountSessionEntity(
     id: row.id,
     accountId: row.accountId,

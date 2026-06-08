@@ -27,6 +27,10 @@ abstract class AuthLocalRepositoryPort {
 
   Future<void> addAccount(String id, String seed, [String? displayName]);
 
+  /// Persists [seed] for [id] only when no device seed is stored yet (e.g.
+  /// session-only web account linking its first recovery seed).
+  Future<void> storeLinkedSeedIfAbsent(String id, String seed);
+
   Future<void> addSessionAccount(String id, [String? displayName]);
 
   Future<bool> isSessionAccount(String id);

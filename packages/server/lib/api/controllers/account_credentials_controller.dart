@@ -69,6 +69,42 @@ final class AccountCredentialsController {
     }
   }
 
+  /// `POST /api/v2/accounts/me/credentials/google` (Bearer) — link a Google
+  /// identity from a native `google_sign_in` id token. Body `{idToken}`.
+  /// Conflict (sub or verified email owned elsewhere) → 409.
+  Future<Response> linkGoogle(Request request) async {
+    final accountId = _accountId(request);
+    if (accountId == null) return Response.unauthorized(null);
+
+    final Map<String, dynamic> body;
+    try {
+      body = (await request.body.asJson as Map).cast<String, dynamic>();
+    } catch (_) {
+      return Response.badRequest(body: 'invalid JSON body');
+    }
+
+    final idToken = body['idToken'] as String?;
+    if (idToken == null || idToken.isEmpty) {
+      return Response.badRequest(body: 'idToken is required');
+    }
+
+    try {
+      final credential = await _credentialCase.linkGoogleNative(
+        accountId: accountId,
+        idToken: idToken,
+      );
+      return _json(_credentialToMap(credential));
+    } on CredentialConflictException catch (e) {
+      return _error(e, status: 409);
+    } on ContactConflictException catch (e) {
+      return _error(e, status: 409);
+    } on ExceptionBase catch (e) {
+      return _error(e);
+    } catch (_) {
+      return Response.internalServerError();
+    }
+  }
+
   Future<Response> remove(Request request) async {
     final accountId = _accountId(request);
     if (accountId == null) return Response.unauthorized(null);

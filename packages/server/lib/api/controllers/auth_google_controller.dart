@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
@@ -9,6 +10,7 @@ import 'package:tentura_server/api/http/oauth_return_uri.dart';
 import 'package:tentura_server/api/http/oauth_state_codec.dart';
 import 'package:tentura_server/api/http/oauth_warmup_interstitial_page.dart';
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/oidc_provider_port.dart';
 import 'package:tentura_server/domain/use_case/oidc_case.dart';
@@ -42,6 +44,64 @@ final class AuthGoogleController extends BaseController {
       raw: request.url.queryParameters['returnTo'],
       publicOrigin: env.publicOrigin,
     );
+    return _beginAuthorize(inviteId: inviteId, returnTo: returnTo);
+  }
+
+  /// `POST /api/auth/google/link/intent` (Bearer) — mint a short-lived,
+  /// signed link token (`lt`) bound to the calling account and return the
+  /// top-level navigation URL the WASM client opens. The `lt` is not the
+  /// security boundary: `link/start` additionally requires the caller's
+  /// `__Host-tentura_session` cookie to resolve to the same account, and the
+  /// final strict-link is idempotent, so a replayed `lt` is a no-op.
+  Future<Response> linkIntent(Request request) async {
+    final jwt = request.context[kContextJwtKey] as JwtEntity?;
+    if (jwt == null || jwt.sub.isEmpty) {
+      return Response.unauthorized(null);
+    }
+    if (!_oidcProvider.isConfigured) {
+      return Response(503, body: 'Google OAuth is not configured');
+    }
+    final lt = _mintLinkToken(jwt.sub);
+    final url = Uri.parse(env.publicOrigin)
+        .replace(path: '/api/auth/google/link/start', queryParameters: {'lt': lt})
+        .toString();
+    return Response.ok(
+      jsonEncode({'url': url}),
+      headers: {
+        kHeaderContentType: kContentApplicationJson,
+        kHeaderCacheControl: kCacheControlNoStore,
+      },
+    );
+  }
+
+  /// `GET /api/auth/google/link/start?lt=…` — top-level navigation from the
+  /// WASM client. Verifies the `lt`, requires a matching session cookie, then
+  /// redirects to Google with `linkAccountId` carried in the signed OAuth
+  /// state cookie.
+  Future<Response> linkStart(Request request) async {
+    if (!_oidcProvider.isConfigured) {
+      return Response(503, body: 'Google OAuth is not configured');
+    }
+    final linkAccountId = _verifyLinkToken(request.url.queryParameters['lt']);
+    if (linkAccountId == null) {
+      return Response.found(_linkReturn('error'));
+    }
+    // The session cookie is the real boundary: only the authenticated owner of
+    // the target account may attach a Google identity to it.
+    final sessionAccount = await _sessionCase.resolveAccountId(
+      readCookie(request, _sessionCase.sessionCookieName()),
+    );
+    if (sessionAccount == null || sessionAccount != linkAccountId) {
+      return Response.found(_linkReturn('error'));
+    }
+    return _beginAuthorize(returnTo: _linkReturn('google'), linkAccountId: linkAccountId);
+  }
+
+  Future<Response> _beginAuthorize({
+    required String returnTo,
+    String? inviteId,
+    String? linkAccountId,
+  }) async {
     final state = _randomUrlSafe(16);
     final codeVerifier = _randomUrlSafe(32);
     final nonce = _randomUrlSafe(16);
@@ -51,6 +111,7 @@ final class AuthGoogleController extends BaseController {
       codeVerifier: codeVerifier,
       nonce: nonce,
       inviteId: inviteId,
+      linkAccountId: linkAccountId,
       returnTo: returnTo,
     );
     final signed = _oauthStateCodec.encode(payload);
@@ -111,11 +172,36 @@ final class AuthGoogleController extends BaseController {
       codeVerifier: payload.codeVerifier,
       expectedNonce: payload.nonce,
     );
-    final accountId = await _oidcCase.completeGoogle(
+
+    // Settings link mode: strict-link to the existing account; NEVER call
+    // completeGoogle/createSession (that would switch/mint a session).
+    final linkAccountId = payload.linkAccountId;
+    if (linkAccountId != null && linkAccountId.isNotEmpty) {
+      final clearOauth = withSetCookie(
+        {kHeaderCacheControl: kCacheControlNoStore},
+        buildClearCookie(kCookieOAuthStateName),
+      );
+      try {
+        await _oidcCase.linkGoogle(
+          accountId: linkAccountId,
+          identity: identity,
+        );
+      } on CredentialConflictException {
+        return Response.found(_linkReturn('conflict'), headers: clearOauth);
+      } on ContactConflictException {
+        return Response.found(_linkReturn('conflict'), headers: clearOauth);
+      }
+      return Response.found(_linkReturn('google'), headers: clearOauth);
+    }
+
+    final resolved = await _oidcCase.completeGoogle(
       identity,
       inviteId: payload.inviteId,
     );
-    final sessionToken = await _sessionCase.createSession(accountId: accountId);
+    final sessionToken = await _sessionCase.createSession(
+      accountId: resolved.accountId,
+      credentialId: resolved.credentialId,
+    );
     final destination = destinationAfterOAuthCallback(
       returnTo: payload.returnTo,
       publicOrigin: env.publicOrigin,
@@ -148,6 +234,38 @@ final class AuthGoogleController extends BaseController {
       path: '/api/auth/google/callback',
     );
   }
+
+  /// Hash-routed Settings credentials destination with a `linked=<status>`
+  /// flag the SPA reads to flash a toast and refresh the methods list.
+  String _linkReturn(String status) {
+    final origin = env.publicOrigin.endsWith('/')
+        ? env.publicOrigin.substring(0, env.publicOrigin.length - 1)
+        : env.publicOrigin;
+    return '$origin/#/settings/sign-in-methods?linked=$status';
+  }
+
+  /// Short-lived (5 min) signed token binding a Google link flow to one account.
+  String _mintLinkToken(String accountId) => JWT(
+    {'purpose': _linkTokenPurpose, 'lacc': accountId},
+  ).sign(
+    env.privateKey,
+    algorithm: JWTAlgorithm.EdDSA,
+    expiresIn: const Duration(minutes: 5),
+  );
+
+  String? _verifyLinkToken(String? token) {
+    if (token == null || token.isEmpty) return null;
+    try {
+      final map = JWT.verify(token, env.publicKey).payload as Map<String, dynamic>;
+      if (map['purpose'] != _linkTokenPurpose) return null;
+      final lacc = map['lacc'] as String?;
+      return (lacc == null || lacc.isEmpty) ? null : lacc;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static const _linkTokenPurpose = 'google_link';
 
   static String _randomUrlSafe(int byteCount) =>
       base64UrlEncode(

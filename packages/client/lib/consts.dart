@@ -25,6 +25,9 @@ const kPathSignUp = '/sign/up';
 const kPathAcceptInvite = '/accept-invite';
 const kPathSettings = '/settings';
 const kPathSignInMethods = '/settings/sign-in-methods';
+
+/// Flash after Settings credential link redirect (`google`, `email`, `conflict`).
+const kQueryCredentialLinked = 'linked';
 const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
 const kPathInboxRejected = '$kPathInbox/rejected';

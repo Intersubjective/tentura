@@ -83,6 +83,29 @@ abstract class UserRepositoryPort {
     List<AssertedContact> contacts = const [],
   });
 
+  /// Settings-linking primitive (NOT login/signup): strictly attach a credential
+  /// to [accountId]. Unlike [linkCredentialWithContacts] it never returns another
+  /// account and never auto-merges:
+  /// - already linked to [accountId] → idempotent, returns the existing row;
+  /// - `(type, identifier)` owned by a different account →
+  ///   `CredentialConflictException`;
+  /// - an authoritative contact owned by a different account →
+  ///   `ContactConflictException`.
+  Future<AccountCredentialEntity> linkCredentialToAccountStrict({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
+  });
+
+  /// Internal id of the `(type, identifier)` credential, or null when absent.
+  /// Used to attribute `account_session.credential_id` after login/link.
+  Future<String?> findCredentialId({
+    required CredentialType type,
+    required String identifier,
+  });
+
   /// Soft upsert for existing-credential login: attach unclaimed or same-account
   /// contacts; skip contacts owned by another account without throwing.
   Future<void> addVerifiedContacts({

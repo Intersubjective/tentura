@@ -151,6 +151,17 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
   }
 
   @override
+  Future<void> storeLinkedSeedIfAbsent(String id, String seed) async {
+    try {
+      final existing = await getSeedByAccountId(id);
+      if (existing.isNotEmpty) return;
+    } on AuthIdNotFoundException {
+      // No seed yet — persist the newly linked recovery key.
+    }
+    await _localSecureStorage.write(_getAccountKey(id), seed);
+  }
+
+  @override
   Future<void> addSessionAccount(String id, [String? displayName]) async {
     await _localSecureStorage.write(_sessionMarkerKey(id), '1');
     final existing = await getAccountById(id);

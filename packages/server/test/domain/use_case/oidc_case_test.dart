@@ -49,9 +49,16 @@ void main() {
     );
     case_ = OidcCase(
       credentialAuthCase,
+      userRepo,
       env: env,
       logger: Logger('OidcCaseTest'),
     );
+    when(
+      userRepo.findCredentialId(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenAnswer((_) async => 'Ccred');
   });
 
   const identity = OidcIdentity(sub: 'google-sub', name: 'Ada');
@@ -64,7 +71,7 @@ void main() {
       ),
     ).thenAnswer((_) async => const UserEntity(id: 'Uabc', displayName: 'Ada'));
 
-    expect(await case_.completeGoogle(identity), 'Uabc');
+    expect((await case_.completeGoogle(identity)).accountId, 'Uabc');
   });
 
   test('new account without invite on invite-only server is rejected', () async {
@@ -106,7 +113,10 @@ void main() {
       ),
     ).thenAnswer((_) async => const UserEntity(id: 'Unew', displayName: 'Ada'));
 
-    expect(await case_.completeGoogle(identity, inviteId: 'Iabc'), 'Unew');
+    expect(
+      (await case_.completeGoogle(identity, inviteId: 'Iabc')).accountId,
+      'Unew',
+    );
     verify(
       userRepo.createInvitedWithCredential(
         invitationId: 'Iabc',
@@ -149,7 +159,7 @@ void main() {
       ),
     );
 
-    expect(id, 'Uemail');
+    expect(id.accountId, 'Uemail');
     final captured = verify(
       userRepo.linkCredentialWithContacts(
         accountId: 'Uemail',
@@ -161,6 +171,49 @@ void main() {
     ).captured.single as List;
     expect(captured.single.value, 'ada@example.com');
     expect(captured.single.authoritative, isTrue);
+  });
+
+  test('linkGoogle strict-links identity to account', () async {
+    const identity = OidcIdentity(
+      sub: 'google-sub',
+      email: 'ada@example.com',
+      name: 'Ada',
+      emailVerified: false,
+    );
+    when(
+      userRepo.linkCredentialToAccountStrict(
+        accountId: 'Uacc',
+        type: CredentialType.oidcGoogle,
+        identifier: 'google-sub',
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).thenAnswer(
+      (_) async => const AccountCredentialEntity(
+        id: 'Cgoogle',
+        accountId: 'Uacc',
+        type: CredentialType.oidcGoogle,
+        identifier: 'google-sub',
+      ),
+    );
+
+    final credential = await case_.linkGoogle(
+      accountId: 'Uacc',
+      identity: identity,
+    );
+
+    expect(credential.id, 'Cgoogle');
+    final captured = verify(
+      userRepo.linkCredentialToAccountStrict(
+        accountId: 'Uacc',
+        type: CredentialType.oidcGoogle,
+        identifier: 'google-sub',
+        publicData: null,
+        contacts: captureAnyNamed('contacts'),
+      ),
+    ).captured.single as List;
+    expect(captured, hasLength(1));
+    expect(captured.single.authoritative, isFalse);
   });
 
   test('unverified google email does not link by contact', () async {
@@ -183,6 +236,7 @@ void main() {
     );
     case_ = OidcCase(
       credentialAuthCase,
+      userRepo,
       env: env,
       logger: Logger('OidcCaseTest'),
     );

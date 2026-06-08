@@ -337,9 +337,13 @@ class UserRepository implements UserRepositoryPort {
       );
       return _credentialModelToEntity(row);
     } on UniqueViolationException catch (_) {
-      final owner = await _findCredentialOwner(type: type, identifier: identifier);
-      if (owner != null && owner != accountId) {
+      final existing = await _findCredentialRow(type: type, identifier: identifier);
+      if (existing != null && existing.accountId != accountId) {
         throw const CredentialConflictException();
+      }
+      // Same-account duplicate is idempotent: return the existing credential.
+      if (existing != null) {
+        return _credentialModelToEntity(existing);
       }
       rethrow;
     }
@@ -406,6 +410,88 @@ class UserRepository implements UserRepositoryPort {
       rethrow;
     }
   }
+
+  //
+  //
+  @override
+  Future<AccountCredentialEntity> linkCredentialToAccountStrict({
+    required String accountId,
+    required CredentialType type,
+    required String identifier,
+    Map<String, Object?>? publicData,
+    List<AssertedContact> contacts = const [],
+  }) async {
+    final authoritative = AssertedContact.authoritativeOnly(contacts);
+
+    // Idempotent: the credential is already linked to this exact account.
+    final existing = await _findCredentialRow(type: type, identifier: identifier);
+    if (existing != null) {
+      if (existing.accountId != accountId) {
+        throw const CredentialConflictException();
+      }
+      // Soft-attach contacts (skip any owned by another account, no throw).
+      await addVerifiedContacts(
+        accountId: accountId,
+        source: type,
+        contacts: authoritative,
+      );
+      return _credentialModelToEntity(existing);
+    }
+
+    // Refuse before insert when an authoritative contact is owned elsewhere.
+    final contactOwner = await _findConflictingContactOwner(
+      contacts: authoritative,
+    );
+    if (contactOwner != null && contactOwner != accountId) {
+      throw const ContactConflictException();
+    }
+
+    try {
+      return await _database.transaction<AccountCredentialEntity>(() async {
+        final row = await _database.managers.accountCredentials.createReturning(
+          (o) => o(
+            accountId: accountId,
+            type: type.wire,
+            identifier: identifier,
+            publicData: publicData == null
+                ? const Value.absent()
+                : Value(publicData),
+          ),
+        );
+        await _insertAuthoritativeContacts(
+          accountId: accountId,
+          source: type,
+          contacts: authoritative,
+        );
+        return _credentialModelToEntity(row);
+      });
+    } on UniqueViolationException catch (_) {
+      // Lost a race — re-resolve ownership and map to the right 409.
+      final raced = await _findCredentialRow(type: type, identifier: identifier);
+      if (raced != null && raced.accountId != accountId) {
+        throw const CredentialConflictException();
+      }
+      final racedContactOwner = await _findConflictingContactOwner(
+        contacts: authoritative,
+      );
+      if (racedContactOwner != null && racedContactOwner != accountId) {
+        throw const ContactConflictException();
+      }
+      if (raced != null) {
+        return _credentialModelToEntity(raced);
+      }
+      rethrow;
+    }
+  }
+
+  //
+  //
+  @override
+  Future<String?> findCredentialId({
+    required CredentialType type,
+    required String identifier,
+  }) async =>
+      (await _findCredentialRow(type: type, identifier: identifier))?.id;
 
   @override
   Future<void> addVerifiedContacts({
@@ -478,12 +564,15 @@ class UserRepository implements UserRepositoryPort {
   Future<String?> _findCredentialOwner({
     required CredentialType type,
     required String identifier,
-  }) async {
-    final row = await _database.managers.accountCredentials
-        .filter((e) => e.type(type.wire) & e.identifier(identifier))
-        .getSingleOrNull();
-    return row?.accountId;
-  }
+  }) async => (await _findCredentialRow(type: type, identifier: identifier))
+      ?.accountId;
+
+  Future<AccountCredential?> _findCredentialRow({
+    required CredentialType type,
+    required String identifier,
+  }) => _database.managers.accountCredentials
+      .filter((e) => e.type(type.wire) & e.identifier(identifier))
+      .getSingleOrNull();
 
   Future<String?> _findConflictingContactOwner({
     required List<AssertedContact> contacts,
@@ -524,6 +613,15 @@ class UserRepository implements UserRepositoryPort {
     if (ids.length <= 1) {
       throw const LastCredentialException();
     }
+
+    // Revoke this credential's live sessions BEFORE deleting the row: the FK is
+    // `ON DELETE SET NULL`, so deleting first would orphan (null) the targets
+    // and we could never revoke them. Runs in the same `FOR UPDATE` txn.
+    await _database.customStatement(
+      'UPDATE public.account_session SET revoked_at = now() '
+      r'WHERE credential_id = $1 AND revoked_at IS NULL',
+      [credentialId],
+    );
 
     await _database.managers.accountCredentials
         .filter((e) => e.accountId.id(accountId) & e.id(credentialId))
