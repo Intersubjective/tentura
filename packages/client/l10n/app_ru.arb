@@ -230,12 +230,20 @@
   "@invitationsShowMenuItem": {
     "context": "FriendsScreen"
   },
-  "friendsEnterCode": "Ввести код",
-  "@friendsEnterCode": {
+  "friendsScanInviteCode": "Сканировать код приглашения",
+  "@friendsScanInviteCode": {
     "context": "FriendsScreen"
   },
   "friendsCreateInvitation": "Создать приглашение",
   "@friendsCreateInvitation": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesEmptyTitle": "Пока нет приглашений",
+  "@friendsInvitesEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesEmptyBody": "Создайте приглашение, чтобы поделиться им с человеком, который сможет присоединиться к Tentura.",
+  "@friendsInvitesEmptyBody": {
     "context": "FriendsScreen"
   },
   "confirmInvitationRemoval": "Вы уверены, что хотите отменить приглашение? После этого человек не сможет зарегистрироваться.",

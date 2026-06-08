@@ -32,14 +32,18 @@ class _FriendsScreenState extends State<FriendsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final InvitationCubit _invitationCubit;
+  late final ScrollController _invitesScrollController;
 
   late final StreamSubscription<String> _authChanges;
+
+  String? _emphasizedInvitationId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _invitationCubit = InvitationCubit();
+    _invitesScrollController = ScrollController();
     _authChanges = GetIt.I<AuthCase>().currentAccountChanges().listen((id) {
       if (id.isEmpty) {
         return;
@@ -52,14 +56,54 @@ class _FriendsScreenState extends State<FriendsScreen>
   void dispose() {
     unawaited(_authChanges.cancel());
     _tabController.dispose();
+    _invitesScrollController.dispose();
     unawaited(_invitationCubit.close());
     super.dispose();
   }
 
   Future<void> _onCreateInvitation(BuildContext context) async {
     final l10n = L10n.of(context)!;
+
+    if (_tabController.index != 1) {
+      _tabController.animateTo(1);
+      if (!MediaQuery.disableAnimationsOf(context)) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+      }
+    }
+
     final invitation = await _invitationCubit.createInvitation();
     if (invitation == null || !context.mounted) return;
+
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+
+    setState(() => _emphasizedInvitationId = invitation.id);
+
+    if (disableAnimations) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_invitesScrollController.hasClients || !mounted) return;
+        _invitesScrollController.jumpTo(
+          _invitesScrollController.position.maxScrollExtent,
+        );
+      });
+      setState(() => _emphasizedInvitationId = null);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_invitesScrollController.hasClients || !mounted) return;
+        unawaited(
+          _invitesScrollController.animateTo(
+            _invitesScrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          ),
+        );
+      });
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 400)).then((_) {
+          if (mounted) setState(() => _emphasizedInvitationId = null);
+        }),
+      );
+    }
+
     await ShareCodeDialog.show(
       context,
       header: l10n.labelInvitationCode,
@@ -121,7 +165,12 @@ class _FriendsScreenState extends State<FriendsScreen>
             ),
             actions: [
               IconButton(
-                tooltip: l10n.friendsEnterCode,
+                tooltip: l10n.friendsCreateInvitation,
+                onPressed: () => unawaited(_onCreateInvitation(context)),
+                icon: const Icon(Icons.person_add_alt_1),
+              ),
+              IconButton(
+                tooltip: l10n.friendsScanInviteCode,
                 onPressed: () => unawaited(ConnectBottomSheet.show(context)),
                 icon: const Icon(Icons.qr_code_scanner),
               ),
@@ -156,6 +205,8 @@ class _FriendsScreenState extends State<FriendsScreen>
               ),
               _InvitesTabBody(
                 invitationCubit: _invitationCubit,
+                scrollController: _invitesScrollController,
+                emphasizedInvitationId: _emphasizedInvitationId,
                 l10n: l10n,
                 onCreateInvitation: () =>
                     unawaited(_onCreateInvitation(context)),
@@ -227,17 +278,25 @@ class _FriendsTabBody extends StatelessWidget {
 class _InvitesTabBody extends StatelessWidget {
   const _InvitesTabBody({
     required this.invitationCubit,
+    required this.scrollController,
+    required this.emphasizedInvitationId,
     required this.l10n,
     required this.onCreateInvitation,
   });
 
   final InvitationCubit invitationCubit;
+  final ScrollController scrollController;
+  final String? emphasizedInvitationId;
   final L10n l10n;
   final VoidCallback onCreateInvitation;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final onSurfaceVariant = scheme.onSurfaceVariant;
+    final disableAnimations = MediaQuery.disableAnimationsOf(context);
+
     return RefreshIndicator.adaptive(
       onRefresh: invitationCubit.fetch,
       child: BlocBuilder<InvitationCubit, InvitationState>(
@@ -246,29 +305,50 @@ class _InvitesTabBody extends StatelessWidget {
         buildWhen: (_, c) => c.isSuccess,
         builder: (_, state) {
           return CustomScrollView(
+            controller: scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      icon: const Icon(Icons.person_add_alt_1),
-                      label: Text(l10n.friendsCreateInvitation),
-                      onPressed: onCreateInvitation,
-                    ),
-                  ),
-                ),
-              ),
               if (state.invitations.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: Center(
-                    child: Text(
-                      l10n.labelNothingHere,
-                      style: theme.textTheme.displaySmall,
-                      textAlign: TextAlign.center,
+                  child: Padding(
+                    padding: kPaddingAll,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 320),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.person_add_alt_1_outlined,
+                              size: 64,
+                              color: onSurfaceVariant,
+                            ),
+                            const SizedBox(height: kSpacingMedium),
+                            Text(
+                              l10n.friendsInvitesEmptyTitle,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: kSpacingSmall),
+                            Text(
+                              l10n.friendsInvitesEmptyBody,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: kSpacingMedium),
+                            FilledButton.icon(
+                              icon: const Icon(Icons.person_add_alt_1),
+                              label: Text(l10n.friendsCreateInvitation),
+                              onPressed: onCreateInvitation,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 )
@@ -283,30 +363,25 @@ class _InvitesTabBody extends StatelessWidget {
                       unawaited(invitationCubit.fetch(clear: false));
                     }
                     final createdAt = invitation.createdAt.toLocal();
-                    return ListTile(
+                    final emphasize =
+                        invitation.id == emphasizedInvitationId &&
+                        !disableAnimations;
+                    return _InviteListTile(
                       key: ValueKey(invitation),
-                      title: Text(
-                        invitation.beaconTitle != null
-                            ? '${invitation.beaconTitle} — ${invitation.id}'
-                            : invitation.id,
-                      ),
-                      subtitle: Text(
-                        '${dateFormatYMD(createdAt)}  ${timeFormatHm(createdAt)}',
-                      ),
-                      trailing: IconButton(
-                        onPressed: () async {
-                          if (await InvitationRemoveDialog.show(context) ??
-                              false) {
-                            await invitationCubit.deleteInvitationById(
-                              invitation.id,
-                            );
-                          }
-                        },
-                        icon: Icon(
-                          Icons.delete_outline_rounded,
-                          color: Colors.red[300],
-                        ),
-                      ),
+                      emphasize: emphasize,
+                      title: invitation.beaconTitle != null
+                          ? '${invitation.beaconTitle} — ${invitation.id}'
+                          : invitation.id,
+                      subtitle:
+                          '${dateFormatYMD(createdAt)}  ${timeFormatHm(createdAt)}',
+                      onDelete: () async {
+                        if (await InvitationRemoveDialog.show(context) ??
+                            false) {
+                          await invitationCubit.deleteInvitationById(
+                            invitation.id,
+                          );
+                        }
+                      },
                       onTap: () => ShareCodeDialog.show(
                         context,
                         header: l10n.labelInvitationCode,
@@ -319,6 +394,55 @@ class _InvitesTabBody extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _InviteListTile extends StatelessWidget {
+  const _InviteListTile({
+    required this.emphasize,
+    required this.title,
+    required this.subtitle,
+    required this.onDelete,
+    required this.onTap,
+    super.key,
+  });
+
+  final bool emphasize;
+  final String title;
+  final String subtitle;
+  final Future<void> Function() onDelete;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tile = ListTile(
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: IconButton(
+        onPressed: () => unawaited(onDelete()),
+        icon: Icon(
+          Icons.delete_outline_rounded,
+          color: Colors.red[300],
+        ),
+      ),
+      onTap: onTap,
+    );
+
+    if (!emphasize) return tile;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * 8),
+          child: child,
+        ),
+      ),
+      child: tile,
     );
   }
 }
