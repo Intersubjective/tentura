@@ -37,8 +37,28 @@ test('renderNoInvite has email sign-in and invite entry', () => {
   assert.match(block, /setState\('no-invite'\)/);
   assert.match(block, /renderEmailMagicLinkForm/);
   assert.match(block, /renderInviteEntryForm/);
+  assert.match(block, /mountSignInOptions/);
   assert.doesNotMatch(block, /cta_open_app_no_invite/);
   assert.doesNotMatch(block, /Open Tentura/);
+});
+
+test('email sign-in field avoids login/password autofill heuristics', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderEmailMagicLinkForm'),
+    mainJs.indexOf('function renderInviteEntryForm'),
+  );
+  assert.match(block, /name: 'identifier'/);
+  assert.match(block, /autocomplete: 'section-signin email'/);
+  assert.doesNotMatch(block, /name: 'email'/);
+});
+
+test('invite entry field is scoped away from sign-in autofill', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderInviteEntryForm'),
+    mainJs.indexOf('function isSignedInReturn'),
+  );
+  assert.match(block, /autocomplete: 'section-invite off'/);
+  assert.match(block, /name: 'invite-code'/);
 });
 
 test('renderNoInvite includes Tier-2 browser escape', () => {

@@ -222,7 +222,7 @@ function renderSignupForm(p) {
     name: 'displayName',
     placeholder: 'Your name',
     maxlength: '50',
-    autocomplete: 'name',
+    autocomplete: 'section-signup name',
   });
   const handleInput = el('input', {
     class: 'input',
@@ -231,6 +231,7 @@ function renderSignupForm(p) {
     name: 'handle',
     placeholder: 'handle (optional)',
     maxlength: '30',
+    autocomplete: 'section-signup off',
     autocapitalize: 'none',
     autocorrect: 'off',
     spellcheck: 'false',
@@ -269,7 +270,11 @@ function renderSignupForm(p) {
 
   return el(
     'form',
-    { class: 'content signup-form', onsubmit: onSubmit },
+    {
+      class: 'content signup-form',
+      onsubmit: onSubmit,
+      autocomplete: 'on',
+    },
     beaconOverlay(p),
     el('h1', {}, `Join ${inviterName(p)} on Tentura`),
     el('label', { class: 'field-label', for: 'signup-name' }, 'Display name'),
@@ -302,9 +307,11 @@ function renderEmailMagicLinkForm() {
     class: 'input',
     type: 'email',
     id: 'email-signin',
-    name: 'email',
+    // Avoid `name="email"` — paired with any text field on the page, Firefox
+    // treats the form as username+password and offers saved site secrets.
+    name: 'identifier',
     placeholder: 'your@email.com',
-    autocomplete: 'email',
+    autocomplete: 'section-signin email',
     inputmode: 'email',
   });
   const errorEl = el('p', { class: 'error', role: 'alert' });
@@ -342,7 +349,12 @@ function renderEmailMagicLinkForm() {
 
   return el(
     'form',
-    { class: 'email-auth', onsubmit: onSubmit },
+    {
+      class: 'email-auth',
+      onsubmit: onSubmit,
+      autocomplete: 'on',
+      'data-lpignore': 'true',
+    },
     el('label', { class: 'field-label', for: 'email-signin' }, 'Email'),
     emailInput,
     submit,
@@ -362,11 +374,12 @@ function renderInviteEntryForm() {
     class: 'input',
     type: 'text',
     id: 'invite-entry',
-    name: 'invite',
+    name: 'invite-code',
     placeholder: 'Iabc123 or https://…/invite/Iabc123',
-    autocomplete: 'off',
+    autocomplete: 'section-invite off',
     autocapitalize: 'none',
     spellcheck: 'false',
+    'data-lpignore': 'true',
   });
 
   const onSubmit = (e) => {
@@ -384,7 +397,12 @@ function renderInviteEntryForm() {
 
   return el(
     'form',
-    { class: 'invite-entry', onsubmit: onSubmit },
+    {
+      class: 'invite-entry',
+      onsubmit: onSubmit,
+      autocomplete: 'off',
+      'data-lpignore': 'true',
+    },
     el('label', { class: 'field-label', for: 'invite-entry' }, 'Invite link or code'),
     input,
     el(
@@ -586,27 +604,28 @@ function renderNoInvite() {
   setState('no-invite');
   setPageTitle('Tentura — invite-only');
 
-  const signInItems = [
-    el('p', { class: 'section-label' }, 'Sign in'),
-    renderEmailMagicLinkForm(),
-  ];
-  if (!env.inApp) {
-    const google = ctaGoogleSignIn('');
-    if (google) signInItems.push(google);
-  } else {
-    signInItems.push(ctaOpenInBrowser());
-  }
-  const signInBlock = el(
-    'div',
-    {
-      class: 'signin-options',
-      id: 'signin-options',
-      role: 'region',
-      'aria-label': 'Sign in',
-      hidden: 'hidden',
-    },
-    ...signInItems,
-  );
+  const signInBlock = el('div', {
+    class: 'signin-options',
+    id: 'signin-options',
+    role: 'region',
+    'aria-label': 'Sign in',
+    hidden: 'hidden',
+  });
+
+  const mountSignInOptions = () => {
+    if (signInBlock.querySelector('.email-auth')) return;
+    const signInItems = [
+      el('p', { class: 'section-label' }, 'Sign in'),
+      renderEmailMagicLinkForm(),
+    ];
+    if (!env.inApp) {
+      const google = ctaGoogleSignIn('');
+      if (google) signInItems.push(google);
+    } else {
+      signInItems.push(ctaOpenInBrowser());
+    }
+    signInBlock.replaceChildren(...signInItems);
+  };
 
   const existingToggle = el(
     'button',
@@ -617,6 +636,7 @@ function renderNoInvite() {
       'aria-controls': 'signin-options',
       onclick: () => {
         track('cta_existing');
+        mountSignInOptions();
         signInBlock.hidden = false;
         existingToggle.setAttribute('aria-expanded', 'true');
         existingToggle.hidden = true;
