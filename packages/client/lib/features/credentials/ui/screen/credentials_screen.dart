@@ -10,6 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/entity/credential_entity.dart';
+import '../../domain/entity/credential_types.dart';
 import '../bloc/credentials_cubit.dart';
 
 @RoutePage()
@@ -103,32 +104,39 @@ class _CredentialsScreenState extends State<CredentialsScreen>
                   ),
                 ),
               ),
-              const Divider(),
-              Padding(
-                padding: kPaddingH,
-                child: Text(
-                  l10n.addSignInMethod,
-                  style: theme.textTheme.titleSmall,
+              if (state.showAddSection) ...[
+                const Divider(),
+                Padding(
+                  padding: kPaddingH,
+                  child: Text(
+                    l10n.addSignInMethod,
+                    style: theme.textTheme.titleSmall,
+                  ),
                 ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.g_mobiledata),
-                title: Text(l10n.credentialGoogle),
-                enabled: !state.isLoading,
-                onTap: state.isLoading ? null : () => _linkGoogle(context),
-              ),
-              ListTile(
-                leading: const Icon(Icons.mail_outline),
-                title: Text(l10n.credentialEmail),
-                enabled: !state.isLoading,
-                onTap: state.isLoading ? null : () => _linkEmail(context, l10n),
-              ),
-              ListTile(
-                leading: const Icon(Icons.vpn_key_outlined),
-                title: Text(l10n.credentialRecoverySeed),
-                enabled: !state.isLoading,
-                onTap: state.isLoading ? null : () => _linkSeed(context, l10n),
-              ),
+                if (state.canAddGoogle)
+                  ListTile(
+                    leading: const Icon(Icons.g_mobiledata),
+                    title: Text(l10n.credentialGoogle),
+                    enabled: !state.isLoading,
+                    onTap: state.isLoading ? null : () => _linkGoogle(context),
+                  ),
+                if (state.canAddEmail)
+                  ListTile(
+                    leading: const Icon(Icons.mail_outline),
+                    title: Text(l10n.credentialEmail),
+                    enabled: !state.isLoading,
+                    onTap: state.isLoading
+                        ? null
+                        : () => _linkEmail(context, l10n),
+                  ),
+                if (state.canAddRecoverySeed)
+                  ListTile(
+                    leading: const Icon(Icons.vpn_key_outlined),
+                    title: Text(l10n.credentialRecoverySeed),
+                    enabled: !state.isLoading,
+                    onTap: state.isLoading ? null : () => _linkSeed(context, l10n),
+                  ),
+              ],
             ],
           );
         },
@@ -234,16 +242,16 @@ class _CredentialsScreenState extends State<CredentialsScreen>
   }
 
   IconData _iconForType(String type) => switch (type) {
-    'ed25519_device' => Icons.vpn_key_outlined,
-    'oidc:google' => Icons.g_mobiledata,
-    'email_otp' => Icons.mail_outline,
+    CredentialTypes.ed25519Device => Icons.vpn_key_outlined,
+    CredentialTypes.oidcGoogle => Icons.g_mobiledata,
+    CredentialTypes.emailOtp => Icons.mail_outline,
     _ => Icons.key_outlined,
   };
 
   String _typeLabel(L10n l10n, String type) => switch (type) {
-    'ed25519_device' => l10n.credentialDeviceKey,
-    'oidc:google' => l10n.credentialGoogle,
-    'email_otp' => l10n.credentialEmail,
+    CredentialTypes.ed25519Device => l10n.credentialDeviceKey,
+    CredentialTypes.oidcGoogle => l10n.credentialGoogle,
+    CredentialTypes.emailOtp => l10n.credentialEmail,
     _ => type,
   };
 
