@@ -39,7 +39,7 @@ class TestAuthPlatformCleanup implements AuthPlatformCleanupPort {
   @override
   Future<void> clearLocalAuthOnSignOut(AuthLocalRepositoryPort local) async {
     order?.add('clearLocal');
-    await local.setCurrentAccountId(null);
+    await local.clearAllAuthData();
   }
 
   @override
@@ -66,7 +66,12 @@ class TestAuthPlatformCleanup implements AuthPlatformCleanupPort {
   void noteAuthenticatedBoot() {}
 
   @override
-  void clearStaleSessionBrowserGuard() {}
+  void clearStaleSessionBrowserGuard() {
+    order?.add('clearStaleGuard');
+  }
+
+  @override
+  bool get skipSessionCookieBootstrap => false;
 
   @override
   Future<void> prepareForSignInAgain(AuthLocalRepositoryPort local) async {

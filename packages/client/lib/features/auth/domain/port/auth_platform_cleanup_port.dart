@@ -22,6 +22,9 @@ abstract class AuthPlatformCleanupPort {
 
   void clearStaleSessionBrowserGuard();
 
+  /// Web seed-recovery entry (`/recover#/recover-seed`): skip cookie/local bootstrap.
+  bool get skipSessionCookieBootstrap;
+
   AuthRecoveryNavigation get signOutNavigationTarget;
 
   AuthRecoveryNavigation get resetNavigationTarget;

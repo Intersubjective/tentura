@@ -30,7 +30,7 @@ class RootRouter extends RootStackRouter {
 
   late final reevaluateListenable = _ReevaluateFromStreams([
     _settingsCubit.stream.map((e) => e.introEnabled),
-    _authCubit.stream.map((e) => e.currentAccount),
+    _authCubit.stream.map((e) => (e.deferAuthRedirects, e.currentAccountId)),
   ]);
 
   final Logger _logger;
@@ -38,6 +38,13 @@ class RootRouter extends RootStackRouter {
   final AuthCubit _authCubit;
 
   final SettingsCubit _settingsCubit;
+
+  PageRouteInfo? _redirectIfUnauthenticated() {
+    if (_authCubit.state.deferAuthRedirects) {
+      return null;
+    }
+    return _authCubit.state.isNotAuthenticated ? const AuthLoginRoute() : null;
+  }
 
   @override
   @disposeMethod
@@ -83,11 +90,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.redirect(
           (_) => _settingsCubit.state.introEnabled ? const IntroRoute() : null,
         ),
-        AutoRouteGuard.redirect(
-          (_) => _authCubit.state.isNotAuthenticated
-              ? const AuthLoginRoute()
-              : null,
-        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
       ],
     ),
 
@@ -99,11 +102,7 @@ class RootRouter extends RootStackRouter {
         AutoRouteGuard.redirect(
           (_) => _settingsCubit.state.introEnabled ? const IntroRoute() : null,
         ),
-        AutoRouteGuard.redirect(
-          (_) => _authCubit.state.isNotAuthenticated
-              ? const AuthLoginRoute()
-              : null,
-        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
       ],
     ),
 
@@ -128,6 +127,9 @@ class RootRouter extends RootStackRouter {
       path: kPathSignIn,
       guards: [
         AutoRouteGuard.redirect((_) {
+          if (_authCubit.state.deferAuthRedirects) {
+            return null;
+          }
           if (_authCubit.state.isAuthenticated) return const ProfileRoute();
           goToLanding();
           return null;
@@ -141,9 +143,12 @@ class RootRouter extends RootStackRouter {
       page: RecoverRoute.page,
       path: kPathRecover,
       guards: [
-        AutoRouteGuard.redirect(
-          (_) => _authCubit.state.isAuthenticated ? const HomeRoute() : null,
-        ),
+        AutoRouteGuard.redirect((_) {
+          if (_authCubit.state.deferAuthRedirects) {
+            return null;
+          }
+          return _authCubit.state.isAuthenticated ? const HomeRoute() : null;
+        }),
       ],
     ),
 
@@ -222,11 +227,7 @@ class RootRouter extends RootStackRouter {
       page: SettingsRoute.page,
       path: kPathSettings,
       guards: [
-        AutoRouteGuard.redirect(
-          (_) => _authCubit.state.isNotAuthenticated
-              ? const AuthLoginRoute()
-              : null,
-        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
       ],
     ),
 
@@ -238,11 +239,7 @@ class RootRouter extends RootStackRouter {
       page: CredentialsRoute.page,
       path: kPathSignInMethods,
       guards: [
-        AutoRouteGuard.redirect(
-          (_) => _authCubit.state.isNotAuthenticated
-              ? const AuthLoginRoute()
-              : null,
-        ),
+        AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
       ],
     ),
 

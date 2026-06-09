@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
+import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/entity/account_entity.dart';
 import 'package:tentura/features/auth/domain/entity/session_cookie_clear_result.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
@@ -81,7 +82,33 @@ void main() {
       expect(remote.clearSessionCookieCalls, 0);
       expect(result.invalidSessionCookieRejected, isFalse);
     });
+
+    test('seed recovery entry skips session cookie bootstrap', () async {
+      final local = FakeAuthLocal()..currentAccountId = 'U-local';
+      final remote = FakeAuthRemote(sessionUserId: 'U-session');
+      final authCase = AuthCase(
+        local,
+        remote,
+        TestDevicePush(),
+        _SkipSessionBootstrapCleanup(),
+        TestSettingsRepository(),
+        env: const Env(),
+        logger: Logger('test'),
+      );
+
+      final result = await authCase.bootstrapWebSession();
+
+      expect(result.currentAccountId, isEmpty);
+      expect(result.sessionUserId, isNull);
+      expect(local.currentAccountId, 'U-local');
+      expect(remote.clearSessionCookieCalls, 0);
+    });
   });
+}
+
+class _SkipSessionBootstrapCleanup extends TestAuthPlatformCleanup {
+  @override
+  bool get skipSessionCookieBootstrap => true;
 }
 
 class FakeAuthLocal implements AuthLocalRepositoryPort {

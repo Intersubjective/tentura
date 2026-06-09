@@ -498,6 +498,7 @@ class AuthCubit extends Cubit<AuthState> {
       AuthState(
         accounts: state.accounts,
         currentAccountId: id,
+        isBootstrapping: state.isBootstrapping,
         authRecoveryNeeded: state.authRecoveryNeeded,
         authSessionLossCount: state.authSessionLossCount,
         updatedAt: DateTime.timestamp(),
@@ -538,6 +539,7 @@ class AuthCubit extends Cubit<AuthState> {
             AuthState(
               accounts: state.accounts,
               currentAccountId: state.currentAccountId,
+              isBootstrapping: state.isBootstrapping,
               authRecoveryNeeded: state.authRecoveryNeeded,
               authSessionLossCount: state.authSessionLossCount,
               updatedAt: DateTime.timestamp(),
