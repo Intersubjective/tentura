@@ -19,7 +19,7 @@
 | **0** | Single-domain routing; static `/invite/*` | **Done** — Caddy prod + local; COOP/COEP scoped to WASM only |
 | **1** | Session bootstrap on one origin | **Done** — `__Host-tentura_session`, cookie-presence `/` split, WASM bootstrap, stale-session reconciliation (ADR 0002) |
 | **2** | Email magic link (captive-browser auth) | **Done** — server + landing + Resend template; requires `RESEND_*` env |
-| **3** | Provider cleanup + credential Settings | **Partial** — list/remove + **link Google/email/recovery seed from Settings** shipped (strict link-mode, per-credential session revoke); retire device-seed landing UI, topology/`appBase` cleanup remain (ADR 0003) |
+| **3** | Provider cleanup + credential Settings | **Partial** — list/remove + **link Google/email/recovery seed from Settings** shipped (strict link-mode, per-credential session revoke); retire device-seed landing UI remains |
 | **4** | Native + deferred invite pickup | **Partial** — native deep links + Android App Links shipped; install-after-click server tracking not started |
 
 ## North Star
@@ -46,10 +46,8 @@ The app is on one origin in production and dev:
 | Dev | `dev.tentura.io` |
 | Local | `dev.lvh.me:9443` or equivalent Caddy-backed host |
 
-`app.tentura.io` / `app.dev.tentura.io` are **migration artifacts**. Single-host
-routing is live; `INVITE_LINK_HOST` / optional `appBase` remain in deploy
-scripts for client dart-defines and rollback — `resolve_app_base.js` defaults to
-`location.origin` when `appBase` is empty.
+Single-host routing on the public origin is the only supported topology. There
+is no separate app subdomain; invite share links and WASM both use `SERVER_NAME`.
 
 ## Why This Shape
 
@@ -302,14 +300,14 @@ returning to invite page. OAuth tokens never exposed to browser JS.
 | File | Role |
 |------|------|
 | `index.html` | Shell; Sentry CDN, config, `main.js` |
-| `config.js` / `config.local.js` | `apiBase`, `appBase`, `googleEnabled` |
+| `config.js` / `config.local.js` | `apiBase`, `googleEnabled`, `sentryDsn` |
 | `main.js` | Preview states, Tier UX, signed-out `/` |
 | `invite_entry.js` | Manual invite link/code parsing |
 | `preview.js` | `GET /api/v2/invite/:code/preview` |
 | `webview.js` | Tier 1/2 detection, Android `intent://` |
 | `auth.js` | Email start, device-seed signup |
 | `handoff.js` | `#th=` redirect (device-seed only) |
-| `resolve_app_base.js` | Same-origin default when `appBase` empty |
+| `app_preload.js` | Background WASM asset warmup from landing |
 | `analytics.js` | Sentry funnel events |
 
 ## Infra
@@ -345,9 +343,7 @@ Single-host deploy is **live** (`50b4fdbf`). Representative Caddy order:
 
 **Remaining topology cleanup (Phase 3):**
 
-- Treat `INVITE_LINK_HOST` / explicit `appBase` as optional overrides, not required
-  split-host concepts.
-- Remove app-subdomain OAuth callbacks from provider consoles when unused.
+- None — single-origin is enforced in code, scripts, and deploy config.
 
 ## Phases (detailed)
 
@@ -406,7 +402,7 @@ Acceptance:
 | Passkey / Apple | **Not done** |
 | Retire device-seed from normal landing UI | **Not done** — still Tier-1 new-user path |
 | Session revoke on credential remove | **Not done** |
-| Topology / `appBase` cleanup | **Partial** — same-origin default works; deploy vars remain |
+| Topology / single-origin cleanup | **Done** |
 
 Acceptance still open:
 

@@ -42,7 +42,7 @@ test('Google CTA uses full same-origin returnTo for invite', () => {
 test('renderNoInvite has sign-in reveal and invite entry', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderNoInvite'),
-    mainJs.indexOf('function addAppPreconnect'),
+    mainJs.indexOf('async function main'),
   );
   assert.match(block, /setState\('no-invite'\)/);
   assert.match(block, /createSignInReveal\(''\)/);
@@ -94,7 +94,7 @@ test('invite entry field is scoped away from sign-in autofill', () => {
 test('renderNoInvite uses shared sign-in reveal helper', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderNoInvite'),
-    mainJs.indexOf('function addAppPreconnect'),
+    mainJs.indexOf('async function main'),
   );
   assert.match(block, /createSignInReveal\(''\)/);
 });
@@ -114,4 +114,19 @@ test('already-friends uses completion copy after signed-in return', () => {
   assert.match(block, /Your account is ready, and \$\{name\} is connected with you/);
   assert.match(block, /You’re connected with \$\{name\}/);
   assert.doesNotMatch(block, /already connected/i);
+});
+
+test('main starts app preload before invite preview fetch', () => {
+  const preloadIdx = mainJs.indexOf('startAppPreload(');
+  const previewIdx = mainJs.indexOf('fetchPreview(');
+  assert.ok(preloadIdx >= 0, 'startAppPreload call missing');
+  assert.ok(previewIdx >= 0, 'fetchPreview call missing');
+  assert.ok(preloadIdx < previewIdx, 'preload must start before preview fetch');
+  assert.doesNotMatch(mainJs, /await startAppPreload/);
+});
+
+test('main uses location.origin for app CTAs', () => {
+  assert.match(mainJs, /`\$\{location\.origin\}\/#\$\{normalized\}`/);
+  assert.match(mainJs, /`\$\{location\.origin\}\/`/);
+  assert.doesNotMatch(mainJs, /APP_BASE|resolveAppBase|addAppPreconnect/);
 });

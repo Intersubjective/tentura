@@ -57,9 +57,9 @@ flowchart TB
   subgraph landingDispatch["Landing (preview callerStatus)"]
     landing --> lp{"callerStatus"}
     lp -->|"anonymous"| stay["Stay on landing<br/>login reveal + signup (Tier 1)"]
-    lp -->|"existing-user"| hashAccept["CTA → APP_BASE#/accept-invite/I…"]
-    lp -->|"already-friends"| openProd1["CTA → APP_BASE product"]
-    lp -->|"is-inviter"| openProd2["CTA → APP_BASE product"]
+    lp -->|"existing-user"| hashAccept["CTA → origin#/accept-invite/I…"]
+    lp -->|"already-friends"| openProd1["CTA → origin/ product"]
+    lp -->|"is-inviter"| openProd2["CTA → origin/ product"]
   end
 
   subgraph newUser["New user path"]
@@ -113,9 +113,9 @@ and/or bearer). Response drives UI and CTAs in `packages/landing/main.js`.
 | `callerStatus` | `suggestedAction` | Landing behavior | App URL opened |
 |----------------|-------------------|------------------|----------------|
 | `anonymous` | `accept-as-new` | **Tier 1:** “I already have an account” reveals email + Google; separate device-seed signup. **Tier 2:** login reveal shows email + browser escape; no Google/signup. **No** generic “Open the app” | *(stay on landing)* |
-| `existing-user` | `accept-as-existing` | “Open Tentura to accept” | `{APP_BASE}#/accept-invite/{code}` |
-| `already-friends` | `accept-as-new` *(re-preview)* | “Open Tentura” | `{APP_BASE}` (product only) |
-| `is-inviter` | `self` | Share hint + open product | `{APP_BASE}` |
+| `existing-user` | `accept-as-existing` | “Open Tentura to accept” | `{origin}#/accept-invite/{code}` |
+| `already-friends` | `accept-as-new` *(re-preview)* | “Open Tentura” | `{origin}/` (product only) |
+| `is-inviter` | `self` | Share hint + open product | `{origin}/` |
 
 **Google OAuth** on the landing includes `returnTo=/invite/<code>` so after sign-in
 the user returns to the invite page, re-previews as `already-friends`, and opens the
@@ -136,13 +136,13 @@ Flutter web does **not** use path URL strategy. Relevant implications:
 ```mermaid
 flowchart LR
   subgraph broken["Broken (old)"]
-    oldCta["APP_BASE?invite=I…"]
+    oldCta["origin?invite=I…"]
     oldCta --> wasmIgnore["AutoRoute ignores root query"]
     wasmIgnore --> lost["Invite code dropped"]
   end
 
   subgraph fixed["Fixed (current)"]
-    newCta["APP_BASE#/accept-invite/I…"]
+    newCta["origin#/accept-invite/I…"]
     newCta --> autoRoute["AutoRoute matches path param"]
     autoRoute --> guard["Accept-invite guard"]
   end
@@ -150,9 +150,9 @@ flowchart LR
 
 Landing helpers:
 
-- `appHashUrl(path)` → `{APP_BASE}#{path}`
+- `appHashUrl(path)` → `{origin}#{path}`
 - `openAcceptInviteUrl(code)` → `#/accept-invite/{encoded code}`
-- `openProductUrl()` → `{APP_BASE}` only
+- `openProductUrl()` → `{origin}/` only
 
 ## Native deep links
 

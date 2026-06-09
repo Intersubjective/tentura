@@ -7,8 +7,7 @@
 #   3. cd packages/client && flutter run -d chrome --web-port=8888 \
 #        --dart-define-from-file=env/test.env \
 #        --dart-define=SERVER_NAME=http://localhost:8888 \
-#        --dart-define=WS_SERVER_NAME=http://localhost:2080 \
-#        --dart-define=INVITE_LINK_HOST=http://localhost:8888
+#        --dart-define=WS_SERVER_NAME=http://localhost:2080
 #
 # Single-host local stack (mirrors dev.tentura.io) — see Caddyfile.local:
 #   1. docker compose up -d

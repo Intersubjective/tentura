@@ -1,7 +1,7 @@
 // Landing -> app session handoff (see docs/handoff-contract.md).
 //
 // Hands the freshly-authenticated account (seed + id) to the WASM app on the
-// sibling app subdomain via a URL *fragment*. The app captures it before boot,
+// same public origin via a URL *fragment*. The app captures it before boot,
 // writes it to its own secure storage, then scrubs it. No secret reaches the
 // server — fragments are never sent in the HTTP request, so they stay out of
 // Caddy/Hasura access logs.
@@ -16,8 +16,6 @@
 const HANDOFF_KEY = 'th';
 const HANDOFF_VERSION = 1;
 
-import { resolveAppBase } from './resolve_app_base.js';
-
 // UTF-8-safe base64url. Bare btoa() throws on non-ASCII (Cyrillic/accented
 // display names); encode to UTF-8 bytes first, then make it URL-safe.
 function base64url(str) {
@@ -25,14 +23,13 @@ function base64url(str) {
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function buildHandoffUrl(appBase, { userId, seed, displayName }) {
+export function buildHandoffUrl({ userId, seed, displayName }) {
   const payload = { v: HANDOFF_VERSION, userId, seed };
   if (displayName) payload.displayName = displayName;
   const encoded = base64url(JSON.stringify(payload));
-  const base = appBase.endsWith('/') ? appBase : `${appBase}/`;
-  return `${base}#${HANDOFF_KEY}=${encoded}`;
+  return `${location.origin}/#${HANDOFF_KEY}=${encoded}`;
 }
 
-export function redirectToApp(payload, appBase = resolveAppBase()) {
-  location.assign(buildHandoffUrl(appBase, payload));
+export function redirectToApp(payload) {
+  location.assign(buildHandoffUrl(payload));
 }

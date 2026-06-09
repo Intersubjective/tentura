@@ -20,7 +20,9 @@ Stale, revoked, or fake cookies still match presence routing and would otherwise
 
 4. **Local dev:** Root split mirrors prod by default (`LOCAL_ROOT_SPLIT` defaults to on in `Caddyfile.local`). Set `LOCAL_ROOT_SPLIT=off` when raw app-at-root Flutter dev is needed. Signed-out `/` landing assets (`*.js`, `*.css` under `LANDING_ROOT`) are served at site root so the static shell can boot.
 
-5. **Service worker:** App preload worker bypasses `/invite/`; it must not intercept `/` or landing assets.
+5. **Service worker:** App preload worker bypasses `/invite/`; it must not intercept `/` or landing assets. The landing starts background WASM warmup via `app_preload.js` on the same origin.
+
+6. **Single-origin only:** Landing, WASM, and API share one public host. There is no separate app subdomain or cross-origin `appBase` configuration.
 
 ## Consequences
 

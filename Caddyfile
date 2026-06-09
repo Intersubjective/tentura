@@ -3,12 +3,6 @@
 #
 # VPS .env: SERVER_NAME=dev.tentura.io (site hostname), APP_ROOT=/srv/web,
 #   LANDING_ROOT=/srv/landing, ACME_EMAIL=...
-# Optional rollback alias: old app.* subdomain → single origin (remove when app.* traffic is zero).
-# Uncomment and set APP_HOST in VPS .env during migration:
-# {$APP_HOST} {
-# 	tls {$ACME_EMAIL:internal}
-# 	redir https://{$SERVER_NAME:localhost}{uri} permanent
-# }
 {
 	auto_https disable_redirects
 	admin off

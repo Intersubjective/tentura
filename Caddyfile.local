@@ -22,7 +22,7 @@
 #   Open https://dev.lvh.me:9443/ (signed-out → landing; signed-in → WASM) and /invite/I… (static invite).
 #   Root split is default-on (mirrors prod). Set LOCAL_ROOT_SPLIT=off for raw app-at-root dev.
 #
-# Landing: config.js has empty appBase; config.local.js (generated) supplies same-origin URL.
+# Landing: config.js + optional config.local.js (googleEnabled from sync script).
 
 {
 	admin off
@@ -241,14 +241,4 @@ https://{$LOCAL_HOST:dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
 https://127.0.0.1:9443 {
 	tls internal
 	import local_site
-}
-
-# Rollback alias: old app subdomain → single origin (remove when no longer needed).
-http://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTP_PORT:9080} {
-	redir http://{$LOCAL_HOST:dev.lvh.me}:{$LOCAL_HTTP_PORT:9080}{uri} permanent
-}
-
-https://{$LOCAL_APP_HOST:app.dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443} {
-	tls internal
-	redir https://{$LOCAL_HOST:dev.lvh.me}:{$LOCAL_HTTPS_PORT:9443}{uri} permanent
 }

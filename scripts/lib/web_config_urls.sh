@@ -20,17 +20,3 @@ require_absolute_url() {
     return 1
   fi
 }
-
-derive_invite_link_host() {
-  local client_server_name="$1"
-  printf '%s' "$client_server_name" | sed -E 's#(https?://)app\.#\1#'
-}
-
-derive_app_base() {
-  local client_server_name="$1"
-  if [[ "$client_server_name" == */ ]]; then
-    printf '%s' "$client_server_name"
-  else
-    printf '%s/' "$client_server_name"
-  fi
-}

@@ -94,13 +94,11 @@ jobs:
           echo "Wrote .env for flutter --dart-define-from-file (Firebase client config)."
 
       # Required dev vars: CLIENT_SERVER_NAME, IMAGE_SERVER (single public origin).
-      # Derived when unset: APP_BASE (CLIENT_SERVER_NAME + /). Invite links derive from SERVER_NAME at runtime.
       - name: Resolve deploy web config
         id: webcfg
         env:
           CLIENT_SERVER_NAME: ${{ vars.CLIENT_SERVER_NAME }}
           IMAGE_SERVER: ${{ vars.IMAGE_SERVER }}
-          APP_BASE: ${{ vars.APP_BASE }}
         run: bash scripts/resolve_deploy_web_config.sh --github-output "$GITHUB_OUTPUT"
 
       # WASM app + landing on same origin (base-href /).
@@ -146,27 +144,23 @@ jobs:
             "
 
       # Static landing at /invite/* on same origin — plain files, no build/npm.
-      # appBase resolved in webcfg step; deploy.sh extracts to ./landing.
       - name: Package static landing
         env:
           LANDING_SENTRY_DSN: ${{ secrets.LANDING_SENTRY_DSN }}
           LANDING_GOOGLE_ENABLED: ${{ vars.LANDING_GOOGLE_ENABLED }}
-          APP_BASE: ${{ steps.webcfg.outputs.app_base }}
         run: |
           set -euo pipefail
           if [ -n "${LANDING_SENTRY_DSN:-}" ]; then
             sed -i "s|sentryDsn: ''|sentryDsn: '${LANDING_SENTRY_DSN}'|" packages/landing/config.js
           fi
-          sed -i "s|appBase: '[^']*'|appBase: '${APP_BASE}'|" packages/landing/config.js
           if [ "${LANDING_GOOGLE_ENABLED:-}" = "true" ]; then
             sed -i 's|googleEnabled: false|googleEnabled: true|' packages/landing/config.js
           fi
-          bash scripts/validate_landing_config.sh
           # Explicit allowlist: ships handoff.js (transport), excludes the
           # dev-only handoff-dev.html harness.
           tar -czf landing-dev-${{ steps.versions.outputs.server_version }}.tar.gz \
             -C packages/landing \
-            index.html config.js resolve_app_base.js main.js invite_entry.js preview.js webview.js analytics.js handoff.js auth.js styles.css
+            index.html config.js main.js app_preload.js invite_entry.js preview.js webview.js analytics.js handoff.js auth.js styles.css
 
       - name: Test static landing
         run: node --test packages/landing/test/*.mjs
