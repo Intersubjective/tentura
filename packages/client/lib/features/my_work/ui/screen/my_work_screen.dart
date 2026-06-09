@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
@@ -7,6 +9,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
+import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
@@ -103,6 +106,25 @@ String _labelForFilter(L10n l10n, MyWorkFilter f) => switch (f) {
   MyWorkFilter.archived => l10n.myWorkFilterArchived,
 };
 
+Future<void> _showMyWorkFilterMenu(
+  BuildContext buttonContext,
+  L10n l10n,
+) async {
+  final selected = await showAnchoredPopupMenu<MyWorkFilter>(
+    anchorContext: buttonContext,
+    items: [
+      for (final f in MyWorkFilter.values)
+        PopupMenuItem<MyWorkFilter>(
+          value: f,
+          child: Text(_labelForFilter(l10n, f)),
+        ),
+    ],
+  );
+  if (selected != null && buttonContext.mounted) {
+    buttonContext.read<MyWorkCubit>().setFilter(selected);
+  }
+}
+
 class _MyWorkFilterMenu extends StatelessWidget {
   const _MyWorkFilterMenu();
 
@@ -110,43 +132,44 @@ class _MyWorkFilterMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
     return BlocSelector<MyWorkCubit, MyWorkState, MyWorkFilter>(
       selector: (s) => s.filter,
       builder: (context, filter) {
-        return PopupMenuButton<MyWorkFilter>(
-          tooltip: l10n.myWorkFilterMenuTooltip,
-          onSelected: (f) => context.read<MyWorkCubit>().setFilter(f),
-          offset: const Offset(0, 40),
-          itemBuilder: (context) => [
-            for (final f in MyWorkFilter.values)
-              PopupMenuItem<MyWorkFilter>(
-                value: f,
-                child: Text(_labelForFilter(l10n, f)),
+        final scheme = theme.colorScheme;
+        return Tooltip(
+          message: l10n.myWorkFilterMenuTooltip,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                minimumSize: const Size(0, 40),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: scheme.onPrimary,
               ),
-          ],
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    _labelForFilter(l10n, filter),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onPrimary,
+              onPressed: () =>
+                  unawaited(_showMyWorkFilterMenu(context, l10n)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      _labelForFilter(l10n, filter),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onPrimary,
+                      ),
                     ),
                   ),
-                ),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: scheme.onPrimary,
-                ),
-              ],
+                  Icon(
+                    Icons.arrow_drop_down,
+                    color: scheme.onPrimary,
+                  ),
+                ],
+              ),
             ),
           ),
         );
