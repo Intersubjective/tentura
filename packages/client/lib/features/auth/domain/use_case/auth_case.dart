@@ -115,6 +115,9 @@ final class AuthCase extends UseCaseBase {
   /// account id. No-op cookie path off-web.
   ///
   Future<WebBootstrapResult> bootstrapWebSession() async {
+    if (_platformCleanup.skipSessionCookieBootstrap) {
+      return const WebBootstrapResult(currentAccountId: '');
+    }
     final probe = await _probeSessionUserId();
 
     if (probe.userId != null) {
@@ -229,6 +232,12 @@ final class AuthCase extends UseCaseBase {
       logger.fine('Remote signOut best-effort failed', e, s);
     }
     await _platformCleanup.clearLocalAuthOnSignOut(_authLocalRepository);
+    try {
+      await _settingsRepository.setLastFcmRegistration(null);
+    } catch (e, s) {
+      logger.fine('FCM registration clear best-effort failed', e, s);
+    }
+    _platformCleanup.clearStaleSessionBrowserGuard();
     var cookieAcknowledged = false;
     try {
       final clearResult = await _authRemoteRepository.clearSessionCookie();

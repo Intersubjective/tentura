@@ -7,6 +7,7 @@ import 'package:tentura/features/auth/domain/port/auth_platform_cleanup_port.dar
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 
 import '../../features/auth/data/service/web_auth_sign_out_cleanup.dart';
+import '../../features/auth/data/service/web_bootstrap_policy.dart' as bootstrap_policy;
 import '../../features/auth/data/service/web_post_sign_out.dart';
 import '../../features/auth/data/service/web_rejected_session_redirect.dart';
 
@@ -69,6 +70,10 @@ final class AuthPlatformCleanup implements AuthPlatformCleanupPort {
   void clearStaleSessionBrowserGuard() {
     clearStaleSessionBrowserGuardImpl();
   }
+
+  @override
+  bool get skipSessionCookieBootstrap =>
+      bootstrap_policy.skipSessionCookieBootstrap;
 }
 
 Future<void> clearLocalAuthOnSignOutImpl(AuthLocalRepositoryPort local) =>

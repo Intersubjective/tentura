@@ -24,6 +24,9 @@ abstract class AuthState extends StateBase with _$AuthState {
 
   bool get isNotAuthenticated => currentAccountId.isEmpty;
 
+  /// Session cookie probe / sign-in still running — router must not bounce to landing.
+  bool get deferAuthRedirects => isBootstrapping;
+
   AccountEntity get currentAccount {
     if (currentAccountId.isEmpty) {
       return const AccountEntity(id: '');

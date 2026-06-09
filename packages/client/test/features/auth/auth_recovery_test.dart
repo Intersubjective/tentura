@@ -84,7 +84,15 @@ void main() {
 
       expect(
         order,
-        ['unregister', 'signOut', 'clearLocal', 'clearSessionCookie'],
+        [
+          'unregister',
+          'signOut',
+          'clearLocal',
+          'clearAllLocal',
+          'clearFcmRegistration',
+          'clearStaleGuard',
+          'clearSessionCookie',
+        ],
       );
     });
 
@@ -100,7 +108,15 @@ void main() {
 
       expect(
         order,
-        ['unregister', 'signOut', 'clearLocal', 'clearSessionCookie'],
+        [
+          'unregister',
+          'signOut',
+          'clearLocal',
+          'clearAllLocal',
+          'clearFcmRegistration',
+          'clearStaleGuard',
+          'clearSessionCookie',
+        ],
       );
     });
 
