@@ -314,5 +314,12 @@ class BeaconRepository {
     }
   }
 
+  /// Refetches [id] from the server and emits [RepositoryEventUpdate]
+  /// so downstream listeners (e.g. MyWorkCubit) stay in sync.
+  Future<void> refreshAndNotify(String id) async {
+    final fresh = await fetchBeaconById(id);
+    _controller.add(RepositoryEventUpdate(fresh));
+  }
+
   static const _label = 'Beacon';
 }
