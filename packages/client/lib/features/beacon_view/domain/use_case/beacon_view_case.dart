@@ -105,8 +105,11 @@ final class BeaconViewCase extends UseCaseBase {
   Future<void> deleteBeacon(String beaconId) =>
       _beaconRepository.delete(beaconId);
 
-  Future<({String closesAt})> beaconCloseWithReview(String beaconId) =>
-      _evaluationRepository.beaconCloseWithReview(beaconId);
+  Future<({String closesAt})> beaconCloseWithReview(String beaconId) async {
+    final result = await _evaluationRepository.beaconCloseWithReview(beaconId);
+    await _beaconRepository.refreshAndNotify(beaconId);
+    return result;
+  }
 
   /// True when the viewer has at least one draft evaluation participant (open beacon).
   Future<bool> beaconHasDraftEvaluationTargets(String beaconId) async {
