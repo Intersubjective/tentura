@@ -135,6 +135,18 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
+    // Seed recovery — web entry without session; native uses AuthLoginScreen too.
+    AutoRoute(
+      maintainState: false,
+      page: RecoverRoute.page,
+      path: kPathRecover,
+      guards: [
+        AutoRouteGuard.redirect(
+          (_) => _authCubit.state.isAuthenticated ? const HomeRoute() : null,
+        ),
+      ],
+    ),
+
     // Profile Register — web invite deep-links belong to the landing; bounce to
     // its `/invite/:id` page. Native keeps the in-app register screen.
     AutoRoute(

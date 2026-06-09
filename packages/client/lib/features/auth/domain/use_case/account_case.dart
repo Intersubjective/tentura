@@ -49,17 +49,10 @@ final class AccountCase extends UseCaseBase {
   //
   Future<String> getSeedFromClipboard() async {
     try {
-      final seedEncoded = _base64Padded(
-        await _platformRepository.getStringFromClipboard(),
-      );
-      if (seedEncoded.isNotEmpty) {
-        final seedBinary = base64Decode(seedEncoded);
-        if (seedBinary.length == kSeedLength) {
-          return base64UrlEncode(seedBinary);
-        }
-      }
-    } catch (_) {}
-    throw const AuthSeedIsWrongException();
+      return normalizeSeed(await _platformRepository.getStringFromClipboard());
+    } catch (_) {
+      throw const AuthSeedIsWrongException();
+    }
   }
 
   //
@@ -136,12 +129,7 @@ final class AccountCase extends UseCaseBase {
   // TBD: add gql node to get profile data by auth request JWT
   //      to prevent signIn\signOut flow?
   Future<AccountEntity> addAccount(String seed) async {
-    if (seed.isEmpty) {
-      throw const AuthSeedIsWrongException();
-    }
-    final seedNormalized = base64UrlEncode(base64Decode(_base64Padded(seed)));
-    await _authRemoteRepository.signIn(seedNormalized);
-
+    final seedNormalized = normalizeSeed(seed);
     final userId = await _authRemoteRepository.signIn(seedNormalized);
     await _authLocalRepository.addAccount(
       userId,
@@ -152,6 +140,46 @@ final class AccountCase extends UseCaseBase {
     await _authRemoteRepository.signOut();
 
     return fromProfile(profile);
+  }
+
+  ///
+  /// Validates [seed], signs in remotely (sets session cookie on web),
+  /// upserts local seed-backed account, and makes it current.
+  ///
+  Future<AccountEntity> recoverFromSeedAndSignIn(String seed) async {
+    final seedNormalized = normalizeSeed(seed);
+    final userId = await _authRemoteRepository.signIn(seedNormalized);
+    final profile = await _profileRemoteRepository.fetchById(userId);
+    final account = fromProfile(profile);
+    await _authLocalRepository.upsertAccountWithSeed(
+      userId,
+      seedNormalized,
+      profile.displayName,
+    );
+    await _authLocalRepository.updateAccount(account);
+    await _authLocalRepository.setCurrentAccountId(userId);
+    return account;
+  }
+
+  ///
+  /// Normalizes a backed-up seed to url-safe base64 of exactly [kSeedLength] bytes.
+  ///
+  static String normalizeSeed(String seed) {
+    final trimmed = seed.trim();
+    if (trimmed.isEmpty) {
+      throw const AuthSeedIsWrongException();
+    }
+    try {
+      final bytes = base64Decode(_base64Padded(trimmed));
+      if (bytes.length != kSeedLength) {
+        throw const AuthSeedIsWrongException();
+      }
+      return base64UrlEncode(bytes);
+    } on AuthSeedIsWrongException {
+      rethrow;
+    } catch (_) {
+      throw const AuthSeedIsWrongException();
+    }
   }
 
   ///

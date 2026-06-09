@@ -151,6 +151,25 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
   }
 
   @override
+  Future<void> upsertAccountWithSeed(
+    String id,
+    String seed, [
+    String? displayName,
+  ]) async {
+    await _localSecureStorage.write(_getAccountKey(id), seed);
+    await _localSecureStorage.delete(_sessionMarkerKey(id));
+    final existing = await getAccountById(id);
+    if (existing == null) {
+      await _database.managers.accounts.create(
+        (o) => displayName == null
+            ? o(id: id)
+            : o(id: id, displayName: Value(displayName)),
+        mode: InsertMode.insert,
+      );
+    }
+  }
+
+  @override
   Future<void> storeLinkedSeedIfAbsent(String id, String seed) async {
     try {
       final existing = await getSeedByAccountId(id);

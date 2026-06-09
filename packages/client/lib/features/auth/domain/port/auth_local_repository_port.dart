@@ -27,6 +27,9 @@ abstract class AuthLocalRepositoryPort {
 
   Future<void> addAccount(String id, String seed, [String? displayName]);
 
+  /// Stores [seed], clears session-only marker, creates account row if absent.
+  Future<void> upsertAccountWithSeed(String id, String seed, [String? displayName]);
+
   /// Persists [seed] for [id] only when no device seed is stored yet (e.g.
   /// session-only web account linking its first recovery seed).
   Future<void> storeLinkedSeedIfAbsent(String id, String seed);
