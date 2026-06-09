@@ -1,7 +1,6 @@
 //
 // ignore_for_file: prefer_void_public_cubit_methods
 import 'dart:async';
-import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
@@ -81,6 +80,10 @@ class AuthCubit extends Cubit<AuthState> {
   late final StreamSubscription<String> _authChanges;
 
   late final StreamSubscription<RepositoryEvent<Profile>> _profileChanges;
+
+  var _authTransitionDepth = 0;
+
+  String? _pendingSuppressedAccountId;
 
   String get inviteEmail => _env.inviteEmail;
 
@@ -175,53 +178,81 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   Future<void> signInAgain() async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      final outcome = await _authCase.signInAgain();
-      final pending = _resolveRecoveryNavigation(outcome);
-      emit(
-        AuthState(
-          accounts: state.accounts,
-          updatedAt: DateTime.timestamp(),
-          pendingRecoveryNavigation: pending,
-        ),
-      );
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
+    await _duringAuthTransition(() async {
+      emit(state.copyWith(status: StateStatus.isLoading));
+      try {
+        final outcome = await _authCase.signInAgain();
+        final nav = _applyRecoveryOutcome(outcome);
+        if (nav.pageUnloading) {
+          return;
+        }
+        emit(
+          AuthState(
+            accounts: state.accounts,
+            updatedAt: DateTime.timestamp(),
+            pendingRecoveryNavigation: nav.pending,
+          ),
+        );
+      } catch (e) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
+    });
   }
 
   Future<void> resetLocalAuthState() async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      final outcome = await _authCase.resetLocalAuthState();
-      final pending = _resolveRecoveryNavigation(outcome);
-      emit(
-        AuthState(
-          accounts: const [],
-          updatedAt: DateTime.timestamp(),
-          pendingRecoveryNavigation: pending,
-        ),
-      );
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
+    await _duringAuthTransition(() async {
+      emit(state.copyWith(status: StateStatus.isLoading));
+      try {
+        final outcome = await _authCase.resetLocalAuthState();
+        final nav = _applyRecoveryOutcome(outcome);
+        if (nav.pageUnloading) {
+          return;
+        }
+        emit(
+          AuthState(
+            accounts: const [],
+            updatedAt: DateTime.timestamp(),
+            pendingRecoveryNavigation: nav.pending,
+          ),
+        );
+      } catch (e) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
+    });
   }
 
   Future<bool> hasSeedOnlyLocalAccounts() => _authCase.hasSeedOnlyLocalAccounts();
 
-  AuthRecoveryNavigation? _resolveRecoveryNavigation(
+  ({bool pageUnloading, AuthRecoveryNavigation? pending}) _applyRecoveryOutcome(
     AuthRecoveryOutcome outcome,
   ) {
     switch (outcome.navigation) {
       case AuthRecoveryNavigation.webInviteLanding:
         _authCase.applyRecoveryNavigation(outcome);
-        return null;
+        return (pageUnloading: true, pending: null);
       case AuthRecoveryNavigation.nativeLogin:
       case AuthRecoveryNavigation.nativeBack:
-        return outcome.navigation;
+        return (pageUnloading: false, pending: outcome.navigation);
       case AuthRecoveryNavigation.none:
-        return null;
+        return (pageUnloading: false, pending: null);
+    }
+  }
+
+  Future<T> _duringAuthTransition<T>(Future<T> Function() action) async {
+    _authTransitionDepth++;
+    try {
+      return await action();
+    } finally {
+      _authTransitionDepth--;
+      if (_authTransitionDepth == 0) {
+        final pendingId = _pendingSuppressedAccountId;
+        _pendingSuppressedAccountId = null;
+        if (pendingId != null &&
+            !isClosed &&
+            pendingId != state.currentAccountId) {
+          _emitAuthChanged(pendingId);
+        }
+      }
     }
   }
 
@@ -394,42 +425,52 @@ class AuthCubit extends Cubit<AuthState> {
   //
   //
   Future<void> signOut() async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      final outcome = await _authCase.signOut();
-      final pending = _resolveRecoveryNavigation(outcome);
-      emit(
-        AuthState(
-          accounts: kIsWeb ? const [] : state.accounts,
-          updatedAt: DateTime.timestamp(),
-          pendingRecoveryNavigation: pending,
-        ),
-      );
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-    _authCase.logger.fine('Sign out');
+    await _duringAuthTransition(() async {
+      emit(state.copyWith(status: StateStatus.isLoading));
+      try {
+        final outcome = await _authCase.signOut();
+        final nav = _applyRecoveryOutcome(outcome);
+        if (nav.pageUnloading) {
+          return;
+        }
+        emit(
+          AuthState(
+            accounts: kIsWeb ? const [] : state.accounts,
+            updatedAt: DateTime.timestamp(),
+            pendingRecoveryNavigation: nav.pending,
+          ),
+        );
+      } catch (e) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
+      _authCase.logger.fine('Sign out');
+    });
   }
 
   ///
   /// Remove account from local storage
   ///
   Future<void> removeAccount(String id) async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      await _accountCase.removeAccount(id);
-      final outcome = await _authCase.signOut();
-      final pending = _resolveRecoveryNavigation(outcome);
-      emit(
-        AuthState(
-          accounts: state.accounts..removeWhere((e) => e.id == id),
-          updatedAt: DateTime.timestamp(),
-          pendingRecoveryNavigation: pending,
-        ),
-      );
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
+    await _duringAuthTransition(() async {
+      emit(state.copyWith(status: StateStatus.isLoading));
+      try {
+        await _accountCase.removeAccount(id);
+        final outcome = await _authCase.signOut();
+        final nav = _applyRecoveryOutcome(outcome);
+        if (nav.pageUnloading) {
+          return;
+        }
+        emit(
+          AuthState(
+            accounts: state.accounts..removeWhere((e) => e.id == id),
+            updatedAt: DateTime.timestamp(),
+            pendingRecoveryNavigation: nav.pending,
+          ),
+        );
+      } catch (e) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
+    });
   }
 
   //
@@ -444,15 +485,25 @@ class AuthCubit extends Cubit<AuthState> {
 
   //
   //
-  void _onAuthChanged(String id) => emit(
-    AuthState(
-      accounts: state.accounts,
-      currentAccountId: id,
-      authRecoveryNeeded: state.authRecoveryNeeded,
-      authSessionLossCount: state.authSessionLossCount,
-      updatedAt: DateTime.timestamp(),
-    ),
-  );
+  void _onAuthChanged(String id) {
+    if (_authTransitionDepth > 0) {
+      _pendingSuppressedAccountId = id;
+      return;
+    }
+    _emitAuthChanged(id);
+  }
+
+  void _emitAuthChanged(String id) {
+    emit(
+      AuthState(
+        accounts: state.accounts,
+        currentAccountId: id,
+        authRecoveryNeeded: state.authRecoveryNeeded,
+        authSessionLossCount: state.authSessionLossCount,
+        updatedAt: DateTime.timestamp(),
+      ),
+    );
+  }
 
   //
   //

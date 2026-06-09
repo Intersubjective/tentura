@@ -12,7 +12,7 @@ import 'package:tentura/consts.dart';
 /// (the page unloads immediately after).
 bool goToLanding({String? invitePath}) {
   final target = Uri.parse(kServerName).replace(
-    path: invitePath ?? '/',
+    path: invitePath ?? '/invite/',
     queryParameters: const <String, String>{},
     fragment: '',
   );
