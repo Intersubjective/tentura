@@ -539,6 +539,17 @@ class UserRepository implements UserRepositoryPort {
     required List<AssertedContact> contacts,
   }) async {
     for (final contact in AssertedContact.authoritativeOnly(contacts)) {
+      final existing = await _database.managers.accountVerifiedContacts
+          .filter(
+            (e) => e.kind(contact.kind.wire) & e.value(contact.value),
+          )
+          .getSingleOrNull();
+      if (existing != null) {
+        if (existing.accountId != accountId) {
+          throw const ContactConflictException();
+        }
+        continue;
+      }
       try {
         await _database.managers.accountVerifiedContacts.create(
           (o) => o(
