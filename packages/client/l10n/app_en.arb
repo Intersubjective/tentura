@@ -3294,5 +3294,37 @@
   "itemShowLess": "show less",
   "@itemShowLess": {
     "description": "Collapse coordination item body on Items tab card"
+  },
+  "authSessionProblemBanner": "We couldn't verify your session. Sign in again.",
+  "@authSessionProblemBanner": {
+    "description": "App-root banner when auth session is lost at runtime"
+  },
+  "authSessionProblemFixAction": "Fix sign-in",
+  "@authSessionProblemFixAction": {
+    "description": "Banner action opening the auth recovery screen"
+  },
+  "authRecoveryHubTitle": "Session recovery",
+  "@authRecoveryHubTitle": {
+    "description": "Title for the auth recovery hub above seed recovery"
+  },
+  "authRecoverySignInAgain": "Sign in again",
+  "@authRecoverySignInAgain": {
+    "description": "Non-destructive recovery: clear session, keep local accounts"
+  },
+  "authRecoveryResetLocalTitle": "Reset local app state",
+  "@authRecoveryResetLocalTitle": {
+    "description": "Settings and recovery screen action for nuclear local wipe"
+  },
+  "authRecoveryResetLocalBody": "This removes all accounts and keys stored on this device. Your account on the server is not deleted.",
+  "@authRecoveryResetLocalBody": {
+    "description": "Reset local app state confirmation body"
+  },
+  "authRecoveryResetSeedWarning": "This device may no longer be able to sign in unless you have your recovery seed or a linked Google or email sign-in.",
+  "@authRecoveryResetSeedWarning": {
+    "description": "Extra warning when seed-only accounts would lose their only credential"
+  },
+  "buttonDismiss": "Dismiss",
+  "@buttonDismiss": {
+    "description": "Dismiss a non-blocking banner without taking action"
   }
 }

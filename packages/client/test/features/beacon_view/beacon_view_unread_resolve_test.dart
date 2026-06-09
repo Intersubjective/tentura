@@ -5,7 +5,7 @@ import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.da
 void main() {
   group('shell badge derives from watermark', () {
     test('resolveUnread zeros stale server count after local read-through', () {
-      final store = RoomReadWatermarkStore();
+      final store = RoomReadWatermarkStore.testing();
       addTearDown(store.dispose);
 
       final serverSeen = DateTime.utc(2026, 1, 1);

@@ -1,7 +1,5 @@
-// TBD: move not void public methods into state
 // ignore_for_file: prefer_void_public_cubit_methods
 
-// TBD: return string instead of ThemeMode?
 // ignore: avoid_flutter_imports
 import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
@@ -11,6 +9,7 @@ import 'package:tentura/domain/port/platform_repository_port.dart';
 
 import 'package:tentura/features/auth/domain/use_case/account_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
+import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
 import '../../domain/port/settings_repository_port.dart';
 import 'settings_state.dart';
@@ -26,6 +25,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   static Future<SettingsCubit> hydrated(
     Env env,
     AuthCase authCase,
+    AuthCubit authCubit,
     AccountCase accountCase,
     PlatformRepositoryPort platformRepository,
     SettingsRepositoryPort settingsRepository,
@@ -35,6 +35,7 @@ class SettingsCubit extends Cubit<SettingsState> {
         await settingsRepository.getThemeModeName() ?? 'system';
     return SettingsCubit(
       authCase: authCase,
+      authCubit: authCubit,
       accountCase: accountCase,
       settingsRepository: settingsRepository,
       state: SettingsState(
@@ -50,15 +51,19 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   SettingsCubit({
     required AuthCase authCase,
+    required AuthCubit authCubit,
     required AccountCase accountCase,
     required SettingsRepositoryPort settingsRepository,
     SettingsState state = const SettingsState(),
   }) : _authCase = authCase,
+       _authCubit = authCubit,
        _accountCase = accountCase,
        _settingsRepository = settingsRepository,
        super(state);
 
   final AuthCase _authCase;
+
+  final AuthCubit _authCubit;
 
   final AccountCase _accountCase;
 
@@ -98,13 +103,10 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   //
   //
-  Future<void> signOut() async {
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      await _authCase.signOut();
-      emit(state.copyWith(status: StateIsNavigating.back));
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> signOut() => _authCubit.signOut();
+
+  Future<void> resetLocalAuthState() => _authCubit.resetLocalAuthState();
+
+  Future<bool> hasSeedOnlyLocalAccounts() =>
+      _authCubit.hasSeedOnlyLocalAccounts();
 }

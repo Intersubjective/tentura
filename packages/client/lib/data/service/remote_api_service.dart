@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/env.dart';
 
+import 'remote_api_client/auth_loss_classifier.dart';
 import 'remote_api_client/exception.dart';
 import 'remote_api_client/remote_api_client_web.dart';
 import 'remote_api_client/remote_api_client_ws.dart';
@@ -49,10 +50,7 @@ final class RemoteApiService extends RemoteApiClient with RemoteApiClientWs {
 extension ErrorHandler<TData, TVars> on OperationResponse<TData, TVars> {
   TData dataOrThrow({String? label}) {
     if (hasErrors) {
-      throw GraphQLException(
-        error: linkException ?? graphqlErrors,
-        label: label,
-      );
+      throw mapRemoteFailure(linkException ?? graphqlErrors);
     }
     if (data == null) {
       throw GraphQLNoDataException(label: label);

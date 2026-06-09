@@ -1,9 +1,8 @@
 import 'dart:async';
 
-import 'package:tentura/features/auth/data/repository/auth_local_repository.dart' show AuthLocalRepository;
 import 'package:tentura/features/auth/domain/entity/account_entity.dart';
 
-/// Local auth / accounts (implemented by [AuthLocalRepository] in data layer).
+/// Local auth / accounts (implemented in the data layer).
 abstract class AuthLocalRepositoryPort {
   Future<void> dispose();
 
@@ -37,4 +36,7 @@ abstract class AuthLocalRepositoryPort {
   Future<void> addSessionAccount(String id, [String? displayName]);
 
   Future<bool> isSessionAccount(String id);
+
+  /// Removes all auth keys, account rows, and friends; keeps settings.
+  Future<void> clearAllAuthData();
 }

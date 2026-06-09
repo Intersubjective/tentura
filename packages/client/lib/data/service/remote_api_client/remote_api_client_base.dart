@@ -49,6 +49,13 @@ abstract base class RemoteApiClientBase {
 
   bool _sessionAuth = false;
 
+  int _authGeneration = 0;
+
+  /// Monotonic counter bumped on every auth transition; stale async work checks this.
+  int get authGeneration => _authGeneration;
+
+  void _bumpAuthGeneration() => _authGeneration++;
+
   Credentials? _sessionCredentials;
 
   bool get isSessionAuth => _sessionAuth;
@@ -78,6 +85,7 @@ abstract base class RemoteApiClientBase {
     if (seed.isEmpty) {
       throw const AuthenticationNoKeyException();
     }
+    _bumpAuthGeneration();
     _tokenLocked = false;
     _sessionAuth = false;
     _sessionCredentials = null;
@@ -93,6 +101,7 @@ abstract base class RemoteApiClientBase {
   /// Cookie-session auth (web TMB). Clears seed-based auth state.
   @mustCallSuper
   Future<void> setSessionAuth() async {
+    _bumpAuthGeneration();
     _tokenLocked = false;
     _authBox = null;
     _sessionAuth = true;
@@ -147,6 +156,7 @@ abstract base class RemoteApiClientBase {
   //
   @mustCallSuper
   Future<void> dropAuth() async {
+    _bumpAuthGeneration();
     _authBox = null;
     _tokenLocked = false;
     _sessionAuth = false;
@@ -158,6 +168,7 @@ abstract base class RemoteApiClientBase {
   //
   @mustCallSuper
   Future<Credentials> getAuthToken() async {
+    final generationAtStart = _authGeneration;
     if (_sessionAuth) {
       if (_sessionCredentials != null && _sessionCredentials!.hasValidToken) {
         return _sessionCredentials!;
@@ -175,6 +186,9 @@ abstract base class RemoteApiClientBase {
       _tokenLocked = true;
       try {
         _sessionCredentials = await _fetchSessionCredentials();
+        if (generationAtStart != _authGeneration) {
+          throw const AuthenticationNoKeyException();
+        }
         return _sessionCredentials!;
       } finally {
         _tokenLocked = false;
@@ -198,6 +212,9 @@ abstract base class RemoteApiClientBase {
       _tokenLocked = true;
       try {
         final credentials = await _authBox!.fetchCredentials(request);
+        if (generationAtStart != _authGeneration) {
+          throw const AuthenticationNoKeyException();
+        }
         _authBox = _authBox!.copyWith(credentials: credentials);
         return credentials;
       } finally {

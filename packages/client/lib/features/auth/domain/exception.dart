@@ -87,3 +87,14 @@ final class SessionAuthRejectedException extends AuthException {
   @override
   String get toRu => '${super.toRu} сессия истекла или недействительна';
 }
+
+/// Authenticated API call failed because the session or bearer token is gone.
+final class AuthSessionLostException extends AuthException {
+  const AuthSessionLostException();
+
+  @override
+  String get toEn => "We couldn't verify your session";
+
+  @override
+  String get toRu => 'Не удалось проверить вашу сессию';
+}

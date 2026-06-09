@@ -87,6 +87,36 @@ class _RecoverScreenState extends State<RecoverScreen> {
     unawaited(_recover(value));
   }
 
+  Future<void> _confirmResetLocal(BuildContext context, L10n l10n) async {
+    final authCubit = context.read<AuthCubit>();
+    final seedWarning = await authCubit.hasSeedOnlyLocalAccounts();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.authRecoveryResetLocalTitle),
+        content: Text(
+          seedWarning
+              ? '${l10n.authRecoveryResetLocalBody}\n\n'
+                    '${l10n.authRecoveryResetSeedWarning}'
+              : l10n.authRecoveryResetLocalBody,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.buttonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.authRecoveryResetLocalTitle),
+          ),
+        ],
+      ),
+    );
+    if ((confirmed ?? false) && context.mounted) {
+      await authCubit.resetLocalAuthState();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -95,7 +125,7 @@ class _RecoverScreenState extends State<RecoverScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.recoverFromSeedTitle),
+        title: Text(l10n.authRecoveryHubTitle),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: BlocSelector<AuthCubit, AuthState, bool>(
@@ -111,6 +141,21 @@ class _RecoverScreenState extends State<RecoverScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Text(
+                l10n.authSessionProblemBanner,
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: kSpacingMedium),
+              FilledButton(
+                onPressed: () => authCubit.signInAgain(),
+                child: Text(l10n.authRecoverySignInAgain),
+              ),
+              const SizedBox(height: kSpacingSmall),
+              OutlinedButton(
+                onPressed: () => _confirmResetLocal(context, l10n),
+                child: Text(l10n.authRecoveryResetLocalTitle),
+              ),
+              const SizedBox(height: kSpacingLarge),
               Text(
                 l10n.recoverFromSeedHint,
                 style: theme.textTheme.bodyMedium,

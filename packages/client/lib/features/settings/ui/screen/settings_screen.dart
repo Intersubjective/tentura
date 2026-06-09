@@ -21,6 +21,36 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
         child: this,
       );
 
+  Future<void> _confirmResetLocal(BuildContext context, L10n l10n) async {
+    final cubit = GetIt.I<SettingsCubit>();
+    final seedWarning = await cubit.hasSeedOnlyLocalAccounts();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.authRecoveryResetLocalTitle),
+        content: Text(
+          seedWarning
+              ? '${l10n.authRecoveryResetLocalBody}\n\n'
+                    '${l10n.authRecoveryResetSeedWarning}'
+              : l10n.authRecoveryResetLocalBody,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.buttonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.authRecoveryResetLocalTitle),
+          ),
+        ],
+      ),
+    );
+    if ((confirmed ?? false) && context.mounted) {
+      await cubit.resetLocalAuthState();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cubit = GetIt.I<SettingsCubit>();
@@ -82,6 +112,12 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
               onPressed: () => cubit.setIntroEnabled(true),
             ),
 
+            OutlinedButton.icon(
+              onPressed: () => _confirmResetLocal(context, l10n),
+              icon: const Icon(Icons.delete_forever_outlined),
+              label: Text(l10n.authRecoveryResetLocalTitle),
+            ),
+
             //Logout
             FilledButton.icon(
               onPressed: cubit.signOut,
@@ -89,7 +125,7 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
               label: Text(l10n.logout),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor:  Theme.of(context).colorScheme.onError,
+                foregroundColor: Theme.of(context).colorScheme.onError,
               ),
             ),
           ],
