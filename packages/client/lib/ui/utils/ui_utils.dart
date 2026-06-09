@@ -9,6 +9,9 @@ import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
 
+import 'package:tentura/features/auth/domain/exception.dart';
+import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+
 import '../bloc/state_base.dart';
 import '../l10n/l10n.dart';
 import '../message/action_message_base.dart';
@@ -145,14 +148,22 @@ void commonScreenBlocListener(
         text: m.toL10n(localeName),
       ),
     },
-    final StateHasError s when listenHasErrorState => showSnackBar(
-      context,
-      isError: true,
-      text: switch (s.error) {
-        final Localizable e => e.toL10n(localeName),
-        final Object e => e.toString(),
+    final StateHasError s when listenHasErrorState =>
+      switch (s.error) {
+        AuthSessionLostException() => GetIt.I<AuthCubit>().noteAuthSessionLoss(
+          s.error,
+        ),
+        final Localizable e => showSnackBar(
+          context,
+          isError: true,
+          text: e.toL10n(localeName),
+        ),
+        final Object e => showSnackBar(
+          context,
+          isError: true,
+          text: e.toString(),
+        ),
       },
-    ),
     _ => null,
   };
 }

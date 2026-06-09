@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:injectable/injectable.dart';
+import 'package:synchronized/synchronized.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
@@ -40,7 +41,7 @@ final class AuthCase extends UseCaseBase {
 
   final SettingsRepositoryPort _settingsRepository;
 
-  bool _authTransitionLocked = false;
+  final _authTransitionLock = Lock();
 
   ///
   /// A stream that emits the current account ID whenever it changes.
@@ -309,17 +310,8 @@ final class AuthCase extends UseCaseBase {
 
   void noteAuthenticatedBoot() => _platformCleanup.noteAuthenticatedBoot();
 
-  Future<T> _runAuthTransition<T>(Future<T> Function() action) async {
-    while (_authTransitionLocked) {
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-    }
-    _authTransitionLocked = true;
-    try {
-      return await action();
-    } finally {
-      _authTransitionLocked = false;
-    }
-  }
+  Future<T> _runAuthTransition<T>(Future<T> Function() action) =>
+      _authTransitionLock.synchronized(action);
 
   //
   static final _random = Random.secure();

@@ -10,6 +10,16 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/auth/domain/entity/auth_recovery_outcome.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
+/// Whether [AuthRecoveryListener] should react to an [AuthState] transition.
+bool authRecoveryListenerShouldListen(
+  AuthState previous,
+  AuthState current,
+) =>
+    previous.authRecoveryNeeded != current.authRecoveryNeeded ||
+    previous.authSessionLossCount != current.authSessionLossCount ||
+    previous.pendingRecoveryNavigation != current.pendingRecoveryNavigation ||
+    (current.status is StateHasError && previous.status != current.status);
+
 /// App-root auth recovery banner, navigation, and session-loss handling.
 class AuthRecoveryListener extends StatelessWidget {
   const AuthRecoveryListener({required this.child, super.key});
@@ -19,14 +29,7 @@ class AuthRecoveryListener extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       BlocListener<AuthCubit, AuthState>(
-        listenWhen: (previous, current) =>
-            previous.authRecoveryNeeded != current.authRecoveryNeeded ||
-            previous.authSessionLossCount != current.authSessionLossCount ||
-            previous.pendingRecoveryNavigation !=
-                current.pendingRecoveryNavigation ||
-            (previous.status is StateHasError &&
-                current.status is StateHasError &&
-                previous.status != current.status),
+        listenWhen: authRecoveryListenerShouldListen,
         listener: (context, state) {
           _handlePendingNavigation(context, state);
           _handleRecoveryBanner(context, state);
