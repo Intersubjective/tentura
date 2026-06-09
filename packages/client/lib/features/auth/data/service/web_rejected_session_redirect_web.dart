@@ -1,11 +1,19 @@
 import 'package:web/web.dart' as web;
 
+import 'stale_session_redirect_policy.dart';
+
 const _staleSessionReloadKey = 'tentura.staleSessionReload';
 
 const _publicInviteFallback = '/invite/';
 
 /// After a rejected browser session bootstrap, navigate to landing.
 void reloadAfterRejectedSession({required bool clearAcknowledged}) {
+  if (!shouldBounceRejectedSessionToLanding(
+    pathname: web.window.location.pathname,
+    hash: web.window.location.hash,
+  )) {
+    return;
+  }
   if (!clearAcknowledged) {
     web.window.location.replace(_publicInviteFallback);
     return;
