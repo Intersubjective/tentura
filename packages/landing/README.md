@@ -76,8 +76,10 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 ## Routes / states
 
 - **Signed-out `/`:** `renderNoInvite()` — invite-only explanation, manual invite
-  entry (paste link/code → `/invite/:code`), email OTP, Google (Tier 1), and
-  seed recovery link. No generic “Open Tentura” for anonymous visitors.
+  entry (paste link/code → `/invite/:code`) as the primary path. Sign-in (email,
+  Google Tier 1, recover-from-seed) is behind **“I already have an account”**; reveal
+  hides invite UI. **“Have an invite link?”** restores invite mode. With
+  `?signed_in=1`, shows **Open Tentura** CTA.
 - **Invite URL:** `/invite/:code` (e.g. `https://dev.tentura.io/invite/I…`).
 - Renders 5 preview states from `suggestedAction`: invalid · is-inviter ·
   already-friends · existing-user (befriend) · anonymous (email/Google/recover).

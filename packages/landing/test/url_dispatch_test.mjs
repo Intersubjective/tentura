@@ -42,16 +42,48 @@ test('Google CTA uses full same-origin returnTo for invite', () => {
   );
 });
 
-test('renderNoInvite shows invite entry and auth options', () => {
+test('renderNoInvite hides auth behind createSignInReveal', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function renderNoInvite'),
     mainJs.indexOf('async function main'),
   );
   assert.match(block, /setState\('no-invite'\)/);
   assert.match(block, /renderInviteEntryForm/);
-  assert.match(block, /renderInviteAuthOptions\(''\)/);
+  assert.match(block, /createSignInReveal\('', \{/);
+  assert.match(block, /hideOnReveal: \[inviteIntro, inviteForm\]/);
+  assert.doesNotMatch(block, /renderInviteAuthOptions\(''\)/);
   assert.doesNotMatch(block, /cta_open_app_no_invite/);
   assert.doesNotMatch(block, /Open Tentura/);
+});
+
+test('createSignInReveal uses buildSignInOptionItems with Sign in label', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function buildSignInOptionItems'),
+    mainJs.indexOf('function createSignInReveal'),
+  );
+  assert.match(block, /'Sign in'/);
+  assert.match(block, /renderEmailMagicLinkForm/);
+  assert.match(block, /Recover from seed/);
+  assert.match(block, /appRecoverUrl\(inviteCode\)/);
+});
+
+test('createSignInReveal offers invite-mode undo', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function createSignInReveal'),
+    mainJs.indexOf('// Email, Google, and seed recovery for invite pages.'),
+  );
+  assert.match(block, /Have an invite link\?/);
+  assert.match(block, /track\('cta_invite_mode'\)/);
+  assert.match(block, /for \(const node of hideOnReveal\) node\.hidden = false/);
+});
+
+test('renderNoInvite shows Open Tentura when signed_in=1', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function renderNoInvite'),
+    mainJs.indexOf('async function main'),
+  );
+  assert.match(block, /isSignedInReturn\(\)/);
+  assert.match(block, /ctaOpenApp\(\)/);
 });
 
 test('invite auth options include email, Google, and recover-from-seed', () => {
