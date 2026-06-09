@@ -6,6 +6,7 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
+import 'package:tentura_server/api/http/auth_invite_required_page.dart';
 import 'package:tentura_server/api/http/oauth_return_uri.dart';
 import 'package:tentura_server/api/http/oauth_state_codec.dart';
 import 'package:tentura_server/api/http/oauth_warmup_interstitial_page.dart';
@@ -194,39 +195,83 @@ final class AuthGoogleController extends BaseController {
       return Response.found(_linkReturn('google'), headers: clearOauth);
     }
 
-    final resolved = await _oidcCase.completeGoogle(
-      identity,
-      inviteId: payload.inviteId,
-    );
-    final sessionToken = await _sessionCase.createSession(
-      accountId: resolved.accountId,
-      credentialId: resolved.credentialId,
-    );
-    final destination = destinationAfterOAuthCallback(
-      returnTo: payload.returnTo,
-      publicOrigin: env.publicOrigin,
-    );
-    final headers = withSetCookie(
-      withSetCookie(
-        {kHeaderCacheControl: kCacheControlNoStore},
-        buildClearCookie(kCookieOAuthStateName),
-      ),
-      buildSetCookie(
-        name: _sessionCase.sessionCookieName(),
-        value: sessionToken,
-        maxAgeSeconds: _sessionCase.sessionCookieMaxAge().inSeconds,
-      ),
-    );
-    if (env.oauthPreloadEnabled) {
-      return Response.ok(
-        renderOAuthWarmupInterstitial(redirectUri: destination),
-        headers: {
-          ...headers,
-          kHeaderContentType: 'text/html; charset=utf-8',
-        },
+    try {
+      final resolved = await _oidcCase.completeGoogle(
+        identity,
+        inviteId: payload.inviteId,
+      );
+      final sessionToken = await _sessionCase.createSession(
+        accountId: resolved.accountId,
+        credentialId: resolved.credentialId,
+      );
+      final destination = destinationAfterOAuthCallback(
+        returnTo: payload.returnTo,
+        publicOrigin: env.publicOrigin,
+      );
+      final headers = withSetCookie(
+        withSetCookie(
+          {kHeaderCacheControl: kCacheControlNoStore},
+          buildClearCookie(kCookieOAuthStateName),
+        ),
+        buildSetCookie(
+          name: _sessionCase.sessionCookieName(),
+          value: sessionToken,
+          maxAgeSeconds: _sessionCase.sessionCookieMaxAge().inSeconds,
+        ),
+      );
+      if (env.oauthPreloadEnabled) {
+        return Response.ok(
+          renderOAuthWarmupInterstitial(redirectUri: destination),
+          headers: {
+            ...headers,
+            kHeaderContentType: 'text/html; charset=utf-8',
+          },
+        );
+      }
+      return Response.found(destination, headers: headers);
+    } on OidcInviteRequiredException {
+      return _inviteRequiredPage(
+        returnTo: payload.returnTo,
+        clearOauthCookie: true,
       );
     }
-    return Response.found(destination, headers: headers);
+  }
+
+  Response _inviteRequiredPage({
+    required String returnTo,
+    required bool clearOauthCookie,
+  }) {
+    final headers = <String, Object>{
+      kHeaderContentType: 'text/html; charset=utf-8',
+      kHeaderCacheControl: kCacheControlNoStore,
+    };
+    if (clearOauthCookie) {
+      return Response(
+        403,
+        body: renderAuthInviteRequiredPage(
+          landingUrl: publicLandingUrl(env.publicOrigin),
+          inviteUrl: invitePageUrlFromReturnTo(
+            returnTo: returnTo,
+            publicOrigin: env.publicOrigin,
+          ),
+        ),
+        headers: withSetCookie(
+          headers,
+          buildClearCookie(kCookieOAuthStateName),
+        ),
+      );
+    }
+    return Response(
+      403,
+      body: renderAuthInviteRequiredPage(
+        landingUrl: publicLandingUrl(env.publicOrigin),
+        inviteUrl: invitePageUrlFromReturnTo(
+          returnTo: returnTo,
+          publicOrigin: env.publicOrigin,
+        ),
+      ),
+      headers: headers,
+    );
   }
 
   Uri _callbackUri() {

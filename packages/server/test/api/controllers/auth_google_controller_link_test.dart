@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart'
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/oidc_identity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/oidc_provider_port.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
@@ -235,6 +236,88 @@ void main() {
         contacts: anyNamed('contacts'),
       ),
     );
+  });
+
+  test('login callback shows invite-required page for new user without invite', () async {
+    env = Env(environment: Environment.test, isNeedInvite: true);
+    codec = OAuthStateCodec(env);
+    userRepo = MockUserRepositoryPort();
+    sessionRepo = _FakeSessionRepository();
+    final contactRepo = MockVerifiedContactRepositoryPort();
+    final authCase = AuthCase(
+      userRepo,
+      env: env,
+      logger: Logger('AuthGoogleLinkTest'),
+    );
+    final credentialAuthCase = CredentialAuthCase(
+      userRepo,
+      contactRepo,
+      InvitationCase(
+        MockInvitationRepositoryPort(),
+        userRepo,
+        MockBeaconRepositoryPort(),
+        MockVoteUserFriendshipLookup(),
+        env: env,
+        logger: Logger('AuthGoogleLinkTest'),
+      ),
+      env: env,
+      logger: Logger('AuthGoogleLinkTest'),
+    );
+    final oidcCase = OidcCase(
+      credentialAuthCase,
+      userRepo,
+      env: env,
+      logger: Logger('AuthGoogleLinkTest'),
+    );
+    final sessionCase = SessionCase(
+      sessionRepo,
+      authCase,
+      env: env,
+      logger: Logger('AuthGoogleLinkTest'),
+    );
+    controller = AuthGoogleController(
+      env,
+      _FakeOidcProvider(),
+      oidcCase,
+      sessionCase,
+      codec,
+    );
+
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {});
+
+    const state = 'state-invite-required';
+    final oauthCookie = codec.encode(
+      const OAuthStatePayload(
+        state: state,
+        codeVerifier: 'verifier',
+        nonce: 'nonce789',
+        returnTo: '',
+      ),
+    );
+
+    final response = await controller.callback(
+      Request(
+        'GET',
+        Uri.parse(
+          'http://localhost/api/auth/google/callback?code=abc&state=$state',
+        ),
+        headers: {'cookie': '$kCookieOAuthStateName=$oauthCookie'},
+      ),
+    );
+
+    expect(response.statusCode, 403);
+    final body = await readBody(response);
+    expect(body, contains('No account found for this sign-in'));
+    expect(body, contains('Back to sign in'));
+    expect(setCookieHeader(response), contains(kCookieOAuthStateName));
   });
 
   test('linkStart rejects when session account mismatches lt', () async {
