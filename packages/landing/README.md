@@ -20,7 +20,7 @@ opens it — gated off in in-app webviews, Save-Data mode, and slow links.
 |----------------------|-------------------------------------------------------------|
 | `index.html`         | markup; loads Sentry CDN, `config.js`, optional `config.local.js`, `main.js` |
 | `config.js`          | runtime config template (`apiBase`, `googleEnabled`, `sentryDsn`) |
-| `config.local.js`    | gitignored local overlay — run `./scripts/sync-landing-local-config.sh` |
+| `config.local.js`    | no-op stub by default; `./scripts/sync-landing-local-config.sh` sets `googleEnabled` locally |
 | `main.js`            | entry ES module; renders invite states + signed-out `/`     |
 | `app_preload.js`     | background WASM asset warmup (manifest + SW + cache)        |
 | `invite_entry.js`    | manual invite link/code parsing for signed-out `/`            |
