@@ -10,15 +10,19 @@ It exists so an invite click renders instantly (300–800ms TTI) in in-app
 webviews, instead of waiting 3–6s+ for the Flutter WASM app to boot. It fetches
 the JSON preview from the Dart server and renders one of five states.
 
+On load, the landing also starts **background WASM asset warmup** (service worker
+registration + Cache Storage population) so the app boots faster when the user
+opens it — gated off in in-app webviews, Save-Data mode, and slow links.
+
 ## Files (all served directly)
 
 | File                 | Role                                                        |
 |----------------------|-------------------------------------------------------------|
 | `index.html`         | markup; loads Sentry CDN, `config.js`, optional `config.local.js`, `main.js` |
-| `config.js`          | runtime config template (`appBase: ''` — CI sed injects deploy URL) |
+| `config.js`          | runtime config template (`apiBase`, `googleEnabled`, `sentryDsn`) |
 | `config.local.js`    | gitignored local overlay — run `./scripts/sync-landing-local-config.sh` |
-| `resolve_app_base.js`| shared resolver; throws if `appBase` missing/invalid        |
 | `main.js`            | entry ES module; renders invite states + signed-out `/`     |
+| `app_preload.js`     | background WASM asset warmup (manifest + SW + cache)        |
 | `invite_entry.js`    | manual invite link/code parsing for signed-out `/`            |
 | `preview.js`  | fetches `GET /api/v2/invite/:code/preview`                  |
 | `webview.js`  | in-app-webview detection / Android `intent://`              |
@@ -36,14 +40,13 @@ etc.) natively — nothing is bundled.
 ## Runtime config (`config.js` + optional `config.local.js`, no build step)
 
 ```js
-window.TENTURA = { sentryDsn: '', apiBase: '', appBase: '', googleEnabled: false };
+window.TENTURA = { sentryDsn: '', apiBase: '', googleEnabled: false };
 ```
 
 | Key              | Meaning                                          | Default  |
 |------------------|--------------------------------------------------|----------|
 | `sentryDsn`      | Sentry DSN; empty = analytics no-op              | `''`     |
 | `apiBase`        | Origin for the preview API; empty = same origin  | `''`     |
-| `appBase`        | WASM app origin; empty = same host as landing (`location.origin`) | `''` |
 | `googleEnabled`  | Show Google OAuth in Tier-1 login reveal (needs server `GOOGLE_*`)  | `false`  |
 
 **CI/deploy:** set GitHub Environment variable `LANDING_GOOGLE_ENABLED=true` when
@@ -51,16 +54,12 @@ server Google OAuth is configured; the pipeline injects it into `config.js`.
 Local dev: `./scripts/sync-landing-local-config.sh` sets `googleEnabled` from
 `GOOGLE_CLIENT_ID` in repo-root `.env`.
 
-`resolve_app_base.js` uses `appBase` when set; otherwise it defaults to `location.origin/` (single-origin deploy). Invalid URLs still throw.
-
 **Local dev:** copy repo-root `.env.example` → `.env`, then:
 
 ```bash
-./scripts/sync-landing-local-config.sh   # writes config.local.js from APP_ORIGIN
-./scripts/validate_landing_config.sh --local
+./scripts/sync-landing-local-config.sh   # writes config.local.js (googleEnabled)
+./scripts/resolve_local_web_config.sh --check-only
 ```
-
-**CI/deploy:** `pipeline.yml` sed-injects `appBase` from resolved `APP_BASE`; `validate_landing_config.sh` fails the job if still empty.
 
 See also `config.local.example.js` for a manual template.
 
@@ -88,7 +87,19 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - Renders 5 preview states from `suggestedAction`: invalid · is-inviter ·
   already-friends · existing-user (befriend) · anonymous (login reveal + Tier-1 signup).
 - **Beacon overlay** shown above the CTA in every state when `beacon` is present.
-- Funnel events fire via Sentry **before** any WASM.
+- Funnel events fire via Sentry **before** any WASM boot; app asset warmup starts
+  immediately in the background (see `app_preload.js`).
+
+## WASM background warmup
+
+`app_preload.js` runs on every landing visit (fire-and-forget from `main.js`):
+
+- Registers `/tentura-app-cache-sw.js` and fetches `/wasm-preload-manifest.json`.
+- Populates `tentura-app-assets-<version>` in Cache Storage (same contract as the
+  OAuth warmup interstitial and the WASM app's own service worker).
+- Uses low-priority / idle scheduling so the invite preview JSON is not delayed.
+- **Skipped** when: Tier-2 in-app webview (`env.inApp`), Save-Data is on, or
+  `navigator.connection.effectiveType` is `slow-2g` / `2g`.
 
 ## Auth
 
@@ -123,12 +134,11 @@ padding.
 
 ## Session handoff (device-seed → WASM app)
 
-On single-origin deploy, landing and WASM share `location.origin` (`appBase`
-defaults empty). **Only device-seed signup** uses `#th=` handoff — email and
-Google set the HttpOnly session cookie instead.
+Landing and WASM share `location.origin`. **Only device-seed signup** uses `#th=`
+handoff — email and Google set the HttpOnly session cookie instead.
 
 `handoff.js` redirects with `{ userId, seed }` in the URL fragment
-(`{appBase}#th=<base64url(utf8(json))>`); WASM captures it before boot, writes
+(`{origin}/#th=<base64url(utf8(json))>`); WASM captures it before boot, writes
 secure storage, and scrubs the fragment. Field names are pinned in
 `docs/handoff-contract.md` (`scripts/check_handoff_contract.sh` in CI).
 

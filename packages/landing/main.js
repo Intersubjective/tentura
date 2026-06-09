@@ -7,13 +7,11 @@ import {
   startEmailMagicLink,
   webcryptoEd25519Available,
 } from './auth.js';
-import { resolveAppBase } from './resolve_app_base.js';
 import { parseInviteEntryInput, invitePathForCode } from './invite_entry.js';
+import { startAppPreload } from './app_preload.js';
 
 const GOOGLE_ENABLED = Boolean((window.TENTURA || {}).googleEnabled);
 const API_BASE = (window.TENTURA || {}).apiBase || '';
-
-let APP_BASE = '';
 
 const app = document.getElementById('app');
 const card = document.getElementById('card');
@@ -77,13 +75,12 @@ function header(p) {
 
 // --- CTAs ------------------------------------------------------------------
 function appHashUrl(path) {
-  const base = APP_BASE.replace(/\/$/, '');
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  return `${base}#${normalized}`;
+  return `${location.origin}/#${normalized}`;
 }
 
 function openProductUrl() {
-  return APP_BASE.endsWith('/') ? APP_BASE : `${APP_BASE}/`;
+  return `${location.origin}/`;
 }
 
 function openAcceptInviteUrl(code) {
@@ -618,24 +615,6 @@ function renderError() {
 // logged-out / unauthenticated web user here (the app has no login UI). Tentura
 // is invite-only, so there is no public signup; show a neutral message rather
 // than the link-specific "Something went wrong" error.
-function renderConfigError(message) {
-  setState('invalid');
-  setPageTitle('Configuration error — Tentura');
-  card.replaceChildren(
-    el(
-      'div',
-      { class: 'content' },
-      el('h1', {}, 'Configuration error'),
-      el('p', {}, message),
-      el(
-        'p',
-        {},
-        'Local dev: copy .env.example to .env, then run ./scripts/sync-landing-local-config.sh',
-      ),
-    ),
-  );
-}
-
 function renderNoInvite() {
   setState('no-invite');
   setPageTitle('Tentura — invite-only');
@@ -657,29 +636,8 @@ function renderNoInvite() {
   );
 }
 
-function addAppPreconnect(appBase) {
-  try {
-    const origin = new URL(appBase).origin;
-    if (document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) {
-      return;
-    }
-    const link = document.createElement('link');
-    link.rel = 'preconnect';
-    link.href = origin;
-    document.head.appendChild(link);
-  } catch (_) {
-    /* invalid appBase */
-  }
-}
-
 async function main() {
-  try {
-    APP_BASE = resolveAppBase();
-    addAppPreconnect(APP_BASE);
-  } catch (e) {
-    renderConfigError(String(e.message || e));
-    return;
-  }
+  startAppPreload({ env, track });
   initAnalytics();
   const code = parseInviteCode();
   // Funnel event fires BEFORE any WASM — the Phase 0 analytics deliverable.

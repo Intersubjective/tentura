@@ -57,12 +57,10 @@ Configure secrets under **Settings → Environments** (per environment) and **Se
 
   | GitHub `dev` variable | Required | Resolved value |
   |----------------------|----------|----------------|
-  | `CLIENT_SERVER_NAME` | **Yes** | WASM `--dart-define=SERVER_NAME` (API/WS origin, e.g. `https://app.dev.tentura.io`) |
+  | `CLIENT_SERVER_NAME` | **Yes** | WASM `--dart-define=SERVER_NAME` and invite share links (`/invite/I…`) on the single public origin (e.g. `https://dev.tentura.io`) |
   | `IMAGE_SERVER` | **Yes** | WASM `--dart-define=IMAGE_SERVER` (CDN/S3 base for image URLs) |
-  | `INVITE_LINK_HOST` | No | Derived: `CLIENT_SERVER_NAME` with `app.` stripped from host → landing invite URLs (`/invite/I…`) |
-  | `APP_BASE` | No | Derived: `CLIENT_SERVER_NAME` + trailing `/` → `packages/landing/config.js` `appBase` |
 
-  Local check: `CLIENT_SERVER_NAME=https://app.dev.tentura.io IMAGE_SERVER=https://cdn.example/bucket bash scripts/resolve_deploy_web_config.sh --check-only`
+  Local check: `CLIENT_SERVER_NAME=https://dev.tentura.io IMAGE_SERVER=https://cdn.example/bucket bash scripts/resolve_deploy_web_config.sh --check-only`
 
   **Server vs client:** `FB_APP_ID` on the VPS (service worker via Tentura API) and in `CLIENT_DART_DEFINES` (compiled into the Flutter web app) must both be correct. Redeploying the API alone does not fix a bad web build — push to `main` must rebuild web after updating the secret.
 

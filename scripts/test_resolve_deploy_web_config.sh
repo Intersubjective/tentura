@@ -33,54 +33,29 @@ run_fail "missing CLIENT_SERVER_NAME" \
   bash "$RESOLVE" --check-only
 
 run_fail "missing IMAGE_SERVER" \
-  env CLIENT_SERVER_NAME=https://app.dev.tentura.io IMAGE_SERVER= \
+  env CLIENT_SERVER_NAME=https://dev.tentura.io IMAGE_SERVER= \
   bash "$RESOLVE" --check-only
 
 # --- invalid URLs ---
 run_fail "invalid IMAGE_SERVER" \
-  env CLIENT_SERVER_NAME=https://app.dev.tentura.io IMAGE_SERVER=not-a-url \
+  env CLIENT_SERVER_NAME=https://dev.tentura.io IMAGE_SERVER=not-a-url \
   bash "$RESOLVE" --check-only
 
 run_fail "path-only CLIENT_SERVER_NAME" \
   env CLIENT_SERVER_NAME=/invite/foo IMAGE_SERVER=https://cdn.example/bucket \
   bash "$RESOLVE" --check-only
 
-# --- derive invite + app base ---
+# --- valid single-origin config ---
 output="$(
   env \
-    CLIENT_SERVER_NAME=https://app.dev.tentura.io \
+    CLIENT_SERVER_NAME=https://dev.tentura.io \
     IMAGE_SERVER=https://cdn.example/tentura \
-    INVITE_LINK_HOST= \
-    APP_BASE= \
     bash "$RESOLVE" --check-only 2>&1
 )"
-echo "$output" | grep -q 'INVITE_LINK_HOST=https://dev.tentura.io' \
-  || { echo "FAIL: expected derived INVITE_LINK_HOST" >&2; exit 1; }
-echo "$output" | grep -q 'APP_BASE=https://app.dev.tentura.io/' \
-  || { echo "FAIL: expected derived APP_BASE" >&2; exit 1; }
-echo "OK: derives INVITE_LINK_HOST and APP_BASE from CLIENT_SERVER_NAME"
-
-# --- explicit overrides respected ---
-output="$(
-  env \
-    CLIENT_SERVER_NAME=https://app.dev.tentura.io \
-    IMAGE_SERVER=https://cdn.example/tentura \
-    INVITE_LINK_HOST=https://custom.landing.io \
-    APP_BASE=https://custom.app.io/ \
-    bash "$RESOLVE" --check-only 2>&1
-)"
-echo "$output" | grep -q 'INVITE_LINK_HOST=https://custom.landing.io' \
-  || { echo "FAIL: explicit INVITE_LINK_HOST not kept" >&2; exit 1; }
-echo "$output" | grep -q 'APP_BASE=https://custom.app.io/' \
-  || { echo "FAIL: explicit APP_BASE not kept" >&2; exit 1; }
-echo "OK: explicit INVITE_LINK_HOST and APP_BASE preserved"
-
-# --- APP_BASE must end with slash when explicit ---
-run_fail "APP_BASE without trailing slash" \
-  env \
-    CLIENT_SERVER_NAME=https://app.dev.tentura.io \
-    IMAGE_SERVER=https://cdn.example/tentura \
-    APP_BASE=https://app.dev.tentura.io \
-    bash "$RESOLVE" --check-only
+echo "$output" | grep -q 'CLIENT_SERVER_NAME=https://dev.tentura.io' \
+  || { echo "FAIL: expected CLIENT_SERVER_NAME in output" >&2; exit 1; }
+echo "$output" | grep -q 'IMAGE_SERVER=https://cdn.example/tentura' \
+  || { echo "FAIL: expected IMAGE_SERVER in output" >&2; exit 1; }
+echo "OK: resolves CLIENT_SERVER_NAME and IMAGE_SERVER"
 
 echo "All resolve_deploy_web_config tests passed."

@@ -53,7 +53,7 @@
 				"--dart-define",
 				"NEED_INVITE_CODE=true",
 				"--dart-define",
-				"SERVER_NAME=https://app.tentura.io",
+				"SERVER_NAME=https://tentura.io",
 			],
 			"group": {
 				"kind": "build",

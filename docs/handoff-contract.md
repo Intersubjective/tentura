@@ -9,15 +9,11 @@
 ## Origin / scope
 
 Production and dev use a **single public origin** for landing and WASM
-(`tentura.io`, `dev.tentura.io`, local `dev.lvh.me:9443`). `resolve_app_base.js`
-defaults `appBase` to `location.origin` when unset.
+(`tentura.io`, `dev.tentura.io`, local `dev.lvh.me:9443`). Landing CTAs and
+handoff URLs use `location.origin`.
 
-Legacy subdomain split (`app.tentura.io`) may still be configured via explicit
-`appBase` in `config.js` for rollback — the handoff mechanics are unchanged.
-
-Regardless of same- vs cross-origin deploy, the landing **cannot** write the
-app's encrypted `LocalSecureStorage` keys directly — only a one-time fragment
-payload the app consumes on boot.
+The landing **cannot** write the app's encrypted `LocalSecureStorage` keys
+directly — only a one-time fragment payload the app consumes on boot.
 
 ## Why the landing does NOT write the app's storage keys
 
@@ -47,7 +43,7 @@ The landing redirects (top-level navigation) to the app root with the payload in
 the **URL fragment**:
 
 ```
-{appBase}#th=<base64url( utf8( JSON ) )>
+{origin}/#th=<base64url( utf8( JSON ) )>
 ```
 
 - The **fragment** (not the query) carries the secret: fragments are never sent
@@ -87,7 +83,7 @@ decodes symmetrically (`utf8.decode(base64Url.decode(base64.normalize(...)))`).
 
 1. Landing completes **device-seed signup** (`auth.js` `signUpWithSeed`) and
    obtains `{ userId, seed, displayName? }` from `accept-as-new`.
-2. Landing builds `{appBase}#th=<payload>` (`packages/landing/handoff.js`
+2. Landing builds `{origin}/#th=<payload>` (`packages/landing/handoff.js`
    `buildHandoffUrl` / `redirectToApp`) and **redirects** to the app root.
 3. The app captures the raw fragment into `window.__tenturaHandoff` in an inline
    `web/index.html` script **before** Flutter boots (the app uses the hash URL

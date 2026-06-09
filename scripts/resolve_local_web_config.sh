@@ -2,7 +2,6 @@
 # Resolves and validates local web-stack URLs from repo-root .env.
 #
 # Required in .env: SERVER_NAME (public origin URL), IMAGE_SERVER
-# Derived: APP_BASE (= SERVER_NAME + trailing /)
 #
 # Usage:
 #   bash scripts/resolve_local_web_config.sh --check-only
@@ -61,8 +60,6 @@ if [[ -n "$GOOGLE_CLIENT_ID" && -z "${GOOGLE_CLIENT_SECRET// }" ]]; then
   exit 1
 fi
 
-APP_BASE="$(derive_app_base "$SERVER_NAME")"
-
 _log() {
   if [[ "$EXPORT" -eq 0 ]]; then
     echo "$@"
@@ -71,13 +68,11 @@ _log() {
 
 _log "resolve_local_web_config: SERVER_NAME=${SERVER_NAME}"
 _log "resolve_local_web_config: IMAGE_SERVER=${IMAGE_SERVER}"
-_log "resolve_local_web_config: APP_BASE=${APP_BASE}"
 
 if [[ "$EXPORT" -eq 1 ]]; then
   cat <<EOF
 export SERVER_NAME='${SERVER_NAME}'
 export IMAGE_SERVER='${IMAGE_SERVER}'
-export APP_BASE='${APP_BASE}'
 export GOOGLE_CLIENT_ID='${GOOGLE_CLIENT_ID}'
 EOF
 fi

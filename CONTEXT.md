@@ -44,8 +44,8 @@ without consuming the invite.
 The onboarding route (`/sign/up/<code>`) for a user who arrived from a **basic
 invite URL** without an authenticated account/session. On native it shows the
 register screen and the server consumes the invite during account creation; on
-web it defers to the **landing surface** (which owns signup). Future onboarding
-may move into landing so the **WASM surface** can preload during it.
+web it defers to the **landing surface** (which owns signup). The landing
+starts **background WASM asset warmup** immediately on load (`app_preload.js`).
 
 **Accept-invite route**:
 The authenticated route (`/accept-invite/<code>`) for accepting a basic invite as

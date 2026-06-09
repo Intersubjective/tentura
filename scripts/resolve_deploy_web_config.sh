@@ -2,7 +2,6 @@
 # Resolves and validates dev web-build deploy variables before flutter build / landing package.
 #
 # Required env: CLIENT_SERVER_NAME, IMAGE_SERVER
-# Optional env (derived when empty): INVITE_LINK_HOST, APP_BASE
 #
 # Usage:
 #   bash scripts/resolve_deploy_web_config.sh
@@ -40,43 +39,17 @@ done
 
 CLIENT_SERVER_NAME="${CLIENT_SERVER_NAME:-}"
 IMAGE_SERVER="${IMAGE_SERVER:-}"
-INVITE_LINK_HOST="${INVITE_LINK_HOST:-}"
-APP_BASE="${APP_BASE:-}"
 
 require_absolute_url "CLIENT_SERVER_NAME" "$CLIENT_SERVER_NAME"
 require_absolute_url "IMAGE_SERVER" "$IMAGE_SERVER"
 
-if [[ -n "$INVITE_LINK_HOST" ]]; then
-  require_absolute_url "INVITE_LINK_HOST" "$INVITE_LINK_HOST"
-else
-  INVITE_LINK_HOST="$(derive_invite_link_host "$CLIENT_SERVER_NAME")"
-  require_absolute_url "INVITE_LINK_HOST" "$INVITE_LINK_HOST"
-fi
-
-if [[ -n "$APP_BASE" ]]; then
-  require_absolute_url "APP_BASE" "$APP_BASE"
-  case "$APP_BASE" in
-    */) ;;
-    *)
-      echo "::error::APP_BASE must end with / (got: ${APP_BASE})." >&2
-      exit 1
-      ;;
-  esac
-else
-  APP_BASE="$(derive_app_base "$CLIENT_SERVER_NAME")"
-fi
-
 echo "resolve_deploy_web_config: CLIENT_SERVER_NAME=${CLIENT_SERVER_NAME}"
 echo "resolve_deploy_web_config: IMAGE_SERVER=${IMAGE_SERVER}"
-echo "resolve_deploy_web_config: INVITE_LINK_HOST=${INVITE_LINK_HOST}"
-echo "resolve_deploy_web_config: APP_BASE=${APP_BASE}"
 
 if [[ -n "$GITHUB_OUTPUT" ]]; then
   {
     echo "client_server_name=${CLIENT_SERVER_NAME}"
     echo "image_server=${IMAGE_SERVER}"
-    echo "invite_link_host=${INVITE_LINK_HOST}"
-    echo "app_base=${APP_BASE}"
   } >>"$GITHUB_OUTPUT"
 fi
 

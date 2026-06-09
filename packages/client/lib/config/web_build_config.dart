@@ -18,14 +18,6 @@ void assertWebBuildConfig() {
   if (!_isAbsoluteHttpUrl(kServerName)) missing.add('SERVER_NAME');
   if (!_isAbsoluteHttpUrl(kImageServer)) missing.add('IMAGE_SERVER');
 
-  final inviteBase = resolveInviteLinkHost(
-    inviteLinkHost: kInviteLinkHost,
-    serverName: kServerName,
-  );
-  if (!_isAbsoluteHttpUrl(inviteBase)) {
-    missing.add('INVITE_LINK_HOST (or derivable SERVER_NAME)');
-  }
-
   if (missing.isEmpty) return;
 
   throw StateError(

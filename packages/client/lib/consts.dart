@@ -86,43 +86,12 @@ const kBeaconEntryUnknown = 'unknown';
 /// Product may enable force-close despite unresolved blockers later.
 const kBeaconAllowForceCloseWhenBlocked = false;
 
-/// First part of FQDN: `https://app.server.name`
+/// First part of FQDN: `https://dev.tentura.io` (single public origin).
 const kServerName = String.fromEnvironment('SERVER_NAME');
 
-/// Landing host for invite share links (`https://dev.tentura.io`, not app subdomain).
-const kInviteLinkHost = String.fromEnvironment('INVITE_LINK_HOST');
-
-/// Resolves invite link base when [inviteLinkHost] is empty (CI passed
-/// `--dart-define=INVITE_LINK_HOST=` with unset GitHub var — `fromEnvironment`
-/// then ignores [defaultValue] and yields a path-only URI).
-String resolveInviteLinkHost({
-  required String inviteLinkHost,
-  required String serverName,
-}) {
-  final explicit = inviteLinkHost.trim();
-  if (explicit.isNotEmpty) return explicit;
-
-  final server = Uri.parse(serverName);
-  final host = server.host;
-  if (host.startsWith('app.')) {
-    return server.replace(host: host.substring(4)).toString();
-  }
-  return serverName;
-}
-
-/// Share URL for invitation codes — `/invite/I…` on the landing host.
+/// Share URL for invitation codes — `/invite/I…` on the public origin.
 Uri inviteShareUri(String invitationId) {
-  final base = Uri.parse(
-    resolveInviteLinkHost(
-      inviteLinkHost: kInviteLinkHost,
-      serverName: kServerName,
-    ),
-  );
-  return base.replace(
-    path: '/invite/$invitationId',
-    queryParameters: const {},
-    fragment: '',
-  );
+  return Uri.parse(kServerName).replace(path: '/invite/$invitationId');
 }
 
 /// WebSocket server base URL; defaults to [kServerName].
