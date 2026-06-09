@@ -9,6 +9,7 @@ import 'package:gql_dedupe_link/gql_dedupe_link.dart';
 import 'package:tentura_root/consts.dart';
 
 import 'auth_link.dart';
+import 'auth_loss_classifier.dart';
 import 'graphql_v2_exceptions.dart';
 
 typedef ClientParams = ({
@@ -61,6 +62,7 @@ Future<Client> buildClient({
                 );
               }
             }
+            throw mapRemoteFailure(errs);
           }
           throw Exception(response.errors.toString());
         },

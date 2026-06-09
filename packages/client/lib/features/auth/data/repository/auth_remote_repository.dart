@@ -106,12 +106,20 @@ class AuthRemoteRepository extends RemoteRepository
   @override
   Future<void> signOut() async {
     if (remoteApiService.isSessionAuth) {
+      // OAuth / cookie session: revoke HttpOnly cookie only. GraphQL SignOut
+      // would call getAuthToken → /session/access-token after the cookie is gone.
       await remoteApiService.sessionLogout();
+      await remoteApiService.dropAuth();
+      return;
     }
     if (remoteApiService.hasValidToken) {
-      await remoteApiService
-          .request(GSignOutReq())
-          .firstWhere((e) => e.dataSource == DataSource.Link);
+      try {
+        await remoteApiService
+            .request(GSignOutReq())
+            .firstWhere((e) => e.dataSource == DataSource.Link);
+      } catch (e, st) {
+        log.fine('GraphQL signOut best-effort failed', e, st);
+      }
     }
     await remoteApiService.dropAuth();
   }

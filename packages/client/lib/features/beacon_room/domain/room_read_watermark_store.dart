@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:injectable/injectable.dart';
+
+import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
 /// Session-scoped per-beacon main-room read watermarks (survives route pushes).
 ///
@@ -8,6 +11,20 @@ import 'package:injectable/injectable.dart';
 /// sync (mark-seen mutation succeeded).
 @lazySingleton
 class RoomReadWatermarkStore {
+  RoomReadWatermarkStore(AuthCase authCase) {
+    _authSubscription = authCase.currentAccountChanges().listen((id) {
+      if (id.isEmpty) {
+        reset();
+      }
+    });
+  }
+
+  /// Unit tests without auth lifecycle wiring.
+  @visibleForTesting
+  RoomReadWatermarkStore.testing();
+
+  StreamSubscription<String>? _authSubscription;
+
   final _changesController = StreamController<String>.broadcast();
 
   /// Local read-through per beacon (monotonic max).
@@ -75,6 +92,15 @@ class RoomReadWatermarkStore {
     return serverCount;
   }
 
+  /// Clears all session-scoped watermark state (e.g. on auth reset).
+  void reset() {
+    _readThroughByBeacon.clear();
+    _syncedByBeacon.clear();
+  }
+
   @disposeMethod
-  Future<void> dispose() => _changesController.close();
+  Future<void> dispose() async {
+    await _authSubscription?.cancel();
+    await _changesController.close();
+  }
 }

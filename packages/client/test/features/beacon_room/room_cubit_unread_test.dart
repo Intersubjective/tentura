@@ -157,7 +157,7 @@ BeaconRoomCase _makeCase(_FakeBeaconRoomRepository fakeRoom) =>
       _FakeBeaconFactCardRepository(),
       _FakePollingRepository(),
       _FakeBeaconRoomHintsRepository(),
-      RoomReadWatermarkStore(),
+      RoomReadWatermarkStore.testing(),
       const FakeCoordinationItemCaseForRoom(),
       env: const Env(),
       logger: Logger('test'),

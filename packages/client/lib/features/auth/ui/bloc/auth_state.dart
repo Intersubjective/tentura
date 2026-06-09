@@ -1,6 +1,7 @@
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/account_entity.dart';
+import '../../domain/entity/auth_recovery_outcome.dart';
 
 part 'auth_state.freezed.dart';
 
@@ -11,6 +12,10 @@ abstract class AuthState extends StateBase with _$AuthState {
     @Default('') String currentAccountId,
     @Default([]) List<AccountEntity> accounts,
     @Default(StateIsSuccess()) StateStatus status,
+    @Default(false) bool isBootstrapping,
+    @Default(false) bool authRecoveryNeeded,
+    @Default(0) int authSessionLossCount,
+    AuthRecoveryNavigation? pendingRecoveryNavigation,
   }) = _AuthState;
 
   const AuthState._();

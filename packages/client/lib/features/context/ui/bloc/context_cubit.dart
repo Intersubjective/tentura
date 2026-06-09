@@ -119,9 +119,11 @@ class ContextCubit extends Cubit<ContextState> {
   ///
   ///
   Future<void> _onAuthChanges(String id) async {
-    if (id.isNotEmpty) {
-      await fetch(fromCache: false);
+    if (id.isEmpty) {
+      emit(const ContextState());
+      return;
     }
+    await fetch(fromCache: false);
   }
 
   ///

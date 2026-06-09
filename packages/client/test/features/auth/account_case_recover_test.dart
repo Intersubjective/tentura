@@ -180,6 +180,13 @@ class RecoverFakeAuthLocal implements AuthLocalRepositoryPort {
   Future<void> updateAccount(AccountEntity account) async {
     _accounts[account.id] = account;
   }
+
+  @override
+  Future<void> clearAllAuthData() async {
+    _accounts.clear();
+    sessionAccountIds.clear();
+    currentAccountId = null;
+  }
 }
 
 class RecoverFakeAuthRemote implements AuthRemoteRepositoryPort {

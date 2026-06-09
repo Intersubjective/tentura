@@ -7,7 +7,7 @@ void main() {
     late RoomReadWatermarkStore store;
 
     setUp(() {
-      store = RoomReadWatermarkStore();
+      store = RoomReadWatermarkStore.testing();
     });
 
     tearDown(() => store.dispose());

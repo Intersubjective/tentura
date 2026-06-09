@@ -197,6 +197,17 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
   Future<bool> isSessionAccount(String id) async =>
       (await _localSecureStorage.read(_sessionMarkerKey(id))) == '1';
 
+  @override
+  Future<void> clearAllAuthData() async {
+    for (final account in await getAccountsAll()) {
+      await removeAccount(account.id);
+    }
+    await _localSecureStorage.delete(_currentAccountKey);
+    _currentAccountId = '';
+    await _database.managers.friends.delete();
+    _controllerIdChanges.add('');
+  }
+
   static String _sessionMarkerKey(String id) => 'Auth:Session:$id';
 
   static const _repositoryKey = 'Auth';

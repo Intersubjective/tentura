@@ -32,7 +32,14 @@ void noteAuthenticatedBoot() {
   web.window.sessionStorage.removeItem(_staleSessionReloadKey);
 }
 
-/// Post sign-out navigation: `/` when cookie clear acknowledged, else `/invite/`.
+void clearStaleSessionBrowserGuard() {
+  noteAuthenticatedBoot();
+}
+
+/// Post sign-out navigation: always `/invite/` (static landing).
+///
+/// `/` uses cookie-presence routing — a lingering session cookie would reload
+/// WASM instead of the landing surface. `/invite/` is always landing HTML.
 void redirectAfterSignOut({required bool clearAcknowledged}) {
-  web.window.location.assign(clearAcknowledged ? '/' : _publicInviteFallback);
+  web.window.location.assign(_publicInviteFallback);
 }

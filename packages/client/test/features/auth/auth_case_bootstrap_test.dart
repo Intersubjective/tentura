@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
-import 'package:tentura/domain/port/device_push_port.dart';
-import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/entity/account_entity.dart';
 import 'package:tentura/features/auth/domain/entity/session_cookie_clear_result.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
@@ -9,19 +7,15 @@ import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dar
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
+import 'auth_test_helpers.dart';
+
 void main() {
   group('AuthCase.bootstrapWebSession', () {
     AuthCase build({
       required FakeAuthLocal local,
       FakeAuthRemote? remote,
     }) =>
-        AuthCase(
-          local,
-          remote ?? FakeAuthRemote(),
-          FakeDevicePush(),
-          env: const Env(),
-          logger: Logger('test'),
-        );
+        buildTestAuthCase(local, remote ?? FakeAuthRemote(), logger: Logger('test'));
 
     test('session cookie applies when valid', () async {
       final local = FakeAuthLocal();
@@ -122,12 +116,24 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
 
   @override
   Future<void> addSessionAccount(String id, [String? displayName]) async {
-    _accounts[id] = AccountEntity(id: id);
     sessionAccountIds.add(id);
+    _accounts.putIfAbsent(id, () => AccountEntity(id: id));
   }
 
   @override
-  Future<bool> isSessionAccount(String id) async => sessionAccountIds.contains(id);
+  Future<bool> isSessionAccount(String id) async =>
+      sessionAccountIds.contains(id);
+
+  @override
+  Future<String> getSeedByAccountId(String id) async {
+    if (seedlessAccountIds.contains(id)) {
+      throw const AuthIdNotFoundException();
+    }
+    return 'seed-$id';
+  }
+
+  @override
+  Future<String> getCurrentAccountId() async => currentAccountId ?? '';
 
   @override
   Future<void> setCurrentAccountId(String? id) async {
@@ -136,69 +142,57 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
 
   @override
   Stream<String> currentAccountChanges() => const Stream.empty();
+
   @override
   Future<void> dispose() async {}
-  @override
-  Future<String> getCurrentAccountId() async => currentAccountId ?? '';
-  @override
-  Future<String> getSeedByAccountId(String id) async {
-    if (seedlessAccountIds.contains(id)) {
-      throw const AuthIdNotFoundException();
-    }
-    return 'seed';
-  }
+
   @override
   Future<List<AccountEntity>> getAccountsAll() async => _accounts.values.toList();
+
   @override
-  Future<AccountEntity?> getCurrentAccount() async => null;
+  Future<AccountEntity?> getCurrentAccount() async =>
+      currentAccountId == null ? null : _accounts[currentAccountId];
+
   @override
-  Future<void> removeAccount(String id) async {}
+  Future<void> removeAccount(String id) async {
+    _accounts.remove(id);
+  }
+
   @override
   Future<void> updateAccount(AccountEntity account) async {}
+
+  @override
+  Future<void> clearAllAuthData() async {
+    _accounts.clear();
+    sessionAccountIds.clear();
+    seedlessAccountIds.clear();
+    currentAccountId = null;
+  }
 }
 
 class FakeAuthRemote implements AuthRemoteRepositoryPort {
   FakeAuthRemote({
-    this.sessionUserId,
+    this.sessionUserId = 'U1',
     this.sessionRejected = false,
     this.sessionNetworkError = false,
     this.clearAcknowledged = true,
   });
 
-  final String? sessionUserId;
+  final String sessionUserId;
   final bool sessionRejected;
   final bool sessionNetworkError;
   final bool clearAcknowledged;
-
-  int clearSessionCookieCalls = 0;
-  int sessionLogoutCalls = 0;
-
-  @override
-  Future<void> signOut() async {}
-
-  @override
-  Future<String> signIn(String seed) async => '';
+  var clearSessionCookieCalls = 0;
 
   @override
   Future<String> signInWithSession() async {
     if (sessionNetworkError) {
-      throw StateError('network');
+      throw Exception('network');
     }
     if (sessionRejected) {
       throw const SessionAuthRejectedException();
     }
-    if (sessionUserId == null) {
-      throw StateError('no session');
-    }
-    return sessionUserId!;
-  }
-
-  @override
-  Future<void> establishSessionFromBearer() async {}
-
-  @override
-  Future<void> sessionLogout() async {
-    sessionLogoutCalls++;
+    return sessionUserId;
   }
 
   @override
@@ -210,6 +204,18 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
   }
 
   @override
+  Future<void> signOut() async {}
+
+  @override
+  Future<String> signIn(String seed) async => '';
+
+  @override
+  Future<void> establishSessionFromBearer() async {}
+
+  @override
+  Future<void> sessionLogout() async {}
+
+  @override
   Future<String> signUp({
     required String seed,
     required String displayName,
@@ -217,9 +223,4 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
     String? handle,
   }) async =>
       '';
-}
-
-class FakeDevicePush implements DevicePushPort {
-  @override
-  Future<void> unregisterCurrentDevice() async {}
 }

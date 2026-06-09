@@ -3248,5 +3248,13 @@
   "beaconRoomPlanAnnounceLineWithTitle": "{author} обновил(а) план · {title}",
   "itemStaleOverdue": "просрочено",
   "itemShowMore": "ещё",
-  "itemShowLess": "свернуть"
+  "itemShowLess": "свернуть",
+  "authSessionProblemBanner": "Не удалось проверить вашу сессию. Войдите снова.",
+  "authSessionProblemFixAction": "Исправить вход",
+  "authRecoveryHubTitle": "Восстановление сессии",
+  "authRecoverySignInAgain": "Войти снова",
+  "authRecoveryResetLocalTitle": "Сбросить локальные данные",
+  "authRecoveryResetLocalBody": "Будут удалены все аккаунты и ключи на этом устройстве. Аккаунт на сервере не удаляется.",
+  "authRecoveryResetSeedWarning": "После сброса вход с этого устройства может быть невозможен без seed-фразы или привязанного Google/email.",
+  "buttonDismiss": "Закрыть"
 }

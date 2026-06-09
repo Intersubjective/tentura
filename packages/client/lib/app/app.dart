@@ -17,7 +17,10 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 
+import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/auth/ui/widget/auth_recovery_listener.dart';
+import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/features/notification/fcm_debug_log.dart';
 import 'package:tentura/features/notification/ui/bloc/fcm_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -181,11 +184,20 @@ class App extends StatelessWidget {
                 const BlocListener<SettingsCubit, SettingsState>(
                   listener: commonScreenBlocListener,
                 ),
-                const BlocListener<AuthCubit, AuthState>(
+                BlocListener<AuthCubit, AuthState>(
+                  listenWhen: (previous, current) {
+                    final status = current.status;
+                    if (status is StateHasError && status != previous.status) {
+                      return status.error is! AuthSessionLostException;
+                    }
+                    return false;
+                  },
                   listener: commonScreenBlocListener,
                 ),
               ],
-              child: TenturaResponsiveScope(child: child),
+              child: TenturaResponsiveScope(
+                child: AuthRecoveryListener(child: child),
+              ),
             ),
           );
         },

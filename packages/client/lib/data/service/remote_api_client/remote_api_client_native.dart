@@ -71,6 +71,15 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
 
   @override
   @mustCallSuper
+  Future<void> dropAuth() async {
+    await _gqlClient?.dispose();
+    _gqlClient = null;
+    _replyPort = null;
+    await super.dropAuth();
+  }
+
+  @override
+  @mustCallSuper
   Future<void> close() async {
     await super.close();
     await _gqlClient?.dispose();
