@@ -182,8 +182,21 @@ final class CredentialAuthCase extends UseCaseBase {
     required String? inviteId,
     required String userId,
   }) async {
-    if (inviteId != null && inviteId.isNotEmpty) {
+    if (inviteId == null || inviteId.isEmpty) return;
+    try {
       await _invitationCase.acceptAsExisting(code: inviteId, userId: userId);
+    } on IdNotFoundException catch (e, st) {
+      logger.info(
+        'invite befriend skipped for $userId on $inviteId: ${e.description}',
+        e,
+        st,
+      );
+    } on InvitationWrongException catch (e, st) {
+      logger.info(
+        'invite befriend skipped for $userId on $inviteId: ${e.description}',
+        e,
+        st,
+      );
     }
   }
 

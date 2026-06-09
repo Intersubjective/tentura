@@ -137,7 +137,11 @@ class RootRouter {
       )
       ..get(
         '/auth/email/verify',
-        _authEmailController.verify,
+        _authEmailController.verifyGet,
+      )
+      ..post(
+        '/auth/email/verify',
+        _authEmailController.verifyPost,
       )
       ..post(
         '/api/v2/invite/<code>/accept-as-existing',

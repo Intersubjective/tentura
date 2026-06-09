@@ -23,22 +23,3 @@ class EmailAuthTransactionEntity {
   final DateTime createdAt;
   final DateTime expiresAt;
 }
-
-/// Result of a successful email verify (HTTP-free).
-class EmailAuthVerifyResult {
-  const EmailAuthVerifyResult({
-    required this.accountId,
-    this.inviteCode,
-    this.credentialId,
-    this.isLink = false,
-  });
-
-  final String accountId;
-  final String? inviteCode;
-
-  /// `email_otp` credential id, used to attribute the minted session.
-  final String? credentialId;
-
-  /// True when this was a Settings link-mode verify (mints NO session).
-  final bool isLink;
-}
