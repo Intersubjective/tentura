@@ -43,6 +43,7 @@ class GoogleOidcService implements OidcProviderPort {
           'nonce': nonce,
           'code_challenge': codeChallenge,
           'code_challenge_method': 'S256',
+          'prompt': 'select_account',
         },
       );
 
