@@ -6,6 +6,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
+import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
 
@@ -61,16 +62,59 @@ class EmailAuthTransactionRepository
   }
 
   @override
+  Future<EmailAuthTokenPeekRow> peekByToken(String plaintextToken) async {
+    if (plaintextToken.isEmpty) {
+      return (status: EmailAuthTokenStatus.missing, tx: null);
+    }
+    final tokenHash = hashToken(plaintextToken);
+    final rows = await _database.customSelect(
+      r'''
+SELECT id, normalized_email, invite_code, link_account_id,
+       CASE
+         WHEN consumed_at IS NOT NULL THEN 'consumed'
+         WHEN expires_at <= now() THEN 'expired'
+         ELSE 'valid'
+       END AS token_status
+FROM public.email_auth_transaction
+WHERE token_hash = $1
+LIMIT 1
+''',
+      variables: [Variable<String>(tokenHash)],
+    ).get();
+    if (rows.isEmpty) {
+      return (status: EmailAuthTokenStatus.missing, tx: null);
+    }
+    final row = rows.first;
+    final statusWire = row.read<String>('token_status');
+    final status = switch (statusWire) {
+      'consumed' => EmailAuthTokenStatus.consumed,
+      'expired' => EmailAuthTokenStatus.expired,
+      _ => EmailAuthTokenStatus.valid,
+    };
+    return (
+      status: status,
+      tx: EmailAuthTransactionEntity(
+        id: row.read<String>('id'),
+        normalizedEmail: row.read<String>('normalized_email'),
+        inviteCode: row.readNullable<String>('invite_code'),
+        linkAccountId: row.readNullable<String>('link_account_id'),
+        createdAt: DateTime.timestamp(),
+        expiresAt: DateTime.timestamp(),
+      ),
+    );
+  }
+
+  @override
   Future<EmailAuthTransactionEntity?> consumeByToken(
     String plaintextToken,
   ) async {
     if (plaintextToken.isEmpty) return null;
     final tokenHash = hashToken(plaintextToken);
     final rows = await _database.customSelect(
-      '''
+      r'''
 UPDATE public.email_auth_transaction
 SET consumed_at = now()
-WHERE token_hash = \$1
+WHERE token_hash = $1
   AND consumed_at IS NULL
   AND expires_at > now()
 RETURNING id, normalized_email, invite_code, link_account_id

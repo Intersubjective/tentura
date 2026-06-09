@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart' hide isNull, isNotNull;
 import 'package:tentura_server/data/repository/email_auth_transaction_repository.dart';
+import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/env.dart';
 
 /// Postgres integration test — skipped in CI when DB is down.
@@ -75,6 +76,35 @@ Future<void> main() async {
     'consumeByToken returns null for empty token',
     () async {
       expect(await repo.consumeByToken(''), isNull);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'peekByToken returns status without consuming',
+    () async {
+      const email = 'consume-test-peek@example.com';
+      final token = await repo.create(
+        normalizedEmail: email,
+        expiresIn: const Duration(minutes: 15),
+        userAgentHash: 'ua-hash',
+        ipHash: 'ip-hash',
+        inviteCode: 'Ipeek',
+      );
+
+      final peek1 = await repo.peekByToken(token);
+      expect(peek1.status, EmailAuthTokenStatus.valid);
+      expect(peek1.tx?.normalizedEmail, email);
+      expect(peek1.tx?.inviteCode, 'Ipeek');
+
+      final peek2 = await repo.peekByToken(token);
+      expect(peek2.status, EmailAuthTokenStatus.valid);
+
+      final consumed = await repo.consumeByToken(token);
+      expect(consumed, isNotNull);
+
+      final peek3 = await repo.peekByToken(token);
+      expect(peek3.status, EmailAuthTokenStatus.consumed);
     },
     skip: skipReason,
   );

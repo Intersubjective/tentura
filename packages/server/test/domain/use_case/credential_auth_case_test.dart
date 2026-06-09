@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
+import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -334,4 +335,45 @@ void main() {
 
     expect(await case_.emailIsRegistered('ada@example.com'), isTrue);
   });
+
+  test(
+    'existing account login with consumed invite does not throw',
+    () async {
+      when(
+        userRepo.getByCredential(
+          type: anyNamed('type'),
+          identifier: anyNamed('identifier'),
+        ),
+      ).thenAnswer(
+        (_) async => const UserEntity(id: 'Ugoogle', displayName: 'Ada'),
+      );
+      when(
+        invitationRepo.getById(invitationId: anyNamed('invitationId')),
+      ).thenAnswer(
+        (_) async => InvitationEntity(
+          id: 'Iconsumed',
+          issuer: const UserEntity(id: 'Uissuer', displayName: 'Bob'),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          invited: const UserEntity(id: 'Ugoogle', displayName: 'Ada'),
+        ),
+      );
+      when(
+        friendshipLookup.isReciprocalSubscribe(
+          viewerId: anyNamed('viewerId'),
+          peerId: anyNamed('peerId'),
+        ),
+      ).thenAnswer((_) async => false);
+
+      final id = await case_.resolveOrCreate(
+        type: CredentialType.emailOtp,
+        identifier: 'ada@example.com',
+        displayName: 'ada',
+        inviteId: 'Iconsumed',
+        assertedContacts: emailContact,
+      );
+
+      expect(id, 'Ugoogle');
+    },
+  );
 }

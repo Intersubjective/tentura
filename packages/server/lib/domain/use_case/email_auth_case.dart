@@ -5,11 +5,12 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
-import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
+import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/domain/port/email_auth_transaction_repository_port.dart';
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/credential_auth_case.dart';
+import 'package:tentura_server/domain/use_case/session_case.dart';
 import 'package:tentura_server/domain/util/email_auth_util.dart';
 
 import '_use_case_base.dart';
@@ -20,7 +21,8 @@ final class EmailAuthCase extends UseCaseBase {
     this._transactionRepository,
     this._emailSender,
     this._credentialAuthCase,
-    this._userRepository, {
+    this._userRepository,
+    this._sessionCase, {
     required super.env,
     required super.logger,
   });
@@ -29,6 +31,7 @@ final class EmailAuthCase extends UseCaseBase {
   final EmailSenderPort _emailSender;
   final CredentialAuthCase _credentialAuthCase;
   final UserRepositoryPort _userRepository;
+  final SessionCase _sessionCase;
 
   static String hashFingerprint(String value) =>
       sha256.convert(utf8.encode(value)).toString();
@@ -91,16 +94,17 @@ final class EmailAuthCase extends UseCaseBase {
     );
   }
 
-  /// Consumes token and resolves account. Throws `OidcInviteRequiredException`
-  /// when invite-only and no invite on a new account. In Settings link mode
-  /// (`tx.linkAccountId` present) strict-links `email_otp` to that account and
-  /// returns `isLink: true` so the controller mints NO session; conflicts
-  /// surface as `CredentialConflictException` / `ContactConflictException`.
-  Future<EmailAuthVerifyResult> verify(String plaintextToken) async {
-    final tx = await _transactionRepository.consumeByToken(plaintextToken);
-    if (tx == null) {
-      throw const EmailAuthTokenInvalidException();
-    }
+  /// Read-only token status for the confirmation page (never consumes).
+  Future<EmailAuthPeek> peek(String plaintextToken) async {
+    final row = await _transactionRepository.peekByToken(plaintextToken);
+    return EmailAuthPeek.fromTransaction(status: row.status, tx: row.tx);
+  }
+
+  /// Confirms sign-in or email link after user action. Consumes the token LAST.
+  Future<EmailAuthConfirmOutcome> confirm(String plaintextToken) async {
+    final peekRow = await _transactionRepository.peekByToken(plaintextToken);
+    _throwForStatus(peekRow.status);
+    final tx = peekRow.tx!;
 
     final emailContact = AssertedContact.email(
       rawEmail: tx.normalizedEmail,
@@ -109,17 +113,14 @@ final class EmailAuthCase extends UseCaseBase {
 
     final linkAccountId = tx.linkAccountId;
     if (linkAccountId != null && linkAccountId.isNotEmpty) {
-      final credential = await _userRepository.linkCredentialToAccountStrict(
+      await _userRepository.linkCredentialToAccountStrict(
         accountId: linkAccountId,
         type: CredentialType.emailOtp,
         identifier: tx.normalizedEmail,
         contacts: [emailContact],
       );
-      return EmailAuthVerifyResult(
-        accountId: linkAccountId,
-        credentialId: credential.id,
-        isLink: true,
-      );
+      await _consumeLast(plaintextToken);
+      return const EmailAuthLinkConfirmed();
     }
 
     final accountId = await _credentialAuthCase.resolveOrCreate(
@@ -133,11 +134,38 @@ final class EmailAuthCase extends UseCaseBase {
       type: CredentialType.emailOtp,
       identifier: tx.normalizedEmail,
     );
-    return EmailAuthVerifyResult(
+    final sessionToken = await _sessionCase.createSession(
       accountId: accountId,
-      inviteCode: tx.inviteCode,
       credentialId: credentialId,
     );
+    await _consumeLast(plaintextToken);
+    return EmailAuthLoginConfirmed(
+      sessionToken: sessionToken,
+      inviteCode: tx.inviteCode,
+    );
+  }
+
+  Future<void> _consumeLast(String plaintextToken) async {
+    final consumed = await _transactionRepository.consumeByToken(plaintextToken);
+    if (consumed == null) {
+      logger.warning(
+        'email auth confirm: token consume failed after successful auth '
+        '(concurrent use or race)',
+      );
+    }
+  }
+
+  void _throwForStatus(EmailAuthTokenStatus status) {
+    switch (status) {
+      case EmailAuthTokenStatus.valid:
+        return;
+      case EmailAuthTokenStatus.expired:
+        throw const EmailAuthTokenExpiredException();
+      case EmailAuthTokenStatus.consumed:
+        throw const EmailAuthTokenAlreadyUsedException();
+      case EmailAuthTokenStatus.missing:
+        throw const EmailAuthTokenMissingException();
+    }
   }
 
   Future<bool> _withinRateLimits({
@@ -171,9 +199,4 @@ final class EmailAuthCase extends UseCaseBase {
     }
     return true;
   }
-}
-
-/// Invalid, expired, or reused magic-link token.
-final class EmailAuthTokenInvalidException implements Exception {
-  const EmailAuthTokenInvalidException();
 }
