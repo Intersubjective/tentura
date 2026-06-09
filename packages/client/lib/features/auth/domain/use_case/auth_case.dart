@@ -2,7 +2,6 @@ import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:meta/meta.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
@@ -10,7 +9,6 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import 'package:tentura/domain/port/device_push_port.dart';
 
-import '../../data/service/web_handoff.dart';
 import '../../data/service/web_post_sign_out.dart';
 import '../entity/web_bootstrap_result.dart';
 import '../port/auth_local_repository_port.dart';
@@ -80,49 +78,11 @@ final class AuthCase extends UseCaseBase {
   }
 
   ///
-  /// Web only: consumes a landing -> app session handoff carried in the URL
-  /// fragment (`#th=...`, captured before boot — see `docs/handoff-contract.md`).
-  /// Writes the account seed to local storage and makes it current so the normal
-  /// hydration path lands authenticated, then scrubs the fragment. Idempotent;
-  /// a malformed/absent handoff is ignored and never blocks boot. No-op off web.
+  /// Web bootstrap: probe the HttpOnly session cookie and pick the current
+  /// account id. No-op cookie path off-web.
   ///
-  Future<void> consumeHandoff() async {
-    await bootstrapWebSession();
-  }
-
-  ///
-  /// Web bootstrap: consume optional `#th=` handoff, probe session cookie, pick
-  /// account id (fresh handoff wins over cookie). No-op handoff path off-web.
-  ///
-  Future<WebBootstrapResult> bootstrapWebSession({
-    @visibleForTesting HandoffPayload? handoffForTest,
-  }) async {
-    final handoffPayload = handoffForTest ?? readHandoff();
-    String? handoffUserId;
-    if (handoffPayload != null) {
-      try {
-        await applyHandoff(handoffPayload);
-        handoffUserId = handoffPayload.userId;
-      } catch (e, s) {
-        logger.warning('Failed to consume session handoff', e, s);
-      } finally {
-        scrubHandoff();
-      }
-    }
-
+  Future<WebBootstrapResult> bootstrapWebSession() async {
     final probe = await _probeSessionUserId();
-
-    if (handoffUserId != null) {
-      if (probe.userId != null && probe.userId != handoffUserId) {
-        await _authRemoteRepository.clearSessionCookie();
-      }
-      await _authLocalRepository.setCurrentAccountId(handoffUserId);
-      return WebBootstrapResult(
-        currentAccountId: handoffUserId,
-        freshHandoffUserId: handoffUserId,
-        sessionUserId: probe.userId,
-      );
-    }
 
     if (probe.userId != null) {
       await _authLocalRepository.setCurrentAccountId(probe.userId);
@@ -170,24 +130,6 @@ final class AuthCase extends UseCaseBase {
     } on AuthIdNotFoundException {
       await _authLocalRepository.setCurrentAccountId(null);
     }
-  }
-
-  ///
-  /// Writes a handoff [payload] to local storage and makes it the current
-  /// account. Idempotent: skips the insert when the account already exists
-  /// (avoids the `InsertMode.insert` duplicate throw) and just re-activates it.
-  ///
-  @visibleForTesting
-  Future<void> applyHandoff(HandoffPayload payload) async {
-    final existing = await _authLocalRepository.getAccountById(payload.userId);
-    if (existing == null) {
-      await _authLocalRepository.addAccount(
-        payload.userId,
-        payload.seed,
-        payload.displayName,
-      );
-    }
-    await _authLocalRepository.setCurrentAccountId(payload.userId);
   }
 
   ///

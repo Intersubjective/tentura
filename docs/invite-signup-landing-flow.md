@@ -56,15 +56,15 @@ flowchart TB
 
   subgraph landingDispatch["Landing (preview callerStatus)"]
     landing --> lp{"callerStatus"}
-    lp -->|"anonymous"| stay["Stay on landing<br/>login reveal + signup (Tier 1)"]
+    lp -->|"anonymous"| stay["Stay on landing<br/>email + Google + recover"]
     lp -->|"existing-user"| hashAccept["CTA → origin#/accept-invite/I…"]
     lp -->|"already-friends"| openProd1["CTA → origin/ product"]
     lp -->|"is-inviter"| openProd2["CTA → origin/ product"]
   end
 
   subgraph newUser["New user path"]
-    stay --> signup["Signup on landing or native /sign/up/I…"]
-    signup --> consume["Server consumes invite<br/>email / Google / device-seed"]
+    stay --> signup["Email / Google on landing<br/>or native /sign/up/I…"]
+    signup --> consume["Server consumes invite<br/>email / Google"]
     consume --> friends["Re-preview → already-friends"]
     friends --> openProd3["Open product"]
   end
@@ -112,7 +112,7 @@ and/or bearer). Response drives UI and CTAs in `packages/landing/main.js`.
 
 | `callerStatus` | `suggestedAction` | Landing behavior | App URL opened |
 |----------------|-------------------|------------------|----------------|
-| `anonymous` | `accept-as-new` | **Tier 1:** “I already have an account” reveals email + Google; separate device-seed signup. **Tier 2:** login reveal shows email + browser escape; no Google/signup. **No** generic “Open the app” | *(stay on landing)* |
+| `anonymous` | `accept-as-new` | **Tier 1:** email OTP, Google, and “Recover from seed” (WASM). **Tier 2:** email + browser escape. **No** generic “Open the app” | `/recover?invite=<code>#/recover-seed` for seed recovery; otherwise stay on landing |
 | `existing-user` | `accept-as-existing` | “Open Tentura to accept” | `{origin}#/accept-invite/{code}` |
 | `already-friends` | `accept-as-new` *(re-preview)* | “Open Tentura” | `{origin}/` (product only) |
 | `is-inviter` | `self` | Share hint + open product | `{origin}/` |
@@ -267,7 +267,7 @@ flowchart TD
 | Already friends | Preview short-circuit; POST 200 safe if race |
 | Malformed code | `kInvitationCodeRegExp` fails client-side; no server call |
 | Stale JWT at accept screen | Preview `anonymous` or GET 401 → bounce; no POST |
-| `#th=` device handoff | New signup path only; mutually exclusive with accept-invite |
+| Seed recovery + invite | Landing `/recover?invite=I…#/recover-seed` → WASM recover → `#/accept-invite/I…` |
 | Notification deep link `/#/shared/view?id=I…` | Transformed like App Link (see table above) |
 
 ## Key source files

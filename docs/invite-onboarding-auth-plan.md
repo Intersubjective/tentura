@@ -19,7 +19,7 @@
 | **0** | Single-domain routing; static `/invite/*` | **Done** — Caddy prod + local; COOP/COEP scoped to WASM only |
 | **1** | Session bootstrap on one origin | **Done** — `__Host-tentura_session`, cookie-presence `/` split, WASM bootstrap, stale-session reconciliation (ADR 0002) |
 | **2** | Email magic link (captive-browser auth) | **Done** — server + landing + Resend template; requires `RESEND_*` env |
-| **3** | Provider cleanup + credential Settings | **Partial** — list/remove + **link Google/email/recovery seed from Settings** shipped (strict link-mode, per-credential session revoke); retire device-seed landing UI remains |
+| **3** | Provider cleanup + credential Settings | **Partial** — list/remove + **link Google/email/recovery seed from Settings** shipped (strict link-mode, per-credential session revoke); **device-seed landing UI retired** |
 | **4** | Native + deferred invite pickup | **Partial** — native deep links + Android App Links shipped; install-after-click server tracking not started |
 
 ## North Star
@@ -33,10 +33,9 @@ network:
   in place. They get a clear "open in a real browser" path and a recoverable
   email magic-link option.
 - Web sessions are `__Host-` HttpOnly cookies owned by the backend. OAuth
-  access/refresh tokens and email magic-link state stay server-side. **Exception
-  (legacy, still live):** Tier-1 device-seed signup hands the 32-byte seed to
-  WASM via `#th=` fragment — see `docs/handoff-contract.md`. Email and Google
-  auth set the session cookie only; they do not extend `#th=`.
+  access/refresh tokens and email magic-link state stay server-side. Web new
+  accounts use email OTP or Google; seed recovery is sign-in only inside WASM
+  (never in URLs). See [`handoff-contract.md`](handoff-contract.md) (retired).
 
 The app is on one origin in production and dev:
 
@@ -122,13 +121,12 @@ Properties:
 
 **WASM bootstrap order:**
 
-1. Optional `#th=` handoff (device-seed signup only) — consumed once, scrubbed.
-2. Session cookie probe → `POST /api/v2/session/access-token` with credentials.
-3. Stale cookie: server 401 → logout POST → reload `/` or fallback `/invite/`
+1. Session cookie probe → `POST /api/v2/session/access-token` with credentials.
+2. Stale cookie: server 401 → logout POST → reload `/` or fallback `/invite/`
    (one-shot `sessionStorage` guard; see ADR 0002).
 
 Email verify and Google callback **set the session cookie** and redirect to
-`/invite/<code>?signed_in=1` or `/` — no `#th=` for those flows.
+`/invite/<code>?signed_in=1` or `/`.
 
 ## Account and Credential Model
 
@@ -138,7 +136,7 @@ One account row, many credentials (`account_credential`, migration `m0080`):
 |-------------|------|--------|
 | `oidc:google` | `oidcGoogle` | Login + signup on landing (Tier 1) |
 | `email_otp` | `emailOtp` | Magic-link login + signup |
-| `ed25519_device` | `ed25519Device` | Device-seed signup (landing Tier 1); link via Settings API |
+| `ed25519_device` | `ed25519Device` | Native signup; link via Settings API; WASM seed recovery |
 | `webauthn` | `webauthn` | Not started |
 | `oidc:apple` | `oidcApple` | Not started |
 
@@ -189,7 +187,7 @@ Implemented in `packages/landing/webview.js` + `main.js`.
 - Google: `GET /api/auth/google/start?invite=…&returnTo=/invite/…` (when
   `googleEnabled` in landing config)
 - Email magic link form
-- Device-seed signup (WebCrypto Ed25519; `auth.js` → `#th=` handoff)
+- Seed recovery link → `/recover?invite=…#/recover-seed` (WASM sign-in only)
 - `/invite/<code>` stays static; product opens via same-origin `/` or hash routes
 
 ### Tier 2: Captive / In-App Browser
@@ -197,7 +195,7 @@ Implemented in `packages/landing/webview.js` + `main.js`.
 - Primary: open in system browser (`intent://` on Android; copy-link + Safari
   coaching on iOS)
 - Secondary: email magic link (always shown)
-- **Hidden:** Google OAuth, device-seed signup, passkeys
+- **Hidden:** Google OAuth, seed recovery (until browser escape), passkeys
 
 ## Email Magic-Link Flow
 
@@ -274,10 +272,10 @@ returning to invite page. OAuth tokens never exposed to browser JS.
 | URL | Session | Behavior (shipped) |
 |-----|---------|-------------------|
 | `/` | yes (cookie) | WASM boots authenticated |
-| `/` | no | Landing `renderNoInvite()` — invite entry, email/Google behind "I already have an account" |
+| `/` | no | Landing `renderNoInvite()` — invite entry, email, Google, recover |
 | `/invite/<code>` | yes | Caller-aware static preview |
-| `/invite/<code>` | no, Tier 1 | “I already have an account” → email + Google; separate device-seed signup |
-| `/invite/<code>` | no, Tier 2 | “I already have an account” → email + browser escape; card-level browser escape also shown |
+| `/invite/<code>` | no, Tier 1 | Email + Google + recover-from-seed |
+| `/invite/<code>` | no, Tier 2 | Email + browser escape; card-level browser escape also shown |
 
 ## WASM App Responsibilities
 
@@ -291,7 +289,7 @@ returning to invite page. OAuth tokens never exposed to browser JS.
 | Settings: link new device key | **Done** — `POST` with `authRequestToken` |
 | Settings: link Google / email | **Not done** |
 | Revoke sessions on credential remove | **Not done** — JWTs expire ~1h; immediate revoke deferred |
-| Retire `#th=` handoff for new auth | **Partial** — email/Google use cookies; device-seed still uses `#th=` |
+| Retire `#th=` handoff | **Done** — landing seed signup removed; cookie + WASM recover |
 
 ## Static Invite Responsibilities
 
@@ -305,8 +303,7 @@ returning to invite page. OAuth tokens never exposed to browser JS.
 | `invite_entry.js` | Manual invite link/code parsing |
 | `preview.js` | `GET /api/v2/invite/:code/preview` |
 | `webview.js` | Tier 1/2 detection, Android `intent://` |
-| `auth.js` | Email start, device-seed signup |
-| `handoff.js` | `#th=` redirect (device-seed only) |
+| `auth.js` | Email magic-link start |
 | `app_preload.js` | Background WASM asset warmup from landing |
 | `analytics.js` | Sentry funnel events |
 
@@ -361,8 +358,7 @@ Acceptance (verify in prod/dev):
 ### Phase 1: Session Bootstrap on One Origin — **Done**
 
 Shipped: session table + cookie, Google OAuth + BFF session, WASM
-`bootstrapWeb`, root landing for signed-out `/`, device-seed signup (Tier 1),
-`#th=` handoff transport, credentials list/remove API, stale-session
+`bootstrapWeb`, root landing for signed-out `/`, stale-session
 reconciliation.
 
 Acceptance:
@@ -400,7 +396,7 @@ Acceptance:
 | Link device key from Settings | **Done** |
 | Link Google / email from Settings | **Not done** |
 | Passkey / Apple | **Not done** |
-| Retire device-seed from normal landing UI | **Not done** — still Tier-1 new-user path |
+| Retire device-seed from normal landing UI | **Done** |
 | Session revoke on credential remove | **Not done** |
 | Topology / single-origin cleanup | **Done** |
 
@@ -430,8 +426,8 @@ Acceptance still open:
 5. **No account auto-merge.** Verified-contact unification links only on exact
    authoritative match; credential conflicts are explicit 409s.
 6. **No OAuth/passkey in webviews.**
-7. **Device-seed `#th=` is legacy transport.** New cookie-based flows must not
-   put seeds in URLs; device-seed signup remains until Phase 3 retires it.
+7. **Seeds never appear in URLs.** Web signup is email/Google; recovery seed is
+   entered inside WASM only.
 8. **Static invite remains special.** No WASM on `/invite/*` by design.
 
 ## Out of Scope

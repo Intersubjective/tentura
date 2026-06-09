@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
@@ -13,22 +15,47 @@ import '../bloc/auth_cubit.dart';
 
 @RoutePage()
 class RecoverScreen extends StatefulWidget implements AutoRouteWrapper {
-  const RecoverScreen({super.key});
+  const RecoverScreen({
+    @QueryParam('invite') this.invite,
+    super.key,
+  });
+
+  /// Optional invite code from the landing page (`/recover?invite=I…`).
+  final String? invite;
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocListener<AuthCubit, AuthState>(
-    listenWhen: (previous, current) =>
-        previous.isNotAuthenticated && current.isAuthenticated,
-    listener: (context, state) {
-      if (state.isAuthenticated) {
-        unawaited(context.router.replaceAll([const HomeRoute()]));
-      }
-    },
-    child: BlocListener<AuthCubit, AuthState>(
-      listener: commonScreenBlocListener,
-      child: this,
-    ),
-  );
+  Widget wrappedRoute(BuildContext context) {
+    final inviteCode = _normalizedInviteCode(invite);
+    return BlocListener<AuthCubit, AuthState>(
+      listenWhen: (previous, current) =>
+          previous.isNotAuthenticated && current.isAuthenticated,
+      listener: (context, state) {
+        if (state.isAuthenticated) {
+          if (inviteCode != null) {
+            unawaited(
+              context.router.replaceAll([
+                AcceptInviteRoute(id: inviteCode),
+              ]),
+            );
+          } else {
+            unawaited(context.router.replaceAll([const HomeRoute()]));
+          }
+        }
+      },
+      child: BlocListener<AuthCubit, AuthState>(
+        listener: commonScreenBlocListener,
+        child: this,
+      ),
+    );
+  }
+
+  static String? _normalizedInviteCode(String? raw) {
+    final code = raw?.trim() ?? '';
+    if (code.isEmpty || !kInvitationCodeRegExp.hasMatch(code)) {
+      return null;
+    }
+    return code;
+  }
 
   @override
   State<RecoverScreen> createState() => _RecoverScreenState();

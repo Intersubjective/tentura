@@ -44,5 +44,16 @@ void main() {
         isFalse,
       );
     });
+
+    test('does not bounce when recover path has invite query (landing link)', () {
+      // Query string is ignored by policy; pathname `/recover` still whitelisted.
+      expect(
+        shouldBounceRejectedSessionToLanding(
+          pathname: '/recover',
+          hash: '#/recover-seed',
+        ),
+        isFalse,
+      );
+    });
   });
 }
