@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
+import 'package:tentura_server/api/http/auth_invite_required_page.dart';
 import 'package:tentura_server/api/http/email_auth_failure_page.dart';
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
@@ -116,6 +117,8 @@ final class AuthEmailController extends BaseController {
       return _conflictPage();
     } on ContactConflictException {
       return _conflictPage();
+    } on OidcInviteRequiredException {
+      return _inviteRequiredPage();
     } on EmailAuthTokenInvalidException {
       return _failurePage();
     } catch (_) {
@@ -135,6 +138,17 @@ final class AuthEmailController extends BaseController {
   Response _conflictPage() => Response(
     409,
     body: renderEmailLinkConflictPage(),
+    headers: {
+      kHeaderContentType: 'text/html; charset=utf-8',
+      kHeaderCacheControl: kCacheControlNoStore,
+    },
+  );
+
+  Response _inviteRequiredPage() => Response(
+    403,
+    body: renderAuthInviteRequiredPage(
+      landingUrl: publicLandingUrl(env.publicOrigin),
+    ),
     headers: {
       kHeaderContentType: 'text/html; charset=utf-8',
       kHeaderCacheControl: kCacheControlNoStore,
