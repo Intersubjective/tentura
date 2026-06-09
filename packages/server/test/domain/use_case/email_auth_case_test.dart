@@ -422,4 +422,59 @@ void main() {
     expect(outcome, isA<EmailAuthLoginConfirmed>());
     expect((outcome as EmailAuthLoginConfirmed).inviteCode, isNull);
   });
+
+  test('confirm links email_otp into existing google account by verified contact', () async {
+    const email = 'ada@example.com';
+    const googleAccountId = 'Ugoogle123456789012345678901234567';
+    when(
+      contactRepo.getAccountIdByContact(
+        kind: ContactKind.email,
+        value: email,
+      ),
+    ).thenAnswer((_) async => googleAccountId);
+    when(
+      userRepo.getByCredential(
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+      ),
+    ).thenThrow(const IdNotFoundException());
+    when(
+      contactRepo.findAccountIdsByContacts(any),
+    ).thenAnswer((_) async => {googleAccountId});
+    when(
+      userRepo.linkCredentialWithContacts(
+        accountId: anyNamed('accountId'),
+        type: anyNamed('type'),
+        identifier: anyNamed('identifier'),
+        publicData: anyNamed('publicData'),
+        contacts: anyNamed('contacts'),
+      ),
+    ).thenAnswer((_) async => googleAccountId);
+
+    await case_.start(
+      email: email,
+      ipFingerprint: 'ip',
+      userAgentFingerprint: 'ua',
+    );
+
+    final outcome = await case_.confirm('opaque-token');
+
+    expect(outcome, isA<EmailAuthLoginConfirmed>());
+    final login = outcome as EmailAuthLoginConfirmed;
+    expect(login.sessionToken, 'session-cookie-value');
+    expect(login.inviteCode, isNull);
+    verify(
+      userRepo.linkCredentialWithContacts(
+        accountId: googleAccountId,
+        type: CredentialType.emailOtp,
+        identifier: email,
+        publicData: null,
+        contacts: anyNamed('contacts'),
+      ),
+    ).called(1);
+    expect(
+      () => case_.confirm('opaque-token'),
+      throwsA(isA<EmailAuthTokenAlreadyUsedException>()),
+    );
+  });
 }
