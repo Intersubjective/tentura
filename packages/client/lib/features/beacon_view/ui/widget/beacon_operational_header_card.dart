@@ -411,6 +411,9 @@ class _HudCloseOverflowButton extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return PopupMenuButton<String>(
       tooltip: l10n.beaconHudOverflowMore,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 44, minHeight: 40),
+      icon: Icon(Icons.more_horiz, color: scheme.onSurface),
       onSelected: (value) {
         if (value == 'close') {
           onPressed();
@@ -422,11 +425,6 @@ class _HudCloseOverflowButton extends StatelessWidget {
           child: Text(l10n.beaconHudOverflowCloseBeacon),
         ),
       ],
-      child: SizedBox(
-        width: 44,
-        height: 40,
-        child: Icon(Icons.more_horiz, color: scheme.onSurface),
-      ),
     );
   }
 }
