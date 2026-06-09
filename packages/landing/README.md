@@ -27,12 +27,8 @@ opens it — gated off in in-app webviews, Save-Data mode, and slow links.
 | `preview.js`  | fetches `GET /api/v2/invite/:code/preview`                  |
 | `webview.js`  | in-app-webview detection / Android `intent://`              |
 | `analytics.js`| funnel events via the CDN Sentry global                     |
-| `handoff.js`  | builds the `#th=…` URL + redirects to the app (transport)   |
-| `auth.js`     | device-seed signup + `startEmailMagicLink` → `POST /api/v2/auth/email/start` |
+| `auth.js`     | `startEmailMagicLink` → `POST /api/v2/auth/email/start`     |
 | `styles.css`  | styling                                                     |
-
-`handoff-dev.html` is a **dev-only** harness (not part of the shipped flow) for
-exercising the session handoff by hand — see "Session handoff" below.
 
 The browser resolves the relative ES-module imports (`main.js` → `./preview.js`
 etc.) natively — nothing is bundled.
@@ -47,7 +43,7 @@ window.TENTURA = { sentryDsn: '', apiBase: '', googleEnabled: false };
 |------------------|--------------------------------------------------|----------|
 | `sentryDsn`      | Sentry DSN; empty = analytics no-op              | `''`     |
 | `apiBase`        | Origin for the preview API; empty = same origin  | `''`     |
-| `googleEnabled`  | Show Google OAuth in Tier-1 login reveal (needs server `GOOGLE_*`)  | `false`  |
+| `googleEnabled`  | Show Google OAuth when not in-app (needs server `GOOGLE_*`)  | `false`  |
 
 **CI/deploy:** set GitHub Environment variable `LANDING_GOOGLE_ENABLED=true` when
 server Google OAuth is configured; the pipeline injects it into `config.js`.
@@ -80,12 +76,11 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 ## Routes / states
 
 - **Signed-out `/`:** `renderNoInvite()` — invite-only explanation, manual invite
-  entry (paste link/code → `/invite/:code`), and “I already have an account” which
-  reveals tier-specific login options (Tier 1: email + Google; Tier 2: email +
-  browser escape). No generic “Open Tentura” for anonymous visitors.
+  entry (paste link/code → `/invite/:code`), email OTP, Google (Tier 1), and
+  seed recovery link. No generic “Open Tentura” for anonymous visitors.
 - **Invite URL:** `/invite/:code` (e.g. `https://dev.tentura.io/invite/I…`).
 - Renders 5 preview states from `suggestedAction`: invalid · is-inviter ·
-  already-friends · existing-user (befriend) · anonymous (login reveal + Tier-1 signup).
+  already-friends · existing-user (befriend) · anonymous (email/Google/recover).
 - **Beacon overlay** shown above the CTA in every state when `beacon` is present.
 - Funnel events fire via Sentry **before** any WASM boot; app asset warmup starts
   immediately in the background (see `app_preload.js`).
@@ -103,44 +98,19 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 
 ## Auth
 
-- **Email magic link (Tier 1 + 2):** `startEmailMagicLink()` →
-  `POST /api/v2/auth/email/start`. Verify sets `__Host-tentura_session` and
-  redirects to `/invite/:code?signed_in=1`. Requires server `RESEND_*` env.
-- **Google OAuth (Tier 1 only):** `ctaGoogleSignIn()` inside the “I already have an
-  account” login reveal when `googleEnabled` and not `env.inApp` →
-  `/api/auth/google/start`. Sets session cookie on callback.
-- **Device-seed signup (Tier 1 only):** `signUpWithSeed()` uses native WebCrypto
-  Ed25519, POSTs `accept-as-new`, then `#th=` handoff via `handoff.js`.
-  `AUTH_ENABLED` in `main.js` is the kill-switch. Never offered in Tier-2
-  webviews (ephemeral storage would lose the key).
-- **Secure context required** for device-seed (`crypto.subtle`). Local E2E needs
-  HTTPS (e.g. `dev.lvh.me:9443`).
+- **Email magic link (Tier 1 + 2):** `startEmailMagicLink({ email, code })` →
+  `POST /api/v2/auth/email/start` with optional `inviteCode`. Verify sets
+  `__Host-tentura_session`, accepts the invite when appropriate, and redirects to
+  `/invite/:code?signed_in=1`. Requires server `RESEND_*` env.
+- **Google OAuth (Tier 1 only):** `ctaGoogleSignIn(code)` when `googleEnabled` and
+  not `env.inApp` → `/api/auth/google/start?invite=…&returnTo=…`. Sets session
+  cookie on callback and returns to the invite page.
+- **Seed recovery (returning users):** `appRecoverUrl(code)` →
+  `/recover?invite=<code>#/recover-seed`. Seed is entered **inside WASM only**;
+  after sign-in the app navigates to `#/accept-invite/<code>`. Not offered in
+  Tier-2 webviews (use browser escape first).
 - **Tier-2 escape:** Android `intent://`, iOS copy-link + Safari coaching.
-  Telegram is also detected via `TelegramWebview*` globals when its UA matches
-  the system browser.
-- **Deferred:** passkey/Apple; link Google/email from Settings; per-IP signup
-  rate-limiting beyond email-auth limits.
-- Session handoff (`#th=`) contract: `docs/handoff-contract.md` (device-seed
-  only — email/Google use the session cookie).
+- **Deferred:** passkey/Apple; link Google/email from Settings.
 
-### Seed encoding (do not break)
-
-The seed string in the handoff payload must be url-safe base64 **with `=`
-padding** — the app decodes it with `base64Decode` (no normalize), which throws
-on un-padded input. `auth.js` has its own padded helper; do **not** reuse
-`handoff.js`'s `base64url()` (it strips padding — correct for the fragment, fatal
-for the seed). The auth-request JWT segments use JWT-standard base64url *without*
-padding.
-
-## Session handoff (device-seed → WASM app)
-
-Landing and WASM share `location.origin`. **Only device-seed signup** uses `#th=`
-handoff — email and Google set the HttpOnly session cookie instead.
-
-`handoff.js` redirects with `{ userId, seed }` in the URL fragment
-(`{origin}/#th=<base64url(utf8(json))>`); WASM captures it before boot, writes
-secure storage, and scrubs the fragment. Field names are pinned in
-`docs/handoff-contract.md` (`scripts/check_handoff_contract.sh` in CI).
-
-`redirectToApp({ userId, seed, displayName? })` is the transport entry;
-`signUpWithSeed(...)` produces the payload. Dev harness: `handoff-dev.html`.
+Device-seed **signup on the landing** and `#th=` URL handoff were removed; see
+`docs/handoff-contract.md` (retired).

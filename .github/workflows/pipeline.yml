@@ -35,7 +35,6 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/test_resolve_deploy_web_config.sh
-          bash scripts/check_handoff_contract.sh
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
@@ -156,11 +155,9 @@ jobs:
           if [ "${LANDING_GOOGLE_ENABLED:-}" = "true" ]; then
             sed -i 's|googleEnabled: false|googleEnabled: true|' packages/landing/config.js
           fi
-          # Explicit allowlist: ships handoff.js (transport), excludes the
-          # dev-only handoff-dev.html harness.
           tar -czf landing-dev-${{ steps.versions.outputs.server_version }}.tar.gz \
             -C packages/landing \
-            index.html config.js config.local.js main.js app_preload.js invite_entry.js preview.js webview.js analytics.js handoff.js auth.js styles.css
+            index.html config.js config.local.js main.js app_preload.js invite_entry.js preview.js webview.js analytics.js auth.js styles.css
 
       - name: Test static landing
         run: node --test packages/landing/test/*.mjs

@@ -110,10 +110,9 @@ final class AuthCase extends UseCaseBase {
     return _issueJwt(newUser.id);
   }
 
-  /// Sign up by accepting an invite whose code comes from the request URL
-  /// (the landing `accept-as-new` endpoint), unlike [signUp] which reads the
-  /// code from the auth-request JWT payload. Creates the account + its
-  /// `ed25519_device` credential, befriends the issuer, and forwards the beacon
+  /// Sign up by accepting an invite whose code is passed explicitly (GraphQL /
+  /// native flows), unlike [signUp] which reads the code from the auth-request
+  /// JWT payload. Creates the account + its `ed25519_device` credential, befriends the issuer, and forwards the beacon
   /// when the invite carries one (all inside `createInvited`).
   Future<JwtEntity> signUpWithInvite({
     required String authRequestToken,

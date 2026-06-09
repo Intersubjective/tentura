@@ -12,7 +12,6 @@ import 'controllers/websocket_controller.dart';
 import 'controllers/graphiql_controller.dart';
 import 'controllers/graphql_controller.dart';
 import 'controllers/invite_accept_existing_controller.dart';
-import 'controllers/invite_accept_new_controller.dart';
 import 'controllers/invite_preview_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/session_controller.dart';
@@ -31,7 +30,6 @@ class RootRouter {
     this._sharedViewController,
     this._roomAttachmentDownloadController,
     this._invitePreviewController,
-    this._inviteAcceptNewController,
     this._inviteAcceptExistingController,
     this._accountCredentialsController,
     this._sessionController,
@@ -56,8 +54,6 @@ class RootRouter {
   final RoomAttachmentDownloadController _roomAttachmentDownloadController;
 
   final InvitePreviewController _invitePreviewController;
-
-  final InviteAcceptNewController _inviteAcceptNewController;
 
   final InviteAcceptExistingController _inviteAcceptExistingController;
 
@@ -142,10 +138,6 @@ class RootRouter {
       ..get(
         '/auth/email/verify',
         _authEmailController.verify,
-      )
-      ..post(
-        '/api/v2/invite/<code>/accept-as-new',
-        _inviteAcceptNewController.handler,
       )
       ..post(
         '/api/v2/invite/<code>/accept-as-existing',

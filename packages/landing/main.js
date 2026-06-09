@@ -1,12 +1,7 @@
 import { initAnalytics, track } from './analytics.js';
 import { detectEnvironment, androidIntentUrl } from './webview.js';
 import { parseInviteCode, fetchPreview } from './preview.js';
-import { redirectToApp } from './handoff.js';
-import {
-  signUpWithSeed,
-  startEmailMagicLink,
-  webcryptoEd25519Available,
-} from './auth.js';
+import { startEmailMagicLink } from './auth.js';
 import { parseInviteEntryInput, invitePathForCode } from './invite_entry.js';
 import { startAppPreload } from './app_preload.js';
 
@@ -16,14 +11,6 @@ const API_BASE = (window.TENTURA || {}).apiBase || '';
 const app = document.getElementById('app');
 const card = document.getElementById('card');
 const env = detectEnvironment();
-
-// Slice 3: device-seed signup is live. AUTH_ENABLED is the master kill-switch;
-// even when on, signup is offered ONLY in Tier-1 system browsers with native
-// WebCrypto Ed25519 — never in Tier-2 in-app webviews, where a device key would
-// be lost when the webview closes (Tier-2 gets the recoverable email path in a
-// later slice). `signupReady` is the resolved gate, computed in main().
-const AUTH_ENABLED = true;
-let signupReady = false;
 
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -87,9 +74,12 @@ function openAcceptInviteUrl(code) {
   return appHashUrl(`/accept-invite/${encodeURIComponent(code)}`);
 }
 
-function appRecoverUrl() {
+function appRecoverUrl(inviteCode) {
   const url = new URL('/recover', location.origin);
   url.hash = '/recover-seed';
+  if (inviteCode) {
+    url.searchParams.set('invite', inviteCode);
+  }
   return url.toString();
 }
 
@@ -151,69 +141,6 @@ function ctaOpenInBrowser() {
   );
 }
 
-// Tier-specific returning-user login methods (email + Google on Tier 1; email +
-// browser escape on Tier 2). Signup stays a separate CTA on invite pages.
-function buildLoginOptionItems(inviteCode) {
-  const items = [
-    el('p', { class: 'section-label' }, 'Sign in'),
-    renderEmailMagicLinkForm(),
-  ];
-  if (env.inApp) {
-    items.push(ctaOpenInBrowser());
-  } else {
-    const google = ctaGoogleSignIn(inviteCode);
-    if (google) items.push(google);
-    items.push(
-      el(
-        'a',
-        {
-          class: 'btn btn-secondary',
-          href: appRecoverUrl(),
-          onclick: () => track('cta_recover_seed'),
-        },
-        'Recover from seed',
-      ),
-    );
-  }
-  return items;
-}
-
-function createSignInReveal(inviteCode, { blockId = 'signin-options' } = {}) {
-  const signInBlock = el('div', {
-    class: 'signin-options',
-    id: blockId,
-    role: 'region',
-    'aria-label': 'Sign in',
-    hidden: 'hidden',
-  });
-
-  const mountSignInOptions = () => {
-    if (signInBlock.querySelector('.email-auth')) return;
-    signInBlock.replaceChildren(...buildLoginOptionItems(inviteCode));
-  };
-
-  const existingToggle = el(
-    'button',
-    {
-      class: 'btn btn-secondary',
-      type: 'button',
-      'aria-expanded': 'false',
-      'aria-controls': blockId,
-      onclick: () => {
-        track('cta_existing');
-        mountSignInOptions();
-        signInBlock.hidden = false;
-        existingToggle.setAttribute('aria-expanded', 'true');
-        existingToggle.hidden = true;
-        signInBlock.querySelector('input')?.focus();
-      },
-    },
-    'I already have an account',
-  );
-
-  return { existingToggle, signInBlock };
-}
-
 function googleReturnTo(inviteCode) {
   if (!inviteCode) return null;
   const origin = API_BASE
@@ -244,112 +171,30 @@ function ctaGoogleSignIn(inviteCode) {
   );
 }
 
-// "I'm new — sign up" — reveal the inline device-seed signup form (Tier-1 only).
-function ctaSignUp(p) {
-  return el(
-    'button',
-    {
-      class: 'btn btn-secondary',
-      type: 'button',
-      onclick: () => {
-        track('cta_sign_up');
-        showSignupForm(p);
-      },
-    },
-    "I'm new — sign up",
-  );
-}
-
-// Inline signup form: display name (required) + optional handle. On submit,
-// generate the device key, consume the invite (accept-as-new), and hand off the
-// resulting seed to the app.
-function renderSignupForm(p) {
-  setPageTitle(`Join ${inviterName(p)} on Tentura`);
-  const nameInput = el('input', {
-    class: 'input',
-    type: 'text',
-    id: 'signup-name',
-    name: 'displayName',
-    placeholder: 'Your name',
-    maxlength: '50',
-    autocomplete: 'section-signup name',
-  });
-  const handleInput = el('input', {
-    class: 'input',
-    type: 'text',
-    id: 'signup-handle',
-    name: 'handle',
-    placeholder: 'handle (optional)',
-    maxlength: '30',
-    autocomplete: 'section-signup off',
-    autocapitalize: 'none',
-    autocorrect: 'off',
-    spellcheck: 'false',
-  });
-  const errorEl = el('p', { class: 'error', role: 'alert' });
-  const submit = el('button', { class: 'btn btn-primary', type: 'submit' }, 'Create account');
-
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    errorEl.textContent = '';
-    const displayName = nameInput.value.trim();
-    if (!displayName) {
-      errorEl.textContent = 'Please enter a display name.';
-      nameInput.focus();
-      return;
-    }
-    const label = submit.textContent;
-    submit.disabled = true;
-    submit.textContent = 'Signing up…';
-    track('signup_start');
-    try {
-      const payload = await signUpWithSeed({
-        code: parseInviteCode(),
-        displayName,
-        handle: handleInput.value,
-      });
-      track('signup_success');
-      redirectToApp(payload); // leaves the page; the app boots authenticated
-    } catch (err) {
-      track('signup_error', { message: String(err), code: err.code });
-      errorEl.textContent = err.message || 'Sign-up failed. Please try again.';
-      submit.disabled = false;
-      submit.textContent = label;
-    }
-  };
-
-  return el(
-    'form',
-    {
-      class: 'content signup-form',
-      onsubmit: onSubmit,
-      autocomplete: 'on',
-    },
-    beaconOverlay(p),
-    el('h1', {}, `Join ${inviterName(p)} on Tentura`),
-    el('label', { class: 'field-label', for: 'signup-name' }, 'Display name'),
-    nameInput,
-    el('label', { class: 'field-label', for: 'signup-handle' }, 'Handle (optional)'),
-    handleInput,
-    el(
-      'p',
-      { class: 'hint' },
-      'Handle: 3–30 chars, lowercase letters, digits, underscore.',
-    ),
-    submit,
-    errorEl,
-    el(
-      'button',
-      { class: 'btn btn-secondary', type: 'button', onclick: () => render(p) },
-      'Back',
-    ),
-  );
-}
-
-function showSignupForm(p) {
-  card.replaceChildren();
-  card.append(header(p));
-  card.append(renderSignupForm(p));
+// Email, Google, and seed recovery for invite pages and the no-invite landing.
+function renderInviteAuthOptions(inviteCode) {
+  const items = [
+    el('p', { class: 'section-label' }, 'Get started'),
+    renderEmailMagicLinkForm(),
+  ];
+  if (env.inApp) {
+    items.push(ctaOpenInBrowser());
+  } else {
+    const google = ctaGoogleSignIn(inviteCode);
+    if (google) items.push(google);
+    items.push(
+      el(
+        'a',
+        {
+          class: 'btn btn-secondary',
+          href: appRecoverUrl(inviteCode),
+          onclick: () => track('cta_recover_seed'),
+        },
+        'Recover from seed',
+      ),
+    );
+  }
+  return items;
 }
 
 function renderEmailMagicLinkForm() {
@@ -559,8 +404,9 @@ function renderAnonymous(p) {
   setState('anonymous');
   setPageTitle(`${inviterName(p)} invited you — Tentura`);
   const code = parseInviteCode();
-  const { existingToggle, signInBlock } = createSignInReveal(code);
-  const children = [
+  return el(
+    'div',
+    { class: 'content' },
     beaconOverlay(p),
     signedInFlash(),
     el('h1', {}, `${inviterName(p)} invited you to Tentura`),
@@ -568,20 +414,11 @@ function renderAnonymous(p) {
       'p',
       {},
       env.inApp
-        ? 'Open this link in your browser, or sign in with email.'
-        : 'Tentura is invite-only. Sign in if you already have an account, or create one below.',
+        ? 'Open this link in your browser, or create an account with email.'
+        : 'Create an account with email or Google, or sign in with seed recovery if you already have one.',
     ),
-    existingToggle,
-    signInBlock,
-  ];
-  if (!env.inApp && signupReady) {
-    children.push(ctaSignUp(p));
-  } else if (!env.inApp) {
-    children.push(
-      el('p', { class: 'hint' }, 'Sign-up needs an up-to-date browser.'),
-    );
-  }
-  return el('div', { class: 'content' }, ...children);
+    ...renderInviteAuthOptions(code),
+  );
 }
 
 function render(p) {
@@ -636,8 +473,6 @@ function renderNoInvite() {
   setState('no-invite');
   setPageTitle('Tentura — invite-only');
 
-  const { existingToggle, signInBlock } = createSignInReveal('');
-
   card.replaceChildren(
     el(
       'div',
@@ -647,8 +482,7 @@ function renderNoInvite() {
       el('p', {}, 'Join with a personal invite from someone you know.'),
       signedInFlash(),
       renderInviteEntryForm(),
-      existingToggle,
-      signInBlock,
+      ...renderInviteAuthOptions(''),
     ),
   );
 }
@@ -664,15 +498,7 @@ async function main() {
     return;
   }
   try {
-    // Device-seed signup only in Tier-1 system browsers with native WebCrypto
-    // Ed25519. Resolved alongside the preview so render() can branch on it.
-    const [preview, wc] = await Promise.all([
-      fetchPreview(code),
-      env.inApp || !AUTH_ENABLED
-        ? Promise.resolve(false)
-        : webcryptoEd25519Available(),
-    ]);
-    signupReady = wc;
+    const preview = await fetchPreview(code);
     track('preview_loaded', {
       codeStatus: preview.codeStatus,
       callerStatus: preview.callerStatus,

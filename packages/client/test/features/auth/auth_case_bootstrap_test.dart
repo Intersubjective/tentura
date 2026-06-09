@@ -8,7 +8,6 @@ import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 import 'package:tentura/features/auth/domain/port/auth_remote_repository_port.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
-import 'package:tentura/features/auth/data/service/handoff_payload.dart';
 
 void main() {
   group('AuthCase.bootstrapWebSession', () {
@@ -24,45 +23,14 @@ void main() {
           logger: Logger('test'),
         );
 
-    test('fresh handoff wins over session cookie account', () async {
-      final local = FakeAuthLocal();
-      final remote = FakeAuthRemote(sessionUserId: 'cookie-user');
-      final result = await build(local: local, remote: remote).bootstrapWebSession(
-        handoffForTest: const HandoffPayload(
-          userId: 'handoff-user',
-          seed: 'c2VlZA',
-        ),
-      );
-
-      expect(result.freshHandoffUserId, 'handoff-user');
-      expect(result.sessionUserId, 'cookie-user');
-      expect(result.currentAccountId, 'handoff-user');
-      expect(local.currentAccountId, 'handoff-user');
-      expect(remote.clearSessionCookieCalls, 1);
-    });
-
-    test('session applies when no handoff', () async {
+    test('session cookie applies when valid', () async {
       final local = FakeAuthLocal();
       final remote = FakeAuthRemote(sessionUserId: 'U-session');
       final result = await build(local: local, remote: remote).bootstrapWebSession();
 
-      expect(result.freshHandoffUserId, isNull);
       expect(result.sessionUserId, 'U-session');
       expect(result.currentAccountId, 'U-session');
       expect(local.currentAccountId, 'U-session');
-    });
-
-    test('no clearSessionCookie when handoff matches session user', () async {
-      final local = FakeAuthLocal();
-      final remote = FakeAuthRemote(sessionUserId: 'same-user');
-      await build(local: local, remote: remote).bootstrapWebSession(
-        handoffForTest: const HandoffPayload(
-          userId: 'same-user',
-          seed: 'c2VlZA',
-        ),
-      );
-
-      expect(remote.clearSessionCookieCalls, 0);
     });
 
     test('rejected session clears cookie and reports rejection', () async {
