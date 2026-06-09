@@ -15,6 +15,7 @@ Future<String?> obtainGoogleIdTokenForLink(Env env) async {
   if (!googleSignIn.supportsAuthenticate()) {
     return null;
   }
+  await googleSignIn.signOut();
   final account = await googleSignIn.authenticate();
   return account.authentication.idToken;
 }
