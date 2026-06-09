@@ -129,6 +129,15 @@ class FakeAuthLocal implements AuthLocalRepositoryPort {
   }
 
   @override
+  Future<void> upsertAccountWithSeed(
+    String id,
+    String seed, [
+    String? displayName,
+  ]) async {
+    added.add((id, seed, displayName));
+  }
+
+  @override
   Future<void> storeLinkedSeedIfAbsent(String id, String seed) async {}
 
   @override

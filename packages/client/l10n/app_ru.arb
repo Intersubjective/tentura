@@ -206,6 +206,26 @@
   "@recoverFromClipboard": {
     "context": "AuthLoginScreen"
   },
+  "recoverFromSeedTitle": "Восстановить из seed",
+  "@recoverFromSeedTitle": {
+    "context": "RecoverScreen"
+  },
+  "recoverFromSeedHint": "Отсканируйте QR из резервной копии или вставьте сохранённый seed ниже.",
+  "@recoverFromSeedHint": {
+    "context": "RecoverScreen"
+  },
+  "recoverFromSeedFieldLabel": "Seed",
+  "@recoverFromSeedFieldLabel": {
+    "context": "RecoverScreen"
+  },
+  "recoverFromSeedAction": "Восстановить",
+  "@recoverFromSeedAction": {
+    "context": "RecoverScreen"
+  },
+  "recoverFromSeedPrivacyNote": "Seed остаётся на этом устройстве и не попадает в URL.",
+  "@recoverFromSeedPrivacyNote": {
+    "context": "RecoverScreen"
+  },
   "shareAccount": "Поделиться аккаунтом",
   "@shareAccount": {
     "context": "AccountListTile"

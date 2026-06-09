@@ -62,6 +62,24 @@ test('login options include Google on Tier 1 and browser escape on Tier 2', () =
   assert.match(block, /ctaGoogleSignIn\(inviteCode\)/);
 });
 
+test('Tier 1 login options include recover-from-seed CTA', () => {
+  const block = mainJs.slice(
+    mainJs.indexOf('function buildLoginOptionItems'),
+    mainJs.indexOf('function createSignInReveal'),
+  );
+  assert.match(block, /Recover from seed/);
+  assert.match(block, /cta_recover_seed/);
+  assert.match(block, /appRecoverUrl\(\)/);
+  const tier1Branch = block.slice(block.indexOf('} else {'));
+  assert.doesNotMatch(tier1Branch, /ctaOpenInBrowser/);
+});
+
+test('appRecoverUrl uses non-root WASM bootstrap path with hash route', () => {
+  assert.match(mainJs, /function appRecoverUrl\(\)/);
+  assert.match(mainJs, /new URL\('\/recover', location\.origin\)/);
+  assert.match(mainJs, /url\.hash = '\/recover-seed'/);
+});
+
 test('existing-account reveal mounts tier-specific login options', () => {
   const block = mainJs.slice(
     mainJs.indexOf('function createSignInReveal'),

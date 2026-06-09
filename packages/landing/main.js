@@ -87,6 +87,12 @@ function openAcceptInviteUrl(code) {
   return appHashUrl(`/accept-invite/${encodeURIComponent(code)}`);
 }
 
+function appRecoverUrl() {
+  const url = new URL('/recover', location.origin);
+  url.hash = '/recover-seed';
+  return url.toString();
+}
+
 function ctaOpenApp(label = 'Open Tentura') {
   return el(
     'a',
@@ -157,6 +163,17 @@ function buildLoginOptionItems(inviteCode) {
   } else {
     const google = ctaGoogleSignIn(inviteCode);
     if (google) items.push(google);
+    items.push(
+      el(
+        'a',
+        {
+          class: 'btn btn-secondary',
+          href: appRecoverUrl(),
+          onclick: () => track('cta_recover_seed'),
+        },
+        'Recover from seed',
+      ),
+    );
   }
   return items;
 }

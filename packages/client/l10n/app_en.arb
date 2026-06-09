@@ -206,6 +206,26 @@
   "@recoverFromClipboard": {
     "context": "AuthLoginScreen"
   },
+  "recoverFromSeedTitle": "Recover from seed",
+  "@recoverFromSeedTitle": {
+    "context": "RecoverScreen"
+  },
+  "recoverFromSeedHint": "Scan the QR code from your backup or paste your saved seed below.",
+  "@recoverFromSeedHint": {
+    "context": "RecoverScreen"
+  },
+  "recoverFromSeedFieldLabel": "Seed",
+  "@recoverFromSeedFieldLabel": {
+    "context": "RecoverScreen"
+  },
+  "recoverFromSeedAction": "Recover",
+  "@recoverFromSeedAction": {
+    "context": "RecoverScreen"
+  },
+  "recoverFromSeedPrivacyNote": "Your seed stays on this device and is not placed in the URL.",
+  "@recoverFromSeedPrivacyNote": {
+    "context": "RecoverScreen"
+  },
   "shareAccount": "Share Account",
   "@shareAccount": {
     "context": "AccountListTile"
