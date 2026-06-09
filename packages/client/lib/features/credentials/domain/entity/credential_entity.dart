@@ -29,3 +29,7 @@ class CredentialEntity {
 
   final DateTime? createdAt;
 }
+
+extension CredentialEntityListX on Iterable<CredentialEntity> {
+  bool hasType(String type) => any((c) => c.type == type);
+}
