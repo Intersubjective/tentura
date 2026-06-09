@@ -127,7 +127,7 @@ class _MyWorkFilterMenu extends StatelessWidget {
               ),
           ],
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
