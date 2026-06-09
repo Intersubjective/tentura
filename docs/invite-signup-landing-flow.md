@@ -117,17 +117,24 @@ and/or bearer). Response drives UI and CTAs in `packages/landing/main.js`.
 | `already-friends` | `accept-as-new` *(re-preview)* | “Open Tentura” | `{origin}/` (product only) |
 | `is-inviter` | `self` | Share hint + open product | `{origin}/` |
 
+**Signed-out `/` (no invite code):** `renderNoInvite()` — invite paste is the primary
+path. **“I already have an account”** reveals tier-specific sign-in options and hides
+the invite paste form and invite-oriented copy. **“Have an invite link?”** restores
+invite mode. When `?signed_in=1`, show flash + **Open Tentura** CTA.
+
 **Google OAuth** on the landing includes `returnTo=/invite/<code>` so after sign-in
 the user returns to the invite page, re-previews as `already-friends`, and opens the
 product without calling accept-as-existing.
 
-**“I already have an account”** reveals tier-specific login options on the landing
-instead of opening WASM with a broken `?invite=` query param:
+**“I already have an account”** (root `/` only) reveals tier-specific login options
+instead of opening WASM with a broken `?invite=` query param. Revealing sign-in hides
+the invite paste UI to avoid dual-path ambiguity:
 
-- **Tier 1 (system browser):** email magic link + Google OAuth (when `googleEnabled`).
-- **Tier 2 (in-app browser):** email magic link + browser escape; Google and device-seed signup stay hidden.
+- **Tier 1 (system browser):** email magic link + Google OAuth (when `googleEnabled`) + recover-from-seed.
+- **Tier 2 (in-app browser):** email magic link + browser escape; Google and recover stay hidden.
 
-Signup for new users remains a separate CTA on Tier 1 invite pages.
+On `/invite/<code>` anonymous pages, email/Google/recover remain visible immediately
+for new-user signup (no reveal toggle).
 
 ## WASM hash routing
 

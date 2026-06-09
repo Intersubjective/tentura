@@ -65,6 +65,24 @@ p {
   margin-top: 12px;
 }
 
+.hint-link {
+  display: block;
+  width: 100%;
+  margin: 16px 0 0;
+  padding: 12px 0;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.hint-link:hover {
+  color: var(--fg);
+}
+
 .eyebrow {
   font-size: 13px;
   font-weight: 600;

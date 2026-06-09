@@ -272,7 +272,7 @@ returning to invite page. OAuth tokens never exposed to browser JS.
 | URL | Session | Behavior (shipped) |
 |-----|---------|-------------------|
 | `/` | yes (cookie) | WASM boots authenticated |
-| `/` | no | Landing `renderNoInvite()` — invite entry, email, Google, recover |
+| `/` | no | Landing `renderNoInvite()` — invite paste primary; sign-in behind **“I already have an account”** reveal |
 | `/invite/<code>` | yes | Caller-aware static preview |
 | `/invite/<code>` | no, Tier 1 | Email + Google + recover-from-seed |
 | `/invite/<code>` | no, Tier 2 | Email + browser escape; card-level browser escape also shown |

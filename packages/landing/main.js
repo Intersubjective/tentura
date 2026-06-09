@@ -171,7 +171,87 @@ function ctaGoogleSignIn(inviteCode) {
   );
 }
 
-// Email, Google, and seed recovery for invite pages and the no-invite landing.
+function buildSignInOptionItems(inviteCode) {
+  const items = [
+    el('p', { class: 'section-label' }, 'Sign in'),
+    renderEmailMagicLinkForm(),
+  ];
+  if (env.inApp) {
+    items.push(ctaOpenInBrowser());
+  } else {
+    const google = ctaGoogleSignIn(inviteCode);
+    if (google) items.push(google);
+    items.push(
+      el(
+        'a',
+        {
+          class: 'btn btn-secondary',
+          href: appRecoverUrl(inviteCode),
+          onclick: () => track('cta_recover_seed'),
+        },
+        'Recover from seed',
+      ),
+    );
+  }
+  return items;
+}
+
+function createSignInReveal(inviteCode, { blockId = 'signin-options', hideOnReveal = [] } = {}) {
+  const signInBlock = el('div', {
+    class: 'signin-options',
+    id: blockId,
+    role: 'region',
+    'aria-label': 'Sign in',
+    hidden: 'hidden',
+  });
+
+  const inviteModeUndo = el(
+    'button',
+    {
+      class: 'hint hint-link',
+      type: 'button',
+      hidden: 'hidden',
+    },
+    'Have an invite link?',
+  );
+
+  inviteModeUndo.addEventListener('click', () => {
+    track('cta_invite_mode');
+    signInBlock.hidden = true;
+    inviteModeUndo.hidden = true;
+    existingToggle.hidden = false;
+    existingToggle.setAttribute('aria-expanded', 'false');
+    for (const node of hideOnReveal) node.hidden = false;
+  });
+
+  const existingToggle = el(
+    'button',
+    {
+      class: 'btn btn-secondary',
+      type: 'button',
+      'aria-expanded': 'false',
+      'aria-controls': blockId,
+    },
+    'I already have an account',
+  );
+
+  existingToggle.addEventListener('click', () => {
+    track('cta_existing');
+    if (!signInBlock.querySelector('.email-auth')) {
+      signInBlock.replaceChildren(...buildSignInOptionItems(inviteCode), inviteModeUndo);
+    }
+    signInBlock.hidden = false;
+    inviteModeUndo.hidden = false;
+    existingToggle.setAttribute('aria-expanded', 'true');
+    existingToggle.hidden = true;
+    for (const node of hideOnReveal) node.hidden = true;
+    signInBlock.querySelector('input')?.focus();
+  });
+
+  return { existingToggle, signInBlock };
+}
+
+// Email, Google, and seed recovery for invite pages.
 function renderInviteAuthOptions(inviteCode) {
   const items = [
     el('p', { class: 'section-label' }, 'Get started'),
@@ -473,18 +553,26 @@ function renderNoInvite() {
   setState('no-invite');
   setPageTitle('Tentura — invite-only');
 
-  card.replaceChildren(
-    el(
-      'div',
-      { class: 'content' },
-      el('p', { class: 'eyebrow' }, 'Private coordination network'),
-      el('h1', {}, 'Tentura is invite-only'),
-      el('p', {}, 'Join with a personal invite from someone you know.'),
-      signedInFlash(),
-      renderInviteEntryForm(),
-      ...renderInviteAuthOptions(''),
-    ),
-  );
+  const inviteIntro = el('p', {}, 'Join with a personal invite from someone you know.');
+  const inviteForm = renderInviteEntryForm();
+  const { existingToggle, signInBlock } = createSignInReveal('', {
+    hideOnReveal: [inviteIntro, inviteForm],
+  });
+
+  const children = [
+    el('p', { class: 'eyebrow' }, 'Private coordination network'),
+    el('h1', {}, 'Tentura is invite-only'),
+    inviteIntro,
+    signedInFlash(),
+    inviteForm,
+    existingToggle,
+    signInBlock,
+  ];
+  if (isSignedInReturn()) {
+    children.push(ctaOpenApp());
+  }
+
+  card.replaceChildren(el('div', { class: 'content' }, ...children));
 }
 
 async function main() {
