@@ -139,6 +139,11 @@ jobs:
                   --dart-define=NEED_INVITE_CODE=true \\
                   --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
               fi
+              # Preload manifest + cache SW must be generated from the FINISHED
+              # build/web (the build hook ran too early on fresh checkouts and
+              # emitted a manifest without main.dart.wasm).
+              dart run tool/generate_wasm_preload_artifacts.dart
+              grep -q 'main.dart.wasm' build/web/wasm-preload-manifest.json
               cd build/web && tar -czf /app/web-dev-\${SERVER_VERSION}.tar.gz . && cd ../..
             "
 
