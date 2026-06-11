@@ -1,16 +1,23 @@
 # Tentura Invite-Link Onboarding and Auth Plan
 
-> **Status (2026-06-08):** Single-origin routing, session cookies, email magic
-> links, Google OAuth, and client/landing invite flows are **shipped**. Phase 3
-> (credential Settings polish) and Phase 4 (install-after-click recovery) remain
-> partial. This doc is the north-star architecture; shipped routing detail lives
-> in [`invite-signup-landing-flow.md`](invite-signup-landing-flow.md); root
-> cookie split in [`adr/0002-root-session-routing.md`](adr/0002-root-session-routing.md).
+> **Status (2026-06-11):** Phases **0–3 are shipped**. Single-origin routing,
+> session cookies, scanner-safe email magic links, Google OAuth, accept-invite +
+> landing flows, Settings credential linking (ADR 0003), and landing seed-signup
+> retirement are **done**. Phase **4** (iOS Universal Links, install-after-click
+> server tracking) remains **partial**. Cross-cutting auth recovery hardening is
+> shipped separately (see below). This doc is the north-star architecture;
+> shipped routing detail lives in
+> [`invite-signup-landing-flow.md`](invite-signup-landing-flow.md); root cookie
+> split in [`adr/0002-root-session-routing.md`](adr/0002-root-session-routing.md);
+> Settings linking in
+> [`adr/0003-settings-credential-linking.md`](adr/0003-settings-credential-linking.md).
 >
 > **Key commits:** `50b4fdbf` (single-host Caddy), `a96a5cc4` (root cookie
 > routing), `74069ad0` (email magic link), `12157c88` (accept-invite + landing
-> hash CTAs), `12bf301c` (signed-out `/` landing), `b575973e` (verified-contact
-> account unification).
+> hash CTAs), `ff439c73` (Settings credential linking), `2aa251c4` (retire
+> landing seed signup), `09940b5d` (scanner-safe email verify), `ae960c32`
+> (root `/` sign-in reveal), `fd7c45e2` (auth recovery), `ebf50b8e`
+> (invite-required page for sign-in without account).
 
 ## Phase summary
 
@@ -19,8 +26,8 @@
 | **0** | Single-domain routing; static `/invite/*` | **Done** — Caddy prod + local; COOP/COEP scoped to WASM only |
 | **1** | Session bootstrap on one origin | **Done** — `__Host-tentura_session`, cookie-presence `/` split, WASM bootstrap, stale-session reconciliation (ADR 0002) |
 | **2** | Email magic link (captive-browser auth) | **Done** — server + landing + Resend template; requires `RESEND_*` env |
-| **3** | Provider cleanup + credential Settings | **Partial** — list/remove + **link Google/email/recovery seed from Settings** shipped (strict link-mode, per-credential session revoke); **device-seed landing UI retired** |
-| **4** | Native + deferred invite pickup | **Partial** — native deep links + Android App Links shipped; install-after-click server tracking not started |
+| **3** | Provider cleanup + credential Settings | **Done** — strict link-mode (ADR 0003), list/remove/link Google·email·recovery seed, per-credential session revoke on remove, device-seed landing UI retired, add-method tiles filtered when already linked |
+| **4** | Native + deferred invite pickup | **Partial** — native deep links + Android App Links shipped; iOS Universal Links + install-after-click server tracking not started |
 
 ## North Star
 
@@ -73,7 +80,8 @@ One Caddy site serves these surfaces (strict order matters):
 |-------|---------|-------|
 | `/api/auth/*` | Google OAuth start/callback | **Implemented** — Tier 1 only; not `/auth/google/*` |
 | `/api/v2/auth/email/start` | Email magic-link start | JSON API |
-| `/auth/email/verify` | Email magic-link verify | Sets session cookie, redirects |
+| `GET /auth/email/verify` | Email magic-link peek | Scanner-safe confirm page only |
+| `POST /auth/email/verify` | Email magic-link confirm | Sets session cookie, redirects |
 | `/api/v2/session/*`, `/api/v2/accounts/*`, `/api/v2/invite/*` | Tentura V2 REST | Proxied to Dart server |
 | `/api/*` (catch-all) | Hasura + other API | After Tentura-specific handles |
 | `/invite/*` | Static invite shell | No WASM, no COOP/COEP (`handle_path` strips prefix) |
@@ -230,17 +238,23 @@ Link in email:
 https://tentura.io/auth/email/verify?t=<opaque-single-use-token>
 ```
 
-### Verify
+### Verify (scanner-safe)
 
-`GET /auth/email/verify?t=...`
+**`GET /auth/email/verify?t=...`** — peek only; renders a confirm page. Email
+security scanners prefetching the link no longer burn the token.
 
-1. Atomic consume of token hash.
+**`POST /auth/email/verify`** — user confirms sign-in:
+
+1. Atomic consume of token hash (after successful auth path).
 2. `CredentialAuthCase.resolveOrCreate` with `email_otp` + authoritative email
-   contact.
+   contact. Existing-account invite befriend is **best-effort** — a stale invite
+   must not block login.
 3. Set `__Host-tentura_session`.
 4. Redirect: `/invite/<code>?signed_in=1` or `/`.
 
-Landing shows `signed_in` flash and re-previews caller-aware state.
+Differentiated failure pages cover expired, already-used, invite-required, and
+conflict cases. Link-mode verify (Settings) strict-links without minting a
+session. Landing shows `signed_in` flash and re-previews caller-aware state.
 
 ## Google OAuth Flow
 
@@ -287,9 +301,9 @@ returning to invite page. OAuth tokens never exposed to browser JS.
 | Settings: list credentials | **Done** — `CredentialsScreen` |
 | Settings: remove credential (not last) | **Done** — `DELETE /api/v2/accounts/me/credentials/<id>` |
 | Settings: link new device key | **Done** — `POST` with `authRequestToken` |
-| Settings: link Google / email | **Not done** |
-| Revoke sessions on credential remove | **Not done** — JWTs expire ~1h; immediate revoke deferred |
-| Retire `#th=` handoff | **Done** — landing seed signup removed; cookie + WASM recover |
+| Settings: link Google / email | **Done** — strict link-mode (ADR 0003); web Google redirect + native idToken |
+| Revoke sessions on credential remove | **Done** — cookie sessions revoked in `removeCredential` txn; Bearer JWTs expire ~1h |
+| Retire `#th=` handoff | **Done** — landing seed signup removed; WASM-only seed recovery |
 
 ## Static Invite Responsibilities
 
@@ -372,9 +386,9 @@ Refs: `docs/adr/0002-root-session-routing.md`, `docs/handoff-contract.md`.
 
 ### Phase 2: Email Magic Link — **Done**
 
-Shipped: `m0082`, `POST /api/v2/auth/email/start`, `GET /auth/email/verify`,
-Resend template, landing email form (Tier 1 + 2), invite preserved in
-transaction, tests in `email_auth_case_test.dart`.
+Shipped: `m0082`, `POST /api/v2/auth/email/start`, `GET` + `POST /auth/email/verify`
+(scanner-safe confirm), Resend template, landing email form (Tier 1 + 2), invite
+preserved in transaction, tests in `email_auth_case_test.dart`.
 
 Acceptance:
 
@@ -387,23 +401,24 @@ Acceptance:
 
 **Ops:** requires `RESEND_API_KEY` + `RESEND_FROM_EMAIL` in server env.
 
-### Phase 3: Provider Cleanup and Credential Settings — **Partial**
+### Phase 3: Provider Cleanup and Credential Settings — **Done**
 
 | Task | Status |
 |------|--------|
 | Google Tier 1 only | **Done** |
 | List/remove credentials in Settings | **Done** |
 | Link device key from Settings | **Done** |
-| Link Google / email from Settings | **Not done** |
-| Passkey / Apple | **Not done** |
+| Link Google / email from Settings | **Done** — ADR 0003 strict link-mode |
+| Filter add-method tiles when type already linked | **Done** |
+| Passkey / Apple | **Not started** (out of scope for this phase) |
 | Retire device-seed from normal landing UI | **Done** |
-| Session revoke on credential remove | **Not done** |
+| Session revoke on credential remove | **Done** — cookie sessions in same txn; JWT TTL ~1h |
 | Topology / single-origin cleanup | **Done** |
 
-Acceptance still open:
+Acceptance (verified):
 
-- Settings reflects Google and email credentials (list works; add-from-Settings not wired)
-- Removing a credential revokes relevant sessions
+- Settings lists and links Google, email, and recovery seed; conflicts → 409
+- Removing a credential revokes its cookie-backed sessions immediately
 
 ### Phase 4: Native and Deferred Invite Pickup — **Partial**
 
@@ -413,8 +428,24 @@ Acceptance still open:
 | Native deep-link transform (`invite_deep_link.dart`) | **Done** |
 | Accept-invite guard + screen | **Done** |
 | Installed app bypasses static landing | **Partial** — Android verified links; iOS/dev → browser → landing |
+| iOS Universal Links (entitlements + AASA) | **Not started** |
 | Server pending-invite / install-after-click | **Not started** |
 | Native OAuth via system browser only | **Existing native auth** — not reworked in this plan |
+
+## Cross-cutting hardening (shipped, not phase-gated)
+
+Improvements landed after the core phases; they support invite/auth UX but are
+not tracked as Phase 0–4 deliverables.
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Robust auth recovery | **Done** | Stale cookie/seed/session handling, app-root recovery UI |
+| Magic link GET confirm + POST consume | **Done** | Scanner-safe; differentiated result pages |
+| Invite-required HTML page | **Done** | OAuth/email sign-in with no account on invite-only host |
+| Landing root sign-in reveal | **Done** | Signed-out `/` hides auth behind “I already have an account” |
+| WASM preload from landing | **Done** | `app_preload.js` warms WASM assets |
+| Telegram Tier-2 detection | **Done** | In-app browser heuristic in `webview.js` |
+| Google account picker always shown | **Done** | Sign-in and Settings link flows |
 
 ## Risks and Decisions
 
@@ -450,5 +481,6 @@ Acceptance still open:
 | Client credentials | `packages/client/lib/features/credentials/**` |
 | Server API | `packages/server/lib/api/{root_router,controllers/auth_*,invite_*,session_controller,account_credentials_controller}.dart` |
 | Server domain | `email_auth_case.dart`, `credential_auth_case.dart`, `oidc_case.dart`, `invitation_case.dart`, `session_case.dart` |
-| Migrations | `m0080` (credentials), `m0081` (sessions), `m0082` (email transactions) |
-| Tests | `packages/client/test/app/{invite_deep_link,accept_invite_guard}_test.dart`, `packages/server/test/domain/use_case/email_auth_case_test.dart` |
+| Migrations | `m0080` (credentials), `m0081` (sessions), `m0082` (email transactions), `m0084` (email link `link_account_id`) |
+| ADRs | `docs/adr/0002-root-session-routing.md`, `docs/adr/0003-settings-credential-linking.md` |
+| Tests | `packages/client/test/app/{invite_deep_link,accept_invite_guard,credential_link_deep_link}_test.dart`, `packages/client/test/features/credentials/credential_link_policy_test.dart`, `packages/server/test/domain/use_case/{email_auth_case,oidc_case,credential_case}_test.dart`, `packages/server/test/api/http/auth_invite_required_page_test.dart`, `packages/landing/test/url_dispatch_test.mjs` |

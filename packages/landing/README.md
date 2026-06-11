@@ -112,7 +112,7 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
   after sign-in the app navigates to `#/accept-invite/<code>`. Not offered in
   Tier-2 webviews (use browser escape first).
 - **Tier-2 escape:** Android `intent://`, iOS copy-link + Safari coaching.
-- **Deferred:** passkey/Apple; link Google/email from Settings.
+- **Deferred:** passkey/Apple; install-after-click server tracking; iOS Universal Links.
 
 Device-seed **signup on the landing** and `#th=` URL handoff were removed; see
 `docs/handoff-contract.md` (retired).

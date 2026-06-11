@@ -41,39 +41,57 @@ The server only ever sees `/`; no Caddy change is required for landing → app h
 
 ## End-to-end flow (overview)
 
+Landing `render()` branches on **`suggestedAction`** from preview JSON (derived from
+`codeStatus` + `callerStatus` on the server — not raw `callerStatus` alone). Invalid,
+expired, or consumed codes map to `suggestedAction` of the same name and show
+`renderInvalid()` with no auth CTAs.
+
 ```mermaid
 flowchart TB
-  subgraph share["Share & open"]
-    shareBtn["Client share action"]
-    shareBtn --> basicUrl["Basic invite URL<br/>/invite/I…"]
+  subgraph entry["Entry"]
+    shareBtn["Share action"] --> basicUrl["Basic invite URL /invite/I…"]
+    rootSlash["Signed-out /"] --> pasteOrSignIn["Paste invite OR sign-in reveal"]
+    pasteOrSignIn --> basicUrl
+    pasteOrSignIn --> rootAuth["Email / Google / recover<br/>(no invite code)"]
   end
 
   basicUrl --> platform{"How link opens"}
 
-  platform -->|"Web browser"| landing["Landing surface<br/>GET preview"]
-  platform -->|"Android prod App Link"| nativeDL["Native deepLinkTransformer"]
-  platform -->|"iOS / dev / not installed"| landing
+  platform -->|"Browser / iOS / dev / app not installed"| landing["Landing GET preview"]
+  platform -->|"Android prod App Link<br/>(OS opens installed app)"| nativeDL["deepLinkTransformer"]
 
-  subgraph landingDispatch["Landing (preview callerStatus)"]
-    landing --> lp{"callerStatus"}
-    lp -->|"anonymous"| stay["Stay on landing<br/>email + Google + recover"]
-    lp -->|"existing-user"| hashAccept["CTA → origin#/accept-invite/I…"]
-    lp -->|"already-friends"| openProd1["CTA → origin/ product"]
-    lp -->|"is-inviter"| openProd2["CTA → origin/ product"]
+  subgraph landingDispatch["Landing (suggestedAction)"]
+    landing --> sa{"suggestedAction"}
+    sa -->|"accept-as-new"| anon["Anonymous invite page<br/>Tier1: email+Google+recover<br/>Tier2: email+browser escape"]
+    sa -->|"accept-as-existing"| hashAccept["CTA → origin#/accept-invite/I…"]
+    sa -->|"already-friends"| openProd1["CTA → origin/"]
+    sa -->|"self"| openProd2["CTA → origin/"]
+    sa -->|"invalid / expired / consumed"| invalidLanding["Explain; no auth CTA"]
   end
 
-  subgraph newUser["New user path"]
-    stay --> signup["Email / Google on landing<br/>or native /sign/up/I…"]
-    signup --> consume["Server consumes invite<br/>email / Google"]
-    consume --> friends["Re-preview → already-friends"]
-    friends --> openProd3["Open product"]
+  subgraph newAccount["New account (invite consumed at signup)"]
+    anon --> newSignup["Email OTP or Google on landing<br/>(inviteCode in start/OAuth)"]
+    newSignup --> signedIn["Redirect /invite/I…?signed_in=1"]
+    signedIn --> rePreview1["Re-preview → already-friends"]
+    rePreview1 --> openProd3["Open product"]
   end
 
-  subgraph nativeRoute["Native deep link"]
-    nativeDL --> nAuth{"JWT in app?"}
-    nAuth -->|"No"| signUpRoute["/sign/up/I…<br/>AuthRegisterScreen"]
+  subgraph returningOnLanding["Returning user on landing (invite befriended at login)"]
+    anon --> returnAuth["Email OTP or Google sign-in<br/>(same page or root / reveal)"]
+    returnAuth --> signedIn2["Redirect ?signed_in=1"]
+    signedIn2 --> rePreview2["Re-preview → already-friends"]
+    rePreview2 --> openProd4["Open product<br/>(no accept-invite)"]
+  end
+
+  subgraph seedRecover["Returning user via seed (Tier 1 only)"]
+    anon --> recoverWASM["/recover?invite=I…#/recover-seed"]
+    recoverWASM --> acceptRoute
+  end
+
+  subgraph nativeRoute["Native App Link"]
+    nativeDL --> nAuth{"Authenticated<br/>in app?"}
+    nAuth -->|"No"| signUpRoute["/sign/up/I… → AuthRegisterScreen<br/>(server consumes invite)"]
     nAuth -->|"Yes"| acceptRoute["/accept-invite/I…"]
-    signUpRoute --> consume
   end
 
   hashAccept --> acceptGuard
@@ -82,40 +100,49 @@ flowchart TB
   subgraph acceptGuard["Accept-invite guard"]
     acceptGuard --> gAuth{"Authenticated?"}
     gAuth -->|"Yes"| acceptScreen["AcceptInviteScreen"]
-    gAuth -->|"No, web"| leaveWeb["goToLanding → /invite/I…<br/>page unloading"]
+    gAuth -->|"No, web"| leaveWeb["goToLanding /invite/I…<br/>(page unloading)"]
     gAuth -->|"No, native"| signUpRoute
   end
 
-  subgraph acceptFlow["Accept-invite screen (defense in depth)"]
-    acceptScreen --> previewAPI["GET /api/v2/invite/I…/preview"]
+  subgraph acceptFlow["Accept-invite screen"]
+    acceptScreen --> previewAPI["GET preview"]
     previewAPI --> decide{"codeStatus + callerStatus"}
-    decide -->|"invalid / expired / consumed"| msgBad["Message → replaceAll home"]
+    decide -->|"invalid / expired / consumed"| msgBad["Message → home"]
     decide -->|"is-inviter"| msgSelf["Message → home"]
     decide -->|"already-friends"| msgFriends["Message → home"]
-    decide -->|"anonymous stale session"| bounce["Web → landing<br/>Native → /sign/up/I…"]
+    decide -->|"anonymous / stale auth"| bounce["Web → landing<br/>Native → /sign/up/I…"]
     decide -->|"existing-user + available"| dialog["InvitationAcceptDialog"]
     dialog -->|"Cancel"| home["replaceAll → HomeRoute"]
-    dialog -->|"Confirm"| postAccept["POST …/accept-as-existing"]
+    dialog -->|"Confirm"| postAccept["POST accept-as-existing"]
     postAccept --> home
   end
 
-  openProd1 --> wasm["WASM / native product"]
-  openProd2 --> wasm
-  openProd3 --> wasm
-  home --> wasm
+  openProd1 --> product["WASM / native product<br/>(session cookie or JWT required)"]
+  openProd2 --> product
+  openProd3 --> product
+  openProd4 --> product
+  home --> product
+  rootAuth --> product
 ```
+
+**Not shown above (same doc, other sections):** notification `/#/shared/view?id=I…`
+uses the same native transform table as App Links; in-app paste/QR uses a separate
+GraphQL path (`ConnectBottomSheet`).
 
 ## Landing preview dispatcher
 
 The landing calls `GET /api/v2/invite/<code>/preview` (optional-auth: session cookie
 and/or bearer). Response drives UI and CTAs in `packages/landing/main.js`.
 
-| `callerStatus` | `suggestedAction` | Landing behavior | App URL opened |
-|----------------|-------------------|------------------|----------------|
-| `anonymous` | `accept-as-new` | **Tier 1:** email OTP, Google, and “Recover from seed” (WASM). **Tier 2:** email + browser escape. **No** generic “Open the app” | `/recover?invite=<code>#/recover-seed` for seed recovery; otherwise stay on landing |
+| `callerStatus` | `suggestedAction` (when code available) | Landing behavior | App URL opened |
+|----------------|----------------------------------------|------------------|----------------|
+| `anonymous` | `accept-as-new` | **Tier 1:** email OTP, Google, and “Recover from seed” (WASM). **Tier 2:** email + browser escape (card-level escape also shown). **No** generic “Open the app” | `/recover?invite=<code>#/recover-seed` for seed recovery; otherwise stay on landing |
 | `existing-user` | `accept-as-existing` | “Open Tentura to accept” | `{origin}#/accept-invite/{code}` |
-| `already-friends` | `accept-as-new` *(re-preview)* | “Open Tentura” | `{origin}/` (product only) |
+| `already-friends` | `already-friends` | “Open Tentura” (+ signed-in completion copy when `?signed_in=1`) | `{origin}/` (product only) |
 | `is-inviter` | `self` | Share hint + open product | `{origin}/` |
+
+When the code is not available, `suggestedAction` is `invalid`, `expired`, or
+`consumed` (regardless of `callerStatus`) and the landing shows `renderInvalid()`.
 
 **Signed-out `/` (no invite code):** `renderNoInvite()` — invite paste is the primary
 path. **“I already have an account”** reveals tier-specific sign-in options and hides
@@ -250,7 +277,6 @@ flowchart TD
   subgraph consumeAtSignup["Invite consumed at signup"]
     email["Email magic link + invite param"]
     google["Google OAuth + invite param"]
-    seed["Landing device-seed signup"]
     nativeReg["Native AuthRegisterScreen<br/>signUp(invitationCode:)"]
   end
 
@@ -268,7 +294,8 @@ flowchart TD
 
 | Scenario | Behavior |
 |----------|----------|
-| New web user (email/Google/seed) | Never reaches accept-invite; server consumed invite at signup |
+| New web user (email/Google) | Never reaches accept-invite; server consumed invite at signup |
+| Returning user via WASM seed recovery | Recovery sign-in → `#/accept-invite/…` → accept-as-existing |
 | Double-tap / refresh on `#/accept-invite/…` | Preview + confirm again; first accept wins; later 404 is non-fatal |
 | Self-invite | Preview `is-inviter` short-circuit; POST 400 handled defensively |
 | Already friends | Preview short-circuit; POST 200 safe if race |
@@ -303,7 +330,7 @@ flowchart TD
 
 ## Manual smoke checklist
 
-- [ ] Signed-out `/` (no cookie): landing with invite entry, email sign-in, no “Open Tentura”
+- [ ] Signed-out `/` (no cookie): landing with invite paste; sign-in behind **“I already have an account”** reveal; no default “Open Tentura”
 - [ ] Signed-out `/`: paste invite code/link → redirects to `/invite/I…` preview
 - [ ] Signed-in desktop web: `/invite/I…` → landing → `#/accept-invite/I…` → confirm → home once
 - [ ] Signed-out web: `/invite/I…` → landing signup only → after signup, product (no accept-as-existing)
