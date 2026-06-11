@@ -13,7 +13,9 @@ import 'package:tentura/features/coordination_item/ui/widget/coordination_item_e
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/fact_actions_sheet.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_file_attachment_open.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
@@ -182,6 +184,15 @@ class ItemsTab extends StatelessWidget {
 
         final pinnedFacts = _pinnedFactsForCarousel(state.factCards);
         final showFacts = pinnedFacts.isNotEmpty;
+        final showDrafts = myDraftCount > 0;
+        final requestedSectionId = itemsTabAccordionSectionId(
+          focusInDrafts: focusInDrafts,
+          focusInClosed: focusInClosed,
+          showActiveFold: showActiveFold,
+          showClosedFold: showClosedFold,
+          showDrafts: showDrafts,
+          showFacts: showFacts,
+        );
 
         // Parent CustomScrollView owns scrolling; nested ListView caused
         // parentDataDirty semantics asserts on web.
@@ -202,18 +213,24 @@ class ItemsTab extends StatelessWidget {
                           ),
                     ),
                   ),
-                )
-              else if (showActiveFold || showClosedFold || myDraftCount > 0) ...[
-                if (showActiveFold) ...[
-                  const SizedBox(height: 8),
-                  ExpansionTile(
-                    initiallyExpanded: true,
-                    title: Text(
-                      'Active (${openItems.length})',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    leading: const Icon(Icons.bolt_outlined),
-                    children: [
+                ),
+              AccordionExpansionGroup(
+                initialExpandedId: requestedSectionId,
+                requestedExpandedId: requestedSectionId,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (showActiveFold) ...[
+                      const SizedBox(height: 8),
+                      AccordionExpansionTile(
+                        id: BeaconItemsAccordionSection.active,
+                        initiallyExpanded: true,
+                        title: Text(
+                          'Active (${openItems.length})',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        leading: const Icon(Icons.bolt_outlined),
+                        children: [
                       if (showCoordinationCtas) ...[
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -294,19 +311,20 @@ class ItemsTab extends StatelessWidget {
                             ),
                             ),
                           ),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
-                if (showClosedFold) ...[
-                  const SizedBox(height: 8),
-                  ExpansionTile(
-                    initiallyExpanded: focusInClosed,
-                    leading: const Icon(Icons.check_circle_outline),
-                    title: Text(
-                      'Closed (${closedItems.length})',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    children: [
+                    if (showClosedFold) ...[
+                      const SizedBox(height: 8),
+                      AccordionExpansionTile(
+                        id: BeaconItemsAccordionSection.closed,
+                        initiallyExpanded: focusInClosed,
+                        leading: const Icon(Icons.check_circle_outline),
+                        title: Text(
+                          'Closed (${closedItems.length})',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        children: [
                       for (final item in closedItems)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
@@ -331,19 +349,20 @@ class ItemsTab extends StatelessWidget {
                             ),
                           ),
                         ),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
-                if (myDraftCount > 0) ...[
-                  const SizedBox(height: 8),
-                  ExpansionTile(
-                    initiallyExpanded: focusInDrafts,
-                    title: Text(
-                      '${l10n.myWorkSectionDrafts} ($myDraftCount)',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    leading: const Icon(Icons.drafts_outlined),
-                    children: [
+                    if (showDrafts) ...[
+                      const SizedBox(height: 8),
+                      AccordionExpansionTile(
+                        id: BeaconItemsAccordionSection.drafts,
+                        initiallyExpanded: focusInDrafts,
+                        title: Text(
+                          '${l10n.myWorkSectionDrafts} ($myDraftCount)',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        leading: const Icon(Icons.drafts_outlined),
+                        children: [
                       for (final draft in myDrafts)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
@@ -355,19 +374,21 @@ class ItemsTab extends StatelessWidget {
                             ),
                           ),
                         ),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
-              ],
-              if (showFacts) ...[
-                const SizedBox(height: 8),
-                _BeaconFactsSection(
-                  pinnedFacts: pinnedFacts,
-                  beaconId: beaconId,
+                    if (showFacts) ...[
+                      const SizedBox(height: 8),
+                      _BeaconFactsSection(
+                        pinnedFacts: pinnedFacts,
+                        beaconId: beaconId,
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    _BeaconDefinitionSection(state: state),
+                  ],
                 ),
-              ],
-              const SizedBox(height: 8),
-              _BeaconDefinitionSection(state: state),
+              ),
             ],
           ),
         );
@@ -530,7 +551,8 @@ class _BeaconDefinitionSection extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final beacon = state.beacon;
 
-    return ExpansionTile(
+    return AccordionExpansionTile(
+      id: BeaconItemsAccordionSection.definition,
       leading: const Icon(Icons.info_outline),
       title: Text(
         l10n.beaconDefinitionSectionTitle,
@@ -563,7 +585,8 @@ class _BeaconFactsSection extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
 
-    return ExpansionTile(
+    return AccordionExpansionTile(
+      id: BeaconItemsAccordionSection.facts,
       leading: const Icon(Icons.article_outlined),
       title: Text(
         l10n.beaconItemsFactsFoldTitle,

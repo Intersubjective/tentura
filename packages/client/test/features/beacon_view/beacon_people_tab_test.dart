@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -12,8 +13,7 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
-import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart'
-    show BeaconPeopleTabBody;
+import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -146,5 +146,70 @@ void main() {
     await tester.tap(find.text('Not fitting (1)'));
     await tester.pumpAndSettle();
     expect(find.text('Rejected'), findsOneWidget);
+  });
+
+  testWidgets('compact accordion collapses active when not fitting opens', (
+    tester,
+  ) async {
+    const compact = Size(500, 812);
+    await tester.binding.setSurfaceSize(compact);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    _state = _peopleState(
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h1', displayName: 'Helper'),
+          message: 'I can help',
+          createdAt: _t,
+          updatedAt: _t,
+        ),
+        TimelineHelpOffer(
+          user: const Profile(id: 'h2', displayName: 'Rejected'),
+          message: '',
+          createdAt: _t,
+          updatedAt: _t,
+          coordinationResponse: CoordinationResponseType.notSuitable,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MediaQuery(
+          data: const MediaQueryData(size: compact),
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+              BlocProvider<ScreenCubit>(create: (_) => ScreenCubit()),
+              BlocProvider<BeaconViewCubit>.value(
+                value: _MockBeaconViewCubit(),
+              ),
+            ],
+            child: Scaffold(
+              body: SingleChildScrollView(
+                child: BeaconPeopleTabBody(
+                  state: _state,
+                  beaconViewCubit: _MockBeaconViewCubit(),
+                  l10n: lookupL10n(const Locale('en')),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Author'), findsOneWidget);
+    expect(find.text('Helper'), findsNothing);
+    await tester.tap(find.text('Not fitting (1)'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rejected'), findsOneWidget);
+    expect(find.text('Author'), findsNothing);
   });
 }
