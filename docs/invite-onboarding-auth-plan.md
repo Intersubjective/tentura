@@ -1,9 +1,10 @@
 # Tentura Invite-Link Onboarding and Auth Plan
 
-> **Status (2026-06-11):** Phases **0–3 are shipped**. Single-origin routing,
+> **Status (2026-06-11):** Phases **0–3.5 are shipped**. Single-origin routing,
 > session cookies, scanner-safe email magic links, Google OAuth, accept-invite +
-> landing flows, Settings credential linking (ADR 0003), and landing seed-signup
-> retirement are **done**. Phase **4** (iOS Universal Links, install-after-click
+> landing flows, Settings credential linking (ADR 0003), landing seed-signup
+> retirement, and the post-signup name step + onboarding pager on the landing
+> (Phase 3.5) are **done**. Phase **4** (iOS Universal Links, install-after-click
 > server tracking) remains **partial**. Cross-cutting auth recovery hardening is
 > shipped separately (see below). This doc is the north-star architecture;
 > shipped routing detail lives in
@@ -27,6 +28,7 @@
 | **1** | Session bootstrap on one origin | **Done** — `__Host-tentura_session`, cookie-presence `/` split, WASM bootstrap, stale-session reconciliation (ADR 0002) |
 | **2** | Email magic link (captive-browser auth) | **Done** — server + landing + Resend template; requires `RESEND_*` env |
 | **3** | Provider cleanup + credential Settings | **Done** — strict link-mode (ADR 0003), list/remove/link Google·email·recovery seed, per-credential session revoke on remove, device-seed landing UI retired, add-method tiles filtered when already linked |
+| **3.5** | Post-signup profile + onboarding on landing | **Done** — `new=1` redirect for brand-new accounts, cookie-auth `GET/PATCH /api/v2/accounts/me/profile`, landing name step + 3-page onboarding pager, web intro retired (native intro re-pagered to same copy), `EMAIL_DEBUG_SINK_DIR` dev sink |
 | **4** | Native + deferred invite pickup | **Partial** — native deep links + Android App Links shipped; iOS Universal Links + install-after-click server tracking not started |
 
 ## North Star
@@ -313,7 +315,8 @@ returning to invite page. OAuth tokens never exposed to browser JS.
 |------|------|
 | `index.html` | Shell; Sentry CDN, config, `main.js` |
 | `config.js` / `config.local.js` | `apiBase`, `googleEnabled`, `sentryDsn` |
-| `main.js` | Preview states, Tier UX, signed-out `/` |
+| `main.js` | Preview states, Tier UX, signed-out `/`, post-signup dispatch |
+| `onboarding.js` | Post-signup name step + 3-page onboarding pager (`new=1`) |
 | `invite_entry.js` | Manual invite link/code parsing |
 | `preview.js` | `GET /api/v2/invite/:code/preview` |
 | `webview.js` | Tier 1/2 detection, Android `intent://` |
@@ -419,6 +422,41 @@ Acceptance (verified):
 
 - Settings lists and links Google, email, and recovery seed; conflicts → 409
 - Removing a credential revokes its cookie-backed sessions immediately
+
+### Phase 3.5: Post-Signup Profile and Onboarding on Landing — **Done**
+
+Brand-new accounts finish signup **on the landing** (name + onboarding) while
+WASM caches in the background; the app then boots straight to Home.
+
+- `CredentialAuthCase.resolveOrCreate` returns
+  `({accountId, isNewAccount})`; **only** fresh `_createAccount` paths report
+  `true` — logins and verified-contact credential links (including the
+  contact-conflict retry) report `false`, so existing users never see the name
+  step.
+- Email verify + Google callback append `new=1` to the redirect when
+  `isNewAccount` (`/invite/<code>?signed_in=1&new=1`; without invite context
+  `/invite/?signed_in=1&new=1` — never `/`, which routes into WASM per
+  ADR 0002).
+- `GET/PATCH /api/v2/accounts/me/profile` (cookie or bearer) backs the name
+  step; canonical spec + CSRF rationale in
+  [`invite-signup-landing-flow.md`](invite-signup-landing-flow.md).
+- Landing `onboarding.js`: name step (pre-filled from the server-derived
+  default) → 3-page pager → "Open Tentura"; one-shot `sessionStorage` guard;
+  401-fallback for replayed `new=1` URLs.
+- WASM intro retired on web (`!kIsWeb` intro guards; Settings replay button
+  hidden); native `IntroScreen` is a 3-page `PageView` with the same copy
+  (`introPage{1..3}Title/Text` in l10n).
+- **Dev ops:** `EMAIL_DEBUG_SINK_DIR` writes magic links to
+  `<dir>/<email>.json` instead of Resend (local + automated e2e; never set in
+  production).
+
+Acceptance:
+
+- New email/Google signup → name step → pager → product, WASM from cache
+- Existing-user login (or Google merging into an existing account via verified
+  contact) → no `new=1`, no name step
+- Replayed/shared `new=1` URL without cookie → normal landing
+- Web never shows `IntroScreen`; native shows the 3-page intro once
 
 ### Phase 4: Native and Deferred Invite Pickup — **Partial**
 

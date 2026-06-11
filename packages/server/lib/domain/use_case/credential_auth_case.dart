@@ -26,8 +26,10 @@ final class CredentialAuthCase extends UseCaseBase {
   final VerifiedContactRepositoryPort _verifiedContactRepository;
   final InvitationCase _invitationCase;
 
-  /// Returns account id after login or signup.
-  Future<String> resolveOrCreate({
+  /// Returns the account id after login or signup. `isNewAccount` is true only
+  /// when a brand-new account was created — login and credential-link into an
+  /// existing account (verified-contact match) both report false.
+  Future<({String accountId, bool isNewAccount})> resolveOrCreate({
     required CredentialType type,
     required String identifier,
     required String displayName,
@@ -45,7 +47,7 @@ final class CredentialAuthCase extends UseCaseBase {
         contacts: authoritative,
       );
       await _acceptInviteIfPresent(inviteId: inviteId, userId: existing.id);
-      return existing.id;
+      return (accountId: existing.id, isNewAccount: false);
     }
 
     final matchedAccountIds = await _verifiedContactRepository
@@ -65,7 +67,7 @@ final class CredentialAuthCase extends UseCaseBase {
         contacts: authoritative,
       );
       await _acceptInviteIfPresent(inviteId: inviteId, userId: linkedAccountId);
-      return linkedAccountId;
+      return (accountId: linkedAccountId, isNewAccount: false);
     }
 
     return _createAccount(
@@ -99,7 +101,7 @@ final class CredentialAuthCase extends UseCaseBase {
     return accountId != null;
   }
 
-  Future<String> _createAccount({
+  Future<({String accountId, bool isNewAccount})> _createAccount({
     required CredentialType type,
     required String identifier,
     required String displayName,
@@ -119,7 +121,7 @@ final class CredentialAuthCase extends UseCaseBase {
           publicData: publicData,
           contacts: contacts,
         );
-        return user.id;
+        return (accountId: user.id, isNewAccount: true);
       } on ContactConflictException catch (_) {
         return _retryLinkAfterContactConflict(
           type: type,
@@ -140,7 +142,7 @@ final class CredentialAuthCase extends UseCaseBase {
         publicData: publicData,
         contacts: contacts,
       );
-      return user.id;
+      return (accountId: user.id, isNewAccount: true);
     } on ContactConflictException catch (_) {
       return _retryLinkAfterContactConflict(
         type: type,
@@ -152,7 +154,8 @@ final class CredentialAuthCase extends UseCaseBase {
     }
   }
 
-  Future<String> _retryLinkAfterContactConflict({
+  Future<({String accountId, bool isNewAccount})>
+  _retryLinkAfterContactConflict({
     required CredentialType type,
     required String identifier,
     required List<AssertedContact> contacts,
@@ -175,7 +178,7 @@ final class CredentialAuthCase extends UseCaseBase {
       contacts: contacts,
     );
     await _acceptInviteIfPresent(inviteId: inviteId, userId: linkedAccountId);
-    return linkedAccountId;
+    return (accountId: linkedAccountId, isNewAccount: false);
   }
 
   Future<void> _acceptInviteIfPresent({

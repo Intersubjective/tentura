@@ -136,9 +136,13 @@ final class AuthEmailController extends BaseController {
       inviteCodeForRecovery = peek.inviteCode;
       final outcome = await _emailAuthCase.confirm(token);
       return switch (outcome) {
-        EmailAuthLoginConfirmed(:final sessionToken, :final inviteCode) =>
+        EmailAuthLoginConfirmed(
+          :final sessionToken,
+          :final inviteCode,
+          :final isNewAccount,
+        ) =>
           Response.found(
-            _redirectAfterVerify(inviteCode),
+            _redirectAfterVerify(inviteCode, isNewAccount: isNewAccount),
             headers: withSetCookie(
               {kHeaderCacheControl: kCacheControlNoStore},
               buildSetCookie(
@@ -295,12 +299,26 @@ final class AuthEmailController extends BaseController {
 
   String get _landingUrl => publicLandingUrl(env.publicOrigin);
 
-  String _redirectAfterVerify(String? inviteCode) {
+  String _redirectAfterVerify(String? inviteCode, {required bool isNewAccount}) {
     if (inviteCode != null && inviteCode.isNotEmpty) {
       return Uri.parse(env.publicOrigin)
           .replace(
             path: '/invite/$inviteCode',
-            queryParameters: {'signed_in': '1'},
+            queryParameters: {
+              'signed_in': '1',
+              if (isNewAccount) 'new': '1',
+            },
+          )
+          .toString();
+    }
+    // New account without invite: `/` would route into WASM (cookie-presence
+    // split, ADR 0002), so use the always-landing `/invite/` path for the
+    // post-signup name + onboarding flow.
+    if (isNewAccount) {
+      return Uri.parse(env.publicOrigin)
+          .replace(
+            path: '/invite/',
+            queryParameters: {'signed_in': '1', 'new': '1'},
           )
           .toString();
     }

@@ -5,6 +5,7 @@ import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:tentura_server/env.dart';
 
 import 'controllers/account_credentials_controller.dart';
+import 'controllers/account_profile_controller.dart';
 import 'controllers/auth_email_controller.dart';
 import 'controllers/auth_google_controller.dart';
 import 'controllers/firebase_sw_controller.dart';
@@ -32,6 +33,7 @@ class RootRouter {
     this._invitePreviewController,
     this._inviteAcceptExistingController,
     this._accountCredentialsController,
+    this._accountProfileController,
     this._sessionController,
     this._authGoogleController,
     this._authEmailController,
@@ -58,6 +60,8 @@ class RootRouter {
   final InviteAcceptExistingController _inviteAcceptExistingController;
 
   final AccountCredentialsController _accountCredentialsController;
+
+  final AccountProfileController _accountProfileController;
 
   final SessionController _sessionController;
 
@@ -167,6 +171,18 @@ class RootRouter {
         '/api/v2/accounts/me/credentials/<credentialId>',
         _accountCredentialsController.remove,
         use: _authMiddleware.verifyBearerJwt,
+      )
+      // Cookie or Bearer: the static landing post-signup name step uses the
+      // session cookie directly (no JWT in landing JS).
+      ..get(
+        '/api/v2/accounts/me/profile',
+        _accountProfileController.get,
+        use: _authMiddleware.extractJwtOrSessionClaims,
+      )
+      ..patch(
+        '/api/v2/accounts/me/profile',
+        _accountProfileController.patch,
+        use: _authMiddleware.extractJwtOrSessionClaims,
       );
 
     return router.call;

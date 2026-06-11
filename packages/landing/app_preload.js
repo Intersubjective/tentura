@@ -102,14 +102,21 @@ async function warmAssets(urls, cacheName) {
   await Promise.all(workers);
 }
 
-async function runPreload() {
+async function runPreload(track) {
   const manifest = await fetchManifest();
   if (!manifest) return;
   const urls = assetUrls(manifest);
   if (urls.length === 0) return;
   const cacheName = `tentura-app-assets-${manifest.version}`;
   scheduleIdle(() => {
-    warmAssets(urls, cacheName).catch(() => {});
+    warmAssets(urls, cacheName)
+      .then(() => {
+        track('app_preload_done', {
+          version: manifest.version,
+          assets: urls.length,
+        });
+      })
+      .catch(() => {});
   });
 }
 
@@ -134,5 +141,5 @@ export function startAppPreload({ env = {}, track = () => {} } = {}) {
 
   track('app_preload_start');
   registerServiceWorker().catch(() => {});
-  runPreload().catch(() => {});
+  runPreload(track).catch(() => {});
 }

@@ -277,6 +277,7 @@ void main() {
     final login = outcome as EmailAuthLoginConfirmed;
     expect(login.sessionToken, 'session-cookie-value');
     expect(login.inviteCode, 'Iabc');
+    expect(login.isNewAccount, isTrue);
 
     expect(
       () => case_.confirm('opaque-token'),
@@ -420,7 +421,9 @@ void main() {
 
     final outcome = await openCase.confirm('opaque-token');
     expect(outcome, isA<EmailAuthLoginConfirmed>());
-    expect((outcome as EmailAuthLoginConfirmed).inviteCode, isNull);
+    final openLogin = outcome as EmailAuthLoginConfirmed;
+    expect(openLogin.inviteCode, isNull);
+    expect(openLogin.isNewAccount, isTrue);
   });
 
   test('confirm links email_otp into existing google account by verified contact', () async {

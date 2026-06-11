@@ -9,55 +9,118 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
+/// Native-only 3-page onboarding pager (web onboarding lives on the static
+/// landing — same copy, see `packages/landing/onboarding.js`).
 @RoutePage()
-class IntroScreen extends StatelessWidget {
+class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
+
+  @override
+  State<IntroScreen> createState() => _IntroScreenState();
+}
+
+class _IntroScreenState extends State<IntroScreen> {
+  static const _pageCount = 3;
+
+  final _controller = PageController();
+
+  var _page = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final pages = [
+      (title: l10n.introPage1Title, text: l10n.introPage1Text),
+      (title: l10n.introPage2Title, text: l10n.introPage2Text),
+      (title: l10n.introPage3Title, text: l10n.introPage3Text),
+    ];
+    final isLast = _page == _pageCount - 1;
     return Scaffold(
       body: SafeArea(
         minimum: kPaddingAll,
         child: Column(
           children: [
-            const Spacer(),
+            Expanded(
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: _pageCount,
+                onPageChanged: (page) => setState(() => _page = page),
+                itemBuilder: (context, index) => Column(
+                  children: [
+                    const Spacer(),
 
-            // Image
-            const SvgPicture(
-              AssetBytesLoader('images/intro.svg.vec'),
-            ),
+                    // Image
+                    const SvgPicture(
+                      AssetBytesLoader('images/intro.svg.vec'),
+                    ),
 
-            // Title
-            Padding(
-              padding: kPaddingAllS,
-              child: Text(
-                l10n.introTitle,
-                textAlign: TextAlign.center,
-                style: textTheme.titleLarge,
+                    // Title
+                    Padding(
+                      padding: kPaddingAllS,
+                      child: Text(
+                        pages[index].title,
+                        textAlign: TextAlign.center,
+                        style: textTheme.titleLarge,
+                      ),
+                    ),
+
+                    // Text
+                    Padding(
+                      padding: kPaddingAllS,
+                      child: Text(
+                        pages[index].text,
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyLarge,
+                      ),
+                    ),
+
+                    const Spacer(),
+                  ],
+                ),
               ),
             ),
 
-            // Text
-            Padding(
-              padding: kPaddingAllS,
-              child: Text(
-                l10n.introText,
-                textAlign: TextAlign.center,
-                style: textTheme.bodyLarge,
-              ),
+            // Page dots
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < _pageCount; i++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i == _page
+                            ? colorScheme.primary
+                            : colorScheme.outlineVariant,
+                      ),
+                    ),
+                  ),
+              ],
             ),
 
-            const Spacer(),
-
-            // Continue Button
+            // Next / Start
             Padding(
               padding: kPaddingV,
               child: FilledButton(
-                onPressed: () =>
-                    GetIt.I<SettingsCubit>().setIntroEnabled(false),
-                child: Text(l10n.buttonStart),
+                onPressed: isLast
+                    ? () => GetIt.I<SettingsCubit>().setIntroEnabled(false)
+                    : () => _controller.nextPage(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeInOut,
+                      ),
+                child: Text(isLast ? l10n.buttonStart : l10n.buttonNext),
               ),
             ),
           ],

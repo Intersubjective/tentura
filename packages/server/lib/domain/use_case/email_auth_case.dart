@@ -123,7 +123,7 @@ final class EmailAuthCase extends UseCaseBase {
       return const EmailAuthLinkConfirmed();
     }
 
-    final accountId = await _credentialAuthCase.resolveOrCreate(
+    final resolved = await _credentialAuthCase.resolveOrCreate(
       type: CredentialType.emailOtp,
       identifier: tx.normalizedEmail,
       displayName: displayNameFromEmail(tx.normalizedEmail),
@@ -135,13 +135,14 @@ final class EmailAuthCase extends UseCaseBase {
       identifier: tx.normalizedEmail,
     );
     final sessionToken = await _sessionCase.createSession(
-      accountId: accountId,
+      accountId: resolved.accountId,
       credentialId: credentialId,
     );
     await _consumeLast(plaintextToken);
     return EmailAuthLoginConfirmed(
       sessionToken: sessionToken,
       inviteCode: tx.inviteCode,
+      isNewAccount: resolved.isNewAccount,
     );
   }
 

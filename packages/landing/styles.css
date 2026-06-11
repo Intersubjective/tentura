@@ -223,6 +223,29 @@ p {
   margin-top: 4px;
 }
 
+/* Post-signup onboarding pager (state-post-signup). */
+.pager-page {
+  min-height: 130px;
+}
+
+.pager-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.pager-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2a2f3a;
+}
+
+.pager-dot.active {
+  background: var(--accent);
+}
+
 .spinner {
   width: 28px;
   height: 28px;

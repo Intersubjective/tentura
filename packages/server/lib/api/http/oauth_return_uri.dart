@@ -18,8 +18,12 @@ String sanitizeOAuthReturnTo({
   return uri.toString();
 }
 
-/// Parity with email verify: re-preview invite page after OAuth with session cookie.
-String appendSignedInIfInvite(String destination) {
+/// Parity with email verify: re-preview invite page after OAuth with session
+/// cookie. `isNewAccount` adds `new=1` (post-signup name + onboarding flow).
+String appendSignedInIfInvite(
+  String destination, {
+  bool isNewAccount = false,
+}) {
   final uri = Uri.parse(destination);
   final segments = uri.pathSegments;
   if (segments.length == 2 &&
@@ -30,6 +34,7 @@ String appendSignedInIfInvite(String destination) {
           queryParameters: {
             ...uri.queryParameters,
             'signed_in': '1',
+            if (isNewAccount) 'new': '1',
           },
         )
         .toString();
@@ -40,11 +45,23 @@ String appendSignedInIfInvite(String destination) {
 String destinationAfterOAuthCallback({
   required String returnTo,
   required String publicOrigin,
+  bool isNewAccount = false,
 }) {
   if (returnTo.isEmpty) {
+    // New account with no return target: `/` would route into WASM
+    // (cookie-presence split, ADR 0002); `/invite/` always serves the landing,
+    // which owns the post-signup name + onboarding flow.
+    if (isNewAccount) {
+      return Uri.parse(publicOrigin)
+          .replace(
+            path: '/invite/',
+            queryParameters: {'signed_in': '1', 'new': '1'},
+          )
+          .toString();
+    }
     return publicOrigin.endsWith('/')
         ? publicOrigin
         : '$publicOrigin/';
   }
-  return appendSignedInIfInvite(returnTo);
+  return appendSignedInIfInvite(returnTo, isNewAccount: isNewAccount);
 }

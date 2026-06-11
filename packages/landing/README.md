@@ -21,7 +21,8 @@ opens it — gated off in in-app webviews, Save-Data mode, and slow links.
 | `index.html`         | markup; loads Sentry CDN, `config.js`, optional `config.local.js`, `main.js` |
 | `config.js`          | runtime config template (`apiBase`, `googleEnabled`, `sentryDsn`) |
 | `config.local.js`    | no-op stub by default; `./scripts/sync-landing-local-config.sh` sets `googleEnabled` locally |
-| `main.js`            | entry ES module; renders invite states + signed-out `/`     |
+| `main.js`            | entry ES module; renders invite states + signed-out `/` + post-signup dispatch |
+| `onboarding.js`      | post-signup name step + 3-page onboarding pager (`?signed_in=1&new=1`) |
 | `app_preload.js`     | background WASM asset warmup (manifest + SW + cache)        |
 | `invite_entry.js`    | manual invite link/code parsing for signed-out `/`            |
 | `preview.js`  | fetches `GET /api/v2/invite/:code/preview`                  |
@@ -84,6 +85,12 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - Renders 5 preview states from `suggestedAction`: invalid · is-inviter ·
   already-friends · existing-user (befriend) · anonymous (email/Google/recover).
 - **Beacon overlay** shown above the CTA in every state when `beacon` is present.
+- **Post-signup (`?signed_in=1&new=1`):** brand-new accounts get the **name
+  step** (display name via cookie-auth `GET/PATCH /api/v2/accounts/me/profile`
+  with `credentials: 'include'` — **landing JS never touches JWTs**) followed by
+  a 3-page onboarding pager, then **Open Tentura**. One-shot
+  `sessionStorage` guard; without a session cookie the flow falls back to the
+  normal render. WASM keeps warming in the background the whole time.
 - Funnel events fire via Sentry **before** any WASM boot; app asset warmup starts
   immediately in the background (see `app_preload.js`).
 
@@ -103,7 +110,9 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - **Email magic link (Tier 1 + 2):** `startEmailMagicLink({ email, code })` →
   `POST /api/v2/auth/email/start` with optional `inviteCode`. Verify sets
   `__Host-tentura_session`, accepts the invite when appropriate, and redirects to
-  `/invite/:code?signed_in=1`. Requires server `RESEND_*` env.
+  `/invite/:code?signed_in=1` (+`&new=1` for brand-new accounts). Requires
+  server `RESEND_*` env (or dev-only `EMAIL_DEBUG_SINK_DIR`, which writes the
+  magic link to disk instead of sending).
 - **Google OAuth (Tier 1 only):** `ctaGoogleSignIn(code)` when `googleEnabled` and
   not `env.inApp` → `/api/auth/google/start?invite=…&returnTo=…`. Sets session
   cookie on callback and returns to the invite page.

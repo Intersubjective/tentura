@@ -207,6 +207,7 @@ final class AuthGoogleController extends BaseController {
       final destination = destinationAfterOAuthCallback(
         returnTo: payload.returnTo,
         publicOrigin: env.publicOrigin,
+        isNewAccount: resolved.isNewAccount,
       );
       final headers = withSetCookie(
         withSetCookie(

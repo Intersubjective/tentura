@@ -34,6 +34,7 @@ class Env {
     bool? oauthPreloadEnabled,
     String? resendApiKey,
     String? resendFromEmail,
+    String? emailDebugSinkDir,
     Duration? emailAuthTtl,
     Duration? emailAuthRateLimitWindow,
     int? emailAuthMaxPerEmail,
@@ -115,6 +116,8 @@ class Env {
            oauthPreloadEnabled ?? _env['OAUTH_PRELOAD_ENABLED'] == 'true',
        resendApiKey = resendApiKey ?? _env['RESEND_API_KEY'] ?? '',
        resendFromEmail = resendFromEmail ?? _env['RESEND_FROM_EMAIL'] ?? '',
+       emailDebugSinkDir =
+           emailDebugSinkDir ?? _env['EMAIL_DEBUG_SINK_DIR'] ?? '',
        emailAuthTtl = emailAuthTtl ??
            Duration(
              seconds: int.tryParse(_env['EMAIL_AUTH_TTL_SECONDS'] ?? '') ??
@@ -304,6 +307,12 @@ class Env {
 
   final String resendFromEmail;
 
+  /// Dev-only magic-link delivery sink (`EMAIL_DEBUG_SINK_DIR`): when set, the
+  /// server writes verify URLs to `<dir>/<sanitized-email>.json` instead of
+  /// sending via Resend, so local and automated flows can read the link from
+  /// disk. NEVER set in production — it bypasses real email delivery entirely.
+  final String emailDebugSinkDir;
+
   final Duration emailAuthTtl;
 
   final Duration emailAuthRateLimitWindow;
@@ -315,7 +324,8 @@ class Env {
   final int emailAuthMaxPerInvite;
 
   bool get isEmailAuthConfigured =>
-      resendApiKey.isNotEmpty && resendFromEmail.isNotEmpty;
+      (resendApiKey.isNotEmpty && resendFromEmail.isNotEmpty) ||
+      emailDebugSinkDir.isNotEmpty;
 
   // Web server
   final String bindAddress;
