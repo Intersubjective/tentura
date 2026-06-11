@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
@@ -105,12 +106,15 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
               onPressed: () => context.router.push(CredentialsRoute()),
             ),
 
-            // Intro
-            OutlinedButton.icon(
-              icon: const Icon(Icons.reset_tv),
-              label: Text(l10n.showIntroAgain),
-              onPressed: () => cubit.setIntroEnabled(true),
-            ),
+            // Intro — native only: on web onboarding lives on the static
+            // landing and the router never enters IntroRoute (intro guards
+            // are no-ops on web), so this replay button would do nothing.
+            if (!kIsWeb)
+              OutlinedButton.icon(
+                icon: const Icon(Icons.reset_tv),
+                label: Text(l10n.showIntroAgain),
+                onPressed: () => cubit.setIntroEnabled(true),
+              ),
 
             OutlinedButton.icon(
               onPressed: () => _confirmResetLocal(context, l10n),

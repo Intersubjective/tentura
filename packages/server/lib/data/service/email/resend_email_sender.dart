@@ -1,13 +1,14 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/env.dart';
 
-@Singleton(as: EmailSenderPort, env: [Environment.dev, Environment.prod], order: 1)
+/// Production sender via the Resend API. Registered through
+/// `EmailSenderModule` (dev/prod), which swaps in [FileSinkEmailSender] when
+/// `EMAIL_DEBUG_SINK_DIR` is set.
 class ResendEmailSender implements EmailSenderPort {
   ResendEmailSender(this._env) : _client = http.Client();
 

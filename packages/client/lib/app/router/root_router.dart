@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:logging/logging.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
@@ -46,6 +47,10 @@ class RootRouter extends RootStackRouter {
     return _authCubit.state.isNotAuthenticated ? const AuthLoginRoute() : null;
   }
 
+  /// Web onboarding lives on the static landing (post-signup pager); the WASM
+  /// app never shows IntroScreen. Native keeps the Drift-backed intro flag.
+  bool get _introPending => !kIsWeb && _settingsCubit.state.introEnabled;
+
   @override
   @disposeMethod
   void dispose() {
@@ -88,7 +93,7 @@ class RootRouter extends RootStackRouter {
       ],
       guards: [
         AutoRouteGuard.redirect(
-          (_) => _settingsCubit.state.introEnabled ? const IntroRoute() : null,
+          (_) => _introPending ? const IntroRoute() : null,
         ),
         AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
       ],
@@ -100,21 +105,20 @@ class RootRouter extends RootStackRouter {
       path: kPathInboxRejected,
       guards: [
         AutoRouteGuard.redirect(
-          (_) => _settingsCubit.state.introEnabled ? const IntroRoute() : null,
+          (_) => _introPending ? const IntroRoute() : null,
         ),
         AutoRouteGuard.redirect((_) => _redirectIfUnauthenticated()),
       ],
     ),
 
-    // Intro
+    // Intro (native only — web onboarding is on the static landing)
     AutoRoute(
       keepHistory: false,
       maintainState: false,
       page: IntroRoute.page,
       guards: [
         AutoRouteGuard.redirect(
-          (_) =>
-              _settingsCubit.state.introEnabled ? null : const AuthLoginRoute(),
+          (_) => _introPending ? null : const AuthLoginRoute(),
         ),
       ],
     ),

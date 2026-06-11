@@ -61,5 +61,40 @@ void main() {
         '$origin/',
       );
     });
+
+    test('appends new=1 for invite return when account is new', () {
+      expect(
+        destinationAfterOAuthCallback(
+          returnTo: 'https://dev.lvh.me:9443/invite/Iabc123',
+          publicOrigin: origin,
+          isNewAccount: true,
+        ),
+        'https://dev.lvh.me:9443/invite/Iabc123?signed_in=1&new=1',
+      );
+    });
+
+    test('new account with empty returnTo lands on landing /invite/', () {
+      // Not `/`: with a fresh session cookie the root routes into WASM
+      // (ADR 0002); `/invite/` always serves the landing post-signup flow.
+      expect(
+        destinationAfterOAuthCallback(
+          returnTo: '',
+          publicOrigin: origin,
+          isNewAccount: true,
+        ),
+        '$origin/invite/?signed_in=1&new=1',
+      );
+    });
+
+    test('login (not new) keeps redirect without new=1', () {
+      expect(
+        destinationAfterOAuthCallback(
+          returnTo: 'https://dev.lvh.me:9443/invite/Iabc123',
+          publicOrigin: origin,
+          isNewAccount: false,
+        ),
+        'https://dev.lvh.me:9443/invite/Iabc123?signed_in=1',
+      );
+    });
   });
 }

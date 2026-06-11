@@ -71,9 +71,10 @@ flowchart TB
 
   subgraph newAccount["New account (invite consumed at signup)"]
     anon --> newSignup["Email OTP or Google on landing<br/>(inviteCode in start/OAuth)"]
-    newSignup --> signedIn["Redirect /invite/I…?signed_in=1"]
-    signedIn --> rePreview1["Re-preview → already-friends"]
-    rePreview1 --> openProd3["Open product"]
+    newSignup --> signedIn["Redirect /invite/I…?signed_in=1&new=1"]
+    signedIn --> nameStep["Landing name step<br/>(PATCH …/me/profile, cookie)"]
+    nameStep --> pager["Onboarding 3-page pager<br/>(WASM warms in background)"]
+    pager --> openProd3["Open product"]
   end
 
   subgraph returningOnLanding["Returning user on landing (invite befriended at login)"]
@@ -143,6 +144,20 @@ and/or bearer). Response drives UI and CTAs in `packages/landing/main.js`.
 
 When the code is not available, `suggestedAction` is `invalid`, `expired`, or
 `consumed` (regardless of `callerStatus`) and the landing shows `renderInvalid()`.
+
+**Post-signup return (`?signed_in=1&new=1`):** appended by the server only when
+a **brand-new account** was created (`CredentialAuthCase.resolveOrCreate` →
+`isNewAccount`; logins and credential-links into an existing account never get
+it). The landing then shows the **name step** (display name pre-filled from the
+server-derived default via `GET …/me/profile`) followed by the **3-page
+onboarding pager** (`packages/landing/onboarding.js`), regardless of preview
+state — the invite is already consumed. While the user reads, `app_preload.js`
+finishes warming WASM assets, so the final "Open Tentura" boots from cache. A
+one-shot `sessionStorage` flag (`tentura_post_signup_done`) prevents replay on
+reload/back; a shared or replayed `new=1` URL without the session cookie falls
+back to the normal render (profile GET returns 401). New accounts with no
+invite context redirect to `/invite/?signed_in=1&new=1` (not `/`, which would
+route into WASM per ADR 0002).
 
 **Signed-out `/` (no invite code):** `renderNoInvite()` — invite paste is the primary
 path. **“I already have an account”** reveals tier-specific sign-in options and hides
@@ -257,6 +272,33 @@ cannot re-open the accept flow.
 |--------|------|------|------|
 | `GET` | `/api/v2/invite/<code>/preview` | Optional (cookie or bearer) | Caller-aware preview for landing + accept screen |
 | `POST` | `/api/v2/invite/<code>/accept-as-existing` | Bearer JWT required | Befriend issuer + forward beacon; **not** for new signups |
+| `GET` | `/api/v2/accounts/me/profile` | Cookie or bearer | `{id, displayName}` of the calling account (landing name-step prefill) |
+| `PATCH` | `/api/v2/accounts/me/profile` | Cookie or bearer | Update display name from the landing post-signup step |
+
+### Profile endpoint (canonical spec)
+
+`AccountProfileController`; route guard `extractJwtOrSessionClaims` (Bearer JWT
+first, then `__Host-tentura_session` cookie). Exists so the **static landing
+can read/write the display name with the session cookie alone — landing JS
+never handles JWTs.**
+
+```http
+GET /api/v2/accounts/me/profile
+→ 200 {"id": "U…", "displayName": "…"}
+→ 401 when neither bearer nor session cookie resolves
+
+PATCH /api/v2/accounts/me/profile
+Content-Type: application/json
+{"displayName": "Ada L."}
+→ 200 {"id": "U…", "displayName": "Ada L."}   (value is trimmed first)
+→ 400 {"error": …} — missing/non-string or trimmed length outside 3–32
+      (`kTitleMinLength`–`kTitleMaxLength`, same as GraphQL `userUpdate`)
+→ 401 unauthenticated
+```
+
+**CSRF rationale:** the session cookie is `SameSite=Lax`, so cross-site
+`PATCH` requests do not carry it; additionally the endpoint only accepts a
+JSON body, which plain HTML forms cannot produce. No CSRF token is needed.
 
 Preview JSON fields used by the client: `codeStatus`, `callerStatus`, `inviter`,
 `beacon`, `suggestedAction`.
@@ -294,7 +336,9 @@ flowchart TD
 
 | Scenario | Behavior |
 |----------|----------|
-| New web user (email/Google) | Never reaches accept-invite; server consumed invite at signup |
+| New web user (email/Google) | Never reaches accept-invite; server consumed invite at signup; landing shows name step + onboarding (`new=1`) |
+| Google merging into existing account via verified contact | Credential **link**, not signup: no `new=1`, no name step (existing display name preserved) |
+| Web onboarding vs WASM intro | Web never shows `IntroScreen` (intro guards are `!kIsWeb`); native keeps the 3-page intro with the same copy |
 | Returning user via WASM seed recovery | Recovery sign-in → `#/accept-invite/…` → accept-as-existing |
 | Double-tap / refresh on `#/accept-invite/…` | Preview + confirm again; first accept wins; later 404 is non-fatal |
 | Self-invite | Preview `is-inviter` short-circuit; POST 400 handled defensively |
@@ -316,6 +360,9 @@ flowchart TD
 | Repository (preview + accept) | `packages/client/lib/features/invitation/data/repository/invitation_repository.dart` |
 | Accept cubit + screen | `packages/client/lib/features/invitation/ui/bloc/accept_invite_cubit.dart`, `…/screen/accept_invite_screen.dart` |
 | Landing CTAs | `packages/landing/main.js` |
+| Landing post-signup (name + onboarding) | `packages/landing/onboarding.js` |
+| Profile REST controller | `packages/server/lib/api/controllers/account_profile_controller.dart` |
+| Native 3-page intro | `packages/client/lib/features/intro/ui/screen/intro_screen.dart` |
 | Server preview | `packages/server/lib/domain/use_case/invitation_case.dart`, `…/entity/invite_preview_result.dart` |
 
 ## Tests
@@ -327,6 +374,9 @@ flowchart TD
 | Preview parsing + status maps | `packages/client/test/features/invitation/invite_preview_test.dart`, `invitation_repository_accept_test.dart` |
 | Accept cubit outcomes | `packages/client/test/features/invitation/accept_invite_cubit_test.dart` |
 | Landing URL construction | `packages/landing/test/url_dispatch_test.mjs` |
+| Landing post-signup flow | `packages/landing/test/onboarding_test.mjs` |
+| Profile endpoint | `packages/server/test/api/controllers/account_profile_controller_test.dart` |
+| isNewAccount propagation | `packages/server/test/domain/use_case/credential_auth_case_test.dart`, `…/oidc_case_test.dart`, `…/email_auth_case_test.dart`, `packages/server/test/api/http/oauth_return_uri_test.dart` |
 
 ## Manual smoke checklist
 
@@ -334,6 +384,8 @@ flowchart TD
 - [ ] Signed-out `/`: paste invite code/link → redirects to `/invite/I…` preview
 - [ ] Signed-in desktop web: `/invite/I…` → landing → `#/accept-invite/I…` → confirm → home once
 - [ ] Signed-out web: `/invite/I…` → landing signup only → after signup, product (no accept-as-existing)
+- [ ] New signup: lands on `?signed_in=1&new=1` → name step (pre-filled) → 3-page pager → Open Tentura boots from cache, no WASM intro
+- [ ] Existing-user sign-in: no `new=1`, no name step; reload after onboarding does not replay it
 - [ ] Android prod App Link, authed: preview → confirm → accept; anon → register
 - [ ] iOS / dev host: browser landing fallback; in-app paste/QR still works
 - [ ] After success: refresh / Back does not repeat befriending

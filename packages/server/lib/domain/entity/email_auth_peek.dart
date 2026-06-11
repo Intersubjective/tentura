@@ -44,11 +44,15 @@ sealed class EmailAuthConfirmOutcome {
 final class EmailAuthLoginConfirmed extends EmailAuthConfirmOutcome {
   const EmailAuthLoginConfirmed({
     required this.sessionToken,
+    required this.isNewAccount,
     this.inviteCode,
   });
 
   final String sessionToken;
   final String? inviteCode;
+
+  /// True only when a brand-new account was created (drives `new=1` redirect).
+  final bool isNewAccount;
 }
 
 /// Settings link mode: email attached; no session minted.

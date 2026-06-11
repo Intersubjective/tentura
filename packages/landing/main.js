@@ -4,6 +4,12 @@ import { parseInviteCode, fetchPreview } from './preview.js';
 import { startEmailMagicLink } from './auth.js';
 import { parseInviteEntryInput, invitePathForCode } from './invite_entry.js';
 import { startAppPreload } from './app_preload.js';
+import {
+  isNewSignupReturn,
+  isOnboardingDone,
+  fetchMyProfile,
+  renderPostSignup,
+} from './onboarding.js';
 
 const GOOGLE_ENABLED = Boolean((window.TENTURA || {}).googleEnabled);
 const API_BASE = (window.TENTURA || {}).apiBase || '';
@@ -581,6 +587,29 @@ async function main() {
   const code = parseInviteCode();
   // Funnel event fires BEFORE any WASM — the Phase 0 analytics deliverable.
   track('landing_view', { tier: env.tier, hasCode: Boolean(code) });
+
+  // Fresh signup return (`signed_in=1&new=1`): name step + onboarding pager,
+  // regardless of preview state (the invite is already consumed). A replayed
+  // or shared `new=1` URL has no session cookie → profile fetch fails → fall
+  // through to the normal render below.
+  if (isNewSignupReturn(location.search) && !isOnboardingDone(sessionStorage)) {
+    const profile = await fetchMyProfile();
+    if (profile) {
+      track('post_signup_view', { hasCode: Boolean(code) });
+      renderPostSignup({
+        card,
+        profile,
+        setState,
+        setPageTitle,
+        track,
+        openProductUrl,
+        storage: sessionStorage,
+      });
+      return;
+    }
+    track('post_signup_fallback');
+  }
+
   if (!code) {
     renderNoInvite();
     return;

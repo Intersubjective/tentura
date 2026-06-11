@@ -45,6 +45,10 @@ final class UserCase extends UseCaseBase {
   final TaskRepositoryPort _tasksRepository;
 
   //
+  Future<UserEntity> getProfile({required String id}) =>
+      _userRepository.getById(id);
+
+  //
   Future<UserEntity> updateProfile({
     required String id,
     String? displayName,

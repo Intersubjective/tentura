@@ -71,7 +71,9 @@ void main() {
       ),
     ).thenAnswer((_) async => const UserEntity(id: 'Uabc', displayName: 'Ada'));
 
-    expect((await case_.completeGoogle(identity)).accountId, 'Uabc');
+    final resolved = await case_.completeGoogle(identity);
+    expect(resolved.accountId, 'Uabc');
+    expect(resolved.isNewAccount, isFalse);
   });
 
   test('new account without invite on invite-only server is rejected', () async {
@@ -113,10 +115,9 @@ void main() {
       ),
     ).thenAnswer((_) async => const UserEntity(id: 'Unew', displayName: 'Ada'));
 
-    expect(
-      (await case_.completeGoogle(identity, inviteId: 'Iabc')).accountId,
-      'Unew',
-    );
+    final resolved = await case_.completeGoogle(identity, inviteId: 'Iabc');
+    expect(resolved.accountId, 'Unew');
+    expect(resolved.isNewAccount, isTrue);
     verify(
       userRepo.createInvitedWithCredential(
         invitationId: 'Iabc',

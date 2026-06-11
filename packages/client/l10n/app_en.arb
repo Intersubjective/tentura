@@ -682,12 +682,32 @@
   "@profileOverflowEdit": {
     "context": "ProfileAppBar"
   },
-  "introTitle": "Build Your Network with Clarity",
-  "@introTitle": {
+  "introPage1Title": "Get things done through people you trust",
+  "@introPage1Title": {
     "context": "Intro"
   },
-  "introText": "Each post reveals the connections you share. Enjoy complete transparency and mastery over your relationships",
-  "@introText": {
+  "introPage1Text": "Tentura is where you ask for help and offer yours — no public feed, no likes, no noise. Just real needs moving through real people.",
+  "@introPage1Text": {
+    "context": "Intro"
+  },
+  "introPage2Title": "Light a beacon, friends pass it on",
+  "@introPage2Title": {
+    "context": "Intro"
+  },
+  "introPage2Text": "Describe what you need — that's a beacon. Friends forward it to someone who can help, and you coordinate in the beacon's room until it's done.",
+  "@introPage2Text": {
+    "context": "Intro"
+  },
+  "introPage3Title": "Everyone here is vouched for",
+  "@introPage3Title": {
+    "context": "Intro"
+  },
+  "introPage3Text": "You joined by a personal invite, like everyone else — the friend who invited you is already in your network. Add people you trust, and light a beacon when you need a hand.",
+  "@introPage3Text": {
+    "context": "Intro"
+  },
+  "buttonNext": "Next",
+  "@buttonNext": {
     "context": "Intro"
   },
   "buttonStart": "Start",

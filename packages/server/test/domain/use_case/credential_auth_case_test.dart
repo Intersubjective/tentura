@@ -63,14 +63,15 @@ void main() {
       (_) async => const UserEntity(id: 'Uabc', displayName: 'Ada'),
     );
 
-    final id = await case_.resolveOrCreate(
+    final resolved = await case_.resolveOrCreate(
       type: CredentialType.emailOtp,
       identifier: 'ada@example.com',
       displayName: 'ada',
       assertedContacts: emailContact,
     );
 
-    expect(id, 'Uabc');
+    expect(resolved.accountId, 'Uabc');
+    expect(resolved.isNewAccount, isFalse);
     verify(
       userRepo.addVerifiedContacts(
         accountId: 'Uabc',
@@ -115,7 +116,7 @@ void main() {
       (_) async => const UserEntity(id: 'Unew', displayName: 'ada'),
     );
 
-    final id = await case_.resolveOrCreate(
+    final resolved = await case_.resolveOrCreate(
       type: CredentialType.emailOtp,
       identifier: 'ada@example.com',
       displayName: 'ada',
@@ -123,7 +124,8 @@ void main() {
       assertedContacts: emailContact,
     );
 
-    expect(id, 'Unew');
+    expect(resolved.accountId, 'Unew');
+    expect(resolved.isNewAccount, isTrue);
     verify(
       userRepo.createInvitedWithCredential(
         invitationId: 'Iabc',
@@ -178,14 +180,15 @@ void main() {
       ),
     ).thenAnswer((_) async => 'Ugoogle');
 
-    final id = await case_.resolveOrCreate(
+    final resolved = await case_.resolveOrCreate(
       type: CredentialType.emailOtp,
       identifier: 'ada@example.com',
       displayName: 'ada',
       assertedContacts: emailContact,
     );
 
-    expect(id, 'Ugoogle');
+    expect(resolved.accountId, 'Ugoogle');
+    expect(resolved.isNewAccount, isFalse);
     verify(
       userRepo.linkCredentialWithContacts(
         accountId: 'Ugoogle',
@@ -227,14 +230,15 @@ void main() {
       ),
     ).thenAnswer((_) async => 'Uemail');
 
-    final id = await case_.resolveOrCreate(
+    final resolved = await case_.resolveOrCreate(
       type: CredentialType.oidcGoogle,
       identifier: 'google-sub',
       displayName: 'Ada',
       assertedContacts: emailContact,
     );
 
-    expect(id, 'Uemail');
+    expect(resolved.accountId, 'Uemail');
+    expect(resolved.isNewAccount, isFalse);
     verify(
       userRepo.linkCredentialWithContacts(
         accountId: 'Uemail',
@@ -309,14 +313,15 @@ void main() {
       logger: Logger('CredentialAuthCaseTest'),
     );
 
-    final id = await case_.resolveOrCreate(
+    final resolved = await case_.resolveOrCreate(
       type: CredentialType.oidcGoogle,
       identifier: 'google-sub',
       displayName: 'Ada',
       assertedContacts: emailContact,
     );
 
-    expect(id, 'Uwinner');
+    expect(resolved.accountId, 'Uwinner');
+    expect(resolved.isNewAccount, isFalse);
   });
 
   test('emailIsRegistered checks credential and verified contact', () async {
@@ -365,7 +370,7 @@ void main() {
         ),
       ).thenAnswer((_) async => false);
 
-      final id = await case_.resolveOrCreate(
+      final resolved = await case_.resolveOrCreate(
         type: CredentialType.emailOtp,
         identifier: 'ada@example.com',
         displayName: 'ada',
@@ -373,7 +378,8 @@ void main() {
         assertedContacts: emailContact,
       );
 
-      expect(id, 'Ugoogle');
+      expect(resolved.accountId, 'Ugoogle');
+      expect(resolved.isNewAccount, isFalse);
     },
   );
 }

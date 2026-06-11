@@ -281,6 +281,9 @@ void main() {
 
     expect(res.statusCode, 302);
     expect(res.headers['location'], contains('/invite/Iabc'));
+    // New account: landing shows the post-signup name + onboarding flow.
+    expect(res.headers['location'], contains('signed_in=1'));
+    expect(res.headers['location'], contains('new=1'));
     expect(res.headers['set-cookie'], contains(kCookieSessionName));
   });
 }
