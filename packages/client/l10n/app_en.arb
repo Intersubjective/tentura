@@ -2306,6 +2306,37 @@
       }
     }
   },
+  "relativeTimeJustNow": "Just now",
+  "@relativeTimeJustNow": {
+    "context": "Common"
+  },
+  "relativeTimeMinutesAgo": "{minutes}m ago",
+  "@relativeTimeMinutesAgo": {
+    "context": "Common",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeHoursAgo": "{hours}h ago",
+  "@relativeTimeHoursAgo": {
+    "context": "Common",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeDaysAgo": "{days}d ago",
+  "@relativeTimeDaysAgo": {
+    "context": "Common",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "profilePresenceLastSeenOnDate": "Last seen {date}",
   "@profilePresenceLastSeenOnDate": {
     "context": "Profile",

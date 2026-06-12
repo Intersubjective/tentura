@@ -2306,6 +2306,37 @@
       }
     }
   },
+  "relativeTimeJustNow": "Только что",
+  "@relativeTimeJustNow": {
+    "context": "Common"
+  },
+  "relativeTimeMinutesAgo": "{minutes} мин. назад",
+  "@relativeTimeMinutesAgo": {
+    "context": "Common",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeHoursAgo": "{hours} ч назад",
+  "@relativeTimeHoursAgo": {
+    "context": "Common",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeTimeDaysAgo": "{days} дн. назад",
+  "@relativeTimeDaysAgo": {
+    "context": "Common",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "profilePresenceLastSeenOnDate": "Был(а) {date}",
   "@profilePresenceLastSeenOnDate": {
     "context": "Profile",
