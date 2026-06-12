@@ -67,10 +67,16 @@ class InvitationCubit extends Cubit<InvitationState> {
     }
   }
 
-  Future<InvitationEntity?> createInvitation({String? beaconId}) async {
+  Future<InvitationEntity?> createInvitation({
+    required String addresseeName,
+    String? beaconId,
+  }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final invitation = await _invitationRepository.create(beaconId: beaconId);
+      final invitation = await _invitationRepository.create(
+        addresseeName: addresseeName,
+        beaconId: beaconId,
+      );
       final next = <InvitationEntity>[
         ...state.invitations,
         invitation,
@@ -81,6 +87,25 @@ class InvitationCubit extends Cubit<InvitationState> {
       emit(state.copyWith(status: StateHasError(e)));
     }
     return null;
+  }
+
+  Future<void> updateInvitation({
+    required String id,
+    required String addresseeName,
+  }) async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final updated = await _invitationRepository.update(
+        id: id,
+        addresseeName: addresseeName,
+      );
+      final next = [
+        for (final e in state.invitations) e.id == id ? updated : e,
+      ];
+      emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
   }
 
   Future<void> deleteInvitationById(String id) async {

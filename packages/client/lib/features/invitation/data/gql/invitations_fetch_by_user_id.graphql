@@ -17,6 +17,7 @@ query InvitationsFetchByUserId(
     id
     beacon_id
     invited_id
+    addressee_name
     created_at
     updated_at
     beacon {

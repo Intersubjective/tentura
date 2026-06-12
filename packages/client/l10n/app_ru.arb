@@ -102,6 +102,43 @@
   "@buttonOk": {
     "context": "Utils"
   },
+  "renameContactMenuItem": "Переименовать",
+  "@renameContactMenuItem": {
+    "context": "Contacts"
+  },
+  "renameContactTitle": "Переименовать контакт",
+  "@renameContactTitle": {
+    "context": "Contacts"
+  },
+  "renameContactOriginalName": "Их имя: {name}",
+  "@renameContactOriginalName": {
+    "context": "Contacts",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "renameContactFieldLabel": "Имя (видно только вам)",
+  "@renameContactFieldLabel": {
+    "context": "Contacts"
+  },
+  "renameContactReset": "Вернуть их имя",
+  "@renameContactReset": {
+    "context": "Contacts"
+  },
+  "invitationAddresseeTitle": "Для кого это приглашение?",
+  "@invitationAddresseeTitle": {
+    "context": "Contacts"
+  },
+  "invitationAddresseeFieldLabel": "Имя (видно только вам)",
+  "@invitationAddresseeFieldLabel": {
+    "context": "Contacts"
+  },
+  "invitationAddresseeEditTitle": "Изменить имя в приглашении",
+  "@invitationAddresseeEditTitle": {
+    "context": "Contacts"
+  },
   "buttonSave": "Сохранить",
   "@buttonSave": {
     "context": "Utils"

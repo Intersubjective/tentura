@@ -13,6 +13,10 @@ abstract class InvitationEntity extends Identifiable with _$InvitationEntity {
     String? invitedId,
     String? beaconId,
     String? beaconTitle,
+
+    /// Who this invite is for, as the issuer named them (subjective
+    /// profiles). Null only on legacy invites.
+    String? addresseeName,
   }) = _InvitationEntity;
 
   const InvitationEntity._();

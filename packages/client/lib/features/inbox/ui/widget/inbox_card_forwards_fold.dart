@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
@@ -16,6 +17,7 @@ import '../../domain/entity/inbox_provenance.dart';
 Profile _senderProfile(InboxForwardSender s) => Profile(
       id: s.id,
       displayName: s.displayName,
+      contactName: contactNameOf(s.id),
       image: s.imageId != null && s.imageId!.isNotEmpty && s.imageId != 'null'
           ? ImageEntity(id: s.imageId!, authorId: s.id)
           : null,

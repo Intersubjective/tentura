@@ -76,7 +76,7 @@ final class UserNode extends NodeDetails {
   String get id => user.id;
 
   @override
-  String get label => user.displayName;
+  String get label => user.shownName;
 
   @override
   bool get hasImage => user.hasAvatar;

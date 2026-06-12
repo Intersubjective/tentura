@@ -6,23 +6,26 @@
 import 'dart:async' as _i7;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i10;
+import 'package:mockito/src/dummies.dart' as _i12;
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
-    as _i12;
+    as _i14;
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     as _i4;
-import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i9;
+import 'package:tentura_server/domain/entity/asserted_contact.dart' as _i11;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i5;
 import 'package:tentura_server/domain/entity/invitation_entity.dart' as _i2;
+import 'package:tentura_server/domain/entity/user_contact_entity.dart' as _i9;
 import 'package:tentura_server/domain/entity/user_entity.dart' as _i3;
 import 'package:tentura_server/domain/entity/verified_contact_entity.dart'
-    as _i14;
-import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i11;
+    as _i16;
+import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i13;
 import 'package:tentura_server/domain/port/invitation_repository_port.dart'
     as _i6;
-import 'package:tentura_server/domain/port/user_repository_port.dart' as _i8;
+import 'package:tentura_server/domain/port/user_contact_repository_port.dart'
+    as _i8;
+import 'package:tentura_server/domain/port/user_repository_port.dart' as _i10;
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart'
-    as _i13;
+    as _i15;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -81,11 +84,13 @@ class MockInvitationRepositoryPort extends _i1.Mock
   @override
   _i7.Future<_i2.InvitationEntity> create({
     required String? issuerId,
+    required String? addresseeName,
     String? beaconId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#create, [], {
               #issuerId: issuerId,
+              #addresseeName: addresseeName,
               #beaconId: beaconId,
             }),
             returnValue: _i7.Future<_i2.InvitationEntity>.value(
@@ -93,7 +98,33 @@ class MockInvitationRepositoryPort extends _i1.Mock
                 this,
                 Invocation.method(#create, [], {
                   #issuerId: issuerId,
+                  #addresseeName: addresseeName,
                   #beaconId: beaconId,
+                }),
+              ),
+            ),
+          )
+          as _i7.Future<_i2.InvitationEntity>);
+
+  @override
+  _i7.Future<_i2.InvitationEntity> updateAddresseeName({
+    required String? invitationId,
+    required String? userId,
+    required String? addresseeName,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateAddresseeName, [], {
+              #invitationId: invitationId,
+              #userId: userId,
+              #addresseeName: addresseeName,
+            }),
+            returnValue: _i7.Future<_i2.InvitationEntity>.value(
+              _FakeInvitationEntity_0(
+                this,
+                Invocation.method(#updateAddresseeName, [], {
+                  #invitationId: invitationId,
+                  #userId: userId,
+                  #addresseeName: addresseeName,
                 }),
               ),
             ),
@@ -115,11 +146,78 @@ class MockInvitationRepositoryPort extends _i1.Mock
           as _i7.Future<bool>);
 }
 
+/// A class which mocks [UserContactRepositoryPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockUserContactRepositoryPort extends _i1.Mock
+    implements _i8.UserContactRepositoryPort {
+  MockUserContactRepositoryPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i7.Future<void> upsert({
+    required String? viewerId,
+    required String? subjectId,
+    required String? contactName,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#upsert, [], {
+              #viewerId: viewerId,
+              #subjectId: subjectId,
+              #contactName: contactName,
+            }),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<bool> delete({
+    required String? viewerId,
+    required String? subjectId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#delete, [], {
+              #viewerId: viewerId,
+              #subjectId: subjectId,
+            }),
+            returnValue: _i7.Future<bool>.value(false),
+          )
+          as _i7.Future<bool>);
+
+  @override
+  _i7.Future<List<_i9.UserContactEntity>> fetchAllByViewer({
+    required String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#fetchAllByViewer, [], {#viewerId: viewerId}),
+            returnValue: _i7.Future<List<_i9.UserContactEntity>>.value(
+              <_i9.UserContactEntity>[],
+            ),
+          )
+          as _i7.Future<List<_i9.UserContactEntity>>);
+
+  @override
+  _i7.Future<String?> getName({
+    required String? viewerId,
+    required String? subjectId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getName, [], {
+              #viewerId: viewerId,
+              #subjectId: subjectId,
+            }),
+            returnValue: _i7.Future<String?>.value(),
+          )
+          as _i7.Future<String?>);
+}
+
 /// A class which mocks [UserRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockUserRepositoryPort extends _i1.Mock
-    implements _i8.UserRepositoryPort {
+    implements _i10.UserRepositoryPort {
   MockUserRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
@@ -184,7 +282,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? displayName,
     String? handle,
     Map<String, Object?>? publicData,
-    List<_i9.AssertedContact>? contacts = const [],
+    List<_i11.AssertedContact>? contacts = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createWithCredential, [], {
@@ -219,7 +317,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required String? displayName,
     String? handle,
     Map<String, Object?>? publicData,
-    List<_i9.AssertedContact>? contacts = const [],
+    List<_i11.AssertedContact>? contacts = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createInvitedWithCredential, [], {
@@ -354,7 +452,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required _i4.CredentialType? type,
     required String? identifier,
     Map<String, Object?>? publicData,
-    List<_i9.AssertedContact>? contacts = const [],
+    List<_i11.AssertedContact>? contacts = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#linkCredentialWithContacts, [], {
@@ -365,7 +463,7 @@ class MockUserRepositoryPort extends _i1.Mock
               #contacts: contacts,
             }),
             returnValue: _i7.Future<String>.value(
-              _i10.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#linkCredentialWithContacts, [], {
                   #accountId: accountId,
@@ -385,7 +483,7 @@ class MockUserRepositoryPort extends _i1.Mock
     required _i4.CredentialType? type,
     required String? identifier,
     Map<String, Object?>? publicData,
-    List<_i9.AssertedContact>? contacts = const [],
+    List<_i11.AssertedContact>? contacts = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#linkCredentialToAccountStrict, [], {
@@ -428,7 +526,7 @@ class MockUserRepositoryPort extends _i1.Mock
   _i7.Future<void> addVerifiedContacts({
     required String? accountId,
     required _i4.CredentialType? source,
-    List<_i9.AssertedContact>? contacts = const [],
+    List<_i11.AssertedContact>? contacts = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#addVerifiedContacts, [], {
@@ -494,7 +592,7 @@ class MockUserRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRepositoryPort extends _i1.Mock
-    implements _i11.BeaconRepositoryPort {
+    implements _i13.BeaconRepositoryPort {
   MockBeaconRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
@@ -822,7 +920,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVoteUserFriendshipLookup extends _i1.Mock
-    implements _i12.VoteUserFriendshipLookup {
+    implements _i14.VoteUserFriendshipLookup {
   MockVoteUserFriendshipLookup() {
     _i1.throwOnMissingStub(this);
   }
@@ -874,14 +972,14 @@ class MockVoteUserFriendshipLookup extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVerifiedContactRepositoryPort extends _i1.Mock
-    implements _i13.VerifiedContactRepositoryPort {
+    implements _i15.VerifiedContactRepositoryPort {
   MockVerifiedContactRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
   _i7.Future<String?> getAccountIdByContact({
-    required _i14.ContactKind? kind,
+    required _i16.ContactKind? kind,
     required String? value,
   }) =>
       (super.noSuchMethod(
@@ -895,7 +993,7 @@ class MockVerifiedContactRepositoryPort extends _i1.Mock
 
   @override
   _i7.Future<Set<String>> findAccountIdsByContacts(
-    Iterable<({_i14.ContactKind kind, String value})>? contacts,
+    Iterable<({_i16.ContactKind kind, String value})>? contacts,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#findAccountIdsByContacts, [contacts]),

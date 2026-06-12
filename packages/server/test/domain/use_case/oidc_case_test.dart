@@ -37,6 +37,7 @@ void main() {
       userRepo,
       beaconRepo,
       friendshipLookup,
+      MockUserContactRepositoryPort(),
       env: env,
       logger: Logger('InvitationCaseTest'),
     );

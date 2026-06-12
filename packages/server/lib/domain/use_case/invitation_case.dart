@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
+import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -9,6 +10,7 @@ import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
 
 import '../exception.dart';
 import '_use_case_base.dart';
+import 'contact_case.dart';
 
 @Injectable(order: 2)
 final class InvitationCase extends UseCaseBase {
@@ -16,7 +18,8 @@ final class InvitationCase extends UseCaseBase {
     this._invitationRepository,
     this._userRepository,
     this._beaconRepository,
-    this._friendshipLookup, {
+    this._friendshipLookup,
+    this._contactRepository, {
     required super.env,
     required super.logger,
   });
@@ -29,12 +32,27 @@ final class InvitationCase extends UseCaseBase {
 
   final VoteUserFriendshipLookup _friendshipLookup;
 
+  final UserContactRepositoryPort _contactRepository;
+
   Future<InvitationEntity> create({
     required String userId,
+    required String addresseeName,
     String? beaconId,
-  }) => _invitationRepository.create(
+  }) async => _invitationRepository.create(
     issuerId: userId,
+    addresseeName: ContactCase.normalizeName(addresseeName),
     beaconId: beaconId,
+  );
+
+  /// Renames the addressee of the caller's own, still unconsumed invite.
+  Future<InvitationEntity> update({
+    required String invitationId,
+    required String userId,
+    required String addresseeName,
+  }) async => _invitationRepository.updateAddresseeName(
+    invitationId: invitationId,
+    userId: userId,
+    addresseeName: ContactCase.normalizeName(addresseeName),
   );
 
   Future<InvitationEntity> fetchById({
@@ -95,10 +113,25 @@ final class InvitationCase extends UseCaseBase {
       }
     }
 
+    // Subjective profiles: a signed-in caller sees the inviter under their
+    // own contact name. Resolved server-side because the static landing
+    // cannot apply the client-side overlay. The invite's addressee_name must
+    // never reach this result — it is the issuer's private data.
+    var inviter = invitation.issuer;
+    if (callerUserId != null && callerUserId != inviter.id) {
+      final contactName = await _contactRepository.getName(
+        viewerId: callerUserId,
+        subjectId: inviter.id,
+      );
+      if (contactName != null) {
+        inviter = inviter.copyWith(displayName: contactName);
+      }
+    }
+
     return InvitePreviewResult(
       codeStatus: codeStatus,
       callerStatus: callerStatus,
-      inviter: invitation.issuer,
+      inviter: inviter,
       beacon: beacon,
     );
   }

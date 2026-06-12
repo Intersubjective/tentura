@@ -15,6 +15,7 @@ import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/capability/ui/widget/network_person_card.dart';
 import 'package:tentura/features/connect/ui/widget/connect_bottom_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
+import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_remove_dialog.dart';
 import 'package:tentura/domain/capability/friend_context.dart';
 
@@ -64,6 +65,9 @@ class _FriendsScreenState extends State<FriendsScreen>
   Future<void> _onCreateInvitation(BuildContext context) async {
     final l10n = L10n.of(context)!;
 
+    final addresseeName = await InvitationAddresseeDialog.show(context);
+    if (addresseeName == null || !context.mounted) return;
+
     if (_tabController.index != 1) {
       _tabController.animateTo(1);
       if (!MediaQuery.disableAnimationsOf(context)) {
@@ -71,7 +75,9 @@ class _FriendsScreenState extends State<FriendsScreen>
       }
     }
 
-    final invitation = await _invitationCubit.createInvitation();
+    final invitation = await _invitationCubit.createInvitation(
+      addresseeName: addresseeName,
+    );
     if (invitation == null || !context.mounted) return;
 
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
@@ -366,14 +372,30 @@ class _InvitesTabBody extends StatelessWidget {
                     final emphasize =
                         invitation.id == emphasizedInvitationId &&
                         !disableAnimations;
+                    final addressee = invitation.addresseeName;
+                    final name = addressee == null || addressee.isEmpty
+                        ? invitation.id
+                        : addressee;
                     return _InviteListTile(
                       key: ValueKey(invitation),
                       emphasize: emphasize,
                       title: invitation.beaconTitle != null
-                          ? '${invitation.beaconTitle} — ${invitation.id}'
-                          : invitation.id,
+                          ? '$name — ${invitation.beaconTitle}'
+                          : name,
                       subtitle:
                           '${dateFormatYMD(createdAt)}  ${timeFormatHm(createdAt)}',
+                      onEdit: () async {
+                        final newName = await InvitationAddresseeDialog.show(
+                          context,
+                          initialName: addressee ?? '',
+                          isEdit: true,
+                        );
+                        if (newName == null) return;
+                        await invitationCubit.updateInvitation(
+                          id: invitation.id,
+                          addresseeName: newName,
+                        );
+                      },
                       onDelete: () async {
                         if (await InvitationRemoveDialog.show(context) ??
                             false) {
@@ -403,6 +425,7 @@ class _InviteListTile extends StatelessWidget {
     required this.emphasize,
     required this.title,
     required this.subtitle,
+    required this.onEdit,
     required this.onDelete,
     required this.onTap,
     super.key,
@@ -411,6 +434,7 @@ class _InviteListTile extends StatelessWidget {
   final bool emphasize;
   final String title;
   final String subtitle;
+  final Future<void> Function() onEdit;
   final Future<void> Function() onDelete;
   final VoidCallback onTap;
 
@@ -419,12 +443,21 @@ class _InviteListTile extends StatelessWidget {
     final tile = ListTile(
       title: Text(title),
       subtitle: Text(subtitle),
-      trailing: IconButton(
-        onPressed: () => unawaited(onDelete()),
-        icon: Icon(
-          Icons.delete_outline_rounded,
-          color: Colors.red[300],
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: () => unawaited(onEdit()),
+            icon: const Icon(Icons.edit_outlined),
+          ),
+          IconButton(
+            onPressed: () => unawaited(onDelete()),
+            icon: Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.red[300],
+            ),
+          ),
+        ],
       ),
       onTap: onTap,
     );

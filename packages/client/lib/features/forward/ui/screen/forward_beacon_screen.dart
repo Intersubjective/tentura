@@ -9,6 +9,7 @@ import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
+import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -204,7 +205,10 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
 
   Future<void> _inviteNewPerson(BuildContext context) async {
     final l10n = L10n.of(context)!;
+    final addresseeName = await InvitationAddresseeDialog.show(context);
+    if (addresseeName == null || !context.mounted) return;
     final invitation = await _invitationCubit.createInvitation(
+      addresseeName: addresseeName,
       beaconId: widget.beaconId.isNotEmpty ? widget.beaconId : null,
     );
     if (invitation == null || !context.mounted) return;

@@ -487,6 +487,7 @@
                     "beacon_id",
                     "invited_id",
                     "user_id",
+                    "addressee_name",
                     "created_at",
                     "updated_at"
                   ],

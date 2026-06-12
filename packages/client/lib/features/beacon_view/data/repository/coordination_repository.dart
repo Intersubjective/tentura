@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/image_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
@@ -132,6 +133,7 @@ Profile _profileFromHelpOfferUser(
   return Profile(
     id: user.id,
     displayName: user.displayName,
+    contactName: contactNameOf(user.id),
     description: user.description,
     myVote: user.my_vote ?? 0,
     image: user.image == null ? null : ImageModel(user.image!).asEntity,

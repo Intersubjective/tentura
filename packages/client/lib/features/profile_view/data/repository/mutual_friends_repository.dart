@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
@@ -39,6 +40,7 @@ class MutualFriendsRepository {
             return Profile(
               id: e.id,
               displayName: e.displayName,
+              contactName: contactNameOf(e.id),
               image: image == null
                   ? null
                   : ImageEntity(

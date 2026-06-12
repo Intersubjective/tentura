@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -10,6 +12,7 @@ import 'package:tentura/ui/widget/profile_app_bar_title.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
 import '../bloc/profile_view_cubit.dart';
+import '../dialog/rename_contact_dialog.dart';
 
 class ProfileViewAppBar extends StatelessWidget {
   const ProfileViewAppBar({
@@ -34,6 +37,22 @@ class ProfileViewAppBar extends StatelessWidget {
           // More
           PopupMenuButton(
             itemBuilder: (_) => <PopupMenuEntry<void>>[
+              // Subjective profiles: private rename (never for self)
+              if (state.profile.id != GetIt.I<ProfileCubit>().state.profile.id)
+                PopupMenuItem(
+                  onTap: () => unawaited(
+                    RenameContactDialog.show(
+                      context,
+                      profile: state.profile,
+                    ).then((changed) {
+                      if (changed ?? false) {
+                        unawaited(profileViewCubit.fetch());
+                      }
+                    }),
+                  ),
+                  child: Text(l10n.renameContactMenuItem),
+                ),
+
               if (state.profile.isFriend)
                 PopupMenuItem(
                   onTap: profileViewCubit.removeFriend,

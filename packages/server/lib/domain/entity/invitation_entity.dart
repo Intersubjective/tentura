@@ -18,6 +18,10 @@ abstract class InvitationEntity with _$InvitationEntity {
     required DateTime updatedAt,
     UserEntity? invited,
     String? beaconId,
+
+    /// Issuer's private name for the invitee; copied to `user_contact` on
+    /// consumption. Null only on legacy rows. Never expose to the invitee.
+    String? addresseeName,
   }) = _InvitationEntity;
 
   const InvitationEntity._();
@@ -31,6 +35,7 @@ abstract class InvitationEntity with _$InvitationEntity {
     'issuer_id': issuer.id,
     'invited_id': invited?.id,
     'beacon_id': beaconId,
+    'addressee_name': addresseeName,
     'created_at': createdAt.toIso8601String(),
     'updated_at': updatedAt.toIso8601String(),
   };

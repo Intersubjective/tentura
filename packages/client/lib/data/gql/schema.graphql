@@ -2183,6 +2183,7 @@ type invitation {
   created_at: timestamptz!
   id: String!
   beacon_id: String
+  addressee_name: String
 
   """An object relationship"""
   beacon: beacon
@@ -2367,6 +2368,8 @@ type mutation_root {
   RoomPollCreate(beaconId: String!, question: String!, variants: [String!]!, pollType: String, isAnonymous: Boolean, allowRevote: Boolean): RoomMessageRow!
   capabilityPrivateLabelSet(subjectUserId: String!, slugs: [String!]): Boolean!
   capabilitySetViewerVisible(subjectUserId: String!, slugs: [String!]!): Boolean!
+  contactSet(subjectUserId: String!, contactName: String!): Boolean!
+  contactDelete(subjectUserId: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   markBlocker(beaconId: String!, title: String!, body: String, targetPersonId: String, linkedMessageId: String): CoordinationItemRow!
   resolveBlocker(itemId: String!, note: String): CoordinationItemRow!
@@ -2621,7 +2624,8 @@ type mutation_root {
     """upsert condition"""
     on_conflict: vote_user_on_conflict
   ): vote_user
-  invitationCreate(beaconId: String): invitation!
+  invitationCreate(addresseeName: String!, beaconId: String): invitation!
+  invitationUpdate(id: String!, addresseeName: String!): invitation!
   invitationAccept(id: String!): Boolean!
   invitationDelete(id: String!): Boolean!
   meritrankInit(forceCalculate: Boolean): Int!
@@ -3631,6 +3635,7 @@ type query_root {
   InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
   BeaconFactCardList(beaconId: String!): [BeaconFactCardRow!]!
   myPrivateLabelsForUser(subjectUserId: String!): [String!]!
+  myContacts: [v2_UserContact!]!
   personCapabilityCues(subjectUserId: String!): v2_PersonCapabilityCuesPayload!
   personTopCapabilitiesBatch(subjectUserIds: [String!]!, limit: Int, prioritizeSlugs: [String!]): [v2_PersonTopCapabilities!]!
   personFriendContextBatch(subjectUserIds: [String!]!): [v2_PersonFriendContext!]!
@@ -5704,6 +5709,7 @@ type v2_image {
 }
 
 type v2_Invitation {
+  addressee_name: String
   created_at: String!
   id: String!
   invited: user
@@ -5711,6 +5717,12 @@ type v2_Invitation {
   issuer: user!
   issuer_id: String!
   updated_at: String!
+}
+
+type v2_UserContact {
+  subjectId: String!
+  contactName: String!
+  updatedAt: String!
 }
 
 type v2_mutual_score {

@@ -10,7 +10,12 @@ final class MutationInvitation extends GqlNodeBase {
 
   final InvitationCase _invitationCase;
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [create, accept, delete];
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    create,
+    update,
+    accept,
+    delete,
+  ];
 
   static final _beaconIdField = GraphQLFieldInput<String?, String?>(
     'beaconId',
@@ -18,14 +23,30 @@ final class MutationInvitation extends GqlNodeBase {
     defaultsToNull: true,
   );
 
+  static final _addresseeName = InputFieldString(fieldName: 'addresseeName');
+
   GraphQLObjectField<dynamic, dynamic> get create => GraphQLObjectField(
     'invitationCreate',
     gqlTypeInvitation.nonNullable(),
-    arguments: [_beaconIdField],
+    arguments: [_addresseeName.field, _beaconIdField],
     resolve: (_, args) => _invitationCase
         .create(
           userId: getCredentials(args).sub,
+          addresseeName: _addresseeName.fromArgsNonNullable(args),
           beaconId: args['beaconId'] as String?,
+        )
+        .then((e) => e.asMap),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get update => GraphQLObjectField(
+    'invitationUpdate',
+    gqlTypeInvitation.nonNullable(),
+    arguments: [InputFieldId.field, _addresseeName.field],
+    resolve: (_, args) => _invitationCase
+        .update(
+          invitationId: InputFieldId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+          addresseeName: _addresseeName.fromArgsNonNullable(args),
         )
         .then((e) => e.asMap),
   );

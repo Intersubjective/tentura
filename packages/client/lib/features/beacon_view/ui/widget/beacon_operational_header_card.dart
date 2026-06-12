@@ -478,7 +478,7 @@ class _HudPeopleStrip extends StatelessWidget {
             isAuthor: slots[i].id == author.id,
             semanticLabel: slots[i].id == author.id
                 ? l10n.beaconPeopleLensAuthorHeading
-                : slots[i].displayName,
+                : slots[i].shownName,
           ),
         ],
         if (plus > 0) ...[
