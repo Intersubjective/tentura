@@ -265,7 +265,9 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
   });
 
   const show = (index) => {
-    page = index;
+    // Clamp: defense against a stray click on a control that should be
+    // hidden — never step past the last page.
+    page = Math.max(0, Math.min(index, ONBOARDING_PAGES.length - 1));
     const p = ONBOARDING_PAGES[page];
     title.textContent = p.title;
     body.textContent = p.body;

@@ -12,6 +12,14 @@
   box-sizing: border-box;
 }
 
+/* Class display rules (e.g. `.btn { display: block }`) outrank the UA's
+   `[hidden] { display: none }`; without this, JS `el.hidden = true` leaves
+   buttons visible (the onboarding pager's Next stayed clickable past the
+   last page). */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
