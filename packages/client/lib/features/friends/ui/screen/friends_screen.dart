@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/inbox_style_app_bar.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
@@ -368,7 +369,6 @@ class _InvitesTabBody extends StatelessWidget {
                         state.invitations.length == i + 1) {
                       unawaited(invitationCubit.fetch(clear: false));
                     }
-                    final createdAt = invitation.createdAt.toLocal();
                     final emphasize =
                         invitation.id == emphasizedInvitationId &&
                         !disableAnimations;
@@ -382,8 +382,11 @@ class _InvitesTabBody extends StatelessWidget {
                       title: invitation.beaconTitle != null
                           ? '$name — ${invitation.beaconTitle}'
                           : name,
-                      subtitle:
-                          '${dateFormatYMD(createdAt)}  ${timeFormatHm(createdAt)}',
+                      subtitle: compactRelativeTimeAgo(
+                        when: invitation.createdAt,
+                        now: DateTime.now(),
+                        l10n: l10n,
+                      ),
                       onEdit: () async {
                         final newName = await InvitationAddresseeDialog.show(
                           context,
