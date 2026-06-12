@@ -35,24 +35,16 @@ class InvitationCubit extends Cubit<InvitationState> {
       return;
     }
 
-    if (clear) {
-      emit(
-        state.copyWith(
-          invitations: <InvitationEntity>[],
-          hasReachedMax: false,
-          status: StateStatus.isLoading,
-        ),
-      );
-    } else {
-      emit(state.copyWith(status: StateStatus.isLoading));
-    }
+    // Keep the current list while loading — a failed (re)fetch must not
+    // wipe what the user already sees (count, list rows).
+    emit(state.copyWith(status: StateStatus.isLoading));
 
     try {
       final invitations = await _invitationRepository.fetchMine(
-        offset: state.invitations.length,
+        offset: clear ? 0 : state.invitations.length,
       );
       final next = <InvitationEntity>[
-        ...state.invitations,
+        if (!clear) ...state.invitations,
         ...invitations,
       ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
       emit(
