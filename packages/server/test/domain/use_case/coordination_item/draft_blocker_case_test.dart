@@ -55,6 +55,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     required String title,
     String body = '',
     String? targetPersonId,
+    int? staleAfterDays,
   }) async {
     lastCreateBeaconId = beaconId;
     return nextReturn ?? item!;
@@ -64,6 +65,7 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   Future<CoordinationItem> publishDraftBlocker({
     required String id,
     required String actorId,
+    int? staleAfterDays,
   }) async {
     lastPublishId = id;
     return nextReturn ?? item!;
