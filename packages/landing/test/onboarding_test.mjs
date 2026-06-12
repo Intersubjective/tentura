@@ -93,3 +93,12 @@ test('pager marks done before opening the product', () => {
   assert.match(onboardingJs, /onboarding_done/);
   assert.match(onboardingJs, /onboarding_skipped/);
 });
+
+test('pager clamps page index and hidden controls actually hide', () => {
+  // show() must never step past the last page even if a hidden control fires.
+  assert.match(onboardingJs, /Math\.max\(0, Math\.min\(index, ONBOARDING_PAGES\.length - 1\)\)/);
+  // `.btn { display: block }` outranks the UA [hidden] rule; the stylesheet
+  // must restore it or `next.hidden = true` leaves Next visible on page 3.
+  const css = readFileSync(join(root, 'styles.css'), 'utf8');
+  assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
+});
