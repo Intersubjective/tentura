@@ -63,12 +63,17 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
       throw UnimplementedError();
 
   @override
+  Future<CoordinationItem> remindItem({required String itemId}) =>
+      throw UnimplementedError();
+
+  @override
   Future<CoordinationItem> markAsk({
     required String beaconId,
     required String title,
     required String targetPersonId,
     String? body,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -79,6 +84,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     required String targetPersonId,
     String? body,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -89,6 +95,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -96,6 +103,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
   Future<CoordinationItem> publishDraftPromise({
     required String itemId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -106,6 +114,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -139,6 +148,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -149,6 +159,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -156,6 +167,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
   Future<CoordinationItem> publishDraftAsk({
     required String itemId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -166,6 +178,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
@@ -179,11 +192,15 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     required String title,
     String? body,
     String? targetPersonId,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<CoordinationItem> publishDraftBlocker({required String itemId}) =>
+  Future<CoordinationItem> publishDraftBlocker({
+    required String itemId,
+    int? staleAfterDays,
+  }) =>
       throw UnimplementedError();
 
   @override
@@ -193,6 +210,7 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       throw UnimplementedError();
 
