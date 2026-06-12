@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
 import 'package:tentura_server/consts.dart';
@@ -28,8 +29,10 @@ final class AccountProfileController {
   // make this controller (and RootRouter) async in generated DI and then fail
   // at runtime (`getAsync` on an already-resolved instance). Lazy GetIt lookup
   // matches MutationUser, the other UserCase consumer.
-  AccountProfileController({UserCase? userCase})
-    : _userCase = userCase ?? GetIt.I<UserCase>();
+  AccountProfileController() : _userCase = GetIt.I<UserCase>();
+
+  @visibleForTesting
+  AccountProfileController.forTest(UserCase userCase) : _userCase = userCase;
 
   final UserCase _userCase;
 

@@ -66,7 +66,7 @@ void main() {
       env: env,
       logger: Logger('AccountProfileControllerTest'),
     );
-    controller = AccountProfileController(userCase: userCase);
+    controller = AccountProfileController.forTest(userCase);
   });
 
   Request request(

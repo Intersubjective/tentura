@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
