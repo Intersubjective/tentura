@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/service/invalidation_service.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -103,6 +104,7 @@ class BeaconRoomRepository {
             Profile(
               id: id,
               displayName: displayName,
+              contactName: contactNameOf(id),
               image: hasPicture && imageId.isNotEmpty
                   ? ImageEntity(
                       id: imageId,
@@ -166,6 +168,7 @@ class BeaconRoomRepository {
         final author = Profile(
           id: m.authorId,
           displayName: m.authorTitle,
+          contactName: contactNameOf(m.authorId),
           image: m.authorHasPicture && m.authorImageId.isNotEmpty
               ? ImageEntity(
                   id: m.authorImageId,

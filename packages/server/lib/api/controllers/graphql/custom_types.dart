@@ -19,6 +19,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeImagePublic,
   gqlTypeUserPresence,
   gqlTypeUserPublic,
+  gqlTypeUserContact,
   gqlTypeBeaconCloseReviewResult,
   gqlTypeEvaluationParticipant,
   gqlTypeEvaluationDraftRow,
@@ -359,9 +360,20 @@ final gqlTypeInvitation = GraphQLObjectType('Invitation', null)
     field('issuer_id', graphQLString.nonNullable()),
     field('invited_id', graphQLString),
     field('beacon_id', graphQLString),
+    // Issuer's private name for the invitee; nullable for legacy rows.
+    field('addressee_name', graphQLString),
     field('created_at', graphQLString.nonNullable()),
     field('updated_at', graphQLString.nonNullable()),
     field('issuer', gqlTypeUserPublic.nonNullable()),
+  ]);
+
+/// Per-viewer private contact name (subjective profiles). Viewer-scoped:
+/// only ever returned for the authenticated caller as viewer.
+final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
+  ..fields.addAll([
+    field('subjectId', graphQLString.nonNullable()),
+    field('contactName', graphQLString.nonNullable()),
+    field('updatedAt', graphQLString.nonNullable()),
   ]);
 
 /// `beaconCloseWithReview` result.
@@ -601,4 +613,3 @@ final gqlTypeMyWorkBeaconCoordinationActivityRow =
         field('beaconId', graphQLString.nonNullable()),
         field('lastCoordinationItemMessageAt', graphQLString),
       ]);
-

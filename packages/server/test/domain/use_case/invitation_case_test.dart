@@ -18,6 +18,7 @@ void main() {
   late MockUserRepositoryPort userRepo;
   late MockBeaconRepositoryPort beaconRepo;
   late MockVoteUserFriendshipLookup friendshipLookup;
+  late MockUserContactRepositoryPort contactRepo;
   late InvitationCase case_;
 
   const issuerId = 'Uissuer';
@@ -28,6 +29,7 @@ void main() {
     UserEntity? invited,
     String? beaconId,
     DateTime? createdAt,
+    String? addresseeName,
   }) => InvitationEntity(
     id: id,
     issuer: const UserEntity(id: issuerId, displayName: 'Alice'),
@@ -35,6 +37,7 @@ void main() {
     updatedAt: createdAt ?? now,
     invited: invited,
     beaconId: beaconId,
+    addresseeName: addresseeName,
   );
 
   void stubGetById(InvitationEntity? inv) {
@@ -43,16 +46,27 @@ void main() {
     ).thenAnswer((_) async => inv);
   }
 
+  void stubContactName(String? name) {
+    when(
+      contactRepo.getName(
+        viewerId: anyNamed('viewerId'),
+        subjectId: anyNamed('subjectId'),
+      ),
+    ).thenAnswer((_) async => name);
+  }
+
   setUp(() {
     invitationRepo = MockInvitationRepositoryPort();
     userRepo = MockUserRepositoryPort();
     beaconRepo = MockBeaconRepositoryPort();
     friendshipLookup = MockVoteUserFriendshipLookup();
+    contactRepo = MockUserContactRepositoryPort();
     case_ = InvitationCase(
       invitationRepo,
       userRepo,
       beaconRepo,
       friendshipLookup,
+      contactRepo,
       env: Env(environment: Environment.test),
       logger: Logger('InvitationCaseTest'),
     );
@@ -63,6 +77,8 @@ void main() {
         peerId: anyNamed('peerId'),
       ),
     ).thenAnswer((_) async => false);
+    // Default: the caller has no contact entry for the issuer.
+    stubContactName(null);
   });
 
   group('InvitationCase.preview', () {
@@ -142,6 +158,109 @@ void main() {
       final json = r.toJson();
       expect((json['beacon']! as Map)['title'], 'Shared beacon');
       expect((json['beacon']! as Map)['snippet'], 'help needed');
+    });
+  });
+
+  group('InvitationCase.create / update — addressee name', () {
+    test('create trims and stores the addressee name', () async {
+      when(
+        invitationRepo.create(
+          issuerId: anyNamed('issuerId'),
+          addresseeName: anyNamed('addresseeName'),
+          beaconId: anyNamed('beaconId'),
+        ),
+      ).thenAnswer((_) async => invitation(addresseeName: 'Bob2000'));
+      await case_.create(userId: issuerId, addresseeName: '  Bob2000  ');
+      verify(
+        invitationRepo.create(
+          issuerId: issuerId,
+          addresseeName: 'Bob2000',
+        ),
+      ).called(1);
+    });
+
+    test('create rejects a too-short addressee name', () async {
+      await expectLater(
+        case_.create(userId: issuerId, addresseeName: ' B '),
+        throwsA(isA<IdWrongException>()),
+      );
+      verifyNever(
+        invitationRepo.create(
+          issuerId: anyNamed('issuerId'),
+          addresseeName: anyNamed('addresseeName'),
+          beaconId: anyNamed('beaconId'),
+        ),
+      );
+    });
+
+    test('update normalizes the name and delegates', () async {
+      when(
+        invitationRepo.updateAddresseeName(
+          invitationId: anyNamed('invitationId'),
+          userId: anyNamed('userId'),
+          addresseeName: anyNamed('addresseeName'),
+        ),
+      ).thenAnswer((_) async => invitation(addresseeName: 'Bobby'));
+      await case_.update(
+        invitationId: 'Iabc',
+        userId: issuerId,
+        addresseeName: ' Bobby ',
+      );
+      verify(
+        invitationRepo.updateAddresseeName(
+          invitationId: 'Iabc',
+          userId: issuerId,
+          addresseeName: 'Bobby',
+        ),
+      ).called(1);
+    });
+  });
+
+  group('InvitationCase.preview — subjective inviter name', () {
+    test('signed-in caller sees the inviter under their contact name',
+        () async {
+      stubGetById(invitation());
+      stubContactName('My Alice');
+      final r = await case_.preview(code: 'Iabc', callerUserId: 'Ustranger');
+      expect(r.inviter?.displayName, 'My Alice');
+      verify(
+        contactRepo.getName(viewerId: 'Ustranger', subjectId: issuerId),
+      ).called(1);
+    });
+
+    test('anonymous caller sees the objective name, no contact lookup',
+        () async {
+      stubGetById(invitation(addresseeName: 'Bob2000'));
+      final r = await case_.preview(code: 'Iabc');
+      expect(r.inviter?.displayName, 'Alice');
+      verifyNever(
+        contactRepo.getName(
+          viewerId: anyNamed('viewerId'),
+          subjectId: anyNamed('subjectId'),
+        ),
+      );
+    });
+
+    test('inviter previewing their own code keeps their objective name',
+        () async {
+      stubGetById(invitation());
+      final r = await case_.preview(code: 'Iabc', callerUserId: issuerId);
+      expect(r.inviter?.displayName, 'Alice');
+      verifyNever(
+        contactRepo.getName(
+          viewerId: anyNamed('viewerId'),
+          subjectId: anyNamed('subjectId'),
+        ),
+      );
+    });
+
+    test('preview JSON never leaks the addressee name (privacy guard)',
+        () async {
+      stubGetById(invitation(addresseeName: 'Secret Pet Name'));
+      final r = await case_.preview(code: 'Iabc', callerUserId: 'Ustranger');
+      final flat = r.toJson().toString();
+      expect(flat, isNot(contains('Secret Pet Name')));
+      expect(flat.toLowerCase(), isNot(contains('addressee')));
     });
   });
 

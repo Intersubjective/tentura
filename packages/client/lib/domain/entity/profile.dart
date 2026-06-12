@@ -15,6 +15,11 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   const factory Profile({
     @Default('') String id,
     @Default('') String displayName,
+
+    /// Subjective profiles: the viewer's private name for this user (from
+    /// their contact map), empty when none. Render via [shownName];
+    /// [displayName] stays the user's objective self-chosen name.
+    @Default('') String contactName,
     /// Public @mention handle (5–30 `[a-z0-9_]`, optional).
     @Default('') String handle,
     @Default('') String description,
@@ -34,6 +39,10 @@ abstract class Profile with _$Profile implements Likable, Scorable {
 
   @override
   double get reverseScore => rScore;
+
+  /// What the viewer should see: their own contact name when set,
+  /// the user's self-chosen display name otherwise.
+  String get shownName => contactName.isNotEmpty ? contactName : displayName;
 
   bool get isEmpty => id.isEmpty;
 

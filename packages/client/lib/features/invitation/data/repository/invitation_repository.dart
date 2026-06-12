@@ -17,6 +17,7 @@ import '../gql/_g/invitation_accept.req.gql.dart';
 import '../gql/_g/invitation_create.req.gql.dart';
 import '../gql/_g/invitation_delete_by_id.req.gql.dart';
 import '../gql/_g/invitation_fetch_by_id.req.gql.dart';
+import '../gql/_g/invitation_update.req.gql.dart';
 import '../gql/_g/invitations_fetch_by_user_id.req.gql.dart';
 
 typedef InvitationFetchByIdResult = ({
@@ -88,6 +89,7 @@ class InvitationRepository implements InvitationAcceptPort {
             id: e.id,
             beaconId: e.beacon_id,
             invitedId: e.invited_id,
+            addresseeName: e.addressee_name,
             createdAt: e.created_at,
             updatedAt: e.updated_at,
             beaconTitle: e.beacon?.title,
@@ -96,11 +98,16 @@ class InvitationRepository implements InvitationAcceptPort {
         .toList();
   }
 
-  Future<InvitationEntity> create({String? beaconId}) async {
+  Future<InvitationEntity> create({
+    required String addresseeName,
+    String? beaconId,
+  }) async {
     final result = await _remoteApiService
         .request(
           GInvitationCreateReq(
-            (b) => b.vars.beaconId = beaconId,
+            (b) => b.vars
+              ..addresseeName = addresseeName
+              ..beaconId = beaconId,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -109,6 +116,34 @@ class InvitationRepository implements InvitationAcceptPort {
       id: result.id,
       beaconId: result.beacon_id,
       invitedId: result.invited_id,
+      addresseeName: result.addressee_name,
+      createdAt: result.created_at,
+      updatedAt: result.updated_at,
+    );
+    _notifyChanges();
+    return entity;
+  }
+
+  /// Renames the addressee of an own, still unconsumed invite.
+  Future<InvitationEntity> update({
+    required String id,
+    required String addresseeName,
+  }) async {
+    final result = await _remoteApiService
+        .request(
+          GInvitationUpdateReq(
+            (b) => b.vars
+              ..id = id
+              ..addresseeName = addresseeName,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).invitationUpdate);
+    final entity = InvitationEntity(
+      id: result.id,
+      beaconId: result.beacon_id,
+      invitedId: result.invited_id,
+      addresseeName: result.addressee_name,
       createdAt: result.created_at,
       updatedAt: result.updated_at,
     );

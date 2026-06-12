@@ -55,6 +55,7 @@ import 'table/pollings.dart';
 import 'table/polling_acts.dart';
 import 'table/polling_variants.dart';
 import 'table/person_capability_events.dart';
+import 'table/user_contacts.dart';
 import 'table/user_presence.dart';
 import 'table/users.dart';
 import 'table/vote_users.dart';
@@ -102,6 +103,7 @@ part 'tentura_db.g.dart';
     PollingActs,
     PollingVariants,
     Users,
+    UserContacts,
     UserPresence,
     VoteUsers,
   ],

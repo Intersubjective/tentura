@@ -104,6 +104,9 @@ class AuthLocalRepository implements AuthLocalRepositoryPort {
   @override
   Future<void> removeAccount(String id) async {
     await _database.managers.accounts.filter((e) => e.id.equals(id)).delete();
+    await _database.managers.contacts
+        .filter((e) => e.accountId.equals(id))
+        .delete();
     await _localSecureStorage.delete(_getAccountKey(id));
     await _localSecureStorage.delete(_sessionMarkerKey(id));
   }

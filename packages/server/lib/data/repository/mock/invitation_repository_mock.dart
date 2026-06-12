@@ -20,6 +20,7 @@ class InvitationRepositoryMock implements InvitationRepositoryPort {
   @override
   Future<InvitationEntity> create({
     required String issuerId,
+    required String addresseeName,
     String? beaconId,
   }) async {
     final issuer = kUserByPublicKey.values
@@ -35,9 +36,30 @@ class InvitationRepositoryMock implements InvitationRepositoryPort {
       createdAt: now,
       updatedAt: now,
       beaconId: beaconId,
+      addresseeName: addresseeName,
     );
     storageById[entity.id] = entity;
     return entity;
+  }
+
+  @override
+  Future<InvitationEntity> updateAddresseeName({
+    required String invitationId,
+    required String userId,
+    required String addresseeName,
+  }) async {
+    final invitation = storageById[invitationId];
+    if (invitation == null ||
+        invitation.issuer.id != userId ||
+        invitation.isAccepted) {
+      throw IdNotFoundException(id: invitationId);
+    }
+    final updated = invitation.copyWith(
+      addresseeName: addresseeName,
+      updatedAt: DateTime.now(),
+    );
+    storageById[invitationId] = updated;
+    return updated;
   }
 
   @override

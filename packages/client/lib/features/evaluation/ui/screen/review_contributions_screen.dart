@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
@@ -302,6 +303,7 @@ class _ParticipantTile extends StatelessWidget {
     final profile = Profile(
       id: participant.userId,
       displayName: participant.displayName,
+      contactName: contactNameOf(participant.userId),
       image: participant.imageId.isNotEmpty
           ? ImageEntity(id: participant.imageId, authorId: participant.userId)
           : null,

@@ -102,6 +102,43 @@
   "@buttonOk": {
     "context": "Utils"
   },
+  "renameContactMenuItem": "Rename",
+  "@renameContactMenuItem": {
+    "context": "Contacts"
+  },
+  "renameContactTitle": "Rename contact",
+  "@renameContactTitle": {
+    "context": "Contacts"
+  },
+  "renameContactOriginalName": "Their name: {name}",
+  "@renameContactOriginalName": {
+    "context": "Contacts",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "renameContactFieldLabel": "Name (visible only to you)",
+  "@renameContactFieldLabel": {
+    "context": "Contacts"
+  },
+  "renameContactReset": "Reset to their name",
+  "@renameContactReset": {
+    "context": "Contacts"
+  },
+  "invitationAddresseeTitle": "For whom is this invite?",
+  "@invitationAddresseeTitle": {
+    "context": "Contacts"
+  },
+  "invitationAddresseeFieldLabel": "Name (visible only to you)",
+  "@invitationAddresseeFieldLabel": {
+    "context": "Contacts"
+  },
+  "invitationAddresseeEditTitle": "Edit invite name",
+  "@invitationAddresseeEditTitle": {
+    "context": "Contacts"
+  },
   "buttonSave": "Save",
   "@buttonSave": {
     "context": "Utils"

@@ -36,7 +36,10 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   Future<InvitationFetchByIdResult?> fetchById(String id) async => null;
 
   @override
-  Future<InvitationEntity> create({String? beaconId}) => throw UnimplementedError();
+  Future<InvitationEntity> create({
+    required String addresseeName,
+    String? beaconId,
+  }) => throw UnimplementedError();
 
   @override
   Future<void> deleteById(String id) async {}

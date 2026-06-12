@@ -17,6 +17,10 @@ class Invitations extends Table with TimestampsFields {
 
   late final beaconId = text().nullable().references(Beacons, #id)();
 
+  /// Inviter's private name for the invitee; copied to `user_contact` on
+  /// consumption. Nullable for legacy rows only — required for new invites.
+  late final addresseeName = text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

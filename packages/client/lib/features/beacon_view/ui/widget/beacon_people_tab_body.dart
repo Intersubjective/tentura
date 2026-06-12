@@ -107,7 +107,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
             ? () => unawaited(
                 showCoordinationResponseBottomSheet(
                   context: context,
-                  offerUserTitle: row.profile.displayName,
+                  offerUserTitle: row.profile.shownName,
                   initialResponse: c.coordinationResponse,
                   offerUserAdmittedToRoom: state.roomParticipants.any(
                     (p) =>

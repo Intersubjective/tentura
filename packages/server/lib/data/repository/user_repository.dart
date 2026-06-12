@@ -68,6 +68,34 @@ class UserRepository implements UserRepositoryPort {
     ),
   );
 
+  /// Subjective profiles: on invite consumption the inviter gets the invitee
+  /// under the invite's addressee name. The invite name always wins over a
+  /// pre-existing contact entry. Skips legacy invites without a name. Must be
+  /// called inside the consuming transaction.
+  Future<void> _upsertInviteContact({
+    required String viewerId,
+    required String subjectId,
+    required String? addresseeName,
+  }) async {
+    final name = addresseeName?.trim();
+    if (name == null || name.isEmpty || viewerId == subjectId) return;
+    await _database
+        .into(_database.userContacts)
+        .insert(
+          UserContactsCompanion.insert(
+            viewerId: viewerId,
+            subjectId: subjectId,
+            contactName: name,
+          ),
+          onConflict: DoUpdate(
+            (_) => UserContactsCompanion(
+              contactName: Value(name),
+              updatedAt: Value(PgDateTime(DateTime.timestamp())),
+            ),
+          ),
+        );
+  }
+
   // TBD: move to SQL
   //
   @override
@@ -115,6 +143,12 @@ class UserRepository implements UserRepositoryPort {
         o(subject: user.id, object: invitation.userId, amount: 1),
         o(subject: invitation.userId, object: user.id, amount: 1),
       ],
+    );
+
+    await _upsertInviteContact(
+      viewerId: invitation.userId,
+      subjectId: user.id,
+      addresseeName: invitation.addresseeName,
     );
 
     if (invitation.beaconId != null) {
@@ -254,6 +288,12 @@ class UserRepository implements UserRepositoryPort {
         o(subject: user.id, object: invitation.userId, amount: 1),
         o(subject: invitation.userId, object: user.id, amount: 1),
       ],
+    );
+
+    await _upsertInviteContact(
+      viewerId: invitation.userId,
+      subjectId: user.id,
+      addresseeName: invitation.addresseeName,
     );
 
     if (invitation.beaconId != null) {
@@ -706,6 +746,12 @@ class UserRepository implements UserRepositoryPort {
         .isBefore(DateTime.timestamp())) {
       throw const InvitationWrongException(description: 'Invitation expired!');
     }
+
+    await _upsertInviteContact(
+      viewerId: invitation.userId,
+      subjectId: userId,
+      addresseeName: invitation.addresseeName,
+    );
 
     final invitationsDeletedCount = await _database.managers.invitations
         .filter((e) => e.id(invitationId))

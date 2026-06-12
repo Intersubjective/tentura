@@ -1,3 +1,4 @@
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
 
@@ -17,6 +18,7 @@ extension type const UserPublicModel(GUserPublicModel i)
     return Profile(
       id: i.id,
       displayName: i.displayName,
+      contactName: contactNameOf(i.id),
       handle: i.handle ?? '',
       description: i.description,
       myVote: i.my_vote ?? 0,

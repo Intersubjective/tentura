@@ -14,6 +14,7 @@ part 'database.g.dart';
 @DriftDatabase(
   tables: [
     Accounts,
+    Contacts,
     Friends,
     Settings,
   ],
@@ -31,7 +32,7 @@ final class Database extends _$Database {
   final Logger _logger;
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -82,6 +83,10 @@ final class Database extends _$Database {
         await customStatement(
           'ALTER TABLE friends RENAME COLUMN title TO display_name',
         );
+      },
+      from4To5: (m, schema) async {
+        _logger.warning('Migrating step 4 to 5 (contacts)...');
+        await m.createTable(schema.contacts);
       },
     ),
   );

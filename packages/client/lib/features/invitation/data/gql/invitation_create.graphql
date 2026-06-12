@@ -1,8 +1,9 @@
-mutation InvitationCreate($beaconId: String) {
-  invitationCreate(beaconId: $beaconId) {
+mutation InvitationCreate($addresseeName: String!, $beaconId: String) {
+  invitationCreate(addresseeName: $addresseeName, beaconId: $beaconId) {
     id
     beacon_id
     invited_id
+    addressee_name
     created_at
     updated_at
   }

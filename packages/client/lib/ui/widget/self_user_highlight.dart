@@ -14,7 +14,7 @@ abstract final class SelfUserHighlight {
 
   /// Accent label for the current user (distinct from [L10n.labelMe]).
   static String displayName(L10n l10n, Profile profile, String viewerUserId) =>
-      profileIsSelf(profile, viewerUserId) ? l10n.labelYou : profile.displayName;
+      profileIsSelf(profile, viewerUserId) ? l10n.labelYou : profile.shownName;
 
   static TextStyle selfNameStyle(ThemeData theme) {
     final scheme = theme.colorScheme;

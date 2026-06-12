@@ -1,0 +1,3 @@
+mutation ContactSet($subjectUserId: String!, $contactName: String!) {
+  contactSet(subjectUserId: $subjectUserId, contactName: $contactName)
+}

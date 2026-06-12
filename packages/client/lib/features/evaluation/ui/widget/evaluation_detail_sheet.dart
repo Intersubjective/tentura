@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
@@ -74,7 +75,9 @@ Future<void> showEvaluationDetailSheet({
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    participant.displayName,
+                    contactNameOf(participant.userId).isNotEmpty
+                        ? contactNameOf(participant.userId)
+                        : participant.displayName,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),

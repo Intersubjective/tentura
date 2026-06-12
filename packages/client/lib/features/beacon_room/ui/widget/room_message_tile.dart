@@ -755,7 +755,7 @@ class RoomMessageTile extends StatelessWidget {
           if (!isMine && isGroupStart) {
             final namePainter = TextPainter(
               text: TextSpan(
-                text: message.author.displayName,
+                text: message.author.shownName,
                 style: theme.textTheme.labelMedium,
               ),
               textDirection: textDirection,

@@ -1,0 +1,10 @@
+mutation InvitationUpdate($id: String!, $addresseeName: String!) {
+  invitationUpdate(id: $id, addresseeName: $addresseeName) {
+    id
+    beacon_id
+    invited_id
+    addressee_name
+    created_at
+    updated_at
+  }
+}

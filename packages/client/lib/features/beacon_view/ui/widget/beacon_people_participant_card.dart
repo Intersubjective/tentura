@@ -36,7 +36,7 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
     final onV = scheme.onSurfaceVariant;
 
     final titles = <String, String>{
-      for (final c in helpOffers) c.user.id: c.user.displayName,
+      for (final c in helpOffers) c.user.id: c.user.shownName,
     };
     final name = participantDisplayTitle(
       participant: participant,
@@ -57,7 +57,7 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
       }
       profile = fromHelpOffer ?? Profile(id: participant.userId);
     }
-    if (profile.displayName.isEmpty) {
+    if (profile.shownName.isEmpty) {
       profile = profile.copyWith(displayName: name);
     }
 

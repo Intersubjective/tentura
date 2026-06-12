@@ -1,6 +1,8 @@
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/invitation_repository_port.dart';
 
 import '../database/tentura_db.dart';
@@ -22,12 +24,14 @@ class InvitationRepository implements InvitationRepositoryPort {
   @override
   Future<InvitationEntity> create({
     required String issuerId,
+    required String addresseeName,
     String? beaconId,
   }) async {
     final row = await _database.managers.invitations.createReturning(
       (o) => o(
         userId: issuerId,
         beaconId: Value.absentIfNull(beaconId),
+        addresseeName: Value(addresseeName),
       ),
     );
     final issuer = await _database.managers.users
@@ -77,6 +81,31 @@ class InvitationRepository implements InvitationRepositoryPort {
       issuerImage: issuerImage,
       invitedImage: invitedImage,
     );
+  }
+
+  @override
+  Future<InvitationEntity> updateAddresseeName({
+    required String invitationId,
+    required String userId,
+    required String addresseeName,
+  }) async {
+    final rows =
+        await (_database.update(_database.invitations)..where(
+              (t) =>
+                  t.id.equals(invitationId) &
+                  t.userId.equals(userId) &
+                  t.invitedId.isNull(),
+            ))
+            .writeReturning(
+              InvitationsCompanion(
+                addresseeName: Value(addresseeName),
+                updatedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
+    if (rows.isEmpty) {
+      throw IdNotFoundException(id: invitationId);
+    }
+    return (await getById(invitationId: invitationId))!;
   }
 
   @override
