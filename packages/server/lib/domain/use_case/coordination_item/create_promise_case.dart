@@ -32,6 +32,7 @@ final class CreatePromiseCase extends UseCaseBase {
     required String targetPersonId,
     String body = '',
     String? linkedMessageId,
+    int? staleAfterDays,
   }) async {
     if (body.trim().isEmpty) {
       throw const BeaconCreateException(description: 'Promise body is required');
@@ -60,6 +61,7 @@ final class CreatePromiseCase extends UseCaseBase {
       body: body.trim(),
       targetPersonId: target,
       linkedMessageId: linkedMessageId,
+      staleAfterDays: staleAfterDays,
     );
     unawaited(
       _push.notifyPromiseMade(

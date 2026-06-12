@@ -5,6 +5,7 @@ import 'package:meta/meta.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/coordination_stale_rules.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/coordination_item_entity.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
@@ -33,10 +34,13 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String? linkedMessageId,
     String? linkedParentItemId,
     int ordering = 0,
+    int? staleAfterDays,
   }) =>
       _db.withMutatingUser(creatorId, () async {
         final id = CoordinationItemEntity.newId;
         final now = PgDateTime(DateTime.timestamp());
+        final days = validateStaleAfterDays(staleAfterDays);
+        final staleAtValue = computeStaleAt(now.dateTime.toUtc(), days);
 
         return _db.transaction(() async {
           final item =
@@ -59,6 +63,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
                     updatedAt: Value(now),
                     resolvedAt: const Value(null),
                     cancelledAt: const Value(null),
+                    staleAt: Value(staleAtValue == null ? null : PgDateTime(staleAtValue)),
+                    staleAfterDays: Value(days),
                     source: const Value(coordinationItemSourceDefault),
                     published: const Value(true),
                   ));
@@ -153,6 +159,10 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             throw StateError('CoordinationItem not found: $id');
           }
           final existing = rows.first;
+          final newStaleAt = computeStaleAtAfterAccept(
+            nowUtc: now.dateTime.toUtc(),
+            staleAfterDays: existing.staleAfterDays,
+          );
 
           await (_db.update(_db.coordinationItems)
                 ..where((t) => t.id.equals(id)))
@@ -160,6 +170,9 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             status: const Value(coordinationItemStatusAccepted),
             acceptedById: Value(acceptedById),
             updatedAt: Value(now),
+            staleAt: Value(
+              newStaleAt == null ? null : PgDateTime(newStaleAt),
+            ),
           ));
 
           await _emitStatusRoomEvent(
@@ -274,10 +287,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _db.withMutatingUser(creatorId, () async {
         final id = CoordinationItemEntity.newId;
         final now = PgDateTime(DateTime.timestamp());
+        final days = validateStaleAfterDays(staleAfterDays);
         return _db.managers.coordinationItems.createReturning(
           (o) => o(
             id: id,
@@ -298,6 +313,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             updatedAt: Value(now),
             resolvedAt: const Value(null),
             cancelledAt: const Value(null),
+            staleAfterDays: Value(days),
             source: const Value(coordinationItemSourceDefault),
             published: const Value(false),
           ),
@@ -312,10 +328,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _db.withMutatingUser(creatorId, () async {
         final id = CoordinationItemEntity.newId;
         final now = PgDateTime(DateTime.timestamp());
+        final days = validateStaleAfterDays(staleAfterDays);
         return _db.managers.coordinationItems.createReturning(
           (o) => o(
             id: id,
@@ -336,6 +354,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             updatedAt: Value(now),
             resolvedAt: const Value(null),
             cancelledAt: const Value(null),
+            staleAfterDays: Value(days),
             source: const Value(coordinationItemSourceDefault),
             published: const Value(false),
           ),
@@ -347,6 +366,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String id,
     required String actorId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) =>
       _db.withMutatingUser(actorId, () async {
         return _db.transaction(() async {
@@ -367,12 +387,20 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             throw StateError('Only ask or promise drafts may be published');
           }
           final now = PgDateTime(DateTime.timestamp());
+          final days = staleAfterDays != null
+              ? validateStaleAfterDays(staleAfterDays)
+              : validateStaleAfterDays(row.staleAfterDays);
+          final staleAtValue = computeStaleAt(now.dateTime.toUtc(), days);
 
           await (_db.update(_db.coordinationItems)..where((t) => t.id.equals(id))).write(
             CoordinationItemsCompanion(
               published: const Value(true),
               targetPersonId: Value(targetPersonId),
               updatedAt: Value(now),
+              staleAfterDays: Value(days),
+              staleAt: Value(
+                staleAtValue == null ? null : PgDateTime(staleAtValue),
+              ),
             ),
           );
 
@@ -420,6 +448,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String body = '',
     bool updateTargetPersonId = false,
     String? targetPersonId,
+    bool updateStaleAfterDays = false,
+    int? staleAfterDays,
   }) =>
       _db.withMutatingUser(actorId, () async {
         final rows =
@@ -441,6 +471,9 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             body: Value(body),
             targetPersonId: updateTargetPersonId
                 ? Value(targetPersonId)
+                : const Value.absent(),
+            staleAfterDays: updateStaleAfterDays
+                ? Value(validateStaleAfterDays(staleAfterDays))
                 : const Value.absent(),
             updatedAt: Value(now),
           ),
@@ -537,10 +570,12 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String title,
     String body = '',
     String? targetPersonId,
+    int? staleAfterDays,
   }) =>
       _db.withMutatingUser(creatorId, () async {
         final id = CoordinationItemEntity.newId;
         final now = PgDateTime(DateTime.timestamp());
+        final days = validateStaleAfterDays(staleAfterDays);
         return _db.managers.coordinationItems.createReturning(
           (o) => o(
             id: id,
@@ -561,6 +596,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             updatedAt: Value(now),
             resolvedAt: const Value(null),
             cancelledAt: const Value(null),
+            staleAfterDays: Value(days),
             source: const Value(coordinationItemSourceDefault),
             published: const Value(false),
           ),
@@ -571,6 +607,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   Future<CoordinationItem> publishDraftBlocker({
     required String id,
     required String actorId,
+    int? staleAfterDays,
   }) =>
       _db.withMutatingUser(actorId, () async {
         return _db.transaction(() async {
@@ -591,12 +628,20 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             throw StateError('Only blocker drafts may be published');
           }
           final now = PgDateTime(DateTime.timestamp());
+          final days = staleAfterDays != null
+              ? validateStaleAfterDays(staleAfterDays)
+              : validateStaleAfterDays(row.staleAfterDays);
+          final staleAtValue = computeStaleAt(now.dateTime.toUtc(), days);
 
           await (_db.update(_db.coordinationItems)..where((t) => t.id.equals(id)))
               .write(
             CoordinationItemsCompanion(
               published: const Value(true),
               updatedAt: Value(now),
+              staleAfterDays: Value(days),
+              staleAt: Value(
+                staleAtValue == null ? null : PgDateTime(staleAtValue),
+              ),
             ),
           );
 
@@ -645,6 +690,8 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     String body = '',
     bool updateTargetPersonId = false,
     String? targetPersonId,
+    bool updateStaleAfterDays = false,
+    int? staleAfterDays,
   }) =>
       _db.withMutatingUser(actorId, () async {
         final rows = await (_db.select(_db.coordinationItems)
@@ -671,6 +718,9 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             body: Value(body),
             targetPersonId: updateTargetPersonId
                 ? Value(targetPersonId)
+                : const Value.absent(),
+            staleAfterDays: updateStaleAfterDays
+                ? Value(validateStaleAfterDays(staleAfterDays))
                 : const Value.absent(),
             updatedAt: Value(now),
           ),
@@ -703,6 +753,43 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   Future<CoordinationItem?> getById(String id) =>
       (_db.select(_db.coordinationItems)..where((t) => t.id.equals(id)))
           .getSingleOrNull();
+
+  @override
+  Future<CoordinationItem?> tryClaimRemind({
+    required String itemId,
+    required String actorId,
+  }) =>
+      _db.withMutatingUser(actorId, () async {
+        final now = PgDateTime(DateTime.timestamp());
+        final cooldownBefore = PgDateTime(
+          DateTime.timestamp().subtract(
+            Duration(hours: kCoordinationItemRemindCooldownHours),
+          ),
+        );
+        final updated = await (_db.update(_db.coordinationItems)
+              ..where(
+                (t) =>
+                    t.id.equals(itemId) &
+                    t.staleAt.isNotNull() &
+                    t.staleAt.isSmallerOrEqualValue(now) &
+                    t.status.isIn([
+                      coordinationItemStatusOpen,
+                      coordinationItemStatusAccepted,
+                    ]) &
+                    (t.lastRemindedAt.isNull() |
+                        t.lastRemindedAt.isSmallerOrEqualValue(cooldownBefore)),
+              ))
+            .write(
+          CoordinationItemsCompanion(
+            lastRemindedAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+        if (updated == 0) {
+          return null;
+        }
+        return getById(itemId);
+      });
 
   @override
   Future<List<CoordinationItemWithCounts>> listByBeacon(

@@ -389,8 +389,12 @@ class RoomMessageTile extends StatelessWidget {
             (message.linkedItemKind != null
                 ? CoordinationItemKind.fromInt(message.linkedItemKind!)
                 : null);
-        final eventKind =
-            CoordinationItemEventKind.fromInt(message.linkedEventKind!);
+        final eventKind = message.linkedEventKind != null
+            ? CoordinationItemEventKind.fromInt(message.linkedEventKind!)
+            : null;
+        if (eventKind == null) {
+          return const SizedBox.shrink();
+        }
         final isPlanStep = message.linkedCoordinationItem?.isPlanStep ?? false;
         final icon = eventKind == CoordinationItemEventKind.created
             ? Icons.push_pin_outlined

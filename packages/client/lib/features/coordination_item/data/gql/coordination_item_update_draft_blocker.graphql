@@ -3,12 +3,14 @@ mutation CoordinationItemUpdateDraftBlocker(
   $title: String!
   $body: String
   $targetPersonId: String
+  $staleAfterDays: Int
 ) {
   updateDraftBlocker(
     itemId: $itemId
     title: $title
     body: $body
     targetPersonId: $targetPersonId
+    staleAfterDays: $staleAfterDays
   ) {
     id
     beaconId
@@ -31,5 +33,7 @@ mutation CoordinationItemUpdateDraftBlocker(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

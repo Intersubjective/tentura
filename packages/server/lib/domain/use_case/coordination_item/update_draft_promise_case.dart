@@ -27,6 +27,8 @@ final class UpdateDraftPromiseCase extends UseCaseBase {
     String body = '',
     bool updateTargetPersonId = false,
     String? targetPersonId,
+    bool updateStaleAfterDays = false,
+    int? staleAfterDays,
   }) async {
     if (body.trim().isEmpty) {
       throw const BeaconCreateException(description: 'Promise body is required');
@@ -64,6 +66,8 @@ final class UpdateDraftPromiseCase extends UseCaseBase {
       body: body.trim(),
       updateTargetPersonId: updateTargetPersonId,
       targetPersonId: targetPersonId,
+      updateStaleAfterDays: updateStaleAfterDays,
+      staleAfterDays: staleAfterDays,
     );
   }
 }

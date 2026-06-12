@@ -153,6 +153,14 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
     }
   }
 
+  Future<void> remindItem() async {
+    try {
+      _publishItem(await _case.remindItem(itemId: state.item.id));
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   Future<void> acceptResolution() async {
     final resolutionId = state.pendingResolution?.id;
     if (resolutionId == null) return;

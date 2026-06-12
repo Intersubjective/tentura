@@ -1,8 +1,13 @@
 mutation CoordinationItemPublishPromise(
   $itemId: String!
   $targetPersonId: String!
+  $staleAfterDays: Int
 ) {
-  publishPromise(itemId: $itemId, targetPersonId: $targetPersonId) {
+  publishPromise(
+    itemId: $itemId
+    targetPersonId: $targetPersonId
+    staleAfterDays: $staleAfterDays
+  ) {
     id
     beaconId
     kind
@@ -24,5 +29,7 @@ mutation CoordinationItemPublishPromise(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

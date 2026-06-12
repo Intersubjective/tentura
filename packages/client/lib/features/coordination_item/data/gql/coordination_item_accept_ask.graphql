@@ -21,5 +21,7 @@ mutation CoordinationItemAcceptAsk($itemId: String!) {
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

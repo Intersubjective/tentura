@@ -30,6 +30,7 @@ final class CreateDraftPromiseCase extends UseCaseBase {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) async {
     if (body.trim().isEmpty) {
       throw const BeaconCreateException(description: 'Promise body is required');
@@ -58,6 +59,7 @@ final class CreateDraftPromiseCase extends UseCaseBase {
       targetPersonId:
           target == null || target.isEmpty ? null : target,
       linkedMessageId: linkedMessageId,
+      staleAfterDays: staleAfterDays,
     );
   }
 }

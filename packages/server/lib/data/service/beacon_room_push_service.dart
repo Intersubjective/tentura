@@ -180,6 +180,25 @@ class BeaconRoomPushService {
         ),
       );
 
+  Future<void> notifyStaleRemind({
+    required String beaconId,
+    required String actorUserId,
+    required String targetPersonId,
+    required String excerpt,
+    String? coordinationItemId,
+  }) =>
+      _notifications.dispatch(
+        BeaconNotificationIntent(
+          kind: NotificationKind.staleRemind,
+          priority: NotificationPriority.high,
+          beaconId: beaconId,
+          actorUserId: actorUserId,
+          targetPersonId: targetPersonId,
+          bodyExcerpt: notificationExcerpt(excerpt),
+          coordinationItemId: coordinationItemId,
+        ),
+      );
+
   Future<void> notifyReviewOpened({
     required String beaconId,
     required String beaconTitle,

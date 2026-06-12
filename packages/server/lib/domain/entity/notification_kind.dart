@@ -10,4 +10,5 @@ enum NotificationKind {
   commitmentEvent,
   reviewReady,
   roomActivityLowPriority,
+  staleRemind,
 }

@@ -56,12 +56,14 @@ class BeaconNotificationBatchAggregator {
       NotificationKind.newRelay => '$n beacons forwarded to you$suffix',
       NotificationKind.commitmentEvent => '$n commitment updates$suffix',
       NotificationKind.reviewReady => '$n beacons ready to review$suffix',
+      NotificationKind.staleRemind => '$n items need attention$suffix',
       _ => '$n beacon updates$suffix',
     };
   }
 
   bool _isActionable(NotificationKind kind) => switch (kind) {
         NotificationKind.needsMe ||
+        NotificationKind.staleRemind ||
         NotificationKind.blockerOpened ||
         NotificationKind.reviewReady =>
           true,

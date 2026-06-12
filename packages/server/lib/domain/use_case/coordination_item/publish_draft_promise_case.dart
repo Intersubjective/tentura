@@ -29,6 +29,7 @@ final class PublishDraftPromiseCase extends UseCaseBase {
     required String userId,
     required String itemId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) async {
     final target = targetPersonId.trim();
     if (target.isEmpty) {
@@ -69,6 +70,7 @@ final class PublishDraftPromiseCase extends UseCaseBase {
       id: itemId,
       actorId: userId,
       targetPersonId: target,
+      staleAfterDays: staleAfterDays,
     );
     unawaited(
       _push.notifyPromiseMade(

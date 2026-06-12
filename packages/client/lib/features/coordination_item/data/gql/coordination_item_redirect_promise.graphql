@@ -24,5 +24,7 @@ mutation CoordinationItemRedirectPromise(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

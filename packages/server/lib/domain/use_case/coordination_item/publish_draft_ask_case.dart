@@ -29,6 +29,7 @@ final class PublishDraftAskCase extends UseCaseBase {
     required String userId,
     required String itemId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) async {
     final target = targetPersonId.trim();
     if (target.isEmpty) {
@@ -64,6 +65,7 @@ final class PublishDraftAskCase extends UseCaseBase {
       id: itemId,
       actorId: userId,
       targetPersonId: target,
+      staleAfterDays: staleAfterDays,
     );
     if (target != userId) {
       unawaited(

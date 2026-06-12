@@ -144,6 +144,12 @@ class BeaconNotificationRecipientResolver {
         for (final uid in ctx.admittedUserIds) {
           add(uid, NotificationRecipientReason.admittedRoomMember, intent.priority);
         }
+
+      case NotificationKind.staleRemind:
+        final target = intent.targetPersonId;
+        if (target != null && target.isNotEmpty) {
+          add(target, NotificationRecipientReason.targetOfAsk, intent.priority);
+        }
     }
 
     return out.values.toList();

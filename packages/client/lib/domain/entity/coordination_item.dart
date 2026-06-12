@@ -53,14 +53,14 @@ enum CoordinationItemEventKind {
   const CoordinationItemEventKind(this.value);
   final int value;
 
-  static CoordinationItemEventKind fromInt(int v) => switch (v) {
+  static CoordinationItemEventKind? fromInt(int v) => switch (v) {
         1 => created,
         2 => accepted,
         3 => resolved,
         4 => cancelled,
         5 => updated,
         6 => superseded,
-        _ => throw ArgumentError.value(v, 'eventKind'),
+        _ => null,
       };
 }
 
@@ -87,6 +87,8 @@ abstract class CoordinationItem with _$CoordinationItem {
     DateTime? resolvedAt,
     DateTime? cancelledAt,
     DateTime? staleAt,
+    DateTime? lastRemindedAt,
+    int? staleAfterDays,
     @Default(0) int messageCount,
     @Default(0) int unreadCount,
     DateTime? lastSeenAt,
@@ -111,6 +113,59 @@ abstract class CoordinationItem with _$CoordinationItem {
   /// Open or accepted — still active on the Items tab.
   bool get isActive =>
       isOpen || isAccepted;
+
+  static const defaultStaleDays = 3;
+  static const remindCooldownHours = 24;
+
+  /// Derived stale state — must match server isItemStale rules.
+  bool get isStale {
+    final at = staleAt;
+    if (at == null || !isActive) return false;
+    return !at.toUtc().isAfter(DateTime.now().toUtc());
+  }
+
+  bool isRemindInCooldown([DateTime? now]) {
+    final last = lastRemindedAt;
+    if (last == null) return false;
+    final n = (now ?? DateTime.now()).toUtc();
+    return last
+        .toUtc()
+        .isAfter(n.subtract(const Duration(hours: remindCooldownHours)));
+  }
+
+  /// Status-aware remind push recipient — mirrors server rules.
+  String? get responsibleUserId {
+    if (kind != CoordinationItemKind.ask &&
+        kind != CoordinationItemKind.promise &&
+        kind != CoordinationItemKind.blocker) {
+      return null;
+    }
+    final target = targetPersonId?.trim();
+    final hasTarget = target != null && target.isNotEmpty;
+
+    return switch (kind) {
+      CoordinationItemKind.ask => isAccepted
+          ? ((acceptedById?.trim().isNotEmpty ?? false)
+              ? acceptedById!.trim()
+              : (hasTarget ? target : null))
+          : (hasTarget ? target : null),
+      CoordinationItemKind.promise => isOpen
+          ? (hasTarget ? target : null)
+          : isAccepted
+              ? creatorId
+              : null,
+      CoordinationItemKind.blocker =>
+        hasTarget ? target : creatorId,
+      _ => null,
+    };
+  }
+
+  bool canRemind(String viewerId) =>
+      isStale &&
+      isActive &&
+      responsibleUserId != null &&
+      responsibleUserId != viewerId &&
+      !isRemindInCooldown();
 
   /// Primary text for list cards: [body] when set, otherwise [title].
   String get contentPreview {

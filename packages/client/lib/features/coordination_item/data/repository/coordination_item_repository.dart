@@ -35,7 +35,16 @@ import '../gql/_g/coordination_item_create_draft_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_publish_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_update_draft_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_delete_draft_blocker.req.gql.dart';
+import '../gql/_g/coordination_item_remind.req.gql.dart';
 import '../model/coordination_item_model.dart';
+
+int? _wirePublishStaleAfterDays(int? staleAfterDays) {
+  if (staleAfterDays == null ||
+      staleAfterDays == CoordinationItem.defaultStaleDays) {
+    return null;
+  }
+  return staleAfterDays;
+}
 
 @lazySingleton
 class CoordinationItemRepository {
@@ -74,12 +83,24 @@ class CoordinationItemRepository {
               .map((e) => (e as CoordinationItemListModel).toEntity())
               .toList());
 
+  Future<CoordinationItem> remindItem({required String itemId}) =>
+      _remote
+          .request(
+            GCoordinationItemRemindReq((b) => b.vars..itemId = itemId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => (r
+                  .dataOrThrow(label: _label)
+                  .remindCoordinationItem as CoordinationItemRemindModel)
+              .toEntity());
+
   Future<CoordinationItem> markBlocker({
     required String beaconId,
     required String title,
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -89,7 +110,8 @@ class CoordinationItemRepository {
                 ..title = title
                 ..body = body
                 ..targetPersonId = targetPersonId
-                ..linkedMessageId = linkedMessageId,
+                ..linkedMessageId = linkedMessageId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -140,6 +162,7 @@ class CoordinationItemRepository {
     required String targetPersonId,
     String? body,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -149,7 +172,8 @@ class CoordinationItemRepository {
                 ..title = title
                 ..targetPersonId = targetPersonId
                 ..body = body
-                ..linkedMessageId = linkedMessageId,
+                ..linkedMessageId = linkedMessageId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -163,6 +187,7 @@ class CoordinationItemRepository {
     required String targetPersonId,
     String? body,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -172,7 +197,8 @@ class CoordinationItemRepository {
                 ..title = title
                 ..targetPersonId = targetPersonId
                 ..body = body
-                ..linkedMessageId = linkedMessageId,
+                ..linkedMessageId = linkedMessageId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -186,6 +212,7 @@ class CoordinationItemRepository {
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -195,7 +222,8 @@ class CoordinationItemRepository {
                 ..title = title
                 ..body = body
                 ..targetPersonId = targetPersonId
-                ..linkedMessageId = linkedMessageId,
+                ..linkedMessageId = linkedMessageId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -206,13 +234,15 @@ class CoordinationItemRepository {
   Future<CoordinationItem> publishDraftPromise({
     required String itemId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
             GCoordinationItemPublishPromiseReq(
               (b) => b.vars
                 ..itemId = itemId
-                ..targetPersonId = targetPersonId,
+                ..targetPersonId = targetPersonId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -226,6 +256,7 @@ class CoordinationItemRepository {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -235,7 +266,8 @@ class CoordinationItemRepository {
                 ..title = title
                 ..body = body
                 ..targetPersonId =
-                    omitTargetPersonId ? null : targetPersonId,
+                    omitTargetPersonId ? null : targetPersonId
+                ..staleAfterDays = staleAfterDays,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -317,6 +349,7 @@ class CoordinationItemRepository {
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -326,7 +359,8 @@ class CoordinationItemRepository {
                 ..title = title
                 ..body = body
                 ..targetPersonId = targetPersonId
-                ..linkedMessageId = linkedMessageId,
+                ..linkedMessageId = linkedMessageId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -337,13 +371,15 @@ class CoordinationItemRepository {
   Future<CoordinationItem> publishDraftAsk({
     required String itemId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
             GCoordinationItemPublishAskReq(
               (b) => b.vars
                 ..itemId = itemId
-                ..targetPersonId = targetPersonId,
+                ..targetPersonId = targetPersonId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -357,6 +393,7 @@ class CoordinationItemRepository {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -366,7 +403,8 @@ class CoordinationItemRepository {
                 ..title = title
                 ..body = body
                 ..targetPersonId =
-                    omitTargetPersonId ? null : targetPersonId,
+                    omitTargetPersonId ? null : targetPersonId
+                ..staleAfterDays = staleAfterDays,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -386,6 +424,7 @@ class CoordinationItemRepository {
     required String title,
     String? body,
     String? targetPersonId,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -394,7 +433,8 @@ class CoordinationItemRepository {
                 ..beaconId = beaconId
                 ..title = title
                 ..body = body
-                ..targetPersonId = targetPersonId,
+                ..targetPersonId = targetPersonId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -402,11 +442,16 @@ class CoordinationItemRepository {
                   as CoordinationItemCreateDraftBlockerModel)
               .toEntity());
 
-  Future<CoordinationItem> publishDraftBlocker({required String itemId}) =>
+  Future<CoordinationItem> publishDraftBlocker({
+    required String itemId,
+    int? staleAfterDays,
+  }) =>
       _remote
           .request(
             GCoordinationItemPublishBlockerReq(
-              (b) => b.vars..itemId = itemId,
+              (b) => b.vars
+                ..itemId = itemId
+                ..staleAfterDays = _wirePublishStaleAfterDays(staleAfterDays),
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
@@ -420,6 +465,7 @@ class CoordinationItemRepository {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       _remote
           .request(
@@ -429,7 +475,8 @@ class CoordinationItemRepository {
                 ..title = title
                 ..body = body
                 ..targetPersonId =
-                    omitTargetPersonId ? null : targetPersonId,
+                    omitTargetPersonId ? null : targetPersonId
+                ..staleAfterDays = staleAfterDays,
             ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)

@@ -211,6 +211,16 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
     }
   }
 
+  Future<void> remindItem(String itemId) async {
+    try {
+      emit(state.copyWith(status: const StateIsSuccess()));
+      await _case.remindItem(itemId: itemId);
+      await fetch(silent: true);
+    } on Object catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
   @override
   Future<void> close() async {
     await _invalidationSub.cancel();

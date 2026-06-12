@@ -3,8 +3,15 @@ mutation CoordinationItemUpdateDraftPromise(
   $title: String!
   $body: String
   $targetPersonId: String
+  $staleAfterDays: Int
 ) {
-  updateDraftPromise(itemId: $itemId, title: $title, body: $body, targetPersonId: $targetPersonId) {
+  updateDraftPromise(
+    itemId: $itemId
+    title: $title
+    body: $body
+    targetPersonId: $targetPersonId
+    staleAfterDays: $staleAfterDays
+  ) {
     id
     beaconId
     kind
@@ -26,5 +33,7 @@ mutation CoordinationItemUpdateDraftPromise(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

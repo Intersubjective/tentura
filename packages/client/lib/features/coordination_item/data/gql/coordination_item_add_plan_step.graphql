@@ -25,5 +25,7 @@ mutation CoordinationItemAddPlanStep(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

@@ -30,6 +30,7 @@ final class CreateDraftAskCase extends UseCaseBase {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) async {
     if (body.trim().isEmpty) {
       throw const BeaconCreateException(description: 'Ask body is required');
@@ -53,6 +54,7 @@ final class CreateDraftAskCase extends UseCaseBase {
       targetPersonId:
           target == null || target.isEmpty ? null : target,
       linkedMessageId: linkedMessageId,
+      staleAfterDays: staleAfterDays,
     );
   }
 }

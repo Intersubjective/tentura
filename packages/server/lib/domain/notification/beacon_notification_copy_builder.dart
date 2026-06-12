@@ -76,6 +76,10 @@ class BeaconNotificationCopyBuilder {
           beaconTitle.isNotEmpty ? beaconTitle : 'Beacon update',
           excerpt.isNotEmpty ? excerpt : 'New room update',
         ),
+      NotificationKind.staleRemind => (
+          'Still needs attention',
+          excerpt.isNotEmpty ? excerpt : 'Something in the beacon room needs attention',
+        ),
     };
 
     return BeaconNotificationCopy(
@@ -97,6 +101,7 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.newRelay => '/#$kPathAppLinkView?id=$id',
       NotificationKind.roomAccess ||
       NotificationKind.needsMe ||
+      NotificationKind.staleRemind ||
       NotificationKind.promiseMade ||
       NotificationKind.coordinationChanged ||
       NotificationKind.blockerOpened ||

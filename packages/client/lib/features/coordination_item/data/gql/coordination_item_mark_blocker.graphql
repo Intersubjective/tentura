@@ -4,6 +4,7 @@ mutation CoordinationItemMarkBlocker(
   $body: String
   $targetPersonId: String
   $linkedMessageId: String
+  $staleAfterDays: Int
 ) {
   markBlocker(
     beaconId: $beaconId
@@ -11,6 +12,7 @@ mutation CoordinationItemMarkBlocker(
     body: $body
     targetPersonId: $targetPersonId
     linkedMessageId: $linkedMessageId
+    staleAfterDays: $staleAfterDays
   ) {
     id
     beaconId
@@ -33,5 +35,7 @@ mutation CoordinationItemMarkBlocker(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

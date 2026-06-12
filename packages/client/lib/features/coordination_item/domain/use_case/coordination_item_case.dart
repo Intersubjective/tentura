@@ -28,12 +28,16 @@ class CoordinationItemCase {
         rootOnly: rootOnly,
       );
 
+  Future<CoordinationItem> remindItem({required String itemId}) =>
+      _repository.remindItem(itemId: itemId);
+
   Future<CoordinationItem> markBlocker({
     required String beaconId,
     required String title,
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _repository.markBlocker(
         beaconId: beaconId,
@@ -41,6 +45,7 @@ class CoordinationItemCase {
         body: body,
         targetPersonId: targetPersonId,
         linkedMessageId: linkedMessageId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<CoordinationItem> resolveBlocker({required String itemId}) =>
@@ -55,6 +60,7 @@ class CoordinationItemCase {
     required String targetPersonId,
     String? body,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _repository.markAsk(
         beaconId: beaconId,
@@ -62,6 +68,7 @@ class CoordinationItemCase {
         targetPersonId: targetPersonId,
         body: body,
         linkedMessageId: linkedMessageId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<CoordinationItem> createPromise({
@@ -70,6 +77,7 @@ class CoordinationItemCase {
     required String targetPersonId,
     String? body,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _repository.createPromise(
         beaconId: beaconId,
@@ -77,6 +85,7 @@ class CoordinationItemCase {
         targetPersonId: targetPersonId,
         body: body,
         linkedMessageId: linkedMessageId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<CoordinationItem> createDraftPromise({
@@ -85,6 +94,7 @@ class CoordinationItemCase {
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _repository.createDraftPromise(
         beaconId: beaconId,
@@ -92,15 +102,18 @@ class CoordinationItemCase {
         body: body,
         targetPersonId: targetPersonId,
         linkedMessageId: linkedMessageId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<CoordinationItem> publishDraftPromise({
     required String itemId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) =>
       _repository.publishDraftPromise(
         itemId: itemId,
         targetPersonId: targetPersonId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<CoordinationItem> updateDraftPromise({
@@ -109,6 +122,7 @@ class CoordinationItemCase {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       _repository.updateDraftPromise(
         itemId: itemId,
@@ -116,6 +130,7 @@ class CoordinationItemCase {
         body: body,
         targetPersonId: targetPersonId,
         omitTargetPersonId: omitTargetPersonId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<void> deleteDraftPromise({required String itemId}) =>
@@ -145,6 +160,7 @@ class CoordinationItemCase {
     String? body,
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _repository.createDraftAsk(
         beaconId: beaconId,
@@ -152,15 +168,18 @@ class CoordinationItemCase {
         body: body,
         targetPersonId: targetPersonId,
         linkedMessageId: linkedMessageId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<CoordinationItem> publishDraftAsk({
     required String itemId,
     required String targetPersonId,
+    int? staleAfterDays,
   }) =>
       _repository.publishDraftAsk(
         itemId: itemId,
         targetPersonId: targetPersonId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<CoordinationItem> updateDraftAsk({
@@ -169,6 +188,7 @@ class CoordinationItemCase {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       _repository.updateDraftAsk(
         itemId: itemId,
@@ -176,6 +196,7 @@ class CoordinationItemCase {
         body: body,
         targetPersonId: targetPersonId,
         omitTargetPersonId: omitTargetPersonId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<void> deleteDraftAsk({required String itemId}) =>
@@ -186,16 +207,24 @@ class CoordinationItemCase {
     required String title,
     String? body,
     String? targetPersonId,
+    int? staleAfterDays,
   }) =>
       _repository.createDraftBlocker(
         beaconId: beaconId,
         title: title,
         body: body,
         targetPersonId: targetPersonId,
+        staleAfterDays: staleAfterDays,
       );
 
-  Future<CoordinationItem> publishDraftBlocker({required String itemId}) =>
-      _repository.publishDraftBlocker(itemId: itemId);
+  Future<CoordinationItem> publishDraftBlocker({
+    required String itemId,
+    int? staleAfterDays,
+  }) =>
+      _repository.publishDraftBlocker(
+        itemId: itemId,
+        staleAfterDays: staleAfterDays,
+      );
 
   Future<CoordinationItem> updateDraftBlocker({
     required String itemId,
@@ -203,6 +232,7 @@ class CoordinationItemCase {
     String body = '',
     String? targetPersonId,
     bool omitTargetPersonId = false,
+    int? staleAfterDays,
   }) =>
       _repository.updateDraftBlocker(
         itemId: itemId,
@@ -210,6 +240,7 @@ class CoordinationItemCase {
         body: body,
         targetPersonId: targetPersonId,
         omitTargetPersonId: omitTargetPersonId,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<void> deleteDraftBlocker({required String itemId}) =>

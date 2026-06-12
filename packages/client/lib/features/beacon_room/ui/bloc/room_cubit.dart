@@ -546,6 +546,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String title,
     required String targetPersonId,
     String body = '',
+    int? staleAfterDays,
   }) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
@@ -555,6 +556,7 @@ class RoomCubit extends Cubit<RoomState> {
         title: title,
         targetPersonId: targetPersonId,
         body: body,
+        staleAfterDays: staleAfterDays,
       );
       await load();
     } on Object catch (e) {
@@ -567,6 +569,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String title,
     String body = '',
     String? targetPersonId,
+    int? staleAfterDays,
   }) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
@@ -576,6 +579,7 @@ class RoomCubit extends Cubit<RoomState> {
         title: title,
         body: body,
         targetPersonId: targetPersonId,
+        staleAfterDays: staleAfterDays,
       );
       await load();
     } on Object catch (e) {
@@ -588,6 +592,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String targetPersonId,
     required String title,
     String body = '',
+    int? staleAfterDays,
   }) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {
@@ -597,6 +602,7 @@ class RoomCubit extends Cubit<RoomState> {
         targetPersonId: targetPersonId,
         title: title,
         body: body,
+        staleAfterDays: staleAfterDays,
       );
       await load();
     } on Object catch (e) {

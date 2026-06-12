@@ -31,6 +31,7 @@ import 'package:tentura_server/domain/use_case/coordination_item/create_resoluti
 import 'package:tentura_server/domain/use_case/coordination_item/accept_resolution_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/reject_resolution_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/update_coordination_item_case.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/remind_coordination_item_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -70,6 +71,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
     UpdateDraftBlockerCase? updateDraftBlockerCase,
     DeleteDraftBlockerCase? deleteDraftBlockerCase,
     UpdateCoordinationItemCase? updateCoordinationItemCase,
+    RemindCoordinationItemCase? remindCoordinationItemCase,
   }) : _markBlockerCase = markBlockerCase ?? GetIt.I<MarkBlockerCase>(),
        _resolveBlockerCase =
            resolveBlockerCase ?? GetIt.I<ResolveBlockerCase>(),
@@ -124,7 +126,9 @@ final class MutationCoordinationItem extends GqlNodeBase {
        _deleteDraftBlockerCase =
            deleteDraftBlockerCase ?? GetIt.I<DeleteDraftBlockerCase>(),
        _updateCoordinationItemCase =
-           updateCoordinationItemCase ?? GetIt.I<UpdateCoordinationItemCase>();
+           updateCoordinationItemCase ?? GetIt.I<UpdateCoordinationItemCase>(),
+       _remindCoordinationItemCase =
+           remindCoordinationItemCase ?? GetIt.I<RemindCoordinationItemCase>();
 
   final MarkBlockerCase _markBlockerCase;
   final ResolveBlockerCase _resolveBlockerCase;
@@ -158,6 +162,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final UpdateDraftBlockerCase _updateDraftBlockerCase;
   final DeleteDraftBlockerCase _deleteDraftBlockerCase;
   final UpdateCoordinationItemCase _updateCoordinationItemCase;
+  final RemindCoordinationItemCase _remindCoordinationItemCase;
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
   final _targetItemId = InputFieldString(fieldName: 'targetItemId');
@@ -171,6 +176,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final _newTargetPersonId = InputFieldString(fieldName: 'newTargetPersonId');
   final _note = InputFieldString(fieldName: 'note');
   final _reason = InputFieldString(fieldName: 'reason');
+  final _staleAfterDays = InputFieldInt(fieldName: 'staleAfterDays');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
         markBlocker,
@@ -205,6 +211,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
         acceptResolution,
         rejectResolution,
         updateCoordinationItem,
+        remindCoordinationItem,
       ];
 
   GraphQLObjectField<dynamic, dynamic> get markBlocker => GraphQLObjectField(
@@ -216,6 +223,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _body.fieldNullable,
           _targetPersonId.fieldNullable,
           _linkedMessageId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -226,6 +234,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             body: _body.fromArgs(args) ?? '',
             targetPersonId: _targetPersonId.fromArgs(args),
             linkedMessageId: _linkedMessageId.fromArgs(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -277,6 +286,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _targetPersonId.field,
           _body.fieldNullable,
           _linkedMessageId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -287,6 +297,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             targetPersonId: _targetPersonId.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
             linkedMessageId: _linkedMessageId.fromArgs(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -302,6 +313,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _targetPersonId.field,
           _body.fieldNullable,
           _linkedMessageId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -312,6 +324,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             targetPersonId: _targetPersonId.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
             linkedMessageId: _linkedMessageId.fromArgs(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -327,6 +340,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _body.fieldNullable,
           _targetPersonId.fieldNullable,
           _linkedMessageId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -337,6 +351,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             body: _body.fromArgs(args) ?? '',
             targetPersonId: _targetPersonId.fromArgs(args),
             linkedMessageId: _linkedMessageId.fromArgs(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -349,6 +364,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
         arguments: [
           _itemId.field,
           _targetPersonId.field,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -356,6 +372,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
             targetPersonId: _targetPersonId.fromArgsNonNullable(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -370,10 +387,12 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _title.field,
           _body.fieldNullable,
           _targetPersonId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
           final hasTarget = args.containsKey('targetPersonId');
+          final hasStale = args.containsKey('staleAfterDays');
           final item = await _updateDraftPromiseCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
@@ -381,6 +400,8 @@ final class MutationCoordinationItem extends GqlNodeBase {
             body: _body.fromArgs(args) ?? '',
             updateTargetPersonId: hasTarget,
             targetPersonId: _targetPersonId.fromArgs(args),
+            updateStaleAfterDays: hasStale,
+            staleAfterDays: _staleAfterDays.fromArgs(args),
           );
           return _coordinationItemToMap(item);
         },
@@ -483,6 +504,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _body.fieldNullable,
           _targetPersonId.fieldNullable,
           _linkedMessageId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -493,6 +515,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             body: _body.fromArgs(args) ?? '',
             targetPersonId: _targetPersonId.fromArgs(args),
             linkedMessageId: _linkedMessageId.fromArgs(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -504,6 +527,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
         arguments: [
           _itemId.field,
           _targetPersonId.field,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -511,6 +535,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
             targetPersonId: _targetPersonId.fromArgsNonNullable(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -525,10 +550,12 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _title.field,
           _body.fieldNullable,
           _targetPersonId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
           final hasTarget = args.containsKey('targetPersonId');
+          final hasStale = args.containsKey('staleAfterDays');
           final item = await _updateDraftAskCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
@@ -536,6 +563,8 @@ final class MutationCoordinationItem extends GqlNodeBase {
             body: _body.fromArgs(args) ?? '',
             updateTargetPersonId: hasTarget,
             targetPersonId: _targetPersonId.fromArgs(args),
+            updateStaleAfterDays: hasStale,
+            staleAfterDays: _staleAfterDays.fromArgs(args),
           );
           return _coordinationItemToMap(item);
         },
@@ -565,6 +594,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _title.field,
           _body.fieldNullable,
           _targetPersonId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
@@ -574,6 +604,7 @@ final class MutationCoordinationItem extends GqlNodeBase {
             title: _title.fromArgsNonNullable(args),
             body: _body.fromArgs(args) ?? '',
             targetPersonId: _targetPersonId.fromArgs(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -583,12 +614,16 @@ final class MutationCoordinationItem extends GqlNodeBase {
       GraphQLObjectField(
         'publishBlocker',
         gqlTypeCoordinationItemRow.nonNullable(),
-        arguments: [_itemId.field],
+        arguments: [
+          _itemId.field,
+          _staleAfterDays.fieldNullable,
+        ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
           final item = await _publishDraftBlockerCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
+            staleAfterDays: _staleAfterDaysFromArgs(args, _staleAfterDays),
           );
           return _coordinationItemToMap(item);
         },
@@ -603,10 +638,12 @@ final class MutationCoordinationItem extends GqlNodeBase {
           _title.field,
           _body.fieldNullable,
           _targetPersonId.fieldNullable,
+          _staleAfterDays.fieldNullable,
         ],
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
           final hasTarget = args.containsKey('targetPersonId');
+          final hasStale = args.containsKey('staleAfterDays');
           final item = await _updateDraftBlockerCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
@@ -614,6 +651,8 @@ final class MutationCoordinationItem extends GqlNodeBase {
             body: _body.fromArgs(args) ?? '',
             updateTargetPersonId: hasTarget,
             targetPersonId: _targetPersonId.fromArgs(args),
+            updateStaleAfterDays: hasStale,
+            staleAfterDays: _staleAfterDays.fromArgs(args),
           );
           return _coordinationItemToMap(item);
         },
@@ -848,7 +887,28 @@ final class MutationCoordinationItem extends GqlNodeBase {
         },
       );
 
+  GraphQLObjectField<dynamic, dynamic> get remindCoordinationItem =>
+      GraphQLObjectField(
+        'remindCoordinationItem',
+        gqlTypeCoordinationItemRow.nonNullable(),
+        arguments: [_itemId.field],
+        resolve: (_, args) async {
+          final userId = getCredentials(args).sub;
+          final item = await _remindCoordinationItemCase.call(
+            userId: userId,
+            itemId: _itemId.fromArgsNonNullable(args),
+          );
+          return _coordinationItemToMap(item);
+        },
+      );
+
 }
+
+int? _staleAfterDaysFromArgs(
+  Map<String, dynamic> args,
+  InputFieldInt field,
+) =>
+    args.containsKey('staleAfterDays') ? field.fromArgs(args) : null;
 
 Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
       'id': item.id,
@@ -869,6 +929,9 @@ Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
       'updatedAt': item.updatedAt.dateTime.toIso8601String(),
       'resolvedAt': item.resolvedAt?.dateTime.toIso8601String(),
       'cancelledAt': item.cancelledAt?.dateTime.toIso8601String(),
+      'staleAt': item.staleAt?.dateTime.toIso8601String(),
+      'lastRemindedAt': item.lastRemindedAt?.dateTime.toIso8601String(),
+      'staleAfterDays': item.staleAfterDays,
       'source': item.source,
       'published': item.published,
     };

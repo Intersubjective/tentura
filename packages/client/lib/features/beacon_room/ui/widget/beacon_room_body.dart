@@ -27,6 +27,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_now_detail_sheet.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_ask_sheet.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
+import 'package:tentura/features/coordination_item/ui/widget/coordination_staleness_picker.dart';
 
 import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
@@ -899,7 +900,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             .toList();
   }
 
-  Future<({String title, String body, String targetUserId})?>
+  Future<({String title, String body, String targetUserId, int? staleAfterDays})?>
       _showPromoteFieldsDialog({
     required BuildContext context,
     required L10n l10n,
@@ -907,6 +908,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     required RoomCubit cubit,
     required String dialogTitle,
     required String messageBody,
+    bool includeStalenessPicker = false,
   }) async {
     final admitted = _admittedParticipantsForPromote(cubit);
     if (admitted.isEmpty) return null;
@@ -917,6 +919,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     if (!admitted.any((p) => p.userId == targetUserId)) {
       targetUserId = admitted.first.userId;
     }
+    var staleDays = CoordinationItem.defaultStaleDays;
 
     try {
       final ok = await showDialog<bool>(
@@ -963,6 +966,22 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     onChanged: (v) =>
                         setState(() => targetUserId = v ?? targetUserId),
                   ),
+                  if (includeStalenessPicker) ...[
+                    const SizedBox(height: kSpacingSmall),
+                    CoordinationStalenessPicker(
+                      l10n: l10n,
+                      selectedDays: staleDays,
+                      onSelected: (days) => setState(() => staleDays = days),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: kSpacingSmall),
+                    Text(
+                      l10n.coordinationStalenessDefaultHint,
+                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -984,7 +1003,12 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       if (body.isEmpty) return null;
       final titleRaw = titleController.text.trim();
       final title = titleRaw.isEmpty ? body : titleRaw;
-      return (title: title, body: body, targetUserId: targetUserId);
+      return (
+        title: title,
+        body: body,
+        targetUserId: targetUserId,
+        staleAfterDays: includeStalenessPicker ? staleDays : null,
+      );
     } finally {
       titleController.dispose();
       bodyController.dispose();
@@ -1029,6 +1053,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       cubit: cubit,
       dialogTitle: l10n.coordinationMarkAskTitle,
       messageBody: message.body.trim(),
+      includeStalenessPicker: true,
     );
     if (fields == null || !context.mounted) return;
     await cubit.markAskFromMessage(
@@ -1036,6 +1061,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       title: fields.title,
       targetPersonId: fields.targetUserId,
       body: fields.body,
+      staleAfterDays: fields.staleAfterDays,
     );
   }
 
@@ -1053,6 +1079,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       cubit: cubit,
       dialogTitle: l10n.beaconRoomActionMarkBlocker,
       messageBody: message.body.trim(),
+      includeStalenessPicker: true,
     );
     if (fields == null || !context.mounted) return;
     await cubit.markBlockerFromMessage(
@@ -1060,6 +1087,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       title: fields.title,
       body: fields.body,
       targetPersonId: fields.targetUserId,
+      staleAfterDays: fields.staleAfterDays,
     );
   }
 
