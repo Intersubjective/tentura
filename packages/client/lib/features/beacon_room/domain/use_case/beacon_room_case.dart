@@ -268,29 +268,13 @@ final class BeaconRoomCase extends UseCaseBase {
     }
   }
 
-  Future<void> markBlockerFromMessage({
-    required String beaconId,
-    required String messageId,
-    required String title,
-    String body = '',
-    String? targetPersonId,
-  }) =>
-      _coordinationItemCase
-          .markBlocker(
-            beaconId: beaconId,
-            title: title,
-            body: body,
-            targetPersonId: targetPersonId,
-            linkedMessageId: messageId,
-          )
-          .then((_) {});
-
   Future<void> markAskFromMessage({
     required String beaconId,
     required String messageId,
     required String title,
     required String targetPersonId,
     String body = '',
+    int? staleAfterDays,
   }) =>
       _coordinationItemCase
           .markAsk(
@@ -299,6 +283,26 @@ final class BeaconRoomCase extends UseCaseBase {
             targetPersonId: targetPersonId,
             body: body,
             linkedMessageId: messageId,
+            staleAfterDays: staleAfterDays,
+          )
+          .then((_) {});
+
+  Future<void> markBlockerFromMessage({
+    required String beaconId,
+    required String messageId,
+    required String title,
+    String body = '',
+    String? targetPersonId,
+    int? staleAfterDays,
+  }) =>
+      _coordinationItemCase
+          .markBlocker(
+            beaconId: beaconId,
+            title: title,
+            body: body,
+            targetPersonId: targetPersonId,
+            linkedMessageId: messageId,
+            staleAfterDays: staleAfterDays,
           )
           .then((_) {});
 
@@ -308,6 +312,7 @@ final class BeaconRoomCase extends UseCaseBase {
     required String targetPersonId,
     String body = '',
     String? linkedMessageId,
+    int? staleAfterDays,
   }) =>
       _coordinationItemCase
           .createPromise(
@@ -316,6 +321,7 @@ final class BeaconRoomCase extends UseCaseBase {
             targetPersonId: targetPersonId,
             body: body,
             linkedMessageId: linkedMessageId,
+            staleAfterDays: staleAfterDays,
           )
           .then((_) {});
 
@@ -325,6 +331,7 @@ final class BeaconRoomCase extends UseCaseBase {
     required String targetPersonId,
     required String title,
     String body = '',
+    int? staleAfterDays,
   }) =>
       markAskFromMessage(
         beaconId: beaconId,
@@ -332,6 +339,7 @@ final class BeaconRoomCase extends UseCaseBase {
         title: title,
         targetPersonId: targetPersonId,
         body: body,
+        staleAfterDays: staleAfterDays,
       );
 
   Future<void> resolveCoordinationBlocker({required String itemId}) =>

@@ -1185,6 +1185,27 @@ class MockBeaconRoomPushService extends _i1.Mock
           as _i5.Future<void>);
 
   @override
+  _i5.Future<void> notifyStaleRemind({
+    required String? beaconId,
+    required String? actorUserId,
+    required String? targetPersonId,
+    required String? excerpt,
+    String? coordinationItemId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#notifyStaleRemind, [], {
+              #beaconId: beaconId,
+              #actorUserId: actorUserId,
+              #targetPersonId: targetPersonId,
+              #excerpt: excerpt,
+              #coordinationItemId: coordinationItemId,
+            }),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
   _i5.Future<void> notifyReviewOpened({
     required String? beaconId,
     required String? beaconTitle,

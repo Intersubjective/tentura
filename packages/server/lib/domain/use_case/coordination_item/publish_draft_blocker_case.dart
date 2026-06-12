@@ -28,6 +28,7 @@ final class PublishDraftBlockerCase extends UseCaseBase {
   Future<CoordinationItem> call({
     required String userId,
     required String itemId,
+    int? staleAfterDays,
   }) async {
     final existing = await _itemRepository.getById(itemId);
     if (existing == null) {
@@ -56,6 +57,7 @@ final class PublishDraftBlockerCase extends UseCaseBase {
     final item = await _itemRepository.publishDraftBlocker(
       id: itemId,
       actorId: userId,
+      staleAfterDays: staleAfterDays,
     );
     unawaited(
       _push.notifyBlockerOpened(

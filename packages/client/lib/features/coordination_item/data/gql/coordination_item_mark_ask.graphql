@@ -4,6 +4,7 @@ mutation CoordinationItemMarkAsk(
   $targetPersonId: String!
   $body: String
   $linkedMessageId: String
+  $staleAfterDays: Int
 ) {
   markAsk(
     beaconId: $beaconId
@@ -11,6 +12,7 @@ mutation CoordinationItemMarkAsk(
     targetPersonId: $targetPersonId
     body: $body
     linkedMessageId: $linkedMessageId
+    staleAfterDays: $staleAfterDays
   ) {
     id
     beaconId
@@ -33,5 +35,7 @@ mutation CoordinationItemMarkAsk(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

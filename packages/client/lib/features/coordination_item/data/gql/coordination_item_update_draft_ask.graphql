@@ -3,8 +3,15 @@ mutation CoordinationItemUpdateDraftAsk(
   $title: String!
   $body: String
   $targetPersonId: String
+  $staleAfterDays: Int
 ) {
-  updateDraftAsk(itemId: $itemId, title: $title, body: $body, targetPersonId: $targetPersonId) {
+  updateDraftAsk(
+    itemId: $itemId
+    title: $title
+    body: $body
+    targetPersonId: $targetPersonId
+    staleAfterDays: $staleAfterDays
+  ) {
     id
     beaconId
     kind
@@ -26,5 +33,7 @@ mutation CoordinationItemUpdateDraftAsk(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

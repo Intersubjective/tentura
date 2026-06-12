@@ -599,6 +599,8 @@ final gqlTypeCoordinationItemRow =
         field('resolvedAt', graphQLString),
         field('cancelledAt', graphQLString),
         field('staleAt', graphQLString),
+        field('lastRemindedAt', graphQLString),
+        field('staleAfterDays', graphQLInt),
         field('source', graphQLInt.nonNullable()),
         field('published', graphQLBoolean.nonNullable()),
         field('messageCount', graphQLInt.nonNullable()),

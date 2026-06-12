@@ -37,6 +37,7 @@ class _StubBeacons extends Fake implements BeaconRepositoryPort {
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   int? lastKind;
   String? lastTarget;
+  int? lastStaleAfterDays;
 
   @override
   Future<CoordinationItem> create({
@@ -51,9 +52,11 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
     String? linkedMessageId,
     String? linkedParentItemId,
     int ordering = 0,
+    int? staleAfterDays,
   }) async {
     lastKind = kind;
     lastTarget = targetPersonId;
+    lastStaleAfterDays = staleAfterDays;
     final now = PgDateTime(DateTime.utc(2024));
     return CoordinationItem(
       id: 'Piiiiiiiiiiii',
@@ -104,6 +107,18 @@ void main() {
     );
     expect(items.lastKind, coordinationItemKindPromise);
     expect(items.lastTarget, targetId);
+  });
+
+  test('passes staleAfterDays to repository', () async {
+    await sut.call(
+      userId: creatorId,
+      beaconId: beaconId,
+      title: 'Do X',
+      targetPersonId: targetId,
+      body: 'details',
+      staleAfterDays: 7,
+    );
+    expect(items.lastStaleAfterDays, 7);
   });
 
   test('rejects self-target', () async {

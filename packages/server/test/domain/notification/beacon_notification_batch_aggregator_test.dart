@@ -32,6 +32,19 @@ void main() {
     expect(r.body, contains('3 items need you'));
   });
 
+  test('staleRemind plural body', () {
+    final r = aggregator.aggregate(
+      count: 2,
+      dominantKind: NotificationKind.staleRemind,
+      latestTitle: 'Ask title',
+      latestBody: 'Still open',
+      beaconTitle: 'Beacon A',
+      kindCounts: {NotificationKind.staleRemind: 2},
+    );
+    expect(r.body, contains('need attention'));
+    expect(r.body, isNot(contains('Overdue')));
+  });
+
   test('mixed kinds uses coordination updates fallback', () {
     final r = aggregator.aggregate(
       count: 4,

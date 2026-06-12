@@ -32,6 +32,7 @@ final class MarkBlockerCase extends UseCaseBase {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   }) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) {
@@ -51,6 +52,7 @@ final class MarkBlockerCase extends UseCaseBase {
       body: body.trim(),
       targetPersonId: targetPersonId,
       linkedMessageId: linkedMessageId,
+      staleAfterDays: staleAfterDays,
     );
     unawaited(
       _push.notifyBlockerOpened(

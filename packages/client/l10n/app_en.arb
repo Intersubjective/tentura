@@ -2979,6 +2979,19 @@
   "coordinationComposerNoTargetWillSaveDraft": "No target counterparty selected — will be saved as a draft.",
   "coordinationComposerSaveDraft": "Save draft",
   "coordinationComposerTargetNone": "No target (draft)",
+  "coordinationStalenessLabel": "Follow-up",
+  "@coordinationStalenessLabel": {
+    "description": "Label for staleness deadline picker when creating coordination items"
+  },
+  "coordinationStaleness1Day": "1 day",
+  "coordinationStaleness3Days": "3 days",
+  "coordinationStaleness1Week": "1 week",
+  "coordinationStaleness2Weeks": "2 weeks",
+  "coordinationStalenessNoDeadline": "No deadline",
+  "coordinationStalenessDefaultHint": "Follow-up in 3 days unless changed",
+  "@coordinationStalenessDefaultHint": {
+    "description": "Helper text when promote dialog uses default staleness without expanded picker"
+  },
   "beaconPreparedAskDeleteConfirmTitle": "Delete this draft?",
   "beaconPreparedAskDeleteConfirmBody": "This cannot be undone.",
   "beaconPreparedBlockerPrepareAction": "Prepare blocker",
@@ -3371,9 +3384,34 @@
       "title": {"type": "String"}
     }
   },
-  "itemStaleOverdue": "overdue",
+  "itemNeedsAttention": "Needs attention",
+  "@itemNeedsAttention": {
+    "description": "Label when a coordination item staleAt deadline has passed (non-managerial wording)"
+  },
+  "itemStaleOverdue": "Needs attention",
   "@itemStaleOverdue": {
-    "description": "Label when a coordination item staleAt deadline has passed"
+    "description": "Deprecated alias — use itemNeedsAttention"
+  },
+  "remindAction": "Remind {name}",
+  "@remindAction": {
+    "description": "Item card menu action to nudge the responsible person",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reminderSent": "Reminder sent",
+  "@reminderSent": {
+    "description": "Snackbar after a successful remind mutation"
+  },
+  "remindThrottled": "Reminder was sent recently — try again later",
+  "@remindThrottled": {
+    "description": "Error when remind cooldown has not elapsed"
+  },
+  "remindForbidden": "You can't send this reminder",
+  "@remindForbidden": {
+    "description": "Error when viewer is the responsible person or lacks access"
   },
   "itemShowMore": "show more",
   "@itemShowMore": {

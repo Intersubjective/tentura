@@ -21,5 +21,7 @@ mutation CoordinationItemResolvePlanStep($itemId: String!) {
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

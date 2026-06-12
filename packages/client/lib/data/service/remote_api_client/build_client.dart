@@ -219,6 +219,7 @@ class _V2RoutingLink extends Link {
     'CoordinationItemCreateResolution',
     'CoordinationItemAcceptResolution',
     'CoordinationItemRejectResolution',
+    'CoordinationItemRemind',
     'MyWorkCoordinationItemActivity',
   };
 

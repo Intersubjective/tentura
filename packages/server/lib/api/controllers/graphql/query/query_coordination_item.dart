@@ -109,6 +109,8 @@ Map<String, Object?> _coordinationItemToMap(CoordinationItemWithCounts row) {
       'resolvedAt': item.resolvedAt?.dateTime.toIso8601String(),
       'cancelledAt': item.cancelledAt?.dateTime.toIso8601String(),
       'staleAt': item.staleAt?.dateTime.toIso8601String(),
+      'lastRemindedAt': item.lastRemindedAt?.dateTime.toIso8601String(),
+      'staleAfterDays': item.staleAfterDays,
       'source': item.source,
       'published': item.published,
       'messageCount': row.messageCount,

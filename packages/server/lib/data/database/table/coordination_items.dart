@@ -30,6 +30,9 @@ class CoordinationItems extends Table {
   late final resolvedAt = customType(PgTypes.timestampWithTimezone).nullable()();
   late final cancelledAt = customType(PgTypes.timestampWithTimezone).nullable()();
   late final staleAt = customType(PgTypes.timestampWithTimezone).nullable()();
+  late final lastRemindedAt =
+      customType(PgTypes.timestampWithTimezone).nullable()();
+  late final Column<int> staleAfterDays = integer().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

@@ -29,6 +29,7 @@ final class CreateDraftBlockerCase extends UseCaseBase {
     required String title,
     String body = '',
     String? targetPersonId,
+    int? staleAfterDays,
   }) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) {
@@ -51,6 +52,7 @@ final class CreateDraftBlockerCase extends UseCaseBase {
       body: body.trim(),
       targetPersonId:
           target == null || target.isEmpty ? null : target,
+      staleAfterDays: staleAfterDays,
     );
   }
 }

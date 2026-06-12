@@ -121,6 +121,7 @@ IconData coordinationItemEventIcon(
 
 enum _ItemMenuAction {
   edit,
+  remind,
   accept,
   resolve,
   cancel,
@@ -157,10 +158,12 @@ _ItemHeaderTier _itemHeaderTier(CoordinationItem item) {
   return _ItemHeaderTier.low;
 }
 
-String? _formatStaleRemaining(L10n l10n, DateTime? staleAt) {
-  if (staleAt == null) return null;
+String? _formatStaleRemaining(CoordinationItem item) {
+  if (!item.isActive) return null;
+  final staleAt = item.staleAt;
+  if (staleAt == null || item.isStale) return null;
   final diff = staleAt.difference(DateTime.now());
-  if (diff.isNegative) return l10n.itemStaleOverdue;
+  if (diff.isNegative) return null;
   if (diff.inDays >= 1) {
     return '${diff.inDays}d ${diff.inHours.remainder(24)}h';
   }
@@ -170,17 +173,28 @@ String? _formatStaleRemaining(L10n l10n, DateTime? staleAt) {
   return '${diff.inMinutes}m';
 }
 
+String _participantDisplayName(BeaconParticipant? participant) {
+  if (participant == null) return '';
+  final title = participant.userTitle.trim();
+  if (title.isNotEmpty) return title;
+  final id = participant.userId;
+  return id.length <= 16 ? id : '${id.substring(0, 14)}…';
+}
+
 class ItemCard extends StatefulWidget {
   const ItemCard({
     required this.item,
     this.creatorParticipant,
     this.targetParticipant,
+    this.responsibleParticipant,
+    this.viewerId,
     this.onOpenItemThread,
     this.onResolve,
     this.onCancel,
     this.onAccept,
     this.onReject,
     this.onEdit,
+    this.onRemind,
     super.key,
   });
 
@@ -190,6 +204,12 @@ class ItemCard extends StatefulWidget {
   final BeaconParticipant? creatorParticipant;
   final BeaconParticipant? targetParticipant;
 
+  /// Person who would receive a remind push — may differ from [targetParticipant].
+  final BeaconParticipant? responsibleParticipant;
+
+  /// Current viewer — gates remind when equal to [CoordinationItem.responsibleUserId].
+  final String? viewerId;
+
   /// Primary card tap — opens the beacon room scrolled to this item’s thread.
   final void Function(CoordinationItem item)? onOpenItemThread;
   final VoidCallback? onResolve;
@@ -197,6 +217,7 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onEdit;
+  final VoidCallback? onRemind;
 
   @override
   State<ItemCard> createState() => _ItemCardState();
@@ -249,7 +270,8 @@ class _ItemCardState extends State<ItemCard> {
     final hasAvatarTrail =
         widget.creatorParticipant != null ||
         widget.targetParticipant != null;
-    final staleLabel = _formatStaleRemaining(l10n, item.staleAt);
+    final staleCountdown = _formatStaleRemaining(item);
+    final showNeedsAttention = item.isActive && item.isStale;
     final contentPreview = item.contentPreview;
     final showBodyToggle = contentPreview.length > _bodyPreviewThreshold;
 
@@ -285,10 +307,24 @@ class _ItemCardState extends State<ItemCard> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (staleLabel != null) ...[
+                        if (showNeedsAttention) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.notification_important_outlined,
+                            size: 14,
+                            color: tt.warn,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            l10n.itemNeedsAttention,
+                            style: textTheme.labelSmall?.copyWith(
+                              color: tt.warn,
+                            ),
+                          ),
+                        ] else if (staleCountdown != null) ...[
                           const SizedBox(width: 6),
                           Text(
-                            staleLabel,
+                            staleCountdown,
                             style: textTheme.labelSmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -344,6 +380,7 @@ class _ItemCardState extends State<ItemCard> {
                       ],
                       onSelected: (action) => switch (action) {
                         _ItemMenuAction.edit => widget.onEdit?.call(),
+                        _ItemMenuAction.remind => widget.onRemind?.call(),
                         _ItemMenuAction.accept => widget.onAccept?.call(),
                         _ItemMenuAction.resolve => widget.onResolve?.call(),
                         _ItemMenuAction.cancel => widget.onCancel?.call(),
@@ -394,6 +431,18 @@ class _ItemCardState extends State<ItemCard> {
     final entries = <(_ItemMenuAction, String)>[];
     if (widget.onEdit != null) {
       entries.add((_ItemMenuAction.edit, l10n.helpOffersTabActionEdit));
+    }
+    final viewer = widget.viewerId;
+    if (viewer != null &&
+        widget.onRemind != null &&
+        widget.item.canRemind(viewer)) {
+      final name = _participantDisplayName(
+        widget.responsibleParticipant,
+      );
+      entries.add((
+        _ItemMenuAction.remind,
+        name.isEmpty ? l10n.itemNeedsAttention : l10n.remindAction(name),
+      ));
     }
     entries.addAll(statusEntries);
     return entries;

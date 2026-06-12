@@ -237,6 +237,10 @@ class ItemsTab extends StatelessWidget {
                           child: _ActiveCoordinationCtas(state: state),
                         ),
                       ],
+                      _StaleDeadlineTicker(
+                        items: openItems,
+                        child: Column(
+                          children: [
                       for (final item in openItems)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -245,6 +249,7 @@ class ItemsTab extends StatelessWidget {
                               child: _ItemCardAnimatedRow(
                               key: ValueKey(item.id),
                               item: item,
+                              viewerId: myUserId,
                               creatorParticipant: _participantForUser(
                                 state.roomParticipants,
                                 item.creatorId,
@@ -252,6 +257,10 @@ class ItemsTab extends StatelessWidget {
                               targetParticipant: _participantForUser(
                                 state.roomParticipants,
                                 item.targetPersonId,
+                              ),
+                              responsibleParticipant: _participantForUser(
+                                state.roomParticipants,
+                                item.responsibleUserId,
                               ),
                               onEdit: _itemsTabEditHandler(
                                 context,
@@ -308,9 +317,15 @@ class ItemsTab extends StatelessWidget {
                                           .read<ItemsTabCubit>()
                                           .rejectResolution(item.id)
                                       : null,
+                              remindAction: () => context
+                                  .read<ItemsTabCubit>()
+                                  .remindItem(item.id),
                             ),
                             ),
                           ),
+                          ],
+                        ),
+                      ),
                         ],
                       ),
                     ],
@@ -449,26 +464,32 @@ class _ActiveCoordinationCtas extends StatelessWidget {
 class _ItemCardAnimatedRow extends StatefulWidget {
   const _ItemCardAnimatedRow({
     required this.item,
+    required this.viewerId,
     required this.creatorParticipant,
     required this.targetParticipant,
+    required this.responsibleParticipant,
     required this.onOpenItemThread,
     required this.resolveAction,
     required this.cancelAction,
     this.acceptAction,
     this.rejectAction,
+    this.remindAction,
     this.onEdit,
     super.key,
   });
 
   final CoordinationItem item;
+  final String viewerId;
   final BeaconParticipant? creatorParticipant;
   final BeaconParticipant? targetParticipant;
+  final BeaconParticipant? responsibleParticipant;
   final void Function(CoordinationItem item) onOpenItemThread;
   final VoidCallback? onEdit;
   final Future<void> Function() resolveAction;
   final Future<void> Function() cancelAction;
   final Future<void> Function()? acceptAction;
   final Future<void> Function()? rejectAction;
+  final Future<void> Function()? remindAction;
 
   @override
   State<_ItemCardAnimatedRow> createState() => _ItemCardAnimatedRowState();
@@ -514,10 +535,17 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
         child: _visible
             ? ItemCard(
                 item: widget.item,
+                viewerId: widget.viewerId,
                 creatorParticipant: widget.creatorParticipant,
                 targetParticipant: widget.targetParticipant,
+                responsibleParticipant: widget.responsibleParticipant,
                 onOpenItemThread: widget.onOpenItemThread,
                 onEdit: widget.onEdit,
+                onRemind: widget.remindAction == null
+                    ? null
+                    : () => unawaited(
+                          _animateThenCall(widget.remindAction!),
+                        ),
                 onResolve: () => unawaited(
                   _animateThenCall(widget.resolveAction),
                 ),
@@ -689,6 +717,72 @@ class _MyDraftItemRow extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Rebuilds when the nearest active-item [CoordinationItem.staleAt] passes so
+/// stale chips and remind actions appear without leaving the Items tab.
+class _StaleDeadlineTicker extends StatefulWidget {
+  const _StaleDeadlineTicker({
+    required this.items,
+    required this.child,
+  });
+
+  final List<CoordinationItem> items;
+  final Widget child;
+
+  @override
+  State<_StaleDeadlineTicker> createState() => _StaleDeadlineTickerState();
+}
+
+class _StaleDeadlineTickerState extends State<_StaleDeadlineTicker> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StaleDeadlineTicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _schedule();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    final now = DateTime.now().toUtc();
+    DateTime? nearest;
+    for (final item in widget.items) {
+      if (!item.isActive) continue;
+      final at = item.staleAt;
+      if (at == null || item.isStale) continue;
+      final utc = at.toUtc();
+      if (!utc.isAfter(now)) continue;
+      if (nearest == null || utc.isBefore(nearest)) {
+        nearest = utc;
+      }
+    }
+    if (nearest == null) return;
+    final delay = nearest.difference(now) + const Duration(milliseconds: 500);
+    _timer = Timer(
+      delay.isNegative ? Duration.zero : delay,
+      () {
+        if (!mounted) return;
+        setState(() {});
+        _schedule();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 Future<void> _showFactActionsFromItemsTab(

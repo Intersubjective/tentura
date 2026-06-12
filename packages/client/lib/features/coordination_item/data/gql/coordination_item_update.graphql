@@ -25,5 +25,7 @@ mutation CoordinationItemUpdate(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

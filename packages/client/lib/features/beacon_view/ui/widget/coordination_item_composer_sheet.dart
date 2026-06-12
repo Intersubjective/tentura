@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
+import 'package:tentura/features/coordination_item/ui/widget/coordination_staleness_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -83,6 +84,7 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
   String? _selectedTargetId;
+  late int _selectedStaleDays;
   bool _submitting = false;
 
   String? get _linkedMessageId => widget.seed?.linkedMessageId;
@@ -131,6 +133,9 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
     if (existingTarget != null && existingTarget.isNotEmpty) {
       _selectedTargetId = _isValidTarget(existingTarget) ? existingTarget : null;
     }
+    _selectedStaleDays = CoordinationStalenessPicker.seedFromDraft(
+      widget.existingDraft?.staleAfterDays,
+    );
   }
 
   bool _isValidTarget(String userId) => switch (widget.kind) {
@@ -178,6 +183,7 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
     final target = _willPublish ? _selectedTargetId : null;
     final existing = widget.existingDraft;
     final c = widget.coordinationCase;
+    final staleDays = _selectedStaleDays;
 
     switch (widget.kind) {
       case CoordinationItemKind.ask:
@@ -188,6 +194,7 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             targetPersonId: target!,
             body: body,
             linkedMessageId: _linkedMessageId,
+            staleAfterDays: staleDays,
           );
         } else if (existing == null) {
           await c.createDraftAsk(
@@ -196,6 +203,7 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             body: body,
             linkedMessageId: _linkedMessageId,
             targetPersonId: target,
+            staleAfterDays: staleDays,
           );
         } else {
           await c.updateDraftAsk(
@@ -204,11 +212,13 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             body: body,
             targetPersonId: target,
             omitTargetPersonId: !_willPublish,
+            staleAfterDays: staleDays,
           );
           if (_willPublish) {
             await c.publishDraftAsk(
               itemId: existing.id,
               targetPersonId: target!,
+              staleAfterDays: staleDays,
             );
           }
         }
@@ -220,6 +230,7 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             targetPersonId: target!,
             body: body,
             linkedMessageId: _linkedMessageId,
+            staleAfterDays: staleDays,
           );
         } else if (existing == null) {
           await c.createDraftPromise(
@@ -228,6 +239,7 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             body: body,
             linkedMessageId: _linkedMessageId,
             targetPersonId: target,
+            staleAfterDays: staleDays,
           );
         } else {
           await c.updateDraftPromise(
@@ -236,11 +248,13 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             body: body,
             targetPersonId: target,
             omitTargetPersonId: !_willPublish,
+            staleAfterDays: staleDays,
           );
           if (_willPublish) {
             await c.publishDraftPromise(
               itemId: existing.id,
               targetPersonId: target!,
+              staleAfterDays: staleDays,
             );
           }
         }
@@ -251,6 +265,7 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             title: title,
             body: body.isEmpty ? null : body,
             targetPersonId: target,
+            staleAfterDays: staleDays,
           );
         } else if (existing == null) {
           await c.createDraftBlocker(
@@ -258,6 +273,7 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             title: title,
             body: body.isEmpty ? null : body,
             targetPersonId: target,
+            staleAfterDays: staleDays,
           );
         } else {
           await c.updateDraftBlocker(
@@ -266,9 +282,13 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
             body: body,
             targetPersonId: target,
             omitTargetPersonId: !_willPublish,
+            staleAfterDays: staleDays,
           );
           if (_willPublish) {
-            await c.publishDraftBlocker(itemId: existing.id);
+            await c.publishDraftBlocker(
+              itemId: existing.id,
+              staleAfterDays: staleDays,
+            );
           }
         }
       default:
@@ -350,6 +370,13 @@ class _CoordinationItemComposerBodyState extends State<_CoordinationItemComposer
                 onSelected: (id) => setState(() => _selectedTargetId = id),
               ),
             ],
+            const SizedBox(height: kSpacingSmall),
+            CoordinationStalenessPicker(
+              l10n: l10n,
+              selectedDays: _selectedStaleDays,
+              enabled: !_submitting,
+              onSelected: (days) => setState(() => _selectedStaleDays = days),
+            ),
             if (!_willPublish) ...[
               const SizedBox(height: kSpacingSmall),
               Material(

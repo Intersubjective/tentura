@@ -1,13 +1,5 @@
-mutation CoordinationItemPublishAsk(
-  $itemId: String!
-  $targetPersonId: String!
-  $staleAfterDays: Int
-) {
-  publishAsk(
-    itemId: $itemId
-    targetPersonId: $targetPersonId
-    staleAfterDays: $staleAfterDays
-  ) {
+mutation CoordinationItemRemind($itemId: String!) {
+  remindCoordinationItem(itemId: $itemId) {
     id
     beaconId
     kind
@@ -31,5 +23,8 @@ mutation CoordinationItemPublishAsk(
     staleAt
     lastRemindedAt
     staleAfterDays
+    messageCount
+    unreadCount
+    lastSeenAt
   }
 }

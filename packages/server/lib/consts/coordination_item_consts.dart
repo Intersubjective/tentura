@@ -15,6 +15,10 @@ const int coordinationItemStatusResolved = 2;
 const int coordinationItemStatusCancelled = 3;
 const int coordinationItemStatusSuperseded = 4;
 
+const int kCoordinationItemDefaultStaleDays = 3;
+const int kCoordinationItemMaxStaleDays = 90;
+const int kCoordinationItemRemindCooldownHours = 24;
+
 // Coordination item event kind values (used in room_messages.linked_event_kind).
 const int coordinationEventKindCreated = 1;
 const int coordinationEventKindAccepted = 2;

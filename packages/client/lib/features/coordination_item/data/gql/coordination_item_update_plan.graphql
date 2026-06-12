@@ -33,5 +33,7 @@ mutation CoordinationItemUpdatePlan(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

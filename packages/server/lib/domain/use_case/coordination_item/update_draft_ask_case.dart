@@ -26,6 +26,8 @@ final class UpdateDraftAskCase extends UseCaseBase {
     String body = '',
     bool updateTargetPersonId = false,
     String? targetPersonId,
+    bool updateStaleAfterDays = false,
+    int? staleAfterDays,
   }) async {
     if (body.trim().isEmpty) {
       throw const BeaconCreateException(description: 'Ask body is required');
@@ -52,6 +54,8 @@ final class UpdateDraftAskCase extends UseCaseBase {
       body: body.trim(),
       updateTargetPersonId: updateTargetPersonId,
       targetPersonId: targetPersonId,
+      updateStaleAfterDays: updateStaleAfterDays,
+      staleAfterDays: staleAfterDays,
     );
   }
 }

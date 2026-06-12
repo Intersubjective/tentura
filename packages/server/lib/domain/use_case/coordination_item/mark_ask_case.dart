@@ -32,6 +32,7 @@ final class MarkAskCase extends UseCaseBase {
     required String targetPersonId,
     String body = '',
     String? linkedMessageId,
+    int? staleAfterDays,
   }) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) {
@@ -54,6 +55,7 @@ final class MarkAskCase extends UseCaseBase {
       body: body.trim(),
       targetPersonId: targetPersonId,
       linkedMessageId: linkedMessageId,
+      staleAfterDays: staleAfterDays,
     );
     final target = item.targetPersonId;
     if (target != null && target.isNotEmpty && target != userId) {

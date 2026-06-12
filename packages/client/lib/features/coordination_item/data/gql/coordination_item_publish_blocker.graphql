@@ -1,5 +1,8 @@
-mutation CoordinationItemPublishBlocker($itemId: String!) {
-  publishBlocker(itemId: $itemId) {
+mutation CoordinationItemPublishBlocker(
+  $itemId: String!
+  $staleAfterDays: Int
+) {
+  publishBlocker(itemId: $itemId, staleAfterDays: $staleAfterDays) {
     id
     beaconId
     kind
@@ -21,5 +24,7 @@ mutation CoordinationItemPublishBlocker($itemId: String!) {
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

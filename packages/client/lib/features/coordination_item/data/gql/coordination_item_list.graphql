@@ -37,6 +37,8 @@ query CoordinationItemList(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
     messageCount
     unreadCount
     lastSeenAt

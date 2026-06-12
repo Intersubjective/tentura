@@ -35,5 +35,7 @@ mutation CoordinationItemCreateResolution(
     resolvedAt
     cancelledAt
     staleAt
+    lastRemindedAt
+    staleAfterDays
   }
 }

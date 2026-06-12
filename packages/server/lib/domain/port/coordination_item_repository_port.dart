@@ -15,6 +15,7 @@ abstract class CoordinationItemRepositoryPort {
     String? linkedMessageId,
     String? linkedParentItemId,
     int ordering = 0,
+    int? staleAfterDays,
   });
 
   Future<CoordinationItem> updateStatus({
@@ -23,7 +24,7 @@ abstract class CoordinationItemRepositoryPort {
     required String actorId,
   });
 
-  /// Accepts an Ask: status → accepted, [acceptedById] set.
+  /// Accepts an Ask or Promise: status → accepted, [acceptedById] set; recomputes [staleAt].
   Future<CoordinationItem> acceptItem({
     required String id,
     required String actorId,
@@ -38,6 +39,12 @@ abstract class CoordinationItemRepositoryPort {
   });
 
   Future<CoordinationItem?> getById(String id);
+
+  /// Atomically claims a remind slot (24h throttle + stale predicate). Returns null if not claimed.
+  Future<CoordinationItem?> tryClaimRemind({
+    required String itemId,
+    required String actorId,
+  });
 
   Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {
@@ -83,6 +90,7 @@ abstract class CoordinationItemRepositoryPort {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   });
 
   /// Draft promise (published=false): no room message or activity until [publishDraft].
@@ -93,6 +101,7 @@ abstract class CoordinationItemRepositoryPort {
     String body = '',
     String? targetPersonId,
     String? linkedMessageId,
+    int? staleAfterDays,
   });
 
   /// Publishes a draft ask or promise: sets [targetPersonId], published=true, emits room+activity.
@@ -100,6 +109,7 @@ abstract class CoordinationItemRepositoryPort {
     required String id,
     required String actorId,
     required String targetPersonId,
+    int? staleAfterDays,
   });
 
   Future<CoordinationItem> updateDraftAsk({
@@ -109,6 +119,8 @@ abstract class CoordinationItemRepositoryPort {
     String body = '',
     bool updateTargetPersonId = false,
     String? targetPersonId,
+    bool updateStaleAfterDays = false,
+    int? staleAfterDays,
   });
 
   /// In-place title/body update for a published item (open or accepted).
@@ -132,12 +144,14 @@ abstract class CoordinationItemRepositoryPort {
     required String title,
     String body = '',
     String? targetPersonId,
+    int? staleAfterDays,
   });
 
   /// Publishes a draft blocker: published=true, emits room+activity.
   Future<CoordinationItem> publishDraftBlocker({
     required String id,
     required String actorId,
+    int? staleAfterDays,
   });
 
   Future<CoordinationItem> updateDraftBlocker({
@@ -147,6 +161,8 @@ abstract class CoordinationItemRepositoryPort {
     String body = '',
     bool updateTargetPersonId = false,
     String? targetPersonId,
+    bool updateStaleAfterDays = false,
+    int? staleAfterDays,
   });
 
   Future<void> deleteDraftBlocker({

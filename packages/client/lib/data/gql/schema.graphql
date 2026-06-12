@@ -2371,31 +2371,32 @@ type mutation_root {
   contactSet(subjectUserId: String!, contactName: String!): Boolean!
   contactDelete(subjectUserId: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
-  markBlocker(beaconId: String!, title: String!, body: String, targetPersonId: String, linkedMessageId: String): CoordinationItemRow!
+  markBlocker(beaconId: String!, title: String!, body: String, targetPersonId: String, linkedMessageId: String, staleAfterDays: Int): CoordinationItemRow!
   resolveBlocker(itemId: String!, note: String): CoordinationItemRow!
   cancelBlocker(itemId: String!, reason: String): CoordinationItemRow!
-  markAsk(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String): CoordinationItemRow!
-  createPromise(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String): CoordinationItemRow!
-  createDraftPromise(beaconId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
-  publishPromise(itemId: String!, targetPersonId: String!): CoordinationItemRow!
-  updateDraftPromise(itemId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
+  markAsk(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String, staleAfterDays: Int): CoordinationItemRow!
+  createPromise(beaconId: String!, title: String!, targetPersonId: String!, body: String, linkedMessageId: String, staleAfterDays: Int): CoordinationItemRow!
+  createDraftPromise(beaconId: String!, title: String!, body: String, targetPersonId: String, staleAfterDays: Int): CoordinationItemRow!
+  publishPromise(itemId: String!, targetPersonId: String!, staleAfterDays: Int): CoordinationItemRow!
+  updateDraftPromise(itemId: String!, title: String!, body: String, targetPersonId: String, staleAfterDays: Int): CoordinationItemRow!
   deleteDraftPromise(itemId: String!): Boolean!
   acceptPromise(itemId: String!): CoordinationItemRow!
   resolvePromise(itemId: String!, note: String): CoordinationItemRow!
   cancelPromise(itemId: String!, reason: String): CoordinationItemRow!
   redirectPromise(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
-  createDraftAsk(beaconId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
-  publishAsk(itemId: String!, targetPersonId: String!): CoordinationItemRow!
-  updateDraftAsk(itemId: String!, title: String!, body: String, targetPersonId: String): CoordinationItemRow!
+  createDraftAsk(beaconId: String!, title: String!, body: String, targetPersonId: String, staleAfterDays: Int): CoordinationItemRow!
+  publishAsk(itemId: String!, targetPersonId: String!, staleAfterDays: Int): CoordinationItemRow!
+  updateDraftAsk(itemId: String!, title: String!, body: String, targetPersonId: String, staleAfterDays: Int): CoordinationItemRow!
   deleteDraftAsk(itemId: String!): Boolean!
-  createDraftBlocker(beaconId: String!, title: String!, body: String): CoordinationItemRow!
-  publishBlocker(itemId: String!): CoordinationItemRow!
-  updateDraftBlocker(itemId: String!, title: String!, body: String): CoordinationItemRow!
+  createDraftBlocker(beaconId: String!, title: String!, body: String, staleAfterDays: Int): CoordinationItemRow!
+  publishBlocker(itemId: String!, staleAfterDays: Int): CoordinationItemRow!
+  updateDraftBlocker(itemId: String!, title: String!, body: String, staleAfterDays: Int): CoordinationItemRow!
   deleteDraftBlocker(itemId: String!): Boolean!
   acceptAsk(itemId: String!): CoordinationItemRow!
   resolveAsk(itemId: String!, note: String): CoordinationItemRow!
   cancelAsk(itemId: String!, reason: String): CoordinationItemRow!
   redirectAsk(itemId: String!, newTargetPersonId: String!): CoordinationItemRow!
+  remindCoordinationItem(itemId: String!): CoordinationItemRow!
   updateCoordinationItem(itemId: String!, title: String!, body: String): CoordinationItemRow!
   updateCoordinationPlan(beaconId: String!, title: String!, body: String, targetPersonId: String, linkedMessageId: String): CoordinationItemRow!
   addPlanStep(parentItemId: String!, title: String!, body: String): CoordinationItemRow!
@@ -6352,6 +6353,8 @@ type CoordinationItemRow {
   resolvedAt: String
   cancelledAt: String
   staleAt: String
+  lastRemindedAt: String
+  staleAfterDays: Int
   messageCount: Int!
   unreadCount: Int!
   lastSeenAt: String

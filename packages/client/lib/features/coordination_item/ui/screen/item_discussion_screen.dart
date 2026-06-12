@@ -124,6 +124,10 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
 
               return PopupMenuButton<String>(
                 onSelected: (v) {
+                  if (v == 'remind') {
+                    unawaited(actionsCubit.remindItem());
+                    return;
+                  }
                   if (v == 'propose_resolution') {
                     unawaited(
                       _showProposeResolutionSheet(
@@ -148,8 +152,22 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                   }
                 },
                 itemBuilder: (_) {
+                  final remindLabel = item.canRemind(viewerId)
+                      ? l10n.remindAction(
+                          item.responsibleUserId?.substring(
+                                0,
+                                item.responsibleUserId!.length.clamp(0, 12),
+                              ) ??
+                              '',
+                        )
+                      : null;
                   if (item.kind == CoordinationItemKind.ask) {
                     return [
+                      if (remindLabel != null)
+                        PopupMenuItem(
+                          value: 'remind',
+                          child: Text(remindLabel),
+                        ),
                       if (item.isOpen)
                         PopupMenuItem(
                           value: 'accept',
@@ -172,6 +190,11 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                   }
                   if (item.kind == CoordinationItemKind.promise) {
                     return [
+                      if (remindLabel != null)
+                        PopupMenuItem(
+                          value: 'remind',
+                          child: Text(remindLabel),
+                        ),
                       if (item.isOpen && item.targetPersonId == viewerId)
                         PopupMenuItem(
                           value: 'accept',
@@ -193,6 +216,11 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                     ];
                   }
                   return [
+                    if (remindLabel != null)
+                      PopupMenuItem(
+                        value: 'remind',
+                        child: Text(remindLabel),
+                      ),
                     PopupMenuItem(
                       value: 'resolve',
                       child: Text(l10n.coordinationBlockerActionResolve),

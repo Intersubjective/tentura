@@ -473,6 +473,10 @@ open → stale → remind | re-ask | cancel | supersede
 
 Staleness is not blame. It means the shared state needs attention.
 
+### v1 implementation note (2026-06)
+
+Shipped v1 **derives** staleness from `stale_at` + active status (`open` / `accepted`) instead of persisting `status: stale`. Default follow-up is **3 days** at publish (configurable in the composer). **Remind** sends a private FCM nudge to the status-aware responsible person, throttled 24h via `last_reminded_at`; there is **no** public room timeline event for reminds. `re-ask` / supersede-from-stale remain follow-ups.
+
 ## State authority and reversibility
 
 State-changing actions are power moves. Therefore:

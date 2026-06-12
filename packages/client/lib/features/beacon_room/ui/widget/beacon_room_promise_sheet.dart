@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
+import 'package:tentura/features/coordination_item/ui/widget/coordination_staleness_picker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -80,6 +82,7 @@ Future<void> showBeaconRoomPromiseSheet(
   }
 
   var targetUserId = targets.first.userId;
+  var staleDays = CoordinationItem.defaultStaleDays;
 
   try {
     var submitting = false;
@@ -136,6 +139,13 @@ Future<void> showBeaconRoomPromiseSheet(
                         ? null
                         : (v) => setState(() => targetUserId = v ?? targetUserId),
                   ),
+                  const SizedBox(height: kSpacingSmall),
+                  CoordinationStalenessPicker(
+                    l10n: l10n,
+                    selectedDays: staleDays,
+                    enabled: !submitting,
+                    onSelected: (days) => setState(() => staleDays = days),
+                  ),
                   const SizedBox(height: kSpacingMedium),
                   FilledButton(
                     onPressed: !canSubmit
@@ -149,6 +159,7 @@ Future<void> showBeaconRoomPromiseSheet(
                                 body: bodyController.text.trim(),
                                 targetPersonId: targetUserId,
                                 linkedMessageId: linkedMessageId,
+                                staleAfterDays: staleDays,
                               );
                               if (ctx.mounted) {
                                 Navigator.of(ctx).pop(true);
