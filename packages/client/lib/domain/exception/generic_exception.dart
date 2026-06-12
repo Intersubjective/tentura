@@ -33,3 +33,19 @@ final class ConnectionUplinkException extends GenericException {
   @override
   String get toRu => 'Нет соединения с интернетом';
 }
+
+/// An error reported by the server (GraphQL/API error with a message).
+/// Unlike [ConnectionUplinkException] the server DID answer — surfacing its
+/// message beats a misleading "no internet". Server messages are not
+/// localized, so both locales show the same text.
+final class RemoteApiException extends GenericException {
+  const RemoteApiException(this.message);
+
+  final String message;
+
+  @override
+  String get toEn => message;
+
+  @override
+  String get toRu => message;
+}

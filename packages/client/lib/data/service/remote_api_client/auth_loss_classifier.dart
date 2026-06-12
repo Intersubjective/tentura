@@ -37,16 +37,23 @@ Object mapRemoteFailure(Object? error) {
     }
     return error;
   }
+  // GraphQL errors mean the server answered — never a connectivity problem.
+  // Surface the server's message instead of a misleading "no internet".
   if (error is GraphQLError) {
     if (_isGraphQlAuthLoss(error)) {
       return const AuthSessionLostException();
     }
+    return _remoteApiOrUnknown(error.message);
   }
   if (error is List<GraphQLError>) {
     for (final e in error) {
       if (_isGraphQlAuthLoss(e)) {
         return const AuthSessionLostException();
       }
+    }
+    final first = error.isEmpty ? null : error.first;
+    if (first != null) {
+      return _remoteApiOrUnknown(first.message);
     }
   }
   final message = error?.toString().toLowerCase() ?? '';
@@ -56,7 +63,16 @@ Object mapRemoteFailure(Object? error) {
       message.contains('could not verify jwt')) {
     return const AuthSessionLostException();
   }
+  // Everything else reaching here is transport-level (link exceptions,
+  // socket/timeout/XHR failures) — connectivity is the honest default.
   return const ConnectionUplinkException();
+}
+
+GenericException _remoteApiOrUnknown(String message) {
+  final trimmed = message.trim();
+  return trimmed.isEmpty
+      ? const UnknownException()
+      : RemoteApiException(trimmed);
 }
 
 bool _isGraphQlAuthLoss(GraphQLError error) {
