@@ -56,10 +56,7 @@ class ProfileRepository implements ProfileRepositoryPort {
         .request(request)
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).user);
-    return [
-      for (final row in rows)
-        if (row != null) (row as UserModel).toEntity(),
-    ];
+    return rows.map((row) => (row as UserModel).toEntity()).toList();
   }
 
   //
