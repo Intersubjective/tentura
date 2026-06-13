@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
@@ -16,6 +17,8 @@ class AuthMiddleware {
     this._sessionCase,
   );
 
+  static final _log = Logger('AuthMiddleware');
+
   final AuthCase _authCase;
   final SessionCase _sessionCase;
 
@@ -32,9 +35,8 @@ class AuthMiddleware {
             );
             return innerHandler(request.change(context: {kContextJwtKey: jwt}));
           } catch (e) {
-            final error = e.toString();
-            print(error);
-            return Response.unauthorized(error);
+            _log.warning('JWT verification failed', e);
+            return Response.unauthorized(null);
           }
         }
         return Response.unauthorized(null);
@@ -85,7 +87,7 @@ class AuthMiddleware {
         token: _extractAuthTokenFromHeaders(request.headers),
       );
     } catch (e) {
-      print(e);
+      _log.fine('JWT extraction skipped', e);
       return null;
     }
   }

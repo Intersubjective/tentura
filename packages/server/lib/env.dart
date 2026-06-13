@@ -225,6 +225,7 @@ class Env {
         googleClientId: this.googleClientId,
         googleClientSecret: this.googleClientSecret,
       );
+      _assertJwtKeys();
     }
     _printEnvInfo();
     Logger.root.level =
@@ -463,6 +464,26 @@ class Env {
     if (googleClientId.isNotEmpty && googleClientSecret.trim().isEmpty) {
       throw StateError(
         'GOOGLE_CLIENT_SECRET is required when GOOGLE_CLIENT_ID is set.',
+      );
+    }
+  }
+
+  static void _assertJwtKeys() {
+    final rawPrivate = _env['JWT_PRIVATE_PEM'];
+    final rawPublic = _env['JWT_PUBLIC_PEM'];
+    if (rawPrivate == null || rawPrivate.trim().isEmpty) {
+      throw StateError('JWT_PRIVATE_PEM must be set in dev/prod environments.');
+    }
+    if (rawPublic == null || rawPublic.trim().isEmpty) {
+      throw StateError('JWT_PUBLIC_PEM must be set in dev/prod environments.');
+    }
+    final normPrivate = rawPrivate.replaceAll(r'\n', '\n').trim();
+    final normPublic = rawPublic.replaceAll(r'\n', '\n').trim();
+    if (normPrivate == kJwtPrivateKey.trim() ||
+        normPublic == kJwtPublicKey.trim()) {
+      throw StateError(
+        'JWT_PRIVATE_PEM / JWT_PUBLIC_PEM must not be the embedded test keys '
+        'in dev/prod environments.',
       );
     }
   }

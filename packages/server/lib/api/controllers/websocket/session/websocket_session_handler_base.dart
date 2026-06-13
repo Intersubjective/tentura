@@ -12,6 +12,7 @@ import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/user_presence_entity.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/domain/use_case/user_presence_case.dart';
+import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 
 import 'websocket_user_session.dart';
 
@@ -23,6 +24,7 @@ base class WebsocketSessionHandlerBase {
     this.logger,
     this.authCase,
     this.userPresenceCase,
+    this.friendshipLookup,
   );
 
   final Env env;
@@ -32,6 +34,8 @@ base class WebsocketSessionHandlerBase {
   final AuthCase authCase;
 
   final UserPresenceCase userPresenceCase;
+
+  final VoteUserFriendshipLookup friendshipLookup;
 
   final _sessions = <WebSocketSession, WebsocketUserSession>{};
 

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura_server/api/http/cookies.dart';
 import 'package:tentura_server/api/http/auth_invite_required_page.dart';
@@ -22,6 +23,7 @@ import '_base_controller.dart';
 /// Google OAuth start + callback on the app host.
 @Injectable(order: 3)
 final class AuthGoogleController extends BaseController {
+  static final _log = Logger('AuthGoogleController');
   const AuthGoogleController(
     super.env,
     this._oidcProvider,
@@ -234,6 +236,15 @@ final class AuthGoogleController extends BaseController {
       return _inviteRequiredPage(
         returnTo: payload.returnTo,
         clearOauthCookie: true,
+      );
+    } catch (e, st) {
+      _log.severe('Google OAuth login callback failed', e, st);
+      return Response.found(
+        publicLandingUrl(env.publicOrigin),
+        headers: withSetCookie(
+          {kHeaderCacheControl: kCacheControlNoStore},
+          buildClearCookie(kCookieOAuthStateName),
+        ),
       );
     }
   }
