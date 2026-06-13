@@ -7,6 +7,7 @@
 #   DEPLOY_DIR      - deployment directory (default: /srv/tentura_server)
 #   COMPOSE_FILE    - primary compose file (default: compose.prod.yaml)
 #   OVERRIDE_FILE   - override compose file; auto-detected if not set
+#                     (non-secret per-host deltas only — secrets go in .env)
 #   WEB_DIR         - web assets directory (default: ./web)
 #   LANDING_DIR     - static landing directory (default: ./landing)
 #   LANDING_ARCHIVE - explicit path to landing tarball (CI sets this; avoids

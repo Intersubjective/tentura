@@ -1,0 +1,70 @@
+# Per-host overrides for VPS / staging (copy to repo-root compose.override.yaml).
+# Gitignored at repo root — customize on each server.
+#
+# Merge order: compose.prod.yaml + compose.override.yaml + .env
+# deploy.sh uses: docker compose -f compose.prod.yaml -f compose.override.yaml
+#
+# RULES:
+#   - Secrets (passwords, API keys, JWT PEMs, private keys) → .env ONLY
+#   - This file → structural deltas + non-secret tuning (dev flags, image tags, tuning)
+#
+# After changing .env: docker compose up -d --force-recreate <affected services>
+
+services:
+  proxy:
+    environment:
+      # Caddy site hostname (no scheme). Tentura uses full URL — see tentura below.
+      - "SERVER_NAME=dev.example.com"
+      - "APP_HOST=app.dev.example.com"
+      - "APP_ROOT=/srv/web"
+      - "LANDING_ROOT=/srv/landing"
+      - ACME_EMAIL
+
+  hasura:
+    environment:
+      - "HASURA_GRAPHQL_DEV_MODE=true"
+      - "HASURA_GRAPHQL_LOG_LEVEL=debug"
+      - "HASURA_GRAPHQL_ENABLE_CONSOLE=true"
+      - HASURA_GRAPHQL_ADMIN_SECRET
+      - HASURA_GRAPHQL_CORS_DOMAIN
+
+  postgres:
+    command: >-
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+
+  meritrank:
+    environment:
+      - "MERITRANK_LOG_CMD=1"
+      - "RUST_BACKTRACE=full"
+
+  tentura:
+    # CI may publish ghcr.io/intersubjective/tentura:latest (alias) vs tentura-server:latest
+    image: ghcr.io/intersubjective/tentura:latest
+    environment:
+      - "LOG_LEVEL=all"
+      - "DEBUG_MODE=false"
+      - NEED_INVITE
+      - POSTGRES_MAXCONN
+      # Full public origin URL (OAuth, OG URLs). Differs from proxy SERVER_NAME hostname.
+      - "SERVER_NAME=https://dev.example.com"
+      # S3, Firebase, OAuth, Resend: set in .env — passed through compose.prod.yaml
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    hostname: pgadmin
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - backend
+    environment:
+      - "SERVER_MODE=false"
+      - "PGADMIN_DISABLE_POSTFIX=true"
+      - PGADMIN_DEFAULT_EMAIL
+      - PGADMIN_DEFAULT_PASSWORD
+    logging:
+      driver: journald

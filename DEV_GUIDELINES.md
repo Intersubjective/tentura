@@ -267,7 +267,7 @@ Default is `0.0.0`, which disables the check (any client is accepted).
 | Environment | Location |
 |---|---|
 | Local dev | `.env` (read by `scripts/run-server-local.sh`) |
-| Production | VPS `.env` + `compose.prod.yaml` passes it through `- MIN_CLIENT_VERSION` |
+| Production / VPS | `.env` for all secrets; `compose.prod.yaml` pass-through; optional `compose.override.yaml` for non-secret per-host deltas (see `examples/compose.override.example.yaml`) |
 | CI / GitHub | GitHub Environment variable `MIN_CLIENT_VERSION` in the `dev` environment |
 
 ### Relevant files
