@@ -33,6 +33,7 @@ services:
       - backend
     environment:
       - SERVER_NAME
+      - APP_HOST
       - APP_ROOT
       - LANDING_ROOT
       - ACME_EMAIL
@@ -55,6 +56,7 @@ services:
       - backend
     environment:
       - HASURA_GRAPHQL_ADMIN_SECRET
+      - HASURA_GRAPHQL_CORS_DOMAIN
       - 'HASURA_GRAPHQL_ENABLE_TELEMETRY=false'
       - 'HASURA_GRAPHQL_UNAUTHORIZED_ROLE=anon'
       - 'HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES=true'
@@ -116,10 +118,12 @@ services:
       - backend
     environment:
       - 'DEBUG_MODE=false'
+      - LOG_LEVEL
       - SERVER_NAME
       - IMAGES_PATH
       - IMAGE_SERVER
       - WORKERS_COUNT
+      - NEED_INVITE
       - POSTGRES_HOST
       - POSTGRES_PORT
       - POSTGRES_DBNAME
@@ -131,6 +135,9 @@ services:
       - JWT_EXPIRES_IN
       - GOOGLE_CLIENT_ID
       - GOOGLE_CLIENT_SECRET
+      - OAUTH_PRELOAD_ENABLED
+      - RESEND_API_KEY
+      - RESEND_FROM_EMAIL
       - SESSION_EXPIRES_IN
       - S3_ACCESS_KEY
       - S3_SECRET_KEY
@@ -139,6 +146,15 @@ services:
       - S3_PATH_STYLE
       - S3_USE_SSL
       - S3_OBJECT_ACL
+      - FB_APP_ID
+      - FB_API_KEY
+      - FB_SENDER_ID
+      - FB_PROJECT_ID
+      - FB_AUTH_DOMAIN
+      - FB_STORAGE_BUCKET
+      - FB_CLIENT_EMAIL
+      - FB_CLIENT_ID
+      - FB_PRIVATE_KEY
       - MIN_CLIENT_VERSION
 
 volumes:
