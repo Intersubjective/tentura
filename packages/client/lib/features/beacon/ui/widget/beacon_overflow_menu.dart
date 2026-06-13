@@ -30,6 +30,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onShare,
     this.onToggleLifecycle,
     this.onEdit,
+    this.onCreateFrom,
     this.onPrepareAsk,
     this.onPrepareBlocker,
     this.onPreparePromise,
@@ -38,6 +39,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onWithdraw,
     this.onForward,
     this.onForwardsGraph,
+    this.onLineageSuggestions,
     this.onDraftReview,
     this.onWatch,
     this.onStopWatching,
@@ -57,6 +59,7 @@ class BeaconOverflowMenu extends StatelessWidget {
   final VoidCallback? onShare;
   final Future<void> Function()? onToggleLifecycle;
   final VoidCallback? onEdit;
+  final Future<void> Function()? onCreateFrom;
   final VoidCallback? onPrepareAsk;
   final VoidCallback? onPrepareBlocker;
   final VoidCallback? onPreparePromise;
@@ -65,6 +68,7 @@ class BeaconOverflowMenu extends StatelessWidget {
   final Future<void> Function()? onWithdraw;
   final VoidCallback? onForward;
   final VoidCallback? onForwardsGraph;
+  final VoidCallback? onLineageSuggestions;
   final VoidCallback? onDraftReview;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
@@ -120,6 +124,13 @@ class BeaconOverflowMenu extends StatelessWidget {
     if (onEdit != null) {
       add('edit', Icons.edit_outlined, editActionLabel ?? l10n.editBeacon);
     }
+    if (onCreateFrom != null) {
+      add(
+        'create_from',
+        Icons.content_copy_outlined,
+        l10n.beaconCreateFromAction,
+      );
+    }
     if (onPrepareAsk != null) {
       add(
         'prepare_ask',
@@ -173,6 +184,13 @@ class BeaconOverflowMenu extends StatelessWidget {
         'forwards_graph',
         TenturaIcons.graph,
         l10n.forwardsGraphMenuTitle,
+      );
+    }
+    if (onLineageSuggestions != null) {
+      add(
+        'lineage_suggestions',
+        Icons.history,
+        l10n.beaconLineageSuggestionsAction,
       );
     }
     if (onDraftReview != null) {
@@ -232,6 +250,9 @@ class BeaconOverflowMenu extends StatelessWidget {
             _deferPopupAction(context, onToggleLifecycle),
           ),
           'edit' => onEdit?.call(),
+          'create_from' => unawaited(
+            _deferPopupAction(context, onCreateFrom),
+          ),
           'prepare_ask' => _deferSync(context, onPrepareAsk),
           'prepare_blocker' => _deferSync(context, onPrepareBlocker),
           'prepare_promise' => _deferSync(context, onPreparePromise),
@@ -240,6 +261,7 @@ class BeaconOverflowMenu extends StatelessWidget {
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
           'forward' => onForward?.call(),
           'forwards_graph' => onForwardsGraph?.call(),
+          'lineage_suggestions' => _deferSync(context, onLineageSuggestions),
           'draft_review' => onDraftReview?.call(),
           'watch' => onWatch?.call(),
           'stop_watch' => onStopWatching?.call(),

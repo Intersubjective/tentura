@@ -18,6 +18,7 @@ import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import '../bloc/forward_cubit.dart';
 import '../widget/compact_beacon_context_strip.dart';
 import '../widget/forward_bottom_composer.dart';
+import '../widget/lineage_forward_section.dart';
 import '../widget/forward_recipient_row.dart';
 import '../widget/forward_scope_links.dart';
 import '../widget/forward_search_overlay.dart';
@@ -255,7 +256,20 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
       value: _invitationCubit,
       child: BlocListener<InvitationCubit, InvitationState>(
         listener: commonScreenBlocListener,
-        child: Scaffold(
+        child: BlocListener<ForwardCubit, ForwardState>(
+          listenWhen: (prev, next) =>
+              prev.note != next.note &&
+              next.lineageSuggestions.isNotEmpty &&
+              next.note.trim().isNotEmpty,
+          listener: (context, state) {
+            if (_sharedNoteController.text != state.note) {
+              _sharedNoteController.text = state.note;
+            }
+            if (!_noteExpanded) {
+              setState(() => _noteExpanded = true);
+            }
+          },
+          child: Scaffold(
           backgroundColor: tt.bg,
           body: SafeArea(
             child: BlocBuilder<ForwardCubit, ForwardState>(
@@ -268,6 +282,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
 
                 final beacon = state.beacon;
                 final visible = state.visibleRecipients;
+                final lineage = state.lineageSuggestions;
                 final counts = state.scopeCounts;
 
                 _syncRecipientNoteControllers(state);
@@ -311,7 +326,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                           onScopeChanged: cubit.setFilter,
                         ),
                         Expanded(
-                          child: visible.isEmpty
+                          child: visible.isEmpty && lineage.isEmpty
                               ? Center(
                                   child: Padding(
                                     padding: kPaddingH,
@@ -329,6 +344,47 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                               : ListView(
                                   padding: EdgeInsets.only(bottom: tt.rowGap),
                                   children: [
+                                    if (lineage.isNotEmpty) ...[
+                                      LineageForwardSectionHeader(
+                                        onClear: cubit.clearLineageSuggestions,
+                                      ),
+                                      for (var i = 0; i < lineage.length; i++) ...[
+                                        if (i > 0) const TenturaHairlineDivider(),
+                                        ForwardRecipientRow(
+                                          candidate: lineage[i],
+                                          requiredCapabilitySlugs:
+                                              beacon?.needs ?? const {},
+                                          isSelected: state.selectedIds.contains(
+                                            lineage[i].id,
+                                          ),
+                                          onToggle: () => cubit.toggleSelection(
+                                            lineage[i].id,
+                                          ),
+                                          personalizedNoteEditorOpen:
+                                              _personalizedNoteEditorOpenIds
+                                                  .contains(lineage[i].id),
+                                          onTogglePersonalizedNoteEditor: () =>
+                                              _togglePersonalizedNoteEditor(
+                                                lineage[i].id,
+                                              ),
+                                          reasonSlugs:
+                                              state.recipientReasons[lineage[i]
+                                                  .id] ??
+                                              const [],
+                                          onEditReasons: () => unawaited(
+                                            _editReasons(
+                                              context,
+                                              cubit,
+                                              lineage[i].id,
+                                              state.recipientReasons[lineage[i]
+                                                      .id] ??
+                                                  const [],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      const TenturaHairlineDivider(),
+                                    ],
                                     for (
                                       var i = 0;
                                       i < visible.length;
@@ -427,6 +483,10 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                           onToggleNoteExpanded: _toggleNote,
                           sharedNoteController: _sharedNoteController,
                           onSharedNoteChanged: cubit.setNote,
+                          showSuggestedNoteHelper: state.lineageSuggestions
+                                  .isNotEmpty &&
+                              state.note.trim().isNotEmpty &&
+                              _noteExpanded,
                           onForward: state.selectedCount > 0
                               ? cubit.forward
                               : null,
@@ -455,6 +515,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
               },
             ),
           ),
+        ),
         ),
       ),
     );

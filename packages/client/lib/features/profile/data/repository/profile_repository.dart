@@ -14,6 +14,7 @@ import '../../domain/port/profile_repository_port.dart';
 import '../gql/_g/profile_delete.req.gql.dart';
 import '../gql/_g/profile_update.req.gql.dart';
 import '../gql/_g/user_fetch_by_id.req.gql.dart';
+import '../gql/_g/users_fetch_by_ids.req.gql.dart';
 
 @Singleton(
   as: ProfileRepositoryPort,
@@ -45,6 +46,20 @@ class ProfileRepository implements ProfileRepositoryPort {
     if (response == null) throw ProfileFetchException(id);
     _controller.add(RepositoryEventFetch(response));
     return response;
+  }
+
+  @override
+  Future<List<Profile>> fetchProfilesByIds(Set<String> ids) async {
+    if (ids.isEmpty) return const [];
+    final request = GUsersFetchByIdsReq((b) => b.vars.ids.replace(ids.toList()));
+    final rows = await _remoteApiService
+        .request(request)
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).user);
+    return [
+      for (final row in rows)
+        if (row != null) (row as UserModel).toEntity(),
+    ];
   }
 
   //

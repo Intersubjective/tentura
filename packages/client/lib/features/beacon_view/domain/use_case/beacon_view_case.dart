@@ -298,4 +298,6 @@ final class BeaconViewCase extends UseCaseBase {
     publicStatus: publicStatus,
     lastPublicMeaningfulChange: lastPublicMeaningfulChange,
   );
+
+  Future<Beacon> fork(String sourceId) => _beaconRepository.fork(sourceId);
 }

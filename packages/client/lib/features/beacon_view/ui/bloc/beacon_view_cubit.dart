@@ -185,6 +185,19 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
+  /// Lineage fork → new draft id, or null on failure.
+  Future<String?> forkFromThis() async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final draft = await _case.fork(state.beacon.id);
+      emit(state.copyWith(status: StateStatus.isSuccess));
+      return draft.id;
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+      return null;
+    }
+  }
+
   Future<void> toggleLifecycle() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {

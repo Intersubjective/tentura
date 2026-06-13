@@ -13,6 +13,8 @@ abstract class ProfileRepositoryPort {
 
   Future<Profile> fetchById(String id);
 
+  Future<List<Profile>> fetchProfilesByIds(Set<String> ids);
+
   Future<void> update(
     Profile profile, {
     String? displayName,

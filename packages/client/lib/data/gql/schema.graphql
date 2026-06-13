@@ -140,6 +140,8 @@ type beacon {
   """
   is_pinned: Boolean
   lat: float8
+  lineage_parent_beacon_id: String
+  lineage_root_beacon_id: String
   long: float8
 
   """
@@ -2316,6 +2318,7 @@ enum invitation_update_column {
 """mutation root"""
 type mutation_root {
   beaconCloseWithReview(id: String!): v2_BeaconCloseReviewResult!
+  beaconFork(id: String!): v2_Beacon!
   beaconOfferHelp(helpTypes: [String!], id: String!, message: String): Boolean!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_Beacon!
   beaconCreate(context: String, coordinates: Coordinates = {}, description: String, draft: Boolean, endAt: String, iconCode: String, iconBackground: Int, image: v2_Upload = {}, needSummary: String, needs: String, startAt: String, successCriteria: String, tags: String, title: String!): v2_Beacon!
@@ -3429,6 +3432,7 @@ type query_root {
     where: beacon_bool_exp
   ): [beacon!]!
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
+  beaconLineageForwardSuggestions(id: String!): BeaconLineageForwardSuggestions!
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
   beaconHelpOffererForwardPath(id: String!, helpOffererId: String!): v2_ForwardGraphResult!
   forwardReasonsByBeacon(id: String!): [v2_ForwardReasonRow!]!
@@ -5592,6 +5596,21 @@ type BeaconAuthorUpdate {
   content: String!
   createdAt: Date!
   author: user!
+}
+
+type BeaconLineageSuggestion {
+  userId: String!
+  group: String!
+  reasonCode: String!
+  reasonArg: String
+  autoSelect: Boolean!
+}
+
+type BeaconLineageForwardSuggestions {
+  sourceBeaconId: String!
+  rootBeaconId: String!
+  suggestedNote: String!
+  suggestions: [BeaconLineageSuggestion!]!
 }
 
 type v2_BeaconCloseReviewResult {

@@ -2,12 +2,7 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/domain/entity/profile.dart';
-
-import '../../data/repository/forward_repository.dart'
-    show BeaconInvolvementData;
 import '../../domain/use_case/forward_case.dart';
-import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/exception.dart';
 import 'forward_state.dart';
@@ -32,6 +27,8 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   final ForwardCase? _forwardCase;
 
+  String? _loadMemoKey;
+
   Future<void> _loadCandidates() async {
     final forwardCase = _forwardCase;
     if (forwardCase == null) {
@@ -39,56 +36,26 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final results = await Future.wait([
-        forwardCase.fetchForwardCandidates(context: state.context),
-        forwardCase.fetchBeaconInvolvement(beaconId: state.beaconId),
-      ]);
-      final profiles = results[0] as Iterable<Profile>;
-      final involvement = results[1] as BeaconInvolvementData;
       final myId = await forwardCase.getCurrentAccountId();
-
-      var candidates = profiles
-          .where((p) => p.id != myId)
-          .map(
-            (p) => ForwardCandidate(
-              profile: p,
-              involvement: _computeInvolvement(p.id, involvement),
-              myForwardNote: involvement.myForwardedRecipientNotes[p.id],
-              forwardEdgeId: involvement.myForwardedRecipientEdgeIds[p.id],
-              recipientReadAt: involvement.myForwardedRecipientReadAts[p.id],
-            ),
-          )
-          .toList()
-        ..sort((a, b) => b.mrScore.compareTo(a.mrScore));
-
-      final ids = candidates.map((c) => c.id).toList();
-      if (ids.isNotEmpty) {
-        try {
-          final needs = involvement.beacon.needs;
-          final prioritizeList = needs
-              .map((e) => e.trim())
-              .where((e) => e.isNotEmpty)
-              .toList()
-            ..sort();
-          final topCaps =
-              await forwardCase.fetchTopCapabilitiesForCandidates(
-            ids,
-            prioritizeSlugs: prioritizeList,
-          );
-          candidates = candidates
-              .map((c) => c.copyWith(
-                    topCapabilities: topCaps[c.id] ?? [],
-                  ))
-              .toList();
-        } catch (_) {
-          // Non-critical: capability hints are best-effort.
-        }
+      final load = await forwardCase.loadForwardCandidates(
+        beaconId: state.beaconId,
+        context: state.context,
+      );
+      final memoKey =
+          '$myId|${state.beaconId}|${load.beacon.lineageParentBeaconId ?? ''}';
+      if (_loadMemoKey == memoKey && state.candidates.isNotEmpty) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+        return;
       }
+      _loadMemoKey = memoKey;
 
       emit(
         state.copyWith(
-          beacon: involvement.beacon,
-          candidates: candidates,
+          beacon: load.beacon,
+          candidates: load.candidates,
+          lineageSuggestions: load.lineageSuggestions,
+          selectedIds: load.autoSelectIds,
+          note: load.suggestedNote,
           status: const StateIsSuccess(),
         ),
       );
@@ -97,36 +64,20 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
   }
 
-  static CandidateInvolvement _computeInvolvement(
-    String userId,
-    BeaconInvolvementData inv,
-  ) {
-    if (userId == inv.beacon.author.id) {
-      return CandidateInvolvement.author;
-    }
-    if (inv.helpOfferedIds.contains(userId)) {
-      return CandidateInvolvement.helpOffered;
-    }
-    if (inv.withdrawnIds.contains(userId)) {
-      return CandidateInvolvement.withdrawn;
-    }
-    if (inv.myForwardedRecipientNotes.containsKey(userId)) {
-      return CandidateInvolvement.forwardedByMe;
-    }
-    if (inv.rejectedIds.contains(userId)) {
-      return CandidateInvolvement.declined;
-    }
-    if (inv.onwardForwarderIds.contains(userId)) {
-      return CandidateInvolvement.forwarded;
-    }
-    if (inv.watchingIds.contains(userId)) {
-      return CandidateInvolvement.watching;
-    }
-    if (inv.forwardedToIds.contains(userId)) {
-      return CandidateInvolvement.forwarded;
-    }
-    return CandidateInvolvement.unseen;
+  void clearLineageSuggestions() {
+    final lineageIds = state.lineageSuggestions.map((c) => c.id).toSet();
+    final selected = Set<String>.from(state.selectedIds)..removeAll(lineageIds);
+    emit(
+      state.copyWith(
+        selectedIds: selected,
+        note: '',
+      ),
+    );
   }
+
+  ForwardCandidate? _findCandidate(String userId) =>
+      state.lineageSuggestions.where((c) => c.id == userId).firstOrNull ??
+      state.candidates.where((c) => c.id == userId).firstOrNull;
 
   void setFilter(ForwardFilter filter) {
     emit(state.copyWith(activeFilter: filter));
@@ -185,7 +136,8 @@ class ForwardCubit extends Cubit<ForwardState> {
   }
 
   void startEditForward(String recipientId) {
-    final candidate = state.candidates.firstWhere((c) => c.id == recipientId);
+    final candidate = _findCandidate(recipientId);
+    if (candidate == null) return;
     emit(state.copyWith(
       editingRecipientId: recipientId,
       editNote: candidate.myForwardNote ?? '',
@@ -205,10 +157,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (forwardCase == null) return;
     final recipientId = state.editingRecipientId;
     if (recipientId == null) return;
-    final edgeId = state.candidates
-        .where((c) => c.id == recipientId)
-        .firstOrNull
-        ?.forwardEdgeId;
+    final edgeId = _findCandidate(recipientId)?.forwardEdgeId;
     if (edgeId == null) return;
 
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -228,10 +177,7 @@ class ForwardCubit extends Cubit<ForwardState> {
   Future<void> cancelForward(String recipientId) async {
     final forwardCase = _forwardCase;
     if (forwardCase == null) return;
-    final edgeId = state.candidates
-        .where((c) => c.id == recipientId)
-        .firstOrNull
-        ?.forwardEdgeId;
+    final edgeId = _findCandidate(recipientId)?.forwardEdgeId;
     if (edgeId == null) return;
 
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -261,7 +207,11 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
     if (state.selectedIds.isEmpty) return;
 
-    final selectedCandidates = state.candidates
+    final allCandidates = [
+      ...state.candidates,
+      ...state.lineageSuggestions,
+    ];
+    final selectedCandidates = allCandidates
         .where((c) => state.selectedIds.contains(c.id))
         .toList();
 

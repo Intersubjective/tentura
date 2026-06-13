@@ -1,0 +1,7 @@
+# import '/data/gql/user_model.graphql'
+
+query UsersFetchByIds($ids: [String!]!) {
+  user(where: { id: { _in: $ids } }) {
+    ...UserModel
+  }
+}

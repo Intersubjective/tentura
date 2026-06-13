@@ -1,0 +1,14 @@
+query BeaconLineageForwardSuggestions($id: String!) {
+  beaconLineageForwardSuggestions(id: $id) {
+    sourceBeaconId
+    rootBeaconId
+    suggestedNote
+    suggestions {
+      userId
+      group
+      reasonCode
+      reasonArg
+      autoSelect
+    }
+  }
+}

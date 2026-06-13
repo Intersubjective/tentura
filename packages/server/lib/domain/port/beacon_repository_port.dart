@@ -19,6 +19,8 @@ abstract class BeaconRepositoryPort {
     int? state,
     String? needSummary,
     String? successCriteria,
+    String? lineageParentBeaconId,
+    String? lineageRootBeaconId,
   });
 
   Future<BeaconEntity> getBeaconById({

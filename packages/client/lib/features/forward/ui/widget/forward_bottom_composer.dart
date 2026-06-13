@@ -14,6 +14,7 @@ class ForwardBottomComposer extends StatelessWidget {
     required this.onSharedNoteChanged,
     required this.onForward,
     this.onInvite,
+    this.showSuggestedNoteHelper = false,
     super.key,
   });
 
@@ -25,6 +26,7 @@ class ForwardBottomComposer extends StatelessWidget {
   final ValueChanged<String> onSharedNoteChanged;
   final VoidCallback? onForward;
   final VoidCallback? onInvite;
+  final bool showSuggestedNoteHelper;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,14 @@ class ForwardBottomComposer extends StatelessWidget {
           children: [
             if (noteExpanded) ...[
               SizedBox(height: tt.rowGap),
+              if (showSuggestedNoteHelper)
+                Padding(
+                  padding: EdgeInsets.only(bottom: tt.rowGap / 2),
+                  child: Text(
+                    l10n.beaconLineageSuggestedNoteHelper,
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
+                ),
               SizedBox(
                 height: 64,
                 child: TextField(

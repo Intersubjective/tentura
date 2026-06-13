@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'candidate_involvement.dart';
+import 'lineage_suggestion_group.dart';
 
 part 'forward_candidate.freezed.dart';
 
@@ -15,6 +16,10 @@ abstract class ForwardCandidate with _$ForwardCandidate {
     String? forwardEdgeId,
     @Default([]) List<String> topCapabilities,
     DateTime? recipientReadAt,
+    LineageSuggestionGroup? lineageGroup,
+    String? lineageReasonCode,
+    String? lineageReasonArg,
+    @Default(false) bool lineageAutoSelect,
   }) = _ForwardCandidate;
 
   const ForwardCandidate._();

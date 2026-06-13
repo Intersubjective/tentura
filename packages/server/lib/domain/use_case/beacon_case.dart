@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/port/task_repository_port.dart';
 import '../entity/beacon_entity.dart';
 import '../entity/task_entity.dart';
 import '../exception.dart';
+import '../beacon_lineage_visibility.dart';
 import '_use_case_base.dart';
 
 const kMaxImagesPerBeacon = 10;
@@ -358,6 +359,53 @@ final class BeaconCase extends UseCaseBase {
         publicStatus: publicStatus,
         lastPublicMeaningfulChange: lastPublicMeaningfulChange,
       );
+
+  /// Creates a DRAFT beacon from a visible source, copying reusable content only.
+  Future<BeaconEntity> fork({
+    required String sourceId,
+    required String userId,
+  }) async {
+    final source = await _beaconRepository.getBeaconById(beaconId: sourceId);
+    assertBeaconLineageSourceVisible(beacon: source, userId: userId);
+
+    final imageIds = <String>[];
+    if (source.author.id == userId && source.images.isNotEmpty) {
+      for (final image in source.images) {
+        final bytes = await _imageRepository.get(id: image.id);
+        final newId = await _imageRepository.put(
+          authorId: userId,
+          bytes: Stream.value(bytes),
+        );
+        imageIds.add(newId);
+        await _tasksRepository.schedule(
+          TaskEntity(
+            details: TaskCalculateImageHashDetails(imageId: newId),
+          ),
+        );
+      }
+    }
+
+    final draft = await _beaconRepository.createBeacon(
+      authorId: userId,
+      title: source.title,
+      description: source.description,
+      context: source.context,
+      latitude: source.coordinates?.lat,
+      longitude: source.coordinates?.long,
+      tags: source.tags,
+      needs: source.needs,
+      iconCode: source.iconCode,
+      iconBackground: source.iconBackground,
+      needSummary: source.needSummary,
+      successCriteria: source.successCriteria,
+      state: kBeaconStateDraft,
+      imageIds: imageIds.isEmpty ? null : imageIds,
+      lineageParentBeaconId: source.id,
+      lineageRootBeaconId: source.lineageRootBeaconId ?? source.id,
+    );
+
+    return draft;
+  }
 
   //
   Future<bool> deleteById({

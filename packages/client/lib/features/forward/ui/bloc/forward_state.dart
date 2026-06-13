@@ -55,6 +55,7 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     @Default('') String context,
     @Default('') String note,
     @Default([]) List<ForwardCandidate> candidates,
+    @Default([]) List<ForwardCandidate> lineageSuggestions,
     @Default({}) Set<String> selectedIds,
     @Default(<String, String>{}) Map<String, String> perRecipientNotes,
     @Default(<String, List<String>>{}) Map<String, List<String>> recipientReasons,
@@ -115,9 +116,10 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     );
   }
 
-  /// Recipients for the active scope, MR-sorted.
+  /// Recipients for the active scope, MR-sorted (excludes lineage block rows).
   List<ForwardCandidate> get visibleRecipients {
-    final base = _candidatesBase();
+    final lineageIds = lineageSuggestions.map((c) => c.id).toSet();
+    final base = _candidatesBase().where((c) => !lineageIds.contains(c.id));
     final Iterable<ForwardCandidate> picked;
     switch (activeFilter) {
       case ForwardFilter.all:

@@ -57,6 +57,8 @@ class BeaconRepository implements BeaconRepositoryPort {
     int? state,
     String? needSummary,
     String? successCriteria,
+    String? lineageParentBeaconId,
+    String? lineageRootBeaconId,
   }) => _database.withMutatingUser(authorId, () async {
     final beacon = await _database.managers.beacons.createReturning(
       (o) => o(
@@ -76,6 +78,8 @@ class BeaconRepository implements BeaconRepositoryPort {
         state: Value(state ?? 0),
         needSummary: Value(needSummary),
         successCriteria: Value(successCriteria),
+        lineageParentBeaconId: Value(lineageParentBeaconId),
+        lineageRootBeaconId: Value(lineageRootBeaconId),
       ),
     );
 

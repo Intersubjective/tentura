@@ -1,0 +1,5 @@
+mutation BeaconFork($id: String!) {
+  beaconFork(id: $id) {
+    id
+  }
+}

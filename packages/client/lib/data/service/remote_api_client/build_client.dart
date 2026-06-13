@@ -112,6 +112,8 @@ class _V2RoutingLink extends Link {
     'BeaconAddImage',
     'BeaconOfferHelp',
     'BeaconCreate',
+    'BeaconFork',
+    'BeaconLineageForwardSuggestions',
     'BeaconUpdate',
     'BeaconUpdateDraft',
     'BeaconUpdatePost',
