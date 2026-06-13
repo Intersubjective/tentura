@@ -27,6 +27,7 @@ import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_promise_sheet.dart';
@@ -42,6 +43,7 @@ import '../dialog/help_offer_message_dialog.dart';
 import '../widget/activity_list.dart';
 import '../widget/beacon_current_line_sheet.dart';
 import '../widget/beacon_now_detail_sheet.dart';
+import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
 import '../widget/beacon_operational_header_card.dart';
 import '../util/beacon_hud_derivation.dart';
 import '../widget/beacon_anchor_status.dart';
@@ -290,6 +292,14 @@ Widget _beaconViewAppBarOverflow({
               ),
             )
           : null,
+      onCreateFrom: beaconAllowsLineageOverflow(b)
+          ? () async {
+              await runBeaconCreateFromAction(
+                context,
+                fork: () => cubit.forkFromThis(),
+              );
+            }
+          : null,
       onPrepareAsk: b.lifecycle == BeaconLifecycle.open
           ? () => unawaited(
               showPreparedAskEditorSheet(
@@ -333,6 +343,12 @@ Widget _beaconViewAppBarOverflow({
         _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
       ),
       onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
+      onLineageSuggestions: beaconAllowsLineageOverflow(b)
+          ? () => runBeaconLineageSuggestionsPreview(
+              context,
+              beaconId: beaconId,
+            )
+          : null,
       onDraftReview: state.showDraftEvaluationCta
           ? () => unawaited(
               context.router.pushPath(
@@ -399,6 +415,20 @@ Widget _beaconViewAppBarOverflow({
             _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
           ),
     onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
+    onCreateFrom: beaconAllowsLineageOverflow(b)
+        ? () async {
+            await runBeaconCreateFromAction(
+              context,
+              fork: () => cubit.forkFromThis(),
+            );
+          }
+        : null,
+    onLineageSuggestions: beaconAllowsLineageOverflow(b)
+        ? () => runBeaconLineageSuggestionsPreview(
+            context,
+            beaconId: beaconId,
+          )
+        : null,
     onDraftReview: state.showDraftEvaluationCta
         ? () => unawaited(
             context.router.pushPath(
@@ -1321,6 +1351,16 @@ class _BeaconOperationalScrollView extends StatelessWidget {
           child: CustomScrollView(
             physics: const ClampingScrollPhysics(),
             slivers: [
+              if (state.beacon.lineageParentBeaconId != null &&
+                  state.beacon.lineageParentBeaconId!.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: ColoredBox(
+                    color: scheme.surface,
+                    child: BeaconLineageParentLink(
+                      parentBeaconId: state.beacon.lineageParentBeaconId!,
+                    ),
+                  ),
+                ),
               SliverToBoxAdapter(
                 child: ColoredBox(
                   color: scheme.surface,

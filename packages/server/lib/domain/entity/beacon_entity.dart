@@ -35,6 +35,8 @@ abstract class BeaconEntity with _$BeaconEntity {
     String? successCriteria,
     @Default(0) int publicStatus,
     String? lastPublicMeaningfulChange,
+    String? lineageParentBeaconId,
+    String? lineageRootBeaconId,
   }) = _BeaconEntity;
 
   const BeaconEntity._();

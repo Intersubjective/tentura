@@ -29,6 +29,9 @@ import '../gql/_g/forward_reasons_fetch.req.gql.dart';
 import '../gql/_g/beacon_offer_help.req.gql.dart';
 import '../gql/_g/beacon_withdraw.req.gql.dart';
 import '../gql/_g/help_offers_fetch.req.gql.dart';
+import '../../domain/entity/lineage_suggestion_group.dart';
+import '../gql/_g/beacon_lineage_suggestions.data.gql.dart';
+import '../gql/_g/beacon_lineage_suggestions.req.gql.dart';
 import '../gql/_g/beacon_updates_fetch.req.gql.dart';
 
 typedef BeaconInvolvementData = ({
@@ -476,6 +479,42 @@ class ForwardRepository {
       _helpOfferController.add(HelpOfferWithdrawn(beaconId));
     }
     return ok;
+  }
+
+  Future<LineageForwardSuggestions> fetchLineageForwardSuggestions({
+    required String beaconId,
+  }) =>
+      _remoteApiService
+          .request(
+            GBeaconLineageForwardSuggestionsReq((r) => r..vars.id = beaconId),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r.dataOrThrow(label: _label).beaconLineageForwardSuggestions)
+          .then(_mapLineageSuggestions);
+
+  LineageForwardSuggestions _mapLineageSuggestions(
+    GBeaconLineageForwardSuggestionsData_beaconLineageForwardSuggestions payload,
+  ) {
+    final suggestions = <LineageForwardSuggestion>[];
+    for (final row in payload.suggestions) {
+      final group = LineageSuggestionGroupWire.fromWire(row.group);
+      if (group == null) continue;
+      suggestions.add(
+        LineageForwardSuggestion(
+          userId: row.userId,
+          group: group,
+          reasonCode: row.reasonCode,
+          reasonArg: row.reasonArg,
+          autoSelect: row.autoSelect,
+        ),
+      );
+    }
+    return LineageForwardSuggestions(
+      sourceBeaconId: payload.sourceBeaconId,
+      rootBeaconId: payload.rootBeaconId,
+      suggestedNote: payload.suggestedNote,
+      suggestions: suggestions,
+    );
   }
 
   static const _label = 'Forward';

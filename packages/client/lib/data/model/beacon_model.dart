@@ -55,6 +55,8 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       iconBackground: decodeBeaconIconBackgroundArgb(i.icon_background),
       publicStatus: i.public_status,
       lastPublicMeaningfulChange: i.last_public_meaningful_change,
+      lineageParentBeaconId: i.lineage_parent_beacon_id,
+      lineageRootBeaconId: i.lineage_root_beacon_id,
     );
   }
 }

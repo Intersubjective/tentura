@@ -25,6 +25,8 @@ fragment BeaconModel on beacon {
   long
   lat
   tags
+  lineage_parent_beacon_id
+  lineage_root_beacon_id
   beacon_images(order_by: {position: asc}) {
     image {
       ...ImageModel

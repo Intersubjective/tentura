@@ -3452,5 +3452,31 @@
   "buttonDismiss": "Dismiss",
   "@buttonDismiss": {
     "description": "Dismiss a non-blocking banner without taking action"
-  }
+  },
+  "beaconCreateFromAction": "Create from this beacon",
+  "beaconLineageSuggestionsAction": "Lineage forward suggestions",
+  "beaconLineageParentLinkLabel": "Created from a previous beacon",
+  "beaconLineageParentLinkSemantics": "Open the previous beacon this was created from",
+  "beaconLineageForwardSectionTitle": "From your previous similar beacons",
+  "beaconLineageForwardSectionHelp": "Based only on your own past activity — not a ranking.",
+  "beaconLineageAutoSelectHint": "Suggestions are pre-checked — uncheck any you don't want.",
+  "beaconLineageClearSuggestions": "Clear suggestions",
+  "beaconLineageForwardBadge": "From a previous beacon",
+  "beaconLineageSuggestedNoteHelper": "Suggested text — edit before sending",
+  "lineageReasonHelpedBefore": "Helped in a previous related beacon",
+  "lineageReasonReviewedHelpful": "You marked this person as helpful before",
+  "lineageReasonRoutedHelp": "Your forward reached someone who helped",
+  "lineageReasonPrivateTag": "Private tag: {tag}",
+  "@lineageReasonPrivateTag": {
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconLineagePreviewTitle": "People you'd suggest from your previous similar beacons",
+  "beaconLineagePreviewSubjectivity": "Only you can see this — based on your own activity.",
+  "beaconLineagePreviewEmpty": "No suggestions yet — based on your own past activity",
+  "beaconLineagePreviewError": "Could not load suggestions",
+  "beaconLineagePreviewRetry": "Try again"
 }

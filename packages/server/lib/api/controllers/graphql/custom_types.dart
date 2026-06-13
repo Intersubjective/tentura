@@ -44,6 +44,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonFriendContext,
   gqlTypeCoordinationItemRow,
   gqlTypeMyWorkBeaconCoordinationActivityRow,
+  gqlTypeBeaconLineageSuggestion,
+  gqlTypeBeaconLineageForwardSuggestions,
 ];
 
 /// Payload returned by `RoomMessageCreate`.
@@ -614,4 +616,27 @@ final gqlTypeMyWorkBeaconCoordinationActivityRow =
       ..fields.addAll([
         field('beaconId', graphQLString.nonNullable()),
         field('lastCoordinationItemMessageAt', graphQLString),
+      ]);
+
+final gqlTypeBeaconLineageSuggestion =
+    GraphQLObjectType('BeaconLineageSuggestion', null)
+      ..fields.addAll([
+        field('userId', graphQLString.nonNullable()),
+        field('group', graphQLString.nonNullable()),
+        field('reasonCode', graphQLString.nonNullable()),
+        field('reasonArg', graphQLString),
+        field('autoSelect', graphQLBoolean.nonNullable()),
+      ]);
+
+final gqlTypeBeaconLineageForwardSuggestions =
+    GraphQLObjectType('BeaconLineageForwardSuggestions', null)
+      ..fields.addAll([
+        field('sourceBeaconId', graphQLString.nonNullable()),
+        field('rootBeaconId', graphQLString.nonNullable()),
+        field('suggestedNote', graphQLString.nonNullable()),
+        field(
+          'suggestions',
+          GraphQLListType(gqlTypeBeaconLineageSuggestion.nonNullable())
+              .nonNullable(),
+        ),
       ]);

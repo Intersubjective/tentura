@@ -213,7 +213,9 @@
                     "tags",
                     "title",
                     "updated_at",
-                    "user_id"
+                    "user_id",
+                    "lineage_parent_beacon_id",
+                    "lineage_root_beacon_id"
                   ],
                   "computed_fields": [
                     "is_pinned",

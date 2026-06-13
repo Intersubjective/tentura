@@ -61,6 +61,12 @@ class Beacons extends Table
   /// Optional short note tying public status change to last meaningful outward event.
   late final lastPublicMeaningfulChange = text().nullable()();
 
+  /// Immediate source beacon when this row was created via lineage fork.
+  late final lineageParentBeaconId = text().nullable().references(Beacons, #id)();
+
+  /// Root of the lineage tree (self when this beacon is the original).
+  late final lineageRootBeaconId = text().nullable().references(Beacons, #id)();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

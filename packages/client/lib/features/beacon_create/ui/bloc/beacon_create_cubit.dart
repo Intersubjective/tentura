@@ -89,6 +89,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       emit(
         state.copyWith(
           draftId: beacon.id,
+          lineageParentBeaconId: beacon.lineageParentBeaconId,
           title: beacon.title,
           needSummary: beacon.needSummary ?? '',
           successCriteria: beacon.successCriteria ?? '',

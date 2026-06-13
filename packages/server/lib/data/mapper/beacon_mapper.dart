@@ -35,4 +35,6 @@ BeaconEntity beaconModelToEntity(
   successCriteria: model.successCriteria,
   publicStatus: model.publicStatus,
   lastPublicMeaningfulChange: model.lastPublicMeaningfulChange,
+  lineageParentBeaconId: model.lineageParentBeaconId,
+  lineageRootBeaconId: model.lineageRootBeaconId,
 );

@@ -18,6 +18,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import '../../domain/exception.dart';
 import '../gql/_g/beacon_add_image.req.gql.dart';
 import '../gql/_g/beacon_create.req.gql.dart';
+import '../gql/_g/beacon_fork.req.gql.dart';
 import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
 import '../gql/_g/beacon_delete_by_id.req.gql.dart';
 import '../gql/_g/beacon_remove_image.req.gql.dart';
@@ -83,6 +84,15 @@ class BeaconRepository {
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) => r.dataOrThrow(label: _label).beacon_by_pk as BeaconModel?)
       .then((v) => v == null ? throw BeaconFetchException(id) : v.toEntity());
+
+  /// Server-side lineage fork → new DRAFT; refetch full beacon via Hasura.
+  Future<Beacon> fork(String sourceId) async {
+    final newId = await _remoteApiService
+        .request(GBeaconForkReq((b) => b.vars.id = sourceId))
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconFork.id);
+    return fetchBeaconById(newId);
+  }
 
   //
   //

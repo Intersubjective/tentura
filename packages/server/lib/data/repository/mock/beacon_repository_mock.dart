@@ -41,6 +41,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     int? state,
     String? needSummary,
     String? successCriteria,
+    String? lineageParentBeaconId,
+    String? lineageRootBeaconId,
   }) async {
     final now = DateTime.timestamp();
     final beacon = BeaconEntity(
@@ -54,6 +56,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       createdAt: now,
       updatedAt: now,
       author: UserEntity(id: authorId),
+      lineageParentBeaconId: lineageParentBeaconId,
+      lineageRootBeaconId: lineageRootBeaconId,
       coordinates: latitude != null && longitude != null
           ? Coordinates(lat: latitude, long: longitude)
           : null,

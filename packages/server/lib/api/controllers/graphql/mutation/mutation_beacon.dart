@@ -43,6 +43,7 @@ final class MutationBeacon extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
+    fork,
     update,
     updateDraft,
     deleteById,
@@ -98,6 +99,18 @@ final class MutationBeacon extends GqlNodeBase {
           draft: _draft.fromArgs(args) ?? false,
           needSummary: _needSummary.fromArgs(args),
           successCriteria: _successCriteria.fromArgs(args),
+        )
+        .then((v) => v.asJson),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get fork => GraphQLObjectField(
+    'beaconFork',
+    gqlTypeBeacon.nonNullable(),
+    arguments: [InputFieldId.field],
+    resolve: (_, args) => _beaconCase
+        .fork(
+          sourceId: InputFieldId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
         )
         .then((v) => v.asJson),
   );

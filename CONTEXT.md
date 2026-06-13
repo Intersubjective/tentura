@@ -59,6 +59,19 @@ End-to-end routing (landing preview → WASM hash links → native deep links �
 accept/signup) is documented in
 [`docs/invite-signup-landing-flow.md`](docs/invite-signup-landing-flow.md).
 
+## Beacon lineage
+
+**Lineage** (internal/domain term):
+A directed beacon-to-beacon relationship recording that a beacon was created from a previously visible beacon. Carried by nullable `lineage_parent_beacon_id` (immediate source) and `lineage_root_beacon_id` (ultimate ancestor) on the beacon. Used as a single user's local memory of a previous similar event — not a global audience, group, channel, series, or recommendation system.
+_Avoid (user-facing)_: fork, series, channel, subscription, audience, category, recurring.
+
+**Create from this beacon** (user-facing action):
+Copies a visible beacon's reusable content into a new draft and sets that draft's lineage pointers. Any user who can see a beacon (any non-deleted state, including your own and your own drafts) may do this. The resulting beacon shows a generic clickable reference ("Created from a previous beacon") that navigates to the parent beacon by id; the parent's title is never fetched/shown on the child. Internal mutation name `beaconFork` is acceptable; never surface "fork" in UI.
+
+**Lineage forward suggestions** (subjective):
+A single forwarding user's rules-based, explainable suggested targets derived only from that user's own visible memory across the lineage (their own forwards, positive reviews, private tags, and downstream help they routed). Computed per `(current_user_id, draft_beacon_id, lineage_parent_beacon_id)`; never stored as an objective beacon property and never a "best candidates" list.
+_Avoid_: best candidates, audience, subscribers, customers, channel, campaign.
+
 ## Room coordination UI
 
 **Promoted message**:

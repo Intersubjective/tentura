@@ -60,6 +60,12 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// [`beacon.last_public_meaningful_change`]
     String? lastPublicMeaningfulChange,
+
+    /// Lineage fork: immediate parent beacon id (nullable).
+    String? lineageParentBeaconId,
+
+    /// Lineage fork: root beacon id (nullable).
+    String? lineageRootBeaconId,
   }) = _Beacon;
 
   const Beacon._();

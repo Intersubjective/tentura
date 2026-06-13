@@ -12,6 +12,8 @@ import 'package:tentura/ui/widget/show_more_text.dart';
 
 import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
+import '../../domain/entity/lineage_suggestion_group.dart';
+import 'lineage_forward_section.dart';
 
 class ForwardRecipientRow extends StatelessWidget {
   const ForwardRecipientRow({
@@ -213,6 +215,21 @@ class ForwardRecipientRow extends StatelessWidget {
                               tt: tt,
                             ),
                       ],
+                    ),
+                  ],
+                  if (candidate.lineageGroup != null) ...[
+                    const SizedBox(height: 4),
+                    _LineageMemoryBadge(l10n: l10n, tt: tt),
+                    TenturaStatusText(
+                      lineageReasonLabel(
+                        l10n,
+                        candidate.lineageReasonCode ?? '',
+                        arg: candidate.lineageReasonArg,
+                      ),
+                      tone: candidate.lineageGroup ==
+                              LineageSuggestionGroup.involved
+                          ? TenturaTone.good
+                          : TenturaTone.info,
                     ),
                   ],
                 ],
@@ -444,6 +461,36 @@ class _ForwardRowCheckbox extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LineageMemoryBadge extends StatelessWidget {
+  const _LineageMemoryBadge({required this.l10n, required this.tt});
+
+  final L10n l10n;
+  final TenturaTokens tt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: tt.info.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: tt.info.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.history, size: 14, color: tt.info),
+          const SizedBox(width: 4),
+          Text(
+            l10n.beaconLineageForwardBadge,
+            style: TenturaText.labelSmall(tt.info),
+          ),
+        ],
       ),
     );
   }

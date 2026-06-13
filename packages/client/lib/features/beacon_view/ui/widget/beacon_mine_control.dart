@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
+import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import '../bloc/beacon_view_cubit.dart';
 
 class BeaconMineControl extends StatelessWidget {
@@ -57,6 +58,20 @@ class BeaconMineControl extends StatelessWidget {
           ),
           onForwardsGraph: () =>
               context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
+          onCreateFrom: beaconAllowsLineageOverflow(beacon)
+              ? () async {
+                  await runBeaconCreateFromAction(
+                    context,
+                    fork: () => beaconViewCubit.forkFromThis(),
+                  );
+                }
+              : null,
+          onLineageSuggestions: beaconAllowsLineageOverflow(beacon)
+              ? () => runBeaconLineageSuggestionsPreview(
+                  context,
+                  beaconId: beacon.id,
+                )
+              : null,
           onDelete: () async {
             await Future<void>.delayed(Duration.zero);
             if (!context.mounted) return;

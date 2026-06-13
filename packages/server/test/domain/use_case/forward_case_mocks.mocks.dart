@@ -75,6 +75,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
     int? state,
     String? needSummary,
     String? successCriteria,
+    String? lineageParentBeaconId,
+    String? lineageRootBeaconId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBeacon, [], {
@@ -95,6 +97,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #state: state,
               #needSummary: needSummary,
               #successCriteria: successCriteria,
+              #lineageParentBeaconId: lineageParentBeaconId,
+              #lineageRootBeaconId: lineageRootBeaconId,
             }),
             returnValue: _i5.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -117,6 +121,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #state: state,
                   #needSummary: needSummary,
                   #successCriteria: successCriteria,
+                  #lineageParentBeaconId: lineageParentBeaconId,
+                  #lineageRootBeaconId: lineageRootBeaconId,
                 }),
               ),
             ),
