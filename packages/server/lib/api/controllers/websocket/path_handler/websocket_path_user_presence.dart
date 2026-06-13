@@ -17,11 +17,14 @@ base mixin WebsocketPathUserPresence on WebsocketSessionHandlerBase {
   }
 
   Future<void> _onSetStatus(JwtEntity jwt, Map<String, dynamic> payload) async {
+    final rawStatus = payload['status'] as String?;
+    final status = UserPresenceStatus.values.firstWhere(
+      (e) => e.name == rawStatus,
+      orElse: () => throw FormatException('Unknown presence status: $rawStatus'),
+    );
     await userPresenceCase.setStatus(
       userId: jwt.sub,
-      status: UserPresenceStatus.values.firstWhere(
-        (e) => e.name == payload['status'] as String?,
-      ),
+      status: status,
     );
     await broadcastPresenceForUser(jwt.sub);
   }

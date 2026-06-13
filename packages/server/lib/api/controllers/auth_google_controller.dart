@@ -162,11 +162,13 @@ final class AuthGoogleController extends BaseController {
     }
     final oauthCookie = readCookie(request, kCookieOAuthStateName);
     if (oauthCookie == null || oauthCookie.isEmpty) {
-      throw const OidcStateMismatchException();
+      // Missing/expired state cookie (e.g. a stale tab) — fail closed but land
+      // the user on a friendly page rather than surfacing a raw 500.
+      return _oauthStateError();
     }
     final payload = _oauthStateCodec.decode(oauthCookie);
     if (payload.state != state) {
-      throw const OidcStateMismatchException();
+      return _oauthStateError();
     }
     final redirectUri = _callbackUri().toString();
     final identity = await _oidcProvider.exchangeGoogleCode(
@@ -286,6 +288,16 @@ final class AuthGoogleController extends BaseController {
     );
   }
 
+  /// Friendly fail-closed response for a missing/mismatched OAuth state cookie:
+  /// clears the (stale) state cookie and sends the user back to the landing page.
+  Response _oauthStateError() => Response.found(
+        publicLandingUrl(env.publicOrigin),
+        headers: withSetCookie(
+          {kHeaderCacheControl: kCacheControlNoStore},
+          buildClearCookie(kCookieOAuthStateName),
+        ),
+      );
+
   Uri _callbackUri() {
     return Uri.parse(env.publicOrigin).replace(
       path: '/api/auth/google/callback',
@@ -304,6 +316,8 @@ final class AuthGoogleController extends BaseController {
   /// Short-lived (5 min) signed token binding a Google link flow to one account.
   String _mintLinkToken(String accountId) => JWT(
     {'purpose': _linkTokenPurpose, 'lacc': accountId},
+    issuer: env.publicOrigin,
+    audience: Audience.one(_linkTokenAudience),
   ).sign(
     env.privateKey,
     algorithm: JWTAlgorithm.EdDSA,
@@ -313,7 +327,14 @@ final class AuthGoogleController extends BaseController {
   String? _verifyLinkToken(String? token) {
     if (token == null || token.isEmpty) return null;
     try {
-      final map = JWT.verify(token, env.publicKey).payload as Map<String, dynamic>;
+      // Bind to this server (issuer) and the link-flow audience, so an
+      // EdDSA-signed token minted for any other purpose cannot be replayed here.
+      final map = JWT.verify(
+        token,
+        env.publicKey,
+        issuer: env.publicOrigin,
+        audience: Audience.one(_linkTokenAudience),
+      ).payload as Map<String, dynamic>;
       if (map['purpose'] != _linkTokenPurpose) return null;
       final lacc = map['lacc'] as String?;
       return (lacc == null || lacc.isEmpty) ? null : lacc;
@@ -323,6 +344,7 @@ final class AuthGoogleController extends BaseController {
   }
 
   static const _linkTokenPurpose = 'google_link';
+  static const _linkTokenAudience = 'tentura:google_link';
 
   static String _randomUrlSafe(int byteCount) =>
       base64UrlEncode(

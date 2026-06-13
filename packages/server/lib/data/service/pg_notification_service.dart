@@ -23,6 +23,7 @@ class PgNotificationService {
   StreamSubscription<String>? _sub;
   int _reconnectAttempts = 0;
   bool _disposed = false;
+  bool _reconnectScheduled = false;
 
   @factoryMethod
   static Future<PgNotificationService> create(Env env) async {
@@ -67,6 +68,11 @@ class PgNotificationService {
 
   void _scheduleReconnect() {
     if (_disposed) return;
+    // A single dropped connection fires both `onError` and `onDone`; guard
+    // against scheduling overlapping reconnect timers (which would open
+    // duplicate connections and reset backoff).
+    if (_reconnectScheduled) return;
+    _reconnectScheduled = true;
     final delay = Duration(seconds: (1 << _reconnectAttempts).clamp(1, 60));
     _reconnectAttempts++;
     _log.info(
@@ -74,6 +80,7 @@ class PgNotificationService {
       '(attempt $_reconnectAttempts)',
     );
     Future.delayed(delay, () async {
+      _reconnectScheduled = false;
       if (_disposed) return;
       try {
         await _sub?.cancel();

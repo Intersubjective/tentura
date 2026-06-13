@@ -80,10 +80,10 @@ base class WebsocketSessionHandlerBase {
     WebSocketSession session,
     Set<String> peerIds,
   ) {
-    _presencePeerIdsBySession[session] = {
-      ...?_presencePeerIdsBySession[session],
-      ...peerIds,
-    };
+    // Replace, don't union: each `watch_updates` subscription carries the full
+    // intended peer list, so unioning would let the watch set grow unbounded
+    // and keep fanning out presence for peers the client no longer watches.
+    _presencePeerIdsBySession[session] = {...peerIds};
   }
 
   Iterable<WebSocketSession> _sessionsWatchingUser(String userId) sync* {
@@ -187,7 +187,19 @@ base class WebsocketSessionHandlerBase {
         final jwt = authCase.parseAndVerifyJwt(
           token: message['token']! as String,
         );
-        removeSession(session);
+        final previousJwt = removeSession(session);
+        // If this socket was authenticated as a different user, surface that
+        // user's offline transition to their watchers (removeSession does not
+        // broadcast). Skip when they still have other live sessions.
+        if (previousJwt != null &&
+            previousJwt.sub != jwt.sub &&
+            !hasSessionsForUser(previousJwt.sub)) {
+          await userPresenceCase.setStatus(
+            userId: previousJwt.sub,
+            status: UserPresenceStatus.offline,
+          );
+          await broadcastPresenceForUser(previousJwt.sub);
+        }
         _sessions[session] = WebsocketUserSession(jwt);
         (_sessionsByUserId[jwt.sub] ??= {}).add(session);
         session.send(_authLogInResponse);

@@ -32,6 +32,18 @@ final class WebSocketController extends WebsocketRouterBase {
     },
     onError: (session, error) async {
       logger.warning('WebSocket error', error);
+      // Clean up session state and mark the user offline here too: closing the
+      // sender normally triggers onClose, but that is not guaranteed on every
+      // error path, so do not rely on it for cleanup. removeSession is
+      // idempotent, so a subsequent onClose is a harmless no-op.
+      final jwt = removeSession(session);
+      if (jwt != null && !hasSessionsForUser(jwt.sub)) {
+        await userPresenceCase.setStatus(
+          userId: jwt.sub,
+          status: UserPresenceStatus.offline,
+        );
+        await broadcastPresenceForUser(jwt.sub);
+      }
       await session.sender.close(1011, 'Internal error');
     },
     onMessage: (session, data) => switch (data) {

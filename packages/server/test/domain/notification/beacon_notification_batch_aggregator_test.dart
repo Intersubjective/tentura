@@ -45,7 +45,7 @@ void main() {
     expect(r.body, isNot(contains('Overdue')));
   });
 
-  test('mixed kinds uses coordination updates fallback', () {
+  test('single actionable kind in a mixed batch leads with its phrasing', () {
     final r = aggregator.aggregate(
       count: 4,
       dominantKind: NotificationKind.promiseMade,
@@ -58,7 +58,24 @@ void main() {
       },
     );
     expect(r.title, 'My beacon');
+    // One actionable kind (needsMe) dominates: use its specific phrasing over
+    // the whole count rather than a generic "coordination updates" line.
+    expect(r.body, '4 items need you, including: detail');
+  });
+
+  test('multiple actionable kinds fall back to generic copy', () {
+    final r = aggregator.aggregate(
+      count: 4,
+      dominantKind: NotificationKind.needsMe,
+      latestTitle: 'Latest',
+      latestBody: 'detail',
+      beaconTitle: 'My beacon',
+      kindCounts: {
+        NotificationKind.needsMe: 2,
+        NotificationKind.blockerOpened: 2,
+      },
+    );
+    expect(r.title, 'My beacon');
     expect(r.body, contains('coordination updates'));
-    expect(r.body, isNot(contains('new messages')));
   });
 }

@@ -392,7 +392,10 @@ final class MutationCoordinationItem extends GqlNodeBase {
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
           final hasTarget = args.containsKey('targetPersonId');
-          final hasStale = args.containsKey('staleAfterDays');
+          // Only a concrete value updates the window; an explicit null (or an
+          // omitted arg) leaves the stored deadline untouched rather than
+          // clobbering it with the default. Pass 0 to clear a deadline.
+          final hasStale = args['staleAfterDays'] != null;
           final item = await _updateDraftPromiseCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
@@ -555,7 +558,10 @@ final class MutationCoordinationItem extends GqlNodeBase {
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
           final hasTarget = args.containsKey('targetPersonId');
-          final hasStale = args.containsKey('staleAfterDays');
+          // Only a concrete value updates the window; an explicit null (or an
+          // omitted arg) leaves the stored deadline untouched rather than
+          // clobbering it with the default. Pass 0 to clear a deadline.
+          final hasStale = args['staleAfterDays'] != null;
           final item = await _updateDraftAskCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
@@ -643,7 +649,10 @@ final class MutationCoordinationItem extends GqlNodeBase {
         resolve: (_, args) async {
           final userId = getCredentials(args).sub;
           final hasTarget = args.containsKey('targetPersonId');
-          final hasStale = args.containsKey('staleAfterDays');
+          // Only a concrete value updates the window; an explicit null (or an
+          // omitted arg) leaves the stored deadline untouched rather than
+          // clobbering it with the default. Pass 0 to clear a deadline.
+          final hasStale = args['staleAfterDays'] != null;
           final item = await _updateDraftBlockerCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
@@ -934,4 +943,11 @@ Map<String, Object?> _coordinationItemToMap(CoordinationItem item) => {
       'staleAfterDays': item.staleAfterDays,
       'source': item.source,
       'published': item.published,
+      // `CoordinationItemRow` declares messageCount/unreadCount as non-nullable,
+      // but a mutation returns a bare CoordinationItem with no thread counts.
+      // Emit zero defaults to satisfy the schema; clients read accurate counts
+      // from coordinationItemsByBeacon. lastSeenAt is nullable, so null is fine.
+      'messageCount': 0,
+      'unreadCount': 0,
+      'lastSeenAt': null,
     };
