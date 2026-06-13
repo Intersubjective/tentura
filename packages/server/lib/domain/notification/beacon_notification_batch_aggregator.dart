@@ -29,13 +29,14 @@ class BeaconNotificationBatchAggregator {
       );
     }
 
-  final actionable = kindCounts.keys.where(_isActionable).toList();
+    final actionable = kindCounts.keys.where(_isActionable).toList();
     if (actionable.length == 1 && kindCounts[actionable.first]! < count) {
-      final n = count;
-      final suffix = latestBody.isNotEmpty ? ', including: $latestBody' : '';
+      // A single actionable kind dominates a mixed batch: lead with that
+      // kind's specific phrasing (e.g. "blockers opened") over the whole
+      // count, rather than a generic "coordination updates" line.
       return (
         title: title,
-        body: '$n coordination updates$suffix',
+        body: _pluralBody(actionable.first, count, latestBody),
       );
     }
 

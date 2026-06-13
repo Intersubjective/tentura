@@ -328,6 +328,17 @@ final class AuthEmailController extends BaseController {
     return origin;
   }
 
+  // Used only as a rate-limit fingerprint for email-OTP start.
+  //
+  // SECURITY / DEPLOYMENT ASSUMPTION: `X-Forwarded-For` is client-controllable
+  // unless a trusted reverse proxy normalizes it. Taking the LAST entry is the
+  // defensive choice only when the immediate upstream is a trusted proxy that
+  // appends the real client IP (and clients cannot reach this app directly).
+  // The app cannot validate this itself — the deployment MUST terminate at a
+  // proxy that strips/overwrites inbound XFF; otherwise an attacker can rotate
+  // a forged header to bypass the per-IP throttle. If a deployment exposes the
+  // app without such a proxy, gate this behind a trusted-proxy config and fall
+  // back to the connection IP. Tracked as a deployment hardening item.
   static String _clientIp(Request request) {
     final forwarded = request.headers['x-forwarded-for'];
     if (forwarded != null && forwarded.isNotEmpty) {

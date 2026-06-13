@@ -994,6 +994,13 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     if (parent.kind != coordinationItemKindPlan) {
       throw StateError('Parent is not a plan item');
     }
+    // KNOWN RACE (low severity): the sibling max+1 is read outside the insert's
+    // transaction, so two concurrent addPlanStep calls for the same parent can
+    // pick the same ordering and produce a tie. Practically this is a same-user
+    // action (a low-likelihood window) and tied ordering is non-fatal (the list
+    // falls back to createdAt). A full fix needs a partial unique index on
+    // (linked_parent_item_id, ordering) + insert-retry, or computing the next
+    // ordering inside a parent-row-locked transaction — deferred to a migration.
     final siblings = await (_db.select(_db.coordinationItems)
           ..where((t) => t.linkedParentItemId.equals(parentItemId)))
         .get();

@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -36,6 +37,9 @@ final class UpdateDraftAskCase extends UseCaseBase {
     final existing = await _itemRepository.getById(itemId);
     if (existing == null) {
       throw const BeaconCreateException(description: 'Ask not found');
+    }
+    if (existing.kind != coordinationItemKindAsk) {
+      throw const BeaconCreateException(description: 'Item is not an ask');
     }
     if (existing.creatorId != userId) {
       throw const BeaconCreateException(

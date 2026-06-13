@@ -74,7 +74,14 @@ base class WebsocketRouterBase extends WebsocketSessionHandlerBase
     WebSocketSession session,
     List<int> binaryMessage,
   ) async {
-    throw UnimplementedError();
+    // Binary frames are not part of the protocol. Ignore them gracefully
+    // instead of throwing (an unguarded throw here escapes the message
+    // handler, since the controller's onMessage has no try/catch around it).
+    logger.warning(
+      '[WebsocketRouterBase] Ignoring unsupported binary frame '
+      '(${binaryMessage.length} bytes)',
+    );
+    session.send(jsonEncode({'error': 'binary frames are not supported'}));
   }
 
   Future<void> _dispatchMessage(

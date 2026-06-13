@@ -1,5 +1,7 @@
+import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/domain/use_case/coordination_item/coordination_room_access.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
@@ -8,10 +10,13 @@ import '../input/_input_types.dart';
 final class QueryCoordinationItem extends GqlNodeBase {
   QueryCoordinationItem({
     CoordinationItemRepositoryPort? itemRepository,
-  }) : _itemRepository =
-           itemRepository ?? GetIt.I<CoordinationItemRepositoryPort>();
+    BeaconRoomRepository? roomRepository,
+  })  : _itemRepository =
+            itemRepository ?? GetIt.I<CoordinationItemRepositoryPort>(),
+        _room = roomRepository ?? GetIt.I<BeaconRoomRepository>();
 
   final CoordinationItemRepositoryPort _itemRepository;
+  final BeaconRoomRepository _room;
 
   final _beaconId = InputFieldString(fieldName: 'beaconId');
   final _statusFilter = InputFieldInt(fieldName: 'status');
@@ -43,6 +48,14 @@ final class QueryCoordinationItem extends GqlNodeBase {
         resolve: (_, args) async {
           final viewerUserId = getCredentials(args).sub;
           final beaconId = _beaconId.fromArgsNonNullable(args);
+          // Reads are participant-scoped, mirroring the write side: only an
+          // author, steward, or admitted room member may list a beacon's
+          // coordination items (prevents cross-beacon enumeration).
+          await ensureCanCoordinateOnBeacon(
+            room: _room,
+            beaconId: beaconId,
+            userId: viewerUserId,
+          );
           final status = _statusFilter.fromArgs(args);
           final kind = _kindFilter.fromArgs(args);
           final items = await _itemRepository.listByBeacon(
