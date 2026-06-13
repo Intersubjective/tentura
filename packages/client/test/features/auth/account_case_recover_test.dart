@@ -237,6 +237,10 @@ class RecoverFakeProfileRepository implements ProfileRepositoryPort {
   Future<Profile> fetchById(String id) async => profile.copyWith(id: id);
 
   @override
+  Future<List<Profile>> fetchProfilesByIds(Set<String> ids) async =>
+      ids.map((id) => profile.copyWith(id: id)).toList();
+
+  @override
   Future<void> update(
     Profile profile, {
     String? displayName,
