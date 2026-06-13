@@ -13,6 +13,7 @@ final class WebSocketController extends WebsocketRouterBase {
     super.logger,
     super.authCase,
     super.userPresenceCase,
+    super.friendshipLookup,
     super.pgNotificationService,
   );
 
@@ -30,9 +31,8 @@ final class WebSocketController extends WebsocketRouterBase {
       }());
     },
     onError: (session, error) async {
-      final err = 'Error occurred [$error]';
-      print(err);
-      await session.sender.close(1000, err);
+      logger.warning('WebSocket error', error);
+      await session.sender.close(1011, 'Internal error');
     },
     onMessage: (session, data) => switch (data) {
       final String message => onTextMessage(session, message),

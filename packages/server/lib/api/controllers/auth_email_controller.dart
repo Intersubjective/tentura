@@ -331,7 +331,7 @@ final class AuthEmailController extends BaseController {
   static String _clientIp(Request request) {
     final forwarded = request.headers['x-forwarded-for'];
     if (forwarded != null && forwarded.isNotEmpty) {
-      return forwarded.split(',').first.trim();
+      return forwarded.split(',').last.trim();
     }
     return 'unknown';
   }

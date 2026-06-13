@@ -39,8 +39,14 @@ base mixin WebsocketPathUserPresence on WebsocketSessionHandlerBase {
           throw const FormatException('Invalid params');
         }
         final raw = params['peer_ids'];
-        final peerIds =
+        final requested =
             raw is List ? raw.map((e) => e as String).toList() : <String>[];
+        final viewerId = getJwtBySession(session).sub;
+        final allowed = await friendshipLookup.reciprocalPositivePeerIds(
+          viewerId: viewerId,
+          peerIds: requested,
+        );
+        final peerIds = requested.where(allowed.contains).toList();
         await sendPresenceSnapshotForPeers(session, peerIds);
 
       default:

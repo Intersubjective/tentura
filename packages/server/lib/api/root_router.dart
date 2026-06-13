@@ -76,7 +76,8 @@ class RootRouter {
         corsHeaders(
           headers: {
             ACCESS_CONTROL_ALLOW_CREDENTIALS: 'false',
-            ACCESS_CONTROL_ALLOW_ORIGIN: _env.serverUri.host,
+            // Browsers match Origin against scheme://host[:port], not a bare host.
+            ACCESS_CONTROL_ALLOW_ORIGIN: _env.serverUri.origin,
           },
         ),
       )
