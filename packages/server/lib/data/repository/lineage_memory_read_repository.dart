@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
+import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/entity/lineage_memory_fact.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
