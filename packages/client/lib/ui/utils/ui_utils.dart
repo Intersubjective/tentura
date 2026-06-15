@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
@@ -76,20 +77,46 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
   bool isFloating = false,
   SnackBarAction? action,
   List<TextSpan>? textSpans,
-  Duration duration = const Duration(seconds: kSnackBarDuration),
+  Duration? duration,
 }) {
+  // Errors linger longer so the message can be read and the Copy button tapped.
+  duration ??= Duration(seconds: isError ? 15 : kSnackBarDuration);
   final theme = Theme.of(context);
   final scaffoldMessenger =
       ScaffoldMessenger.maybeOf(context) ?? snackbarKey.currentState!
         ..clearSnackBars();
+
+  // The full, untruncated message. The SnackBar may clip long text on screen,
+  // so we keep the complete string for logging and for the Copy action.
+  final fullText = [
+    ?text,
+    ...?textSpans?.map((s) => s.toPlainText()),
+  ].join();
+
   if (isError) {
-    GetIt.I<Logger>().fine(text);
+    // Report the full error so it always lands in the logs/console regardless
+    // of the configured log level (the default debug level hides `fine`).
+    GetIt.I<Logger>().severe(fullText);
   }
+
+  // Errors get a Copy action so the (often cryptic) server message can be
+  // pasted into a bug report. Only added when the caller didn't supply its own.
+  final effectiveAction =
+      action ??
+      (isError && fullText.isNotEmpty
+          ? SnackBarAction(
+              label: L10n.of(context)?.copyToClipboard ?? 'Copy',
+              onPressed: () =>
+                  Clipboard.setData(ClipboardData(text: fullText)),
+            )
+          : null);
+
   return scaffoldMessenger.showSnackBar(
     SnackBar(
-      action: action,
+      action: effectiveAction,
       duration: duration,
-      showCloseIcon: action == null,
+      // Keep the close icon for errors even though they now carry an action.
+      showCloseIcon: effectiveAction == null || isError,
       margin: isFloating ? kPaddingAll : null,
       dismissDirection: DismissDirection.horizontal,
       behavior: isFloating ? SnackBarBehavior.floating : null,
