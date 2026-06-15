@@ -45,6 +45,29 @@ void main() {
       expect(mapped, isA<ConnectionUplinkException>());
     });
 
+    test('web fetch failures keep the no-internet mapping', () {
+      final mapped = mapRemoteFailure(
+        Exception('ClientException: Failed to fetch'),
+      );
+      expect(mapped, isA<ConnectionUplinkException>());
+    });
+
+    test('a non-connectivity StateError surfaces its text, not "no internet"',
+        () {
+      final mapped = mapRemoteFailure(StateError('No element'));
+      expect(mapped, isA<RemoteApiException>());
+      expect((mapped as RemoteApiException).toEn, contains('No element'));
+    });
+
+    test('an unrecognized error surfaces its text, not "no internet"', () {
+      final mapped = mapRemoteFailure(Exception('Deserialization failed: foo'));
+      expect(mapped, isA<RemoteApiException>());
+      expect(
+        (mapped as RemoteApiException).toEn,
+        contains('Deserialization failed'),
+      );
+    });
+
     test('ServerException with GraphQL errors surfaces them, not "no internet"',
         () {
       final mapped = mapRemoteFailure(
