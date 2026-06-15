@@ -78,16 +78,47 @@ Object mapRemoteFailure(Object? error) {
       'Malformed server response: ${error.originalException ?? error}',
     );
   }
-  final message = error?.toString().toLowerCase() ?? '';
+  final raw = error?.toString() ?? '';
+  final message = raw.toLowerCase();
   if (message.contains('invalid-jwt') ||
       message.contains('invalid jwt') ||
       message.contains('jwtexpired') ||
       message.contains('could not verify jwt')) {
     return const AuthSessionLostException();
   }
-  // Everything else reaching here is transport-level (link exceptions,
-  // socket/timeout/XHR failures) — connectivity is the honest default.
-  return const ConnectionUplinkException();
+  // Only errors that actually look like a transport/connectivity failure
+  // become "no internet". Everything else (client-side StateError from an
+  // empty stream, deserialization failures, unhandled link exceptions, …) is
+  // a real bug — surface its text instead of a misleading "no internet".
+  if (_looksLikeConnectivityFailure(message)) {
+    return const ConnectionUplinkException();
+  }
+  return _remoteApiOrUnknown(raw);
+}
+
+/// Heuristic: does this error message look like a network/transport failure?
+/// Matches the common socket/timeout/TLS/XHR/fetch signatures across the
+/// native (`dart:io`) and web (`package:http` BrowserClient) stacks.
+bool _looksLikeConnectivityFailure(String message) {
+  const markers = [
+    'socketexception',
+    'failed host lookup',
+    'connection refused',
+    'connection closed',
+    'connection reset',
+    'connection terminated',
+    'connection attempt failed',
+    'connection timed out',
+    'network is unreachable',
+    'software caused connection abort',
+    'timeoutexception',
+    'clientexception', // package:http transport error
+    'xmlhttprequest error', // web
+    'failed to fetch', // web fetch
+    'handshakeexception', // TLS
+    'os error',
+  ];
+  return markers.any(message.contains);
 }
 
 /// Maps a gql [ServerException] to a domain exception, or returns `null` when
