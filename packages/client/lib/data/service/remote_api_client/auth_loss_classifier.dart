@@ -101,7 +101,7 @@ Object mapRemoteFailure(Object? error) {
 /// native (`dart:io`) and web (`package:http` BrowserClient) stacks.
 bool _looksLikeConnectivityFailure(String message) {
   const markers = [
-    'socketexception',
+    'socket', // SocketException, "socket closed", …
     'failed host lookup',
     'connection refused',
     'connection closed',
