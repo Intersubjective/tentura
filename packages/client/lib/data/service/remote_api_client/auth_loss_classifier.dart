@@ -1,3 +1,5 @@
+import 'package:ferry/ferry.dart' as gql
+    show ResponseFormatException, ServerException;
 import 'package:gql_exec/gql_exec.dart';
 
 import 'package:tentura/domain/exception/generic_exception.dart';
@@ -56,6 +58,26 @@ Object mapRemoteFailure(Object? error) {
       return _remoteApiOrUnknown(first.message);
     }
   }
+  // gql ServerException (incl. gql_http_link's HttpLinkServerException) is
+  // thrown when the server answers with a non-2xx status or a body lacking
+  // both data and errors — e.g. a 400 on a malformed/invalid GraphQL query.
+  // The server DID answer, so surface its payload instead of a misleading
+  // "no internet". A genuine socket failure also arrives as a ServerException
+  // but with no statusCode and no parsedResponse — that case falls through to
+  // the connectivity default below.
+  if (error is gql.ServerException) {
+    final mapped = _mapServerException(error);
+    if (mapped != null) {
+      return mapped;
+    }
+  }
+  // The response body could not be parsed as a GraphQL response (e.g. an HTML
+  // error page). The server still answered — surface what we can.
+  if (error is gql.ResponseFormatException) {
+    return _remoteApiOrUnknown(
+      'Malformed server response: ${error.originalException ?? error}',
+    );
+  }
   final message = error?.toString().toLowerCase() ?? '';
   if (message.contains('invalid-jwt') ||
       message.contains('invalid jwt') ||
@@ -66,6 +88,37 @@ Object mapRemoteFailure(Object? error) {
   // Everything else reaching here is transport-level (link exceptions,
   // socket/timeout/XHR failures) — connectivity is the honest default.
   return const ConnectionUplinkException();
+}
+
+/// Maps a gql [ServerException] to a domain exception, or returns `null` when
+/// it represents a genuine transport failure (no status, no parsed response)
+/// that should be treated as a connectivity problem by the caller.
+Object? _mapServerException(gql.ServerException error) {
+  final status = error.statusCode;
+  final errors = error.parsedResponse?.errors;
+
+  // The server returned GraphQL errors (even alongside a non-2xx status).
+  if (errors != null && errors.isNotEmpty) {
+    for (final e in errors) {
+      if (_isGraphQlAuthLoss(e)) {
+        return const AuthSessionLostException();
+      }
+    }
+    final joined = errors.map((e) => e.message.trim()).join('; ');
+    final detail = status == null ? joined : 'HTTP $status: $joined';
+    return _remoteApiOrUnknown(detail);
+  }
+
+  // No GraphQL errors, but the server answered with a status code.
+  if (status != null) {
+    if (status == 401 || status == 403) {
+      return const AuthSessionLostException();
+    }
+    return _remoteApiOrUnknown('Server error (HTTP $status)');
+  }
+
+  // No status and no parsed response: treat as a transport failure.
+  return null;
 }
 
 GenericException _remoteApiOrUnknown(String message) {

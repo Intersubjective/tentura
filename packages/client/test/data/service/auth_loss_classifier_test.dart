@@ -1,3 +1,4 @@
+import 'package:ferry/ferry.dart' show ResponseFormatException, ServerException;
 import 'package:gql_exec/gql_exec.dart';
 import 'package:test/test.dart';
 
@@ -42,6 +43,80 @@ void main() {
     test('transport-level failures keep the no-internet mapping', () {
       final mapped = mapRemoteFailure(Exception('SocketException: refused'));
       expect(mapped, isA<ConnectionUplinkException>());
+    });
+
+    test('ServerException with GraphQL errors surfaces them, not "no internet"',
+        () {
+      final mapped = mapRemoteFailure(
+        const ServerException(
+          statusCode: 400,
+          parsedResponse: Response(
+            response: {},
+            errors: [
+              GraphQLError(
+                message: "field 'addressee_name' not found in type: 'invitation'",
+              ),
+            ],
+          ),
+        ),
+      );
+      expect(mapped, isA<RemoteApiException>());
+      expect(
+        (mapped as RemoteApiException).toEn,
+        contains("field 'addressee_name' not found"),
+      );
+      expect(mapped.toEn, contains('HTTP 400'));
+    });
+
+    test('ServerException with auth-loss GraphQL error maps to auth loss', () {
+      final mapped = mapRemoteFailure(
+        const ServerException(
+          statusCode: 400,
+          parsedResponse: Response(
+            response: {},
+            errors: [GraphQLError(message: 'Could not verify JWT: JWTExpired')],
+          ),
+        ),
+      );
+      expect(mapped, isA<AuthSessionLostException>());
+    });
+
+    test('ServerException with only a status code surfaces the status', () {
+      final mapped = mapRemoteFailure(
+        const ServerException(statusCode: 502),
+      );
+      expect(mapped, isA<RemoteApiException>());
+      expect((mapped as RemoteApiException).toEn, contains('502'));
+    });
+
+    test('ServerException with 401 status maps to auth loss', () {
+      final mapped = mapRemoteFailure(
+        const ServerException(statusCode: 401),
+      );
+      expect(mapped, isA<AuthSessionLostException>());
+    });
+
+    test('ServerException from a socket failure keeps the no-internet mapping',
+        () {
+      final mapped = mapRemoteFailure(
+        ServerException(
+          originalException: Exception('SocketException: refused'),
+        ),
+      );
+      expect(mapped, isA<ConnectionUplinkException>());
+    });
+
+    test('unparseable response body surfaces a malformed-response message', () {
+      final mapped = mapRemoteFailure(
+        const ResponseFormatException(
+          originalException: FormatException('Unexpected <'),
+        ),
+      );
+      expect(mapped, isA<RemoteApiException>());
+      expect(
+        (mapped as RemoteApiException).toEn,
+        contains('Malformed server response'),
+      );
     });
   });
 }
