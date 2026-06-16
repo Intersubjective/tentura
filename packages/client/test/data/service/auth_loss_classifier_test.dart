@@ -129,6 +129,32 @@ void main() {
       expect(mapped, isA<ConnectionUplinkException>());
     });
 
+    test(
+        'ServerException re-wrapping a RemoteApiException surfaces its message',
+        () {
+      // Reproduces the real bug: ErrorLink throws RemoteApiException for a
+      // GraphQL error, and ferry re-wraps it as a ServerException with a null
+      // parsedResponse. The original message must survive, not the wrapper's
+      // toString().
+      final mapped = mapRemoteFailure(
+        const ServerException(
+          originalException: RemoteApiException(
+            "Invalid argument (value): Unsupported type: Instance of 'PgDateTime'",
+          ),
+        ),
+      );
+      expect(mapped, isA<RemoteApiException>());
+      expect(
+        (mapped as RemoteApiException).toEn,
+        contains("Unsupported type: Instance of 'PgDateTime'"),
+      );
+    });
+
+    test('an already-classified domain exception passes through unchanged', () {
+      const original = ConnectionUplinkException();
+      expect(mapRemoteFailure(original), same(original));
+    });
+
     test('unparseable response body surfaces a malformed-response message', () {
       final mapped = mapRemoteFailure(
         const ResponseFormatException(

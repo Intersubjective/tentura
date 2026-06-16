@@ -304,14 +304,17 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   @override
   Future<void> closeExpiredWindows() => _db.transaction(() async {
         final now = DateTime.timestamp();
+        // Compare against the transaction clock in SQL: drift cannot bind a
+        // raw `PgDateTime` as a custom-statement variable (it throws
+        // "Unsupported type: Instance of 'PgDateTime'"), and `now()` is the
+        // same instant we stamp `updated_at` with below.
         final expiredBeaconIds = await _db.customSelect(
-          r'''
+          '''
 SELECT beacon_id
 FROM beacon_review_window
-WHERE status = 0 AND closes_at < $1
+WHERE status = 0 AND closes_at < now()
 FOR UPDATE
 ''',
-          variables: [Variable(PgDateTime(now))],
         ).map((r) => r.read<String>('beacon_id')).get();
 
         final batchesBySource = <String, List<TrustEvidence>>{};
