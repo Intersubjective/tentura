@@ -9,6 +9,9 @@ import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/trust/trust_evidence.dart';
 import 'package:tentura_server/env.dart';
 
 import '../database/tentura_db.dart';
@@ -25,14 +28,16 @@ export 'package:tentura_server/domain/entity/user_entity.dart';
   order: 1,
 )
 class UserRepository implements UserRepositoryPort {
-  const UserRepository(
+  UserRepository(
     this._env,
     this._database,
+    this._trustEdgeRepository,
   );
 
   final Env _env;
 
   final TenturaDb _database;
+  final UserTrustEdgeRepositoryPort _trustEdgeRepository;
 
   //
   //
@@ -143,6 +148,10 @@ class UserRepository implements UserRepositoryPort {
         o(subject: user.id, object: invitation.userId, amount: 1),
         o(subject: invitation.userId, object: user.id, amount: 1),
       ],
+    );
+    await _applyReciprocalTrustEdges(
+      userA: user.id,
+      userB: invitation.userId,
     );
 
     await _upsertInviteContact(
@@ -288,6 +297,10 @@ class UserRepository implements UserRepositoryPort {
         o(subject: user.id, object: invitation.userId, amount: 1),
         o(subject: invitation.userId, object: user.id, amount: 1),
       ],
+    );
+    await _applyReciprocalTrustEdges(
+      userA: user.id,
+      userB: invitation.userId,
     );
 
     await _upsertInviteContact(
@@ -765,6 +778,10 @@ class UserRepository implements UserRepositoryPort {
       mode: InsertMode.insertOrIgnore,
       onConflict: DoNothing(),
     );
+    await _applyReciprocalTrustEdges(
+      userA: invitation.userId,
+      userB: userId,
+    );
 
     if (invitation.beaconId != null) {
       await _database.into(_database.inboxItems).insert(
@@ -783,4 +800,37 @@ class UserRepository implements UserRepositoryPort {
 
     return invitationsDeletedCount == 1;
   });
+
+  Future<void> _applyReciprocalTrustEdges({
+    required String userA,
+    required String userB,
+  }) async {
+    final at = DateTime.timestamp();
+    await _trustEdgeRepository.applyEvidenceInTransaction(
+      TrustEvidenceBatch(
+        sourceUserId: userA,
+        at: at,
+        items: [
+          TrustEvidence(
+            targetUserId: userB,
+            bin: TrustBin.good,
+            count: kTrustVoteEvidenceCount,
+          ),
+        ],
+      ),
+    );
+    await _trustEdgeRepository.applyEvidenceInTransaction(
+      TrustEvidenceBatch(
+        sourceUserId: userB,
+        at: at,
+        items: [
+          TrustEvidence(
+            targetUserId: userA,
+            bin: TrustBin.good,
+            count: kTrustVoteEvidenceCount,
+          ),
+        ],
+      ),
+    );
+  }
 }

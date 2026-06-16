@@ -182,9 +182,9 @@ Future<void> showEvaluationDetailSheet({
 
 String _label(EvaluationValue v, L10n l10n) => switch (v) {
       EvaluationValue.noBasis => l10n.evaluationNoBasisLabel,
-      EvaluationValue.neg2 => '-2',
-      EvaluationValue.neg1 => '-1',
-      EvaluationValue.zero => '0',
-      EvaluationValue.pos1 => '+1',
-      EvaluationValue.pos2 => '+2',
+      EvaluationValue.neg2 => l10n.evaluationVeryBadLabel,
+      EvaluationValue.neg1 => l10n.evaluationBadLabel,
+      EvaluationValue.zero => l10n.evaluationNoEffectLabel,
+      EvaluationValue.pos1 => l10n.evaluationGoodLabel,
+      EvaluationValue.pos2 => l10n.evaluationVeryGoodLabel,
     };

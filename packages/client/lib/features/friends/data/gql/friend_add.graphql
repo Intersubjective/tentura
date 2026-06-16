@@ -1,6 +1,3 @@
-mutation FriendAdd($id: String!) {
-  insert_vote_user_one(object: {object: $id, amount: 1},
-  on_conflict: {constraint: vote_user_pkey, update_columns: amount}) {
-    amount
-  }
+mutation UserSubscribe($objectId: String!) {
+  userSubscribe(objectId: $objectId)
 }
