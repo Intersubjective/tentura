@@ -6,6 +6,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
+import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
@@ -284,8 +285,9 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                 final visible = state.visibleRecipients;
                 final showLineageBlock =
                     state.activeFilter != ForwardFilter.alreadyInvolved;
-                final lineage =
-                    showLineageBlock ? state.lineageSuggestions : const [];
+                final lineage = showLineageBlock
+                    ? state.lineageSuggestions
+                    : const <ForwardCandidate>[];
                 final counts = state.scopeCounts;
                 final listIsEmpty = state.activeFilter ==
                         ForwardFilter.alreadyInvolved
