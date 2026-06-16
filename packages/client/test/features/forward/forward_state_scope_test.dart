@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/entity/lineage_suggestion_group.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 
 void main() {
@@ -62,6 +63,48 @@ void main() {
 
     expect(state.scopeCounts.involved, 1);
     expect(state.visibleRecipients.single.id, 'f');
+  });
+
+  test('involved scope excludes lineage-only unseen suggestions', () {
+    const lineageOnly = ForwardCandidate(
+      profile: Profile(id: 'lineage', displayName: 'Lineage', rScore: 1, score: 99),
+      lineageGroup: LineageSuggestionGroup.involved,
+    );
+    const involved = ForwardCandidate(
+      profile: Profile(id: 'inv', displayName: 'Inv', rScore: 1, score: 50),
+      involvement: CandidateInvolvement.forwardedByMe,
+    );
+
+    const state = ForwardState(
+      candidates: [involved],
+      lineageSuggestions: [lineageOnly],
+      activeFilter: ForwardFilter.alreadyInvolved,
+    );
+
+    expect(state.scopeCounts.involved, 1);
+    expect(state.visibleRecipients.map((c) => c.id).toList(), ['inv']);
+  });
+
+  test('involved scope includes candidate also listed as lineage suggestion', () {
+    const shared = ForwardCandidate(
+      profile: Profile(id: 'shared', displayName: 'Shared', rScore: 1, score: 60),
+      involvement: CandidateInvolvement.forwardedByMe,
+    );
+    const lineageDup = ForwardCandidate(
+      profile: Profile(id: 'shared', displayName: 'Shared', rScore: 1, score: 60),
+      lineageGroup: LineageSuggestionGroup.involved,
+    );
+
+    const state = ForwardState(
+      candidates: [shared],
+      lineageSuggestions: [lineageDup],
+      activeFilter: ForwardFilter.alreadyInvolved,
+    );
+
+    expect(state.visibleRecipients.single.id, 'shared');
+    expect(state.visibleRecipients.single.involvement,
+        CandidateInvolvement.forwardedByMe);
+    expect(state.visibleRecipients.single.lineageGroup, isNull);
   });
 
   test('filterCandidatesByQuery matches profile description (MR sort)', () {

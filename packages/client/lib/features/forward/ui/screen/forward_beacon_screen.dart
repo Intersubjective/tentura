@@ -282,8 +282,15 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
 
                 final beacon = state.beacon;
                 final visible = state.visibleRecipients;
-                final lineage = state.lineageSuggestions;
+                final showLineageBlock =
+                    state.activeFilter != ForwardFilter.alreadyInvolved;
+                final lineage =
+                    showLineageBlock ? state.lineageSuggestions : const [];
                 final counts = state.scopeCounts;
+                final listIsEmpty = state.activeFilter ==
+                        ForwardFilter.alreadyInvolved
+                    ? visible.isEmpty
+                    : visible.isEmpty && lineage.isEmpty;
 
                 _syncRecipientNoteControllers(state);
                 _prunePersonalizedNoteEditors(state);
@@ -326,7 +333,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                           onScopeChanged: cubit.setFilter,
                         ),
                         Expanded(
-                          child: visible.isEmpty && lineage.isEmpty
+                          child: listIsEmpty
                               ? Center(
                                   child: Padding(
                                     padding: kPaddingH,
