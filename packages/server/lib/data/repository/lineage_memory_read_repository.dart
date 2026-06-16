@@ -60,7 +60,8 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
     if (beaconIds.isEmpty) return const [];
     final rows = await _database.customSelect(
       r'''
-      SELECT recipient_id, note, created_at, beacon_id, recipient_rejected
+      SELECT recipient_id, note, created_at::text AS created_at,
+             beacon_id, recipient_rejected
         FROM beacon_forward_edge
        WHERE sender_id = $1
          AND beacon_id = ANY($2::text[])
@@ -76,7 +77,9 @@ class LineageMemoryReadRepository implements LineageMemoryReadPort {
         LineageForwardEdgeFact(
           recipientId: row.read<String>('recipient_id'),
           note: row.read<String>('note'),
-          createdAt: row.read<DateTime>('created_at'),
+          // `created_at::text` (timestamptz) → ISO-8601 string; drift's native
+          // DateTime reader is unix-seconds and would int.parse this and throw.
+          createdAt: DateTime.parse(row.read<String>('created_at')),
           beaconId: row.read<String>('beacon_id'),
           rejected: row.read<bool>('recipient_rejected'),
         ),

@@ -44,7 +44,11 @@ Future<Client> buildClient({
       ErrorLink(
         onException: (request, forward, exception) {
           log(exception.toString());
-          throw Exception(exception.toString());
+          // Classify the link/transport exception (ServerException carrying
+          // GraphQL errors, HTTP status, parse failures, socket errors, …) so
+          // the UI shows the real cause instead of a flattened, type-erased
+          // `Exception` that always looked like "no internet".
+          throw mapRemoteFailure(exception);
         },
         onGraphQLError: (request, forward, response) {
           log(response.errors.toString());
