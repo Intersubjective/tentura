@@ -992,25 +992,6 @@
                 }
               }
             ],
-            "insert_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "check": {
-                    "subject": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
-                  },
-                  "set": {
-                    "subject": "x-hasura-User-Id"
-                  },
-                  "columns": [
-                    "amount",
-                    "object"
-                  ]
-                }
-              }
-            ],
             "select_permissions": [
               {
                 "role": "user",
@@ -1022,36 +1003,6 @@
                     "created_at",
                     "updated_at"
                   ],
-                  "filter": {
-                    "subject": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
-                  }
-                },
-                "comment": ""
-              }
-            ],
-            "update_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "amount"
-                  ],
-                  "filter": {
-                    "subject": {
-                      "_eq": "X-Hasura-User-Id"
-                    }
-                  },
-                  "check": null
-                },
-                "comment": ""
-              }
-            ],
-            "delete_permissions": [
-              {
-                "role": "user",
-                "permission": {
                   "filter": {
                     "subject": {
                       "_eq": "X-Hasura-User-Id"

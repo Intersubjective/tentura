@@ -21,6 +21,10 @@ BEGIN
 END;
 $$;
 
+-- NOTE: notify_meritrank_vote_user_mutation trigger dropped in migration m0088.
+-- User→user MeritRank edges are written by the Dart trust-edge junction only.
+-- (Function body kept below for reference; do not re-attach the trigger.)
+
 -- Trigger functions (before_insert / vsids)
 CREATE OR REPLACE FUNCTION public.notify_meritrank_vote_user_mutation()
   RETURNS trigger
@@ -89,9 +93,7 @@ END;
 $$;
 
 -- Triggers
-CREATE OR REPLACE TRIGGER notify_meritrank_vote_user_mutation
-  AFTER INSERT OR UPDATE ON public.vote_user
-  FOR EACH ROW EXECUTE FUNCTION public.notify_meritrank_vote_user_mutation();
+DROP TRIGGER IF EXISTS notify_meritrank_vote_user_mutation ON public.vote_user;
 
 CREATE OR REPLACE TRIGGER on_public_user_update
   BEFORE UPDATE ON public."user"
@@ -150,9 +152,9 @@ DECLARE
   _edge_count integer;
 BEGIN
   WITH all_edges AS (
-    -- Edges User -> User (vote)
-    SELECT subject AS src, object AS dst, amount::float8 AS weight, ticker::bigint AS magnitude, ''::text AS context
-    FROM vote_user
+    -- Edges User -> User (Dirichlet trust; prev_sent_weight is MR seed)
+    SELECT subject AS src, object AS dst, prev_sent_weight AS weight, 0::bigint AS magnitude, ''::text AS context
+    FROM user_trust_edge
     UNION ALL
     -- Pollings and Variants (variant -> polling)
     SELECT pv.id, p.id, 1.0::float8, 0::bigint, ''::text

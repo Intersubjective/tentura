@@ -58,6 +58,7 @@ import 'table/person_capability_events.dart';
 import 'table/user_contacts.dart';
 import 'table/user_presence.dart';
 import 'table/users.dart';
+import 'table/user_trust_edges.dart';
 import 'table/vote_users.dart';
 
 export 'package:drift/drift.dart';
@@ -105,6 +106,7 @@ part 'tentura_db.g.dart';
     Users,
     UserContacts,
     UserPresence,
+    UserTrustEdges,
     VoteUsers,
   ],
 )

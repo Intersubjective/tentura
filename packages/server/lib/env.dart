@@ -69,6 +69,8 @@ class Env {
 
     // Meritrank service
     Duration? meritrankCalculateTimeout,
+    Duration? trustEdgeHalfLife,
+    double? trustEdgeEpsilon,
 
     // User presence (WS offline delay; env CHAT_OFFLINE_DELAY)
     Duration? chatStatusOfflineAfterDelay,
@@ -195,6 +197,14 @@ class Env {
            Duration(
              minutes: int.tryParse(_env['MR_CALCULATE_TIMEOUT'] ?? '') ?? 10,
            ),
+       trustEdgeHalfLife = trustEdgeHalfLife ??
+           Duration(
+             days: int.tryParse(_env['TRUST_EDGE_HALF_LIFE_DAYS'] ?? '') ?? 182,
+           ),
+       trustEdgeEpsilon =
+           trustEdgeEpsilon ??
+           double.tryParse(_env['TRUST_EDGE_EPSILON'] ?? '') ??
+           0.1,
 
        chatStatusOfflineAfterDelay =
            chatStatusOfflineAfterDelay ??
@@ -412,6 +422,10 @@ class Env {
 
   // Meritrank service
   final Duration meritrankCalculateTimeout;
+
+  final Duration trustEdgeHalfLife;
+
+  final double trustEdgeEpsilon;
 
   final Duration chatStatusOfflineAfterDelay;
 

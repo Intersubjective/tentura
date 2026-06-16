@@ -5,7 +5,9 @@ import 'package:postgres/postgres.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
+import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 
+import 'di.dart';
 import 'worker.dart';
 import 'workers/web_worker.dart';
 
@@ -23,6 +25,10 @@ class App {
     );
     await migrateDbSchema(connection);
     await connection.execute('ALTER EXTENSION pgmer2 UPDATE');
+    final getIt = await configureDependencies(env);
+    await getIt.allReady();
+    await getIt<UserTrustEdgeCase>().cutoverBackfillIfNeeded();
+    await getIt.reset();
     await _uploadGraph(connection);
     await connection.close();
 
