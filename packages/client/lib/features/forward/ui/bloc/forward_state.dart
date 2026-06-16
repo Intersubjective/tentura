@@ -108,6 +108,15 @@ abstract class ForwardState extends StateBase with _$ForwardState {
   List<ForwardCandidate> _candidatesBase() =>
       List<ForwardCandidate>.from(candidates);
 
+  /// Main + lineage rows deduped by id (main list wins over lineage row).
+  List<ForwardCandidate> _mergedCandidatesForInvolvedScope() {
+    final byId = {for (final c in _candidatesBase()) c.id: c};
+    for (final c in lineageSuggestions) {
+      byId.putIfAbsent(c.id, () => c);
+    }
+    return byId.values.toList();
+  }
+
   ForwardScopeCounts get scopeCounts {
     final base = _candidatesBase();
     return ForwardScopeCounts(
@@ -116,19 +125,26 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     );
   }
 
-  /// Recipients for the active scope, MR-sorted (excludes lineage block rows).
+  /// Recipients for the active scope, MR-sorted.
+  ///
+  /// Unseen / all scopes exclude lineage block rows (shown separately).
+  /// Involved scope merges lineage rows so current-beacon involvement is
+  /// visible even when the person also appears in lineage suggestions.
   List<ForwardCandidate> get visibleRecipients {
     final lineageIds = lineageSuggestions.map((c) => c.id).toSet();
-    final base = _candidatesBase().where((c) => !lineageIds.contains(c.id));
     final Iterable<ForwardCandidate> picked;
     switch (activeFilter) {
       case ForwardFilter.all:
       case ForwardFilter.bestNext:
-        picked = base.where((c) => c.canForwardTo);
+        picked = _candidatesBase()
+            .where((c) => !lineageIds.contains(c.id))
+            .where((c) => c.canForwardTo);
       case ForwardFilter.unseen:
-        picked = base.where((c) => c.isUnseen);
+        picked = _candidatesBase()
+            .where((c) => !lineageIds.contains(c.id))
+            .where((c) => c.isUnseen);
       case ForwardFilter.alreadyInvolved:
-        picked = base.where(matchesInvolvedScope);
+        picked = _mergedCandidatesForInvolvedScope().where(matchesInvolvedScope);
     }
     final list = picked.toList();
     _sortByMr(list);

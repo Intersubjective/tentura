@@ -89,19 +89,34 @@ class _FakeBeaconRepo implements BeaconRepositoryPort {
       beacon;
 }
 
-void main() {
-  test('policy: classify, auto-select G1+G3, note selection', () async {
-    final beacon = BeaconEntity(
-      id: 'b-src',
+BeaconLineageSuggestionsCase _caseFor({
+  required BeaconEntity beacon,
+  required _FakeLineageMemoryReadPort memory,
+}) =>
+    BeaconLineageSuggestionsCase(
+      _FakeBeaconRepo(beacon),
+      memory,
+      env: Env.test(),
+      logger: Logger('test'),
+    );
+
+BeaconEntity _forkedBeacon({String id = 'b-src', String parentId = 'b-parent'}) =>
+    BeaconEntity(
+      id: id,
       title: 't',
       author: UserEntity(id: 'author'),
       createdAt: DateTime.utc(2024),
       updatedAt: DateTime.utc(2024),
       state: 0,
+      lineageParentBeaconId: parentId,
+      lineageRootBeaconId: parentId,
     );
-    final case_ = BeaconLineageSuggestionsCase(
-      _FakeBeaconRepo(beacon),
-      _FakeLineageMemoryReadPort(
+
+void main() {
+  test('policy: classify, auto-select G1+G3, note selection', () async {
+    final case_ = _caseFor(
+      beacon: _forkedBeacon(),
+      memory: _FakeLineageMemoryReadPort(
         edges: [
           LineageForwardEdgeFact(
             recipientId: 'u-helped',
@@ -131,8 +146,6 @@ void main() {
           const LineagePrivateTagFact(subjectUserId: 'u-tagged', slug: 'driver'),
         ],
       ),
-      env: Env.test(),
-      logger: Logger('test'),
     );
 
     final result = await case_.load(beaconId: 'b-src', userId: 'me');
@@ -142,5 +155,58 @@ void main() {
     expect(byUser['u-routed']!.autoSelect, isTrue);
     expect(byUser['u-reviewed']!.autoSelect, isFalse);
     expect(byUser['u-reviewed']!.group, LineageSuggestionGroup.reviewedPositive);
+    expect(byUser.containsKey('u-tagged'), isFalse);
+  });
+
+  test('non-fork beacon returns empty suggestions even with private tags', () async {
+    final beacon = BeaconEntity(
+      id: 'b-new',
+      title: 't',
+      author: UserEntity(id: 'author'),
+      createdAt: DateTime.utc(2024),
+      updatedAt: DateTime.utc(2024),
+      state: 0,
+    );
+    final case_ = _caseFor(
+      beacon: beacon,
+      memory: _FakeLineageMemoryReadPort(
+        edges: const [],
+        whoHelped: const {},
+        tags: const [
+          LineagePrivateTagFact(subjectUserId: 'u-tagged', slug: 'driver'),
+        ],
+      ),
+    );
+
+    final result = await case_.load(beaconId: 'b-new', userId: 'me');
+    expect(result.suggestions, isEmpty);
+    expect(result.suggestedNote, isEmpty);
+  });
+
+  test('private tag only suggests lineage forward recipients', () async {
+    final case_ = _caseFor(
+      beacon: _forkedBeacon(),
+      memory: _FakeLineageMemoryReadPort(
+        edges: [
+          LineageForwardEdgeFact(
+            recipientId: 'u-forwarded',
+            note: '',
+            createdAt: DateTime.utc(2024, 1, 1),
+            beaconId: 'b1',
+            rejected: false,
+          ),
+        ],
+        whoHelped: const {},
+        tags: const [
+          LineagePrivateTagFact(subjectUserId: 'u-forwarded', slug: 'driver'),
+          LineagePrivateTagFact(subjectUserId: 'u-stranger', slug: 'cook'),
+        ],
+      ),
+    );
+
+    final result = await case_.load(beaconId: 'b-src', userId: 'me');
+    final ids = result.suggestions.map((s) => s.userId).toSet();
+    expect(ids, contains('u-forwarded'));
+    expect(ids, isNot(contains('u-stranger')));
   });
 }

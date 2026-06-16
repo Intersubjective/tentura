@@ -53,11 +53,22 @@ final class ForwardCase extends UseCaseBase {
     final results = await Future.wait([
       _forwardRepository.fetchForwardCandidates(context: context),
       _forwardRepository.fetchBeaconInvolvement(beaconId: beaconId),
-      _forwardRepository.fetchLineageForwardSuggestions(beaconId: beaconId),
     ]);
     final profiles = results[0] as Iterable<Profile>;
     final involvement = results[1] as BeaconInvolvementData;
-    final lineage = results[2] as LineageForwardSuggestions;
+
+    final parentId = involvement.beacon.lineageParentBeaconId;
+    final lineage = parentId != null && parentId.isNotEmpty
+        ? await _forwardRepository.fetchLineageForwardSuggestions(
+            beaconId: beaconId,
+          )
+        : const LineageForwardSuggestions(
+            sourceBeaconId: '',
+            rootBeaconId: '',
+            suggestedNote: '',
+            suggestions: [],
+          );
+
     final myId = await getCurrentAccountId();
 
     var candidates = profiles

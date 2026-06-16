@@ -27,8 +27,18 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
     final source = await _beaconRepository.getBeaconById(beaconId: beaconId);
     assertBeaconLineageSourceVisible(beacon: source, userId: userId);
 
+    final parentId = source.lineageParentBeaconId;
+    if (parentId == null || parentId.isEmpty) {
+      return LineageForwardSuggestions(
+        sourceBeaconId: source.id,
+        rootBeaconId: source.id,
+        suggestedNote: '',
+        suggestions: const [],
+      );
+    }
+
     final rootBeaconId =
-        source.lineageRootBeaconId ?? source.lineageParentBeaconId ?? source.id;
+        source.lineageRootBeaconId ?? parentId;
     final lineageBeaconIds =
         await _lineageMemoryReadPort.fetchLineageBeaconIds(
           rootBeaconId: rootBeaconId,
@@ -119,6 +129,7 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
 
     for (final tag in privateTags) {
       final uid = tag.subjectUserId;
+      if (!candidateRecipientIds.contains(uid)) continue;
       if (_isPushbackSuppressed(uid, pushbackCounts)) continue;
       if (_hasSinglePushback(uid, pushbackCounts)) continue;
       if (classified.containsKey(uid)) continue;
