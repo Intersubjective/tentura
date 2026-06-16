@@ -1,139 +1,31 @@
--- Triggers and trigger functions for MeritRank + app logic
--- Extracted from packages/server migrations m0002, m0003, m0005.
--- Prerequisites: mr_put_edge(), mr_delete_edge(); mr_set_new_edges_filter() optional (behind flag, unimplemented/WIP)
--- (e.g. from MeritRank/Hasura schema). Tables public.beacon,
--- vote_beacon, vote_user, "user", user_vsids, invitation, message,
--- polling, polling_variant, polling_act, user_updates must exist.
---
--- Usage: psql -U postgres -d your_db -f sql/triggers.sql
+part of '_migrations.dart';
 
--- Helper used by updated_at triggers
-CREATE OR REPLACE FUNCTION public.set_current_timestamp_updated_at()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-DECLARE
-  _new record;
-BEGIN
-  _new := NEW;
-  _new."updated_at" = NOW();
-  RETURN _new;
-END;
-$$;
-
--- NOTE: notify_meritrank_vote_user_mutation trigger dropped in migration m0088.
--- User→user MeritRank edges are written by SQL trust_apply_evidence / meritrank_sweep.
--- (Function body kept below for reference; do not re-attach the trigger.)
-
--- Trigger functions (before_insert / vsids)
-CREATE OR REPLACE FUNCTION public.notify_meritrank_vote_user_mutation()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-BEGIN
-  IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
-    PERFORM mr_put_edge(
-      NEW.subject,
-      NEW.object,
-      (NEW.amount)::double precision,
-      ''::text, NEW.ticker
-    );
-    RETURN NEW;
-
-  ELSIF (TG_OP = 'DELETE') THEN
-    PERFORM mr_delete_edge(
-      OLD.subject,
-      OLD.object,
-      ''::text
-    );
-    RETURN OLD;
-  END IF;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.on_public_user_update()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-DECLARE
-  _new record;
-BEGIN
-  _new := NEW;
-  _new."updated_at" = NOW();
-  IF NEW.has_picture = false THEN
-    _new.blur_hash = '';
-    _new.pic_height = 0;
-    _new.pic_width = 0;
-  END IF;
-  RETURN _new;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.on_user_created()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-BEGIN
-  INSERT INTO user_vsids
-    VALUES (NEW.id, DEFAULT, DEFAULT);
-  RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.vote_user_before_insert()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  AS $$
-BEGIN
-  UPDATE user_vsids SET counter = counter + 1
-    WHERE user_id = NEW.subject
-    RETURNING counter INTO NEW.ticker;
-  RETURN NEW;
-END;
-$$;
-
--- Triggers
+/// Dirichlet-Bayesian user→user trust edges (VSIDS inflation); SQL owns trust math.
+final m0088 = Migration('0088', [
+  '''
+CREATE TABLE IF NOT EXISTS public.user_trust_edge (
+  subject text NOT NULL,
+  object text NOT NULL,
+  s_very_bad double precision NOT NULL DEFAULT 0,
+  s_bad double precision NOT NULL DEFAULT 0,
+  s_no_effect double precision NOT NULL DEFAULT 0,
+  s_good double precision NOT NULL DEFAULT 0,
+  s_very_good double precision NOT NULL DEFAULT 0,
+  anchor_at timestamp with time zone NOT NULL DEFAULT now(),
+  prev_sent_weight double precision NOT NULL DEFAULT 0,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT user_trust_edge_pkey PRIMARY KEY (subject, object),
+  CONSTRAINT user_trust_edge_subject_fkey FOREIGN KEY (subject)
+    REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT user_trust_edge_object_fkey FOREIGN KEY (object)
+    REFERENCES public."user"(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+''',
+  '''
 DROP TRIGGER IF EXISTS notify_meritrank_vote_user_mutation ON public.vote_user;
-
-CREATE OR REPLACE TRIGGER on_public_user_update
-  BEFORE UPDATE ON public."user"
-  FOR EACH ROW EXECUTE FUNCTION public.on_public_user_update();
-
-CREATE OR REPLACE TRIGGER on_user_created
-  AFTER INSERT ON public."user"
-  FOR EACH ROW EXECUTE FUNCTION public.on_user_created();
-
-CREATE OR REPLACE TRIGGER public_vote_user_before_insert
-  BEFORE INSERT ON public.vote_user
-  FOR EACH ROW EXECUTE FUNCTION public.vote_user_before_insert();
-
-CREATE OR REPLACE TRIGGER set_public_beacon_updated_at
-  BEFORE UPDATE ON public.beacon
-  FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
-
-CREATE OR REPLACE TRIGGER set_public_invitation_updated_at
-  BEFORE UPDATE ON public.invitation
-  FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
-
-CREATE OR REPLACE TRIGGER set_public_message_updated_at
-  BEFORE UPDATE ON public.message
-  FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
-
-CREATE OR REPLACE TRIGGER set_public_user_vsids_updated_at
-  BEFORE UPDATE ON public.user_vsids
-  FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
-
-CREATE OR REPLACE TRIGGER set_public_vote_beacon_updated_at
-  BEFORE UPDATE ON public.vote_beacon
-  FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
-
-CREATE OR REPLACE TRIGGER set_public_vote_user_updated_at
-  BEFORE UPDATE ON public.vote_user
-  FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
-
--- Trust-edge weight (single source of truth for Dirichlet posterior mean).
--- Inflated accumulators s_* are deflated by factor _f before applying Laplace prior.
--- Overflow: 2^(age/H) reaches Inf only after ~1024 half-lives (~510 years at H=182d); no rescale guard.
+''',
+  r'''
 CREATE OR REPLACE FUNCTION public.trust_edge_weight(
   _s_very_bad double precision,
   _s_bad double precision,
@@ -148,8 +40,8 @@ CREATE OR REPLACE FUNCTION public.trust_edge_weight(
   SELECT (_f * (-5 * _s_very_bad - _s_bad + _s_good + 5 * _s_very_good))
        / (5 + _f * (_s_very_bad + _s_bad + _s_no_effect + _s_good + _s_very_good));
 $$;
-
--- Apply evidence to one edge (VSIDS inflate bump, epsilon-gated mr_put_edge).
+''',
+  r'''
 CREATE OR REPLACE FUNCTION public.trust_apply_evidence(
   _subject text,
   _object text,
@@ -168,6 +60,7 @@ DECLARE
   _w double precision;
   _bump double precision;
 BEGIN
+  -- Row lock via upsert; anchor_at fixed on conflict (never advanced by evidence).
   INSERT INTO public.user_trust_edge (subject, object, anchor_at)
   VALUES (_subject, _object, now())
   ON CONFLICT (subject, object) DO UPDATE
@@ -210,8 +103,8 @@ BEGIN
   RETURN _w;
 END;
 $$;
-
--- Proactive decay drift push (schedule via SELECT meritrank_sweep(H, epsilon)).
+''',
+  r'''
 CREATE OR REPLACE FUNCTION public.meritrank_sweep(
   _half_life_seconds double precision,
   _epsilon double precision
@@ -251,7 +144,8 @@ BEGIN
   RETURN _pushed;
 END;
 $$;
-
+''',
+  r'''
 CREATE OR REPLACE FUNCTION public.trust_resync_source(
   _subject text,
   _half_life_seconds double precision
@@ -291,7 +185,8 @@ BEGIN
   RETURN _pushed;
 END;
 $$;
-
+''',
+  r'''
 CREATE OR REPLACE FUNCTION public.trust_recompute_all(
   _half_life_seconds double precision
 ) RETURNS integer
@@ -327,18 +222,14 @@ BEGIN
   RETURN _updated;
 END;
 $$;
-
--- meritrank_init(): backfill MeritRank from existing data (call via SELECT meritrank_init();)
--- Uses mr_bulk_load_edges for a single RPC instead of many mr_put_edge calls.
--- Unimplemented/WIP: new-edges filter behind _meritrank_new_edges_enabled (default false).
+''',
+  r'''
 CREATE OR REPLACE FUNCTION public.meritrank_init()
   RETURNS integer
-  LANGUAGE plpgsql
-  STABLE
-  AS $$
+    LANGUAGE plpgsql
+    STABLE
+    AS $$
 DECLARE
-  -- Unimplemented/WIP: new-edges filter feature disabled; Meritrank service no longer supports
-  -- mr_set_new_edges_filter / mr_fetch_new_edges / mr_get_new_edges_filter. Set to true when reimplemented.
   _meritrank_new_edges_enabled constant boolean := false;
   _src text[];
   _dst text[];
@@ -349,21 +240,11 @@ DECLARE
   _edge_count integer;
 BEGIN
   WITH all_edges AS (
-    -- Edges User -> User (Dirichlet trust; prev_sent_weight is MR seed)
-    SELECT subject AS src, object AS dst, prev_sent_weight AS weight, 0::bigint AS magnitude, ''::text AS context
-    FROM user_trust_edge
+    SELECT subject AS src, object AS dst, prev_sent_weight AS weight, 0::bigint AS magnitude, ''::text AS context FROM user_trust_edge
     UNION ALL
-    -- Pollings and Variants (variant -> polling)
-    SELECT pv.id, p.id, 1.0::float8, 0::bigint, ''::text
-    FROM polling p
-    JOIN polling_variant pv ON p.id = pv.polling_id
-    WHERE p.enabled = true
+    SELECT pv.id, p.id, 1.0::float8, 0::bigint, ''::text FROM polling p JOIN polling_variant pv ON p.id = pv.polling_id WHERE p.enabled = true
     UNION ALL
-    -- Pollings Acts
-    SELECT pa.author_id, pa.polling_variant_id, 1.0::float8, 0::bigint, ''::text
-    FROM polling_act pa
-    JOIN polling p ON p.id = pa.polling_id
-    WHERE p.enabled = true
+    SELECT pa.author_id, pa.polling_variant_id, 1.0::float8, 0::bigint, ''::text FROM polling_act pa JOIN polling p ON p.id = pa.polling_id WHERE p.enabled = true
   ),
   agg AS (
     SELECT
@@ -380,15 +261,14 @@ BEGIN
   FROM agg;
 
   _total := _total + _edge_count;
-
   PERFORM mr_bulk_load_edges(_src, _dst, _weight, _magnitude, _context, 120000::bigint);
 
-  -- Unimplemented/WIP: new-edges filter; no calls when flag off.
   IF _meritrank_new_edges_enabled THEN
-    SELECT _total + count(*)::int INTO _total
-    FROM (SELECT mr_set_new_edges_filter(user_id, filter) FROM user_updates) AS _;
+    SELECT _total + count(*)::int INTO _total FROM (SELECT mr_set_new_edges_filter(user_id, filter) FROM user_updates) AS _;
   END IF;
 
   RETURN _total;
 END;
 $$;
+''',
+]);

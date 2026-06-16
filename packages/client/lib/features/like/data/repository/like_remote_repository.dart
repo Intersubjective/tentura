@@ -66,16 +66,15 @@ class LikeRemoteRepository extends RemoteRepository {
 
   Future<int> _likeUser({required String userId, required int amount}) async {
     final data = await requestDataOnlineOrThrow(
-      GLikeUserByIdReq(
+      GUserVoteReq(
         (b) =>
             b.vars
-              ..object = userId
+              ..objectId = userId
               ..amount = amount,
       ),
       label: _label,
     );
-    final result = data.insert_vote_user_one?.amount;
-    if (result == null) throw LikeSetException(userId);
+    final result = data.userVote;
     return result;
   }
 

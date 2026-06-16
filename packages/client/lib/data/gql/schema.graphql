@@ -2633,6 +2633,11 @@ type mutation_root {
   invitationAccept(id: String!): Boolean!
   invitationDelete(id: String!): Boolean!
   meritrankInit(forceCalculate: Boolean): Int!
+  trustForceRefreshAll: Boolean!
+  trustForceRefreshStar(sourceUserId: String!): Boolean!
+  userSubscribe(objectId: String!): Int!
+  userUnsubscribe(objectId: String!): Int!
+  userVote(amount: Int!, objectId: String!): Int!
   pollingAct(pollingId: String!, variantIds: [String!]!, score: Int): Boolean!
   setBeaconCoordinationStatus(coordinationStatus: Int!, id: String!): Boolean!
   setCoordinationResponse(offerUserId: String!, id: String!, inviteToRoom: Boolean!, removeFromRoom: Boolean!, responseType: Int!): v2_CoordinationStatusResult!

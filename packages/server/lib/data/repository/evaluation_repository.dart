@@ -5,6 +5,10 @@ import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.da
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
+import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
+import 'package:tentura_server/domain/trust/trust_bin.dart';
+import 'package:tentura_server/domain/trust/trust_evidence.dart';
+import 'package:tentura_server/domain/trust/trust_math.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/evaluation_mapper.dart';
@@ -15,9 +19,13 @@ import '../mapper/evaluation_mapper.dart';
   order: 1,
 )
 class EvaluationRepository implements EvaluationRepositoryPort {
-  const EvaluationRepository(this._db);
+  EvaluationRepository(
+    this._db,
+    this._trustEdgeRepository,
+  );
 
   final TenturaDb _db;
+  final UserTrustEdgeRepositoryPort _trustEdgeRepository;
 
   @override
   Future<void> insertReviewWindow({
@@ -296,42 +304,86 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   @override
   Future<void> closeExpiredWindows() => _db.transaction(() async {
         final now = DateTime.timestamp();
-        final open = await _db.managers.beaconReviewWindows
-            .filter((w) => w.status.equals(0))
-            .get();
-        final expired = open.where(
-          (w) => w.closesAt.dateTime.isBefore(now),
-        );
+        final expiredBeaconIds = await _db.customSelect(
+          r'''
+SELECT beacon_id
+FROM beacon_review_window
+WHERE status = 0 AND closes_at < $1
+FOR UPDATE
+''',
+          variables: [Variable(PgDateTime(now))],
+        ).map((r) => r.read<String>('beacon_id')).get();
 
-        for (final w in expired) {
+        final batchesBySource = <String, List<TrustEvidence>>{};
+
+        for (final beaconId in expiredBeaconIds) {
           await _db.managers.beaconReviewWindows
-              .filter((e) => e.beaconId.id(w.beaconId))
+              .filter((e) => e.beaconId.id(beaconId))
               .update(
                 (o) => o(
                   status: const Value(1),
-                  updatedAt: Value(PgDateTime(DateTime.timestamp())),
+                  updatedAt: Value(PgDateTime(now)),
                 ),
               );
 
           await _db.managers.beacons
-              .filter((b) => b.id.equals(w.beaconId))
+              .filter((b) => b.id.equals(beaconId))
               .update((o) => o(state: const Value(6)));
 
           await _db.managers.beaconReviewStatuses
               .filter(
                 (s) =>
-                    s.beaconId.id(w.beaconId) &
+                    s.beaconId.id(beaconId) &
                     (s.status.equals(0) | s.status.equals(1)),
               )
               .update(
                 (o) => o(
                   status: const Value(4),
-                  updatedAt: Value(PgDateTime(DateTime.timestamp())),
+                  updatedAt: Value(PgDateTime(now)),
                 ),
               );
 
-          await finalizeSubmittedEvaluationsForBeacon(w.beaconId);
-          await deleteDraftEvaluationsForBeacon(w.beaconId);
+          final transitioned = await _db.customSelect(
+            r'''
+UPDATE beacon_evaluation
+SET status = $1, updated_at = now()
+WHERE beacon_id = $2 AND status = $3
+RETURNING evaluator_id, evaluated_user_id, value
+''',
+            variables: [
+              const Variable<int>(BeaconEvaluationRowStatus.final_),
+              Variable<String>(beaconId),
+              const Variable<int>(BeaconEvaluationRowStatus.submitted),
+            ],
+          ).get();
+
+          for (final row in transitioned) {
+            final evaluatorId = row.read<String>('evaluator_id');
+            final evaluatedUserId = row.read<String>('evaluated_user_id');
+            final value = row.read<int>('value');
+            final bin = reviewValueToBin(value);
+            if (bin == null) continue;
+            batchesBySource.putIfAbsent(evaluatorId, () => []).add(
+              TrustEvidence(
+                targetUserId: evaluatedUserId,
+                bin: bin,
+                count: kTrustReviewEvidenceCount,
+              ),
+            );
+          }
+
+          await deleteDraftEvaluationsForBeacon(beaconId);
+        }
+
+        final sortedSources = batchesBySource.keys.toList()..sort();
+        for (final source in sortedSources) {
+          await _trustEdgeRepository.applyEvidenceInTransaction(
+            TrustEvidenceBatch(
+              sourceUserId: source,
+              at: now,
+              items: batchesBySource[source]!,
+            ),
+          );
         }
       });
 }

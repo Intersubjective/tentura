@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNull, isNotNull;
+import 'package:tentura_server/data/repository/mock/user_trust_edge_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
@@ -33,7 +34,7 @@ Future<void> main() async {
         isDebugModeOn: false,
       );
       db = TenturaDb(env);
-      repo = UserRepository(env, db);
+      repo = UserRepository(env, db, const UserTrustEdgeRepositoryMock());
     });
 
     tearDownAll(() async {
