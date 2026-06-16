@@ -15,6 +15,14 @@ Never throwClassifiedRemoteFailure(Object? error) {
 }
 
 Object mapRemoteFailure(Object? error) {
+  // Already a classified domain exception. The link layer re-wraps anything an
+  // earlier link throws (e.g. ErrorLink throwing RemoteApiException after a
+  // 200-with-errors response) into a gql.ServerException; once we unwrap that
+  // below we re-enter here with the original — pass it through untouched
+  // instead of flattening its real message back into raw text.
+  if (error is GenericException) {
+    return error;
+  }
   if (error is AuthSessionLostException) {
     return error;
   }
@@ -148,7 +156,17 @@ Object? _mapServerException(gql.ServerException error) {
     return _remoteApiOrUnknown('Server error (HTTP $status)');
   }
 
-  // No status and no parsed response: treat as a transport failure.
+  // No status and no parsed response. This is how ferry surfaces an exception
+  // thrown by an earlier link: the real cause (e.g. the RemoteApiException
+  // ErrorLink threw for a GraphQL error) is tucked into `originalException`
+  // while `parsedResponse` is null. Recover it so its message survives instead
+  // of being lost behind this wrapper's toString().
+  final original = error.originalException;
+  if (original != null && original is! gql.ServerException) {
+    return mapRemoteFailure(original);
+  }
+
+  // No status, no parsed response, nothing wrapped: a genuine transport failure.
   return null;
 }
 
