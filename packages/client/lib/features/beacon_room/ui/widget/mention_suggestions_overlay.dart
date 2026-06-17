@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -25,54 +24,12 @@ final class MentionSuggestionsOverlay extends StatefulWidget {
 }
 
 class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
-  final _focusNode = FocusNode();
   int _selectedIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
-    });
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
 
   void _selectAt(int index) {
     if (widget.suggestions.isEmpty) return;
     final i = index.clamp(0, widget.suggestions.length - 1);
     setState(() => _selectedIndex = i);
-  }
-
-  void _confirm() {
-    if (widget.suggestions.isEmpty) return;
-    widget.onSelect(widget.suggestions[_selectedIndex]);
-  }
-
-  KeyEventResult _onKey(FocusNode _, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final key = event.logicalKey;
-    if (key == LogicalKeyboardKey.escape) {
-      widget.onDismiss();
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.arrowDown) {
-      _selectAt(_selectedIndex + 1);
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.arrowUp) {
-      _selectAt(_selectedIndex - 1);
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.enter) {
-      _confirm();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
   }
 
   @override
@@ -88,22 +45,18 @@ class _MentionSuggestionsOverlayState extends State<MentionSuggestionsOverlay> {
       showWhenUnlinked: false,
       followerAnchor: Alignment.bottomLeft,
       offset: const Offset(0, -8),
-      child: Focus(
-        focusNode: _focusNode,
-        onKeyEvent: _onKey,
-        child: Material(
-          elevation: 6,
-          borderRadius: BorderRadius.circular(12),
-          clipBehavior: Clip.antiAlias,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < max; i++)
-                  _row(theme, list[i], selected: i == _selectedIndex, index: i),
-              ],
-            ),
+      child: Material(
+        elevation: 6,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < max; i++)
+                _row(theme, list[i], selected: i == _selectedIndex, index: i),
+            ],
           ),
         ),
       ),

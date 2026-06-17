@@ -494,8 +494,11 @@ class BeaconRoomComposer extends StatefulWidget {
 
 class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   final _text = MentionTextController();
+  final _composerFocus = FocusNode();
   final _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
+  List<BeaconParticipant> _overlaySuggestions = const [];
+  var _overlaySyncScheduled = false;
 
   final List<RoomPendingUpload> _pending = [];
 
@@ -508,13 +511,30 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   @override
   void dispose() {
     _text.removeListener(_onTextChanged);
+    _overlaySyncScheduled = false;
     _removeOverlay();
+    _composerFocus.unfocus();
     _text.dispose();
+    _composerFocus.dispose();
     super.dispose();
   }
 
   void _onTextChanged() {
     if (!mounted) return;
+    _scheduleOverlaySync();
+  }
+
+  void _scheduleOverlaySync() {
+    if (_overlaySyncScheduled) return;
+    _overlaySyncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _overlaySyncScheduled = false;
+      if (!mounted) return;
+      _syncMentionOverlay();
+    });
+  }
+
+  void _syncMentionOverlay() {
     if (!widget.enableParticipantMentions) {
       _removeOverlay();
       return;
@@ -538,24 +558,34 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   void _removeOverlay() {
+    _overlaySuggestions = const [];
     _overlayEntry?.remove();
     _overlayEntry = null;
   }
 
   void _showOverlay(List<BeaconParticipant> suggestions) {
-    _overlayEntry?.remove();
+    _overlaySuggestions = suggestions;
+    if (_overlayEntry != null) {
+      _overlayEntry!.markNeedsBuild();
+      return;
+    }
     _overlayEntry = OverlayEntry(
-      builder: (_) => MentionSuggestionsOverlay(
-        suggestions: suggestions,
-        layerLink: _layerLink,
-        onDismiss: _removeOverlay,
-        onSelect: (p) {
-          _text.insertMention(p.handle.toLowerCase());
-          _removeOverlay();
-        },
-      ),
+      builder: (_) {
+        final list = _overlaySuggestions;
+        if (list.isEmpty) return const SizedBox.shrink();
+        return MentionSuggestionsOverlay(
+          suggestions: list,
+          layerLink: _layerLink,
+          onDismiss: _removeOverlay,
+          onSelect: (p) {
+            _text.insertMention(p.handle.toLowerCase());
+            _removeOverlay();
+          },
+        );
+      },
     );
-    Overlay.of(context, rootOverlay: true).insert(_overlayEntry!);
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    overlay?.insert(_overlayEntry!);
   }
 
   int get _remainingSlots => kMaxRoomMessageAttachments - _pending.length;
@@ -824,6 +854,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                 link: _layerLink,
                 child: TextField(
                   controller: _text,
+                  focusNode: _composerFocus,
                   decoration: InputDecoration(
                     hintText: l10n.beaconRoomMessageHint,
                   ),
@@ -832,7 +863,10 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                   textInputAction: TextInputAction.send,
                   enabled: !busy,
                   onSubmitted: (_) => unawaited(_submit()),
-                  onTapOutside: (_) => _removeOverlay(),
+                  onTapOutside: (_) {
+                    _removeOverlay();
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  },
                 ),
               ),
             ),
