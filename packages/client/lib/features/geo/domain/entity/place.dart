@@ -12,6 +12,16 @@ class Place {
 
   bool get isNotEmpty => country.isNotEmpty && locality.isNotEmpty;
 
+  /// City / locality label for compact card metadata.
+  String get displayLocality {
+    final city = locality.trim();
+    if (city.isNotEmpty) {
+      return city;
+    }
+    final nation = country.trim();
+    return nation.isEmpty ? toString() : nation;
+  }
+
   @override
   String toString() => '$country${locality.isEmpty ? '' : ','} $locality';
 }

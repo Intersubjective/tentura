@@ -1848,6 +1848,50 @@
       }
     }
   },
+  "beaconCardLocationSet": "Location set",
+  "@beaconCardLocationSet": {
+    "description": "My Work card metadata when beacon has coordinates but place name is unavailable (web/desktop)"
+  },
+  "beaconCardScheduleStartsIn": "Starts in {remaining}",
+  "@beaconCardScheduleStartsIn": {
+    "description": "Screen reader label for beacon schedule countdown before start",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleEndsIn": "Ends in {remaining}",
+  "@beaconCardScheduleEndsIn": {
+    "description": "Screen reader label for beacon schedule countdown before end",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleEndedAgo": "Ended {ago}",
+  "@beaconCardScheduleEndedAgo": {
+    "description": "Screen reader label for beacon schedule finished relative time",
+    "placeholders": {
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleInProgress": "In progress",
+  "@beaconCardScheduleInProgress": {
+    "description": "Screen reader label when beacon is in progress without an end date"
+  },
+  "beaconCardLocationSemantics": "Location: {place}",
+  "@beaconCardLocationSemantics": {
+    "description": "Screen reader label for beacon location on My Work card",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkReviewHelpOffersCta": "Review help offers",
   "@myWorkReviewHelpOffersCta": {
     "context": "MyWorkScreen"

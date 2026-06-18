@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
@@ -325,7 +326,7 @@ class _AuthoredActiveCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardInvolvedPeopleLine(
+          MyWorkCardMetadataRow(
             beacon: b,
             updatedLine: activityWhenLine,
           ),
@@ -409,7 +410,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardInvolvedPeopleLine(
+          MyWorkCardMetadataRow(
             beacon: b,
             updatedLine: activityWhenLine,
           ),
@@ -488,7 +489,7 @@ class _DraftAuthoredCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardInvolvedPeopleLine(
+          MyWorkCardMetadataRow(
             beacon: b,
             updatedLine: activityWhenLine,
           ),
@@ -636,7 +637,7 @@ class _ClosedAuthoredCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardInvolvedPeopleLine(
+          MyWorkCardMetadataRow(
             beacon: b,
             updatedLine: activityWhenLine,
           ),
@@ -729,7 +730,7 @@ class _ClosedHelpOfferedCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardInvolvedPeopleLine(
+          MyWorkCardMetadataRow(
             beacon: b,
             updatedLine: activityWhenLine,
           ),

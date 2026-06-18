@@ -4,8 +4,8 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
+import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/beacon_card_deadline.dart';
 
 /// Three semantic slots for the My Work single-line status row.
 final class MyWorkStatusLineData {
@@ -244,9 +244,8 @@ String _helpOfferedMirrorRequest(L10n l10n, Beacon b) {
   Beacon b,
   DateTime now,
 ) {
-  final end = b.endAt;
-  if (end != null) {
-    return beaconCardCalendarDeadlineStatus(l10n, end, now: now)!;
+  if (b.hasScheduleDates) {
+    return (text: '', overdue: false);
   }
   if (b.lifecycle == BeaconLifecycle.pendingReview) {
     return (text: l10n.myWorkStatusAwaitingClose, overdue: false);
@@ -262,9 +261,8 @@ String _helpOfferedMirrorRequest(L10n l10n, Beacon b) {
   Beacon b,
   DateTime now,
 ) {
-  final end = b.endAt;
-  if (end != null) {
-    return beaconCardCalendarDeadlineStatus(l10n, end, now: now)!;
+  if (b.hasScheduleDates) {
+    return (text: '', overdue: false);
   }
   if (b.lifecycle == BeaconLifecycle.pendingReview) {
     return (text: l10n.myWorkStatusWaitingOnAuthor, overdue: false);
