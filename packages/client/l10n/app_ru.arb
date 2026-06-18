@@ -1848,6 +1848,50 @@
       }
     }
   },
+  "beaconCardLocationSet": "Место указано",
+  "@beaconCardLocationSet": {
+    "description": "My Work card metadata when beacon has coordinates but place name is unavailable (web/desktop)"
+  },
+  "beaconCardScheduleStartsIn": "Начало через {remaining}",
+  "@beaconCardScheduleStartsIn": {
+    "description": "Screen reader label for beacon schedule countdown before start",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleEndsIn": "Окончание через {remaining}",
+  "@beaconCardScheduleEndsIn": {
+    "description": "Screen reader label for beacon schedule countdown before end",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleEndedAgo": "Завершено {ago}",
+  "@beaconCardScheduleEndedAgo": {
+    "description": "Screen reader label for beacon schedule finished relative time",
+    "placeholders": {
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleInProgress": "В процессе",
+  "@beaconCardScheduleInProgress": {
+    "description": "Screen reader label when beacon is in progress without an end date"
+  },
+  "beaconCardLocationSemantics": "Место: {place}",
+  "@beaconCardLocationSemantics": {
+    "description": "Screen reader label for beacon location on My Work card",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkReviewHelpOffersCta": "Проверить предложения помощи",
   "@myWorkReviewHelpOffersCta": {
     "context": "MyWorkScreen"

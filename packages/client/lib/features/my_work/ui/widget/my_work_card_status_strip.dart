@@ -41,23 +41,23 @@ class MyWorkCardStatusStrip extends StatelessWidget {
             fontWeight: FontWeight.w600,
           )
         : baseStyle;
-    final slot2Style = data.timeSlotOverdue
-        ? baseStyle.copyWith(
-            color: scheme.error,
-            fontWeight: FontWeight.w600,
-          )
-        : baseStyle;
+    final slot2Style = baseStyle;
+
+    final spans = <InlineSpan>[
+      TextSpan(text: data.slot1, style: slot1Style),
+    ];
+    final slot2 = data.slot2.trim();
+    if (slot2.isNotEmpty) {
+      spans
+        ..add(TextSpan(text: ' · ', style: baseStyle))
+        ..add(TextSpan(text: slot2, style: slot2Style));
+    }
+    spans
+      ..add(TextSpan(text: ' · ', style: baseStyle))
+      ..add(TextSpan(text: data.slot3, style: baseStyle));
 
     final line = Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(text: data.slot1, style: slot1Style),
-          TextSpan(text: ' · ', style: baseStyle),
-          TextSpan(text: data.slot2, style: slot2Style),
-          TextSpan(text: ' · ', style: baseStyle),
-          TextSpan(text: data.slot3, style: baseStyle),
-        ],
-      ),
+      TextSpan(children: spans),
       maxLines: 1,
       softWrap: false,
       overflow: TextOverflow.ellipsis,

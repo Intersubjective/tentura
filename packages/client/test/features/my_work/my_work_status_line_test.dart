@@ -125,4 +125,41 @@ void main() {
     expect(line.slot2, l10n.myWorkStatusReviewOpen);
     expect(line.slot3, l10n.myWorkStatusNParticipants(3));
   });
+
+  testWidgets('authored active omits slot2 when beacon has schedule dates', (
+    tester,
+  ) async {
+    L10n? l10nRef;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            l10nRef = L10n.of(context);
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final l10n = l10nRef!;
+
+    final vm = MyWorkCardViewModel(
+      beaconId: 'sched',
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredActive,
+      beacon: Beacon.empty.copyWith(
+        id: 'sched',
+        lifecycle: BeaconLifecycle.open,
+        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+        helpOfferCount: 2,
+        endAt: DateTime(2026, 7, 1),
+      ),
+    );
+    final line = myWorkStatusLine(l10n: l10n, vm: vm);
+    expect(line.slot2, isEmpty);
+    expect(line.slot1, l10n.myWorkStatusEnoughHelp);
+  });
 }

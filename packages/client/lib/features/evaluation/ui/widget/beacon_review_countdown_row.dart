@@ -2,34 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/utils/duration_format.dart';
 
 /// Formats remaining duration for evaluation review window UI.
-String formatReviewWindowRemaining(
-  Duration remaining,
-  L10n l10n,
-) {
-  if (remaining.isNegative || remaining == Duration.zero) {
-    return l10n.evaluationReviewDurationLessThanMinute;
-  }
-  final days = remaining.inDays;
-  final hoursTotal = remaining.inHours;
-  final hours = hoursTotal % 24;
-  final minutes = remaining.inMinutes % 60;
-  if (days > 0) {
-    return l10n.evaluationReviewDurationDaysHours(days, hours);
-  }
-  if (hoursTotal > 0) {
-    return l10n.evaluationReviewDurationHoursMinutes(hoursTotal, minutes);
-  }
-  if (minutes > 0) {
-    return l10n.evaluationReviewDurationMinutes(minutes);
-  }
-  return l10n.evaluationReviewDurationLessThanMinute;
-}
+String formatReviewWindowRemaining(Duration remaining, L10n l10n) =>
+    formatCompactDurationRemaining(remaining, l10n);
 
 /// Countdown line for open review windows on beacon list cards (data from Hasura `BeaconModel`).
 class BeaconReviewCountdownRow extends StatefulWidget {
@@ -84,7 +65,7 @@ class _BeaconReviewCountdownRowState extends State<BeaconReviewCountdownRow> {
     if (remaining.isNegative) {
       return const SizedBox.shrink();
     }
-    final detail = formatReviewWindowRemaining(remaining, l10n);
+    final detail = formatCompactDurationRemaining(remaining, l10n);
     return Padding(
       padding: kPaddingSmallV,
       child: Row(

@@ -6,15 +6,21 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import '../../data/repository/geo_repository.dart';
 import '../../domain/entity/place.dart';
 
+typedef PlaceNameFormatter = String Function(Place? place, Coordinates coords);
+
 class PlaceNameText extends StatelessWidget {
   const PlaceNameText({
     required this.coords,
     this.style,
+    this.labelForPlace,
     super.key,
   });
 
   final Coordinates coords;
   final TextStyle? style;
+
+  /// When set, formats the resolved [Place] for display (default: [Place.toString]).
+  final PlaceNameFormatter? labelForPlace;
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +34,13 @@ class PlaceNameText extends StatelessWidget {
         : _buildText(place);
   }
 
+  String _format(Place? place) =>
+      labelForPlace?.call(place, coords) ??
+      place?.toString() ??
+      coords.toString();
+
   Text _buildText(Place? place) => Text(
-        place?.toString() ?? coords.toString(),
+        _format(place),
         maxLines: 1,
         textAlign: TextAlign.left,
         overflow: TextOverflow.ellipsis,
