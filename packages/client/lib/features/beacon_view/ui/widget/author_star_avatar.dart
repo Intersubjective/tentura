@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
-/// Avatar with author star badge (matches HUD people strip).
+/// Avatar with author star badge (matches overlapping people stacks).
 class AuthorStarAvatar extends StatelessWidget {
   const AuthorStarAvatar({
     required this.profile,
@@ -21,15 +22,7 @@ class AuthorStarAvatar extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         TenturaAvatar(profile: profile, size: size),
-        Positioned(
-          right: -2,
-          bottom: -2,
-          child: Icon(
-            Icons.star_rounded,
-            size: 14,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
+        ProfileAuthorStarBadge(avatarSize: size),
       ],
     );
   }

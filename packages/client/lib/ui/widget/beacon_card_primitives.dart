@@ -4,11 +4,13 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_text.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
+import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -273,6 +275,55 @@ class BeaconCardMetadataBlock extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// My Work metadata: overlapping involved-people avatars (no name / self ring) +
+/// optional full-width updated line.
+class BeaconCardInvolvedPeopleLine extends StatelessWidget {
+  const BeaconCardInvolvedPeopleLine({
+    required this.beacon,
+    required this.updatedLine,
+    super.key,
+  });
+
+  final Beacon beacon;
+  final String? updatedLine;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final updatedStyle = beaconCardUpdatedLineTextStyle(theme);
+    final metaAvatar = context.tt.metadataAvatarSize;
+    final display = beaconInvolvedPeopleDisplay(
+      author: beacon.author,
+      helpOfferUsers: beacon.helpOfferUsers,
+      helpOfferCount: beacon.helpOfferCount,
+    );
+    final updated = updatedLine?.trim() ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (display.visible.isNotEmpty)
+          OverlappingPeopleAvatars(
+            profiles: display.visible,
+            overflowCount: display.overflow,
+            size: metaAvatar,
+            starredProfileId: beacon.author.id,
+          ),
+        if (updated.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            updated,
+            style: updatedStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ],

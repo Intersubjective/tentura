@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/inbox_provenance.dart';
@@ -388,15 +389,14 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                _ProvenanceOverlappingRestAvatars(
+                OverlappingPeopleAvatars(
                   profiles: restProfiles,
                   overflowCount: overflowCount,
                   size: _kAvatarSize,
                   overlap: _kAvatarOverlap,
-                  ringColor: scheme.surfaceContainerLowest,
-                  badgeFillColor: scheme.outlineVariant,
-                  badgeTextColor: scheme.surface,
-                  viewerUserId: viewerUserId,
+                  overflowRingColor: scheme.surfaceContainerLowest,
+                  overflowBadgeFillColor: scheme.outlineVariant,
+                  overflowBadgeTextColor: scheme.surface,
                 ),
               ],
             ],
@@ -425,101 +425,6 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// Stacked avatars for additional forwarders + circular `+N` overflow badge.
-class _ProvenanceOverlappingRestAvatars extends StatelessWidget {
-  const _ProvenanceOverlappingRestAvatars({
-    required this.profiles,
-    required this.overflowCount,
-    required this.size,
-    required this.overlap,
-    required this.ringColor,
-    required this.badgeFillColor,
-    required this.badgeTextColor,
-    required this.viewerUserId,
-  });
-
-  final List<Profile> profiles;
-  final int overflowCount;
-  final double size;
-  final double overlap;
-  final Color ringColor;
-  final Color badgeFillColor;
-  final Color badgeTextColor;
-  final String viewerUserId;
-
-  @override
-  Widget build(BuildContext context) {
-    final extraSlots = overflowCount > 0 ? 1 : 0;
-    final n = profiles.length + extraSlots;
-    if (n == 0) {
-      return const SizedBox.shrink();
-    }
-
-    final step = size - overlap;
-    final width = size + (n - 1) * step;
-    final theme = Theme.of(context);
-
-    return SizedBox(
-      width: width,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (var i = 0; i < profiles.length; i++)
-            Positioned(
-              left: i * step,
-              child: Builder(
-                builder: (context) {
-                  final scheme = Theme.of(context).colorScheme;
-                  final self = SelfUserHighlight.profileIsSelf(
-                    profiles[i],
-                    viewerUserId,
-                  );
-                  return Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: self ? scheme.primary : ringColor,
-                        width: self ? 2 : 1,
-                      ),
-                    ),
-                    child: AvatarRated(
-                      profile: profiles[i],
-                      withRating: false,
-                      size: size,
-                    ),
-                  );
-                },
-              ),
-            ),
-          if (overflowCount > 0)
-            Positioned(
-              left: profiles.length * step,
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: badgeFillColor,
-                  border: Border.all(color: ringColor),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '+$overflowCount',
-                  style: theme.textTheme.labelMedium!.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: badgeTextColor,
-                    height: 1,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
     );
   }
 }

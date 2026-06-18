@@ -1,5 +1,6 @@
 # import '/data/gql/beacon_model.graphql'
 # import '/data/gql/user_model.graphql'
+# import 'beacon_model_with_help_offer_users.graphql'
 
 query MyWorkInit($userId: String!) {
   authoredNonClosed: beacon(
@@ -9,7 +10,7 @@ query MyWorkInit($userId: String!) {
     },
     order_by: {updated_at: desc}
   ) {
-    ...BeaconModel
+    ...BeaconModelWithHelpOfferUsers
   }
   helpOfferedNonClosed: beacon_help_offer(
     where: {
@@ -29,7 +30,7 @@ query MyWorkInit($userId: String!) {
       updated_at
     }
     beacon {
-      ...BeaconModel
+      ...BeaconModelWithHelpOfferUsers
       forward_edges(limit: 3, order_by: {created_at: desc}) {
         sender {
           ...UserModel
@@ -70,7 +71,7 @@ query MyWorkClosed($userId: String!) {
     },
     order_by: {updated_at: desc}
   ) {
-    ...BeaconModel
+    ...BeaconModelWithHelpOfferUsers
   }
   helpOfferedClosed: beacon_help_offer(
     where: {
@@ -90,7 +91,7 @@ query MyWorkClosed($userId: String!) {
       updated_at
     }
     beacon {
-      ...BeaconModel
+      ...BeaconModelWithHelpOfferUsers
       forward_edges(limit: 3, order_by: {created_at: desc}) {
         sender {
           ...UserModel

@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura/data/model/beacon_model.dart';
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 
+import '../model/beacon_model_with_help_offer_users.dart';
 import '../../domain/entity/my_work_fetch_types.dart';
 import '../gql/_g/my_work_coordination_activity.req.gql.dart';
 import '../gql/_g/my_work_fetch.data.gql.dart';
@@ -38,7 +38,7 @@ class MyWorkRepository {
     final itemActivity = await _fetchItemDiscussionActivity(beaconIds);
     return (
       authoredNonClosed: d.authoredNonClosed
-          .map((e) => BeaconModel(e).toEntity())
+          .map((e) => BeaconModelWithHelpOfferUsers(e).toEntity())
           .toList(),
       helpOfferedNonClosed:
           d.helpOfferedNonClosed.map(_mapInitHelpOfferedRow).toList(),
@@ -84,7 +84,7 @@ class MyWorkRepository {
     final d = r.dataOrThrow(label: _label);
     return (
       authoredClosed:
-          d.authoredClosed.map((e) => BeaconModel(e).toEntity()).toList(),
+          d.authoredClosed.map((e) => BeaconModelWithHelpOfferUsers(e).toEntity()).toList(),
       helpOfferedClosed:
           d.helpOfferedClosed.map(_mapClosedHelpOfferedRow).toList(),
     );
@@ -94,7 +94,7 @@ class MyWorkRepository {
     GMyWorkInitData_helpOfferedNonClosed e,
   ) {
     final b = e.beacon;
-    final beacon = BeaconModel(b).toEntity();
+    final beacon = BeaconModelWithHelpOfferUsers(b).toEntity();
     final forwarders = b.forward_edges
         .map((fe) => UserModel(fe.sender).toEntity())
         .toList();
@@ -115,7 +115,7 @@ class MyWorkRepository {
     GMyWorkClosedData_helpOfferedClosed e,
   ) {
     final b = e.beacon;
-    final beacon = BeaconModel(b).toEntity();
+    final beacon = BeaconModelWithHelpOfferUsers(b).toEntity();
     final forwarders = b.forward_edges
         .map((fe) => UserModel(fe.sender).toEntity())
         .toList();

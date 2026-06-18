@@ -1,6 +1,7 @@
 import 'package:blurhash_shader/blurhash_shader.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
 
@@ -26,18 +27,15 @@ class PlainMiniAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final initials = TenturaAvatar.initialsForProfile(profile);
     final avatar = ClipOval(
       child: profile.hasNoAvatar
-          ? AvatarRated.getAvatarPlaceholder(
-              cacheHeight: _cacheSize,
-              cacheWidth: _cacheSize,
-              fit: boxFit,
-            )
+          ? ProfileAvatarInitials(lettering: initials, size: size)
           : profile.image?.blurHash.isEmpty ?? true
-          ? _imageNetwork
+          ? _imageNetwork(context, initials)
           : BlurHash(
               profile.image!.blurHash,
-              child: _imageNetwork,
+              child: _imageNetwork(context, initials),
             ),
     );
 
@@ -61,13 +59,10 @@ class PlainMiniAvatar extends StatelessWidget {
     );
   }
 
-  Widget get _imageNetwork => Image.network(
+  Widget _imageNetwork(BuildContext context, String initials) => Image.network(
     profile.avatarUrl,
-    errorBuilder: (_, _, _) => AvatarRated.getAvatarPlaceholder(
-      cacheHeight: _cacheSize,
-      cacheWidth: _cacheSize,
-      fit: boxFit,
-    ),
+    errorBuilder: (_, _, _) =>
+        ProfileAvatarInitials(lettering: initials, size: size),
     cacheHeight: _cacheSize,
     cacheWidth: _cacheSize,
     fit: boxFit,

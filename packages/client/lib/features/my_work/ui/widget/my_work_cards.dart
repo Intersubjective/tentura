@@ -325,7 +325,7 @@ class _AuthoredActiveCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardMetadataLine(
+          BeaconCardInvolvedPeopleLine(
             beacon: b,
             updatedLine: activityWhenLine,
           ),
@@ -409,7 +409,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardMetadataLine(
+          BeaconCardInvolvedPeopleLine(
             beacon: b,
             updatedLine: activityWhenLine,
           ),
@@ -488,7 +488,7 @@ class _DraftAuthoredCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardMetadataLine(
+          BeaconCardInvolvedPeopleLine(
             beacon: b,
             updatedLine: activityWhenLine,
           ),
@@ -636,7 +636,7 @@ class _ClosedAuthoredCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardMetadataLine(
+          BeaconCardInvolvedPeopleLine(
             beacon: b,
             updatedLine: activityWhenLine,
           ),
@@ -729,7 +729,7 @@ class _ClosedHelpOfferedCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          BeaconCardMetadataLine(
+          BeaconCardInvolvedPeopleLine(
             beacon: b,
             updatedLine: activityWhenLine,
           ),

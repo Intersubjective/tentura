@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:blurhash_shader/blurhash_shader.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'tentura_icons.dart';
@@ -63,27 +64,27 @@ class AvatarRated extends StatelessWidget {
   /// MeritRank eye / mutual-contact badge; defaults to [withRating].
   final bool withContactBadge;
 
-  late final _cacheSize = size.ceil();
+  int get _cacheSize => size.ceil();
 
-  late final _avatar = ClipOval(
-    child: profile.hasNoAvatar
-        ? getAvatarPlaceholder(
-            cacheHeight: _cacheSize,
-            cacheWidth: _cacheSize,
-            fit: boxFit,
-          )
-        : profile.image?.blurHash.isEmpty ?? true
-        ? _imageNetwork
-        : BlurHash(
-            profile.image!.blurHash,
-            child: _imageNetwork,
-          ),
-  );
+  Widget _buildAvatar(BuildContext context) {
+    final initials = TenturaAvatar.initialsForProfile(profile);
+    return ClipOval(
+      child: profile.hasNoAvatar
+          ? ProfileAvatarInitials(lettering: initials, size: size)
+          : profile.image?.blurHash.isEmpty ?? true
+          ? _imageNetwork(context, initials)
+          : BlurHash(
+              profile.image!.blurHash,
+              child: _imageNetwork(context, initials),
+            ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final avatar = _buildAvatar(context);
     if (!withRating && !withContactBadge) {
-      return SizedBox.square(dimension: size, child: _avatar);
+      return SizedBox.square(dimension: size, child: avatar);
     }
     final scheme = Theme.of(context).colorScheme;
     return SizedBox.square(
@@ -106,20 +107,17 @@ class AvatarRated extends StatelessWidget {
         child: withRating
             ? Padding(
                 padding: EdgeInsets.all(size / 8),
-                child: _avatar,
+                child: avatar,
               )
-            : _avatar,
+            : avatar,
       ),
     );
   }
 
-  Widget get _imageNetwork => Image.network(
+  Widget _imageNetwork(BuildContext context, String initials) => Image.network(
     profile.avatarUrl,
-    errorBuilder: (_, _, _) => getAvatarPlaceholder(
-      cacheHeight: _cacheSize,
-      cacheWidth: _cacheSize,
-      fit: boxFit,
-    ),
+    errorBuilder: (_, _, _) =>
+        ProfileAvatarInitials(lettering: initials, size: size),
     cacheHeight: _cacheSize,
     cacheWidth: _cacheSize,
     fit: boxFit,

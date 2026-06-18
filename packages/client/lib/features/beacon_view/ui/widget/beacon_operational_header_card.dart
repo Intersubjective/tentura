@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart'
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
+import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 import 'beacon_hud_action_button.dart';
 
@@ -452,46 +453,28 @@ class _HudPeopleStrip extends StatelessWidget {
   final BeaconViewState state;
   final VoidCallback? onTap;
 
+  static const _maxVisible = 3;
+
   @override
   Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
     final beacon = state.beacon;
     final author = beacon.author;
     final active = state.helpOffers.where((c) => !c.isWithdrawn).toList();
 
-    const maxSlots = 5;
     final ordered = <Profile>[author];
     for (final c in active) {
       if (c.user.id == author.id) continue;
       ordered.add(c.user);
     }
-    final slots = ordered.take(maxSlots).toList(growable: false);
-    final plus = ordered.length > maxSlots ? ordered.length - maxSlots : 0;
+    final visible = ordered.take(_maxVisible).toList(growable: false);
+    final overflow =
+        ordered.length > _maxVisible ? ordered.length - _maxVisible : 0;
 
-    final child = Row(
-      children: [
-        for (var i = 0; i < slots.length; i++) ...[
-          if (i != 0) const SizedBox(width: 4),
-          _HudPersonToken(
-            profile: slots[i],
-            isAuthor: slots[i].id == author.id,
-            semanticLabel: slots[i].id == author.id
-                ? l10n.beaconPeopleLensAuthorHeading
-                : slots[i].shownName,
-          ),
-        ],
-        if (plus > 0) ...[
-          const SizedBox(width: 6),
-          Text(
-            '+$plus',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
-      ],
+    final child = OverlappingPeopleAvatars(
+      profiles: visible,
+      overflowCount: overflow,
+      size: 28,
+      starredProfileId: author.id,
     );
 
     if (onTap == null) return child;
@@ -501,43 +484,6 @@ class _HudPeopleStrip extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: child,
-      ),
-    );
-  }
-}
-
-class _HudPersonToken extends StatelessWidget {
-  const _HudPersonToken({
-    required this.profile,
-    required this.isAuthor,
-    required this.semanticLabel,
-  });
-
-  final Profile profile;
-  final bool isAuthor;
-  final String semanticLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: semanticLabel,
-      child: ExcludeSemantics(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            TenturaAvatar(profile: profile, size: 28),
-            if (isAuthor)
-              Positioned(
-                right: -2,
-                bottom: -2,
-                child: Icon(
-                  Icons.star_rounded,
-                  size: 14,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }

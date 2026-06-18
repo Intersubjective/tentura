@@ -1,0 +1,15 @@
+# import '/data/gql/beacon_model.graphql'
+# import '/data/gql/user_model.graphql'
+
+fragment BeaconModelWithHelpOfferUsers on beacon {
+  ...BeaconModel
+  help_offers(
+    where: { status: { _eq: 0 } }
+    order_by: { updated_at: desc }
+    limit: 3
+  ) {
+    user {
+      ...UserModel
+    }
+  }
+}
