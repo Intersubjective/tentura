@@ -296,6 +296,7 @@ class BeaconCardInvolvedPeopleLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final updatedStyle = beaconCardUpdatedLineTextStyle(theme);
     final metaAvatar = context.tt.metadataAvatarSize;
@@ -316,6 +317,10 @@ class BeaconCardInvolvedPeopleLine extends StatelessWidget {
             overflowCount: display.overflow,
             size: metaAvatar,
             starredProfileId: beacon.author.id,
+            semanticsLabel: l10n.facepileSemantics(
+              display.visible.length,
+              display.overflow,
+            ),
           ),
         if (updated.isNotEmpty) ...[
           const SizedBox(height: 4),

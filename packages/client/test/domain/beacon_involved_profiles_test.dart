@@ -26,4 +26,29 @@ void main() {
     expect(display.visible.length, kBeaconInvolvedPeopleMaxVisible);
     expect(display.overflow, 2);
   });
+
+  test('involvedPeopleDisplayFromOrdered uses ordered length when total omitted', () {
+    final profiles = [
+      Profile(id: 'a', displayName: 'A'),
+      Profile(id: 'b', displayName: 'B'),
+      Profile(id: 'c', displayName: 'C'),
+      Profile(id: 'd', displayName: 'D'),
+    ];
+    final display = involvedPeopleDisplayFromOrdered(ordered: profiles);
+    expect(display.visible.length, kBeaconInvolvedPeopleMaxVisible);
+    expect(display.overflow, 1);
+  });
+
+  test('involvedPeopleDisplayFromOrdered respects explicit totalCount', () {
+    final profiles = [
+      Profile(id: 'a', displayName: 'A'),
+      Profile(id: 'b', displayName: 'B'),
+    ];
+    final display = involvedPeopleDisplayFromOrdered(
+      ordered: profiles,
+      totalCount: 6,
+    );
+    expect(display.visible.length, 2);
+    expect(display.overflow, 4);
+  });
 }

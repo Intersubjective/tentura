@@ -1836,6 +1836,18 @@
       }
     }
   },
+  "facepileSemantics": "{visible, plural, one{1 person shown} other{{visible} people shown}}{more, plural, =0{} other{, {more} more}}",
+  "@facepileSemantics": {
+    "description": "Accessibility label for overlapping avatar facepile",
+    "placeholders": {
+      "visible": {
+        "type": "int"
+      },
+      "more": {
+        "type": "int"
+      }
+    }
+  },
   "myWorkReviewHelpOffersCta": "Review help offers",
   "@myWorkReviewHelpOffersCta": {
     "context": "MyWorkScreen"

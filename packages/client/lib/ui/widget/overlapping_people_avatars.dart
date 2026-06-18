@@ -5,6 +5,9 @@ import 'package:tentura/domain/entity/profile.dart';
 
 /// Overlapping mini-avatars with circular `+N` overflow (inbox forwarders style).
 ///
+/// Facepile layout: overlap grows right (LTR). Stack paint order (back → front):
+/// rightmost face, …, leftmost face (primary slot foremost), then `+N` on top.
+///
 /// Uses [TenturaAvatar] (initials when no photo). Optional [starredProfileId]
 /// marks the author with a star badge. No self-highlight rings.
 class OverlappingPeopleAvatars extends StatelessWidget {
@@ -17,6 +20,7 @@ class OverlappingPeopleAvatars extends StatelessWidget {
     this.overflowBadgeFillColor,
     this.overflowBadgeTextColor,
     this.overflowRingColor,
+    this.semanticsLabel,
     super.key,
   });
 
@@ -32,6 +36,9 @@ class OverlappingPeopleAvatars extends StatelessWidget {
   final Color? overflowBadgeFillColor;
   final Color? overflowBadgeTextColor;
   final Color? overflowRingColor;
+
+  /// Screen-reader label; defaults to a short English summary when null.
+  final String? semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -49,48 +56,67 @@ class OverlappingPeopleAvatars extends StatelessWidget {
     final step = size - overlap;
     final width = size + (n - 1) * step;
     final theme = Theme.of(context);
+    final label = semanticsLabel ?? _defaultSemanticsLabel(
+      profiles.length,
+      overflowCount,
+    );
 
-    return SizedBox(
-      width: width,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (var i = 0; i < profiles.length; i++)
-            Positioned(
-              left: i * step,
-              child: _PeopleAvatarSlot(
-                profile: profiles[i],
-                size: size,
-                showStar: starredProfileId != null &&
-                    profiles[i].id == starredProfileId,
-              ),
+    final stack = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        // Later children paint on top; reverse so leftmost profile is foremost.
+        for (var i = profiles.length - 1; i >= 0; i--)
+          Positioned(
+            left: i * step,
+            child: _PeopleAvatarSlot(
+              profile: profiles[i],
+              size: size,
+              showStar: starredProfileId != null &&
+                  profiles[i].id == starredProfileId,
             ),
-          if (overflowCount > 0)
-            Positioned(
-              left: profiles.length * step,
-              child: Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: badgeFill,
-                  border: Border.all(color: ringColor),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '+$overflowCount',
-                  style: theme.textTheme.labelMedium!.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: badgeFg,
-                    height: 1,
-                  ),
+          ),
+        if (overflowCount > 0)
+          Positioned(
+            left: profiles.length * step,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: badgeFill,
+                border: Border.all(color: ringColor),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '+$overflowCount',
+                style: theme.textTheme.labelMedium!.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: badgeFg,
+                  height: 1,
                 ),
               ),
             ),
-        ],
+          ),
+      ],
+    );
+
+    return Semantics(
+      container: true,
+      label: label,
+      child: SizedBox(
+        width: width,
+        height: size,
+        child: stack,
       ),
     );
+  }
+
+  static String _defaultSemanticsLabel(int visibleCount, int overflowCount) {
+    final people = visibleCount == 1 ? '1 person' : '$visibleCount people';
+    if (overflowCount <= 0) {
+      return people;
+    }
+    return '$people, $overflowCount more';
   }
 }
 
