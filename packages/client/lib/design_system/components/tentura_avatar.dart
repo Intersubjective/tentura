@@ -31,7 +31,10 @@ class TenturaAvatar extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: profile.hasNoAvatar
-          ? _Initials(lettering: initialsForProfile(profile), size: s)
+          ? ProfileAvatarInitials(
+              lettering: initialsForProfile(profile),
+              size: s,
+            )
           : _Network(
               profile: profile,
               cacheSize: cache,
@@ -79,7 +82,7 @@ class _Network extends StatelessWidget {
     final net = Image.network(
       profile.avatarUrl,
       errorBuilder: (context, error, stackTrace) =>
-          _Initials(lettering: initials, size: size),
+          ProfileAvatarInitials(lettering: initials, size: size),
       cacheHeight: cacheSize,
       cacheWidth: cacheSize,
       fit: BoxFit.cover,
@@ -94,10 +97,12 @@ class _Network extends StatelessWidget {
   }
 }
 
-class _Initials extends StatelessWidget {
-  const _Initials({
+/// Circular initials fallback when a profile has no photo (or network load fails).
+class ProfileAvatarInitials extends StatelessWidget {
+  const ProfileAvatarInitials({
     required this.lettering,
     required this.size,
+    super.key,
   });
 
   final String lettering;
@@ -106,6 +111,7 @@ class _Initials extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final fontSize = size * 0.38;
     return ColoredBox(
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Center(
@@ -113,6 +119,7 @@ class _Initials extends StatelessWidget {
           lettering,
           maxLines: 1,
           style: TenturaText.bodySmall(tt.textFaint).copyWith(
+            fontSize: fontSize,
             fontWeight: FontWeight.w600,
           ),
         ),
