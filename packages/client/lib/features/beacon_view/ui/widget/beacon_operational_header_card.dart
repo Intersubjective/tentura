@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
@@ -453,28 +453,26 @@ class _HudPeopleStrip extends StatelessWidget {
   final BeaconViewState state;
   final VoidCallback? onTap;
 
-  static const _maxVisible = 3;
-
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
     final beacon = state.beacon;
     final author = beacon.author;
     final active = state.helpOffers.where((c) => !c.isWithdrawn).toList();
 
-    final ordered = <Profile>[author];
-    for (final c in active) {
-      if (c.user.id == author.id) continue;
-      ordered.add(c.user);
-    }
-    final visible = ordered.take(_maxVisible).toList(growable: false);
-    final overflow =
-        ordered.length > _maxVisible ? ordered.length - _maxVisible : 0;
+    final helpUsers = [for (final c in active) c.user];
+    final ordered = orderBeaconInvolvedProfiles(author, helpUsers);
+    final display = involvedPeopleDisplayFromOrdered(ordered: ordered);
 
     final child = OverlappingPeopleAvatars(
-      profiles: visible,
-      overflowCount: overflow,
+      profiles: display.visible,
+      overflowCount: display.overflow,
       size: 28,
       starredProfileId: author.id,
+      semanticsLabel: l10n.facepileSemantics(
+        display.visible.length,
+        display.overflow,
+      ),
     );
 
     if (onTap == null) return child;

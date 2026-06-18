@@ -27,6 +27,31 @@ int beaconInvolvedOverflow({
   return total - visibleCount;
 }
 
+int _overflowFromTotal({
+  required int totalCount,
+  required int visibleCount,
+  int maxVisible = kBeaconInvolvedPeopleMaxVisible,
+}) {
+  if (totalCount <= maxVisible) return 0;
+  return totalCount - visibleCount;
+}
+
+/// Visible slots and overflow from a pre-ordered profile list (beacon HUD).
+({List<Profile> visible, int overflow}) involvedPeopleDisplayFromOrdered({
+  required List<Profile> ordered,
+  int? totalCount,
+  int maxVisible = kBeaconInvolvedPeopleMaxVisible,
+}) {
+  final visible = ordered.take(maxVisible).toList(growable: false);
+  final total = totalCount ?? ordered.length;
+  final overflow = _overflowFromTotal(
+    totalCount: total,
+    visibleCount: visible.length,
+    maxVisible: maxVisible,
+  );
+  return (visible: visible, overflow: overflow);
+}
+
 /// Visible slots and overflow for a beacon card people strip.
 ({List<Profile> visible, int overflow}) beaconInvolvedPeopleDisplay({
   required Profile author,
@@ -35,11 +60,9 @@ int beaconInvolvedOverflow({
   int maxVisible = kBeaconInvolvedPeopleMaxVisible,
 }) {
   final ordered = orderBeaconInvolvedProfiles(author, helpOfferUsers);
-  final visible = ordered.take(maxVisible).toList(growable: false);
-  final overflow = beaconInvolvedOverflow(
-    helpOfferCount: helpOfferCount,
-    visibleCount: visible.length,
+  return involvedPeopleDisplayFromOrdered(
+    ordered: ordered,
+    totalCount: helpOfferCount + 1,
     maxVisible: maxVisible,
   );
-  return (visible: visible, overflow: overflow);
 }

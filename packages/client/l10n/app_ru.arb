@@ -1836,6 +1836,18 @@
       }
     }
   },
+  "facepileSemantics": "{visible, plural, one{Показан 1 человек} few{Показано {visible} человека} many{Показано {visible} человек} other{Показано {visible} человек}}{more, plural, =0{} one{, ещё {more}} few{, ещё {more}} many{, ещё {more}} other{, ещё {more}}}",
+  "@facepileSemantics": {
+    "description": "Accessibility label for overlapping avatar facepile",
+    "placeholders": {
+      "visible": {
+        "type": "int"
+      },
+      "more": {
+        "type": "int"
+      }
+    }
+  },
   "myWorkReviewHelpOffersCta": "Проверить предложения помощи",
   "@myWorkReviewHelpOffersCta": {
     "context": "MyWorkScreen"
