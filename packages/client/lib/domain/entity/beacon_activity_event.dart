@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'beacon_activity_event_consts.dart';
+import 'coordination_item.dart';
 
 part 'beacon_activity_event.freezed.dart';
 
@@ -38,4 +39,21 @@ abstract class BeaconActivityEvent with _$BeaconActivityEvent {
       _ => false,
     };
   }
+
+  /// Coordination-item kind for events encoded as `kind * 100 + eventKind`
+  /// (see [BeaconActivityEventTypeBits]); `null` for non-coordination events
+  /// (including promise = 500+). Range-checked because
+  /// [CoordinationItemKind.fromInt] throws on unknown values.
+  CoordinationItemKind? get coordinationKind =>
+      (type >= BeaconActivityEventTypeBits.coordinationTypeMin &&
+              type < BeaconActivityEventTypeBits.coordinationTypeMax)
+          ? CoordinationItemKind.fromInt(type ~/ 100)
+          : null;
+
+  /// Coordination lifecycle state for a coordination event; `null` when this
+  /// is not a coordination event or the remainder is not a known state.
+  CoordinationItemEventKind? get coordinationEventKind =>
+      coordinationKind == null
+          ? null
+          : CoordinationItemEventKind.fromInt(type % 100);
 }

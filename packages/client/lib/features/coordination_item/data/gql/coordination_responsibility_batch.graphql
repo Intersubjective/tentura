@@ -1,0 +1,14 @@
+query CoordinationResponsibilityBatch($beaconIds: [String!]!) {
+  coordinationResponsibilityBatch(beaconIds: $beaconIds) {
+    beaconId
+    askOpen
+    askNew
+    promiseOpen
+    promiseNew
+    blockerOpen
+    blockerNew
+    reviewOpen
+    reviewNew
+    othersOpenCount
+  }
+}

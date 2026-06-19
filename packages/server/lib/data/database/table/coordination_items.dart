@@ -27,6 +27,9 @@ class CoordinationItems extends Table {
       boolean().withDefault(const Constant(true))();
   late final createdAt = customType(PgTypes.timestampWithTimezone).clientDefault(() => PgDateTime(DateTime.timestamp()))();
   late final updatedAt = customType(PgTypes.timestampWithTimezone).clientDefault(() => PgDateTime(DateTime.timestamp()))();
+  /// When the item became visible (published); null for drafts.
+  late final publishedAt =
+      customType(PgTypes.timestampWithTimezone).nullable()();
   late final resolvedAt = customType(PgTypes.timestampWithTimezone).nullable()();
   late final cancelledAt = customType(PgTypes.timestampWithTimezone).nullable()();
   late final staleAt = customType(PgTypes.timestampWithTimezone).nullable()();

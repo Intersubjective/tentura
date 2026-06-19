@@ -1,4 +1,5 @@
 import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 
 // TODO(contract): Phase-2 DTO migration — replace Drift types with domain DTOs.
@@ -168,5 +169,28 @@ abstract class CoordinationItemRepositoryPort {
   Future<void> deleteDraftBlocker({
     required String id,
     required String actorId,
+  });
+
+  /// Batch YOU-line counts per beacon for [viewerUserId].
+  Future<List<CoordinationResponsibilityCounts>> responsibilityCountsByBeaconIds({
+    required String viewerUserId,
+    required List<String> beaconIds,
+  });
+
+  /// Open responsibility items for [viewerUserId] on [beaconId] (sheet list).
+  Future<List<CoordinationItemWithCounts>> myResponsibilityItemsByBeacon({
+    required String viewerUserId,
+    required String beaconId,
+  });
+
+  Future<DateTime?> getBeaconItemsSeen({
+    required String userId,
+    required String beaconId,
+  });
+
+  /// Monotonic upsert; returns persisted watermark.
+  Future<DateTime> markBeaconItemsSeen({
+    required String userId,
+    required String beaconId,
   });
 }

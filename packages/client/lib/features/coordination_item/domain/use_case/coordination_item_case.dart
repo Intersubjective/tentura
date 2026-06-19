@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import '../../data/repository/coordination_item_repository.dart';
 
 @singleton
@@ -365,5 +366,19 @@ class CoordinationItemCase {
     open.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return open.first;
   }
+
+  Future<Map<String, CoordinationResponsibility>> fetchResponsibilityBatch(
+    List<String> beaconIds,
+  ) =>
+      _repository.fetchResponsibilityBatch(beaconIds);
+
+  Future<CoordinationResponsibility> fetchResponsibility(String beaconId) =>
+      _repository.fetchResponsibility(beaconId);
+
+  Future<List<CoordinationItem>> fetchMyResponsibilityItems(String beaconId) =>
+      _repository.fetchMyResponsibilityItems(beaconId);
+
+  Future<void> markItemsSeen(String beaconId) =>
+      _repository.markItemsSeen(beaconId);
 
 }

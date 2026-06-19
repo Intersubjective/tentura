@@ -24,13 +24,12 @@ import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_event_copy.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
-import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_text_body.dart';
@@ -396,13 +395,7 @@ class RoomMessageTile extends StatelessWidget {
           return const SizedBox.shrink();
         }
         final isPlanStep = message.linkedCoordinationItem?.isPlanStep ?? false;
-        final icon = eventKind == CoordinationItemEventKind.created
-            ? Icons.push_pin_outlined
-            : coordinationEventTimelineIcon(
-                kind ?? CoordinationItemKind.ask,
-                eventKind,
-                isPlanStep: isPlanStep,
-              );
+        final isCreated = eventKind == CoordinationItemEventKind.created;
         return _CenteredTimelineBar(
           padding: EdgeInsets.fromLTRB(
             tt.screenHPadding,
@@ -410,7 +403,17 @@ class RoomMessageTile extends StatelessWidget {
             tt.screenHPadding,
             bottomPad / 2,
           ),
-          icon: icon,
+          icon: Icons.push_pin_outlined,
+          leading: isCreated
+              ? null
+              : coordinationCompoundEventIcon(
+                  kind: kind ?? CoordinationItemKind.ask,
+                  eventKind: eventKind,
+                  isPlanStep: isPlanStep,
+                  tt: tt,
+                  scheme: scheme,
+                  size: 14,
+                ),
           lineBuilder: (authorName) {
             if (eventKind == CoordinationItemEventKind.created) {
               return l10n.beaconRoomPromotePinLine(
@@ -1018,10 +1021,12 @@ class _CenteredTimelineBar extends StatelessWidget {
     required this.scheme,
     required this.theme,
     required this.iconTextGap,
+    this.leading,
   });
 
   final EdgeInsets padding;
   final IconData icon;
+  final Widget? leading;
   final String Function(String authorName) lineBuilder;
   final Profile author;
   final VoidCallback? onTap;
@@ -1056,11 +1061,12 @@ class _CenteredTimelineBar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  size: 14,
-                  color: scheme.onSurfaceVariant,
-                ),
+                leading ??
+                    Icon(
+                      icon,
+                      size: 14,
+                      color: scheme.onSurfaceVariant,
+                    ),
                 SizedBox(width: iconTextGap / 2),
                 Flexible(
                   child: Text(
@@ -1177,12 +1183,15 @@ class _MessageLifecycleFooter extends StatelessWidget {
           context: context,
           profile: RoomMessageTile.profileForUserId(actorId, participants) ??
               const Profile(),
-          icon: coordinationEventTimelineIcon(
-            linkedCoord!.kind,
-            eventKind,
+          leading: coordinationCompoundEventIcon(
+            kind: linkedCoord!.kind,
+            eventKind: eventKind,
             isPlanStep: linkedCoord!.isPlanStep,
+            tt: tokens,
+            scheme: scheme,
+            size: _iconSize,
           ),
-          accent: coordinationEventTimelineColor(
+          accent: coordinationItemEventColor(
             tokens,
             linkedCoord!.kind,
             eventKind,
@@ -1202,6 +1211,13 @@ class _MessageLifecycleFooter extends StatelessWidget {
     Widget? promotionRow;
     if (showPromotionRow) {
       final kind = linkedCoord!.kind;
+      final promotionAccent = RoomMessageTile.isThreadEntryKind(kind)
+          ? RoomMessageTile.threadMarkAccent(tokens, kind)
+          : coordinationItemEventColor(
+              tokens,
+              kind,
+              CoordinationItemEventKind.created,
+            );
       promotionRow = _lifecycleTapRow(
         context: context,
         profile: RoomMessageTile.profileForUserId(
@@ -1209,18 +1225,16 @@ class _MessageLifecycleFooter extends StatelessWidget {
               participants,
             ) ??
             const Profile(),
-        icon: coordinationItemEventIcon(
-          kind,
-          CoordinationItemEventKind.created,
+        leading: coordinationCompoundEventIcon(
+          kind: kind,
+          eventKind: CoordinationItemEventKind.created,
           isPlanStep: linkedCoord!.isPlanStep,
+          tt: tokens,
+          scheme: scheme,
+          size: _iconSize,
+          accentOverride: promotionAccent,
         ),
-        accent: RoomMessageTile.isThreadEntryKind(kind)
-            ? RoomMessageTile.threadMarkAccent(tokens, kind)
-            : coordinationItemEventColor(
-                tokens,
-                kind,
-                CoordinationItemEventKind.created,
-              ),
+        accent: promotionAccent,
         label: RoomMessageTile._coordKindShortLabel(l10n, kind),
         time: RoomMessageTile._formatMessageTime(promotionDate!),
         onTap: onOpenItem,
@@ -1238,6 +1252,13 @@ class _MessageLifecycleFooter extends StatelessWidget {
           message.createdAt;
       final kind = linkedCoord!.kind;
       final useThreadMarkAccent = RoomMessageTile.isThreadEntryKind(kind);
+      final eventAccent = useThreadMarkAccent
+          ? RoomMessageTile.threadMarkAccent(tokens, kind)
+          : coordinationItemEventColor(
+              tokens,
+              kind,
+              linkedEventKind!,
+            );
       eventRow = _lifecycleTapRow(
         context: context,
         profile: RoomMessageTile.profileForUserId(
@@ -1245,18 +1266,16 @@ class _MessageLifecycleFooter extends StatelessWidget {
               participants,
             ) ??
             message.author,
-        icon: coordinationEventTimelineIcon(
-          kind,
-          linkedEventKind!,
+        leading: coordinationCompoundEventIcon(
+          kind: kind,
+          eventKind: linkedEventKind!,
           isPlanStep: linkedCoord!.isPlanStep,
+          tt: tokens,
+          scheme: scheme,
+          size: _iconSize,
+          accentOverride: useThreadMarkAccent ? eventAccent : null,
         ),
-        accent: useThreadMarkAccent
-            ? RoomMessageTile.threadMarkAccent(tokens, kind)
-            : coordinationEventTimelineColor(
-                tokens,
-                kind,
-                linkedEventKind!,
-              ),
+        accent: eventAccent,
         label: coordinationEventTimelineLabel(
           l10n,
           kind,
@@ -1419,7 +1438,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
   Widget _lifecycleTapRow({
     required BuildContext context,
     required Profile profile,
-    required IconData icon,
+    required Widget leading,
     required Color accent,
     required String label,
     required String time,
@@ -1430,7 +1449,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
       children: [
         TenturaAvatar(profile: profile, size: _avatarSize),
         SizedBox(width: tokens.iconTextGap / 4),
-        Icon(icon, size: _iconSize, color: accent),
+        leading,
         SizedBox(width: tokens.iconTextGap / 4),
         Flexible(
           child: Text(

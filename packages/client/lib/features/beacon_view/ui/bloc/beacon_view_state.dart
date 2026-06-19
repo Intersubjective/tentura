@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -257,6 +258,9 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// From V2 inbox room hints batch; unread messages in beacon room for viewer.
     @Default(0) int roomUnreadCount,
+
+    /// Explicit YOU-line responsibility counts for the current viewer.
+    CoordinationResponsibility? youResponsibility,
 
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconViewState;

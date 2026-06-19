@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import '../gql/_g/coordination_item_list.req.gql.dart';
 import '../gql/_g/coordination_item_mark_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_blocker.req.gql.dart';
@@ -36,6 +37,10 @@ import '../gql/_g/coordination_item_publish_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_update_draft_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_delete_draft_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_remind.req.gql.dart';
+import '../gql/_g/coordination_responsibility_batch.req.gql.dart';
+import '../gql/_g/coordination_my_responsibility_items.req.gql.dart';
+import '../gql/_g/mark_beacon_items_seen.req.gql.dart';
+import '../model/coordination_responsibility_model.dart';
 import '../model/coordination_item_model.dart';
 
 int? _wirePublishStaleAfterDays(int? staleAfterDays) {
@@ -674,5 +679,62 @@ class CoordinationItemRepository {
           .then((r) => (r.dataOrThrow(label: _label).rejectResolution
                   as CoordinationItemRejectResolutionModel)
               .toEntity());
+
+  Future<Map<String, CoordinationResponsibility>> fetchResponsibilityBatch(
+    List<String> beaconIds,
+  ) async {
+    if (beaconIds.isEmpty) {
+      return const {};
+    }
+    final rows = await _remote
+        .request(
+          GCoordinationResponsibilityBatchReq(
+            (b) => b.vars.beaconIds.replace(beaconIds),
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then(
+          (r) => r.dataOrThrow(label: _label).coordinationResponsibilityBatch,
+        );
+    return {
+      for (final row in rows)
+        row.beaconId: (row as CoordinationResponsibilityBatchRowModel)
+            .toEntity(),
+    };
+  }
+
+  Future<CoordinationResponsibility> fetchResponsibility(String beaconId) async {
+    final map = await fetchResponsibilityBatch([beaconId]);
+    return map[beaconId] ??
+        CoordinationResponsibility(beaconId: beaconId);
+  }
+
+  Future<List<CoordinationItem>> fetchMyResponsibilityItems(
+    String beaconId,
+  ) =>
+      _remote
+          .request(
+            GCoordinationMyResponsibilityItemsReq(
+              (b) => b.vars.beaconId = beaconId,
+            ),
+          )
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then((r) => r
+              .dataOrThrow(label: _label)
+              .coordinationMyResponsibilityItems
+              .map(
+                (e) =>
+                    (e as CoordinationMyResponsibilityItemModel).toEntity(),
+              )
+              .toList(growable: false));
+
+  Future<void> markItemsSeen(String beaconId) => _remote
+      .request(
+        GMarkBeaconItemsSeenReq((b) => b.vars.beaconId = beaconId),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        r.dataOrThrow(label: _label);
+      });
 
 }

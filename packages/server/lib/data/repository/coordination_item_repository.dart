@@ -7,6 +7,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/coordination_stale_rules.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
+import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
 import 'package:tentura_server/domain/entity/coordination_item_entity.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -67,6 +68,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
                     staleAfterDays: Value(days),
                     source: const Value(coordinationItemSourceDefault),
                     published: const Value(true),
+                    publishedAt: Value(now),
                   ));
 
           final roomMsgIdForActivity = await _emitCreatedRoomNotify(
@@ -395,6 +397,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
           await (_db.update(_db.coordinationItems)..where((t) => t.id.equals(id))).write(
             CoordinationItemsCompanion(
               published: const Value(true),
+              publishedAt: Value(now),
               targetPersonId: Value(targetPersonId),
               updatedAt: Value(now),
               staleAfterDays: Value(days),
@@ -637,6 +640,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
               .write(
             CoordinationItemsCompanion(
               published: const Value(true),
+              publishedAt: Value(now),
               updatedAt: Value(now),
               staleAfterDays: Value(days),
               staleAt: Value(
@@ -1198,6 +1202,297 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     return Value(<String, Object?>{
       if (t.isNotEmpty) 'title': t,
       if (b.isNotEmpty) 'body': b,
+    });
+  }
+
+  /// Shared SQL predicate: viewer is responsible for coordination item `ci`.
+  static const _sqlMyResponsibilityOnCi = r'''
+    (
+      (ci.kind = 2 AND ci.target_person_id = $1)
+      OR (ci.kind = 5 AND ci.creator_id = $1)
+      OR (ci.kind = 3 AND ci.target_person_id = $1)
+      OR (
+        ci.kind = 4 AND EXISTS (
+          SELECT 1 FROM coordination_item tgt
+          WHERE tgt.id = ci.target_item_id
+            AND (
+              (tgt.kind = 2 AND tgt.target_person_id = $1)
+              OR (tgt.kind = 5 AND tgt.creator_id = $1)
+              OR (tgt.kind = 3 AND tgt.target_person_id = $1)
+            )
+        )
+      )
+    )
+  ''';
+
+  static const _sqlActivePublished = r'''
+    ci.published = true AND ci.status IN (0, 1)
+  ''';
+
+  @override
+  Future<List<CoordinationResponsibilityCounts>> responsibilityCountsByBeaconIds({
+    required String viewerUserId,
+    required List<String> beaconIds,
+  }) async {
+    if (beaconIds.isEmpty) {
+      return const [];
+    }
+    final slice = beaconIds.length > 80 ? beaconIds.sublist(0, 80) : beaconIds;
+
+    final rows = await _db.customSelect(
+      '''
+SELECT ci.beacon_id AS beacon_id,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 2 AND ci.target_person_id = \$1)::int AS ask_open,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 2 AND ci.target_person_id = \$1
+    AND COALESCE(ci.published_at, ci.created_at) > COALESCE(bis.last_seen_at, '-infinity'::timestamptz))::int AS ask_new,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 5 AND ci.creator_id = \$1)::int AS promise_open,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 5 AND ci.creator_id = \$1
+    AND COALESCE(ci.published_at, ci.created_at) > COALESCE(bis.last_seen_at, '-infinity'::timestamptz))::int AS promise_new,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 3 AND ci.target_person_id = \$1)::int AS blocker_open,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 3 AND ci.target_person_id = \$1
+    AND COALESCE(ci.published_at, ci.created_at) > COALESCE(bis.last_seen_at, '-infinity'::timestamptz))::int AS blocker_new,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 4 AND EXISTS (
+      SELECT 1 FROM coordination_item tgt
+      WHERE tgt.id = ci.target_item_id
+        AND (
+          (tgt.kind = 2 AND tgt.target_person_id = \$1)
+          OR (tgt.kind = 5 AND tgt.creator_id = \$1)
+          OR (tgt.kind = 3 AND tgt.target_person_id = \$1)
+        )
+    ))::int AS review_open,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 4 AND EXISTS (
+      SELECT 1 FROM coordination_item tgt
+      WHERE tgt.id = ci.target_item_id
+        AND (
+          (tgt.kind = 2 AND tgt.target_person_id = \$1)
+          OR (tgt.kind = 5 AND tgt.creator_id = \$1)
+          OR (tgt.kind = 3 AND tgt.target_person_id = \$1)
+        )
+    )
+    AND COALESCE(ci.published_at, ci.created_at) > COALESCE(bis.last_seen_at, '-infinity'::timestamptz))::int AS review_new,
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind IN (2, 3, 4, 5) AND NOT ($_sqlMyResponsibilityOnCi))::int AS others_open
+FROM coordination_item ci
+LEFT JOIN beacon_items_seen bis
+  ON bis.user_id = \$1 AND bis.beacon_id = ci.beacon_id
+WHERE ci.beacon_id = ANY(\$2::text[])
+GROUP BY ci.beacon_id
+''',
+      variables: [
+        Variable<String>(viewerUserId),
+        Variable(TypedValue(Type.textArray, slice)),
+      ],
+    ).get();
+
+    final byBeacon = {
+      for (final row in rows)
+        row.read<String>('beacon_id'): CoordinationResponsibilityCounts(
+          beaconId: row.read<String>('beacon_id'),
+          askOpen: row.read<int>('ask_open'),
+          askNew: row.read<int>('ask_new'),
+          promiseOpen: row.read<int>('promise_open'),
+          promiseNew: row.read<int>('promise_new'),
+          blockerOpen: row.read<int>('blocker_open'),
+          blockerNew: row.read<int>('blocker_new'),
+          reviewOpen: row.read<int>('review_open'),
+          reviewNew: row.read<int>('review_new'),
+          othersOpenCount: row.read<int>('others_open'),
+        ),
+    };
+
+    return [
+      for (final bid in slice)
+        byBeacon[bid] ??
+            CoordinationResponsibilityCounts(beaconId: bid),
+    ];
+  }
+
+  @override
+  Future<List<CoordinationItemWithCounts>> myResponsibilityItemsByBeacon({
+    required String viewerUserId,
+    required String beaconId,
+  }) async {
+    final idRows = await _db.customSelect(
+      r'''
+SELECT ci.id AS id
+FROM coordination_item ci
+WHERE ci.beacon_id = $2
+  AND ci.published = true
+  AND ci.status IN ($7, $8)
+  AND (
+    (ci.kind = $3 AND ci.target_person_id = $1)
+    OR (ci.kind = $4 AND ci.creator_id = $1)
+    OR (ci.kind = $5 AND ci.target_person_id = $1)
+    OR (
+      ci.kind = $6 AND EXISTS (
+        SELECT 1 FROM coordination_item tgt
+        WHERE tgt.id = ci.target_item_id
+          AND (
+            (tgt.kind = $3 AND tgt.target_person_id = $1)
+            OR (tgt.kind = $4 AND tgt.creator_id = $1)
+            OR (tgt.kind = $5 AND tgt.target_person_id = $1)
+          )
+      )
+    )
+  )
+ORDER BY ci.kind, ci.created_at DESC
+''',
+      variables: [
+        Variable<String>(viewerUserId),
+        Variable<String>(beaconId),
+        const Variable<int>(coordinationItemKindAsk),
+        const Variable<int>(coordinationItemKindPromise),
+        const Variable<int>(coordinationItemKindBlocker),
+        const Variable<int>(coordinationItemKindResolution),
+        const Variable<int>(coordinationItemStatusOpen),
+        const Variable<int>(coordinationItemStatusAccepted),
+      ],
+    ).get();
+
+    if (idRows.isEmpty) {
+      return const [];
+    }
+
+    final ids = idRows.map((r) => r.read<String>('id')).toList();
+    final items = await (_db.select(_db.coordinationItems)
+          ..where((t) => t.id.isIn(ids)))
+        .get();
+
+    final order = {for (var i = 0; i < ids.length; i++) ids[i]: i};
+    items.sort((a, b) => order[a.id]!.compareTo(order[b.id]!));
+
+    final countRows = await _db.customSelect(
+      r'''
+      SELECT ci.id AS item_id,
+        (SELECT COUNT(*)::bigint FROM beacon_room_message m
+         WHERE m.thread_item_id = ci.id
+           AND ci.kind <> $3) AS message_count,
+        (SELECT COUNT(*)::bigint FROM beacon_room_message m
+         WHERE m.thread_item_id = ci.id
+           AND ci.kind <> $3
+           AND m.author_id <> $2
+           AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at)
+        ) AS unread_count
+      FROM coordination_item ci
+      LEFT JOIN beacon_room_seen s
+        ON s.thread_item_id = ci.id AND s.user_id = $2
+      WHERE ci.id = ANY($1::text[])
+      ''',
+      variables: [
+        Variable(TypedValue(Type.textArray, ids)),
+        Variable<String>(viewerUserId),
+        const Variable<int>(coordinationItemKindPlan),
+      ],
+    ).get();
+
+    final seenRows = await (_db.select(_db.beaconRoomSeen)
+          ..where((t) => t.userId.equals(viewerUserId))
+          ..where((t) => t.threadItemId.isIn(ids)))
+        .get();
+    final lastSeenByItemId = {
+      for (final row in seenRows)
+        if (row.threadItemId != null) row.threadItemId!: row.lastSeenAt.dateTime,
+    };
+
+    final countsByItemId = <String, ({int messageCount, int unreadCount})>{};
+    for (final row in countRows) {
+      countsByItemId[row.read<String>('item_id')] = (
+        messageCount: row.read<int>('message_count'),
+        unreadCount: row.read<int>('unread_count'),
+      );
+    }
+
+    return [
+      for (final item in items)
+        CoordinationItemWithCounts(
+          item: item,
+          messageCount: countsByItemId[item.id]?.messageCount ?? 0,
+          unreadCount: countsByItemId[item.id]?.unreadCount ?? 0,
+          lastSeenAt: lastSeenByItemId[item.id],
+        ),
+    ];
+  }
+
+  @override
+  Future<DateTime?> getBeaconItemsSeen({
+    required String userId,
+    required String beaconId,
+  }) async {
+    final row = await (_db.select(_db.beaconItemsSeen)
+          ..where((t) => t.userId.equals(userId))
+          ..where((t) => t.beaconId.equals(beaconId)))
+        .getSingleOrNull();
+    return row?.lastSeenAt.dateTime.toUtc();
+  }
+
+  @override
+  Future<DateTime> markBeaconItemsSeen({
+    required String userId,
+    required String beaconId,
+  }) async {
+    return _db.withMutatingUser(userId, () async {
+      final existing = await getBeaconItemsSeen(userId: userId, beaconId: beaconId);
+
+      final maxRow = await _db.customSelect(
+        r'''
+SELECT floor(extract(epoch from max(COALESCE(ci.published_at, ci.created_at))) * 1000)::bigint AS max_ms
+FROM coordination_item ci
+WHERE ci.beacon_id = $2
+  AND ci.published = true
+  AND ci.status IN ($7, $8)
+  AND (
+    (ci.kind = $3 AND ci.target_person_id = $1)
+    OR (ci.kind = $4 AND ci.creator_id = $1)
+    OR (ci.kind = $5 AND ci.target_person_id = $1)
+    OR (
+      ci.kind = $6 AND EXISTS (
+        SELECT 1 FROM coordination_item tgt
+        WHERE tgt.id = ci.target_item_id
+          AND (
+            (tgt.kind = $3 AND tgt.target_person_id = $1)
+            OR (tgt.kind = $4 AND tgt.creator_id = $1)
+            OR (tgt.kind = $5 AND tgt.target_person_id = $1)
+          )
+      )
+    )
+  )
+''',
+        variables: [
+          Variable<String>(userId),
+          Variable<String>(beaconId),
+          const Variable<int>(coordinationItemKindAsk),
+          const Variable<int>(coordinationItemKindPromise),
+          const Variable<int>(coordinationItemKindBlocker),
+          const Variable<int>(coordinationItemKindResolution),
+          const Variable<int>(coordinationItemStatusOpen),
+          const Variable<int>(coordinationItemStatusAccepted),
+        ],
+      ).getSingleOrNull();
+
+      var at = maxRow?.read<int?>('max_ms') != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              maxRow!.read<int>('max_ms'),
+              isUtc: true,
+            )
+          : DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+
+      if (at.millisecondsSinceEpoch == 0) {
+        at = DateTime.timestamp().toUtc();
+      }
+      if (existing != null && existing.isAfter(at)) {
+        at = existing.toUtc();
+      }
+
+      final seenAtIso = at.toUtc().toIso8601String();
+      await _db.customStatement(
+        r'INSERT INTO beacon_items_seen (user_id, beacon_id, last_seen_at) '
+        r'VALUES ($1, $2, $3::timestamptz) '
+        r'ON CONFLICT (user_id, beacon_id) '
+        r'DO UPDATE SET last_seen_at = GREATEST(beacon_items_seen.last_seen_at, EXCLUDED.last_seen_at)',
+        [userId, beaconId, seenAtIso],
+      );
+
+      final persisted = await getBeaconItemsSeen(userId: userId, beaconId: beaconId);
+      return persisted ?? at;
     });
   }
 }

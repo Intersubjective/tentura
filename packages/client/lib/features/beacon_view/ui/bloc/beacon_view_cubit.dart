@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -37,7 +38,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     required String id,
     required Profile myProfile,
     BeaconViewCase? beaconViewCase,
+    CoordinationItemCase? coordinationItemCase,
   }) : _case = beaconViewCase ?? GetIt.I<BeaconViewCase>(),
+       _coordinationItemCase =
+           coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
        super(_idToState(id, myProfile)) {
     _forwardCompletedSub = _case.forwardCompleted.listen(
       (beaconId) {
@@ -73,6 +77,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   final BeaconViewCase _case;
+
+  final CoordinationItemCase _coordinationItemCase;
 
   late final StreamSubscription<String> _forwardCompletedSub;
 
@@ -415,6 +421,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     var needHelpOffers = false;
     var needRoomState = false;
     var needFactCards = false;
+    var needYouResponsibility = false;
     for (final t in types) {
       if (t == BeaconRoomEntityType.roomMessage) {
         needActivity = true;
@@ -432,6 +439,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       } else if (t == BeaconRoomEntityType.coordinationItem) {
         needRoomState = true;
         needActivity = true;
+        needYouResponsibility = true;
       }
     }
     await Future.wait([
@@ -441,7 +449,28 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       if (needHelpOffers) _refreshHelpOffers(beaconId),
       if (needRoomState) _refreshBeaconRoomCue(beaconId),
       if (needFactCards) _refreshFactCards(beaconId),
+      if (needYouResponsibility) _refreshYouResponsibility(),
     ]);
+  }
+
+  Future<void> refreshYouResponsibility() => _refreshYouResponsibility();
+
+  Future<void> _refreshYouResponsibility() async {
+    if (isClosed) return;
+    try {
+      final beaconId = state.beacon.id;
+      final responsibility =
+          await _coordinationItemCase.fetchResponsibility(beaconId);
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          youResponsibility: responsibility.withNewCountsCleared(),
+        ),
+      );
+      unawaited(_coordinationItemCase.markItemsSeen(beaconId));
+    } on Object catch (_) {
+      // YOU line is supplementary; do not fail the screen.
+    }
   }
 
   Future<void> _refreshRoomActivityEvents(String beaconId) async {
@@ -704,6 +733,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       if (wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
       }
+      unawaited(_refreshYouResponsibility());
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

@@ -161,10 +161,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       }).toList();
       final withLastEvents =
           await _myWorkCase.attachLastActivityEvents(nonArchived);
+      final withResponsibility =
+          await _myWorkCase.attachResponsibilityCounts(withLastEvents);
       final hints = await _roomHints.fetchByBeaconIds(
-        withLastEvents.map((c) => c.beaconId),
+        withResponsibility.map((c) => c.beaconId),
       );
-      final withHints = withLastEvents
+      final withHints = withResponsibility
           .map((c) {
             final h = hints[c.beaconId];
             if (h == null || !h.isRoomMember) {
@@ -253,10 +255,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       );
       final archivedWithEvents =
           await _myWorkCase.attachLastActivityEvents(archived);
+      final archivedWithResponsibility =
+          await _myWorkCase.attachResponsibilityCounts(archivedWithEvents);
       final archHints = await _roomHints.fetchByBeaconIds(
-        archivedWithEvents.map((c) => c.beaconId),
+        archivedWithResponsibility.map((c) => c.beaconId),
       );
-      final archivedWithHints = archivedWithEvents
+      final archivedWithHints = archivedWithResponsibility
           .map((c) {
             final h = archHints[c.beaconId];
             if (h == null || !h.isRoomMember) {

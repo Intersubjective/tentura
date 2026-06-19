@@ -4,8 +4,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
 enum BeaconActivityLogTier { high, medium, low }
 
