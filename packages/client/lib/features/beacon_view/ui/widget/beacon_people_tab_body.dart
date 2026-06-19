@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -205,11 +206,13 @@ class BeaconPeopleTabBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        BeaconEvaluationHooks(
-          beaconId: beacon.id,
-          lifecycle: beacon.lifecycle,
-        ),
-        const SizedBox(height: 12),
+        if (beacon.lifecycle == BeaconLifecycle.closedReviewComplete) ...[
+          BeaconEvaluationHooks(
+            beaconId: beacon.id,
+            lifecycle: beacon.lifecycle,
+          ),
+          const SizedBox(height: 12),
+        ],
         AccordionExpansionGroup(
           initialExpandedId: requestedSectionId,
           requestedExpandedId: requestedSectionId,

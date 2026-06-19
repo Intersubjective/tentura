@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
+import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
@@ -110,7 +111,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             state: state,
             onTap: onSwitchToPeopleTab,
           ),
-          if (bundle.specs.isNotEmpty || bundle.showOverflowClose) ...[
+          if (state.beacon.lifecycle == BeaconLifecycle.closedReviewOpen)
+            ReviewWindowBannerHost(beaconId: state.beacon.id)
+          else if (bundle.specs.isNotEmpty || bundle.showOverflowClose) ...[
             const SizedBox(height: 10),
             _HudActionRail(
               actions: bundle.specs,
@@ -134,6 +137,10 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final open = b.lifecycle == BeaconLifecycle.open;
 
     if (b.lifecycle == BeaconLifecycle.deleted) {
+      return const _HudActionBundle(specs: [], showOverflowClose: false);
+    }
+
+    if (b.lifecycle == BeaconLifecycle.closedReviewOpen) {
       return const _HudActionBundle(specs: [], showOverflowClose: false);
     }
 

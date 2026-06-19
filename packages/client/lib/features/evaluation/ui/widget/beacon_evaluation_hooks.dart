@@ -1,19 +1,15 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
-import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 
 import 'evaluation_summary_card.dart';
-import 'review_banner.dart';
 
-/// Loads review window / summary for beacon People tab (draft review CTA lives in overflow menu).
+/// Loads post-review summary for beacon People tab.
 class BeaconEvaluationHooks extends StatefulWidget {
   const BeaconEvaluationHooks({
     required this.beaconId,
@@ -29,7 +25,6 @@ class BeaconEvaluationHooks extends StatefulWidget {
 }
 
 class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
-  ReviewWindowInfo? _window;
   EvaluationSummary? _summary;
   Object? _error;
 
@@ -49,25 +44,18 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
   }
 
   Future<void> _load() async {
-    if (widget.lifecycle != BeaconLifecycle.closedReviewOpen &&
-        widget.lifecycle != BeaconLifecycle.closedReviewComplete) {
+    if (widget.lifecycle != BeaconLifecycle.closedReviewComplete) {
       return;
     }
     setState(() {
       _error = null;
     });
     try {
-      final repo = GetIt.I<EvaluationRepository>();
-      final w = await repo.fetchReviewWindowStatus(widget.beaconId);
-      EvaluationSummary? s;
-      if (widget.lifecycle == BeaconLifecycle.closedReviewComplete) {
-        s = await repo.fetchSummary(widget.beaconId);
-      }
+      final s = await GetIt.I<EvaluationRepository>().fetchSummary(
+        widget.beaconId,
+      );
       if (mounted) {
-        setState(() {
-          _window = w;
-          _summary = s;
-        });
+        setState(() => _summary = s);
       }
     } catch (e) {
       if (mounted) {
@@ -78,40 +66,18 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.lifecycle == BeaconLifecycle.closedReviewOpen) {
-      if (_window == null && _error == null) {
-        return const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          child: LinearProgressIndicator(),
-        );
-      }
-      final w = _window;
-      if (w == null || !w.hasWindow || w.totalCount == 0) {
-        return const SizedBox.shrink();
-      }
-      return ReviewBanner(
-        isDraftPhase: false,
-        onPrimary: () => context.router.pushPath(
-          '$kPathReviewContributions/${widget.beaconId}',
-        ),
-      );
-    }
-    if (widget.lifecycle == BeaconLifecycle.closedReviewComplete &&
-        _summary != null) {
-      return EvaluationSummaryCard(summary: _summary!);
-    }
-    if (widget.lifecycle == BeaconLifecycle.closedReviewComplete &&
-        _error != null) {
+    if (widget.lifecycle != BeaconLifecycle.closedReviewComplete) {
       return const SizedBox.shrink();
     }
-    if (widget.lifecycle == BeaconLifecycle.closedReviewComplete) {
-      if (_summary == null && _error == null) {
-        return const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          child: LinearProgressIndicator(),
-        );
-      }
+    if (_summary != null) {
+      return EvaluationSummaryCard(summary: _summary!);
     }
-    return const SizedBox.shrink();
+    if (_error != null) {
+      return const SizedBox.shrink();
+    }
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: LinearProgressIndicator(),
+    );
   }
 }
