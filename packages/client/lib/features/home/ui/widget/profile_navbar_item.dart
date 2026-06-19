@@ -44,7 +44,8 @@ class ProfileNavBarItem extends StatelessWidget {
                 bloc: GetIt.I<ProfileCubit>(),
                 buildWhen: (p, c) =>
                     p.profile.hasAvatar != c.profile.hasAvatar ||
-                    p.profile.image?.blurHash != c.profile.image?.blurHash,
+                    p.profile.image?.blurHash != c.profile.image?.blurHash ||
+                    p.profile.displayName != c.profile.displayName,
                 builder: (context, state) {
                   return SelfAwareAvatar(
                     profile: state.profile,

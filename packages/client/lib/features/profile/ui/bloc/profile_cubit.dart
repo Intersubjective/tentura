@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/auth/domain/use_case/account_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
 import '../../domain/port/profile_repository_port.dart';
@@ -20,9 +21,11 @@ export 'profile_state.dart';
 @singleton
 class ProfileCubit extends Cubit<ProfileState> {
   ProfileCubit({
+    required AccountCase accountCase,
     required AuthCase authCase,
     required ProfileRepositoryPort profileRepository,
-  }) : _profileRepository = profileRepository,
+  }) : _accountCase = accountCase,
+       _profileRepository = profileRepository,
        super(const ProfileState()) {
     _authChanges = authCase.currentAccountChanges().listen(
       _onAuthChanges,
@@ -33,6 +36,8 @@ class ProfileCubit extends Cubit<ProfileState> {
       cancelOnError: false,
     );
   }
+
+  final AccountCase _accountCase;
 
   final ProfileRepositoryPort _profileRepository;
 
@@ -79,10 +84,19 @@ class ProfileCubit extends Cubit<ProfileState> {
   //
   //
   Future<void> _onAuthChanges(String id) async {
-    emit(ProfileState(profile: Profile(id: id)));
-    if (id.isNotEmpty) {
-      await fetch();
+    if (id.isEmpty) {
+      emit(const ProfileState());
+      return;
     }
+    final account = await _accountCase.getAccountById(id);
+    emit(
+      ProfileState(
+        profile: account != null
+            ? AccountCase.fromAccountEntity(account)
+            : Profile(id: id),
+      ),
+    );
+    await fetch();
   }
 
   //
