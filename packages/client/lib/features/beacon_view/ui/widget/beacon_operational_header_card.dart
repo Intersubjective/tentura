@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -10,7 +8,6 @@ import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
-import 'package:tentura/features/coordination_item/ui/widget/beacon_you_items_sheet.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
@@ -40,7 +37,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onEditNowLine,
     this.onShowNowDetail,
     this.onOpenItemDiscussion,
-    this.onYouResponsibilityChanged,
     super.key,
   });
 
@@ -80,9 +76,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   /// Opens an item discussion thread (YOU sheet Reply action).
   final void Function(CoordinationItem item)? onOpenItemDiscussion;
 
-  /// Refetch YOU responsibility after sheet mutations.
-  final VoidCallback? onYouResponsibilityChanged;
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -121,13 +114,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             responsibility: youResponsibility,
             isAuthorOrSteward: state.isAuthorOrSteward,
             showNewBadges: false,
-            onTap: () => unawaited(
-              showBeaconYouItemsSheet(
-                context,
-                beaconId: state.beacon.id,
-                onChanged: onYouResponsibilityChanged,
-              ),
-            ),
           ),
           const SizedBox(height: 8),
           _HudPeopleStrip(
