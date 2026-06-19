@@ -93,7 +93,7 @@ class RatingListTile extends StatelessWidget {
               flex: 4,
               child: Row(
                 children: [
-                  SelfAwareAvatar(profile: profile),
+                  SelfAwareAvatar(profile: profile, withRating: true),
                   const SizedBox(width: kSpacingSmall),
                   Expanded(
                     child: Column(

@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
-import 'package:tentura/ui/widget/author_star_avatar.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -89,12 +89,10 @@ class HelpOfferTile extends StatelessWidget {
             .add_Hm()
             .format(participantMeta.updatedAt.toLocal());
 
-    Widget avatarWidget;
-    if (showAuthorStar) {
-      avatarWidget = AuthorStarAvatar(profile: helpOffer.user);
-    } else {
-      avatarWidget = TenturaAvatar(profile: helpOffer.user);
-    }
+    final avatarWidget = SelfAwareAvatar.medium(
+      profile: helpOffer.user,
+      showAuthorStar: showAuthorStar,
+    );
 
     return TenturaTechCardStatic(
       isOwned: isMine && !isWithdrawn,
@@ -292,8 +290,6 @@ class _AuthorFooter extends StatelessWidget {
     required this.onAuthorTapCoordination,
   });
 
-  static const double _authorAvatarSize = 16;
-
   final L10n l10n;
   final TenturaTokens tt;
   final Profile beaconAuthor;
@@ -315,9 +311,9 @@ class _AuthorFooter extends StatelessWidget {
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    TenturaAvatar(
+                    SelfAwareAvatar.small(
                       profile: beaconAuthor,
-                      size: _authorAvatarSize,
+                      showAuthorStar: true,
                     ),
                     const SizedBox(width: 6),
                     Flexible(

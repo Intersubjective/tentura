@@ -1,52 +1,103 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
-/// [AvatarRated] with a primary ring when [profile] is the signed-in user.
+/// [TenturaAvatar] with self halo when [profile] is the signed-in user.
+///
+/// Sole owner of [ProfileCubit] coupling for avatar identity; call sites pass
+/// [profile] and decoration flags only.
 class SelfAwareAvatar extends StatelessWidget {
   const SelfAwareAvatar({
     required this.profile,
-    this.size = AvatarRated.sizeSmall,
-    this.withRating = true,
-    this.withContactBadge,
     super.key,
-  });
-
-  factory SelfAwareAvatar.small({
-    required Profile profile,
-    bool withRating = true,
+    this.sizeBucket = TenturaAvatarSize.medium,
+    this.size,
+    this.showAuthorStar = false,
+    this.withRating = false,
     bool? withContactBadge,
-  }) => SelfAwareAvatar(
-    profile: profile,
-    withRating: withRating,
-    withContactBadge: withContactBadge,
-  );
+    this.overlayBadge,
+    this.boxFit = BoxFit.cover,
+  }) : withContactBadge = withContactBadge ?? withRating;
+
+  const SelfAwareAvatar.big({
+    required this.profile,
+    super.key,
+    this.showAuthorStar = false,
+    this.withRating = false,
+    bool? withContactBadge,
+    this.overlayBadge,
+    this.boxFit = BoxFit.cover,
+  }) : sizeBucket = TenturaAvatarSize.big,
+       size = kTenturaAvatarBigSize,
+       withContactBadge = withContactBadge ?? withRating;
+
+  const SelfAwareAvatar.medium({
+    required this.profile,
+    super.key,
+    this.size,
+    this.showAuthorStar = false,
+    this.withRating = false,
+    bool? withContactBadge,
+    this.overlayBadge,
+    this.boxFit = BoxFit.cover,
+  }) : sizeBucket = TenturaAvatarSize.medium,
+       withContactBadge = withContactBadge ?? withRating;
+
+  const SelfAwareAvatar.small({
+    required this.profile,
+    super.key,
+    this.size,
+    this.showAuthorStar = false,
+    this.withRating = false,
+    bool? withContactBadge,
+    this.overlayBadge,
+    this.boxFit = BoxFit.cover,
+  }) : sizeBucket = TenturaAvatarSize.small,
+       withContactBadge = withContactBadge ?? withRating;
+
+  const SelfAwareAvatar.tiny({
+    required this.profile,
+    super.key,
+    this.size,
+    this.showAuthorStar = false,
+    this.withRating = false,
+    bool? withContactBadge,
+    this.overlayBadge,
+    this.boxFit = BoxFit.cover,
+  }) : sizeBucket = TenturaAvatarSize.tiny,
+       withContactBadge = withContactBadge ?? withRating;
 
   final Profile profile;
-  final double size;
+  final TenturaAvatarSize sizeBucket;
+  final double? size;
+  final bool showAuthorStar;
   final bool withRating;
-  final bool? withContactBadge;
+  final bool withContactBadge;
+  final Widget? overlayBadge;
+  final BoxFit boxFit;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<ProfileCubit, ProfileState>(
       buildWhen: (p, c) => p.profile.id != c.profile.id,
       builder: (context, state) {
-        final isSelf = SelfUserHighlight.profileIsSelf(profile, state.profile.id);
-        final core = AvatarRated(
+        final isSelf = SelfUserHighlight.profileIsSelf(
+          profile,
+          state.profile.id,
+        );
+        return TenturaAvatar(
           profile: profile,
+          sizeBucket: sizeBucket,
           size: size,
+          showAuthorStar: showAuthorStar,
+          isSelf: isSelf,
           withRating: withRating,
           withContactBadge: withContactBadge,
-        );
-        return SelfUserHighlight.wrapSmallAvatar(
-          context,
-          avatarSize: size,
-          isSelf: isSelf,
-          child: core,
+          overlayBadge: overlayBadge,
+          boxFit: boxFit,
         );
       },
     );

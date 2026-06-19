@@ -9,7 +9,7 @@ import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dar
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_card_deadline.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/inbox_provenance.dart';
@@ -254,11 +254,7 @@ class _SenderNoteBlock extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        AvatarRated(
-          profile: profile,
-          size: 18,
-          withRating: false,
-        ),
+        TenturaAvatar.tiny(profile: profile),
       ],
     );
 

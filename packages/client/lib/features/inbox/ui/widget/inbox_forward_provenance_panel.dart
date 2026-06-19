@@ -6,7 +6,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -275,9 +275,8 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                         : 1,
                   ),
                 ),
-                child: AvatarRated(
+                child: TenturaAvatar.small(
                   profile: primaryProfile,
-                  withRating: false,
                   size: _kAvatarSize,
                 ),
               ),
@@ -331,9 +330,8 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                           : 1,
                     ),
                   ),
-                  child: AvatarRated(
+                  child: TenturaAvatar.small(
                     profile: recipient!,
-                    withRating: false,
                     size: _kAvatarSize,
                   ),
                 ),
@@ -394,6 +392,7 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                   overflowCount: overflowCount,
                   size: _kAvatarSize,
                   overlap: _kAvatarOverlap,
+                  selfUserId: viewerUserId,
                   overflowRingColor: scheme.surfaceContainerLowest,
                   overflowBadgeFillColor: scheme.outlineVariant,
                   overflowBadgeTextColor: scheme.surface,
@@ -511,9 +510,8 @@ class _ProvenanceSenderBlock extends StatelessWidget {
                       : 1,
                 ),
               ),
-              child: AvatarRated(
+              child: TenturaAvatar.small(
                 profile: profile,
-                withRating: false,
                 size: _kAvatarSize,
               ),
             ),
@@ -556,9 +554,8 @@ class _ProvenanceSenderBlock extends StatelessWidget {
                             : 1,
                   ),
                 ),
-                child: AvatarRated(
+                child: TenturaAvatar.small(
                   profile: recipient!,
-                  withRating: false,
                   size: _kAvatarSize,
                 ),
               ),

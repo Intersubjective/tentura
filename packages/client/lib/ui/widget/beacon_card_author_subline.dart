@@ -55,10 +55,9 @@ class BeaconCardAuthorSubline extends StatelessWidget {
         final hasExtras = tail != null || cat != null;
         return Row(
           children: [
-            SelfAwareAvatar(
+            SelfAwareAvatar.tiny(
               profile: author,
               size: avatarSize,
-              withRating: false,
             ),
             const SizedBox(width: 6),
             Expanded(

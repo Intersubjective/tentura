@@ -1,69 +1,55 @@
+import '../preview.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
-import '../preview.dart';
-import '../widget/avatar_rated.dart';
-
 @Preview(
-  name: 'AvatarRated (small)',
+  name: 'TenturaAvatar (medium)',
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleAvatarRatedSmall() => AvatarRated.small(
-  profile: profileCaptainNemo,
-  withRating: false,
+Widget sampleTenturaAvatarMedium() => TenturaAvatar.medium(
+  profile: const Profile(id: '1', displayName: 'Alex Rivera'),
 );
 
 @Preview(
-  name: 'AvatarRated (big)',
+  name: 'TenturaAvatar (big)',
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleAvatarRatedBig() => AvatarRated.big(
-  profile: profileCaptainNemo,
-  withRating: false,
-);
-
-const _profileEyeOpen = Profile(
-  id: 'Ueye1',
-  displayName: 'Seeing you',
-  rScore: 1,
-);
-
-const _profileEyeClosed = Profile(
-  id: 'Ueye0',
-  displayName: 'Not seeing you',
-);
-
-const _profileHandshake = Profile(
-  id: 'Uhs1',
-  displayName: 'Mutual friend',
-  rScore: 1,
-  isMutualFriend: true,
+Widget sampleTenturaAvatarBig() => TenturaAvatar.big(
+  profile: const Profile(id: '1', displayName: 'Alex Rivera'),
 );
 
 @Preview(
-  name: 'AvatarRated (small · eye open)',
+  name: 'TenturaAvatar (medium · eye open)',
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleAvatarRatedSmallEyeOpen() => AvatarRated.small(
-  profile: _profileEyeOpen,
+Widget sampleTenturaAvatarMediumEyeOpen() => TenturaAvatar.medium(
+  profile: const Profile(id: '1', displayName: 'Alex Rivera', score: 50),
+  withContactBadge: true,
 );
 
 @Preview(
-  name: 'AvatarRated (small · eye closed)',
+  name: 'TenturaAvatar (medium · eye closed)',
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleAvatarRatedSmallEyeClosed() => AvatarRated.small(
-  profile: _profileEyeClosed,
+Widget sampleTenturaAvatarMediumEyeClosed() => TenturaAvatar.medium(
+  profile: const Profile(id: '1', displayName: 'Alex Rivera'),
+  withContactBadge: true,
 );
 
 @Preview(
-  name: 'AvatarRated (small · handshake)',
+  name: 'TenturaAvatar (medium · handshake)',
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleAvatarRatedSmallHandshake() => AvatarRated.small(
-  profile: _profileHandshake,
+Widget sampleTenturaAvatarMediumHandshake() => TenturaAvatar.medium(
+  profile: const Profile(
+    id: '1',
+    displayName: 'Alex Rivera',
+    isMutualFriend: true,
+  ),
+  withContactBadge: true,
 );

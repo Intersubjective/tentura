@@ -21,14 +21,13 @@ import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.d
 import 'package:tentura/features/beacon_room/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
-import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/features/beacon_room/ui/widget/room_message_bubble_measure.dart';
@@ -954,7 +953,7 @@ class RoomMessageTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               SizedBox(
-                width: AvatarRated.sizeSmall + kSpacingSmall,
+                width: kTenturaAvatarDefaultMedium + kSpacingSmall,
                 child: isGroupEnd
                     ? GestureDetector(
                         onTap: () => context.read<ScreenCubit>().showProfile(
@@ -963,13 +962,13 @@ class RoomMessageTile extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SelfAwarePlainMiniAvatar(
+                            SelfAwareAvatar.medium(
                               profile: message.author,
                             ),
                             if (authorCapabilityIcons.isNotEmpty) ...[
                               const SizedBox(height: 1),
                               SizedBox(
-                                width: AvatarRated.sizeSmall,
+                                width: kTenturaAvatarDefaultMedium,
                                 child: Wrap(
                                   alignment: WrapAlignment.center,
                                   spacing: 2,
@@ -1295,7 +1294,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TenturaAvatar(profile: actorProfile, size: _avatarSize),
+            TenturaAvatar.tiny(profile: actorProfile, size: _avatarSize),
             SizedBox(width: tokens.iconTextGap / 4),
             Icon(Icons.task_alt, size: _iconSize, color: tokens.good),
             SizedBox(width: tokens.iconTextGap / 4),
@@ -1443,7 +1442,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        TenturaAvatar(profile: profile, size: _avatarSize),
+        TenturaAvatar.tiny(profile: profile, size: _avatarSize),
         SizedBox(width: tokens.iconTextGap / 4),
         leading,
         SizedBox(width: tokens.iconTextGap / 4),
@@ -1590,30 +1589,12 @@ class _ReactorAvatarStrip extends StatelessWidget {
                   top: 0,
                   bottom: 0,
                   child: Align(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color:
-                              SelfUserHighlight.profileIsSelf(
-                                visible[i],
-                                state.profile.id,
-                              )
-                              ? scheme.primary
-                              : ringColor,
-                          width:
-                              SelfUserHighlight.profileIsSelf(
-                                visible[i],
-                                state.profile.id,
-                              )
-                              ? 2
-                              : 1,
-                        ),
-                      ),
-                      child: AvatarRated(
-                        profile: visible[i],
-                        withRating: false,
-                        size: _size,
+                    child: TenturaAvatar.tiny(
+                      profile: visible[i],
+                      size: _size,
+                      isSelf: SelfUserHighlight.profileIsSelf(
+                        visible[i],
+                        state.profile.id,
                       ),
                     ),
                   ),

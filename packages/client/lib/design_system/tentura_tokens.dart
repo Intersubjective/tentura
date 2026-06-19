@@ -29,7 +29,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.iconSize,
     required this.buttonHeight,
     required this.metadataAvatarSize,
-    required this.cardAvatarSize,
+    required this.avatarTinySize,
     required this.appBarHeight,
     required this.bottomNavHeight,
     required this.contentMaxWidth,
@@ -66,7 +66,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   final double iconSize;
   final double buttonHeight;
   final double metadataAvatarSize;
-  final double cardAvatarSize;
+  final double avatarTinySize;
   final double appBarHeight;
   final double bottomNavHeight;
 
@@ -100,7 +100,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     iconSize: 22,
     buttonHeight: 44,
     metadataAvatarSize: 24,
-    cardAvatarSize: 40,
+    avatarTinySize: 18,
     appBarHeight: 56,
     bottomNavHeight: 64,
     contentMaxWidth: null,
@@ -132,7 +132,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     iconSize: 22,
     buttonHeight: 44,
     metadataAvatarSize: 24,
-    cardAvatarSize: 40,
+    avatarTinySize: 18,
     appBarHeight: 56,
     bottomNavHeight: 64,
     contentMaxWidth: null,
@@ -161,7 +161,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           iconSize: 22,
           buttonHeight: 44,
           metadataAvatarSize: 24,
-          cardAvatarSize: 40,
+          avatarTinySize: 18,
           appBarHeight: 56,
           bottomNavHeight: 64,
           cardPadding: TenturaSpacing.cardPaddingAll,
@@ -179,7 +179,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           iconSize: 24,
           buttonHeight: 46,
           metadataAvatarSize: 26,
-          cardAvatarSize: 44,
+          avatarTinySize: 18,
           appBarHeight: 60,
           bottomNavHeight: 72,
           contentMaxWidth: 560,
@@ -198,7 +198,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           iconSize: 26,
           buttonHeight: 48,
           metadataAvatarSize: 28,
-          cardAvatarSize: 48,
+          avatarTinySize: 20,
           appBarHeight: 60,
           bottomNavHeight: 72,
           contentMaxWidth: 720,
@@ -234,7 +234,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? iconSize,
     double? buttonHeight,
     double? metadataAvatarSize,
-    double? cardAvatarSize,
+    double? avatarTinySize,
     double? appBarHeight,
     double? bottomNavHeight,
     double? contentMaxWidth,
@@ -266,7 +266,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       iconSize: iconSize ?? this.iconSize,
       buttonHeight: buttonHeight ?? this.buttonHeight,
       metadataAvatarSize: metadataAvatarSize ?? this.metadataAvatarSize,
-      cardAvatarSize: cardAvatarSize ?? this.cardAvatarSize,
+      avatarTinySize: avatarTinySize ?? this.avatarTinySize,
       appBarHeight: appBarHeight ?? this.appBarHeight,
       bottomNavHeight: bottomNavHeight ?? this.bottomNavHeight,
       contentMaxWidth: refreshContentMaxWidth
@@ -315,7 +315,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
         other.metadataAvatarSize,
         t,
       )!,
-      cardAvatarSize: lerpDouble(cardAvatarSize, other.cardAvatarSize, t)!,
+      avatarTinySize: lerpDouble(avatarTinySize, other.avatarTinySize, t)!,
       appBarHeight: lerpDouble(appBarHeight, other.appBarHeight, t)!,
       bottomNavHeight: lerpDouble(bottomNavHeight, other.bottomNavHeight, t)!,
       contentMaxWidth: _lerpMaxWidth(contentMaxWidth, other.contentMaxWidth, t),

@@ -7,7 +7,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
@@ -33,9 +33,8 @@ class ProfileViewBody extends StatelessWidget {
           children: [
             // Avatar
             Center(
-              child: AvatarRated.big(
+              child: TenturaAvatar.big(
                 profile: profile,
-                withRating: false,
                 withContactBadge: true,
               ),
             ),

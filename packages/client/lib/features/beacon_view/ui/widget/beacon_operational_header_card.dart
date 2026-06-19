@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
@@ -13,6 +14,8 @@ import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 import 'beacon_hud_action_button.dart';
@@ -480,11 +483,14 @@ class _HudPeopleStrip extends StatelessWidget {
     final ordered = orderBeaconInvolvedProfiles(author, helpUsers);
     final display = involvedPeopleDisplayFromOrdered(ordered: ordered);
 
+    final viewerId = context.watch<ProfileCubit>().state.profile.id;
+
     final child = OverlappingPeopleAvatars(
       profiles: display.visible,
       overflowCount: display.overflow,
       size: 28,
       starredProfileId: author.id,
+      selfUserId: viewerId,
       semanticsLabel: l10n.facepileSemantics(
         display.visible.length,
         display.overflow,

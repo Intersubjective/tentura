@@ -220,9 +220,8 @@ class BeaconCardMetadataBlock extends StatelessWidget {
       children: [
         Row(
           children: [
-            SelfAwareAvatar(
+            SelfAwareAvatar.small(
               profile: author,
-              size: metaAvatar,
               withRating: false,
             ),
             const SizedBox(width: 6),
