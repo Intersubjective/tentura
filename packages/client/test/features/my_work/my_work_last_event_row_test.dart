@@ -11,6 +11,7 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 MyWorkCardViewModel _vm({
   required Beacon beacon,
@@ -101,6 +102,7 @@ void main() {
 
     expect(find.textContaining(l10n.beaconActivityBeaconPublished), findsOneWidget);
     expect(find.textContaining(l10n.labelYou), findsOneWidget);
+    expect(find.byType(ProfileAuthorStarBadge), findsOneWidget);
     expect(find.byIcon(Icons.star_rounded), findsOneWidget);
     expect(find.byIcon(Icons.campaign_outlined), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
