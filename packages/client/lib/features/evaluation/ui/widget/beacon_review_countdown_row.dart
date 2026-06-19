@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/duration_format.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Formats remaining duration for evaluation review window UI.
 String formatReviewWindowRemaining(Duration remaining, L10n l10n) =>
