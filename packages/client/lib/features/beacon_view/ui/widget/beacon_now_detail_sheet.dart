@@ -122,7 +122,6 @@ class _BeaconNowDetailSheetBody extends StatelessWidget {
                 kind: kind,
                 status: status,
                 tt: tt,
-                scheme: scheme,
                 size: 18,
               ),
               const SizedBox(width: 8),

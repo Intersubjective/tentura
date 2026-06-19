@@ -163,7 +163,6 @@ class _EventLine extends StatelessWidget {
               child: coordinationCompoundActivityIcon(
                     event,
                     tt: context.tt,
-                    scheme: scheme,
                   ) ??
                   Icon(
                     beaconActivityLogIcon(event),

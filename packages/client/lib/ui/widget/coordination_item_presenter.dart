@@ -103,13 +103,12 @@ IconData? coordinationEventStateIcon(CoordinationItemEventKind eventKind) =>
 const double kCoordinationCompoundIconSize = 22;
 
 /// Builds the side-by-side `[kind][state]` compound. Decorative: callers carry
-/// meaning via the adjacent text label. When [stateIcon] is null the lone kind
-/// glyph takes [accent]; otherwise kind is [neutral] and state is [accent].
+/// meaning via the adjacent text label. Both glyphs take [accent] (kind alone
+/// when [stateIcon] is null; kind and state share accent when chained).
 Widget _coordinationCompound({
   required IconData kindIcon,
   required IconData? stateIcon,
   required Color accent,
-  required Color neutral,
   required double size,
 }) {
   if (stateIcon == null) {
@@ -118,7 +117,7 @@ Widget _coordinationCompound({
   return Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      Icon(kindIcon, size: size, color: neutral),
+      Icon(kindIcon, size: size, color: accent),
       const SizedBox(width: 2),
       Icon(stateIcon, size: size, color: accent),
     ],
@@ -130,7 +129,6 @@ Widget coordinationCompoundStatusIcon({
   required CoordinationItemKind kind,
   required CoordinationItemStatus status,
   required TenturaTokens tt,
-  required ColorScheme scheme,
   bool isPlanStep = false,
   double size = kCoordinationCompoundIconSize,
 }) =>
@@ -138,7 +136,6 @@ Widget coordinationCompoundStatusIcon({
       kindIcon: coordinationKindIcon(kind, isPlanStep: isPlanStep),
       stateIcon: coordinationStateIcon(status),
       accent: coordinationItemColor(tt, kind, status),
-      neutral: scheme.onSurfaceVariant,
       size: size,
     );
 
@@ -148,7 +145,6 @@ Widget coordinationCompoundEventIcon({
   required CoordinationItemKind kind,
   required CoordinationItemEventKind eventKind,
   required TenturaTokens tt,
-  required ColorScheme scheme,
   bool isPlanStep = false,
   double size = kCoordinationCompoundIconSize,
   Color? accentOverride,
@@ -157,7 +153,6 @@ Widget coordinationCompoundEventIcon({
       kindIcon: coordinationKindIcon(kind, isPlanStep: isPlanStep),
       stateIcon: coordinationEventStateIcon(eventKind),
       accent: accentOverride ?? coordinationItemEventColor(tt, kind, eventKind),
-      neutral: scheme.onSurfaceVariant,
       size: size,
     );
 
@@ -166,7 +161,6 @@ Widget coordinationCompoundEventIcon({
 Widget? coordinationCompoundActivityIcon(
   BeaconActivityEvent event, {
   required TenturaTokens tt,
-  required ColorScheme scheme,
   double size = kCoordinationCompoundIconSize,
 }) {
   final kind = event.coordinationKind;
@@ -175,7 +169,6 @@ Widget? coordinationCompoundActivityIcon(
     kind: kind,
     eventKind: event.coordinationEventKind ?? CoordinationItemEventKind.created,
     tt: tt,
-    scheme: scheme,
     size: size,
   );
 }

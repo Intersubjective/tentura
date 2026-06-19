@@ -411,7 +411,6 @@ class RoomMessageTile extends StatelessWidget {
                   eventKind: eventKind,
                   isPlanStep: isPlanStep,
                   tt: tt,
-                  scheme: scheme,
                   size: 14,
                 ),
           lineBuilder: (authorName) {
@@ -1188,7 +1187,6 @@ class _MessageLifecycleFooter extends StatelessWidget {
             eventKind: eventKind,
             isPlanStep: linkedCoord!.isPlanStep,
             tt: tokens,
-            scheme: scheme,
             size: _iconSize,
           ),
           accent: coordinationItemEventColor(
@@ -1230,7 +1228,6 @@ class _MessageLifecycleFooter extends StatelessWidget {
           eventKind: CoordinationItemEventKind.created,
           isPlanStep: linkedCoord!.isPlanStep,
           tt: tokens,
-          scheme: scheme,
           size: _iconSize,
           accentOverride: promotionAccent,
         ),
@@ -1271,7 +1268,6 @@ class _MessageLifecycleFooter extends StatelessWidget {
           eventKind: linkedEventKind!,
           isPlanStep: linkedCoord!.isPlanStep,
           tt: tokens,
-          scheme: scheme,
           size: _iconSize,
           accentOverride: useThreadMarkAccent ? eventAccent : null,
         ),
