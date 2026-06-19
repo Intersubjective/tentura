@@ -379,6 +379,25 @@ class MockBeaconRepositoryPort extends _i1.Mock
             ),
           )
           as _i5.Future<_i2.BeaconEntity>);
+
+  @override
+  _i5.Future<_i2.BeaconEntity> publishDraft({
+    required String? id,
+    required String? actorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#publishDraft, [], {#id: id, #actorId: actorId}),
+            returnValue: _i5.Future<_i2.BeaconEntity>.value(
+              _FakeBeaconEntity_0(
+                this,
+                Invocation.method(#publishDraft, [], {
+                  #id: id,
+                  #actorId: actorId,
+                }),
+              ),
+            ),
+          )
+          as _i5.Future<_i2.BeaconEntity>);
 }
 
 /// A class which mocks [ForwardEdgeRepositoryPort].

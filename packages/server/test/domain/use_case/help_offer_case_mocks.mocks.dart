@@ -10,9 +10,11 @@ import 'package:tentura_server/data/database/tentura_db.dart' as _i4;
 import 'package:tentura_server/data/repository/beacon_room_repository.dart'
     as _i15;
 import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
-    as _i16;
-import 'package:tentura_server/data/service/beacon_room_push_service.dart'
     as _i17;
+import 'package:tentura_server/data/service/beacon_room_push_service.dart'
+    as _i18;
+import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart'
+    as _i16;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart' as _i12;
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart'
@@ -389,6 +391,25 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #userId: userId,
                   #publicStatus: publicStatus,
                   #lastPublicMeaningfulChange: lastPublicMeaningfulChange,
+                }),
+              ),
+            ),
+          )
+          as _i6.Future<_i2.BeaconEntity>);
+
+  @override
+  _i6.Future<_i2.BeaconEntity> publishDraft({
+    required String? id,
+    required String? actorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#publishDraft, [], {#id: id, #actorId: actorId}),
+            returnValue: _i6.Future<_i2.BeaconEntity>.value(
+              _FakeBeaconEntity_0(
+                this,
+                Invocation.method(#publishDraft, [], {
+                  #id: id,
+                  #actorId: actorId,
                 }),
               ),
             ),
@@ -1715,6 +1736,24 @@ class MockBeaconRoomRepository extends _i1.Mock
           as _i6.Future<List<String>>);
 
   @override
+  _i6.Future<List<_i16.MyWorkLastActivityEventRow>>
+  latestActivityEventsByBeaconIds({
+    required List<String>? beaconIds,
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#latestActivityEventsByBeaconIds, [], {
+              #beaconIds: beaconIds,
+              #viewerUserId: viewerUserId,
+            }),
+            returnValue:
+                _i6.Future<List<_i16.MyWorkLastActivityEventRow>>.value(
+                  <_i16.MyWorkLastActivityEventRow>[],
+                ),
+          )
+          as _i6.Future<List<_i16.MyWorkLastActivityEventRow>>);
+
+  @override
   _i6.Future<String?> participantUserIdForRow(String? participantRowId) =>
       (super.noSuchMethod(
             Invocation.method(#participantUserIdForRow, [participantRowId]),
@@ -1815,7 +1854,7 @@ class MockBeaconRoomRepository extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockVoteUserFriendshipLookup extends _i1.Mock
-    implements _i16.VoteUserFriendshipLookup {
+    implements _i17.VoteUserFriendshipLookup {
   MockVoteUserFriendshipLookup() {
     _i1.throwOnMissingStub(this);
   }
@@ -1867,7 +1906,7 @@ class MockVoteUserFriendshipLookup extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomPushService extends _i1.Mock
-    implements _i17.BeaconRoomPushService {
+    implements _i18.BeaconRoomPushService {
   MockBeaconRoomPushService() {
     _i1.throwOnMissingStub(this);
   }

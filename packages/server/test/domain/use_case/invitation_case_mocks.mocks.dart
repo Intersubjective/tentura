@@ -920,6 +920,25 @@ class MockBeaconRepositoryPort extends _i1.Mock
             ),
           )
           as _i7.Future<_i5.BeaconEntity>);
+
+  @override
+  _i7.Future<_i5.BeaconEntity> publishDraft({
+    required String? id,
+    required String? actorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#publishDraft, [], {#id: id, #actorId: actorId}),
+            returnValue: _i7.Future<_i5.BeaconEntity>.value(
+              _FakeBeaconEntity_3(
+                this,
+                Invocation.method(#publishDraft, [], {
+                  #id: id,
+                  #actorId: actorId,
+                }),
+              ),
+            ),
+          )
+          as _i7.Future<_i5.BeaconEntity>);
 }
 
 /// A class which mocks [VoteUserFriendshipLookup].
