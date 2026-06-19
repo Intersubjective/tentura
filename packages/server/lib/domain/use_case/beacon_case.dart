@@ -180,6 +180,24 @@ final class BeaconCase extends UseCaseBase {
     return beacon;
   }
 
+  /// Publishes a draft beacon (state 3 → 0) and emits a `beaconPublished` event.
+  Future<BeaconEntity> publishDraft({
+    required String userId,
+    required String beaconId,
+  }) async {
+    final beacon = await _beaconRepository.getBeaconById(
+      beaconId: beaconId,
+      filterByUserId: userId,
+    );
+    if (beacon.state == kBeaconStateDraft) {
+      final ns = beacon.needSummary?.trim();
+      if (ns == null || ns.length < _kNeedSummaryPublishMin) {
+        throw const BeaconNeedSummaryTooShortException();
+      }
+    }
+    return _beaconRepository.publishDraft(id: beaconId, actorId: userId);
+  }
+
   /// Persists edits to a draft beacon (state 3).
   Future<BeaconEntity> updateDraft({
     required String userId,

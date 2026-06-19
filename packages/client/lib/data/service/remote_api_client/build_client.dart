@@ -232,6 +232,8 @@ class _V2RoutingLink extends Link {
     'CoordinationItemRejectResolution',
     'CoordinationItemRemind',
     'MyWorkCoordinationItemActivity',
+    'MyWorkLastActivityEvent',
+    'BeaconPublish',
   };
 
   @override

@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 
 import '../custom_types.dart';
@@ -23,6 +24,7 @@ final class QueryBeaconRoom extends GqlNodeBase {
         beaconRoomStateGet,
         beaconActivityEventList,
         inboxRoomContextBatch,
+        myWorkLastActivityEvent,
       ];
 
   GraphQLObjectField<dynamic, dynamic> get roomMessageList =>
@@ -91,4 +93,33 @@ final class QueryBeaconRoom extends GqlNodeBase {
               beaconIds: InputFieldBeaconIds.fromArgs(args),
             ),
       );
+
+  GraphQLObjectField<dynamic, dynamic> get myWorkLastActivityEvent =>
+      GraphQLObjectField(
+        'myWorkLastActivityEvent',
+        GraphQLListType(gqlTypeMyWorkLastActivityEventRow.nonNullable()),
+        arguments: [InputFieldBeaconIds.field],
+        resolve: (_, args) async {
+          final rows = await _case.myWorkLastActivityEventsByBeaconIds(
+            userId: getCredentials(args).sub,
+            beaconIds: InputFieldBeaconIds.fromArgs(args),
+          );
+          return rows.map(_myWorkLastActivityEventToMap).toList();
+        },
+      );
+}
+
+Map<String, Object?> _myWorkLastActivityEventToMap(
+  MyWorkLastActivityEventRow row,
+) {
+  final event = row.event;
+  return {
+    'beaconId': row.beaconId,
+    'id': event?.id,
+    'type': event?.type,
+    'actorId': event?.actorId,
+    'actorTitle': row.actorTitle,
+    'actorImageId': row.actorImageId,
+    'createdAt': event?.createdAt.toUtc().toIso8601String(),
+  };
 }

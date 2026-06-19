@@ -44,6 +44,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonFriendContext,
   gqlTypeCoordinationItemRow,
   gqlTypeMyWorkBeaconCoordinationActivityRow,
+  gqlTypeMyWorkLastActivityEventRow,
   gqlTypeBeaconLineageSuggestion,
   gqlTypeBeaconLineageForwardSuggestions,
 ];
@@ -616,6 +617,18 @@ final gqlTypeMyWorkBeaconCoordinationActivityRow =
       ..fields.addAll([
         field('beaconId', graphQLString.nonNullable()),
         field('lastCoordinationItemMessageAt', graphQLString),
+      ]);
+
+final gqlTypeMyWorkLastActivityEventRow =
+    GraphQLObjectType('MyWorkLastActivityEventRow', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('id', graphQLString),
+        field('type', graphQLInt),
+        field('actorId', graphQLString),
+        field('actorTitle', graphQLString),
+        field('actorImageId', graphQLString),
+        field('createdAt', graphQLString),
       ]);
 
 final gqlTypeBeaconLineageSuggestion =

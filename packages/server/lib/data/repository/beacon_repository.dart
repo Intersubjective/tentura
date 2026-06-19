@@ -2,6 +2,9 @@ import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
 
 import 'package:tentura_server/consts.dart' show kTitleMaxLength, kTitleMinLength;
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
+import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/consts/beacon_public_status.dart';
@@ -93,6 +96,16 @@ class BeaconRepository implements BeaconRepositoryPort {
               position: Value(i),
             ),
         ],
+      );
+    }
+
+    final effectiveState = state ?? 0;
+    if (effectiveState == 0) {
+      await _insertBeaconPublishedEvent(
+        beaconId: beacon.id,
+        actorId: authorId,
+        title: title,
+        needSummary: needSummary,
       );
     }
 
@@ -363,6 +376,73 @@ class BeaconRepository implements BeaconRepositoryPort {
         );
         return getBeaconById(beaconId: beaconId);
       });
+
+  @override
+  Future<BeaconEntity> publishDraft({
+    required String id,
+    required String actorId,
+  }) =>
+      _database.withMutatingUser(actorId, () async {
+        return _database.transaction(() async {
+          final existing = await _database.managers.beacons
+              .filter(
+                (e) => e.id.equals(id) & e.userId.id.equals(actorId),
+              )
+              .getSingleOrNull();
+
+          if (existing == null) {
+            throw const BeaconCreateException(
+              description: 'Beacon not found or not owned',
+            );
+          }
+
+          if (existing.state != kBeaconStateDraft) {
+            return getBeaconById(beaconId: id, filterByUserId: actorId);
+          }
+
+          await _database.managers.beacons
+              .filter((e) => e.id.equals(id))
+              .update((o) => o(state: const Value(0)));
+
+          await _insertBeaconPublishedEvent(
+            beaconId: id,
+            actorId: actorId,
+            title: existing.title,
+            needSummary: existing.needSummary,
+          );
+
+          return getBeaconById(beaconId: id, filterByUserId: actorId);
+        });
+      });
+
+  Future<void> _insertBeaconPublishedEvent({
+    required String beaconId,
+    required String actorId,
+    String? title,
+    String? needSummary,
+  }) async {
+    final diff = <String, Object?>{};
+    final trimmedTitle = title?.trim();
+    final trimmedSummary = needSummary?.trim();
+    if (trimmedTitle != null && trimmedTitle.isNotEmpty) {
+      diff['title'] = trimmedTitle;
+    }
+    if (trimmedSummary != null && trimmedSummary.isNotEmpty) {
+      diff['needSummary'] = trimmedSummary;
+    }
+
+    await _database.managers.beaconActivityEvents.create(
+      (o) => o(
+        id: Value(BeaconActivityEventEntity.newId),
+        beaconId: beaconId,
+        visibility: BeaconActivityEventVisibilityBits.public,
+        type: BeaconActivityEventTypeBits.beaconPublished,
+        actorId: Value(actorId),
+        diff: diff.isEmpty ? const Value(null) : Value(diff),
+        createdAt: const Value.absent(),
+      ),
+    );
+  }
 
   Future<List<Image>> _getBeaconImages(String beaconId) async {
     final beaconImageRows = await _database.managers.beaconImages

@@ -274,4 +274,22 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       updatedAt: DateTime.timestamp(),
     );
   }
+
+  @override
+  Future<BeaconEntity> publishDraft({
+    required String id,
+    required String actorId,
+  }) async {
+    final b = storageById[id];
+    if (b == null || b.author.id != actorId) {
+      throw IdNotFoundException(id: id);
+    }
+    if (b.state == 3) {
+      return storageById[id] = b.copyWith(
+        state: 0,
+        updatedAt: DateTime.timestamp(),
+      );
+    }
+    return b;
+  }
 }

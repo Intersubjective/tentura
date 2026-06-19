@@ -9,6 +9,8 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../data/repository/my_work_repository.dart';
+import '../entity/my_work_card_view_model.dart';
+import '../entity/my_work_last_event.dart';
 
 @singleton
 final class MyWorkCase extends UseCaseBase {
@@ -36,4 +38,24 @@ final class MyWorkCase extends UseCaseBase {
 
   Future<bool> currentUserHasForwardedBeacon(String beaconId) =>
       _forwardRepository.currentUserHasForwardedBeacon(beaconId);
+
+  Future<List<MyWorkCardViewModel>> attachLastActivityEvents(
+    List<MyWorkCardViewModel> cards,
+  ) async {
+    if (cards.isEmpty) {
+      return cards;
+    }
+    final byBeacon = await _repository.fetchLastActivityEventsByBeaconId(
+      cards.map((c) => c.beaconId).toList(),
+    );
+    return [
+      for (final card in cards)
+        () {
+          final last = byBeacon[card.beaconId];
+          return last == null
+              ? card
+              : card.copyWith(lastActivityEvent: last);
+        }(),
+    ];
+  }
 }

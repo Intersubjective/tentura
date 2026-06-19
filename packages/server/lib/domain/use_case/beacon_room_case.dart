@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/port/coordination_item_repository_port.dar
 import 'package:tentura_server/data/repository/polling_repository.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/data/storage/remote_storage.dart';
+import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
@@ -358,6 +359,21 @@ final class BeaconRoomCase extends UseCaseBase {
       );
     }
     return _room.listActivityEvents(beaconId: beaconId);
+  }
+
+  Future<List<MyWorkLastActivityEventRow>> myWorkLastActivityEventsByBeaconIds({
+    required String userId,
+    required List<String> beaconIds,
+  }) async {
+    final unique = beaconIds.toSet().toList();
+    if (unique.isEmpty) {
+      return const [];
+    }
+    final slice = unique.length > 80 ? unique.sublist(0, 80) : unique;
+    return _room.latestActivityEventsByBeaconIds(
+      beaconIds: slice,
+      viewerUserId: userId,
+    );
   }
 
   /// Marks a room message with the semantic "done" marker (no blocker resolution).
