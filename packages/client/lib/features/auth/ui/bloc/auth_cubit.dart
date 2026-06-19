@@ -50,7 +50,10 @@ class AuthCubit extends Cubit<AuthState> {
         isBootstrapping: true,
       ),
     );
-    unawaited(cubit._bootstrap());
+    // Must finish before other singletons (ProfileCubit, FriendsCubit, …) resolve:
+    // they subscribe to currentAccountChanges and fetch immediately, which throws
+    // AuthenticationNoKeyException when remote auth is not restored yet.
+    await cubit._bootstrap();
     return cubit;
   }
 
