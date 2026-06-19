@@ -82,3 +82,28 @@ A separate room message inserted when an item’s status changes (or on promote)
 
 **Message lifecycle footer**:
 Three-case chrome under a promoted source: reactions + date; promotion row (avatar, kind, date → thread); optional resolution row when status is resolved/cancelled/superseded (from `system_payload.lastStatusEvent` on the source message). Distinct from mark-done (`semanticMarker == done`).
+
+## My desk (My Work)
+
+**My desk** (user-facing; l10n `myWork`):
+The signed-in user's work inbox tab — beacons they **authored** or **help-offered** on, with filters and sort. Not the public beacon catalog or another user's profile beacons.
+_Avoid_: mixing with **Inbox** (forwards received from others).
+
+**Active filter** (default):
+Non-archived cards where the user participates in ongoing work — `authoredActive` and `helpOfferedActive` card kinds. Excludes **drafts** and **archived** items.
+_Avoid_: using "active" to mean only `lifecycle.open`; pending review and closed-review-open remain here until archived.
+
+**All filter** (non-archived superset):
+Every non-archived card: active + **drafts** + help-offered/active authored rows from the init fetch. Placed in the filter menu after role-specific filters and before **Archived**.
+
+**Drafts filter**:
+Authored beacons in `draft` lifecycle only (`authoredDraft` card kind).
+
+**Archived filter**:
+Closed-lifecycle beacons (lazy fetch). Separate from active/all/drafts.
+
+**Archived count hint**:
+Deduped count of closed authored + help-offered beacon ids from the init query, shown before the lazy archive fetch completes. Used for empty-state shortcuts only when count > 0.
+
+**Draft count** (UI):
+Count of draft cards from the init fetch; empty-state shortcut only when count > 0.

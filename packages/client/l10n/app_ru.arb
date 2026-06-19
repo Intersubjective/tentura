@@ -1633,6 +1633,14 @@
   "@myWorkFilterArchived": {
     "context": "MyWorkScreen"
   },
+  "myWorkFilterActive": "Активные",
+  "@myWorkFilterActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkFilterDrafts": "Черновики",
+  "@myWorkFilterDrafts": {
+    "context": "MyWorkScreen"
+  },
   "myWorkSortRecent": "Недавние",
   "@myWorkSortRecent": {
     "context": "MyWorkScreen"
@@ -1667,6 +1675,44 @@
   },
   "myWorkEmptyArchived": "Нет архивных записей",
   "@myWorkEmptyArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveTitle": "Пока нет активных дел",
+  "@myWorkEmptyActiveTitle": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveBody": "Здесь будут показаны активные маяки, в которых вы участвуете. Вы можете создать маяк сами или поучаствовать в маяке, который вам переслали другие.",
+  "@myWorkEmptyActiveBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveCreateCta": "Создать маяк",
+  "@myWorkEmptyActiveCreateCta": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveInboxCta": "Перейти во входящие",
+  "@myWorkEmptyActiveInboxCta": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyDraftsShortcut": "Черновики ({count})",
+  "@myWorkEmptyDraftsShortcut": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkEmptyArchiveShortcut": "Архив ({count})",
+  "@myWorkEmptyArchiveShortcut": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkRetry": "Повторить",
+  "@myWorkRetry": {
     "context": "MyWorkScreen"
   },
   "myWorkYouAuthor": "Вы (автор)",

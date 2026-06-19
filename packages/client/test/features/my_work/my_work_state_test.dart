@@ -28,14 +28,26 @@ void main() {
   test('visibleCards All uses nonArchivedCards', () {
     final a = _vm(id: 'a', role: MyWorkCardRole.authored, kind: MyWorkCardKind.authoredActive);
     final c = _vm(id: 'b', role: MyWorkCardRole.helpOffered, kind: MyWorkCardKind.helpOfferedActive);
-    final s = MyWorkState(nonArchivedCards: [a, c]);
+    final s = MyWorkState(nonArchivedCards: [a, c], filter: MyWorkFilter.all);
     expect(s.visibleCards.length, 2);
   });
 
-  test('visibleCards Authored excludes committed role', () {
+  test('default filter is active', () {
+    expect(const MyWorkState().filter, MyWorkFilter.active);
+  });
+
+  test('visibleCards Authored excludes drafts', () {
     final a = _vm(id: 'a', role: MyWorkCardRole.authored, kind: MyWorkCardKind.authoredActive);
-    final c = _vm(id: 'b', role: MyWorkCardRole.helpOffered, kind: MyWorkCardKind.helpOfferedActive);
-    final s = MyWorkState(nonArchivedCards: [a, c], filter: MyWorkFilter.authored);
+    final d = _vm(
+      id: 'd',
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredDraft,
+      lifecycle: BeaconLifecycle.draft,
+    );
+    final s = MyWorkState(
+      nonArchivedCards: [a, d],
+      filter: MyWorkFilter.authored,
+    );
     expect(s.visibleCards.map((e) => e.beaconId).toList(), ['a']);
   });
 
