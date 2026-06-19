@@ -212,6 +212,7 @@ END;
 $$;
 
 -- Proactive decay drift push (schedule via SELECT meritrank_sweep(H, epsilon)).
+-- Ops reference: docs/features/trust_edges.md
 CREATE OR REPLACE FUNCTION public.meritrank_sweep(
   _half_life_seconds double precision,
   _epsilon double precision
