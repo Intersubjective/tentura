@@ -395,7 +395,6 @@ class _ItemDiscussionHeader extends StatelessWidget {
       status: item.status,
       isPlanStep: item.isPlanStep,
       tt: tt,
-      scheme: theme.colorScheme,
       size: 16,
     );
     final body = item.body.trim();

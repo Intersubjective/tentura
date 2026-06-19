@@ -145,7 +145,6 @@ class _ItemCardState extends State<ItemCard> {
       status: item.status,
       isPlanStep: item.isPlanStep,
       tt: tt,
-      scheme: colorScheme,
     );
     final avatarTrail = coordinationItemCardAvatarTrail(
       source: widget.creatorParticipant,

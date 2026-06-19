@@ -151,7 +151,6 @@ class _LogActivityTile extends StatelessWidget {
     final eventIcon = coordinationCompoundActivityIcon(
           event,
           tt: context.tt,
-          scheme: theme.colorScheme,
         ) ??
         Icon(
           beaconActivityLogIcon(event),
