@@ -12,7 +12,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/ui/widget/author_star_avatar.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
@@ -183,11 +183,10 @@ class _EventLine extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.only(right: 4),
                         child: ExcludeSemantics(
-                          child: AvatarRated(
+                          child: AuthorStarAvatar(
                             profile: actor,
                             size: _kMyWorkLastEventAvatarSize,
-                            withRating: false,
-                            withContactBadge: false,
+                            showAuthorStar: isAuthor,
                           ),
                         ),
                       ),
@@ -196,20 +195,6 @@ class _EventLine extends StatelessWidget {
                       text: actorLabel,
                       style: isYou ? youStyle : bodyStyle,
                     ),
-                    if (isAuthor)
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 2),
-                          child: ExcludeSemantics(
-                            child: Icon(
-                              Icons.star_rounded,
-                              size: 14,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
                 maxLines: 1,
