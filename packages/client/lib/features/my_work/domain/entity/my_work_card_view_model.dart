@@ -15,7 +15,6 @@ enum MyWorkNewStuffReason {
   authorResponseChanged,
   helpOfferUpdated,
   coordinationStatusChanged,
-  beaconUpdated,
 }
 
 enum MyWorkCardRole { authored, helpOffered }
@@ -115,7 +114,6 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     MyWorkNewStuffReason.authorResponseChanged,
     MyWorkNewStuffReason.helpOfferUpdated,
     MyWorkNewStuffReason.coordinationStatusChanged,
-    MyWorkNewStuffReason.beaconUpdated,
   ];
 
   /// All distinct reasons for the dot when [lastSeenMs] matches the My Work last-seen cursor.
@@ -132,7 +130,6 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
       return _orderMyWorkReasons(raw);
     }
 
-    final u = b.updatedAt.millisecondsSinceEpoch;
     final cs = b.coordinationStatusUpdatedAt?.millisecondsSinceEpoch;
     final cr = helpOfferRowUpdatedAt?.millisecondsSinceEpoch;
     final ar = authorCoordinationUpdatedAt?.millisecondsSinceEpoch;
@@ -147,9 +144,6 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     }
     if (cs != null && cs > seen) {
       raw.add(MyWorkNewStuffReason.coordinationStatusChanged);
-    }
-    if (u > seen && (cs == null || u != cs)) {
-      raw.add(MyWorkNewStuffReason.beaconUpdated);
     }
     return _orderMyWorkReasons(raw);
   }

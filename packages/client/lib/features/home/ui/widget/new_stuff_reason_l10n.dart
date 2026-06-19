@@ -17,7 +17,6 @@ String l10nMyWorkNewStuffReason(L10n l10n, MyWorkNewStuffReason r) => switch (r)
         l10n.newStuffReasonHelpOfferUpdated,
       MyWorkNewStuffReason.coordinationStatusChanged =>
         l10n.newStuffReasonCoordinationStatusChanged,
-      MyWorkNewStuffReason.beaconUpdated => l10n.newStuffReasonBeaconUpdated,
     };
 
 List<String> l10nInboxNewStuffReasons(

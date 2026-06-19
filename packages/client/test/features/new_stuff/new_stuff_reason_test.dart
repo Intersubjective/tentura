@@ -149,10 +149,7 @@ void main() {
       );
       expect(
         vm.newStuffReasons(seenLate2019),
-        [
-          MyWorkNewStuffReason.newBeacon,
-          MyWorkNewStuffReason.beaconUpdated,
-        ],
+        [MyWorkNewStuffReason.newBeacon],
       );
     });
 
@@ -213,17 +210,14 @@ void main() {
       );
     });
 
-    test('beacon updated fallback', () {
+    test('generic beacon edit without specific signal yields no reason label', () {
       final vm = MyWorkCardViewModel(
         beaconId: 'b1',
         role: MyWorkCardRole.authored,
         kind: MyWorkCardKind.authoredActive,
         beacon: baseBeacon(createdAt: createdEarly2019, updatedAt: t3),
       );
-      expect(
-        vm.newStuffReasons(seenLate2019),
-        [MyWorkNewStuffReason.beaconUpdated],
-      );
+      expect(vm.newStuffReasons(seenLate2019), isEmpty);
     });
   });
 }
