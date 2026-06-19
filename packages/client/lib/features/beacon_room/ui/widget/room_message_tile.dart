@@ -894,7 +894,7 @@ class RoomMessageTile extends StatelessWidget {
                 entry.key: message.reactors[entry.key]?.length ?? 0,
             };
             tightTextWidth = ensureHugWidthFitsReactionFooter(
-              contentWidth: tightTextWidth ?? 0,
+              contentWidth: tightTextWidth,
               reactionEntries: _sortedReactionEntries(message),
               reactorCountsByEmoji: reactorCountsByEmoji,
               dateLine: dateLine,
@@ -1236,7 +1236,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
         ),
         accent: promotionAccent,
         label: RoomMessageTile._coordKindShortLabel(l10n, kind),
-        time: RoomMessageTile._formatMessageTime(promotionDate!),
+        time: RoomMessageTile._formatMessageTime(promotionDate),
         onTap: onOpenItem,
       );
     }
