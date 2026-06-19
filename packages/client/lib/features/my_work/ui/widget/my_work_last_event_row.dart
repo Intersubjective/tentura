@@ -14,6 +14,7 @@ import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/author_star_avatar.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
 
 const _kMyWorkLastEventAvatarSize = 18.0;
@@ -159,11 +160,16 @@ class _EventLine extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             ExcludeSemantics(
-              child: Icon(
-                beaconActivityLogIcon(event),
-                size: kCoordinationLogEventIconSize,
-                color: iconColor,
-              ),
+              child: coordinationCompoundActivityIcon(
+                    event,
+                    tt: context.tt,
+                    scheme: scheme,
+                  ) ??
+                  Icon(
+                    beaconActivityLogIcon(event),
+                    size: kCoordinationLogEventIconSize,
+                    color: iconColor,
+                  ),
             ),
             SizedBox(width: kSpacingSmall),
             Expanded(

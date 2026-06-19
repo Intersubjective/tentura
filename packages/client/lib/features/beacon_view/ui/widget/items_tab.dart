@@ -17,6 +17,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.d
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
+import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
@@ -425,7 +426,7 @@ class _ActiveCoordinationCtas extends StatelessWidget {
       children: [
         Expanded(
           child: BeaconHudActionButton(
-            icon: Icons.help_outline,
+            icon: coordinationKindIcon(CoordinationItemKind.ask),
             label: l10n.coordinationAskCardLabel,
             onPressed: () => _openCoordinationComposer(
               context,
@@ -437,7 +438,7 @@ class _ActiveCoordinationCtas extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: BeaconHudActionButton(
-            icon: Icons.front_hand_outlined,
+            icon: coordinationKindIcon(CoordinationItemKind.promise),
             label: l10n.coordinationPromiseCardLabel,
             onPressed: () => _openCoordinationComposer(
               context,
@@ -448,7 +449,7 @@ class _ActiveCoordinationCtas extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         BeaconHudIconActionButton(
-          icon: Icons.block,
+          icon: coordinationKindIcon(CoordinationItemKind.blocker),
           tooltip: l10n.coordinationBlockerCardLabel,
           onPressed: () => _openCoordinationComposer(
             context,

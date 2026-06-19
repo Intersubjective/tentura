@@ -11,9 +11,9 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
 import '../bloc/item_actions_cubit.dart';
 import '../bloc/item_actions_state.dart';
@@ -390,10 +390,13 @@ class _ItemDiscussionHeader extends StatelessWidget {
           : l10n.coordinationPlanCardLabel,
       CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
     };
-    final headerIcon = coordinationItemIcon(
-      item.kind,
-      item.status,
+    final headerIcon = coordinationCompoundStatusIcon(
+      kind: item.kind,
+      status: item.status,
       isPlanStep: item.isPlanStep,
+      tt: tt,
+      scheme: theme.colorScheme,
+      size: 16,
     );
     final body = item.body.trim();
     final title = item.title.trim();
@@ -419,7 +422,7 @@ class _ItemDiscussionHeader extends StatelessWidget {
           ),
           subtitle: Row(
             children: [
-              Icon(headerIcon, size: 16, color: statusColor),
+              headerIcon,
               const SizedBox(width: 6),
               Text(
                 kindLabel,

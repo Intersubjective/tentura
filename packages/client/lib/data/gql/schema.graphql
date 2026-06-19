@@ -2408,6 +2408,7 @@ type mutation_root {
   createResolution(beaconId: String!, title: String!, body: String, targetItemId: String, targetMessageId: String, linkedMessageId: String): CoordinationItemRow!
   acceptResolution(itemId: String!): CoordinationItemRow!
   rejectResolution(itemId: String!, reason: String): CoordinationItemRow!
+  markBeaconItemsSeen(beaconId: String!): BeaconItemsSeenResult!
   """
   delete data from the table: "beacon_pinned"
   """
@@ -3642,6 +3643,8 @@ type query_root {
   BeaconRoomStateGet(beaconId: String!): BeaconRoomStateRow!
   BeaconActivityEventList(beaconId: String!): [BeaconActivityEventRow!]!
   coordinationItemsByBeacon(beaconId: String!, status: Int, kind: Int, acceptedById: String, targetPersonId: String, linkedParentItemId: String, rootOnly: Boolean): [CoordinationItemRow!]!
+  coordinationResponsibilityBatch(beaconIds: [String!]!): [CoordinationResponsibilityBatchRow!]!
+  coordinationMyResponsibilityItems(beaconId: String!): [CoordinationItemRow!]!
   myWorkCoordinationItemActivity(beaconIds: [String!]!): [MyWorkBeaconCoordinationActivityRow!]!
   myWorkLastActivityEvent(beaconIds: [String!]!): [MyWorkLastActivityEventRow!]!
   InboxRoomContextBatch(beaconIds: [String!]!): [InboxRoomContextRow!]!
@@ -6355,6 +6358,24 @@ type v2_PersonFriendContext {
   subjectId: String!
   activeForwardsToCount: Int!
   coInvolvedBeaconsCount: Int!
+}
+
+type CoordinationResponsibilityBatchRow {
+  beaconId: String!
+  askOpen: Int!
+  askNew: Int!
+  promiseOpen: Int!
+  promiseNew: Int!
+  blockerOpen: Int!
+  blockerNew: Int!
+  reviewOpen: Int!
+  reviewNew: Int!
+  othersOpenCount: Int!
+}
+
+type BeaconItemsSeenResult {
+  beaconId: String!
+  seenAt: String!
 }
 
 type CoordinationItemRow {

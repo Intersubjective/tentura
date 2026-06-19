@@ -5,119 +5,7 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
-import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
-
-/// Accent color for a coordination item — shared with beacon Items / Log tabs.
-Color coordinationItemColor(
-  TenturaTokens tt,
-  CoordinationItemKind kind,
-  CoordinationItemStatus status,
-) {
-  if (status == CoordinationItemStatus.resolved ||
-      status == CoordinationItemStatus.cancelled ||
-      status == CoordinationItemStatus.superseded) {
-    return tt.textMuted;
-  }
-
-  return switch (kind) {
-    CoordinationItemKind.blocker => tt.danger,
-    CoordinationItemKind.ask => switch (status) {
-        CoordinationItemStatus.accepted => tt.good,
-        _ => tt.warn,
-      },
-    CoordinationItemKind.promise => switch (status) {
-        CoordinationItemStatus.accepted => tt.good,
-        _ => tt.warn,
-      },
-    CoordinationItemKind.resolution => tt.info,
-    CoordinationItemKind.plan => tt.info,
-  };
-}
-
-/// Header / card icon for a coordination item (status-aware).
-IconData coordinationItemIcon(
-  CoordinationItemKind kind,
-  CoordinationItemStatus status, {
-  bool isPlanStep = false,
-}) {
-  return switch (status) {
-    CoordinationItemStatus.accepted => Icons.check_circle_outline,
-    CoordinationItemStatus.resolved => Icons.check_circle,
-    CoordinationItemStatus.cancelled => Icons.cancel_outlined,
-    CoordinationItemStatus.superseded => Icons.swap_horiz,
-    _ => switch (kind) {
-        CoordinationItemKind.blocker => Icons.block,
-        CoordinationItemKind.ask => Icons.help_outline,
-        CoordinationItemKind.promise => Icons.front_hand_outlined,
-        CoordinationItemKind.plan =>
-          isPlanStep ? Icons.checklist : Icons.edit_note,
-        CoordinationItemKind.resolution => Icons.handshake_outlined,
-      },
-  };
-}
-
-/// Accent for room-timeline item events.
-Color coordinationItemEventColor(
-  TenturaTokens tt,
-  CoordinationItemKind kind,
-  CoordinationItemEventKind eventKind,
-) {
-  return switch (eventKind) {
-    CoordinationItemEventKind.resolved =>
-      coordinationItemColor(tt, kind, CoordinationItemStatus.resolved),
-    CoordinationItemEventKind.cancelled ||
-    CoordinationItemEventKind.superseded =>
-      coordinationItemColor(tt, kind, CoordinationItemStatus.cancelled),
-    CoordinationItemEventKind.accepted =>
-      coordinationItemColor(tt, kind, CoordinationItemStatus.accepted),
-    _ => coordinationItemColor(tt, kind, CoordinationItemStatus.open),
-  };
-}
-
-/// Icon for room-timeline item events.
-IconData coordinationItemEventIcon(
-  CoordinationItemKind kind,
-  CoordinationItemEventKind eventKind, {
-  bool isPlanStep = false,
-}) {
-  return switch (kind) {
-    CoordinationItemKind.ask => switch (eventKind) {
-        CoordinationItemEventKind.created => Icons.help_outline,
-        CoordinationItemEventKind.accepted => Icons.handshake_outlined,
-        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
-        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
-        _ => Icons.help_outline,
-      },
-    CoordinationItemKind.promise => switch (eventKind) {
-        CoordinationItemEventKind.created => Icons.front_hand_outlined,
-        CoordinationItemEventKind.accepted => Icons.handshake,
-        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
-        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
-        _ => Icons.front_hand_outlined,
-      },
-    CoordinationItemKind.plan => switch (eventKind) {
-        CoordinationItemEventKind.created ||
-        CoordinationItemEventKind.updated =>
-          isPlanStep ? Icons.checklist : Icons.edit_note,
-        CoordinationItemEventKind.superseded => Icons.swap_horiz,
-        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
-        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
-        _ => Icons.edit_note,
-      },
-    CoordinationItemKind.resolution => switch (eventKind) {
-        CoordinationItemEventKind.created => Icons.handshake_outlined,
-        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
-        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
-        _ => Icons.handshake_outlined,
-      },
-    CoordinationItemKind.blocker => switch (eventKind) {
-        CoordinationItemEventKind.created => Icons.block,
-        CoordinationItemEventKind.resolved => Icons.check_circle_outline,
-        CoordinationItemEventKind.cancelled => Icons.cancel_outlined,
-        _ => Icons.block,
-      },
-  };
-}
+import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
 enum _ItemMenuAction {
   edit,
@@ -247,21 +135,17 @@ class _ItemCardState extends State<ItemCard> {
       CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
     };
 
-    final statusIcon = coordinationItemIcon(
-      item.kind,
-      item.status,
-      isPlanStep: item.isPlanStep,
-    );
-
     final statusEntries = _statusMenuEntries(l10n);
     final menuEntries = _allMenuEntries(l10n, statusEntries);
     final showMenu = widget.onEdit != null ||
         (item.published && statusEntries.isNotEmpty);
     final headerTier = _itemHeaderTier(item);
-    final eventIcon = Icon(
-      statusIcon,
-      size: kCoordinationLogEventIconSize,
-      color: statusColor,
+    final eventIcon = coordinationCompoundStatusIcon(
+      kind: item.kind,
+      status: item.status,
+      isPlanStep: item.isPlanStep,
+      tt: tt,
+      scheme: colorScheme,
     );
     final avatarTrail = coordinationItemCardAvatarTrail(
       source: widget.creatorParticipant,

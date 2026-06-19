@@ -5,9 +5,9 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
-import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
 /// Detail payload for the NOW bottom sheet (beacon screen + room pin).
 class BeaconNowDetailModel {
@@ -118,10 +118,12 @@ class _BeaconNowDetailSheetBody extends StatelessWidget {
                   style: TenturaText.typeLabel(scheme.onSurface),
                 ),
               ),
-              Icon(
-                coordinationItemIcon(kind, status),
+              coordinationCompoundStatusIcon(
+                kind: kind,
+                status: status,
+                tt: tt,
+                scheme: scheme,
                 size: 18,
-                color: coordinationItemColor(tt, kind, status),
               ),
               const SizedBox(width: 8),
               Expanded(

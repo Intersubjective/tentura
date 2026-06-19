@@ -43,6 +43,7 @@ import 'table/beacon_room_message_attachments.dart';
 import 'table/beacon_room_message_reactions.dart';
 import 'table/coordination_items.dart';
 import 'table/beacon_room_messages.dart';
+import 'table/beacon_items_seen.dart';
 import 'table/beacon_room_seen.dart';
 import 'table/beacon_room_states.dart';
 import 'table/beacon_stewards.dart';
@@ -91,6 +92,7 @@ part 'tentura_db.g.dart';
     CoordinationItems,
     BeaconRoomMessages,
     BeaconRoomSeen,
+    BeaconItemsSeen,
     BeaconRoomStates,
     BeaconStewards,
     Beacons,

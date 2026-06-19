@@ -43,6 +43,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypePersonTopCapabilities,
   gqlTypePersonFriendContext,
   gqlTypeCoordinationItemRow,
+  gqlTypeCoordinationResponsibilityBatchRow,
+  gqlTypeBeaconItemsSeenResult,
   gqlTypeMyWorkBeaconCoordinationActivityRow,
   gqlTypeMyWorkLastActivityEventRow,
   gqlTypeBeaconLineageSuggestion,
@@ -609,6 +611,30 @@ final gqlTypeCoordinationItemRow =
         field('messageCount', graphQLInt.nonNullable()),
         field('unreadCount', graphQLInt.nonNullable()),
         field('lastSeenAt', graphQLString),
+      ]);
+
+/// Per-beacon responsibility counts for the YOU line.
+final gqlTypeCoordinationResponsibilityBatchRow =
+    GraphQLObjectType('CoordinationResponsibilityBatchRow', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('askOpen', graphQLInt.nonNullable()),
+        field('askNew', graphQLInt.nonNullable()),
+        field('promiseOpen', graphQLInt.nonNullable()),
+        field('promiseNew', graphQLInt.nonNullable()),
+        field('blockerOpen', graphQLInt.nonNullable()),
+        field('blockerNew', graphQLInt.nonNullable()),
+        field('reviewOpen', graphQLInt.nonNullable()),
+        field('reviewNew', graphQLInt.nonNullable()),
+        field('othersOpenCount', graphQLInt.nonNullable()),
+      ]);
+
+/// Result of marking beacon coordination items as seen (YOU line watermark).
+final gqlTypeBeaconItemsSeenResult =
+    GraphQLObjectType('BeaconItemsSeenResult', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('seenAt', graphQLString.nonNullable()),
       ]);
 
 /// Per-beacon latest active item-discussion activity (My Work dot).

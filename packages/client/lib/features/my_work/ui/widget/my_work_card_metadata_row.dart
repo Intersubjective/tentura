@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -9,14 +10,17 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
+import 'package:tentura/features/coordination_item/ui/widget/beacon_you_items_sheet.dart';
 import 'package:tentura/features/geo/ui/widget/place_name_text.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
+import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
@@ -53,6 +57,24 @@ class MyWorkCardMetadataRow extends StatelessWidget {
                 : _MetadataRowLayout(beacon: beacon);
           },
         ),
+        if (viewModel.youResponsibility != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: BeaconYouResponsibilityLine(
+              beacon: beacon,
+              responsibility: viewModel.youResponsibility!,
+              isAuthorOrSteward: beacon.author.id == currentUserId,
+              showNewBadges: true,
+              onTap: () => unawaited(
+                showBeaconYouItemsSheet(
+                  context,
+                  beaconId: beacon.id,
+                  onChanged: () =>
+                      unawaited(context.read<MyWorkCubit>().fetch()),
+                ),
+              ),
+            ),
+          ),
         MyWorkLastEventRow(
           beacon: beacon,
           viewModel: viewModel,

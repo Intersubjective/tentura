@@ -127,3 +127,36 @@ In the client catalog (`kBeaconIdentityIcons`), persisted `icon_code` keys are s
 | Education → Workshop | `Icons.cast_for_education_rounded` |
 | Animals → Animal welfare | `Icons.cruelty_free_rounded` |
 | Animals → Pets and animals | `Icons.pets_rounded` |
+
+---
+
+## Coordination compound icon language
+
+Coordination items (ask / promise / blocker / plan / resolution) and their
+lifecycle events render with a **two-slot `[kind][state]` compound** instead of
+a single status-driven glyph. The single source of truth is
+`packages/client/lib/ui/widget/coordination_item_presenter.dart`; never
+hard-code these glyphs in features.
+
+**Slot 1 — kind** (`coordinationKindIcon`): ask `help_outline`, promise
+`front_hand_outlined`, blocker `block`, plan `edit_note` (step `checklist`),
+resolution `handshake_outlined`.
+
+**Slot 2 — state change** (`coordinationStateIcon` / `coordinationEventStateIcon`,
+nullable): open / created / updated → none; accepted → `thumb_up_alt_outlined`;
+resolved → `check_circle` (filled); cancelled → `cancel_outlined`; superseded →
+`swap_horiz`.
+
+**Coloring rule** (in the compound builders): when a state glyph is present the
+kind glyph is neutral (`colorScheme.onSurfaceVariant`) and the state glyph takes
+the status accent; when there is no state glyph the lone kind glyph carries the
+accent (preserving the amber "needs attention" cue for open asks/promises).
+
+**Color model** (`coordinationItemColor`): `resolved` → `tt.good` (green)
+**globally** — green is reserved for genuine completion; `ask`/`promise`
+`accepted` → `tt.info` (not green, avoiding false completeness); other open
+asks/promises → `tt.warn`; `blocker` → `tt.danger`; `plan`/`resolution` →
+`tt.info`; `cancelled`/`superseded` → `tt.textMuted`.
+
+The compound is decorative (the adjacent text label carries meaning); callers
+wrap it in `ExcludeSemantics` or a single-`Semantics` row.

@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
+import 'package:tentura/features/coordination_item/ui/widget/beacon_you_items_sheet.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
+import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
@@ -33,6 +39,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onOpenLogTab,
     this.onEditNowLine,
     this.onShowNowDetail,
+    this.onOpenItemDiscussion,
+    this.onYouResponsibilityChanged,
     super.key,
   });
 
@@ -69,12 +77,19 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   /// Opens NOW detail bottom sheet.
   final VoidCallback? onShowNowDetail;
 
+  /// Opens an item discussion thread (YOU sheet Reply action).
+  final void Function(CoordinationItem item)? onOpenItemDiscussion;
+
+  /// Refetch YOU responsibility after sheet mutations.
+  final VoidCallback? onYouResponsibilityChanged;
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final nowDisplay = beaconHudNowDisplay(l10n, state);
-    final youText = beaconHudYouLine(l10n, state);
+    final youResponsibility = state.youResponsibility ??
+        CoordinationResponsibility(beaconId: state.beacon.id);
 
     final bundle = _buildHudActions(l10n);
 
@@ -101,10 +116,18 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             showDetailSemanticLabel: l10n.beaconHudNowLabel,
           ),
           const SizedBox(height: 6),
-          HudLabeledMultiline(
-            label: l10n.beaconHudYouLabel,
-            text: youText,
-            mutedColor: tt.textMuted,
+          BeaconYouResponsibilityLine(
+            beacon: state.beacon,
+            responsibility: youResponsibility,
+            isAuthorOrSteward: state.isAuthorOrSteward,
+            showNewBadges: false,
+            onTap: () => unawaited(
+              showBeaconYouItemsSheet(
+                context,
+                beaconId: state.beacon.id,
+                onChanged: onYouResponsibilityChanged,
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           _HudPeopleStrip(
