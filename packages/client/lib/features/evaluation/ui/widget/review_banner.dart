@@ -7,6 +7,7 @@ class ReviewBanner extends StatelessWidget {
   const ReviewBanner({
     required this.onPrimary,
     required this.isDraftPhase,
+    this.margin,
     super.key,
   });
 
@@ -14,6 +15,9 @@ class ReviewBanner extends StatelessWidget {
 
   /// True while beacon is open (draft review CTA only); false after closure (banner + submit).
   final bool isDraftPhase;
+
+  /// Outer card margin; defaults to People-tab spacing when null.
+  final EdgeInsetsGeometry? margin;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +42,7 @@ class ReviewBanner extends StatelessWidget {
       );
     }
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: margin ?? const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(

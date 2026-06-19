@@ -1427,6 +1427,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                     onOpenReview:
                         state.isBeaconMine &&
                             state.beacon.lifecycle != BeaconLifecycle.open &&
+                            state.beacon.lifecycle !=
+                                BeaconLifecycle.closedReviewOpen &&
                             state.beacon.lifecycle != BeaconLifecycle.deleted
                         ? () => unawaited(
                             context.router.pushPath(
@@ -1434,7 +1436,12 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                             ),
                           )
                         : null,
-                    onOpenLogTab: state.isBeaconMine ? () => _setTab(kBeaconTabLog) : null,
+                    onOpenLogTab:
+                        state.isBeaconMine &&
+                            state.beacon.lifecycle !=
+                                BeaconLifecycle.closedReviewOpen
+                        ? () => _setTab(kBeaconTabLog)
+                        : null,
                     onEditNowLine: state.canCoordinateInBeaconRoom
                         ? () => unawaited(
                             showBeaconCurrentLineSheet(
