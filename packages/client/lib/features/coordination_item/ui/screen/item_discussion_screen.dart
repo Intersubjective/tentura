@@ -579,4 +579,3 @@ Future<void> _showProposeResolutionSheet(
     titleController.dispose();
   }
 }
-

@@ -1,4 +1,5 @@
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 
 /// Test double for room cubit tests (coordination list returns empty).
@@ -264,5 +265,22 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
     required String targetItemId,
   }) async =>
       null;
+
+  @override
+  Future<Map<String, CoordinationResponsibility>> fetchResponsibilityBatch(
+    List<String> beaconIds,
+  ) async =>
+      {};
+
+  @override
+  Future<CoordinationResponsibility> fetchResponsibility(String beaconId) async =>
+      CoordinationResponsibility(beaconId: beaconId);
+
+  @override
+  Future<List<CoordinationItem>> fetchMyResponsibilityItems(String beaconId) async =>
+      const [];
+
+  @override
+  Future<void> markItemsSeen(String beaconId) async {}
 
 }
