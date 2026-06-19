@@ -4,13 +4,19 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/profile.dart';
 
 import '../model/beacon_model_with_help_offer_users.dart';
+import '../../domain/entity/my_work_last_event.dart';
 import '../../domain/entity/my_work_fetch_types.dart';
 import '../gql/_g/my_work_coordination_activity.req.gql.dart';
 import '../gql/_g/my_work_fetch.data.gql.dart';
 import '../gql/_g/my_work_fetch.req.gql.dart';
+import '../gql/_g/my_work_last_activity_event.req.gql.dart';
 
 export '../../domain/entity/my_work_fetch_types.dart'
     show MyWorkClosedResult, MyWorkHelpOfferedRow, MyWorkInitResult;
@@ -70,6 +76,57 @@ class MyWorkRepository {
       if (at != null && at.isNotEmpty) {
         out[row.beaconId] = DateTime.parse(at);
       }
+    }
+    return out;
+  }
+
+  Future<Map<String, MyWorkLastEvent?>> fetchLastActivityEventsByBeaconId(
+    List<String> beaconIds,
+  ) async {
+    if (beaconIds.isEmpty) {
+      return const {};
+    }
+    final r = await _remoteApiService
+        .request(
+          GMyWorkLastActivityEventReq(
+            (b) => b.vars.beaconIds.replace(beaconIds),
+          ),
+        )
+        .timeout(_kNetworkTimeout)
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    final rows = r.dataOrThrow(label: _label).myWorkLastActivityEvent;
+    final out = <String, MyWorkLastEvent?>{};
+    for (final row in rows) {
+      final eventId = row.id;
+      final eventType = row.type;
+      final createdAtRaw = row.createdAt;
+      if (eventId == null ||
+          eventType == null ||
+          createdAtRaw == null ||
+          createdAtRaw.isEmpty) {
+        out[row.beaconId] = null;
+        continue;
+      }
+      final actorId = row.actorId ?? '';
+      final actor = Profile(
+        id: actorId,
+        displayName: row.actorTitle ?? '',
+        contactName: actorId.isEmpty ? '' : contactNameOf(actorId),
+        image: (row.actorImageId ?? '').isEmpty
+            ? null
+            : ImageEntity(id: row.actorImageId!),
+      );
+      out[row.beaconId] = MyWorkLastEvent(
+        event: BeaconActivityEvent(
+          id: eventId,
+          beaconId: row.beaconId,
+          visibility: 0,
+          type: eventType,
+          createdAt: DateTime.parse(createdAtRaw).toLocal(),
+          actorId: actorId.isEmpty ? null : actorId,
+        ),
+        actor: actor,
+      );
     }
     return out;
   }

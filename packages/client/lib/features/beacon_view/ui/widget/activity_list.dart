@@ -1,18 +1,14 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
-import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
-
-import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
-import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 
 import '../bloc/beacon_view_state.dart';
 
@@ -58,19 +54,8 @@ class BeaconActivityList extends StatelessWidget {
   /// Tapping a log row routes to the linked coordination item / participant.
   final void Function(BeaconActivityEvent event)? onTapCoordinationEvent;
 
-  static bool _isCoordinationLogEvent(BeaconActivityEvent e) {
-    if (e.type >= 100 && e.type < 500) return true;
-    return switch (e.type) {
-      BeaconActivityEventTypeBits.planUpdated => true,
-      BeaconActivityEventTypeBits.blockerOpened => true,
-      BeaconActivityEventTypeBits.blockerResolved => true,
-      BeaconActivityEventTypeBits.needInfoOpened => true,
-      BeaconActivityEventTypeBits.doneMarked => true,
-      BeaconActivityEventTypeBits.factPinned => true,
-      BeaconActivityEventTypeBits.factVisibilityChanged => true,
-      _ => false,
-    };
-  }
+  static bool _isCoordinationLogEvent(BeaconActivityEvent e) =>
+      e.isCoordinationLogEvent;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +83,7 @@ class BeaconActivityList extends StatelessWidget {
         tie: tie++,
         child: _LogActivityTile(
           event: e,
-          label: _coordinationEventLabel(context, e),
+          label: beaconActivityEventLabel(l10n, e),
           actor: e.actorId != null ? actors[e.actorId!] : null,
           target: e.targetUserId != null ? actors[e.targetUserId!] : null,
           onTap: onTapCoordinationEvent == null
@@ -135,162 +120,11 @@ class BeaconActivityList extends StatelessWidget {
 
 enum _LogTier { high, medium, low }
 
-_LogTier _logTierFor(BeaconActivityEvent e) {
-  if (e.type >= 100 && e.type < 500) return _LogTier.high;
-  return switch (e.type) {
-    BeaconActivityEventTypeBits.blockerOpened ||
-    BeaconActivityEventTypeBits.blockerResolved ||
-    BeaconActivityEventTypeBits.doneMarked =>
-      _LogTier.high,
-    BeaconActivityEventTypeBits.planUpdated ||
-    BeaconActivityEventTypeBits.factPinned ||
-    BeaconActivityEventTypeBits.needInfoOpened =>
-      _LogTier.medium,
-    _ => _LogTier.low,
-  };
-}
-
-IconData _logIcon(BeaconActivityEvent e) {
-  if (e.type >= 100 && e.type < 500) {
-    final kind = e.type ~/ 100;
-    final ev = e.type % 100;
-    return switch (kind) {
-      1 => switch (ev) {
-          6 => Icons.swap_horiz,
-          3 => Icons.check_box_outlined,
-          _ => Icons.checklist_rtl_rounded,
-        },
-      2 => switch (ev) {
-          2 => Icons.thumb_up_alt_outlined,
-          3 => Icons.check_circle_outline,
-          4 => Icons.cancel_outlined,
-          _ => Icons.contact_support_outlined,
-        },
-      3 => switch (ev) {
-          3 => Icons.lock_open_outlined,
-          4 => Icons.cancel_outlined,
-          _ => Icons.warning_amber_rounded,
-        },
-      4 => switch (ev) {
-          3 => Icons.task_alt,
-          4 => Icons.highlight_off,
-          _ => Icons.lightbulb_outline,
-        },
-      _ => Icons.hub_outlined,
+_LogTier _logTierFor(BeaconActivityEvent e) => switch (beaconActivityLogTier(e)) {
+      BeaconActivityLogTier.high => _LogTier.high,
+      BeaconActivityLogTier.medium => _LogTier.medium,
+      BeaconActivityLogTier.low => _LogTier.low,
     };
-  }
-  return switch (e.type) {
-    BeaconActivityEventTypeBits.planUpdated => Icons.edit_note,
-    BeaconActivityEventTypeBits.factPinned => Icons.push_pin_outlined,
-    BeaconActivityEventTypeBits.blockerOpened => Icons.warning_amber_rounded,
-    BeaconActivityEventTypeBits.blockerResolved => Icons.lock_open_outlined,
-    BeaconActivityEventTypeBits.needInfoOpened => Icons.help_outline,
-    BeaconActivityEventTypeBits.doneMarked => Icons.task_alt,
-    BeaconActivityEventTypeBits.factVisibilityChanged =>
-      Icons.visibility_outlined,
-    _ => Icons.hub_outlined,
-  };
-}
-
-Color _coordinationSemanticAccentColor(TenturaTokens tt, int type) {
-  final kind = type ~/ 100;
-  final ev = type % 100;
-  return switch (kind) {
-    1 => switch (ev) {
-        1 ||
-        5 =>
-          coordinationItemColor(tt, CoordinationItemKind.plan, CoordinationItemStatus.open),
-        3 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.plan,
-              CoordinationItemStatus.resolved,
-            ),
-        6 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.plan,
-              CoordinationItemStatus.superseded,
-            ),
-        _ => coordinationItemColor(tt, CoordinationItemKind.plan, CoordinationItemStatus.open),
-      },
-    2 => switch (ev) {
-        1 => coordinationItemColor(tt, CoordinationItemKind.ask, CoordinationItemStatus.open),
-        2 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.ask,
-              CoordinationItemStatus.accepted,
-            ),
-        3 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.ask,
-              CoordinationItemStatus.resolved,
-            ),
-        4 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.ask,
-              CoordinationItemStatus.cancelled,
-            ),
-        _ => coordinationItemColor(tt, CoordinationItemKind.ask, CoordinationItemStatus.open),
-      },
-    3 => switch (ev) {
-        1 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.blocker,
-              CoordinationItemStatus.open,
-            ),
-        3 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.blocker,
-              CoordinationItemStatus.resolved,
-            ),
-        4 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.blocker,
-              CoordinationItemStatus.cancelled,
-            ),
-        _ => coordinationItemColor(
-              tt,
-              CoordinationItemKind.blocker,
-              CoordinationItemStatus.open,
-            ),
-      },
-    4 => switch (ev) {
-        1 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.resolution,
-              CoordinationItemStatus.open,
-            ),
-        3 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.resolution,
-              CoordinationItemStatus.resolved,
-            ),
-        4 => coordinationItemColor(
-              tt,
-              CoordinationItemKind.resolution,
-              CoordinationItemStatus.cancelled,
-            ),
-        _ => coordinationItemColor(
-              tt,
-              CoordinationItemKind.resolution,
-              CoordinationItemStatus.open,
-            ),
-      },
-    _ => tt.textMuted,
-  };
-}
-
-Color _logIconColor(ThemeData theme, BeaconActivityEvent e) {
-  final tt = theme.extension<TenturaTokens>()!;
-  if (e.type >= 100 && e.type < 500) {
-    return _coordinationSemanticAccentColor(tt, e.type);
-  }
-  return switch (e.type) {
-    BeaconActivityEventTypeBits.blockerOpened => tt.danger,
-    BeaconActivityEventTypeBits.needInfoOpened => tt.warn,
-    BeaconActivityEventTypeBits.doneMarked => tt.good,
-    _ => tt.textMuted,
-  };
-}
 
 class _LogActivityTile extends StatelessWidget {
   const _LogActivityTile({
@@ -311,9 +145,9 @@ class _LogActivityTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tier = _logTierFor(event);
-    final iconColor = _logIconColor(theme, event);
+    final iconColor = beaconActivityLogIconColor(theme, event);
     final eventIcon = Icon(
-      _logIcon(event),
+      beaconActivityLogIcon(event),
       size: kCoordinationLogEventIconSize,
       color: iconColor,
     );
@@ -503,58 +337,6 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
       final TimelineCreation e => l10n.timelineCreated(e.author.shownName),
       TimelineUpdate() => '',
     };
-
-String _coordinationEventLabel(BuildContext context, BeaconActivityEvent e) {
-  final l10n = L10n.of(context)!;
-  if (e.type >= 100 && e.type < 500) {
-    final kind = e.type ~/ 100;
-    final ev = e.type % 100;
-    return switch (kind) {
-      1 => switch (ev) {
-          1 => l10n.coordinationSemanticPlanOpened,
-          5 => l10n.coordinationSemanticPlanOpened,
-          6 => l10n.coordinationSemanticPlanSuperseded,
-          3 => l10n.coordinationSemanticPlanStepResolved,
-          _ => l10n.coordinationPlanCardLabel,
-        },
-      2 => switch (ev) {
-          1 => l10n.coordinationSemanticAskOpened,
-          2 => l10n.coordinationSemanticAskAccepted,
-          3 => l10n.coordinationSemanticAskResolved,
-          4 => l10n.coordinationSemanticAskCancelled,
-          _ => l10n.coordinationAskCardLabel,
-        },
-      3 => switch (ev) {
-          1 => l10n.coordinationSemanticBlockerOpened,
-          3 => l10n.coordinationSemanticBlockerResolved,
-          4 => l10n.coordinationSemanticBlockerCancelled,
-          _ => l10n.coordinationBlockerCardLabel,
-        },
-      4 => switch (ev) {
-          1 => l10n.coordinationSemanticResolutionOpened,
-          3 => l10n.coordinationSemanticResolutionResolved,
-          4 => l10n.coordinationSemanticResolutionCancelled,
-          _ => l10n.coordinationResolutionCardLabel,
-        },
-      _ => l10n.beaconActivityCoordinationFallback,
-    };
-  }
-
-  return switch (e.type) {
-    BeaconActivityEventTypeBits.planUpdated => l10n.beaconActivityPlanUpdated,
-    BeaconActivityEventTypeBits.factPinned => l10n.beaconActivityFactPinned,
-    BeaconActivityEventTypeBits.factVisibilityChanged =>
-      l10n.beaconActivityFactVisibilityChanged,
-    BeaconActivityEventTypeBits.blockerOpened =>
-      l10n.beaconActivityBlockerOpened,
-    BeaconActivityEventTypeBits.blockerResolved =>
-      l10n.beaconActivityBlockerResolved,
-    BeaconActivityEventTypeBits.needInfoOpened =>
-      l10n.beaconActivityNeedInfoOpened,
-    BeaconActivityEventTypeBits.doneMarked => l10n.beaconActivityDoneMarked,
-    _ => l10n.beaconActivityCoordinationFallback,
-  };
-}
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
       BeaconLifecycle.open => l10n.beaconLifecycleOpen,

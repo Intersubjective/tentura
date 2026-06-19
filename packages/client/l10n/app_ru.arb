@@ -1917,6 +1917,41 @@
       }
     }
   },
+  "myWorkUpdatedRelative": "обновлено {ago}",
+  "@myWorkUpdatedRelative": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkLastEventBy": "от",
+  "@myWorkLastEventBy": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkLastEventSemantics": "{event} от {actor}, {ago}{authorSuffix}",
+  "@myWorkLastEventSemantics": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "event": {
+        "type": "String"
+      },
+      "actor": {
+        "type": "String"
+      },
+      "ago": {
+        "type": "String"
+      },
+      "authorSuffix": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkLastEventAuthorSuffix": ", автор",
+  "@myWorkLastEventAuthorSuffix": {
+    "context": "MyWorkScreen"
+  },
   "myWorkDraftStatusLine": "{count} · Разбираемся",
   "@myWorkDraftStatusLine": {
     "context": "MyWorkScreen",
@@ -3075,6 +3110,7 @@
   "beaconActivityBlockerResolved": "Блокер снят",
   "beaconActivityNeedInfoOpened": "Запрос информации",
   "beaconActivityDoneMarked": "Отмечено выполнено",
+  "beaconActivityBeaconPublished": "Опубликовано",
   "beaconActivityCoordinationFallback": "Обновление комнаты",
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
   "beaconRoomReactionAddTooltip": "Добавить реакцию",

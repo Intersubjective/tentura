@@ -13,4 +13,21 @@ abstract final class BeaconActivityEventTypeBits {
   static const needInfoOpened = 12;
   static const doneMarked = 13;
   static const factVisibilityChanged = 14;
+  static const beaconPublished = 15;
+}
+
+/// Matches client [`BeaconActivityEvent.isCoordinationLogEvent`] / Log tab filter.
+bool isCoordinationLogEventType(int type) {
+  if (type >= 100 && type < 500) return true;
+  return switch (type) {
+    BeaconActivityEventTypeBits.planUpdated => true,
+    BeaconActivityEventTypeBits.factPinned => true,
+    BeaconActivityEventTypeBits.blockerOpened => true,
+    BeaconActivityEventTypeBits.blockerResolved => true,
+    BeaconActivityEventTypeBits.needInfoOpened => true,
+    BeaconActivityEventTypeBits.doneMarked => true,
+    BeaconActivityEventTypeBits.factVisibilityChanged => true,
+    BeaconActivityEventTypeBits.beaconPublished => true,
+    _ => false,
+  };
 }

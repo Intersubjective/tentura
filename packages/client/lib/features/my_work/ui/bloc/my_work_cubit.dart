@@ -159,10 +159,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
             ? c
             : c.copyWith(lastCoordinationItemMessageAt: at);
       }).toList();
+      final withLastEvents =
+          await _myWorkCase.attachLastActivityEvents(nonArchived);
       final hints = await _roomHints.fetchByBeaconIds(
-        nonArchived.map((c) => c.beaconId),
+        withLastEvents.map((c) => c.beaconId),
       );
-      final withHints = nonArchived
+      final withHints = withLastEvents
           .map((c) {
             final h = hints[c.beaconId];
             if (h == null || !h.isRoomMember) {
@@ -249,10 +251,12 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         authoredClosed: closed.authoredClosed,
         helpOfferedClosed: closed.helpOfferedClosed,
       );
+      final archivedWithEvents =
+          await _myWorkCase.attachLastActivityEvents(archived);
       final archHints = await _roomHints.fetchByBeaconIds(
-        archived.map((c) => c.beaconId),
+        archivedWithEvents.map((c) => c.beaconId),
       );
-      final archivedWithHints = archived
+      final archivedWithHints = archivedWithEvents
           .map((c) {
             final h = archHints[c.beaconId];
             if (h == null || !h.isRoomMember) {

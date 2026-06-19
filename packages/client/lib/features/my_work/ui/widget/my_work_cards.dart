@@ -24,29 +24,10 @@ import 'package:tentura/features/evaluation/data/repository/evaluation_repositor
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_dot.dart';
 import 'package:tentura/features/home/ui/widget/new_stuff_reason_l10n.dart';
+import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
-String _formatDateTimeActivityLine(DateTime d) =>
-    '${dateFormatYMD(d)} ${timeFormatHm(d)}';
-
-String? _myWorkActivityWhenLine(
-  L10n l10n,
-  MyWorkCardViewModel vm,
-  MyWorkCardHighlightKind highlight,
-) {
-  final b = vm.beacon;
-  if (highlight == MyWorkCardHighlightKind.newBeacon) {
-    // Creating a beacon does not count as an "update" for the cards.
-    return null;
-  }
-  if (highlight == MyWorkCardHighlightKind.none && !beaconHasRealUpdate(b)) {
-    return null;
-  }
-  final at = highlight == MyWorkCardHighlightKind.none
-      ? b.updatedAt
-      : DateTime.fromMillisecondsSinceEpoch(vm.newStuffActivityEpochMs);
-  return l10n.myWorkUpdatedLine(_formatDateTimeActivityLine(at));
-}
 
 Widget _myWorkFooterActivityBlock({
   required BuildContext context,
@@ -120,37 +101,38 @@ class MyWorkCardRouter extends StatelessWidget {
           l10n,
           vm.newStuffReasons(seen),
         );
-        final activityWhenLine = _myWorkActivityWhenLine(l10n, vm, highlight);
+        final currentUserId =
+            context.read<ProfileCubit>().state.profile.id;
         return switch (vm.kind) {
           MyWorkCardKind.authoredDraft => _DraftAuthoredCard(
             vm: vm,
             highlight: highlight,
             newStuffReasonLabels: reasonLabels,
-            activityWhenLine: activityWhenLine,
+            currentUserId: currentUserId,
           ),
           MyWorkCardKind.authoredActive => _AuthoredActiveCard(
             vm: vm,
             highlight: highlight,
             newStuffReasonLabels: reasonLabels,
-            activityWhenLine: activityWhenLine,
+            currentUserId: currentUserId,
           ),
           MyWorkCardKind.helpOfferedActive => _HelpOfferedActiveCard(
             vm: vm,
             highlight: highlight,
             newStuffReasonLabels: reasonLabels,
-            activityWhenLine: activityWhenLine,
+            currentUserId: currentUserId,
           ),
           MyWorkCardKind.authoredClosed => _ClosedAuthoredCard(
             vm: vm,
             highlight: highlight,
             newStuffReasonLabels: reasonLabels,
-            activityWhenLine: activityWhenLine,
+            currentUserId: currentUserId,
           ),
           MyWorkCardKind.helpOfferedClosed => _ClosedHelpOfferedCard(
             vm: vm,
             highlight: highlight,
             newStuffReasonLabels: reasonLabels,
-            activityWhenLine: activityWhenLine,
+            currentUserId: currentUserId,
           ),
         };
       },
@@ -189,13 +171,13 @@ class _AuthoredActiveCard extends StatelessWidget {
     required this.vm,
     required this.highlight,
     required this.newStuffReasonLabels,
-    required this.activityWhenLine,
+    required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String? activityWhenLine;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -328,7 +310,9 @@ class _AuthoredActiveCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
-            updatedLine: activityWhenLine,
+            viewModel: vm,
+            currentUserId: currentUserId,
+            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
@@ -354,13 +338,13 @@ class _HelpOfferedActiveCard extends StatelessWidget {
     required this.vm,
     required this.highlight,
     required this.newStuffReasonLabels,
-    required this.activityWhenLine,
+    required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String? activityWhenLine;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -412,7 +396,9 @@ class _HelpOfferedActiveCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
-            updatedLine: activityWhenLine,
+            viewModel: vm,
+            currentUserId: currentUserId,
+            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
@@ -438,13 +424,13 @@ class _DraftAuthoredCard extends StatelessWidget {
     required this.vm,
     required this.highlight,
     required this.newStuffReasonLabels,
-    required this.activityWhenLine,
+    required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String? activityWhenLine;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -491,7 +477,9 @@ class _DraftAuthoredCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
-            updatedLine: activityWhenLine,
+            viewModel: vm,
+            currentUserId: currentUserId,
+            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
@@ -524,13 +512,13 @@ class _ClosedAuthoredCard extends StatelessWidget {
     required this.vm,
     required this.highlight,
     required this.newStuffReasonLabels,
-    required this.activityWhenLine,
+    required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String? activityWhenLine;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -639,7 +627,9 @@ class _ClosedAuthoredCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
-            updatedLine: activityWhenLine,
+            viewModel: vm,
+            currentUserId: currentUserId,
+            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
@@ -672,13 +662,13 @@ class _ClosedHelpOfferedCard extends StatelessWidget {
     required this.vm,
     required this.highlight,
     required this.newStuffReasonLabels,
-    required this.activityWhenLine,
+    required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
   final MyWorkCardHighlightKind highlight;
   final List<String> newStuffReasonLabels;
-  final String? activityWhenLine;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -732,7 +722,9 @@ class _ClosedHelpOfferedCard extends StatelessWidget {
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
-            updatedLine: activityWhenLine,
+            viewModel: vm,
+            currentUserId: currentUserId,
+            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(

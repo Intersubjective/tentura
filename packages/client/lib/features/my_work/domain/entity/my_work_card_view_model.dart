@@ -4,6 +4,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
+import 'my_work_last_event.dart';
+
 part 'my_work_card_view_model.freezed.dart';
 
 /// Activity lines for the per-card NewStuff dot (see [MyWorkCardViewModel.newStuffReasons]).
@@ -65,6 +67,9 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
     /// Latest message on an active item discussion thread for this beacon.
     DateTime? lastCoordinationItemMessageAt,
+
+    /// Latest meaningful coordination-log event (V2 batch).
+    MyWorkLastEvent? lastActivityEvent,
   }) = _MyWorkCardViewModel;
 
   const MyWorkCardViewModel._();

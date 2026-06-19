@@ -10,6 +10,9 @@ import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/features/geo/ui/widget/place_name_text.dart';
+import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
+import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -21,21 +24,21 @@ import 'package:tentura/ui/widget/tentura_icons.dart';
 class MyWorkCardMetadataRow extends StatelessWidget {
   const MyWorkCardMetadataRow({
     required this.beacon,
-    this.updatedLine,
+    required this.viewModel,
+    required this.currentUserId,
+    required this.highlight,
     super.key,
   });
 
   final Beacon beacon;
-  final String? updatedLine;
+  final MyWorkCardViewModel viewModel;
+  final String currentUserId;
+  final MyWorkCardHighlightKind highlight;
 
   static const double _compactWrapWidth = 320;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final updatedStyle = beaconCardUpdatedLineTextStyle(theme);
-    final updated = updatedLine?.trim() ?? '';
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -50,15 +53,12 @@ class MyWorkCardMetadataRow extends StatelessWidget {
                 : _MetadataRowLayout(beacon: beacon);
           },
         ),
-        if (updated.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            updated,
-            style: updatedStyle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+        MyWorkLastEventRow(
+          beacon: beacon,
+          viewModel: viewModel,
+          currentUserId: currentUserId,
+          highlight: highlight,
+        ),
       ],
     );
   }

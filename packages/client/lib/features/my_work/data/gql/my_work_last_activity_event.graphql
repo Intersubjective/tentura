@@ -1,0 +1,11 @@
+query MyWorkLastActivityEvent($beaconIds: [String!]!) {
+  myWorkLastActivityEvent(beaconIds: $beaconIds) {
+    beaconId
+    id
+    type
+    actorId
+    actorTitle
+    actorImageId
+    createdAt
+  }
+}

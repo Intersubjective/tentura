@@ -1,0 +1,5 @@
+mutation BeaconPublish($id: String!) {
+  beaconPublish(id: $id) {
+    id
+  }
+}

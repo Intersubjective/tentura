@@ -46,6 +46,7 @@ final class MutationBeacon extends GqlNodeBase {
     fork,
     update,
     updateDraft,
+    publish,
     deleteById,
     addImage,
     removeImage,
@@ -187,6 +188,18 @@ final class MutationBeacon extends GqlNodeBase {
           iconBackground: _iconBackground.fromArgs(args),
           needSummary: _needSummary.fromArgs(args),
           successCriteria: _successCriteria.fromArgs(args),
+        )
+        .then((v) => v.asJson),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get publish => GraphQLObjectField(
+    'beaconPublish',
+    gqlTypeBeacon.nonNullable(),
+    arguments: [InputFieldId.field],
+    resolve: (_, args) => _beaconCase
+        .publishDraft(
+          userId: getCredentials(args).sub,
+          beaconId: InputFieldId.fromArgsNonNullable(args),
         )
         .then((v) => v.asJson),
   );

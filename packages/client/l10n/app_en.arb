@@ -1917,6 +1917,41 @@
       }
     }
   },
+  "myWorkUpdatedRelative": "updated {ago}",
+  "@myWorkUpdatedRelative": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkLastEventBy": "by",
+  "@myWorkLastEventBy": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkLastEventSemantics": "{event} by {actor}, {ago}{authorSuffix}",
+  "@myWorkLastEventSemantics": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "event": {
+        "type": "String"
+      },
+      "actor": {
+        "type": "String"
+      },
+      "ago": {
+        "type": "String"
+      },
+      "authorSuffix": {
+        "type": "String"
+      }
+    }
+  },
+  "myWorkLastEventAuthorSuffix": ", author",
+  "@myWorkLastEventAuthorSuffix": {
+    "context": "MyWorkScreen"
+  },
   "myWorkDraftStatusLine": "{count} · Investigation in progress",
   "@myWorkDraftStatusLine": {
     "context": "MyWorkScreen",
@@ -3081,6 +3116,7 @@
   "beaconActivityBlockerResolved": "Blocker resolved",
   "beaconActivityNeedInfoOpened": "Need-info requested",
   "beaconActivityDoneMarked": "Marked done",
+  "beaconActivityBeaconPublished": "Published",
   "beaconActivityCoordinationFallback": "Room update",
   "beaconRoomMessageActionsTitle": "Message actions",
   "beaconRoomReactionAddTooltip": "Add reaction",

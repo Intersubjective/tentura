@@ -4,8 +4,10 @@ import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -1209,6 +1211,117 @@ class BeaconRoomRepository {
   Future<List<String>> listAllParticipantUserIds(String beaconId) async {
     final rows = await listParticipants(beaconId);
     return rows.map((p) => p.userId).toSet().toList();
+  }
+
+  /// Latest meaningful log event per beacon for My Work cards.
+  ///
+  /// Predicate mirrors client [`BeaconActivityEvent.isCoordinationLogEvent`].
+  Future<List<MyWorkLastActivityEventRow>> latestActivityEventsByBeaconIds({
+    required List<String> beaconIds,
+    required String viewerUserId,
+  }) async {
+    if (beaconIds.isEmpty) {
+      return const [];
+    }
+
+    final eventsByBeacon = <String, BeaconActivityEventRecord?>{};
+    final actorIds = <String>{};
+
+    for (final beaconId in beaconIds) {
+      final canUseRoom = await _viewerCanUseRoom(
+        beaconId: beaconId,
+        userId: viewerUserId,
+      );
+
+      final meaningfulTypes = [
+        BeaconActivityEventTypeBits.planUpdated,
+        BeaconActivityEventTypeBits.factPinned,
+        BeaconActivityEventTypeBits.blockerOpened,
+        BeaconActivityEventTypeBits.blockerResolved,
+        BeaconActivityEventTypeBits.needInfoOpened,
+        BeaconActivityEventTypeBits.doneMarked,
+        BeaconActivityEventTypeBits.factVisibilityChanged,
+        BeaconActivityEventTypeBits.beaconPublished,
+      ];
+
+      final row = await (_db.select(_db.beaconActivityEvents)
+            ..where(
+              (e) {
+                final meaningful = (e.type.isBiggerOrEqualValue(100) &
+                        e.type.isSmallerThanValue(500)) |
+                    e.type.isIn(meaningfulTypes);
+                final visible = canUseRoom
+                    ? e.visibility.isIn([
+                        BeaconActivityEventVisibilityBits.public,
+                        BeaconActivityEventVisibilityBits.room,
+                      ])
+                    : e.visibility.equals(
+                        BeaconActivityEventVisibilityBits.public,
+                      );
+                return e.beaconId.equals(beaconId) & meaningful & visible;
+              },
+            )
+            ..orderBy([
+              (e) =>
+                  OrderingTerm(expression: e.createdAt, mode: OrderingMode.desc),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+
+      if (row == null) {
+        eventsByBeacon[beaconId] = null;
+        continue;
+      }
+
+      final record = BeaconActivityEventRecord(
+        id: row.id,
+        beaconId: row.beaconId,
+        visibility: row.visibility,
+        type: row.type,
+        actorId: row.actorId,
+        createdAt: row.createdAt.dateTime.toUtc(),
+      );
+      eventsByBeacon[beaconId] = record;
+      final actorId = row.actorId;
+      if (actorId != null && actorId.isNotEmpty) {
+        actorIds.add(actorId);
+      }
+    }
+
+    final titles = await userTitlesByIds(actorIds);
+    final pics = await userPicMetaByIds(actorIds);
+
+    return [
+      for (final beaconId in beaconIds)
+        () {
+          final event = eventsByBeacon[beaconId];
+          final actorId = event?.actorId;
+          return MyWorkLastActivityEventRow(
+            beaconId: beaconId,
+            event: event,
+            actorTitle:
+                actorId == null ? null : titles[actorId],
+            actorImageId: actorId == null ? null : pics[actorId]?.imageId,
+          );
+        }(),
+    ];
+  }
+
+  Future<bool> _viewerCanUseRoom({
+    required String beaconId,
+    required String userId,
+  }) async {
+    if (await isBeaconAuthor(beaconId: beaconId, userId: userId)) {
+      return true;
+    }
+    if (await isBeaconSteward(beaconId: beaconId, userId: userId)) {
+      return true;
+    }
+    final participant = await findParticipant(
+      beaconId: beaconId,
+      userId: userId,
+    );
+    return participant?.roomAccess == RoomAccessBits.admitted;
   }
 
   Future<String?> participantUserIdForRow(String participantRowId) async {

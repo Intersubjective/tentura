@@ -98,4 +98,11 @@ abstract class BeaconRepositoryPort {
     required int publicStatus,
     String? lastPublicMeaningfulChange,
   });
+
+  /// Draft (state 3) → open (state 0) and emit a `beaconPublished` activity event.
+  /// No-op when the beacon is already published.
+  Future<BeaconEntity> publishDraft({
+    required String id,
+    required String actorId,
+  });
 }

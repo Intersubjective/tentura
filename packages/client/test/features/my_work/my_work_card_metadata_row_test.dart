@@ -5,8 +5,17 @@ import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
+import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+MyWorkCardViewModel _viewModel(Beacon beacon) => MyWorkCardViewModel(
+  beaconId: beacon.id,
+  role: MyWorkCardRole.authored,
+  kind: MyWorkCardKind.authoredActive,
+  beacon: beacon,
+);
 
 void main() {
   testWidgets('metadata row shows schedule and location at 360px', (
@@ -20,6 +29,8 @@ void main() {
       startAt: DateTime(2026, 6, 20, 12),
       endAt: DateTime(2026, 6, 25, 12),
       coordinates: const Coordinates(lat: 52.52, long: 13.405),
+      createdAt: DateTime(2026, 6, 10, 9),
+      updatedAt: DateTime(2026, 6, 10, 10),
     );
 
     await tester.pumpWidget(
@@ -36,7 +47,9 @@ void main() {
                 width: 360,
                 child: MyWorkCardMetadataRow(
                   beacon: beacon,
-                  updatedLine: 'Updated 2026-06-10 09:00',
+                  viewModel: _viewModel(beacon),
+                  currentUserId: 'viewer',
+                  highlight: MyWorkCardHighlightKind.none,
                 ),
               ),
             ),
@@ -46,7 +59,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Updated 2026-06-10'), findsOneWidget);
+    expect(find.textContaining('updated'), findsOneWidget);
     expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
     expect(find.byType(MyWorkCardMetadataRow), findsOneWidget);
   });
@@ -72,7 +85,12 @@ void main() {
             body: Center(
               child: SizedBox(
                 width: 300,
-                child: MyWorkCardMetadataRow(beacon: beacon),
+                child: MyWorkCardMetadataRow(
+                  beacon: beacon,
+                  viewModel: _viewModel(beacon),
+                  currentUserId: 'viewer',
+                  highlight: MyWorkCardHighlightKind.none,
+                ),
               ),
             ),
           ),
