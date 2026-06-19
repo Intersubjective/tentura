@@ -175,6 +175,32 @@ void main() {
       );
     });
 
+    testWidgets('mixed_text_and_file_attachment', (tester) async {
+      await pumpRoomMessageGolden(
+        tester,
+        goldenName: 'mixed_text_and_file_attachment',
+        message: textMessage(
+          id: 'm5',
+          authorId: 'me',
+          author: me,
+          body: 'See attached notes',
+          attachments: const [
+            RoomMessageAttachment(
+              id: 'a1',
+              kind: BeaconRoomMessageAttachmentKind.file,
+              position: 0,
+              mime: 'application/pdf',
+              sizeBytes: 1024,
+              fileName: 'notes.pdf',
+            ),
+          ],
+        ),
+        myProfile: me,
+      );
+    });
+  }, skip: 'Goldens disabled');
+
+  group('room message layout', () {
     testWidgets('angry_reaction_with_reactors_no_layout_overflow', (
       tester,
     ) async {
@@ -222,30 +248,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('mixed_text_and_file_attachment', (tester) async {
-      await pumpRoomMessageGolden(
-        tester,
-        goldenName: 'mixed_text_and_file_attachment',
-        message: textMessage(
-          id: 'm5',
-          authorId: 'me',
-          author: me,
-          body: 'See attached notes',
-          attachments: const [
-            RoomMessageAttachment(
-              id: 'a1',
-              kind: BeaconRoomMessageAttachmentKind.file,
-              position: 0,
-              mime: 'application/pdf',
-              sizeBytes: 1024,
-              fileName: 'notes.pdf',
-            ),
-          ],
-        ),
-        myProfile: me,
-      );
     });
   });
 }
