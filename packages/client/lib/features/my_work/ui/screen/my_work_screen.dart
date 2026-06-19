@@ -13,6 +13,17 @@ import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
+import '../widget/my_work_empty_body.dart';
+import '../widget/my_work_new_stuff_reporter.dart';
+
+const _kMyWorkFilterMenuOrder = [
+  MyWorkFilter.active,
+  MyWorkFilter.authored,
+  MyWorkFilter.helpOffered,
+  MyWorkFilter.drafts,
+  MyWorkFilter.all,
+  MyWorkFilter.archived,
+];
 
 @RoutePage()
 class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -23,14 +34,27 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
       BlocSelector<AuthCubit, AuthState, String>(
         bloc: GetIt.I<AuthCubit>(),
         selector: (state) => state.currentAccountId,
-        builder: (_, accountId) => BlocProvider(
-          key: ValueKey(accountId),
-          create: (_) => MyWorkCubit(),
-          child: BlocListener<MyWorkCubit, MyWorkState>(
-            listener: commonScreenBlocListener,
-            child: this,
-          ),
-        ),
+        builder: (_, accountId) {
+          if (accountId.isEmpty) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator.adaptive(),
+              ),
+            );
+          }
+          return BlocProvider(
+            key: ValueKey(accountId),
+            create: (_) => MyWorkCubit(userId: accountId),
+            child: MultiBlocListener(
+              listeners: const [
+                BlocListener<MyWorkCubit, MyWorkState>(
+                  listener: commonScreenBlocListener,
+                ),
+              ],
+              child: MyWorkNewStuffReporter(child: this),
+            ),
+          );
+        },
       );
 
   @override
@@ -42,7 +66,7 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
           prev.myWorkReselectCount != curr.myWorkReselectCount,
       listener: (context, _) {
         context.read<MyWorkCubit>()
-          ..setFilter(MyWorkFilter.all)
+          ..setFilter(MyWorkFilter.active)
           ..setSort(MyWorkSort.recent);
       },
       child: Scaffold(
@@ -100,9 +124,11 @@ class _MyWorkOverflowMenu extends StatelessWidget {
 }
 
 String _labelForFilter(L10n l10n, MyWorkFilter f) => switch (f) {
+  MyWorkFilter.active => l10n.myWorkFilterActive,
   MyWorkFilter.all => l10n.myWorkFilterAll,
   MyWorkFilter.authored => l10n.myWorkFilterAuthored,
   MyWorkFilter.helpOffered => l10n.myWorkFilterHelpOffered,
+  MyWorkFilter.drafts => l10n.myWorkFilterDrafts,
   MyWorkFilter.archived => l10n.myWorkFilterArchived,
 };
 
@@ -113,7 +139,7 @@ Future<void> _showMyWorkFilterMenu(
   final selected = await showAnchoredPopupMenu<MyWorkFilter>(
     anchorContext: buttonContext,
     items: [
-      for (final f in MyWorkFilter.values)
+      for (final f in _kMyWorkFilterMenuOrder)
         PopupMenuItem<MyWorkFilter>(
           value: f,
           child: Text(_labelForFilter(l10n, f)),
@@ -258,12 +284,28 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
 class _MyWorkBody extends StatelessWidget {
   const _MyWorkBody();
 
-  String _emptyMessage(L10n l10n, MyWorkFilter f) => switch (f) {
-    MyWorkFilter.all => l10n.myWorkEmptyAll,
-    MyWorkFilter.authored => l10n.myWorkEmptyAuthored,
-    MyWorkFilter.helpOffered => l10n.myWorkEmptyHelpOffered,
-    MyWorkFilter.archived => l10n.myWorkEmptyArchived,
-  };
+  bool _shouldRebuild(MyWorkState p, MyWorkState c) {
+    if (p.status != c.status ||
+        p.filter != c.filter ||
+        p.sort != c.sort ||
+        p.closedFetchInProgress != c.closedFetchInProgress ||
+        p.hasError != c.hasError) {
+      return true;
+    }
+    if (p.nonArchivedCards.length != c.nonArchivedCards.length ||
+        p.archivedCards.length != c.archivedCards.length) {
+      return true;
+    }
+    if (p.draftCount != c.draftCount ||
+        p.archivedCountHint != c.archivedCountHint) {
+      return true;
+    }
+    if (p.nonArchivedCards != c.nonArchivedCards ||
+        p.archivedCards != c.archivedCards) {
+      return true;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -272,13 +314,30 @@ class _MyWorkBody extends StatelessWidget {
     final cubit = context.read<MyWorkCubit>();
 
     return BlocBuilder<MyWorkCubit, MyWorkState>(
-      buildWhen: (p, c) =>
-          p != c &&
-          (c.isSuccess || c.isLoading || c.hasError || c.closedFetchInProgress),
+      buildWhen: _shouldRebuild,
       builder: (_, state) {
         if (state.isLoading) {
           return const Center(
             child: CircularProgressIndicator.adaptive(),
+          );
+        }
+        if (state.hasError) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(height: kSpacingMedium),
+                FilledButton(
+                  onPressed: cubit.fetch,
+                  child: Text(l10n.myWorkRetry),
+                ),
+              ],
+            ),
           );
         }
         if (state.filter == MyWorkFilter.archived &&
@@ -290,22 +349,26 @@ class _MyWorkBody extends StatelessWidget {
         }
         final cards = state.visibleCards;
         if (cards.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.work_outline,
-                  size: 64,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(height: kSpacingMedium),
-                Text(
-                  _emptyMessage(l10n, state.filter),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+          return RefreshIndicator.adaptive(
+            onRefresh: cubit.fetch,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: MyWorkEmptyBody(
+                    filter: state.filter,
+                    draftCount: state.draftCount,
+                    archivedCountHint: state.archivedCountHint,
+                    onCreateBeacon: () =>
+                        context.read<ScreenCubit>().showBeaconCreate(),
+                    onOpenInbox: () =>
+                        AutoTabsRouter.of(context).setActiveIndex(1),
+                    onShowDrafts: () =>
+                        cubit.setFilter(MyWorkFilter.drafts),
+                    onShowArchived: () =>
+                        cubit.setFilter(MyWorkFilter.archived),
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -315,6 +378,7 @@ class _MyWorkBody extends StatelessWidget {
           onRefresh: cubit.fetch,
           child: ListView.separated(
             padding: kPaddingSmallV,
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: cards.length,
             separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
             itemBuilder: (_, i) {

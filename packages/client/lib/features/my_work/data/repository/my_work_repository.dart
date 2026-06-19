@@ -35,7 +35,7 @@ class MyWorkRepository {
           GMyWorkInitReq((b) => b..vars.userId = userId),
         )
         .timeout(_kNetworkTimeout)
-        .first;
+        .firstWhere((e) => e.dataSource == DataSource.Link);
     final d = r.dataOrThrow(label: _label);
     final beaconIds = <String>{
       for (final e in d.authoredNonClosed) e.id,
@@ -137,7 +137,7 @@ class MyWorkRepository {
           GMyWorkClosedReq((b) => b..vars.userId = userId),
         )
         .timeout(_kNetworkTimeout)
-        .first;
+        .firstWhere((e) => e.dataSource == DataSource.Link);
     final d = r.dataOrThrow(label: _label);
     return (
       authoredClosed:

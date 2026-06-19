@@ -6,6 +6,7 @@ import 'package:tentura/domain/entity/profile.dart';
 
 import 'entity/my_work_card_view_model.dart';
 import 'entity/my_work_fetch_types.dart';
+import 'entity/my_work_filter.dart';
 import 'entity/my_work_sort.dart';
 
 /// Sort key: higher = earlier in list. Tie-break with [Beacon.updatedAt], then id.
@@ -153,6 +154,83 @@ List<MyWorkCardViewModel> buildNonArchivedViewModels({
       .toList(growable: false);
   final merged = [...authored, ...helpOffered]..sort(compareMyWorkCards);
   return merged;
+}
+
+List<MyWorkCardViewModel> filterMyWorkCardsForDesk({
+  required MyWorkFilter filter,
+  required List<MyWorkCardViewModel> nonArchivedCards,
+  required List<MyWorkCardViewModel> archivedCards,
+}) {
+  return switch (filter) {
+    MyWorkFilter.archived => archivedCards,
+    MyWorkFilter.all => nonArchivedCards,
+    MyWorkFilter.active => nonArchivedCards
+        .where(
+          (c) =>
+              c.kind == MyWorkCardKind.authoredActive ||
+              c.kind == MyWorkCardKind.helpOfferedActive,
+        )
+        .toList(),
+    MyWorkFilter.drafts => nonArchivedCards
+        .where((c) => c.kind == MyWorkCardKind.authoredDraft)
+        .toList(),
+    MyWorkFilter.authored => nonArchivedCards
+        .where(
+          (c) =>
+              c.role == MyWorkCardRole.authored &&
+              c.kind != MyWorkCardKind.authoredDraft,
+        )
+        .toList(),
+    MyWorkFilter.helpOffered => nonArchivedCards
+        .where((c) => c.role == MyWorkCardRole.helpOffered)
+        .toList(),
+  };
+}
+
+List<MyWorkCardViewModel> visibleMyWorkCardsForDesk({
+  required MyWorkFilter filter,
+  required MyWorkSort sort,
+  required List<MyWorkCardViewModel> nonArchivedCards,
+  required List<MyWorkCardViewModel> archivedCards,
+}) {
+  final base = filterMyWorkCardsForDesk(
+    filter: filter,
+    nonArchivedCards: nonArchivedCards,
+    archivedCards: archivedCards,
+  );
+  final list = List<MyWorkCardViewModel>.from(base)
+    ..sort((a, b) => compareMyWorkCardsForSort(sort, a, b));
+  return list;
+}
+
+int countDraftMyWorkCards(List<MyWorkCardViewModel> nonArchivedCards) =>
+    nonArchivedCards
+        .where((c) => c.kind == MyWorkCardKind.authoredDraft)
+        .length;
+
+int archivedCountHintFromIds({
+  required List<String> authoredClosedIdHints,
+  required List<String> helpOfferedClosedIdHints,
+}) =>
+    authoredClosedIdHints.length +
+    helpOfferedClosedIdHints
+        .where((id) => !authoredClosedIdHints.contains(id))
+        .length;
+
+int? maxMyWorkDeskActivityEpochMs({
+  required List<MyWorkCardViewModel> nonArchivedCards,
+  required List<MyWorkCardViewModel> archivedCards,
+}) {
+  int? maxMs;
+  for (final c in nonArchivedCards) {
+    final m = c.newStuffActivityEpochMs;
+    if (maxMs == null || m > maxMs) maxMs = m;
+  }
+  for (final c in archivedCards) {
+    final m = c.newStuffActivityEpochMs;
+    if (maxMs == null || m > maxMs) maxMs = m;
+  }
+  return maxMs;
 }
 
 /// Archived (closed lifecycle) cards from lazy closed fetch.

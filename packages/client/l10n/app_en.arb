@@ -1633,6 +1633,14 @@
   "@myWorkFilterArchived": {
     "context": "MyWorkScreen"
   },
+  "myWorkFilterActive": "Active",
+  "@myWorkFilterActive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkFilterDrafts": "Drafts",
+  "@myWorkFilterDrafts": {
+    "context": "MyWorkScreen"
+  },
   "myWorkSortRecent": "Recent",
   "@myWorkSortRecent": {
     "context": "MyWorkScreen"
@@ -1667,6 +1675,44 @@
   },
   "myWorkEmptyArchived": "No archived items",
   "@myWorkEmptyArchived": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveTitle": "No active work yet",
+  "@myWorkEmptyActiveTitle": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveBody": "Active beacons you're involved in will appear here. You can create a beacon yourself, or take part in one that others forwarded to you.",
+  "@myWorkEmptyActiveBody": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveCreateCta": "Create beacon",
+  "@myWorkEmptyActiveCreateCta": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyActiveInboxCta": "Go to Inbox",
+  "@myWorkEmptyActiveInboxCta": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkEmptyDraftsShortcut": "Drafts ({count})",
+  "@myWorkEmptyDraftsShortcut": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkEmptyArchiveShortcut": "Archived ({count})",
+  "@myWorkEmptyArchiveShortcut": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkRetry": "Try again",
+  "@myWorkRetry": {
     "context": "MyWorkScreen"
   },
   "myWorkYouAuthor": "You (Author)",
