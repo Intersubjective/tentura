@@ -16,15 +16,6 @@ import '../widget/my_work_cards.dart';
 import '../widget/my_work_empty_body.dart';
 import '../widget/my_work_new_stuff_reporter.dart';
 
-const _kMyWorkFilterMenuOrder = [
-  MyWorkFilter.active,
-  MyWorkFilter.authored,
-  MyWorkFilter.helpOffered,
-  MyWorkFilter.drafts,
-  MyWorkFilter.all,
-  MyWorkFilter.archived,
-];
-
 @RoutePage()
 class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
   const MyWorkScreen({super.key});
@@ -139,7 +130,7 @@ Future<void> _showMyWorkFilterMenu(
   final selected = await showAnchoredPopupMenu<MyWorkFilter>(
     anchorContext: buttonContext,
     items: [
-      for (final f in _kMyWorkFilterMenuOrder)
+      for (final f in kMyWorkFilterMenuOrder)
         PopupMenuItem<MyWorkFilter>(
           value: f,
           child: Text(_labelForFilter(l10n, f)),

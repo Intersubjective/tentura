@@ -49,4 +49,26 @@ void main() {
 
     await cubit.close();
   });
+
+  test('tab reselect resets to active filter and recent sort', () async {
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(),
+    );
+    await cubit.stream.firstWhere((s) => s.isSuccess);
+
+    cubit
+      ..setFilter(MyWorkFilter.all)
+      ..setSort(MyWorkSort.alphabetical);
+    expect(cubit.state.filter, MyWorkFilter.all);
+    expect(cubit.state.sort, MyWorkSort.alphabetical);
+
+    cubit
+      ..setFilter(MyWorkFilter.active)
+      ..setSort(MyWorkSort.recent);
+    expect(cubit.state.filter, MyWorkFilter.active);
+    expect(cubit.state.sort, MyWorkSort.recent);
+
+    await cubit.close();
+  });
 }
