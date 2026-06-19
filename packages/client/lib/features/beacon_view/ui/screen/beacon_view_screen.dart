@@ -1477,8 +1477,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                         ),
                       ),
                     ),
-                    onYouResponsibilityChanged: () =>
-                        unawaited(beaconViewCubit.refreshYouResponsibility()),
                   ),
                 ),
               ),
