@@ -4,7 +4,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
-import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -285,7 +285,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                   : _profileForParticipant(p);
               return Tooltip(
                 message: title,
-                child: SelfAwarePlainMiniAvatar(
+                child: SelfAwareAvatar.tiny(
                   profile: profile,
                   size: _kVoterAvatarSize,
                 ),

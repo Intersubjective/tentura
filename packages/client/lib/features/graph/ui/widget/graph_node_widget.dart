@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -28,26 +28,19 @@ class GraphNodeWidget extends StatelessWidget {
           buildWhen: (p, c) => p.profile.id != c.profile.id,
           builder: (context, state) {
             final s = nodeDetails.size;
-            final core = AvatarRated(
-              profile: userNode.user,
-              size: s,
-              withRating: withRating,
-            );
             final isSelf = SelfUserHighlight.profileIsSelf(
               userNode.user,
               state.profile.id,
             );
+            final core = TenturaAvatar(
+              profile: userNode.user,
+              size: s,
+              withRating: withRating,
+              isSelf: isSelf,
+            );
             Widget result = core;
             if (userNode.isHelpOfferer) {
               result = _HelpOffererRing(size: s, child: result);
-            }
-            if (isSelf && s <= 48) {
-              result = SelfUserHighlight.wrapSmallAvatar(
-                context,
-                avatarSize: s,
-                isSelf: isSelf,
-                child: result,
-              );
             }
             return result;
           },

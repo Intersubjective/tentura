@@ -4,7 +4,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 const _kAvatarSize = 18.0;
@@ -120,11 +121,7 @@ class UnifiedForwardRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        AvatarRated(
-          profile: sender,
-          size: _kAvatarSize,
-          withRating: false,
-        ),
+        SelfAwareAvatar.tiny(profile: sender),
       ],
     );
 
@@ -314,9 +311,8 @@ class _AvatarRinged extends StatelessWidget {
           width: self ? 2 : 1,
         ),
       ),
-      child: AvatarRated(
+      child: TenturaAvatar.tiny(
         profile: profile,
-        withRating: false,
         size: size,
       ),
     );

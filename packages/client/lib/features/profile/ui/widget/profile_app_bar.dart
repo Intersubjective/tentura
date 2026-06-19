@@ -24,7 +24,7 @@ class ProfileAppBar extends StatelessWidget {
     return SliverInboxStyleAppBar(
       title: Row(
         children: [
-          SelfAwareAvatar(
+          SelfAwareAvatar.medium(
             profile: profile,
             size: 32,
             withRating: false,

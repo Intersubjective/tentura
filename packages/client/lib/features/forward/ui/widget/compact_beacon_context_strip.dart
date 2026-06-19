@@ -5,7 +5,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/beacon_view/ui/widget/self_aware_plain_mini_avatar.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
@@ -83,9 +83,8 @@ class CompactBeaconContextStrip extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  SelfAwarePlainMiniAvatar(
+                  SelfAwareAvatar.small(
                     profile: beacon.author,
-                    size: tt.metadataAvatarSize,
                   ),
                   SizedBox(width: tt.iconTextGap),
                   Expanded(

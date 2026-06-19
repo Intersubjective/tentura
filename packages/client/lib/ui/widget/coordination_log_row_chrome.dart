@@ -7,9 +7,9 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/avatar_rated.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 
-/// Log tab row — avatar diameter.
+/// Log tab row — avatar diameter (matches [TenturaAvatarSize.tiny] on expanded).
 const kCoordinationLogAvatarSize = 20.0;
 
 /// Log tab row — semantic event icon size.
@@ -30,12 +30,8 @@ Profile profileFromBeaconParticipant(BeaconParticipant p) => Profile(
     );
 
 Widget coordinationLogParticipantAvatar(BeaconParticipant participant) =>
-    ClipOval(
-      child: AvatarRated(
-        profile: profileFromBeaconParticipant(participant),
-        size: kCoordinationLogAvatarSize,
-        withRating: false,
-      ),
+    TenturaAvatar.tiny(
+      profile: profileFromBeaconParticipant(participant),
     );
 
 /// Log tab leading segment: `[src avatar] [icon] [dst avatar?]`.

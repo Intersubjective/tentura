@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -11,7 +12,6 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 MyWorkCardViewModel _vm({
   required Beacon beacon,

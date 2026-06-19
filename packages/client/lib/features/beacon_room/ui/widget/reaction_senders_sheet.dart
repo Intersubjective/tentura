@@ -113,7 +113,7 @@ Future<void> showReactionSendersSheet(
                               height: 48,
                               child: Row(
                                 children: [
-                                  TenturaAvatar(profile: p, size: 32),
+                                  TenturaAvatar.medium(profile: p, size: 32),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(

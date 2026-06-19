@@ -916,7 +916,7 @@ class _CoordinationBody extends StatelessWidget {
                 .take(3))
               Padding(
                 padding: const EdgeInsets.only(left: 4),
-                child: TenturaAvatar(
+                child: TenturaAvatar.small(
                   profile: u.user,
                   size: 24,
                 ),

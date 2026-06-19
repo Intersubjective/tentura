@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_people_labels.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
@@ -100,7 +101,7 @@ class BeaconPeopleParticipantCard extends StatelessWidget {
               if (participant.userId == myId) return;
               context.read<ScreenCubit>().showProfile(participant.userId);
             },
-            child: TenturaAvatar(profile: profile),
+            child: SelfAwareAvatar.medium(profile: profile),
           ),
           const SizedBox(width: kSpacingSmall),
           Expanded(

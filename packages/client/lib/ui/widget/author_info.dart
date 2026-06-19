@@ -28,7 +28,7 @@ class AuthorInfo extends StatelessWidget {
         children: [
           Padding(
             padding: kPaddingAllS,
-            child: SelfAwareAvatar(profile: author),
+            child: SelfAwareAvatar.medium(profile: author),
           ),
           Expanded(
             child: BlocBuilder<ProfileCubit, ProfileState>(

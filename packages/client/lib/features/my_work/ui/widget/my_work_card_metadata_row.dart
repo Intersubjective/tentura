@@ -50,8 +50,14 @@ class MyWorkCardMetadataRow extends StatelessWidget {
                 context.windowClass == WindowClass.compact &&
                 constraints.maxWidth < _compactWrapWidth;
             return useWrap
-                ? _MetadataWrapLayout(beacon: beacon)
-                : _MetadataRowLayout(beacon: beacon);
+                ? _MetadataWrapLayout(
+                    beacon: beacon,
+                    currentUserId: currentUserId,
+                  )
+                : _MetadataRowLayout(
+                    beacon: beacon,
+                    currentUserId: currentUserId,
+                  );
           },
         ),
         if (viewModel.youResponsibility != null)
@@ -75,13 +81,17 @@ class MyWorkCardMetadataRow extends StatelessWidget {
 }
 
 class _MetadataRowLayout extends StatelessWidget {
-  const _MetadataRowLayout({required this.beacon});
+  const _MetadataRowLayout({
+    required this.beacon,
+    required this.currentUserId,
+  });
 
   final Beacon beacon;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
-    final pile = _FacePile(beacon: beacon);
+    final pile = _FacePile(beacon: beacon, currentUserId: currentUserId);
     final schedule = _MyWorkScheduleMeta(beacon: beacon);
     final location = _MyWorkLocationMeta(beacon: beacon);
     final hasPile = pile.hasProfiles;
@@ -106,13 +116,17 @@ class _MetadataRowLayout extends StatelessWidget {
 }
 
 class _MetadataWrapLayout extends StatelessWidget {
-  const _MetadataWrapLayout({required this.beacon});
+  const _MetadataWrapLayout({
+    required this.beacon,
+    required this.currentUserId,
+  });
 
   final Beacon beacon;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
-    final pile = _FacePile(beacon: beacon);
+    final pile = _FacePile(beacon: beacon, currentUserId: currentUserId);
     final schedule = _MyWorkScheduleMeta(beacon: beacon);
     final location = _MyWorkLocationMeta(beacon: beacon);
     final hasPile = pile.hasProfiles;
@@ -137,9 +151,13 @@ class _MetadataWrapLayout extends StatelessWidget {
 }
 
 class _FacePile extends StatelessWidget {
-  const _FacePile({required this.beacon});
+  const _FacePile({
+    required this.beacon,
+    required this.currentUserId,
+  });
 
   final Beacon beacon;
+  final String currentUserId;
 
   bool get hasProfiles {
     final display = beaconInvolvedPeopleDisplay(
@@ -167,6 +185,7 @@ class _FacePile extends StatelessWidget {
       overflowCount: display.overflow,
       size: metaAvatar,
       starredProfileId: beacon.author.id,
+      selfUserId: currentUserId,
       semanticsLabel: l10n.facepileSemantics(
         display.visible.length,
         display.overflow,

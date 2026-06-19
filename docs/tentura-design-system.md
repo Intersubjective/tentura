@@ -99,7 +99,7 @@ On **Forward Beacon** (`features/forward` — `ForwardBeaconPage`, `ForwardRecip
 | Personalized note action (add/hide) | **Icon only** (`add_comment_outlined` / `expand_less`), **immediately left of** the row checkbox, with the same strings as **tooltip** when the row is selected |
 | Per-recipient + shared note fields | Same tokenized `InputDecoration` (surface, border, `TenturaRadii.cardDense`, `TenturaText.body` for input) |
 | Primary Forward CTA | `TenturaText.command` / `OutlinedButton` with height ≥ `context.tt.buttonHeight` |
-| List row avatars + checkbox hit targets | Avatar size from `context.tt` (`cardAvatarSize` or `avatarSize`); checkbox visual stays small but wrap in at least **44×44** logical px tap target |
+| List row avatars + checkbox hit targets | Avatar size from `context.tt` (`avatarSize` = medium bucket); checkbox visual stays small but wrap in at least **44×44** logical px tap target |
 
 ## No global text scaler override
 
@@ -113,7 +113,7 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 4. **Hairlines** — use [`TenturaHairlineDivider`](../packages/client/lib/design_system/components/tentura_hairline_divider.dart), not nested cards.
 5. **Tabs** — underline row with 2px active indicator ([`TenturaUnderlineTabs`](../packages/client/lib/design_system/components/tentura_underline_tabs.dart)), not `SegmentedButton` on beacon detail. Labels stay at **13px** logical size; use **ellipsis** when width is tight, not scaled-down paint size. Vertical padding follows **`context.tt.rowGap`** (density), not a fixed px hack.
 6. **Actions** — [`TenturaTextAction`](../packages/client/lib/design_system/components/tentura_text_action.dart) / [`TenturaCommandButton`](../packages/client/lib/design_system/components/tentura_command_button.dart); avoid filled buttons inside dense cards unless truly primary.
-7. **Avatars** — size from `context.tt` (`avatarSize`, `metadataAvatarSize`, `cardAvatarSize`), circle + thin border ([`TenturaAvatar`](../packages/client/lib/design_system/components/tentura_avatar.dart)).
+7. **Avatars** — unified [`TenturaAvatar`](../packages/client/lib/design_system/components/tentura_avatar.dart) with four buckets via `TenturaAvatarSize`: **big** (160, profile hero), **medium** (`avatarSize`, list rows / people tab), **small** (`metadataAvatarSize`, facepiles / coordination footer), **tiny** (`avatarTinySize`, inline log/timeline). Optional flags: `showAuthorStar` (beacon author), `isSelf` (viewer halo), `withRating` / `withContactBadge` (MeritRank; honored at big/medium/small only). Personal/identity surfaces default to plain avatars (`withRating: false`). Viewer identity is resolved only in [`SelfAwareAvatar`](../packages/client/lib/ui/widget/self_aware_profile_avatar.dart) (never in the DS widget). Facepiles use [`OverlappingPeopleAvatars`](../packages/client/lib/ui/widget/overlapping_people_avatars.dart) with `selfUserId` + `starredProfileId`.
 8. **A11y** — min tap targets (e.g. button height from tokens); respect system text scaling.
 
 ## Token summary (light)

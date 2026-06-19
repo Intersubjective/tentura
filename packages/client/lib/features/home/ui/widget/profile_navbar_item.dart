@@ -47,10 +47,9 @@ class ProfileNavBarItem extends StatelessWidget {
                     p.profile.image?.blurHash != c.profile.image?.blurHash ||
                     p.profile.displayName != c.profile.displayName,
                 builder: (context, state) {
-                  return SelfAwareAvatar(
+                  return SelfAwareAvatar.medium(
                     profile: state.profile,
                     withRating: false,
-                    size: 36,
                   );
                 },
               ),

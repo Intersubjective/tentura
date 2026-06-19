@@ -19,7 +19,6 @@ abstract final class SelfUserHighlight {
   static TextStyle selfNameStyle(ThemeData theme) {
     final scheme = theme.colorScheme;
     return TextStyle(
-      // Same accent as [wrapSmallAvatar] ring (tertiary defaults are off-theme).
       color: scheme.primary,
       fontWeight: FontWeight.w600,
     );
@@ -36,62 +35,4 @@ abstract final class SelfUserHighlight {
     }
     return (base ?? theme.textTheme.bodyMedium!).merge(selfNameStyle(theme));
   }
-
-  /// Primary ring on top of [child]; total layout size matches the child bounds.
-  static Widget wrapSmallAvatar(
-    BuildContext context, {
-    required Widget child,
-    required double avatarSize,
-    required bool isSelf,
-  }) {
-    if (!isSelf) {
-      return child;
-    }
-    final color = Theme.of(context).colorScheme.primary;
-    const strokeWidth = 2.0;
-    return SizedBox(
-      width: avatarSize,
-      height: avatarSize,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Center(child: child),
-          IgnorePointer(
-            child: CustomPaint(
-              painter: _SelfAvatarRingPainter(
-                color: color,
-                strokeWidth: strokeWidth,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SelfAvatarRingPainter extends CustomPainter {
-  _SelfAvatarRingPainter({
-    required this.color,
-    required this.strokeWidth,
-  });
-
-  final Color color;
-  final double strokeWidth;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final r = size.shortestSide / 2 - strokeWidth / 2;
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..isAntiAlias = true;
-    canvas.drawCircle(c, r, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _SelfAvatarRingPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.strokeWidth != strokeWidth;
 }

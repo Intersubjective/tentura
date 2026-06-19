@@ -129,9 +129,9 @@ class ForwardRecipientRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SelfAwareAvatar(
+            SelfAwareAvatar.medium(
               profile: candidate.profile,
-              size: tt.cardAvatarSize,
+              withRating: true,
             ),
             SizedBox(width: tt.avatarTextGap),
             Expanded(

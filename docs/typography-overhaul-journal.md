@@ -182,7 +182,7 @@
 - **Beacon detail typography (post–Phase 5):** Beacon header title uses optional `titleStyle` on `BeaconCardHeaderRow` (`titleMedium` on detail only). Overview section cards use `titleSmall` + `bodyMedium` prose + `bodySmall` metadata; commitment tiles use `titleSmall` for names; `TenturaUnderlineTabs` uses ellipsis instead of `FittedBox` shrink; `CardTriageActionRow` / `BeaconOperationalHeaderCard` secondary chips wrap when narrow (~380 logical px breakpoint via `Wrap`).
 - **Phase 3:** Inbox / My Work `+N` overflow badges: `labelMedium` + **w700**, avatar ring size raised **20 → 24** (`_kAvatarSize`, `CompactForwarderAvatars` default) so 13px+ text fits.
 - **Phase 3:** `forward_search_overlay` search field: `TenturaText.body(tt.text)` for 15px body (was `bodySmall` + 15 override).
-- **2026-04-26 (Forward Beacon pass):** `forward_scope_links` use `Text.rich` + tabular count (no `FittedBox`); `forward_recipient_row` use `titleSmall`, `TenturaTextAction` on second line, `TenturaStatusText`, 44px checkbox hit target, `cardAvatarSize`; shared `forward_input_decoration.dart` for note fields; goldens: `typography_forward_recipient_*.png`.
+- **2026-04-26 (Forward Beacon pass):** `forward_scope_links` use `Text.rich` + tabular count (no `FittedBox`); `forward_recipient_row` use `titleSmall`, `TenturaTextAction` on second line, `TenturaStatusText`, 44px checkbox hit target, `avatarSize` (medium bucket); shared `forward_input_decoration.dart` for note fields; goldens: `typography_forward_recipient_*.png`.
 - **Chat bubbles:** `chat_tile_mine.dart` / `chat_tile_sender.dart` keep `MediaQuery.size.width * 0.75` for `maxWidth` — intentional proportional layout, not typography scaling.
 
 ## Deferred / out-of-scope
