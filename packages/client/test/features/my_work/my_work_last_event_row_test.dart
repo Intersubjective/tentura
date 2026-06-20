@@ -103,7 +103,8 @@ void main() {
     expect(find.byType(TenturaAvatar), findsNothing);
     expect(find.byType(ProfileAuthorStarBadge), findsNothing);
     expect(find.byIcon(Icons.star_rounded), findsNothing);
-    expect(find.byIcon(Icons.campaign_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.campaign_outlined), findsNothing);
+    expect(find.byIcon(Icons.history_outlined), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
   });
 

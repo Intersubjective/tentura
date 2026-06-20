@@ -13,6 +13,7 @@ import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import 'beacon_hud_action_button.dart';
@@ -110,7 +111,8 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           HudLabeledMultiline(
-            label: l10n.beaconHudNowLabel,
+            leadingIcon: BeaconHudRowIcons.now,
+            semanticsLabel: l10n.beaconHudNowLabel,
             text: nowDisplay.primaryText,
             subline: nowDisplay.blockerText,
             mutedColor: tt.textMuted,

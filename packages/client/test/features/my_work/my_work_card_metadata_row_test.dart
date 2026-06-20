@@ -11,6 +11,7 @@ import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dar
 import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 MyWorkCardViewModel _viewModel(Beacon beacon) => MyWorkCardViewModel(
   beaconId: beacon.id,
@@ -62,12 +63,13 @@ void main() {
 
     expect(find.textContaining('updated'), findsOneWidget);
     expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.people), findsOneWidget);
     expect(find.byType(MyWorkCardMetadataRow), findsOneWidget);
     expect(find.byType(MyWorkCardStatusStrip), findsNothing);
     expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
   });
 
-  testWidgets('metadata row shows NOW label above YOU', (tester) async {
+  testWidgets('metadata row shows NOW icon above YOU icon', (tester) async {
     final beacon = Beacon.empty.copyWith(
       id: 'b-now',
       author: const Profile(id: 'a1', displayName: 'Alice'),
@@ -103,10 +105,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final l10n = lookupL10n(const Locale('en'));
-    expect(find.text(l10n.beaconHudNowLabel), findsOneWidget);
+    expect(find.text('NOW'), findsNothing);
+    expect(find.text('YOU'), findsNothing);
     expect(find.text('Pick up supplies at noon'), findsOneWidget);
-    expect(find.text(l10n.beaconHudYouLabel), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.now), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.you), findsOneWidget);
+
+    final nowX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dx;
+    final youX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.you)).dx;
+    expect(nowX, youX);
   });
 
   testWidgets('metadata row uses wrap layout on very narrow width', (

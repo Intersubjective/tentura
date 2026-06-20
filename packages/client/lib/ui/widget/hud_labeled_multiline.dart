@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
-/// HUD row: fixed-width label column + multiline body (+ optional edit).
+/// HUD row: fixed-width icon lead + multiline body (+ optional edit).
 class HudLabeledMultiline extends StatelessWidget {
   const HudLabeledMultiline({
-    required this.label,
+    required this.leadingIcon,
+    required this.semanticsLabel,
     required this.text,
     required this.mutedColor,
     this.subline,
@@ -18,7 +20,8 @@ class HudLabeledMultiline extends StatelessWidget {
     super.key,
   });
 
-  final String label;
+  final IconData leadingIcon;
+  final String semanticsLabel;
   final String text;
   final String? subline;
   final Color mutedColor;
@@ -29,7 +32,6 @@ class HudLabeledMultiline extends StatelessWidget {
   final String? showDetailSemanticLabel;
 
   static const int _primaryMaxLines = 2;
-  static const double _labelColumnWidth = 44;
   static const double _editColumnWidth = 40;
 
   @override
@@ -39,13 +41,12 @@ class HudLabeledMultiline extends StatelessWidget {
     final textColor =
         isPlaceholder ? scheme.onSurfaceVariant : scheme.onSurface;
     final semanticsText = subline == null ? text : '$text\n$subline';
-    final labelStyle = TenturaText.typeLabel(mutedColor);
     final primaryStyle = TenturaText.bodySmall(textColor).copyWith(height: 1.25);
     final showMoreStyle = TenturaText.bodySmall(scheme.primary).copyWith(
       height: 1.25,
     );
 
-    Widget buildLabelAndBody(double bodyMaxWidth) {
+    Widget buildBody(double bodyMaxWidth) {
       final exceeds = _textExceedsMaxLines(
         text: text,
         style: primaryStyle,
@@ -53,48 +54,31 @@ class HudLabeledMultiline extends StatelessWidget {
         maxLines: _primaryMaxLines,
       );
 
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: _labelColumnWidth,
-            child: Text(
-              label,
+          Text(
+            text,
+            maxLines: _primaryMaxLines,
+            overflow: TextOverflow.ellipsis,
+            style: primaryStyle,
+          ),
+          if (exceeds) ...[
+            const SizedBox(height: 2),
+            Text(l10n.itemShowMore, style: showMoreStyle),
+          ],
+          if (subline != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subline!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: labelStyle,
+              style: TenturaText.bodySmall(scheme.error).copyWith(
+                height: 1.25,
+              ),
             ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  text,
-                  maxLines: _primaryMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                  style: primaryStyle,
-                ),
-                if (exceeds) ...[
-                  const SizedBox(height: 2),
-                  Text(l10n.itemShowMore, style: showMoreStyle),
-                ],
-                if (subline != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subline!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(scheme.error).copyWith(
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          ],
         ],
       );
     }
@@ -102,22 +86,27 @@ class HudLabeledMultiline extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final editReserved = onEdit != null ? _editColumnWidth : 0.0;
-        final bodyMaxWidth =
-            constraints.maxWidth - _labelColumnWidth - editReserved;
+        final bodyMaxWidth = constraints.maxWidth -
+            kBeaconHudRowLeadWidth -
+            editReserved;
 
-        final labelAndBody = buildLabelAndBody(bodyMaxWidth);
+        final iconRow = BeaconHudIconRow(
+          leadIcon: leadingIcon,
+          semanticsLabel: semanticsLabel,
+          body: buildBody(bodyMaxWidth),
+        );
 
         final detailTarget = onShowDetail == null
-            ? labelAndBody
+            ? iconRow
             : Semantics(
                 button: true,
-                label: showDetailSemanticLabel ?? '$label $semanticsText',
+                label: showDetailSemanticLabel ?? '$semanticsLabel $semanticsText',
                 child: InkWell(
                   onTap: onShowDetail,
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: labelAndBody,
+                    child: iconRow,
                   ),
                 ),
               );

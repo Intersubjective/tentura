@@ -2537,6 +2537,8 @@
   "itemsTabCreatePlanSheetPrompt": "What is the plan?",
   "beaconHudNowLabel": "NOW",
   "beaconHudYouLabel": "YOU",
+  "beaconHudPeopleRowSemantics": "People involved",
+  "beaconHudLastEventRowSemantics": "Latest activity",
   "beaconYouAskCount": "{count, plural, one{1 ask} other{{count} asks}}",
   "@beaconYouAskCount": {
     "placeholders": {
