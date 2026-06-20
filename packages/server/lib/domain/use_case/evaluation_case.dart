@@ -53,7 +53,7 @@ final class EvaluationCase extends UseCaseBase {
 
   /// Author closes beacon; 0 committers → closed (6), ≥1 → wrapping up (5) + window.
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> beaconClose({
     required String beaconId,
     required String userId,
@@ -171,7 +171,7 @@ final class EvaluationCase extends UseCaseBase {
 
   /// Author adds 7 days during wrapping up (max 2 extensions).
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> extendReviewWindow({
     required String beaconId,
     required String userId,
@@ -219,7 +219,7 @@ final class EvaluationCase extends UseCaseBase {
 
   /// Author returns beacon to open and discards review scaffolding.
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> reopenFromReview({
     required String beaconId,
     required String userId,
@@ -259,7 +259,7 @@ final class EvaluationCase extends UseCaseBase {
 
   /// Author closes early when required reviewers finished or skipped.
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> closeNow({
     required String beaconId,
     required String userId,
@@ -334,7 +334,7 @@ final class EvaluationCase extends UseCaseBase {
   }
 
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<List<Map<String, dynamic>>> evaluationParticipants({
     required String beaconId,
     required String evaluatorId,
@@ -438,7 +438,7 @@ final class EvaluationCase extends UseCaseBase {
 
   /// Open-beacon draft targets: same visibility as at closure, for current graph.
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<List<Map<String, dynamic>>> evaluationDraftParticipants({
     required String beaconId,
     required String evaluatorId,
@@ -502,7 +502,7 @@ final class EvaluationCase extends UseCaseBase {
   }
 
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<List<Map<String, dynamic>>> evaluationDrafts({
     required String beaconId,
     required String evaluatorId,
@@ -615,7 +615,7 @@ final class EvaluationCase extends UseCaseBase {
   }
 
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> reviewWindowStatus({
     required String beaconId,
     required String userId,
@@ -665,7 +665,7 @@ final class EvaluationCase extends UseCaseBase {
   }
 
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> evaluationSummary({
     required String beaconId,
     required String userId,

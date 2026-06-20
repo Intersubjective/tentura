@@ -17,7 +17,7 @@ export 'profile_view_state.dart';
 
 class ProfileViewCubit extends Cubit<ProfileViewState> {
   // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
-  // ignore: cubit_requires_use_case_for_multi_repos
+  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos
   ProfileViewCubit({
     required String id,
     ProfileRepositoryPort? profileRepository,

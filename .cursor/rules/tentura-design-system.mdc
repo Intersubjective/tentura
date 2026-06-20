@@ -15,7 +15,7 @@ Before changing layout, typography, colors, or shared widgets in `packages/clien
 3. **Floors:** metadata ≥ 13 (`bodySmall`), body ≥ 15, action labels ≥ 15; nav labels 12.5 only exception. Banned literal sizes 8/10/11/12 in those trees.
 4. **WindowClass:** width &lt; 600 compact, 600 ≤ *w* &lt; 840 regular, ≥ 840 expanded. Density (padding, gaps, icons, avatars, button height, max width) varies by class; **text sizes do not**.
 5. **Never** globally override `textScaler` (e.g. `TextScaler.noScaling` on the whole app).
-6. Do not add raw `Color(0x…)` / `Colors.*` (except well-known cases like `Colors.transparent`) or ad-hoc `TextStyle(` in `features/beacon_view`, `features/my_work`, or `features/inbox` — `custom_lint` enforces this.
+6. Do not add raw `Color(0x…)` / `Colors.*` (except well-known cases like `Colors.transparent`) or ad-hoc `TextStyle(` in `features/beacon_view`, `features/my_work`, or `features/inbox` — `tentura_lints` enforces this via `dart analyze`.
 7. For beacon detail list surfaces, avoid `Chip`, `SegmentedButton`, and pill-style status; use the `Tentura*` components listed in the doc.
 8. Web: `index.html` viewport must allow user zoom (`width=device-width, initial-scale=1`, no `maximum-scale` / `user-scalable=no`).
 

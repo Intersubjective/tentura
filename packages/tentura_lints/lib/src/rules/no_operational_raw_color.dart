@@ -1,56 +1,55 @@
+import 'package:analyzer/analysis_rule/analysis_rule.dart';
+import 'package:analyzer/analysis_rule/rule_context.dart';
+import 'package:analyzer/analysis_rule/rule_visitor_registry.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
-import 'package:analyzer/error/listener.dart';
-import 'package:custom_lint_builder/custom_lint_builder.dart';
+import 'package:analyzer/error/error.dart';
 
-/// Forbids `Colors.*` and `Color(0x…)` in scoped operational UI (use theme extension tokens / ColorScheme).
-final class NoOperationalRawColor extends DartLintRule {
-  const NoOperationalRawColor() : super(code: _code);
+/// Forbids `Colors.*` and `Color(0x…)` in scoped operational UI.
+final class NoOperationalRawColor extends AnalysisRule {
+  NoOperationalRawColor()
+    : super(
+        name: 'no_operational_raw_color',
+        description:
+            'Do not use raw Color(0x…) or Colors.* in operational UI scopes.',
+      );
 
-  static const _code = LintCode(
-    name: 'no_operational_raw_color',
-    problemMessage:
-        'Do not use raw Color(0x…) or Colors.* in operational beacon / my work / '
-        'inbox UI. Use ThemeExtension tokens (e.g. context.tt) or ColorScheme roles.',
+  static const LintCode code = LintCode(
+    'no_operational_raw_color',
+    'Do not use raw Color(0x…) or Colors.* in operational beacon / my work / '
+    'inbox UI. Use ThemeExtension tokens (e.g. context.tt) or ColorScheme roles.',
   );
 
   @override
-  void run(
-    CustomLintResolver resolver,
-    DiagnosticReporter reporter,
-    CustomLintContext context,
-  ) {
-    if (!_inScope(resolver.path)) return;
-    context.registry.addCompilationUnit((unit) {
-      unit.accept(_Visitor(reporter, _code));
-    });
-  }
+  LintCode get diagnosticCode => code;
 
-  static bool _inScope(String path) {
-    if (!path.contains('packages/client/lib/')) return false;
-    if (path.contains('/design_system/')) return false;
-    if (path.contains('/test/')) return false;
-    return path.contains('features/beacon_view/') ||
-        path.contains('features/my_work/') ||
-        path.contains('features/inbox/');
+  @override
+  void registerNodeProcessors(
+    RuleVisitorRegistry registry,
+    RuleContext context,
+  ) {
+    final visitor = _Visitor(this, context);
+    registry.addInstanceCreationExpression(this, visitor);
+    registry.addPrefixedIdentifier(this, visitor);
   }
 }
 
-class _Visitor extends RecursiveAstVisitor<void> {
-  _Visitor(this._reporter, this._code);
+final class _Visitor extends SimpleAstVisitor<void> {
+  _Visitor(this.rule, this.context);
 
-  final DiagnosticReporter _reporter;
-  final LintCode _code;
+  final NoOperationalRawColor rule;
+  final RuleContext context;
 
   @override
   void visitInstanceCreationExpression(InstanceCreationExpression node) {
-    // `NamedType.name2` is the supported accessor for the identifier in this analyzer.
-    // ignore: deprecated_member_use
-    final t = node.constructorName.type.name2.lexeme;
+    if (!_inScope(context.definingUnit.file.path)) {
+      return;
+    }
+    final t = node.constructorName.type.name.lexeme;
     if (t == 'Color') {
       for (final a in node.argumentList.arguments) {
         if (a is IntegerLiteral) {
-          _reporter.atNode(a, _code);
+          rule.reportAtNode(a);
           break;
         }
       }
@@ -60,13 +59,31 @@ class _Visitor extends RecursiveAstVisitor<void> {
 
   @override
   void visitPrefixedIdentifier(PrefixedIdentifier node) {
+    if (!_inScope(context.definingUnit.file.path)) {
+      return;
+    }
     if (node.prefix.name == 'Colors') {
       if (node.identifier.name == 'transparent') {
         super.visitPrefixedIdentifier(node);
         return;
       }
-      _reporter.atNode(node, _code);
+      rule.reportAtNode(node);
     }
     super.visitPrefixedIdentifier(node);
   }
+}
+
+bool _inScope(String path) {
+  if (!path.contains('packages/client/lib/')) {
+    return false;
+  }
+  if (path.contains('/design_system/')) {
+    return false;
+  }
+  if (path.contains('/test/')) {
+    return false;
+  }
+  return path.contains('features/beacon_view/') ||
+      path.contains('features/my_work/') ||
+      path.contains('features/inbox/');
 }
