@@ -44,7 +44,7 @@ final class MarkAskCase extends UseCaseBase {
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (!beacon.isActive) {
+    if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
     final item = await _itemRepository.create(

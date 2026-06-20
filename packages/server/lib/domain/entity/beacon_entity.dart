@@ -42,19 +42,25 @@ abstract class BeaconEntity with _$BeaconEntity {
   const BeaconEntity._();
 
   bool get isActive => state == 0;
-  bool get isClosed => state == 1;
+  bool get isCancelled => state == 1;
   bool get isDeleted => state == 2;
+  bool get isWrappingUp => state == 5;
+  bool get isFinished => state == 1 || state == 6;
 
-  /// Shown under My Work "Active" (OPEN, DRAFT, PENDING_REVIEW, CLOSED_REVIEW_OPEN).
-  bool get isLifecycleActive =>
-      state == 0 || state == 3 || state == 4 || state == 5;
+  /// NOW + coordination edits allowed in OPEN (0) and WRAPPING UP (5).
+  bool get allowsCoordination => state == 0 || state == 5;
 
-  /// Shown under My Work "Closed" (CLOSED, DELETED, CLOSED_REVIEW_COMPLETE).
+  /// Forwarding only while OPEN.
+  bool get allowsForward => state == 0;
+
+  /// Shown under My Work "Active" (OPEN, DRAFT, WRAPPING UP).
+  bool get isLifecycleActive => state == 0 || state == 3 || state == 5;
+
+  /// Shown under My Work "Closed" (CANCELLED, DELETED, CLOSED).
   bool get isLifecycleClosed => state == 1 || state == 2 || state == 6;
 
-  /// Withdraw (`beaconWithdraw`) allowed only for OPEN, PENDING_REVIEW, CLOSED_REVIEW_OPEN.
-  bool get allowsBeaconWithdraw =>
-      state == 0 || state == 4 || state == 5;
+  /// Withdraw (`beaconWithdraw`) allowed only for OPEN and WRAPPING UP.
+  bool get allowsBeaconWithdraw => state == 0 || state == 5;
 
   bool get hasImage => images.isNotEmpty;
 

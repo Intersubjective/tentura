@@ -19,7 +19,7 @@ import '../gql/_g/my_work_fetch.req.gql.dart';
 import '../gql/_g/my_work_last_activity_event.req.gql.dart';
 
 export '../../domain/entity/my_work_fetch_types.dart'
-    show MyWorkClosedResult, MyWorkHelpOfferedRow, MyWorkInitResult;
+    show MyWorkArchivedResult, MyWorkHelpOfferedRow, MyWorkInitResult;
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class MyWorkRepository {
@@ -38,19 +38,17 @@ class MyWorkRepository {
         .firstWhere((e) => e.dataSource == DataSource.Link);
     final d = r.dataOrThrow(label: _label);
     final beaconIds = <String>{
-      for (final e in d.authoredNonClosed) e.id,
-      for (final e in d.helpOfferedNonClosed) e.beacon.id,
+      for (final e in d.authoredNonArchived) e.id,
+      for (final e in d.helpOfferedNonArchived) e.beacon.id,
     }.toList();
     final itemActivity = await _fetchItemDiscussionActivity(beaconIds);
     return (
-      authoredNonClosed: d.authoredNonClosed
+      authoredNonArchived: d.authoredNonArchived
           .map((e) => BeaconModelWithHelpOfferUsers(e).toEntity())
           .toList(),
-      helpOfferedNonClosed:
-          d.helpOfferedNonClosed.map(_mapInitHelpOfferedRow).toList(),
-      authoredClosedIds: d.authoredClosedIds.map((e) => e.id).toList(),
-      helpOfferedClosedIds:
-          d.helpOfferedClosedIds.map((e) => e.beacon.id).toList(),
+      helpOfferedNonArchived:
+          d.helpOfferedNonArchived.map(_mapInitHelpOfferedRow).toList(),
+      archivedCountHint: d.archivedIdHints.length,
       lastItemDiscussionMessageAtByBeaconId: itemActivity,
     );
   }
@@ -131,24 +129,25 @@ class MyWorkRepository {
     return out;
   }
 
-  Future<MyWorkClosedResult> fetchClosed({required String userId}) async {
+  Future<MyWorkArchivedResult> fetchArchived({required String userId}) async {
     final r = await _remoteApiService
         .request(
-          GMyWorkClosedReq((b) => b..vars.userId = userId),
+          GMyWorkArchivedReq((b) => b..vars.userId = userId),
         )
         .timeout(_kNetworkTimeout)
         .firstWhere((e) => e.dataSource == DataSource.Link);
     final d = r.dataOrThrow(label: _label);
     return (
-      authoredClosed:
-          d.authoredClosed.map((e) => BeaconModelWithHelpOfferUsers(e).toEntity()).toList(),
-      helpOfferedClosed:
-          d.helpOfferedClosed.map(_mapClosedHelpOfferedRow).toList(),
+      authoredArchived: d.archivedRows
+          .map((e) => BeaconModelWithHelpOfferUsers(e.beacon).toEntity())
+          .toList(),
+      helpOfferedArchived:
+          d.helpOfferedArchived.map(_mapArchivedHelpOfferedRow).toList(),
     );
   }
 
   static MyWorkHelpOfferedRow _mapInitHelpOfferedRow(
-    GMyWorkInitData_helpOfferedNonClosed e,
+    GMyWorkInitData_helpOfferedNonArchived e,
   ) {
     final b = e.beacon;
     final beacon = BeaconModelWithHelpOfferUsers(b).toEntity();
@@ -168,8 +167,8 @@ class MyWorkRepository {
     );
   }
 
-  static MyWorkHelpOfferedRow _mapClosedHelpOfferedRow(
-    GMyWorkClosedData_helpOfferedClosed e,
+  static MyWorkHelpOfferedRow _mapArchivedHelpOfferedRow(
+    GMyWorkArchivedData_helpOfferedArchived e,
   ) {
     final b = e.beacon;
     final beacon = BeaconModelWithHelpOfferUsers(b).toEntity();

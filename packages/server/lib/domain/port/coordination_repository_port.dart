@@ -27,4 +27,9 @@ abstract class CoordinationRepositoryPort {
     String beaconId, {
     required String viewerId,
   });
+
+  /// Offer user id → `beacon_help_offer_coordination.response_type`.
+  Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
+    String beaconId,
+  );
 }

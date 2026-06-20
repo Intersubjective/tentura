@@ -17,7 +17,10 @@ int myWorkCardSortTier(MyWorkCardViewModel vm) {
   if (vm.attentionChip == MyWorkAttentionChip.reviewPending) return 330;
   if (vm.attentionChip == MyWorkAttentionChip.moreHelpNeeded) return 250;
   if (vm.kind == MyWorkCardKind.authoredDraft) return 50;
-  if (vm.beacon.lifecycle == BeaconLifecycle.pendingReview) return 120;
+  if (vm.kind == MyWorkCardKind.authoredFinished ||
+      vm.kind == MyWorkCardKind.helpOfferedFinished) {
+    return 10;
+  }
   return 200;
 }
 
@@ -64,18 +67,27 @@ MyWorkCardViewModel _deriveAuthored({
       beacon: beacon,
     );
   }
-  if (archived || lc.isClosedSection) {
+  if (archived) {
     return MyWorkCardViewModel(
       beaconId: beacon.id,
       role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredClosed,
+      kind: MyWorkCardKind.authoredArchived,
+      beacon: beacon,
+      showArchiveAffordance: true,
+    );
+  }
+  if (lc.isFinished) {
+    return MyWorkCardViewModel(
+      beaconId: beacon.id,
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredFinished,
       beacon: beacon,
       showArchiveAffordance: true,
     );
   }
 
   MyWorkAttentionChip? attention;
-  if (lc == BeaconLifecycle.closedReviewOpen) {
+  if (lc == BeaconLifecycle.reviewOpen) {
     attention = MyWorkAttentionChip.reviewWindowOpen;
   } else if (beacon.coordinationStatus ==
       BeaconCoordinationStatus.helpOffersWaitingForReview) {
@@ -107,11 +119,11 @@ MyWorkCardViewModel _deriveHelpOffered({
   final beacon = row.beacon;
   final lc = beacon.lifecycle;
 
-  if (archived || lc.isClosedSection) {
+  if (archived) {
     return MyWorkCardViewModel(
       beaconId: beacon.id,
       role: MyWorkCardRole.helpOffered,
-      kind: MyWorkCardKind.helpOfferedClosed,
+      kind: MyWorkCardKind.helpOfferedArchived,
       beacon: beacon,
       offerHelpMessage: row.offerHelpMessage,
       authorResponseType: row.authorResponseType,
@@ -122,7 +134,22 @@ MyWorkCardViewModel _deriveHelpOffered({
     );
   }
 
-  final reviewOpen = lc == BeaconLifecycle.closedReviewOpen;
+  if (lc.isFinished) {
+    return MyWorkCardViewModel(
+      beaconId: beacon.id,
+      role: MyWorkCardRole.helpOffered,
+      kind: MyWorkCardKind.helpOfferedFinished,
+      beacon: beacon,
+      offerHelpMessage: row.offerHelpMessage,
+      authorResponseType: row.authorResponseType,
+      forwarderSenders: row.forwarderSenders,
+      showArchiveAffordance: true,
+      helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
+      authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
+    );
+  }
+
+  final reviewOpen = lc == BeaconLifecycle.reviewOpen;
 
   return MyWorkCardViewModel(
     beaconId: beacon.id,
@@ -141,14 +168,14 @@ MyWorkCardViewModel _deriveHelpOffered({
 
 /// Non-archived cards from init fetch (authored beacons + help-offered rows).
 List<MyWorkCardViewModel> buildNonArchivedViewModels({
-  required List<Beacon> authoredNonClosed,
-  required List<MyWorkHelpOfferedRow> helpOfferedNonClosed,
+  required List<Beacon> authoredNonArchived,
+  required List<MyWorkHelpOfferedRow> helpOfferedNonArchived,
 }) {
-  final authored = authoredNonClosed
+  final authored = authoredNonArchived
       .map((b) => _deriveAuthored(beacon: b))
       .toList(growable: false);
   final authoredIds = authored.map((v) => v.beaconId).toSet();
-  final helpOffered = helpOfferedNonClosed
+  final helpOffered = helpOfferedNonArchived
       .map((r) => _deriveHelpOffered(row: r))
       .where((v) => !authoredIds.contains(v.beaconId))
       .toList(growable: false);
@@ -168,7 +195,9 @@ List<MyWorkCardViewModel> filterMyWorkCardsForDesk({
         .where(
           (c) =>
               c.kind == MyWorkCardKind.authoredActive ||
-              c.kind == MyWorkCardKind.helpOfferedActive,
+              c.kind == MyWorkCardKind.helpOfferedActive ||
+              c.kind == MyWorkCardKind.authoredFinished ||
+              c.kind == MyWorkCardKind.helpOfferedFinished,
         )
         .toList(),
     MyWorkFilter.drafts => nonArchivedCards
@@ -208,14 +237,7 @@ int countDraftMyWorkCards(List<MyWorkCardViewModel> nonArchivedCards) =>
         .where((c) => c.kind == MyWorkCardKind.authoredDraft)
         .length;
 
-int archivedCountHintFromIds({
-  required List<String> authoredClosedIdHints,
-  required List<String> helpOfferedClosedIdHints,
-}) =>
-    authoredClosedIdHints.length +
-    helpOfferedClosedIdHints
-        .where((id) => !authoredClosedIdHints.contains(id))
-        .length;
+int archivedCountHintFromInit(int archivedCountHint) => archivedCountHint;
 
 int? maxMyWorkDeskActivityEpochMs({
   required List<MyWorkCardViewModel> nonArchivedCards,
@@ -233,16 +255,16 @@ int? maxMyWorkDeskActivityEpochMs({
   return maxMs;
 }
 
-/// Archived (closed lifecycle) cards from lazy closed fetch.
+/// Archived cards from lazy archived fetch.
 List<MyWorkCardViewModel> buildArchivedViewModels({
-  required List<Beacon> authoredClosed,
-  required List<MyWorkHelpOfferedRow> helpOfferedClosed,
+  required List<Beacon> authoredArchived,
+  required List<MyWorkHelpOfferedRow> helpOfferedArchived,
 }) {
-  final authored = authoredClosed
+  final authored = authoredArchived
       .map((b) => _deriveAuthored(beacon: b, archived: true))
       .toList(growable: false);
   final authoredIds = authored.map((v) => v.beaconId).toSet();
-  final helpOffered = helpOfferedClosed
+  final helpOffered = helpOfferedArchived
       .map((r) => _deriveHelpOffered(row: r, archived: true))
       .where((v) => !authoredIds.contains(v.beaconId))
       .toList(growable: false);
@@ -263,7 +285,6 @@ MyWorkCardViewModel myWorkCardViewModelForBeaconView({
     return _deriveAuthored(beacon: beacon);
   }
   if (isHelpOffered) {
-    final archived = beacon.lifecycle.isClosedSection;
     final row = (
       beacon: beacon,
       offerHelpMessage: myOfferHelpMessage,
@@ -273,7 +294,7 @@ MyWorkCardViewModel myWorkCardViewModelForBeaconView({
       helpOfferRowUpdatedAt: myHelpOfferUpdatedAt ?? beacon.updatedAt,
       authorCoordinationUpdatedAt: null,
     );
-    return _deriveHelpOffered(row: row, archived: archived);
+    return _deriveHelpOffered(row: row);
   }
   return _deriveAuthored(beacon: beacon);
 }

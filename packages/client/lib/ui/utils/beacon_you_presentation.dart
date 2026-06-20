@@ -22,7 +22,7 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallback({
   required bool compactSurface,
 }) {
   if (lifecycle == BeaconLifecycle.closed ||
-      lifecycle == BeaconLifecycle.closedReviewComplete ||
+      lifecycle == BeaconLifecycle.closed ||
       lifecycle == BeaconLifecycle.deleted) {
     return BeaconYouEmptyFallback.closed;
   }

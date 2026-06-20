@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
@@ -28,7 +29,8 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.editActionLabel,
     this.onOpenBeacon,
     this.onShare,
-    this.onToggleLifecycle,
+    this.onCloseBeacon,
+    this.onCancelBeacon,
     this.onEdit,
     this.onCreateFrom,
     this.onPrepareAsk,
@@ -57,7 +59,8 @@ class BeaconOverflowMenu extends StatelessWidget {
   final VoidCallback? onOpenBeacon;
 
   final VoidCallback? onShare;
-  final Future<void> Function()? onToggleLifecycle;
+  final Future<void> Function()? onCloseBeacon;
+  final Future<void> Function()? onCancelBeacon;
   final VoidCallback? onEdit;
   final Future<void> Function()? onCreateFrom;
   final VoidCallback? onPrepareAsk;
@@ -114,11 +117,18 @@ class BeaconOverflowMenu extends StatelessWidget {
     if (onShare != null) {
       add('share', Icons.qr_code, l10n.shareLink);
     }
-    if (onToggleLifecycle != null) {
+    if (onCloseBeacon != null && beacon.lifecycle == BeaconLifecycle.open) {
       add(
-        'toggle_lifecycle',
-        beacon.isListed ? Icons.lock_outline : Icons.lock_open,
-        beacon.isListed ? l10n.closeBeacon : l10n.openBeacon,
+        'close_beacon',
+        Icons.lock_outline,
+        l10n.closeBeacon,
+      );
+    }
+    if (onCancelBeacon != null && beacon.lifecycle == BeaconLifecycle.open) {
+      add(
+        'cancel_beacon',
+        Icons.cancel_outlined,
+        l10n.cancelBeacon,
       );
     }
     if (onEdit != null) {
@@ -176,7 +186,7 @@ class BeaconOverflowMenu extends StatelessWidget {
         l10n.dialogWithdrawHelpOfferTitle,
       );
     }
-    if (onForward != null) {
+    if (onForward != null && beacon.allowsForward) {
       add('forward', Icons.send, l10n.labelForward);
     }
     if (onForwardsGraph != null) {
@@ -246,8 +256,11 @@ class BeaconOverflowMenu extends StatelessWidget {
         onSelected: (value) => switch (value) {
           'open_beacon' => onOpenBeacon?.call(),
           'share' => onShare?.call(),
-          'toggle_lifecycle' => unawaited(
-            _deferPopupAction(context, onToggleLifecycle),
+          'close_beacon' => unawaited(
+            _deferPopupAction(context, onCloseBeacon),
+          ),
+          'cancel_beacon' => unawaited(
+            _deferPopupAction(context, onCancelBeacon),
           ),
           'edit' => onEdit?.call(),
           'create_from' => unawaited(

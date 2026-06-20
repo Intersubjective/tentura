@@ -48,6 +48,7 @@ final class MutationBeacon extends GqlNodeBase {
     updateDraft,
     publish,
     deleteById,
+    beaconCancel,
     addImage,
     removeImage,
     reorderImages,
@@ -59,6 +60,16 @@ final class MutationBeacon extends GqlNodeBase {
     graphQLBoolean.nonNullable(),
     arguments: [InputFieldId.field],
     resolve: (_, args) => _beaconCase.deleteById(
+      beaconId: InputFieldId.fromArgsNonNullable(args),
+      userId: getCredentials(args).sub,
+    ),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconCancel => GraphQLObjectField(
+    'beaconCancel',
+    gqlTypeBeaconCloseReviewResult.nonNullable(),
+    arguments: [InputFieldId.field],
+    resolve: (_, args) => _beaconCase.beaconCancel(
       beaconId: InputFieldId.fromArgsNonNullable(args),
       userId: getCredentials(args).sub,
     ),

@@ -48,6 +48,7 @@ class BeaconClosureConfirmationSummary {
     required this.enoughHelpOffered,
     required this.hasSuccessfulHelpOfferResult,
     required this.helpOffersWaitingForReviewCoordination,
+    required this.requiresReviewWindow,
   });
 
   final BeaconClosureReadiness readiness;
@@ -59,6 +60,7 @@ class BeaconClosureConfirmationSummary {
   final bool enoughHelpOffered;
   final bool hasSuccessfulHelpOfferResult;
   final bool helpOffersWaitingForReviewCoordination;
+  final bool requiresReviewWindow;
 }
 
 bool closeHardGate(BeaconViewState state) {
@@ -244,6 +246,17 @@ ClosureActionPriority closureActionPriorityFor(
   }
 }
 
+bool helpOfferIsCommitter(TimelineHelpOffer offer) =>
+    !offer.isWithdrawn &&
+    (offer.coordinationResponse == CoordinationResponseType.useful ||
+        offer.coordinationResponse == CoordinationResponseType.needCoordination);
+
+bool beaconStateHasCommitters(BeaconViewState state) =>
+    state.helpOffers.any(helpOfferIsCommitter);
+
+bool expectedRequiresReviewWindowForState(BeaconViewState state) =>
+    beaconStateHasCommitters(state);
+
 BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
   BeaconViewState state,
 ) {
@@ -266,6 +279,7 @@ BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
     helpOffersWaitingForReviewCoordination:
         state.beacon.coordinationStatus ==
         BeaconCoordinationStatus.helpOffersWaitingForReview,
+    requiresReviewWindow: expectedRequiresReviewWindowForState(state),
   );
 }
 

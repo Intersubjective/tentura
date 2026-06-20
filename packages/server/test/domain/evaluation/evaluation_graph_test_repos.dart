@@ -7,6 +7,57 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
+import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+
+/// Returns no coordination responses for graph builder tests.
+final class EmptyGraphCoordinationRepository implements CoordinationRepositoryPort {
+  @override
+  Future<void> deleteForCommit({
+    required String beaconId,
+    required String userId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> upsertResponse({
+    required String beaconId,
+    required String offerUserId,
+    required String authorUserId,
+    required int responseType,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<({int coordinationStatus, DateTime? coordinationStatusUpdatedAt})>
+      beaconCoordinationSnapshot(String beaconId) async =>
+          (coordinationStatus: 0, coordinationStatusUpdatedAt: null);
+
+  @override
+  Future<void> setBeaconCoordinationFields({
+    required String beaconId,
+    required int coordinationStatus,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> recomputeAndPersistBeaconCoordinationStatus(String beaconId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
+    String beaconId, {
+    required String viewerId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
+    String beaconId,
+  ) async =>
+      {};
+}
+
 /// Minimal fakes so `EvaluationParticipantGraphBuilder` returns an empty graph.
 final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
   @override

@@ -211,8 +211,8 @@ void main() {
       ).called(1);
     });
 
-    test('allows PENDING_REVIEW (4) and CLOSED_REVIEW_OPEN (5)', () async {
-      for (final state in [4, 5]) {
+    test('allows WRAPPING UP (5)', () async {
+      for (final state in [5]) {
         reset(beaconRepo);
         reset(helpOfferRepo);
         reset(coordinationRepo);

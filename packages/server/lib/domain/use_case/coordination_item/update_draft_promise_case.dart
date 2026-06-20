@@ -48,7 +48,7 @@ final class UpdateDraftPromiseCase extends UseCaseBase {
     }
     final beacon =
         await _beaconRepository.getBeaconById(beaconId: existing.beaconId);
-    if (!beacon.isActive) {
+    if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
     if (updateTargetPersonId) {

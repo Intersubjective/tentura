@@ -48,7 +48,7 @@ class _BeaconReviewCountdownRowState extends State<BeaconReviewCountdownRow> {
   }
 
   bool get _shouldShow =>
-      widget.beacon.lifecycle == BeaconLifecycle.closedReviewOpen &&
+      widget.beacon.lifecycle == BeaconLifecycle.reviewOpen &&
       widget.beacon.reviewClosesAt != null &&
       widget.beacon.reviewWindowStatus != 1;
 

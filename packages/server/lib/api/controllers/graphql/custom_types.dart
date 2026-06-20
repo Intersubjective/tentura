@@ -381,7 +381,7 @@ final gqlTypeUserContact = GraphQLObjectType('UserContact', null)
     field('updatedAt', graphQLString.nonNullable()),
   ]);
 
-/// `beaconCloseWithReview` result.
+/// `beaconClose` result.
 final gqlTypeBeaconCloseReviewResult = GraphQLObjectType(
   'BeaconCloseReviewResult',
   null,
@@ -389,7 +389,7 @@ final gqlTypeBeaconCloseReviewResult = GraphQLObjectType(
   ..fields.addAll([
     field('id', graphQLString.nonNullable()),
     field('state', graphQLInt.nonNullable()),
-    field('closesAt', graphQLString.nonNullable()),
+    field('closesAt', graphQLString),
   ]);
 
 final gqlTypeEvaluationParticipant = GraphQLObjectType(
@@ -441,6 +441,8 @@ final gqlTypeReviewWindowStatus = GraphQLObjectType(
     field('userReviewStatus', graphQLInt),
     field('reviewedCount', graphQLInt),
     field('totalCount', graphQLInt),
+    field('extensionsUsed', graphQLInt),
+    field('canCloseNow', graphQLBoolean),
   ]);
 
 final gqlTypeEvaluationSummary = GraphQLObjectType(

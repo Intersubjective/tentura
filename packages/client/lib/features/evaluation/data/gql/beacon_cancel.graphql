@@ -1,0 +1,6 @@
+mutation BeaconCancel($id: String!) {
+  beaconCancel(id: $id) {
+    id
+    state
+  }
+}

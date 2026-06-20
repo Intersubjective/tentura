@@ -1,0 +1,8 @@
+mutation BeaconArchive($beaconId: String!) {
+  insert_beacon_archived_one(
+    object: { beacon_id: $beaconId }
+    on_conflict: { constraint: beacon_archived_pkey, update_columns: [] }
+  ) {
+    beacon_id
+  }
+}

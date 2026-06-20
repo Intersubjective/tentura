@@ -123,7 +123,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             state: state,
             onTap: onSwitchToPeopleTab,
           ),
-          if (state.beacon.lifecycle == BeaconLifecycle.closedReviewOpen)
+          if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen)
             ReviewWindowBannerHost(beaconId: state.beacon.id)
           else if (bundle.specs.isNotEmpty || bundle.showOverflowClose) ...[
             const SizedBox(height: 10),
@@ -152,7 +152,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       return const _HudActionBundle(specs: [], showOverflowClose: false);
     }
 
-    if (b.lifecycle == BeaconLifecycle.closedReviewOpen) {
+    if (b.lifecycle == BeaconLifecycle.reviewOpen) {
       return const _HudActionBundle(specs: [], showOverflowClose: false);
     }
 

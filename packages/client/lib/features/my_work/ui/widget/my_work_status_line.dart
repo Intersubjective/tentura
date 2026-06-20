@@ -43,9 +43,11 @@ MyWorkStatusLineData myWorkStatusLine({
   return switch (vm.kind) {
     MyWorkCardKind.authoredDraft => _authoredDraft(l10n, vm, clock),
     MyWorkCardKind.authoredActive => _authoredActive(l10n, vm, clock),
-    MyWorkCardKind.authoredClosed => _authoredClosed(l10n, vm, clock),
+    MyWorkCardKind.authoredFinished => _authoredFinished(l10n, vm, clock),
+    MyWorkCardKind.authoredArchived => _authoredFinished(l10n, vm, clock),
     MyWorkCardKind.helpOfferedActive => _helpOfferedActive(l10n, vm, clock),
-    MyWorkCardKind.helpOfferedClosed => _helpOfferedClosed(l10n, vm, clock),
+    MyWorkCardKind.helpOfferedFinished => _helpOfferedFinished(l10n, vm, clock),
+    MyWorkCardKind.helpOfferedArchived => _helpOfferedFinished(l10n, vm, clock),
   };
 }
 
@@ -76,12 +78,12 @@ MyWorkStatusLineData _authoredActive(
 ) {
   final b = vm.beacon;
 
-  if (b.lifecycle == BeaconLifecycle.closedReviewOpen) {
+  if (b.lifecycle == BeaconLifecycle.reviewOpen) {
     final n = b.helpOfferCount;
     final slot3 = l10n.myWorkStatusNParticipants(n);
     return MyWorkStatusLineData(
       slot1: l10n.myWorkStatusClosed,
-      slot2: l10n.myWorkStatusReviewOpen,
+      slot2: l10n.myWorkStatusWrappingUp,
       slot3: slot3,
       timeSlotOverdue: false,
     );
@@ -99,7 +101,7 @@ MyWorkStatusLineData _authoredActive(
   );
 }
 
-MyWorkStatusLineData _authoredClosed(
+MyWorkStatusLineData _authoredFinished(
   L10n l10n,
   MyWorkCardViewModel vm,
   DateTime now,
@@ -108,8 +110,11 @@ MyWorkStatusLineData _authoredClosed(
   final time = _authoredTimeSlot(l10n, b, now);
   final n = b.helpOfferCount;
   final slot3 = l10n.myWorkStatusNParticipants(n);
+  final slot1 = b.lifecycle == BeaconLifecycle.cancelled
+      ? l10n.myWorkStatusCancelled
+      : l10n.myWorkStatusClosed;
   return MyWorkStatusLineData(
-    slot1: l10n.myWorkStatusClosed,
+    slot1: slot1,
     slot2: time.text,
     slot3: slot3,
     timeSlotOverdue: time.overdue,
@@ -154,7 +159,7 @@ MyWorkStatusLineData _helpOfferedActive(
   );
 }
 
-MyWorkStatusLineData _helpOfferedClosed(
+MyWorkStatusLineData _helpOfferedFinished(
   L10n l10n,
   MyWorkCardViewModel vm,
   DateTime now,
@@ -162,10 +167,13 @@ MyWorkStatusLineData _helpOfferedClosed(
   final b = vm.beacon;
   final time = _helpOfferedTimeSlot(l10n, b, now);
   final slot3 = _helpOfferedMirrorRequest(l10n, b);
+  final statusLabel = b.lifecycle == BeaconLifecycle.cancelled
+      ? l10n.myWorkStatusCancelled
+      : l10n.myWorkStatusClosed;
   final slot1 = _helpOfferedSlot1WithOptionalResponse(
     l10n,
     vm,
-    l10n.myWorkStatusClosed,
+    statusLabel,
   );
   return MyWorkStatusLineData(
     slot1: slot1,
@@ -224,7 +232,7 @@ String _authoredCoverageSlot(L10n l10n, MyWorkCardViewModel vm) {
 
 String _helpOfferedMirrorRequest(L10n l10n, Beacon b) {
   if (b.lifecycle.isClosedSection ||
-      b.lifecycle == BeaconLifecycle.closedReviewOpen) {
+      b.lifecycle == BeaconLifecycle.reviewOpen) {
     return l10n.myWorkStatusMirrorClosed;
   }
   return switch (b.coordinationStatus) {
@@ -247,11 +255,11 @@ String _helpOfferedMirrorRequest(L10n l10n, Beacon b) {
   if (b.hasScheduleDates) {
     return (text: '', overdue: false);
   }
-  if (b.lifecycle == BeaconLifecycle.pendingReview) {
-    return (text: l10n.myWorkStatusAwaitingClose, overdue: false);
+  if (b.lifecycle == BeaconLifecycle.reviewOpen) {
+    return (text: l10n.myWorkStatusWrappingUp, overdue: false);
   }
-  if (b.lifecycle == BeaconLifecycle.closedReviewOpen) {
-    return (text: l10n.myWorkStatusReviewOpen, overdue: false);
+  if (b.lifecycle.isFinished) {
+    return (text: '', overdue: false);
   }
   return (text: l10n.myWorkStatusNoDeadline, overdue: false);
 }
@@ -264,8 +272,8 @@ String _helpOfferedMirrorRequest(L10n l10n, Beacon b) {
   if (b.hasScheduleDates) {
     return (text: '', overdue: false);
   }
-  if (b.lifecycle == BeaconLifecycle.pendingReview) {
-    return (text: l10n.myWorkStatusWaitingOnAuthor, overdue: false);
+  if (b.lifecycle.isFinished || b.lifecycle == BeaconLifecycle.reviewOpen) {
+    return (text: '', overdue: false);
   }
   return (text: l10n.myWorkStatusNoDeadline, overdue: false);
 }

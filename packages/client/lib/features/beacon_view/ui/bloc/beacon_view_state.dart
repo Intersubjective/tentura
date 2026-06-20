@@ -311,7 +311,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
   /// May create/edit coordination items and the room current line (author,
   /// steward, or admitted room member; mirrors server coordination access).
   bool get canCoordinateInBeaconRoom {
-    if (beacon.lifecycle != BeaconLifecycle.open) return false;
+    if (!beacon.lifecycle.allowsCoordination) return false;
     if (isAuthorOrSteward) return true;
     if (isHelpOffered && hasRoomAdmission) return true;
     return roomParticipants.any(

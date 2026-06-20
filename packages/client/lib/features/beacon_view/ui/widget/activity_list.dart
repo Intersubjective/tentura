@@ -346,13 +346,11 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
 
 String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
       BeaconLifecycle.open => l10n.beaconLifecycleOpen,
+      BeaconLifecycle.cancelled => l10n.beaconLifecycleCancelled,
       BeaconLifecycle.closed => l10n.beaconLifecycleClosed,
       BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
       BeaconLifecycle.draft => l10n.beaconLifecycleDraft,
-      BeaconLifecycle.pendingReview => l10n.beaconLifecyclePendingReview,
-      BeaconLifecycle.closedReviewOpen => l10n.beaconLifecycleClosedReviewOpen,
-      BeaconLifecycle.closedReviewComplete =>
-        l10n.beaconLifecycleClosedReviewComplete,
+      BeaconLifecycle.reviewOpen => l10n.beaconLifecycleReviewOpen,
     };
 
 String _timelineHelpOfferUpdatedLine(L10n l10n, TimelineHelpOfferUpdated e) {

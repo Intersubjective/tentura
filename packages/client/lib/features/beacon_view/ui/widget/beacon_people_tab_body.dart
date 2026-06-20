@@ -206,7 +206,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (beacon.lifecycle == BeaconLifecycle.closedReviewComplete) ...[
+        if (beacon.lifecycle == BeaconLifecycle.closed) ...[
           BeaconEvaluationHooks(
             beaconId: beacon.id,
             lifecycle: beacon.lifecycle,

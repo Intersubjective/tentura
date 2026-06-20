@@ -30,7 +30,7 @@ void main() {
 
     cubit.setFilter(MyWorkFilter.archived);
     await cubit.stream.firstWhere(
-      (s) => s.closedDataFetched && s.isSuccess,
+      (s) => s.archivedDataFetched && s.isSuccess,
     );
     expect(cubit.state.filter, MyWorkFilter.archived);
 

@@ -1046,10 +1046,6 @@
   "@newStuffUpdatedBadge": {
     "context": "NewStuff indicators — beacon edited since last visit (Inbox / My Work)"
   },
-  "newStuffReasonNewBeacon": "New beacon you created",
-  "@newStuffReasonNewBeacon": {
-    "context": "NewStuff dot — My Work card reason"
-  },
   "newStuffReasonNewForward": "Someone forwarded this beacon to you",
   "@newStuffReasonNewForward": {
     "context": "NewStuff dot — Inbox row reason"
@@ -1061,14 +1057,6 @@
   "newStuffReasonCoordinationStatusChanged": "Beacon coordination status changed",
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
-  },
-  "newStuffReasonHelpOfferUpdated": "Your help offer or note was updated",
-  "@newStuffReasonHelpOfferUpdated": {
-    "context": "NewStuff dot — help offer row changed"
-  },
-  "newStuffReasonAuthorResponseChanged": "Author changed response to your commitment",
-  "@newStuffReasonAuthorResponseChanged": {
-    "context": "NewStuff dot — author coordination response to help offer"
   },
   "inboxEmpty": "Inbox is empty",
   "@inboxEmpty": {
@@ -1248,17 +1236,17 @@
   "@beaconLifecycleDraft": {
     "context": "InboxItemTile"
   },
-  "beaconLifecyclePendingReview": "Review",
-  "@beaconLifecyclePendingReview": {
+  "beaconLifecycleCancelled": "Cancelled",
+  "@beaconLifecycleCancelled": {
     "context": "InboxItemTile"
   },
-  "beaconLifecycleClosedReviewOpen": "Review open",
-  "@beaconLifecycleClosedReviewOpen": {
+  "beaconLifecycleReviewOpen": "Wrapping up",
+  "@beaconLifecycleReviewOpen": {
     "context": "InboxItemTile"
   },
-  "beaconLifecycleClosedReviewComplete": "Review complete",
-  "@beaconLifecycleClosedReviewComplete": {
-    "context": "InboxItemTile"
+  "cancelBeacon": "Cancel beacon",
+  "@cancelBeacon": {
+    "context": "BeaconOverflowMenu"
   },
   "actionStopWatching": "Return to Needs me",
   "@actionStopWatching": {
@@ -1952,6 +1940,10 @@
   },
   "myWorkArchive": "Archive",
   "@myWorkArchive": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkUnarchive": "Unarchive",
+  "@myWorkUnarchive": {
     "context": "MyWorkScreen"
   },
   "myWorkUpdatedLine": "updated {when}",
@@ -2790,6 +2782,43 @@
   "beaconCloseSheetActionResolveRoom": "Open room",
   "beaconCloseSheetActionNotNow": "Not now",
   "beaconCloseSheetBlockedForceHint": "Closing despite blockers is disabled.",
+  "beaconCloseSheetReadyReviewTitle": "Close and wrap up?",
+  "beaconCloseSheetReadyReviewBody": "Helpers who committed will get a review window to acknowledge contributions.",
+  "beaconCloseSheetReadyImmediateBody": "This marks the beacon complete with no review window.",
+  "beaconCloseSheetReviewWrappingUpBody": "Some items still need your judgment before wrapping up.",
+  "beaconCloseSheetPrematureReviewBody": "There is not enough completion evidence yet. Wrapping up now may skip coordination context.",
+  "beaconCloseSheetBranchWrappingUp": "Outcome: Wrapping up (review window)",
+  "beaconCloseSheetBranchClosedImmediate": "Outcome: Closed immediately",
+  "beaconReviewExtendAction": "Extend review",
+  "beaconReviewReopenAction": "Reopen",
+  "beaconReviewCloseNowAction": "Close now",
+  "beaconReviewExtendSuccess": "Review window extended",
+  "beaconReviewReopenSuccess": "Beacon reopened",
+  "beaconReviewCloseNowSuccess": "Beacon closed",
+  "beaconReviewReopenTitle": "Reopen beacon?",
+  "beaconReviewReopenBody": "Returns to Open and discards current review progress.",
+  "beaconReviewReopenConfirm": "Reopen",
+  "beaconReviewWindowClosesAt": "Closes {date}",
+  "@beaconReviewWindowClosesAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconReviewCloseNowBlocked": "Close now is available when every required reviewer has finished or skipped.",
+  "beaconDeleteBlockedTitle": "Cannot delete",
+  "beaconDeleteBlockedBody": "This beacon had acknowledged helpers. Archive it from My desk instead.",
+  "beaconDeleteDraftTitle": "Delete draft?",
+  "beaconDeleteDraftBody": "This permanently removes the draft and its images.",
+  "beaconDeleteOpenTitle": "Delete beacon?",
+  "beaconDeleteOpenBody": "This permanently removes the beacon. It never had acknowledged helpers.",
+  "beaconDeleteGenericBody": "This removes the beacon for everyone who could see it.",
+  "myWorkFinishedStatusClosed": "Closed",
+  "myWorkFinishedStatusCancelled": "Cancelled",
+  "myWorkFinishedHint": "Finished beacons stay here until you archive them.",
+  "myWorkStatusWrappingUp": "Wrapping up",
+  "myWorkStatusCancelled": "Cancelled",
   "beaconClosurePanelTitleReady": "Close the loop",
   "beaconClosurePanelTitleReview": "Review before closing",
   "beaconClosurePanelTitlePremature": "Closure not ready",

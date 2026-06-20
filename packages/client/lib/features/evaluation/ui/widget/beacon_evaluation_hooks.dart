@@ -44,7 +44,7 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
   }
 
   Future<void> _load() async {
-    if (widget.lifecycle != BeaconLifecycle.closedReviewComplete) {
+    if (widget.lifecycle != BeaconLifecycle.closed) {
       return;
     }
     setState(() {
@@ -66,7 +66,7 @@ class _BeaconEvaluationHooksState extends State<BeaconEvaluationHooks> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.lifecycle != BeaconLifecycle.closedReviewComplete) {
+    if (widget.lifecycle != BeaconLifecycle.closed) {
       return const SizedBox.shrink();
     }
     if (_summary != null) {

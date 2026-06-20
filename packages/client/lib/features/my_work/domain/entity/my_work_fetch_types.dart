@@ -17,19 +17,18 @@ typedef MyWorkHelpOfferedRow = ({
   DateTime? authorCoordinationUpdatedAt,
 });
 
-/// Result of My Work fetch init (non-closed full rows + closed id hints).
+/// Result of My Work fetch init (non-archived full rows + archived count hint).
 typedef MyWorkInitResult = ({
-  List<Beacon> authoredNonClosed,
-  List<MyWorkHelpOfferedRow> helpOfferedNonClosed,
-  List<String> authoredClosedIds,
-  List<String> helpOfferedClosedIds,
+  List<Beacon> authoredNonArchived,
+  List<MyWorkHelpOfferedRow> helpOfferedNonArchived,
+  int archivedCountHint,
 
   /// Latest message on active coordination items per beacon (V2).
   Map<String, DateTime> lastItemDiscussionMessageAtByBeaconId,
 });
 
-/// Result of My Work fetch closed (full closed rows).
-typedef MyWorkClosedResult = ({
-  List<Beacon> authoredClosed,
-  List<MyWorkHelpOfferedRow> helpOfferedClosed,
+/// Result of My Work fetch archived (full archived rows).
+typedef MyWorkArchivedResult = ({
+  List<Beacon> authoredArchived,
+  List<MyWorkHelpOfferedRow> helpOfferedArchived,
 });

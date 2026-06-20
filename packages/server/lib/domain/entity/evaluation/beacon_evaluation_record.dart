@@ -60,6 +60,7 @@ final class BeaconReviewWindowRecord {
     required this.openedAt,
     required this.closesAt,
     required this.status,
+    required this.extensionsUsed,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -68,6 +69,7 @@ final class BeaconReviewWindowRecord {
   final DateTime openedAt;
   final DateTime closesAt;
   final int status;
+  final int extensionsUsed;
   final DateTime createdAt;
   final DateTime updatedAt;
 }

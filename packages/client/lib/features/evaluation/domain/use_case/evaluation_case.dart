@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../../data/repository/evaluation_repository.dart';
+import '../entity/beacon_close_result.dart';
 import '../entity/evaluation_participant.dart';
 import '../entity/evaluation_summary.dart';
 import '../entity/review_window_info.dart';
@@ -68,4 +69,25 @@ final class EvaluationCase extends UseCaseBase {
   Future<void> finalize(String beaconId) => _repository.finalize(beaconId);
 
   Future<void> skip(String beaconId) => _repository.skip(beaconId);
+
+  Future<BeaconCloseResult> beaconClose({
+    required String beaconId,
+    required bool expectedRequiresReviewWindow,
+  }) =>
+      _repository.beaconClose(
+        beaconId: beaconId,
+        expectedRequiresReviewWindow: expectedRequiresReviewWindow,
+      );
+
+  Future<BeaconLifecycleMutationResult> beaconCancel(String beaconId) =>
+      _repository.beaconCancel(beaconId);
+
+  Future<BeaconExtendReviewResult> beaconExtendReview(String beaconId) =>
+      _repository.beaconExtendReview(beaconId);
+
+  Future<BeaconLifecycleMutationResult> beaconReopen(String beaconId) =>
+      _repository.beaconReopen(beaconId);
+
+  Future<BeaconLifecycleMutationResult> beaconCloseNow(String beaconId) =>
+      _repository.beaconCloseNow(beaconId);
 }

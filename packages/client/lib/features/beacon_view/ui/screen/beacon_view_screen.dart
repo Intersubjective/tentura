@@ -22,6 +22,7 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
@@ -199,33 +200,44 @@ Future<void> _beaconViewRunAuthorCloseSheet({
   required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
 }) async {
   if (!context.mounted) return;
-  final state = cubit.state;
-  if (!state.beacon.isListed) {
-    await cubit.toggleLifecycle();
-    return;
+  var summary = buildClosureConfirmationSummary(cubit.state);
+
+  Future<bool> attemptClose(bool expected) async {
+    final result = await cubit.closeBeacon(
+      expectedRequiresReviewWindow: expected,
+    );
+    if (!context.mounted || result == null) return false;
+    if (result.branchMismatch) {
+      if (!context.mounted) return false;
+      summary = buildClosureConfirmationSummary(cubit.state);
+      return showBeaconCloseConfirmSheet(
+        context: context,
+        summary: summary,
+        isLoading: cubit.state.isLoading,
+        onCloseBeacon: attemptClose,
+        onOpenPeople: onOpenPeopleTab,
+        onPostUpdate: () async {
+          await _showPostAuthorUpdateSheet(context, cubit, l10n);
+        },
+        onResolveRoom: cubit.state.canNavigateBeaconRoom
+            ? () => onEnterRoomSurface()
+            : null,
+      );
+    }
+    return true;
   }
-  final summary = buildClosureConfirmationSummary(state);
+
   await showBeaconCloseConfirmSheet(
     context: context,
     summary: summary,
     isLoading: cubit.state.isLoading,
-    onCloseBeacon: () async {
-      Navigator.of(context).pop();
-      await cubit.toggleLifecycle();
-    },
-    onOpenPeople: () {
-      Navigator.of(context).pop();
-      onOpenPeopleTab();
-    },
+    onCloseBeacon: attemptClose,
+    onOpenPeople: onOpenPeopleTab,
     onPostUpdate: () async {
-      Navigator.of(context).pop();
       await _showPostAuthorUpdateSheet(context, cubit, l10n);
     },
-    onResolveRoom: state.canNavigateBeaconRoom
-        ? () {
-            Navigator.of(context).pop();
-            onEnterRoomSurface();
-          }
+    onResolveRoom: cubit.state.canNavigateBeaconRoom
+        ? () => onEnterRoomSurface()
         : null,
   );
 }
@@ -268,15 +280,18 @@ Widget _beaconViewAppBarOverflow({
           header: beaconId,
         ),
       ),
-      onToggleLifecycle: _authorLifecycleToggleEnabled(state)
+      onCloseBeacon: state.isBeaconMine &&
+              state.beacon.lifecycle == BeaconLifecycle.open &&
+              state.closureActionPriority != ClosureActionPriority.hidden
           ? () async {
               if (!context.mounted) return;
-              final b = state.beacon;
-              if (b.lifecycle == BeaconLifecycle.open && b.isListed) {
-                await onAuthorListedOpenClose();
-                return;
-              }
-              await cubit.toggleLifecycle();
+              await onAuthorListedOpenClose();
+            }
+          : null,
+      onCancelBeacon: state.isBeaconMine && beaconAllowsCancel(b)
+          ? () async {
+              if (!context.mounted) return;
+              await cubit.cancelBeacon();
             }
           : null,
       onEdit: b.lifecycle == BeaconLifecycle.open
@@ -352,7 +367,12 @@ Widget _beaconViewAppBarOverflow({
           : null,
       onDelete: () async {
         if (!context.mounted) return;
-        if (await BeaconDeleteDialog.show(context) ?? false) {
+        if (await BeaconDeleteDialog.show(
+              context,
+              lifecycle: b.lifecycle,
+              hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
+            ) ??
+            false) {
           if (!context.mounted) return;
           await cubit.delete(beaconId);
         }
@@ -1422,7 +1442,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                         state.isBeaconMine &&
                             state.beacon.lifecycle != BeaconLifecycle.open &&
                             state.beacon.lifecycle !=
-                                BeaconLifecycle.closedReviewOpen &&
+                                BeaconLifecycle.reviewOpen &&
                             state.beacon.lifecycle != BeaconLifecycle.deleted
                         ? () => unawaited(
                             context.router.pushPath(
@@ -1433,7 +1453,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                     onOpenLogTab:
                         state.isBeaconMine &&
                             state.beacon.lifecycle !=
-                                BeaconLifecycle.closedReviewOpen
+                                BeaconLifecycle.reviewOpen
                         ? () => _setTab(kBeaconTabLog)
                         : null,
                     onEditNowLine: state.canCoordinateInBeaconRoom

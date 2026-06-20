@@ -2,10 +2,9 @@ import 'my_work_card_view_model.dart';
 
 typedef MyWorkDeskInitLoad = ({
   List<MyWorkCardViewModel> nonArchivedCards,
-  List<String> authoredClosedIdHints,
-  List<String> helpOfferedClosedIdHints,
+  int archivedCountHint,
 });
 
-typedef MyWorkDeskClosedLoad = ({
+typedef MyWorkDeskArchivedLoad = ({
   List<MyWorkCardViewModel> archivedCards,
 });

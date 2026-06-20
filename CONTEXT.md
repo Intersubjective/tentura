@@ -83,6 +83,46 @@ A separate room message inserted when an item’s status changes (or on promote)
 **Message lifecycle footer**:
 Three-case chrome under a promoted source: reactions + date; promotion row (avatar, kind, date → thread); optional resolution row when status is resolved/cancelled/superseded (from `system_payload.lastStatusEvent` on the source message). Distinct from mark-done (`semanticMarker == done`).
 
+## Beacon lifecycle
+
+**Close** (author intent):
+The author declaring a beacon **done / wrapped up** (a successful or neutral end of the work). Distinct from **Cancel**. Whether closing finalizes immediately or opens a **review window** depends only on participation (committers), never on naming. Never labels the result "cancelled".
+_Avoid_: using "close" to mean "abandon"; conflating the close *intent* with the committer-count *mechanics*.
+
+**Cancel** (author intent):
+The author **calling the beacon off / retracting** it — an explicit abandon. A separate, deliberate action from **Close**, never auto-derived from committer count. Produces a distinct "cancelled" outcome. Offered **only when there are 0 committers**: once anyone commits, the author's sole end-path is **Close** → **Wrapping up** (committers are owed their review), so a committed beacon cannot be unilaterally cancelled.
+_Avoid_: deriving "cancelled" automatically from no committers; offering Cancel once committers exist or during Wrapping up.
+
+**Committer**:
+A non-author user whose help offer the author has **acknowledged** — an active (non-withdrawn) `beacon_help_offer` whose author coordination response is `useful` or `needCoordination`. Offers that are **unacknowledged** (no response yet) or **rejected** (`overlapping`, `needDifferentSkill`, `notSuitable`) are NOT committers. Committer count (excluding the author and forwarders) decides the **mechanics** of **Close**, the **stakes gate** on Cancel/Delete, and who is a **required reviewer** for **Close now**.
+_Assumption_: acknowledged = {`useful`, `needCoordination`}; narrow to `useful`-only if needed.
+_Avoid_: counting every raw/active offer as a committer (rejected/unacknowledged offers don't grant stake).
+
+**Closed** (outcome state):
+A beacon the author **Closed** and is now done. Reached either immediately (Close with no committers) or after the review window ends. A single "done" outcome — the user-facing label does **not** distinguish whether a review happened.
+_Avoid_: separate user-facing names for "closed without review" vs "closed after review".
+
+**Cancelled** (outcome state):
+A beacon the author explicitly **Cancelled** (called off). Only reached via the **Cancel** intent, never from committer count.
+
+**Wrapping up** (status; internal `reviewOpen` / state 5):
+The in-between after the author **Closes** a beacon that has committers: a time-boxed countdown (default 7 days) during which helpers reflect/evaluate and the author can still post updates and edit, but **no new help offers and no forwarding**. Ends by moving to **Closed**. Shown with a countdown banner that states the rules.
+_Avoid_: "Review open" (opaque), or wording that implies moderation/approval gating.
+
+**Close now** (early close during Wrapping up):
+An author action available only when every **required reviewer** has **finished or skipped** their review (per-user review status in {finished, skipped}). **Required reviewers = the author + committers; forwarders are excluded** (a forwarder may review, but their pending review never blocks closure). It skips the remaining countdown and moves the beacon to **Closed**. Disabled (with explanation) while a required reviewer still has the review open, since the window protects committers' stake. Distinct from extending or reopening.
+_Avoid_: an unconditional early-close button; letting a forwarder's pending review block Close now; closing while a committer still has their review pending.
+
+**Extend review** (author action during Wrapping up):
+Adds another 7 days to the countdown. Allowed at most **twice**. Additive and low-risk — no confirmation; the UI shows extensions remaining and the new close date.
+
+**Reopen** (author action during Wrapping up):
+Returns the beacon to **Open**, discarding the review window and its scaffolding and reverting the inbox/activity tombstones the close fired. Strong confirmation ("returns to Open and discards current review progress").
+
+**Deleted** (removal state):
+A beacon removed via Delete — not an outcome. **Delete is gated by stakes:** a beacon that **ever had an acknowledged committer** (an offer the author ever marked `useful`/`needCoordination`, even if later withdrawn) can never be deleted (the author uses **Archive** to clear it from their own desk). A bare offer-then-withdraw with no author acknowledgment does NOT lock Delete (anti-griefing). Drafts are destroyed permanently (hard delete: row + images). A published beacon that **never** had an acknowledged committer becomes a soft-deleted tombstone (state 2) for people who saw it.
+_Avoid_: deleting a beacon that ever had an acknowledged committer; locking Delete on unacknowledged/rejected offers; treating Delete as a universal escape hatch that bypasses committer stake.
+
 ## My desk (My Work)
 
 **My desk** (user-facing; l10n `myWork`):
@@ -90,8 +130,8 @@ The signed-in user's work inbox tab — beacons they **authored** or **help-offe
 _Avoid_: mixing with **Inbox** (forwards received from others).
 
 **Active filter** (default):
-Non-archived cards where the user participates in ongoing work — `authoredActive` and `helpOfferedActive` card kinds. Excludes **drafts** and **archived** items.
-_Avoid_: using "active" to mean only `lifecycle.open`; pending review and closed-review-open remain here until archived.
+Non-archived cards (excluding **drafts** and deleted). Beacons of any lifecycle the user has not archived — including review-window and finished beacons — appear here until the user archives them.
+_Avoid_: using "active" to mean only `lifecycle.open`; review-window and finished beacons remain here until archived.
 
 **All filter** (non-archived superset):
 Every non-archived card: active + **drafts** + help-offered/active authored rows from the init fetch. Placed in the filter menu after role-specific filters and before **Archived**.
@@ -99,11 +139,19 @@ Every non-archived card: active + **drafts** + help-offered/active authored rows
 **Drafts filter**:
 Authored beacons in `draft` lifecycle only (`authoredDraft` card kind).
 
+**Archived** (per-user flag):
+A **per-user** filing flag, **orthogonal to lifecycle**. Any user may archive any beacon they can see, for themselves only; default is **not archived**. Archiving moves the beacon into that user's **Archived** filter; finished beacons do **not** auto-archive. Server-persisted per user; affects My desk sectioning only.
+_Avoid_: equating "archived" with any `lifecycle` state (closed/cancelled/review-complete); a finished beacon stays in the main list until the user archives it.
+
 **Archived filter**:
-Closed-lifecycle beacons (lazy fetch). Separate from active/all/drafts.
+The user's own archived beacons (any lifecycle), lazy-fetched. Separate from active/all/drafts.
 
 **Archived count hint**:
-Deduped count of closed authored + help-offered beacon ids from the init query, shown before the lazy archive fetch completes. Used for empty-state shortcuts only when count > 0.
+Deduped count of the user's archived beacon ids from the init query, shown before the lazy archive fetch completes. Used for empty-state shortcuts only when count > 0.
 
 **Draft count** (UI):
 Count of draft cards from the init fetch; empty-state shortcut only when count > 0.
+
+**Finished card** (My desk):
+A My desk card for a **Closed** or **Cancelled** beacon the user has **not** archived. Appears in **Active** and **All** (not only Archived), ranked at a bottom tier so live work stays on top, with a design-system **status indicator** (icon + "Closed"/"Cancelled" label, never color-only, never a `Chip`/pill) and a one-tap **Archive** affordance. A one-time inline hint explains finished beacons stay until archived.
+_Avoid_: routing finished-but-unarchived beacons into the Archived filter (that coupling is removed); interleaving them with live work by recency.

@@ -7,14 +7,18 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/capability/capability_tag.dart';
+import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
+import 'package:tentura_server/domain/evaluation/acknowledged_committer.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 
 import '../entity/beacon_entity.dart';
 import '../entity/task_entity.dart';
-import '../exception.dart';
-import '../beacon_lineage_visibility.dart';
 import '_use_case_base.dart';
 
 const kMaxImagesPerBeacon = 10;
@@ -94,10 +98,14 @@ final class BeaconCase extends UseCaseBase {
     BeaconRepositoryPort beaconRepository,
     ImageRepositoryPort imageRepository,
     TaskRepositoryPort tasksRepository,
+    CoordinationRepositoryPort coordinationRepository,
+    HelpOfferRepositoryPort helpOfferRepository,
   ) async => BeaconCase(
     beaconRepository,
     imageRepository,
     tasksRepository,
+    coordinationRepository,
+    helpOfferRepository,
     env: env,
     logger: logger,
   );
@@ -105,7 +113,9 @@ final class BeaconCase extends UseCaseBase {
   BeaconCase(
     this._beaconRepository,
     this._imageRepository,
-    this._tasksRepository, {
+    this._tasksRepository,
+    this._coordinationRepository,
+    this._helpOfferRepository, {
     required super.env,
     required super.logger,
   });
@@ -115,6 +125,10 @@ final class BeaconCase extends UseCaseBase {
   final ImageRepositoryPort _imageRepository;
 
   final TaskRepositoryPort _tasksRepository;
+
+  final CoordinationRepositoryPort _coordinationRepository;
+
+  final HelpOfferRepositoryPort _helpOfferRepository;
 
   //
   Future<BeaconEntity> create({
@@ -425,6 +439,52 @@ final class BeaconCase extends UseCaseBase {
     return draft;
   }
 
+  /// Author cancels an open beacon with zero acknowledged committers (state 1).
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
+  Future<Map<String, dynamic>> beaconCancel({
+    required String beaconId,
+    required String userId,
+  }) =>
+      _beaconRepository.runInBeaconStateTransaction(
+        beaconId: beaconId,
+        userId: userId,
+        fn: (beacon) async {
+          if (beacon.state != 0) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Beacon must be open to cancel',
+            );
+          }
+          if (beacon.author.id != userId) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+              description: 'Only the author can cancel',
+            );
+          }
+          final coords =
+              await _coordinationRepository.coordinationResponseTypeByOfferUserId(
+            beaconId,
+          );
+          final activeOffers =
+              await _helpOfferRepository.fetchByBeaconId(beaconId);
+          final hasCommitters = activeOffers.any(
+            (o) => isAcknowledgedCommitterResponse(coords[o.userId]),
+          );
+          if (hasCommitters) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+              description: 'Cannot cancel a beacon with committers',
+            );
+          }
+          await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 1);
+          return {
+            'id': beaconId,
+            'state': 1,
+          };
+        },
+      );
+
   //
   Future<bool> deleteById({
     required String beaconId,
@@ -435,15 +495,32 @@ final class BeaconCase extends UseCaseBase {
       filterByUserId: userId,
     );
 
-    for (final image in beacon.images) {
-      await _imageRepository.delete(
-        authorId: beacon.author.id,
-        imageId: image.id,
+    if (beacon.state == kBeaconStateDraft) {
+      for (final image in beacon.images) {
+        await _imageRepository.delete(
+          authorId: beacon.author.id,
+          imageId: image.id,
+        );
+      }
+      await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
+      return true;
+    }
+
+    final coords =
+        await _coordinationRepository.coordinationResponseTypeByOfferUserId(
+      beacon.id,
+    );
+    final everHadAcknowledgedCommitter = coords.values.any(
+      isAcknowledgedCommitterResponse,
+    );
+    if (everHadAcknowledgedCommitter) {
+      throw EvaluationException(
+        evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+        description: 'Cannot delete a beacon that ever had a committer',
       );
     }
 
-    await _beaconRepository.deleteBeaconById(beacon.id, userId: userId);
-
+    await _beaconRepository.softDeleteBeacon(beacon.id);
     return true;
   }
 }

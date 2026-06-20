@@ -76,17 +76,22 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
   /// True when [needSummary] is a non-empty trimmed string (post–need-first schema).
   bool get hasNeedSummary => needSummary?.trim().isNotEmpty ?? false;
 
-  /// Non-closed listing (OPEN, DRAFT, PENDING_REVIEW, CLOSED_REVIEW_OPEN); profile filters and author controls.
+  /// Non-closed listing (OPEN, DRAFT, WRAPPING UP); profile filters and author controls.
   bool get isListed => lifecycle.isActiveSection;
 
   /// Non-author may offer help only when lifecycle is OPEN (matches server `beaconOfferHelp`).
   bool get allowsNewHelpOfferAsNonAuthor => lifecycle == BeaconLifecycle.open;
 
-  /// Help offerer may withdraw in OPEN, PENDING_REVIEW, or CLOSED_REVIEW_OPEN (matches server `beaconWithdraw`).
+  /// Help offerer may withdraw in OPEN or WRAPPING UP (matches server `beaconWithdraw`).
   bool get allowsWithdrawWhileHelpOffered =>
       lifecycle == BeaconLifecycle.open ||
-      lifecycle == BeaconLifecycle.pendingReview ||
-      lifecycle == BeaconLifecycle.closedReviewOpen;
+      lifecycle == BeaconLifecycle.reviewOpen;
+
+  bool get allowsCoordination => lifecycle.allowsCoordination;
+
+  bool get allowsForward => lifecycle.allowsForward;
+
+  bool get isFinished => lifecycle.isFinished;
 
   @override
   int get votes => myVote;

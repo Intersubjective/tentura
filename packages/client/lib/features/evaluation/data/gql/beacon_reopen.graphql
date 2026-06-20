@@ -1,0 +1,6 @@
+mutation BeaconReopen($id: String!) {
+  beaconReopen(id: $id) {
+    id
+    state
+  }
+}

@@ -7,19 +7,18 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'my_work_test_support.dart';
 
 void main() {
-  test('loadDeskInit returns enriched cards and closed id hints', () async {
+  test('loadDeskInit returns enriched cards and archived count hint', () async {
     final repo = FakeMyWorkRepository()
       ..initResult = (
-        authoredNonClosed: [
+        authoredNonArchived: [
           Beacon.empty.copyWith(
             id: 'b1',
             lifecycle: BeaconLifecycle.open,
             updatedAt: DateTime(2025, 6, 1),
           ),
         ],
-        helpOfferedNonClosed: const [],
-        authoredClosedIds: const ['closed-1'],
-        helpOfferedClosedIds: const ['closed-2'],
+        helpOfferedNonArchived: const [],
+        archivedCountHint: 2,
         lastItemDiscussionMessageAtByBeaconId: const {},
       );
     final case_ = buildTestMyWorkCase(repo);
@@ -27,25 +26,24 @@ void main() {
     final init = await case_.loadDeskInit(userId: 'u1');
     expect(init.nonArchivedCards, hasLength(1));
     expect(init.nonArchivedCards.single.kind, MyWorkCardKind.authoredActive);
-    expect(init.authoredClosedIdHints, ['closed-1']);
-    expect(init.helpOfferedClosedIdHints, ['closed-2']);
+    expect(init.archivedCountHint, 2);
   });
 
-  test('loadDeskClosed returns archived cards', () async {
+  test('loadDeskArchived returns archived cards', () async {
     final repo = FakeMyWorkRepository()
-      ..closedResult = (
-        authoredClosed: [
+      ..archivedResult = (
+        authoredArchived: [
           Beacon.empty.copyWith(
             id: 'c1',
             lifecycle: BeaconLifecycle.closed,
           ),
         ],
-        helpOfferedClosed: const [],
+        helpOfferedArchived: const [],
       );
     final case_ = buildTestMyWorkCase(repo);
 
-    final closed = await case_.loadDeskClosed(userId: 'u1');
-    expect(closed.archivedCards, hasLength(1));
-    expect(closed.archivedCards.single.kind, MyWorkCardKind.authoredClosed);
+    final archived = await case_.loadDeskArchived(userId: 'u1');
+    expect(archived.archivedCards, hasLength(1));
+    expect(archived.archivedCards.single.kind, MyWorkCardKind.authoredArchived);
   });
 }

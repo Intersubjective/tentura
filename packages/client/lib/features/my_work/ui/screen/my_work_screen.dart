@@ -14,6 +14,7 @@ import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
 import '../widget/my_work_empty_body.dart';
+import '../widget/my_work_finished_status_row.dart';
 import '../widget/my_work_new_stuff_reporter.dart';
 
 @RoutePage()
@@ -279,7 +280,7 @@ class _MyWorkBody extends StatelessWidget {
     if (p.status != c.status ||
         p.filter != c.filter ||
         p.sort != c.sort ||
-        p.closedFetchInProgress != c.closedFetchInProgress ||
+        p.archivedFetchInProgress != c.archivedFetchInProgress ||
         p.hasError != c.hasError) {
       return true;
     }
@@ -288,7 +289,8 @@ class _MyWorkBody extends StatelessWidget {
       return true;
     }
     if (p.draftCount != c.draftCount ||
-        p.archivedCountHint != c.archivedCountHint) {
+        p.archivedCountHint != c.archivedCountHint ||
+        p.finishedArchiveHintDismissed != c.finishedArchiveHintDismissed) {
       return true;
     }
     if (p.nonArchivedCards != c.nonArchivedCards ||
@@ -332,13 +334,17 @@ class _MyWorkBody extends StatelessWidget {
           );
         }
         if (state.filter == MyWorkFilter.archived &&
-            !state.closedDataFetched &&
-            state.closedFetchInProgress) {
+            !state.archivedDataFetched &&
+            state.archivedFetchInProgress) {
           return const Center(
             child: CircularProgressIndicator.adaptive(),
           );
         }
         final cards = state.visibleCards;
+        final showFinishedHint = !state.finishedArchiveHintDismissed &&
+            (state.filter == MyWorkFilter.active ||
+                state.filter == MyWorkFilter.all) &&
+            cards.any((c) => c.isFinishedCard);
         if (cards.isEmpty) {
           return RefreshIndicator.adaptive(
             onRefresh: cubit.fetch,
@@ -370,10 +376,16 @@ class _MyWorkBody extends StatelessWidget {
           child: ListView.separated(
             padding: kPaddingSmallV,
             physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: cards.length,
+            itemCount: cards.length + (showFinishedHint ? 1 : 0),
             separatorBuilder: (_, _) => const SizedBox(height: kSpacingSmall),
             itemBuilder: (_, i) {
-              final vm = cards[i];
+              if (showFinishedHint && i == 0) {
+                return MyWorkFinishedArchiveHint(
+                  onDismiss: cubit.dismissFinishedArchiveHint,
+                );
+              }
+              final cardIndex = showFinishedHint ? i - 1 : i;
+              final vm = cards[cardIndex];
               return MyWorkCardRouter(
                 key: ValueKey('${vm.kind.name}-${vm.beaconId}'),
                 vm: vm,

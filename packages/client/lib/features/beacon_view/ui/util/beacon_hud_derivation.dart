@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -20,12 +21,11 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
   }
 
   if (beacon.lifecycle == BeaconLifecycle.closed ||
-      beacon.lifecycle == BeaconLifecycle.closedReviewComplete) {
+      beacon.lifecycle == BeaconLifecycle.cancelled) {
     return l10n.beaconHudClosedSummary;
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.closedReviewOpen ||
-      beacon.lifecycle == BeaconLifecycle.pendingReview) {
+  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
     return coordinationStatusLabel(l10n, beacon.coordinationStatus);
   }
 
@@ -92,12 +92,11 @@ BeaconHudNowDisplay beaconHudNowDisplay(L10n l10n, BeaconViewState state) {
   }
 
   if (beacon.lifecycle == BeaconLifecycle.closed ||
-      beacon.lifecycle == BeaconLifecycle.closedReviewComplete) {
+      beacon.lifecycle == BeaconLifecycle.cancelled) {
     return BeaconHudNowDisplay(primaryText: l10n.beaconHudClosedSummary);
   }
 
-  if (beacon.lifecycle == BeaconLifecycle.closedReviewOpen ||
-      beacon.lifecycle == BeaconLifecycle.pendingReview) {
+  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
     return BeaconHudNowDisplay(
       primaryText: coordinationStatusLabel(l10n, beacon.coordinationStatus),
     );
@@ -109,6 +108,48 @@ BeaconHudNowDisplay beaconHudNowDisplay(L10n l10n, BeaconViewState state) {
       : null;
 
   final currentLine = cue?.currentLine.trim() ?? '';
+  if (currentLine.isNotEmpty) {
+    return BeaconHudNowDisplay(
+      primaryText: currentLine,
+      blockerText: blockerText,
+    );
+  }
+
+  return BeaconHudNowDisplay(
+    primaryText: l10n.beaconHudNoCurrentLine,
+    blockerText: blockerText,
+    isPlaceholder: true,
+  );
+}
+
+/// NOW row for My desk cards from beacon lifecycle + room context batch hints.
+BeaconHudNowDisplay myWorkDeskNowDisplay(
+  L10n l10n, {
+  required Beacon beacon,
+  required String roomCurrentLine,
+  String openBlockerTitle = '',
+}) {
+  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+    return BeaconHudNowDisplay(primaryText: l10n.beaconHudBeaconUnavailable);
+  }
+
+  if (beacon.lifecycle == BeaconLifecycle.closed ||
+      beacon.lifecycle == BeaconLifecycle.cancelled) {
+    return BeaconHudNowDisplay(primaryText: l10n.beaconHudClosedSummary);
+  }
+
+  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+    return BeaconHudNowDisplay(
+      primaryText: coordinationStatusLabel(l10n, beacon.coordinationStatus),
+    );
+  }
+
+  final blockerTitle = openBlockerTitle.trim();
+  final blockerText = blockerTitle.isNotEmpty
+      ? l10n.beaconHudNowBlocked(blockerTitle)
+      : null;
+
+  final currentLine = roomCurrentLine.trim();
   if (currentLine.isNotEmpty) {
     return BeaconHudNowDisplay(
       primaryText: currentLine,
@@ -187,9 +228,7 @@ BeaconNowDetailModel beaconNowDetailModelFromViewState(
     lastChange = pubLast;
   }
 
-  final isReviewLifecycle =
-      beacon.lifecycle == BeaconLifecycle.closedReviewOpen ||
-      beacon.lifecycle == BeaconLifecycle.pendingReview;
+  final isReviewLifecycle = beacon.lifecycle == BeaconLifecycle.reviewOpen;
 
   return BeaconNowDetailModel(
     whatsNextText: whatsNext,
@@ -197,7 +236,7 @@ BeaconNowDetailModel beaconNowDetailModelFromViewState(
     blockerTitle: cue?.openBlockerTitle?.trim(),
     blockerItem: state.openCoordinationBlocker,
     publicStatus:
-        beacon.lifecycle == BeaconLifecycle.open ? beacon.publicStatus : null,
+        beacon.lifecycle.allowsCoordination ? beacon.publicStatus : null,
     coordinationStatus:
         isReviewLifecycle ? beacon.coordinationStatus : null,
     lifecycle: beacon.lifecycle,
@@ -242,7 +281,7 @@ String beaconHudYouLine(L10n l10n, BeaconViewState state) {
   }
 
   if (beacon.lifecycle == BeaconLifecycle.closed ||
-      beacon.lifecycle == BeaconLifecycle.closedReviewComplete) {
+      beacon.lifecycle == BeaconLifecycle.cancelled) {
     return l10n.beaconHudClosedSummary;
   }
 

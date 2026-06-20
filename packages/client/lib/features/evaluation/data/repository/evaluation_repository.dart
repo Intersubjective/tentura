@@ -3,12 +3,17 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
 
+import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 
-import '../gql/_g/beacon_close_with_review.req.gql.dart';
+import '../gql/_g/beacon_cancel.req.gql.dart';
+import '../gql/_g/beacon_close.req.gql.dart';
+import '../gql/_g/beacon_close_now.req.gql.dart';
+import '../gql/_g/beacon_extend_review.req.gql.dart';
+import '../gql/_g/beacon_reopen.req.gql.dart';
 import '../gql/_g/evaluation_draft_participants.data.gql.dart';
 import '../gql/_g/evaluation_draft_participants.req.gql.dart';
 import '../gql/_g/evaluation_draft_save.req.gql.dart';
@@ -247,18 +252,87 @@ class EvaluationRepository {
         .then((r) => r.dataOrThrow(label: _label));
   }
 
-  /// Returns new beacon state (5) and review end time.
-  Future<({String closesAt})> beaconCloseWithReview(String beaconId) =>
+  Future<BeaconCloseResult> beaconClose({
+    required String beaconId,
+    required bool expectedRequiresReviewWindow,
+  }) =>
       _remoteApiService
           .request(
-            GBeaconCloseWithReviewReq((b) => b.vars.id = beaconId),
+            GBeaconCloseReq(
+              (b) => b.vars
+                ..id = beaconId
+                ..expectedRequiresReviewWindow = expectedRequiresReviewWindow,
+            ),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
           .then(
-            (r) => (
-              closesAt: r.dataOrThrow(label: _label).beaconCloseWithReview
-                  .closesAt,
-            ),
+            (r) {
+              final result = r.dataOrThrow(label: _label).beaconClose;
+              return BeaconCloseResult(
+                beaconId: result.id,
+                state: result.state,
+                closesAt: result.closesAt,
+                requiresReviewWindow: result.requiresReviewWindow,
+                branchMismatch: result.branchMismatch,
+              );
+            },
+          );
+
+  Future<BeaconLifecycleMutationResult> beaconCancel(String beaconId) =>
+      _remoteApiService
+          .request(GBeaconCancelReq((b) => b.vars.id = beaconId))
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) {
+              final result = r.dataOrThrow(label: _label).beaconCancel;
+              return BeaconLifecycleMutationResult(
+                beaconId: result.id,
+                state: result.state,
+              );
+            },
+          );
+
+  Future<BeaconExtendReviewResult> beaconExtendReview(String beaconId) =>
+      _remoteApiService
+          .request(GBeaconExtendReviewReq((b) => b.vars.id = beaconId))
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) {
+              final result = r.dataOrThrow(label: _label).beaconExtendReview;
+              return BeaconExtendReviewResult(
+                beaconId: result.id,
+                closesAt: result.closesAt,
+                extensionsRemaining: result.extensionsRemaining,
+              );
+            },
+          );
+
+  Future<BeaconLifecycleMutationResult> beaconReopen(String beaconId) =>
+      _remoteApiService
+          .request(GBeaconReopenReq((b) => b.vars.id = beaconId))
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) {
+              final result = r.dataOrThrow(label: _label).beaconReopen;
+              return BeaconLifecycleMutationResult(
+                beaconId: result.id,
+                state: result.state,
+              );
+            },
+          );
+
+  Future<BeaconLifecycleMutationResult> beaconCloseNow(String beaconId) =>
+      _remoteApiService
+          .request(GBeaconCloseNowReq((b) => b.vars.id = beaconId))
+          .firstWhere((e) => e.dataSource == DataSource.Link)
+          .then(
+            (r) {
+              final result = r.dataOrThrow(label: _label).beaconCloseNow;
+              return BeaconLifecycleMutationResult(
+                beaconId: result.id,
+                state: result.state,
+              );
+            },
           );
 }
 

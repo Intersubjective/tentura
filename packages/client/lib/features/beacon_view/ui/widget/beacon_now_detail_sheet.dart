@@ -83,8 +83,8 @@ class _BeaconNowDetailSheetBody extends StatelessWidget {
       );
     }
 
-    if (model.lifecycle == BeaconLifecycle.closedReviewOpen ||
-        model.lifecycle == BeaconLifecycle.pendingReview) {
+    if (model.lifecycle == BeaconLifecycle.reviewOpen ||
+        model.lifecycle == BeaconLifecycle.closed) {
       if (model.coordinationStatus != null) {
         statusRows.add(
           _situationLabeledRow(

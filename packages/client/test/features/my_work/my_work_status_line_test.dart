@@ -36,7 +36,7 @@ void main() {
       kind: MyWorkCardKind.helpOfferedActive,
       beacon: Beacon.empty.copyWith(
         id: 'x',
-        lifecycle: BeaconLifecycle.closedReviewOpen,
+        lifecycle: BeaconLifecycle.reviewOpen,
         coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
       ),
       showReadyForReviewChip: true,
@@ -90,7 +90,7 @@ void main() {
     );
   });
 
-  testWidgets('authored closedReviewOpen uses Closed · review open · participants',
+  testWidgets('authored reviewOpen uses Closed · wrapping up · participants',
       (tester) async {
     L10n? l10nRef;
     await tester.pumpWidget(
@@ -115,14 +115,14 @@ void main() {
       kind: MyWorkCardKind.authoredActive,
       beacon: Beacon.empty.copyWith(
         id: 'a',
-        lifecycle: BeaconLifecycle.closedReviewOpen,
+        lifecycle: BeaconLifecycle.reviewOpen,
         coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
         helpOfferCount: 3,
       ),
     );
     final line = myWorkStatusLine(l10n: l10n, vm: vm);
     expect(line.slot1, l10n.myWorkStatusClosed);
-    expect(line.slot2, l10n.myWorkStatusReviewOpen);
+    expect(line.slot2, l10n.myWorkStatusWrappingUp);
     expect(line.slot3, l10n.myWorkStatusNParticipants(3));
   });
 

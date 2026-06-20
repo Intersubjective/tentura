@@ -34,7 +34,7 @@ final class CreateResolutionCase extends UseCaseBase {
       throw const BeaconCreateException(description: 'Resolution title is required');
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (!beacon.isActive) {
+    if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
     return _itemRepository.create(

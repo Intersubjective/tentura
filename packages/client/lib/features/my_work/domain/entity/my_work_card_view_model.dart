@@ -9,29 +9,23 @@ import 'my_work_last_event.dart';
 
 part 'my_work_card_view_model.freezed.dart';
 
-/// Activity lines for the per-card NewStuff dot (see [MyWorkCardViewModel.newStuffReasons]).
-enum MyWorkNewStuffReason {
-  newBeacon,
-  authorResponseChanged,
-  helpOfferUpdated,
-  coordinationStatusChanged,
-}
-
 enum MyWorkCardRole { authored, helpOffered }
 
 enum MyWorkCardKind {
   authoredActive,
   authoredDraft,
   helpOfferedActive,
-  authoredClosed,
-  helpOfferedClosed,
+  authoredFinished,
+  helpOfferedFinished,
+  authoredArchived,
+  helpOfferedArchived,
 }
 
 enum MyWorkAttentionChip {
   /// Author: help offers waiting for review (beacon-level signal).
   reviewPending,
 
-  /// Author: beacon in closed-review-open (evaluation window).
+  /// Author: beacon in review window (Wrapping up).
   reviewWindowOpen,
 
   /// Author: beacon-level "more help needed".
@@ -59,6 +53,12 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     /// Admitted room coordination summary line (Phase 6).
     @Default('') String roomInboxSubtitle,
 
+    /// Room current line for the NOW row (V2 inbox room context batch).
+    @Default('') String roomCurrentLine,
+
+    /// Open blocker title for NOW subline (V2 inbox room context batch).
+    @Default('') String roomOpenBlockerTitle,
+
     /// Help-offered cards: `beacon_help_offers.updated_at` from My Work fetch.
     DateTime? helpOfferRowUpdatedAt,
 
@@ -78,10 +78,14 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
   const MyWorkCardViewModel._();
 
   bool get isArchived =>
-      kind == MyWorkCardKind.authoredClosed ||
-      kind == MyWorkCardKind.helpOfferedClosed;
+      kind == MyWorkCardKind.authoredArchived ||
+      kind == MyWorkCardKind.helpOfferedArchived;
 
-  /// Max relevant backend activity for NewStuff (tab dot + row dot), in epoch ms.
+  bool get isFinishedCard =>
+      kind == MyWorkCardKind.authoredFinished ||
+      kind == MyWorkCardKind.helpOfferedFinished;
+
+  /// Max relevant backend activity for NewStuff (tab dot), in epoch ms.
   int get newStuffActivityEpochMs {
     final b = beacon;
     var max = b.createdAt.millisecondsSinceEpoch;
@@ -107,56 +111,5 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
       max = itemMsg;
     }
     return max;
-  }
-
-  static const _myWorkReasonDisplayOrder = <MyWorkNewStuffReason>[
-    MyWorkNewStuffReason.newBeacon,
-    MyWorkNewStuffReason.authorResponseChanged,
-    MyWorkNewStuffReason.helpOfferUpdated,
-    MyWorkNewStuffReason.coordinationStatusChanged,
-  ];
-
-  /// All distinct reasons for the dot when [lastSeenMs] matches the My Work last-seen cursor.
-  List<MyWorkNewStuffReason> newStuffReasons(int? lastSeenMs) {
-    if (lastSeenMs == null) return [];
-    final b = beacon;
-    final seen = lastSeenMs;
-    final raw = <MyWorkNewStuffReason>[];
-
-    if (b.createdAt.millisecondsSinceEpoch > seen) {
-      raw.add(MyWorkNewStuffReason.newBeacon);
-    }
-    if (newStuffActivityEpochMs <= seen) {
-      return _orderMyWorkReasons(raw);
-    }
-
-    final cs = b.coordinationStatusUpdatedAt?.millisecondsSinceEpoch;
-    final cr = helpOfferRowUpdatedAt?.millisecondsSinceEpoch;
-    final ar = authorCoordinationUpdatedAt?.millisecondsSinceEpoch;
-
-    if (role == MyWorkCardRole.helpOffered) {
-      if (ar != null && ar > seen) {
-        raw.add(MyWorkNewStuffReason.authorResponseChanged);
-      }
-      if (cr != null && cr > seen && (ar == null || cr != ar)) {
-        raw.add(MyWorkNewStuffReason.helpOfferUpdated);
-      }
-    }
-    if (cs != null && cs > seen) {
-      raw.add(MyWorkNewStuffReason.coordinationStatusChanged);
-    }
-    return _orderMyWorkReasons(raw);
-  }
-
-  static List<MyWorkNewStuffReason> _orderMyWorkReasons(
-    List<MyWorkNewStuffReason> raw,
-  ) {
-    final out = <MyWorkNewStuffReason>[];
-    for (final r in _myWorkReasonDisplayOrder) {
-      if (raw.contains(r)) {
-        out.add(r);
-      }
-    }
-    return out;
   }
 }
