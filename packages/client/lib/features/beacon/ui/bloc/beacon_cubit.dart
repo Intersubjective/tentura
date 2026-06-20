@@ -64,13 +64,12 @@ class BeaconCubit extends Cubit<BeaconState> {
           ? [
               BeaconLifecycle.open.smallintValue,
               BeaconLifecycle.draft.smallintValue,
-              BeaconLifecycle.pendingReview.smallintValue,
-              BeaconLifecycle.closedReviewOpen.smallintValue,
+              BeaconLifecycle.reviewOpen.smallintValue,
             ]
           : [
+              BeaconLifecycle.cancelled.smallintValue,
               BeaconLifecycle.closed.smallintValue,
               BeaconLifecycle.deleted.smallintValue,
-              BeaconLifecycle.closedReviewComplete.smallintValue,
             ];
       final offset = reset ? 0 : state.beacons.length;
       final beacons = await _beaconRepository.fetchBeacons(

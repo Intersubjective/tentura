@@ -3,23 +3,24 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i5;
+import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
+import 'package:mockito/src/dummies.dart' as _i6;
 import 'package:tentura_server/data/service/beacon_room_push_service.dart'
-    as _i12;
+    as _i13;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
-import 'package:tentura_server/domain/entity/forward_edge_entity.dart' as _i7;
-import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i9;
-import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i11;
-import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i4;
+import 'package:tentura_server/domain/entity/forward_edge_entity.dart' as _i8;
+import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i10;
+import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i12;
+import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i5;
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart'
-    as _i6;
+    as _i7;
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart'
-    as _i8;
-import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i10;
+    as _i9;
+import 'package:tentura_server/domain/port/inbox_repository_port.dart' as _i11;
 import 'package:tentura_server/domain/port/person_capability_event_repository_port.dart'
-    as _i3;
+    as _i4;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -41,9 +42,14 @@ class _FakeBeaconEntity_0 extends _i1.SmartFake implements _i2.BeaconEntity {
     : super(parent, parentInvocation);
 }
 
-class _FakePersonCapabilityCuesRow_1 extends _i1.SmartFake
-    implements _i3.PersonCapabilityCuesRow {
-  _FakePersonCapabilityCuesRow_1(Object parent, Invocation parentInvocation)
+class _FakeFuture_1<T1> extends _i1.SmartFake implements _i3.Future<T1> {
+  _FakeFuture_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakePersonCapabilityCuesRow_2 extends _i1.SmartFake
+    implements _i4.PersonCapabilityCuesRow {
+  _FakePersonCapabilityCuesRow_2(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -51,13 +57,13 @@ class _FakePersonCapabilityCuesRow_1 extends _i1.SmartFake
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRepositoryPort extends _i1.Mock
-    implements _i4.BeaconRepositoryPort {
+    implements _i5.BeaconRepositoryPort {
   MockBeaconRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<_i2.BeaconEntity> createBeacon({
+  _i3.Future<_i2.BeaconEntity> createBeacon({
     required String? authorId,
     required String? title,
     String? description,
@@ -100,7 +106,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #lineageParentBeaconId: lineageParentBeaconId,
               #lineageRootBeaconId: lineageRootBeaconId,
             }),
-            returnValue: _i5.Future<_i2.BeaconEntity>.value(
+            returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
                 this,
                 Invocation.method(#createBeacon, [], {
@@ -127,10 +133,10 @@ class MockBeaconRepositoryPort extends _i1.Mock
               ),
             ),
           )
-          as _i5.Future<_i2.BeaconEntity>);
+          as _i3.Future<_i2.BeaconEntity>);
 
   @override
-  _i5.Future<_i2.BeaconEntity> getBeaconById({
+  _i3.Future<_i2.BeaconEntity> getBeaconById({
     required String? beaconId,
     String? filterByUserId,
   }) =>
@@ -139,7 +145,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #filterByUserId: filterByUserId,
             }),
-            returnValue: _i5.Future<_i2.BeaconEntity>.value(
+            returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
                 this,
                 Invocation.method(#getBeaconById, [], {
@@ -149,10 +155,10 @@ class MockBeaconRepositoryPort extends _i1.Mock
               ),
             ),
           )
-          as _i5.Future<_i2.BeaconEntity>);
+          as _i3.Future<_i2.BeaconEntity>);
 
   @override
-  _i5.Future<_i2.BeaconEntity> updateDraftBeacon({
+  _i3.Future<_i2.BeaconEntity> updateDraftBeacon({
     required String? beaconId,
     required String? userId,
     required String? title,
@@ -187,7 +193,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #needSummary: needSummary,
               #successCriteria: successCriteria,
             }),
-            returnValue: _i5.Future<_i2.BeaconEntity>.value(
+            returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
                 this,
                 Invocation.method(#updateDraftBeacon, [], {
@@ -210,10 +216,10 @@ class MockBeaconRepositoryPort extends _i1.Mock
               ),
             ),
           )
-          as _i5.Future<_i2.BeaconEntity>);
+          as _i3.Future<_i2.BeaconEntity>);
 
   @override
-  _i5.Future<_i2.BeaconEntity> updateBeacon({
+  _i3.Future<_i2.BeaconEntity> updateBeacon({
     required String? beaconId,
     required String? userId,
     required String? title,
@@ -248,7 +254,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #needSummary: needSummary,
               #successCriteria: successCriteria,
             }),
-            returnValue: _i5.Future<_i2.BeaconEntity>.value(
+            returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
                 this,
                 Invocation.method(#updateBeacon, [], {
@@ -271,19 +277,63 @@ class MockBeaconRepositoryPort extends _i1.Mock
               ),
             ),
           )
-          as _i5.Future<_i2.BeaconEntity>);
+          as _i3.Future<_i2.BeaconEntity>);
 
   @override
-  _i5.Future<void> deleteBeaconById(String? id, {required String? userId}) =>
+  _i3.Future<void> deleteBeaconById(String? id, {required String? userId}) =>
       (super.noSuchMethod(
             Invocation.method(#deleteBeaconById, [id], {#userId: userId}),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> updateBeaconState({
+  _i3.Future<void> softDeleteBeacon(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#softDeleteBeacon, [beaconId]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<T> runInBeaconStateTransaction<T>({
+    required String? beaconId,
+    required String? userId,
+    required _i3.Future<T> Function(_i2.BeaconEntity)? fn,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#runInBeaconStateTransaction, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+              #fn: fn,
+            }),
+            returnValue:
+                _i6.ifNotNull(
+                  _i6.dummyValueOrNull<T>(
+                    this,
+                    Invocation.method(#runInBeaconStateTransaction, [], {
+                      #beaconId: beaconId,
+                      #userId: userId,
+                      #fn: fn,
+                    }),
+                  ),
+                  (T v) => _i3.Future<T>.value(v),
+                ) ??
+                _FakeFuture_1<T>(
+                  this,
+                  Invocation.method(#runInBeaconStateTransaction, [], {
+                    #beaconId: beaconId,
+                    #userId: userId,
+                    #fn: fn,
+                  }),
+                ),
+          )
+          as _i3.Future<T>);
+
+  @override
+  _i3.Future<void> updateBeaconState({
     required String? beaconId,
     required int? state,
   }) =>
@@ -292,13 +342,13 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #state: state,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> addImage({
+  _i3.Future<void> addImage({
     required String? beaconId,
     required String? imageId,
     required int? position,
@@ -309,13 +359,13 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #imageId: imageId,
               #position: position,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> removeImage({
+  _i3.Future<void> removeImage({
     required String? beaconId,
     required String? imageId,
   }) =>
@@ -324,21 +374,21 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #imageId: imageId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<int> getImageCount(String? beaconId) =>
+  _i3.Future<int> getImageCount(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#getImageCount, [beaconId]),
-            returnValue: _i5.Future<int>.value(0),
+            returnValue: _i3.Future<int>.value(0),
           )
-          as _i5.Future<int>);
+          as _i3.Future<int>);
 
   @override
-  _i5.Future<void> reorderImages({
+  _i3.Future<void> reorderImages({
     required String? beaconId,
     required List<String>? imageIds,
   }) =>
@@ -347,13 +397,13 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #imageIds: imageIds,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<_i2.BeaconEntity> updatePublicStatus({
+  _i3.Future<_i2.BeaconEntity> updatePublicStatus({
     required String? beaconId,
     required String? userId,
     required int? publicStatus,
@@ -366,7 +416,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #publicStatus: publicStatus,
               #lastPublicMeaningfulChange: lastPublicMeaningfulChange,
             }),
-            returnValue: _i5.Future<_i2.BeaconEntity>.value(
+            returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
                 this,
                 Invocation.method(#updatePublicStatus, [], {
@@ -378,16 +428,16 @@ class MockBeaconRepositoryPort extends _i1.Mock
               ),
             ),
           )
-          as _i5.Future<_i2.BeaconEntity>);
+          as _i3.Future<_i2.BeaconEntity>);
 
   @override
-  _i5.Future<_i2.BeaconEntity> publishDraft({
+  _i3.Future<_i2.BeaconEntity> publishDraft({
     required String? id,
     required String? actorId,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#publishDraft, [], {#id: id, #actorId: actorId}),
-            returnValue: _i5.Future<_i2.BeaconEntity>.value(
+            returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
                 this,
                 Invocation.method(#publishDraft, [], {
@@ -397,63 +447,63 @@ class MockBeaconRepositoryPort extends _i1.Mock
               ),
             ),
           )
-          as _i5.Future<_i2.BeaconEntity>);
+          as _i3.Future<_i2.BeaconEntity>);
 }
 
 /// A class which mocks [ForwardEdgeRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockForwardEdgeRepositoryPort extends _i1.Mock
-    implements _i6.ForwardEdgeRepositoryPort {
+    implements _i7.ForwardEdgeRepositoryPort {
   MockForwardEdgeRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<_i7.ForwardEdgeEntity?> fetchById(String? edgeId) =>
+  _i3.Future<_i8.ForwardEdgeEntity?> fetchById(String? edgeId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchById, [edgeId]),
-            returnValue: _i5.Future<_i7.ForwardEdgeEntity?>.value(),
+            returnValue: _i3.Future<_i8.ForwardEdgeEntity?>.value(),
           )
-          as _i5.Future<_i7.ForwardEdgeEntity?>);
+          as _i3.Future<_i8.ForwardEdgeEntity?>);
 
   @override
-  _i5.Future<bool> existsWithParent(String? parentEdgeId) =>
+  _i3.Future<bool> existsWithParent(String? parentEdgeId) =>
       (super.noSuchMethod(
             Invocation.method(#existsWithParent, [parentEdgeId]),
-            returnValue: _i5.Future<bool>.value(false),
+            returnValue: _i3.Future<bool>.value(false),
           )
-          as _i5.Future<bool>);
+          as _i3.Future<bool>);
 
   @override
-  _i5.Future<void> cancel(String? edgeId, String? senderId) =>
+  _i3.Future<void> cancel(String? edgeId, String? senderId) =>
       (super.noSuchMethod(
             Invocation.method(#cancel, [edgeId, senderId]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> updateNote(String? edgeId, String? senderId, String? note) =>
+  _i3.Future<void> updateNote(String? edgeId, String? senderId, String? note) =>
       (super.noSuchMethod(
             Invocation.method(#updateNote, [edgeId, senderId, note]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> markAsRead(String? edgeId, String? recipientId) =>
+  _i3.Future<void> markAsRead(String? edgeId, String? recipientId) =>
       (super.noSuchMethod(
             Invocation.method(#markAsRead, [edgeId, recipientId]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> create({
+  _i3.Future<void> create({
     required String? beaconId,
     required String? senderId,
     required String? recipientId,
@@ -472,13 +522,13 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #parentEdgeId: parentEdgeId,
               #batchId: batchId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> createBatch({
+  _i3.Future<void> createBatch({
     required String? beaconId,
     required String? senderId,
     required List<String>? recipientIds,
@@ -486,7 +536,7 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
     required String Function(String)? noteForRecipient,
     String? context,
     String? parentEdgeId,
-    _i5.Future<void> Function()? onAfterEdgesInserted,
+    _i3.Future<void> Function()? onAfterEdgesInserted,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBatch, [], {
@@ -499,23 +549,23 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #parentEdgeId: parentEdgeId,
               #onAfterEdgesInserted: onAfterEdgesInserted,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<List<_i7.ForwardEdgeEntity>> fetchByBeaconId(String? beaconId) =>
+  _i3.Future<List<_i8.ForwardEdgeEntity>> fetchByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByBeaconId, [beaconId]),
-            returnValue: _i5.Future<List<_i7.ForwardEdgeEntity>>.value(
-              <_i7.ForwardEdgeEntity>[],
+            returnValue: _i3.Future<List<_i8.ForwardEdgeEntity>>.value(
+              <_i8.ForwardEdgeEntity>[],
             ),
           )
-          as _i5.Future<List<_i7.ForwardEdgeEntity>>);
+          as _i3.Future<List<_i8.ForwardEdgeEntity>>);
 
   @override
-  _i5.Future<List<_i7.ForwardEdgeEntity>> fetchHelpOffererPathChain({
+  _i3.Future<List<_i8.ForwardEdgeEntity>> fetchHelpOffererPathChain({
     required String? beaconId,
     required String? helpOffererId,
     required String? viewerId,
@@ -526,14 +576,14 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #helpOffererId: helpOffererId,
               #viewerId: viewerId,
             }),
-            returnValue: _i5.Future<List<_i7.ForwardEdgeEntity>>.value(
-              <_i7.ForwardEdgeEntity>[],
+            returnValue: _i3.Future<List<_i8.ForwardEdgeEntity>>.value(
+              <_i8.ForwardEdgeEntity>[],
             ),
           )
-          as _i5.Future<List<_i7.ForwardEdgeEntity>>);
+          as _i3.Future<List<_i8.ForwardEdgeEntity>>);
 
   @override
-  _i5.Future<List<_i7.ForwardEdgeEntity>> fetchByRecipientId(
+  _i3.Future<List<_i8.ForwardEdgeEntity>> fetchByRecipientId(
     String? recipientId, {
     String? context,
   }) =>
@@ -543,22 +593,22 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               [recipientId],
               {#context: context},
             ),
-            returnValue: _i5.Future<List<_i7.ForwardEdgeEntity>>.value(
-              <_i7.ForwardEdgeEntity>[],
+            returnValue: _i3.Future<List<_i8.ForwardEdgeEntity>>.value(
+              <_i8.ForwardEdgeEntity>[],
             ),
           )
-          as _i5.Future<List<_i7.ForwardEdgeEntity>>);
+          as _i3.Future<List<_i8.ForwardEdgeEntity>>);
 
   @override
-  _i5.Future<List<String>> fetchDistinctSenderIdsByBeaconId(String? beaconId) =>
+  _i3.Future<List<String>> fetchDistinctSenderIdsByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchDistinctSenderIdsByBeaconId, [beaconId]),
-            returnValue: _i5.Future<List<String>>.value(<String>[]),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
           )
-          as _i5.Future<List<String>>);
+          as _i3.Future<List<String>>);
 
   @override
-  _i5.Future<bool> isDirectAuthorForward({
+  _i3.Future<bool> isDirectAuthorForward({
     required String? beaconId,
     required String? authorId,
     required String? userId,
@@ -569,22 +619,22 @@ class MockForwardEdgeRepositoryPort extends _i1.Mock
               #authorId: authorId,
               #userId: userId,
             }),
-            returnValue: _i5.Future<bool>.value(false),
+            returnValue: _i3.Future<bool>.value(false),
           )
-          as _i5.Future<bool>);
+          as _i3.Future<bool>);
 }
 
 /// A class which mocks [HelpOfferRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockHelpOfferRepositoryPort extends _i1.Mock
-    implements _i8.HelpOfferRepositoryPort {
+    implements _i9.HelpOfferRepositoryPort {
   MockHelpOfferRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<void> upsert({
+  _i3.Future<void> upsert({
     required String? beaconId,
     required String? userId,
     String? message = '',
@@ -599,13 +649,13 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
               #helpTypes: helpTypes,
               #status: status,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> withdraw({
+  _i3.Future<void> withdraw({
     required String? beaconId,
     required String? userId,
     required String? withdrawReason,
@@ -618,43 +668,43 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
               #withdrawReason: withdrawReason,
               #message: message,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<List<_i9.HelpOfferEntity>> fetchByBeaconId(String? beaconId) =>
+  _i3.Future<List<_i10.HelpOfferEntity>> fetchByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByBeaconId, [beaconId]),
-            returnValue: _i5.Future<List<_i9.HelpOfferEntity>>.value(
-              <_i9.HelpOfferEntity>[],
+            returnValue: _i3.Future<List<_i10.HelpOfferEntity>>.value(
+              <_i10.HelpOfferEntity>[],
             ),
           )
-          as _i5.Future<List<_i9.HelpOfferEntity>>);
+          as _i3.Future<List<_i10.HelpOfferEntity>>);
 
   @override
-  _i5.Future<List<_i9.HelpOfferEntity>> fetchAllByBeaconId(String? beaconId) =>
+  _i3.Future<List<_i10.HelpOfferEntity>> fetchAllByBeaconId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchAllByBeaconId, [beaconId]),
-            returnValue: _i5.Future<List<_i9.HelpOfferEntity>>.value(
-              <_i9.HelpOfferEntity>[],
+            returnValue: _i3.Future<List<_i10.HelpOfferEntity>>.value(
+              <_i10.HelpOfferEntity>[],
             ),
           )
-          as _i5.Future<List<_i9.HelpOfferEntity>>);
+          as _i3.Future<List<_i10.HelpOfferEntity>>);
 
   @override
-  _i5.Future<List<_i9.HelpOfferEntity>> fetchByUserId(String? userId) =>
+  _i3.Future<List<_i10.HelpOfferEntity>> fetchByUserId(String? userId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchByUserId, [userId]),
-            returnValue: _i5.Future<List<_i9.HelpOfferEntity>>.value(
-              <_i9.HelpOfferEntity>[],
+            returnValue: _i3.Future<List<_i10.HelpOfferEntity>>.value(
+              <_i10.HelpOfferEntity>[],
             ),
           )
-          as _i5.Future<List<_i9.HelpOfferEntity>>);
+          as _i3.Future<List<_i10.HelpOfferEntity>>);
 
   @override
-  _i5.Future<bool> hasActiveHelpOffer({
+  _i3.Future<bool> hasActiveHelpOffer({
     required String? beaconId,
     required String? userId,
   }) =>
@@ -663,22 +713,22 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #userId: userId,
             }),
-            returnValue: _i5.Future<bool>.value(false),
+            returnValue: _i3.Future<bool>.value(false),
           )
-          as _i5.Future<bool>);
+          as _i3.Future<bool>);
 }
 
 /// A class which mocks [InboxRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockInboxRepositoryPort extends _i1.Mock
-    implements _i10.InboxRepositoryPort {
+    implements _i11.InboxRepositoryPort {
   MockInboxRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<List<_i11.InboxItemEntity>> fetchByUserId(
+  _i3.Future<List<_i12.InboxItemEntity>> fetchByUserId(
     String? userId, {
     String? context,
     int? limit = 50,
@@ -690,30 +740,30 @@ class MockInboxRepositoryPort extends _i1.Mock
               [userId],
               {#context: context, #limit: limit, #offset: offset},
             ),
-            returnValue: _i5.Future<List<_i11.InboxItemEntity>>.value(
-              <_i11.InboxItemEntity>[],
+            returnValue: _i3.Future<List<_i12.InboxItemEntity>>.value(
+              <_i12.InboxItemEntity>[],
             ),
           )
-          as _i5.Future<List<_i11.InboxItemEntity>>);
+          as _i3.Future<List<_i12.InboxItemEntity>>);
 
   @override
-  _i5.Future<List<String>> fetchRejectedUserIdsByBeacon(String? beaconId) =>
+  _i3.Future<List<String>> fetchRejectedUserIdsByBeacon(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchRejectedUserIdsByBeacon, [beaconId]),
-            returnValue: _i5.Future<List<String>>.value(<String>[]),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
           )
-          as _i5.Future<List<String>>);
+          as _i3.Future<List<String>>);
 
   @override
-  _i5.Future<List<String>> fetchWatchingUserIdsByBeacon(String? beaconId) =>
+  _i3.Future<List<String>> fetchWatchingUserIdsByBeacon(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#fetchWatchingUserIdsByBeacon, [beaconId]),
-            returnValue: _i5.Future<List<String>>.value(<String>[]),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
           )
-          as _i5.Future<List<String>>);
+          as _i3.Future<List<String>>);
 
   @override
-  _i5.Future<void> applyTombstoneAfterWithdraw({
+  _i3.Future<void> applyTombstoneAfterWithdraw({
     required String? userId,
     required String? beaconId,
   }) =>
@@ -722,13 +772,13 @@ class MockInboxRepositoryPort extends _i1.Mock
               #userId: userId,
               #beaconId: beaconId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> upsertWatchingForSender({
+  _i3.Future<void> upsertWatchingForSender({
     required String? senderId,
     required String? beaconId,
     String? context,
@@ -741,13 +791,13 @@ class MockInboxRepositoryPort extends _i1.Mock
               #context: context,
               #touchForwardOrdering: touchForwardOrdering,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> setStatus({
+  _i3.Future<void> setStatus({
     required String? userId,
     required String? beaconId,
     required int? status,
@@ -760,13 +810,13 @@ class MockInboxRepositoryPort extends _i1.Mock
               #status: status,
               #rejectionMessage: rejectionMessage,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> markForwardCancelledForRecipient({
+  _i3.Future<void> markForwardCancelledForRecipient({
     required String? beaconId,
     required String? recipientId,
   }) =>
@@ -775,23 +825,23 @@ class MockInboxRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #recipientId: recipientId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 }
 
 /// A class which mocks [PersonCapabilityEventRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
-    implements _i3.PersonCapabilityEventRepositoryPort {
+    implements _i4.PersonCapabilityEventRepositoryPort {
   MockPersonCapabilityEventRepositoryPort() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<void> upsertPrivateLabels({
+  _i3.Future<void> upsertPrivateLabels({
     required String? observerId,
     required String? subjectId,
     required List<String>? slugs,
@@ -802,13 +852,13 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #subjectId: subjectId,
               #slugs: slugs,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<List<String>> fetchPrivateLabels({
+  _i3.Future<List<String>> fetchPrivateLabels({
     required String? observerId,
     required String? subjectId,
   }) =>
@@ -817,12 +867,12 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #observerId: observerId,
               #subjectId: subjectId,
             }),
-            returnValue: _i5.Future<List<String>>.value(<String>[]),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
           )
-          as _i5.Future<List<String>>);
+          as _i3.Future<List<String>>);
 
   @override
-  _i5.Future<void> insertForwardReasons({
+  _i3.Future<void> insertForwardReasons({
     required String? observerId,
     required String? subjectId,
     required String? beaconId,
@@ -837,13 +887,13 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #slugs: slugs,
               #note: note,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> insertCommitRole({
+  _i3.Future<void> insertCommitRole({
     required String? observerId,
     required String? subjectId,
     required String? beaconId,
@@ -856,13 +906,13 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #slug: slug,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> insertCloseAcknowledgements({
+  _i3.Future<void> insertCloseAcknowledgements({
     required String? observerId,
     required String? subjectId,
     required String? beaconId,
@@ -875,13 +925,13 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #slugs: slugs,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<_i3.PersonCapabilityCuesRow> fetchCues({
+  _i3.Future<_i4.PersonCapabilityCuesRow> fetchCues({
     required String? viewerId,
     required String? subjectId,
   }) =>
@@ -890,8 +940,8 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #viewerId: viewerId,
               #subjectId: subjectId,
             }),
-            returnValue: _i5.Future<_i3.PersonCapabilityCuesRow>.value(
-              _FakePersonCapabilityCuesRow_1(
+            returnValue: _i3.Future<_i4.PersonCapabilityCuesRow>.value(
+              _FakePersonCapabilityCuesRow_2(
                 this,
                 Invocation.method(#fetchCues, [], {
                   #viewerId: viewerId,
@@ -900,10 +950,10 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               ),
             ),
           )
-          as _i5.Future<_i3.PersonCapabilityCuesRow>);
+          as _i3.Future<_i4.PersonCapabilityCuesRow>);
 
   @override
-  _i5.Future<void> insertTombstone({
+  _i3.Future<void> insertTombstone({
     required String? observerId,
     required String? subjectId,
     required String? slug,
@@ -914,13 +964,13 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #subjectId: subjectId,
               #slug: slug,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> deleteTombstone({
+  _i3.Future<void> deleteTombstone({
     required String? observerId,
     required String? subjectId,
     required String? slug,
@@ -931,13 +981,13 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #subjectId: subjectId,
               #slug: slug,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<List<_i3.ViewerVisibleCapabilityRow>>
+  _i3.Future<List<_i4.ViewerVisibleCapabilityRow>>
   fetchDeduplicatedCapabilities({
     required String? viewerId,
     required String? subjectId,
@@ -947,14 +997,14 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #viewerId: viewerId,
               #subjectId: subjectId,
             }),
-            returnValue: _i5.Future<List<_i3.ViewerVisibleCapabilityRow>>.value(
-              <_i3.ViewerVisibleCapabilityRow>[],
+            returnValue: _i3.Future<List<_i4.ViewerVisibleCapabilityRow>>.value(
+              <_i4.ViewerVisibleCapabilityRow>[],
             ),
           )
-          as _i5.Future<List<_i3.ViewerVisibleCapabilityRow>>);
+          as _i3.Future<List<_i4.ViewerVisibleCapabilityRow>>);
 
   @override
-  _i5.Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
+  _i3.Future<Map<String, List<String>>> fetchTopCapabilitiesBatch({
     required String? viewerId,
     required List<String>? subjectIds,
     int? limit = 2,
@@ -967,14 +1017,14 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #limit: limit,
               #prioritizeSlugs: prioritizeSlugs,
             }),
-            returnValue: _i5.Future<Map<String, List<String>>>.value(
+            returnValue: _i3.Future<Map<String, List<String>>>.value(
               <String, List<String>>{},
             ),
           )
-          as _i5.Future<Map<String, List<String>>>);
+          as _i3.Future<Map<String, List<String>>>);
 
   @override
-  _i5.Future<List<_i3.ForwardReasonRow>> fetchForwardReasonsByBeaconId({
+  _i3.Future<List<_i4.ForwardReasonRow>> fetchForwardReasonsByBeaconId({
     required String? beaconId,
     required String? viewerId,
   }) =>
@@ -983,14 +1033,14 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #beaconId: beaconId,
               #viewerId: viewerId,
             }),
-            returnValue: _i5.Future<List<_i3.ForwardReasonRow>>.value(
-              <_i3.ForwardReasonRow>[],
+            returnValue: _i3.Future<List<_i4.ForwardReasonRow>>.value(
+              <_i4.ForwardReasonRow>[],
             ),
           )
-          as _i5.Future<List<_i3.ForwardReasonRow>>);
+          as _i3.Future<List<_i4.ForwardReasonRow>>);
 
   @override
-  _i5.Future<List<_i3.FriendContextRow>> fetchFriendContextsBatch({
+  _i3.Future<List<_i4.FriendContextRow>> fetchFriendContextsBatch({
     required String? viewerId,
     required List<String>? friendIds,
   }) =>
@@ -999,24 +1049,24 @@ class MockPersonCapabilityEventRepositoryPort extends _i1.Mock
               #viewerId: viewerId,
               #friendIds: friendIds,
             }),
-            returnValue: _i5.Future<List<_i3.FriendContextRow>>.value(
-              <_i3.FriendContextRow>[],
+            returnValue: _i3.Future<List<_i4.FriendContextRow>>.value(
+              <_i4.FriendContextRow>[],
             ),
           )
-          as _i5.Future<List<_i3.FriendContextRow>>);
+          as _i3.Future<List<_i4.FriendContextRow>>);
 }
 
 /// A class which mocks [BeaconRoomPushService].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomPushService extends _i1.Mock
-    implements _i12.BeaconRoomPushService {
+    implements _i13.BeaconRoomPushService {
   MockBeaconRoomPushService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i5.Future<void> notifyForwardReceived({
+  _i3.Future<void> notifyForwardReceived({
     required String? beaconId,
     required String? senderId,
     required String? beaconAuthorId,
@@ -1029,13 +1079,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #beaconAuthorId: beaconAuthorId,
               #recipientIds: recipientIds,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyHelpOfferToAuthor({
+  _i3.Future<void> notifyHelpOfferToAuthor({
     required String? beaconId,
     required String? helpOffererId,
     required String? authorId,
@@ -1046,13 +1096,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #helpOffererId: helpOffererId,
               #authorId: authorId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyRoomAdmitted({
+  _i3.Future<void> notifyRoomAdmitted({
     required String? receiverId,
     required String? beaconId,
     required String? actorUserId,
@@ -1063,13 +1113,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #beaconId: beaconId,
               #actorUserId: actorUserId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyHelpOfferedToModerators({
+  _i3.Future<void> notifyHelpOfferedToModerators({
     required String? beaconId,
     required String? offererUserId,
     required List<String>? moderatorUserIds,
@@ -1080,13 +1130,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #offererUserId: offererUserId,
               #moderatorUserIds: moderatorUserIds,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyPlanUpdatedToRoom({
+  _i3.Future<void> notifyPlanUpdatedToRoom({
     required String? beaconId,
     required String? actorUserId,
     required List<String>? admittedUserIds,
@@ -1099,13 +1149,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #admittedUserIds: admittedUserIds,
               #planExcerpt: planExcerpt,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyFactPinned({
+  _i3.Future<void> notifyFactPinned({
     required String? beaconId,
     required String? actorUserId,
     required bool? isPublic,
@@ -1118,13 +1168,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #isPublic: isPublic,
               #recipientUserIds: recipientUserIds,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyNeedsMe({
+  _i3.Future<void> notifyNeedsMe({
     required String? beaconId,
     required String? actorUserId,
     required String? targetUserId,
@@ -1139,13 +1189,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #excerpt: excerpt,
               #coordinationItemId: coordinationItemId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyPromiseMade({
+  _i3.Future<void> notifyPromiseMade({
     required String? beaconId,
     required String? actorUserId,
     required String? excerpt,
@@ -1162,13 +1212,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #coordinationItemId: coordinationItemId,
               #withdrawn: withdrawn,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyBlockerOpened({
+  _i3.Future<void> notifyBlockerOpened({
     required String? beaconId,
     required String? actorUserId,
     required String? excerpt,
@@ -1183,13 +1233,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #targetPersonId: targetPersonId,
               #coordinationItemId: coordinationItemId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyBlockerResolved({
+  _i3.Future<void> notifyBlockerResolved({
     required String? beaconId,
     required String? actorUserId,
     required String? excerpt,
@@ -1204,13 +1254,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #targetPersonId: targetPersonId,
               #coordinationItemId: coordinationItemId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyStaleRemind({
+  _i3.Future<void> notifyStaleRemind({
     required String? beaconId,
     required String? actorUserId,
     required String? targetPersonId,
@@ -1225,13 +1275,13 @@ class MockBeaconRoomPushService extends _i1.Mock
               #excerpt: excerpt,
               #coordinationItemId: coordinationItemId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 
   @override
-  _i5.Future<void> notifyReviewOpened({
+  _i3.Future<void> notifyReviewOpened({
     required String? beaconId,
     required String? beaconTitle,
     required Set<String>? recipientUserIds,
@@ -1244,8 +1294,8 @@ class MockBeaconRoomPushService extends _i1.Mock
               #recipientUserIds: recipientUserIds,
               #actorUserId: actorUserId,
             }),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i3.Future<void>);
 }

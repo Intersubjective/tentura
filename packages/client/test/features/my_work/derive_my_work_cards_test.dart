@@ -26,8 +26,8 @@ void main() {
   test('buildNonArchivedViewModels maps draft as authoredDraft', () {
     final authored = [_b(id: 'd', lifecycle: BeaconLifecycle.draft)];
     final vms = buildNonArchivedViewModels(
-      authoredNonClosed: authored,
-      helpOfferedNonClosed: const [],
+      authoredNonArchived: authored,
+      helpOfferedNonArchived: const [],
     );
     expect(vms.single.kind, MyWorkCardKind.authoredDraft);
   });
@@ -42,15 +42,15 @@ void main() {
       ),
     ];
     final vms = buildNonArchivedViewModels(
-      authoredNonClosed: authored,
-      helpOfferedNonClosed: const [],
+      authoredNonArchived: authored,
+      helpOfferedNonArchived: const [],
     );
     expect(vms.single.showReviewHelpOffersCta, isTrue);
   });
 
-  test('committed active shows ready for review chip in closedReviewOpen', () {
+  test('committed active shows ready for review chip in reviewOpen', () {
     final row = (
-      beacon: _b(id: 'c', lifecycle: BeaconLifecycle.closedReviewOpen),
+      beacon: _b(id: 'c', lifecycle: BeaconLifecycle.reviewOpen),
       offerHelpMessage: 'note',
       helpType: null,
       authorResponseType: null,
@@ -59,8 +59,8 @@ void main() {
       authorCoordinationUpdatedAt: null,
     );
     final vms = buildNonArchivedViewModels(
-      authoredNonClosed: const [],
-      helpOfferedNonClosed: [row],
+      authoredNonArchived: const [],
+      helpOfferedNonArchived: [row],
     );
     expect(vms.single.showReadyForReviewChip, isTrue);
     expect(vms.single.showReviewCta, isTrue);
@@ -83,15 +83,24 @@ void main() {
       authorCoordinationUpdatedAt: null,
     );
     final vms = buildNonArchivedViewModels(
-      authoredNonClosed: [beacon],
-      helpOfferedNonClosed: [row],
+      authoredNonArchived: [beacon],
+      helpOfferedNonArchived: [row],
     );
     expect(vms.length, 1);
     expect(vms.single.role, MyWorkCardRole.authored);
     expect(vms.single.kind, MyWorkCardKind.authoredActive);
   });
 
-  test('buildArchivedViewModels yields closed kinds', () {
+  test('buildNonArchivedViewModels maps finished lifecycle', () {
+    final authored = [_b(id: 'f', lifecycle: BeaconLifecycle.closed)];
+    final vms = buildNonArchivedViewModels(
+      authoredNonArchived: authored,
+      helpOfferedNonArchived: const [],
+    );
+    expect(vms.single.kind, MyWorkCardKind.authoredFinished);
+  });
+
+  test('buildArchivedViewModels yields archived kinds', () {
     final closed = [_b(id: 'z', lifecycle: BeaconLifecycle.closed)];
     final row = (
       beacon: _b(id: 'y', lifecycle: BeaconLifecycle.closed),
@@ -103,12 +112,12 @@ void main() {
       authorCoordinationUpdatedAt: null,
     );
     final vms = buildArchivedViewModels(
-      authoredClosed: closed,
-      helpOfferedClosed: [row],
+      authoredArchived: closed,
+      helpOfferedArchived: [row],
     );
     expect(
       vms.map((e) => e.kind).toSet(),
-      {MyWorkCardKind.authoredClosed, MyWorkCardKind.helpOfferedClosed},
+      {MyWorkCardKind.authoredArchived, MyWorkCardKind.helpOfferedArchived},
     );
   });
 
@@ -120,8 +129,8 @@ void main() {
       helpOfferCount: 1,
     );
     final fromList = buildNonArchivedViewModels(
-      authoredNonClosed: [b],
-      helpOfferedNonClosed: const [],
+      authoredNonArchived: [b],
+      helpOfferedNonArchived: const [],
     ).single;
     final fromBeaconView = myWorkCardViewModelForBeaconView(
       beacon: b,
@@ -144,8 +153,8 @@ void main() {
       authorCoordinationUpdatedAt: null,
     );
     final fromList = buildNonArchivedViewModels(
-      authoredNonClosed: const [],
-      helpOfferedNonClosed: [row],
+      authoredNonArchived: const [],
+      helpOfferedNonArchived: [row],
     ).single;
     final fromBeaconView = myWorkCardViewModelForBeaconView(
       beacon: b,

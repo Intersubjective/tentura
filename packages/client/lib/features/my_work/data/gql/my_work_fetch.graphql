@@ -3,21 +3,23 @@
 # import 'beacon_model_with_help_offer_users.graphql'
 
 query MyWorkInit($userId: String!) {
-  authoredNonClosed: beacon(
+  authoredNonArchived: beacon(
     where: {
       user_id: {_eq: $userId},
-      state: {_in: [0, 3, 4, 5]}
+      state: {_neq: 2},
+      _not: {beacon_archiveds: {user_id: {_eq: $userId}}}
     },
     order_by: {updated_at: desc}
   ) {
     ...BeaconModelWithHelpOfferUsers
   }
-  helpOfferedNonClosed: beacon_help_offer(
+  helpOfferedNonArchived: beacon_help_offer(
     where: {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
-        state: {_in: [0, 3, 4, 5]}
+        state: {_neq: 2},
+        _not: {beacon_archiveds: {user_id: {_eq: $userId}}}
       }
     },
     order_by: {updated_at: desc}
@@ -38,47 +40,29 @@ query MyWorkInit($userId: String!) {
       }
     }
   }
-  authoredClosedIds: beacon(
-    where: {
-      user_id: {_eq: $userId},
-      state: {_in: [1, 2, 6]}
-    },
-    order_by: {updated_at: desc}
+  archivedIdHints: beacon_archived(
+    where: {user_id: {_eq: $userId}}
   ) {
-    id
-  }
-  helpOfferedClosedIds: beacon_help_offer(
-    where: {
-      user_id: {_eq: $userId},
-      status: {_eq: 0},
-      beacon: {
-        state: {_in: [1, 2, 6]}
-      }
-    },
-    order_by: {updated_at: desc}
-  ) {
-    beacon {
-      id
-    }
+    beacon_id
   }
 }
 
-query MyWorkClosed($userId: String!) {
-  authoredClosed: beacon(
-    where: {
-      user_id: {_eq: $userId},
-      state: {_in: [1, 2, 6]}
-    },
-    order_by: {updated_at: desc}
+query MyWorkArchived($userId: String!) {
+  archivedRows: beacon_archived(
+    where: {user_id: {_eq: $userId}},
+    order_by: {archived_at: desc}
   ) {
-    ...BeaconModelWithHelpOfferUsers
+    beacon {
+      ...BeaconModelWithHelpOfferUsers
+    }
   }
-  helpOfferedClosed: beacon_help_offer(
+  helpOfferedArchived: beacon_help_offer(
     where: {
       user_id: {_eq: $userId},
       status: {_eq: 0},
       beacon: {
-        state: {_in: [1, 2, 6]}
+        state: {_neq: 2},
+        beacon_archiveds: {user_id: {_eq: $userId}}
       }
     },
     order_by: {updated_at: desc}

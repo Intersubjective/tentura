@@ -5,12 +5,13 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Author close confirmation: copy and actions depend on [BeaconClosureReadiness].
-Future<void> showBeaconCloseConfirmSheet({
+/// Author close confirmation: copy and actions depend on [BeaconClosureReadiness]
+/// and whether closing opens a review window ([BeaconClosureConfirmationSummary.requiresReviewWindow]).
+Future<bool> showBeaconCloseConfirmSheet({
   required BuildContext context,
   required BeaconClosureConfirmationSummary summary,
   required bool isLoading,
-  required VoidCallback onCloseBeacon,
+  required Future<bool> Function(bool expectedRequiresReviewWindow) onCloseBeacon,
   required VoidCallback onOpenPeople,
   required VoidCallback onPostUpdate,
   VoidCallback? onResolveRoom,
@@ -18,31 +19,54 @@ Future<void> showBeaconCloseConfirmSheet({
   final l10n = L10n.of(context)!;
   final scheme = Theme.of(context).colorScheme;
   final r = summary.readiness;
+  final reviewBranch = summary.requiresReviewWindow;
 
-  final (title, body) = switch (r) {
-    BeaconClosureReadiness.readyToClose => (
+  final (title, body, branchPreview) = switch ((r, reviewBranch)) {
+    (BeaconClosureReadiness.readyToClose, true) => (
+        l10n.beaconCloseSheetReadyReviewTitle,
+        l10n.beaconCloseSheetReadyReviewBody,
+        l10n.beaconCloseSheetBranchWrappingUp,
+      ),
+    (BeaconClosureReadiness.readyToClose, false) => (
         l10n.beaconCloseSheetReadyTitle,
-        l10n.beaconCloseSheetReadyBody,
+        l10n.beaconCloseSheetReadyImmediateBody,
+        l10n.beaconCloseSheetBranchClosedImmediate,
       ),
-    BeaconClosureReadiness.waitingForReview => (
+    (BeaconClosureReadiness.waitingForReview, _) => (
         l10n.beaconCloseSheetReviewTitle,
-        l10n.beaconCloseSheetReviewBody,
+        reviewBranch
+            ? l10n.beaconCloseSheetReviewWrappingUpBody
+            : l10n.beaconCloseSheetReviewBody,
+        reviewBranch
+            ? l10n.beaconCloseSheetBranchWrappingUp
+            : l10n.beaconCloseSheetBranchClosedImmediate,
       ),
-    BeaconClosureReadiness.premature => (
+    (BeaconClosureReadiness.premature, _) => (
         l10n.beaconCloseSheetPrematureTitle,
-        l10n.beaconCloseSheetPrematureBody,
+        reviewBranch
+            ? l10n.beaconCloseSheetPrematureReviewBody
+            : l10n.beaconCloseSheetPrematureBody,
+        reviewBranch
+            ? l10n.beaconCloseSheetBranchWrappingUp
+            : l10n.beaconCloseSheetBranchClosedImmediate,
       ),
-    BeaconClosureReadiness.blocked => (
+    (BeaconClosureReadiness.blocked, _) => (
         l10n.beaconCloseSheetBlockedTitle,
         l10n.beaconCloseSheetBlockedBody,
+        null,
       ),
-    BeaconClosureReadiness.notCloseable => (
+    (BeaconClosureReadiness.notCloseable, _) => (
         l10n.beaconCloseSheetPrematureTitle,
         l10n.beaconCloseSheetPrematureBody,
+        reviewBranch
+            ? l10n.beaconCloseSheetBranchWrappingUp
+            : l10n.beaconCloseSheetBranchClosedImmediate,
       ),
   };
 
   final evidence = <Widget>[
+    if (branchPreview != null)
+      _evidenceRow(scheme, branchPreview, positive: true),
     _evidenceRow(
       scheme,
       summary.hasOpenBlocker
@@ -74,6 +98,7 @@ Future<void> showBeaconCloseConfirmSheet({
       ),
   ];
 
+  var confirmed = false;
   await showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -118,7 +143,10 @@ Future<void> showBeaconCloseConfirmSheet({
               else ...[
                 if (r == BeaconClosureReadiness.readyToClose) ...[
                   FilledButton(
-                    onPressed: onCloseBeacon,
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      confirmed = await onCloseBeacon(reviewBranch);
+                    },
                     child: Text(l10n.beaconCloseSheetActionCloseBeacon),
                   ),
                   TextButton(
@@ -128,7 +156,10 @@ Future<void> showBeaconCloseConfirmSheet({
                 ],
                 if (r == BeaconClosureReadiness.waitingForReview) ...[
                   FilledButton(
-                    onPressed: onCloseBeacon,
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      confirmed = await onCloseBeacon(reviewBranch);
+                    },
                     child: Text(l10n.beaconCloseSheetActionCloseAnyway),
                   ),
                   TextButton(
@@ -146,7 +177,10 @@ Future<void> showBeaconCloseConfirmSheet({
                 if (r == BeaconClosureReadiness.premature ||
                     r == BeaconClosureReadiness.notCloseable) ...[
                   FilledButton(
-                    onPressed: onCloseBeacon,
+                    onPressed: () async {
+                      Navigator.of(ctx).pop();
+                      confirmed = await onCloseBeacon(reviewBranch);
+                    },
                     child: Text(l10n.beaconCloseSheetActionCloseAnyway),
                   ),
                   TextButton(
@@ -172,7 +206,10 @@ Future<void> showBeaconCloseConfirmSheet({
                     ),
                   if (kBeaconAllowForceCloseWhenBlocked)
                     TextButton(
-                      onPressed: onCloseBeacon,
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        confirmed = await onCloseBeacon(reviewBranch);
+                      },
                       child: Text(l10n.beaconCloseSheetActionCloseAnyway),
                     ),
                   TextButton(
@@ -187,6 +224,7 @@ Future<void> showBeaconCloseConfirmSheet({
       );
     },
   );
+  return confirmed;
 }
 
 Widget _evidenceRow(

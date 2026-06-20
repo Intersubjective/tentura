@@ -245,9 +245,9 @@ class BeaconRepository implements BeaconRepositoryPort {
       );
     }
 
-    if (row.state != 0) {
+    if (row.state != 0 && row.state != 5) {
       throw const BeaconCreateException(
-        description: 'Only open beacons can be edited',
+        description: 'Only open or wrapping-up beacons can be edited',
       );
     }
 
@@ -282,6 +282,28 @@ class BeaconRepository implements BeaconRepositoryPort {
         await _database.managers.beacons
             .filter((e) => e.id.equals(id))
             .delete();
+      });
+
+  @override
+  Future<void> softDeleteBeacon(String beaconId) =>
+      _database.managers.beacons
+          .filter((e) => e.id.equals(beaconId))
+          .update((o) => o(state: const Value(2)));
+
+  @override
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  }) =>
+      _database.withMutatingUser(userId, () async {
+        await _database.customSelect(
+          r'SELECT id FROM public.beacon WHERE id = $1 FOR UPDATE',
+          variables: [Variable<String>(beaconId)],
+        ).getSingle();
+
+        final locked = await getBeaconById(beaconId: beaconId);
+        return fn(locked);
       });
 
   @override

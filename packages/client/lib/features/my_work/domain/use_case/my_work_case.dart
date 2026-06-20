@@ -13,6 +13,7 @@ import 'package:tentura/features/coordination_item/domain/use_case/coordination_
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
+import '../../data/repository/archive_repository.dart';
 import '../../data/repository/my_work_repository.dart';
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
@@ -22,6 +23,7 @@ import '../entity/my_work_desk_load_types.dart';
 final class MyWorkCase extends UseCaseBase {
   MyWorkCase(
     this._repository,
+    this._archiveRepository,
     this._forwardRepository,
     this._beaconRepository,
     this._coordinationItemCase,
@@ -32,6 +34,8 @@ final class MyWorkCase extends UseCaseBase {
   });
 
   final MyWorkRepository _repository;
+
+  final ArchiveRepository _archiveRepository;
 
   final ForwardRepository _forwardRepository;
 
@@ -54,14 +58,22 @@ final class MyWorkCase extends UseCaseBase {
   Future<MyWorkInitResult> fetchInit({required String userId}) =>
       _repository.fetchInit(userId: userId);
 
-  Future<MyWorkClosedResult> fetchClosed({required String userId}) =>
-      _repository.fetchClosed(userId: userId);
+  Future<MyWorkArchivedResult> fetchArchived({required String userId}) =>
+      _repository.fetchArchived(userId: userId);
+
+  Future<void> archiveBeacon(String beaconId) => _archiveRepository.archive(beaconId);
+
+  Future<void> unarchiveBeacon({
+    required String beaconId,
+    required String userId,
+  }) =>
+      _archiveRepository.unarchive(beaconId: beaconId, userId: userId);
 
   Future<MyWorkDeskInitLoad> loadDeskInit({required String userId}) async {
     final init = await _repository.fetchInit(userId: userId);
     final nonArchived = buildNonArchivedViewModels(
-      authoredNonClosed: init.authoredNonClosed,
-      helpOfferedNonClosed: init.helpOfferedNonClosed,
+      authoredNonArchived: init.authoredNonArchived,
+      helpOfferedNonArchived: init.helpOfferedNonArchived,
     ).map((c) {
       final at = init.lastItemDiscussionMessageAtByBeaconId[c.beaconId];
       return at == null
@@ -71,16 +83,15 @@ final class MyWorkCase extends UseCaseBase {
     final enriched = await _enrichDeskCards(nonArchived);
     return (
       nonArchivedCards: enriched,
-      authoredClosedIdHints: init.authoredClosedIds,
-      helpOfferedClosedIdHints: init.helpOfferedClosedIds,
+      archivedCountHint: init.archivedCountHint,
     );
   }
 
-  Future<MyWorkDeskClosedLoad> loadDeskClosed({required String userId}) async {
-    final closed = await _repository.fetchClosed(userId: userId);
+  Future<MyWorkDeskArchivedLoad> loadDeskArchived({required String userId}) async {
+    final archivedResult = await _repository.fetchArchived(userId: userId);
     final archived = buildArchivedViewModels(
-      authoredClosed: closed.authoredClosed,
-      helpOfferedClosed: closed.helpOfferedClosed,
+      authoredArchived: archivedResult.authoredArchived,
+      helpOfferedArchived: archivedResult.helpOfferedArchived,
     );
     final enriched = await _enrichDeskCards(archived);
     return (archivedCards: enriched);
@@ -160,9 +171,6 @@ final class MyWorkCase extends UseCaseBase {
           if (h.myNextMove.isNotEmpty) {
             parts.add(h.myNextMove);
           }
-          if (h.currentLineSnippet.isNotEmpty) {
-            parts.add(h.currentLineSnippet);
-          }
           if (h.roomUnreadCount > 0) {
             final unread = _beaconRoomCase.resolveUnread(
               beaconId: c.beaconId,
@@ -173,8 +181,11 @@ final class MyWorkCase extends UseCaseBase {
               parts.add('+$unread');
             }
           }
-          if (parts.isEmpty) return c;
-          return c.copyWith(roomInboxSubtitle: parts.join(' · '));
+          return c.copyWith(
+            roomCurrentLine: h.currentLineSnippet,
+            roomOpenBlockerTitle: h.openBlockerTitle,
+            roomInboxSubtitle: parts.isEmpty ? c.roomInboxSubtitle : parts.join(' · '),
+          );
         }(),
     ];
   }

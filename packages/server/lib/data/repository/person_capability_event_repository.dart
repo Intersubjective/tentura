@@ -635,9 +635,8 @@ class PersonCapabilityEventRepository
   }) async {
     if (friendIds.isEmpty) return [];
 
-    // Active beacon states: OPEN(0), PENDING_REVIEW(4), CLOSED_REVIEW_OPEN(5).
-    // DRAFT(3) is excluded by product definition.
-    const activeStates = [0, 4, 5];
+    // Active beacon states: OPEN(0), WRAPPING UP(5). DRAFT(3) excluded.
+    const activeStates = [0, 5];
 
     final rows = await _database
         .customSelect(

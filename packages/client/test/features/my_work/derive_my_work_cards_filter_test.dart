@@ -48,7 +48,7 @@ void main() {
     final archived = _vm(
       id: 'x',
       role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredClosed,
+      kind: MyWorkCardKind.authoredFinished,
       lifecycle: BeaconLifecycle.closed,
     );
     final cards = [active, draft, help];
@@ -126,7 +126,7 @@ void main() {
     final b = _vm(
       id: 'b',
       role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredClosed,
+      kind: MyWorkCardKind.authoredFinished,
       lifecycle: BeaconLifecycle.closed,
     ).copyWith(
       beacon: Beacon.empty.copyWith(

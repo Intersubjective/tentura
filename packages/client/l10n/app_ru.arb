@@ -1046,10 +1046,6 @@
   "@newStuffUpdatedBadge": {
     "context": "NewStuff indicators — beacon edited since last visit (Inbox / My Work)"
   },
-  "newStuffReasonNewBeacon": "Новый маяк (вы создали)",
-  "@newStuffReasonNewBeacon": {
-    "context": "NewStuff dot — My Work card reason"
-  },
   "newStuffReasonNewForward": "Маяк переслан вам",
   "@newStuffReasonNewForward": {
     "context": "NewStuff dot — Inbox row reason"
@@ -1061,14 +1057,6 @@
   "newStuffReasonCoordinationStatusChanged": "Изменён статус координации маяка",
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
-  },
-  "newStuffReasonHelpOfferUpdated": "Обновлено ваше предложение помощи или заметка",
-  "@newStuffReasonHelpOfferUpdated": {
-    "context": "NewStuff dot — help offer row changed"
-  },
-  "newStuffReasonAuthorResponseChanged": "Автор изменил ответ на ваше участие",
-  "@newStuffReasonAuthorResponseChanged": {
-    "context": "NewStuff dot — author coordination response to help offer"
   },
   "inboxEmpty": "Входящие пусты",
   "@inboxEmpty": {
@@ -1248,17 +1236,17 @@
   "@beaconLifecycleDraft": {
     "context": "InboxItemTile"
   },
-  "beaconLifecyclePendingReview": "На проверке",
-  "@beaconLifecyclePendingReview": {
+  "beaconLifecycleCancelled": "Отменён",
+  "@beaconLifecycleCancelled": {
     "context": "InboxItemTile"
   },
-  "beaconLifecycleClosedReviewOpen": "Отзыв открыт",
-  "@beaconLifecycleClosedReviewOpen": {
+  "beaconLifecycleReviewOpen": "Завершение",
+  "@beaconLifecycleReviewOpen": {
     "context": "InboxItemTile"
   },
-  "beaconLifecycleClosedReviewComplete": "Отзыв завершён",
-  "@beaconLifecycleClosedReviewComplete": {
-    "context": "InboxItemTile"
+  "cancelBeacon": "Отменить маяк",
+  "@cancelBeacon": {
+    "context": "BeaconOverflowMenu"
   },
   "actionStopWatching": "Вернуть в «Нужно мне»",
   "@actionStopWatching": {
@@ -2755,6 +2743,47 @@
   "beaconCloseSheetActionResolveRoom": "Открыть комнату",
   "beaconCloseSheetActionNotNow": "Не сейчас",
   "beaconCloseSheetBlockedForceHint": "Закрытие несмотря на блокеры отключено.",
+  "beaconCloseSheetReadyReviewTitle": "Закрыть и завершить?",
+  "beaconCloseSheetReadyReviewBody": "Помощники с подтверждённым участием получат окно для признания вклада.",
+  "beaconCloseSheetReadyImmediateBody": "Маяк будет отмечен завершённым без окна отзыва.",
+  "beaconCloseSheetReviewWrappingUpBody": "Часть сигналов всё ещё требует вашего решения перед завершением.",
+  "beaconCloseSheetPrematureReviewBody": "Недостаточно сигналов завершения. Раннее завершение может обойти контекст координации.",
+  "beaconCloseSheetBranchWrappingUp": "Итог: завершение (окно отзыва)",
+  "beaconCloseSheetBranchClosedImmediate": "Итог: закрыт сразу",
+  "beaconReviewExtendAction": "Продлить отзыв",
+  "beaconReviewReopenAction": "Открыть снова",
+  "beaconReviewCloseNowAction": "Закрыть сейчас",
+  "beaconReviewExtendSuccess": "Окно отзыва продлено",
+  "beaconReviewReopenSuccess": "Маяк снова открыт",
+  "beaconReviewCloseNowSuccess": "Маяк закрыт",
+  "beaconReviewReopenTitle": "Открыть маяк снова?",
+  "beaconReviewReopenBody": "Возврат в «Открыт» и сброс текущего прогресса отзыва.",
+  "beaconReviewReopenConfirm": "Открыть снова",
+  "beaconReviewWindowClosesAt": "Закрывается {date}",
+  "@beaconReviewWindowClosesAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconReviewCloseNowBlocked": "«Закрыть сейчас» доступно, когда каждый обязательный рецензент завершил или пропустил отзыв.",
+  "beaconDeleteBlockedTitle": "Нельзя удалить",
+  "beaconDeleteBlockedBody": "У этого маяка были подтверждённые помощники. Архивируйте его в «Моя работа».",
+  "beaconDeleteDraftTitle": "Удалить черновик?",
+  "beaconDeleteDraftBody": "Черновик и его изображения будут удалены безвозвратно.",
+  "beaconDeleteOpenTitle": "Удалить маяк?",
+  "beaconDeleteOpenBody": "Маяк будет удалён безвозвратно. Подтверждённых помощников не было.",
+  "beaconDeleteGenericBody": "Маяк исчезнет для всех, кто его видел.",
+  "myWorkFinishedStatusClosed": "Закрыт",
+  "myWorkFinishedStatusCancelled": "Отменён",
+  "myWorkFinishedHint": "Завершённые маяки остаются здесь, пока вы их не архивируете.",
+  "myWorkStatusWrappingUp": "Завершение",
+  "myWorkStatusCancelled": "Отменён",
+  "myWorkUnarchive": "Вернуть из архива",
+  "@myWorkUnarchive": {
+    "context": "MyWorkScreen"
+  },
   "beaconClosurePanelTitleReady": "Завершите цикл",
   "beaconClosurePanelTitleReview": "Проверка перед закрытием",
   "beaconClosurePanelTitlePremature": "Закрытие ещё не готово",

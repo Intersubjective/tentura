@@ -252,4 +252,14 @@ class CoordinationRepository implements CoordinationRepositoryPort {
     }
     return out;
   }
+
+  @override
+  Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
+    String beaconId,
+  ) async {
+    final rows = await _database.managers.beaconHelpOfferCoordinations
+        .filter((e) => e.offerBeaconId.id(beaconId))
+        .get();
+    return {for (final r in rows) r.offerUserId: r.responseType};
+  }
 }

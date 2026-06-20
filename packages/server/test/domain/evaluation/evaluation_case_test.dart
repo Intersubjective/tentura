@@ -261,6 +261,20 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   Future<void> deleteDraftEvaluationsForBeacon(String beaconId) async {}
 
   @override
+  Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId) async =>
+      {};
+
+  @override
+  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {}
+
+  @override
+  Future<DateTime> extendReviewWindow(String beaconId) async =>
+      DateTime.timestamp().add(const Duration(days: 7));
+
+  @override
+  Future<void> closeBeaconReviewWindow(String beaconId) async {}
+
+  @override
   Future<void> setReviewUserStatus({
     required String beaconId,
     required String userId,
@@ -300,6 +314,7 @@ void main() {
       openedAt: opened,
       closesAt: closes,
       status: 0,
+      extensionsUsed: 0,
       createdAt: now,
       updatedAt: now,
     );
@@ -313,6 +328,7 @@ void main() {
 
     final graphBuilder = EvaluationParticipantGraphBuilder(
       helpOfferRepo,
+      EmptyGraphCoordinationRepository(),
       forwardRepo,
       userRepo,
     );
@@ -420,6 +436,7 @@ void main() {
         openedAt: now.subtract(const Duration(days: 8)),
         closesAt: now.subtract(const Duration(days: 1)),
         status: 1,
+        extensionsUsed: 0,
         createdAt: now.subtract(const Duration(days: 8)),
         updatedAt: now,
       );

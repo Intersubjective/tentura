@@ -23,7 +23,6 @@ import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
 import '../gql/_g/beacon_delete_by_id.req.gql.dart';
 import '../gql/_g/beacon_remove_image.req.gql.dart';
 import '../gql/_g/beacon_update.req.gql.dart';
-import '../gql/_g/beacon_update_by_id.req.gql.dart';
 import '../gql/_g/beacon_update_draft.req.gql.dart';
 import '../gql/_g/beacon_public_status_update.req.gql.dart';
 import '../gql/_g/beacon_publish.req.gql.dart';
@@ -309,26 +308,6 @@ class BeaconRepository {
     final fresh = await fetchBeaconById(id);
     _controller.add(RepositoryEventUpdate(fresh));
     return fresh;
-  }
-
-  Future<void> setBeaconLifecycle(
-    BeaconLifecycle lifecycle, {
-    required String id,
-  }) async {
-    final request = GBeaconUpdateByIdReq((b) {
-      b
-        ..vars.id = id
-        ..vars.state = lifecycle.smallintValue;
-    });
-    final beacon = await _remoteApiService
-        .request(request)
-        .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow().update_beacon_by_pk as BeaconModel?);
-    if (beacon == null) {
-      throw BeaconUpdateException(id);
-    } else {
-      _controller.add(RepositoryEventUpdate(beacon.toEntity()));
-    }
   }
 
   /// Refetches [id] from the server and emits [RepositoryEventUpdate]

@@ -8,12 +8,13 @@ import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/widget/share_code_icon_button.dart';
 
-import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import '../bloc/beacon_view_cubit.dart';
 
 class BeaconMineControl extends StatelessWidget {
@@ -42,17 +43,24 @@ class BeaconMineControl extends StatelessWidget {
                     ),
                   )
               : null,
-          onToggleLifecycle: () async {
-            await Future<void>.delayed(Duration.zero);
-            if (!context.mounted) return;
-            if (beacon.isListed) {
-              if (await BeaconCloseConfirmDialog.show(context) != true) {
-                return;
-              }
-              if (!context.mounted) return;
-            }
-            await beaconViewCubit.toggleLifecycle();
-          },
+          onCloseBeacon: beacon.lifecycle == BeaconLifecycle.open
+              ? () async {
+                  await Future<void>.delayed(Duration.zero);
+                  if (!context.mounted) return;
+                  final expected =
+                      expectedRequiresReviewWindowForState(beaconViewCubit.state);
+                  await beaconViewCubit.closeBeacon(
+                    expectedRequiresReviewWindow: expected,
+                  );
+                }
+              : null,
+          onCancelBeacon: beaconAllowsCancel(beacon)
+              ? () async {
+                  await Future<void>.delayed(Duration.zero);
+                  if (!context.mounted) return;
+                  await beaconViewCubit.cancelBeacon();
+                }
+              : null,
           onForward: () => unawaited(
             context.router.pushPath('$kPathForwardBeacon/${beacon.id}'),
           ),
@@ -75,7 +83,13 @@ class BeaconMineControl extends StatelessWidget {
           onDelete: () async {
             await Future<void>.delayed(Duration.zero);
             if (!context.mounted) return;
-            if (await BeaconDeleteDialog.show(context) ?? false) {
+            if (await BeaconDeleteDialog.show(
+                  context,
+                  lifecycle: beacon.lifecycle,
+                  hasEverHadCommitter:
+                      beaconDeleteBlockedByCommitters(beacon),
+                ) ??
+                false) {
               await beaconViewCubit.delete(beacon.id);
             }
           },

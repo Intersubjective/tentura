@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+
 import '../../domain/use_case/forward_case.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/exception.dart';
@@ -206,6 +208,16 @@ class ForwardCubit extends Cubit<ForwardState> {
       return;
     }
     if (state.selectedIds.isEmpty) return;
+    final beacon = state.beacon;
+    if (beacon == null || beacon.lifecycle != BeaconLifecycle.open) {
+      emit(
+        state.copyWith(
+          status: StateHasError(Exception('Forwarding is only available while the beacon is open')),
+        ),
+      );
+      emit(state.copyWith(status: const StateIsSuccess()));
+      return;
+    }
 
     final allCandidates = [
       ...state.candidates,

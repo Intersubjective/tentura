@@ -39,7 +39,7 @@ final class DeleteDraftBlockerCase extends UseCaseBase {
     }
     final beacon =
         await _beaconRepository.getBeaconById(beaconId: existing.beaconId);
-    if (!beacon.isActive) {
+    if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(description: 'Beacon is not open');
     }
     await _itemRepository.deleteDraftBlocker(id: itemId, actorId: userId);

@@ -15,6 +15,7 @@ import 'package:tentura/features/coordination_item/domain/use_case/coordination_
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
+import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/my_work/data/repository/my_work_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_fetch_types.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
@@ -23,16 +24,15 @@ import 'package:tentura/features/polling/data/repository/polling_repository.dart
 
 class FakeMyWorkRepository implements MyWorkRepository {
   MyWorkInitResult initResult = (
-    authoredNonClosed: const <Beacon>[],
-    helpOfferedNonClosed: const [],
-    authoredClosedIds: const <String>[],
-    helpOfferedClosedIds: const <String>[],
+    authoredNonArchived: const <Beacon>[],
+    helpOfferedNonArchived: const [],
+    archivedCountHint: 0,
     lastItemDiscussionMessageAtByBeaconId: const <String, DateTime>{},
   );
 
-  MyWorkClosedResult closedResult = (
-    authoredClosed: const <Beacon>[],
-    helpOfferedClosed: const [],
+  MyWorkArchivedResult archivedResult = (
+    authoredArchived: const <Beacon>[],
+    helpOfferedArchived: const [],
   );
 
   Object? fetchInitError;
@@ -47,14 +47,28 @@ class FakeMyWorkRepository implements MyWorkRepository {
   }
 
   @override
-  Future<MyWorkClosedResult> fetchClosed({required String userId}) async =>
-      closedResult;
+  Future<MyWorkArchivedResult> fetchArchived({required String userId}) async =>
+      archivedResult;
 
   @override
   Future<Map<String, MyWorkLastEvent?>> fetchLastActivityEventsByBeaconId(
     List<String> beaconIds,
   ) async =>
       {};
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class FakeArchiveRepository implements ArchiveRepository {
+  @override
+  Future<void> archive(String beaconId) async {}
+
+  @override
+  Future<void> unarchive({
+    required String beaconId,
+    required String userId,
+  }) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -142,6 +156,7 @@ MyWorkCase buildTestMyWorkCase([FakeMyWorkRepository? repo]) {
   final hints = FakeRoomHints();
   return MyWorkCase(
     repo ?? FakeMyWorkRepository(),
+    FakeArchiveRepository(),
     FakeForwardRepository(),
     FakeBeaconRepository(),
     CoordinationItemCase(FakeCoordinationItemRepository()),

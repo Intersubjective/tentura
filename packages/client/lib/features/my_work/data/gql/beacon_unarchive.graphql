@@ -1,0 +1,10 @@
+mutation BeaconUnarchive($beaconId: String!, $userId: String!) {
+  delete_beacon_archived(
+    where: {
+      beacon_id: { _eq: $beaconId }
+      user_id: { _eq: $userId }
+    }
+  ) {
+    affected_rows
+  }
+}

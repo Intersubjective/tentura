@@ -11,10 +11,11 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
+import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart';
 
 import '../../data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import '../dialog/beacon_close_confirm_dialog.dart';
 import '../dialog/beacon_delete_dialog.dart';
 import 'beacon_overflow_menu.dart';
@@ -27,7 +28,7 @@ class BeaconMineControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = GetIt.I<BeaconRepository>();
-    final evaluationRepo = GetIt.I<EvaluationRepository>();
+    final evaluationCase = GetIt.I<EvaluationCase>();
     return BeaconOverflowMenu(
       beacon: beacon,
       onShare: () => unawaited(
@@ -47,31 +48,39 @@ class BeaconMineControl extends StatelessWidget {
                 ),
               )
           : null,
-      onToggleLifecycle: () async {
-        await Future<void>.delayed(Duration.zero);
-        if (!context.mounted) return;
-        if (beacon.isListed) {
-          if (await BeaconCloseConfirmDialog.show(context) != true) {
-            return;
-          }
-          if (!context.mounted) return;
-        }
-        try {
-          final next = beacon.isListed
-              ? BeaconLifecycle.closed
-              : BeaconLifecycle.open;
-          if (next == BeaconLifecycle.closed &&
-              beacon.lifecycle == BeaconLifecycle.open) {
-            await evaluationRepo.beaconCloseWithReview(beacon.id);
-          } else {
-            await repo.setBeaconLifecycle(next, id: beacon.id);
-          }
-        } catch (e) {
-          if (context.mounted) {
-            showSnackBar(context, isError: true, text: e.toString());
-          }
-        }
-      },
+      onCloseBeacon: beacon.lifecycle == BeaconLifecycle.open
+          ? () async {
+              await Future<void>.delayed(Duration.zero);
+              if (!context.mounted) return;
+              if (await BeaconCloseConfirmDialog.show(context) != true) {
+                return;
+              }
+              if (!context.mounted) return;
+              try {
+                await evaluationCase.beaconClose(
+                  beaconId: beacon.id,
+                  expectedRequiresReviewWindow: beacon.helpOfferCount > 0,
+                );
+              } catch (e) {
+                if (context.mounted) {
+                  showSnackBar(context, isError: true, text: e.toString());
+                }
+              }
+            }
+          : null,
+      onCancelBeacon: beaconAllowsCancel(beacon)
+          ? () async {
+              await Future<void>.delayed(Duration.zero);
+              if (!context.mounted) return;
+              try {
+                await evaluationCase.beaconCancel(beacon.id);
+              } catch (e) {
+                if (context.mounted) {
+                  showSnackBar(context, isError: true, text: e.toString());
+                }
+              }
+            }
+          : null,
       onForward: () => unawaited(
         context.router.pushPath('$kPathForwardBeacon/${beacon.id}'),
       ),
@@ -94,7 +103,12 @@ class BeaconMineControl extends StatelessWidget {
       onDelete: () async {
         await Future<void>.delayed(Duration.zero);
         if (!context.mounted) return;
-        if (await BeaconDeleteDialog.show(context) ?? false) {
+        if (await BeaconDeleteDialog.show(
+              context,
+              lifecycle: beacon.lifecycle,
+              hasEverHadCommitter: beaconDeleteBlockedByCommitters(beacon),
+            ) ??
+            false) {
           try {
             await repo.delete(beacon.id);
           } catch (e) {

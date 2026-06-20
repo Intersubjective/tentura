@@ -14,6 +14,10 @@ class BeaconReviewWindows extends Table {
   /// 0 = open, 1 = closed_complete
   late final Column<int> status = integer().withDefault(const Constant(0))();
 
+  /// Count of author-initiated +7d extensions (max 2).
+  late final Column<int> extensionsUsed =
+      integer().withDefault(const Constant(0))();
+
   late final createdAt = customType(
     PgTypes.timestampWithTimezone,
   ).clientDefault(() => PgDateTime(DateTime.timestamp()))();

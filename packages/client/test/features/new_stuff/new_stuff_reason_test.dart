@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
-import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 
 void main() {
   final t0 = DateTime.utc(2020);
@@ -14,8 +13,6 @@ void main() {
   final seenLate2019 = DateTime.utc(2019, 12, 20).millisecondsSinceEpoch;
   final forwardBeforeSeen = DateTime.utc(2019, 12, 10);
   final beaconStale = DateTime.utc(2019, 12);
-  /// Before [seenLate2019] so beacon row does not count as "new" in isolation.
-  final beaconUpdatedBeforeSeen = DateTime.utc(2019, 12, 15);
 
   group('InboxItem.newStuffReasons', () {
     test('new forward only when beacon-side is stale', () {
@@ -124,100 +121,6 @@ void main() {
         beacon: beacon,
       );
       expect(item.newStuffReasons(t2.millisecondsSinceEpoch), isEmpty);
-    });
-  });
-
-  group('MyWorkCardViewModel.newStuffReasons', () {
-    Beacon baseBeacon({
-      DateTime? createdAt,
-      DateTime? updatedAt,
-      DateTime? coordinationStatusUpdatedAt,
-    }) =>
-        Beacon(
-          createdAt: createdAt ?? t0,
-          updatedAt: updatedAt ?? t1,
-          id: 'b1',
-          coordinationStatusUpdatedAt: coordinationStatusUpdatedAt,
-        );
-
-    test('new beacon also lists beacon row when created equals updated', () {
-      final vm = MyWorkCardViewModel(
-        beaconId: 'b1',
-        role: MyWorkCardRole.authored,
-        kind: MyWorkCardKind.authoredActive,
-        beacon: baseBeacon(createdAt: t2, updatedAt: t2),
-      );
-      expect(
-        vm.newStuffReasons(seenLate2019),
-        [MyWorkNewStuffReason.newBeacon],
-      );
-    });
-
-    test('help offer tie: equal help-offer vs author-coord timestamps show response only',
-        () {
-      final vm = MyWorkCardViewModel(
-        beaconId: 'b1',
-        role: MyWorkCardRole.helpOffered,
-        kind: MyWorkCardKind.helpOfferedActive,
-        beacon: baseBeacon(
-          createdAt: createdEarly2019,
-          updatedAt: beaconUpdatedBeforeSeen,
-        ),
-        helpOfferRowUpdatedAt: t2,
-        authorCoordinationUpdatedAt: t2,
-      );
-      expect(
-        vm.newStuffReasons(seenLate2019),
-        [MyWorkNewStuffReason.authorResponseChanged],
-      );
-    });
-
-    test('help offer row newer than author coordination lists both signals', () {
-      final vm = MyWorkCardViewModel(
-        beaconId: 'b1',
-        role: MyWorkCardRole.helpOffered,
-        kind: MyWorkCardKind.helpOfferedActive,
-        beacon: baseBeacon(
-          createdAt: createdEarly2019,
-          updatedAt: beaconUpdatedBeforeSeen,
-        ),
-        helpOfferRowUpdatedAt: t3,
-        authorCoordinationUpdatedAt: t2,
-      );
-      expect(
-        vm.newStuffReasons(seenLate2019),
-        [
-          MyWorkNewStuffReason.authorResponseChanged,
-          MyWorkNewStuffReason.helpOfferUpdated,
-        ],
-      );
-    });
-
-    test('coordination status when max activity', () {
-      final vm = MyWorkCardViewModel(
-        beaconId: 'b1',
-        role: MyWorkCardRole.authored,
-        kind: MyWorkCardKind.authoredActive,
-        beacon: baseBeacon(
-          createdAt: createdEarly2019,
-          updatedAt: t3,
-          coordinationStatusUpdatedAt: t3,
-        ),
-      );
-      expect(
-        vm.newStuffReasons(seenLate2019),
-        [MyWorkNewStuffReason.coordinationStatusChanged],
-      );
-    });
-
-    test('generic beacon edit without specific signal yields no reason label', () {
-      final vm = MyWorkCardViewModel(
-        beaconId: 'b1',
-        role: MyWorkCardRole.authored,
-        kind: MyWorkCardKind.authoredActive,
-        beacon: baseBeacon(createdAt: createdEarly2019, updatedAt: t3),
-      );
-      expect(vm.newStuffReasons(seenLate2019), isEmpty);
     });
   });
 }

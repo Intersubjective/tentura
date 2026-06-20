@@ -68,7 +68,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     emit(
       state.copyWith(
         status: StateStatus.isLoading,
-        closedFetchInProgress: false,
+        archivedFetchInProgress: false,
       ),
     );
     try {
@@ -80,15 +80,14 @@ class MyWorkCubit extends Cubit<MyWorkState> {
         state.copyWith(
           status: const StateIsSuccess(),
           nonArchivedCards: init.nonArchivedCards,
-          authoredClosedIdHints: init.authoredClosedIdHints,
-          helpOfferedClosedIdHints: init.helpOfferedClosedIdHints,
+          archivedCountHint: init.archivedCountHint,
           archivedCards: const [],
-          closedDataFetched: false,
+          archivedDataFetched: false,
         ),
       );
       if (filterBefore == MyWorkFilter.archived) {
-        emit(state.copyWith(closedFetchInProgress: true));
-        unawaited(_loadClosed(seq));
+        emit(state.copyWith(archivedFetchInProgress: true));
+        unawaited(_loadArchived(seq));
       }
     } catch (e) {
       if (isClosed || seq != _fetchSeq) {
@@ -98,12 +97,44 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     }
   }
 
+  Future<void> archiveBeacon(String beaconId) async {
+    await _myWorkCase.archiveBeacon(beaconId);
+    _removeBeaconFromState(beaconId);
+    emit(
+      state.copyWith(
+        archivedCountHint: state.archivedCountHint + 1,
+        archivedDataFetched: false,
+        finishedArchiveHintDismissed: true,
+      ),
+    );
+  }
+
+  Future<void> unarchiveBeacon(String beaconId) async {
+    await _myWorkCase.unarchiveBeacon(beaconId: beaconId, userId: _userId);
+    emit(
+      state.copyWith(
+        archivedCards: state.archivedCards
+            .where((c) => c.beaconId != beaconId)
+            .toList(),
+        archivedCountHint: state.archivedCountHint > 0
+            ? state.archivedCountHint - 1
+            : 0,
+      ),
+    );
+    unawaited(fetch());
+  }
+
+  void dismissFinishedArchiveHint() {
+    if (state.finishedArchiveHintDismissed) return;
+    emit(state.copyWith(finishedArchiveHintDismissed: true));
+  }
+
   void setFilter(MyWorkFilter filter) {
     if (filter == MyWorkFilter.archived &&
-        !state.closedDataFetched &&
-        !state.closedFetchInProgress) {
-      emit(state.copyWith(filter: filter, closedFetchInProgress: true));
-      unawaited(_loadClosed(_fetchSeq));
+        !state.archivedDataFetched &&
+        !state.archivedFetchInProgress) {
+      emit(state.copyWith(filter: filter, archivedFetchInProgress: true));
+      unawaited(_loadArchived(_fetchSeq));
       return;
     }
     emit(state.copyWith(filter: filter));
@@ -114,17 +145,17 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     emit(state.copyWith(sort: sort));
   }
 
-  Future<void> _loadClosed(int seq) async {
+  Future<void> _loadArchived(int seq) async {
     try {
-      final closed = await _myWorkCase.loadDeskClosed(userId: _userId);
+      final archived = await _myWorkCase.loadDeskArchived(userId: _userId);
       if (isClosed || seq != _fetchSeq) {
         return;
       }
       emit(
         state.copyWith(
-          closedFetchInProgress: false,
-          closedDataFetched: true,
-          archivedCards: closed.archivedCards,
+          archivedFetchInProgress: false,
+          archivedDataFetched: true,
+          archivedCards: archived.archivedCards,
           status: const StateIsSuccess(),
         ),
       );
@@ -134,7 +165,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       }
       emit(
         state.copyWith(
-          closedFetchInProgress: false,
+          archivedFetchInProgress: false,
           status: StateHasError(e),
         ),
       );
@@ -159,12 +190,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
             .toList(),
         archivedCards: state.archivedCards
             .where((c) => c.beaconId != beaconId)
-            .toList(),
-        authoredClosedIdHints: state.authoredClosedIdHints
-            .where((id) => id != beaconId)
-            .toList(),
-        helpOfferedClosedIdHints: state.helpOfferedClosedIdHints
-            .where((id) => id != beaconId)
             .toList(),
       ),
     );

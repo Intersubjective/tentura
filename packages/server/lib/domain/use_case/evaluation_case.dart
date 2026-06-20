@@ -47,97 +47,276 @@ final class EvaluationCase extends UseCaseBase {
 
   static const Duration _reviewWindowDuration = Duration(days: 7);
 
+  static const int _maxReviewExtensions = 2;
+
   Future<void> _ensureExpiredClosed() => _evaluationRepository.closeExpiredWindows();
 
-  /// Author closes beacon and opens the Phase 1 review window (state 5).
+  /// Author closes beacon; 0 committers → closed (6), ≥1 → wrapping up (5) + window.
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
   // ignore: no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> beaconCloseWithReview({
+  Future<Map<String, dynamic>> beaconClose({
+    required String beaconId,
+    required String userId,
+    required bool expectedRequiresReviewWindow,
+  }) async {
+    await _ensureExpiredClosed();
+    return _beaconRepository.runInBeaconStateTransaction(
+      beaconId: beaconId,
+      userId: userId,
+      fn: (beacon) async {
+        if (beacon.state != 0) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+            description: 'Beacon must be open to close',
+          );
+        }
+        if (beacon.author.id != userId) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.notEligible,
+            description: 'Only the author can close',
+          );
+        }
+
+        final existing = await _evaluationRepository.getReviewWindow(beaconId);
+        if (existing != null) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+            description: 'Review already exists for this beacon',
+          );
+        }
+
+        final graph = await _participantGraphBuilder.build(
+          beaconId: beaconId,
+          authorId: beacon.author.id,
+          preClosure: false,
+        );
+        final committerCount = graph.participants
+            .where((p) => p.role == EvaluationParticipantRole.committer)
+            .length;
+        final requiresReviewWindow = committerCount >= 1;
+
+        if (expectedRequiresReviewWindow != requiresReviewWindow) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.closeBranchConflict,
+            description: 'Committer count changed; refresh and retry',
+          );
+        }
+
+        if (!requiresReviewWindow) {
+          await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 6);
+          return {
+            'id': beaconId,
+            'state': 6,
+            'closesAt': null,
+          };
+        }
+
+        final participants = graph.participants;
+        final visibility = graph.visibility;
+
+        final openedAt = DateTime.timestamp();
+        final closesAt = openedAt.add(_reviewWindowDuration);
+
+        await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 5);
+
+        await _evaluationRepository.insertReviewWindow(
+          beaconId: beaconId,
+          openedAt: openedAt,
+          closesAt: closesAt,
+        );
+
+        for (final p in participants) {
+          await _evaluationRepository.insertParticipant(
+            beaconId: beaconId,
+            userId: p.userId,
+            role: p.role.dbValue,
+            contributionSummary: p.contributionSummary,
+            causalHint: p.causalHint,
+          );
+        }
+
+        final participantIds = participants.map((e) => e.userId).toSet();
+        for (final uid in participantIds) {
+          await _evaluationRepository.insertReviewStatus(
+            beaconId: beaconId,
+            userId: uid,
+          );
+        }
+
+        for (final v in visibility) {
+          await _evaluationRepository.insertVisibility(
+            beaconId: beaconId,
+            evaluatorId: v.evaluatorId,
+            participantId: v.participantId,
+          );
+        }
+
+        await _draftPurger.purgeDraftsOutsideVisibility(beaconId);
+
+        await _notifyReviewOpened(
+          beaconId: beaconId,
+          beaconTitle: beacon.title,
+          recipientUserIds: participantIds,
+          actorUserId: userId,
+        );
+
+        return {
+          'id': beaconId,
+          'state': 5,
+          'closesAt': closesAt.toUtc().toIso8601String(),
+        };
+      },
+    );
+  }
+
+  /// Author adds 7 days during wrapping up (max 2 extensions).
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
+  Future<Map<String, dynamic>> extendReviewWindow({
     required String beaconId,
     required String userId,
   }) async {
     await _ensureExpiredClosed();
-    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (beacon.state != 0) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-        description: 'Beacon must be open to close with review',
-      );
-    }
-    if (beacon.author.id != userId) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.notEligible,
-        description: 'Only the author can close with review',
-      );
-    }
-
-    final existing = await _evaluationRepository.getReviewWindow(beaconId);
-    if (existing != null) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-        description: 'Review already exists for this beacon',
-      );
-    }
-
-    final graph = await _participantGraphBuilder.build(
+    return _beaconRepository.runInBeaconStateTransaction(
       beaconId: beaconId,
-      authorId: beacon.author.id,
-      preClosure: false,
+      userId: userId,
+      fn: (beacon) async {
+        if (beacon.state != 5) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+            description: 'Beacon must be wrapping up to extend review',
+          );
+        }
+        if (beacon.author.id != userId) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.notEligible,
+          );
+        }
+        final w = await _evaluationRepository.getReviewWindow(beaconId);
+        if (w == null || w.status != 0) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+          );
+        }
+        if (w.extensionsUsed >= _maxReviewExtensions) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+            description: 'Review extension limit reached',
+          );
+        }
+        final closesAt =
+            await _evaluationRepository.extendReviewWindow(beaconId);
+        final updated = await _evaluationRepository.getReviewWindow(beaconId);
+        return {
+          'id': beaconId,
+          'state': 5,
+          'closesAt': closesAt.toUtc().toIso8601String(),
+          'extensionsUsed': updated?.extensionsUsed ?? w.extensionsUsed + 1,
+        };
+      },
     );
-    final participants = graph.participants;
-    final visibility = graph.visibility;
+  }
 
-    final openedAt = DateTime.timestamp();
-    final closesAt = openedAt.add(_reviewWindowDuration);
-
-    await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 5);
-
-    await _evaluationRepository.insertReviewWindow(
+  /// Author returns beacon to open and discards review scaffolding.
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
+  Future<Map<String, dynamic>> reopenFromReview({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _ensureExpiredClosed();
+    return _beaconRepository.runInBeaconStateTransaction(
       beaconId: beaconId,
-      openedAt: openedAt,
-      closesAt: closesAt,
+      userId: userId,
+      fn: (beacon) async {
+        if (beacon.state != 5) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+            description: 'Beacon must be wrapping up to reopen',
+          );
+        }
+        if (beacon.author.id != userId) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.notEligible,
+          );
+        }
+        final w = await _evaluationRepository.getReviewWindow(beaconId);
+        if (w == null || w.status != 0) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+          );
+        }
+        await _evaluationRepository.deleteReviewScaffoldingForBeacon(beaconId);
+        await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 0);
+        return {
+          'id': beaconId,
+          'state': 0,
+          'closesAt': null,
+        };
+      },
     );
+  }
 
-    for (final p in participants) {
-      await _evaluationRepository.insertParticipant(
-        beaconId: beaconId,
-        userId: p.userId,
-        role: p.role.dbValue,
-        contributionSummary: p.contributionSummary,
-        causalHint: p.causalHint,
-      );
-    }
-
-    final participantIds = participants.map((e) => e.userId).toSet();
-    for (final uid in participantIds) {
-      await _evaluationRepository.insertReviewStatus(
-        beaconId: beaconId,
-        userId: uid,
-      );
-    }
-
-    for (final v in visibility) {
-      await _evaluationRepository.insertVisibility(
-        beaconId: beaconId,
-        evaluatorId: v.evaluatorId,
-        participantId: v.participantId,
-      );
-    }
-
-    await _draftPurger.purgeDraftsOutsideVisibility(beaconId);
-
-    await _notifyReviewOpened(
+  /// Author closes early when required reviewers finished or skipped.
+  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
+  // ignore: no_map_dynamic_in_use_case_api
+  Future<Map<String, dynamic>> closeNow({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _ensureExpiredClosed();
+    return _beaconRepository.runInBeaconStateTransaction(
       beaconId: beaconId,
-      beaconTitle: beacon.title,
-      recipientUserIds: participantIds,
-      actorUserId: userId,
+      userId: userId,
+      fn: (beacon) async {
+        if (beacon.state != 5) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.beaconNotClosable,
+            description: 'Beacon must be wrapping up to close now',
+          );
+        }
+        if (beacon.author.id != userId) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.notEligible,
+          );
+        }
+        final w = await _evaluationRepository.getReviewWindow(beaconId);
+        if (w == null || w.status != 0) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+          );
+        }
+        if (!await _canCloseNow(beaconId: beaconId)) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.notEligible,
+            description: 'Required reviewers have not finished or skipped',
+          );
+        }
+        await _evaluationRepository.closeBeaconReviewWindow(beaconId);
+        return {
+          'id': beaconId,
+          'state': 6,
+          'closesAt': null,
+        };
+      },
     );
+  }
 
-    return {
-      'id': beaconId,
-      'state': 5,
-      'closesAt': closesAt.toUtc().toIso8601String(),
-    };
+  Future<bool> _canCloseNow({required String beaconId}) async {
+    final statuses =
+        await _evaluationRepository.listReviewStatusesForBeacon(beaconId);
+    final parts = await _evaluationRepository.listParticipants(beaconId);
+    for (final p in parts) {
+      if (p.role != EvaluationParticipantRole.author.dbValue &&
+          p.role != EvaluationParticipantRole.committer.dbValue) {
+        continue;
+      }
+      final st = statuses[p.userId];
+      if (st != 2 && st != 3) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<void> _notifyReviewOpened({
@@ -467,6 +646,9 @@ final class EvaluationCase extends UseCaseBase {
         reviewed++;
       }
     }
+    final canCloseNow = w.status == 0 &&
+        beacon.state == 5 &&
+        await _canCloseNow(beaconId: beaconId);
     return {
       'beaconId': beaconId,
       'hasWindow': true,
@@ -477,6 +659,8 @@ final class EvaluationCase extends UseCaseBase {
       'userReviewStatus': st ?? -1,
       'reviewedCount': reviewed,
       'totalCount': vis.length,
+      'extensionsUsed': w.extensionsUsed,
+      'canCloseNow': canCloseNow,
     };
   }
 

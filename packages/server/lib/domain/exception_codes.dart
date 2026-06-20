@@ -99,6 +99,7 @@ enum EvaluationExceptionCode {
   beaconNotClosable,
   invalidEvaluationValue,
   invalidReasonTags,
+  closeBranchConflict,
 }
 
 class EvaluationExceptionCodes extends ExceptionCodes {

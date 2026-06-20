@@ -16,12 +16,12 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
   const factory MyWorkState({
     @Default([]) List<MyWorkCardViewModel> nonArchivedCards,
     @Default([]) List<MyWorkCardViewModel> archivedCards,
-    @Default([]) List<String> authoredClosedIdHints,
-    @Default([]) List<String> helpOfferedClosedIdHints,
-    @Default(false) bool closedDataFetched,
-    @Default(false) bool closedFetchInProgress,
+    @Default(0) int archivedCountHint,
+    @Default(false) bool archivedDataFetched,
+    @Default(false) bool archivedFetchInProgress,
     @Default(MyWorkFilter.active) MyWorkFilter filter,
     @Default(MyWorkSort.recent) MyWorkSort sort,
+    @Default(false) bool finishedArchiveHintDismissed,
     @Default(StateIsLoading()) StateStatus status,
   }) = _MyWorkState;
 
@@ -36,10 +36,4 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
   );
 
   int get draftCount => countDraftMyWorkCards(nonArchivedCards);
-
-  /// Closed-tab style count before lazy fetch completes (deduped beacon ids).
-  int get archivedCountHint => archivedCountHintFromIds(
-    authoredClosedIdHints: authoredClosedIdHints,
-    helpOfferedClosedIdHints: helpOfferedClosedIdHints,
-  );
 }

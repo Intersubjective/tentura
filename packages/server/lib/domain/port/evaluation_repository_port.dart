@@ -96,5 +96,15 @@ abstract class EvaluationRepositoryPort {
 
   Future<void> deleteDraftEvaluationsForBeacon(String beaconId);
 
+  Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId);
+
+  Future<void> deleteReviewScaffoldingForBeacon(String beaconId);
+
+  /// Adds 7 days to [closesAt] and increments [extensionsUsed]. Returns new close time.
+  Future<DateTime> extendReviewWindow(String beaconId);
+
+  /// Finalize one beacon review window (state 6, trust evidence, purge drafts).
+  Future<void> closeBeaconReviewWindow(String beaconId);
+
   Future<void> closeExpiredWindows();
 }

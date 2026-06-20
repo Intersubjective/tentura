@@ -14,6 +14,10 @@ final class MutationEvaluation extends GqlNodeBase {
 
   final _note = InputFieldString(fieldName: 'note');
 
+  final _expectedRequiresReviewWindow = InputFieldBool(
+    fieldName: 'expectedRequiresReviewWindow',
+  );
+
   final GraphQLFieldInput<List<String>, List<String>> _reasonTagsField =
       GraphQLFieldInput(
         'reasonTags',
@@ -36,7 +40,10 @@ final class MutationEvaluation extends GqlNodeBase {
   );
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
-    beaconCloseWithReview,
+    beaconClose,
+    beaconExtendReview,
+    beaconReopen,
+    beaconCloseNow,
     evaluationSubmit,
     evaluationFinalize,
     evaluationSkip,
@@ -44,14 +51,61 @@ final class MutationEvaluation extends GqlNodeBase {
     evaluationDraftDelete,
   ];
 
-  GraphQLObjectField<dynamic, dynamic> get beaconCloseWithReview =>
+  GraphQLObjectField<dynamic, dynamic> get beaconClose =>
       GraphQLObjectField(
-        'beaconCloseWithReview',
+        'beaconClose',
+        gqlTypeBeaconCloseReviewResult.nonNullable(),
+        arguments: [
+          InputFieldId.field,
+          _expectedRequiresReviewWindow.field,
+        ],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase.beaconClose(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            userId: jwt.sub,
+            expectedRequiresReviewWindow:
+                _expectedRequiresReviewWindow.fromArgsNonNullable(args),
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconExtendReview =>
+      GraphQLObjectField(
+        'beaconExtendReview',
         gqlTypeBeaconCloseReviewResult.nonNullable(),
         arguments: [InputFieldId.field],
         resolve: (_, args) {
           final jwt = getCredentials(args);
-          return _evaluationCase.beaconCloseWithReview(
+          return _evaluationCase.extendReviewWindow(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            userId: jwt.sub,
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconReopen =>
+      GraphQLObjectField(
+        'beaconReopen',
+        gqlTypeBeaconCloseReviewResult.nonNullable(),
+        arguments: [InputFieldId.field],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase.reopenFromReview(
+            beaconId: InputFieldId.fromArgsNonNullable(args),
+            userId: jwt.sub,
+          );
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconCloseNow =>
+      GraphQLObjectField(
+        'beaconCloseNow',
+        gqlTypeBeaconCloseReviewResult.nonNullable(),
+        arguments: [InputFieldId.field],
+        resolve: (_, args) {
+          final jwt = getCredentials(args);
+          return _evaluationCase.closeNow(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
           );

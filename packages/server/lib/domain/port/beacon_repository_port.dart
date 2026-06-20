@@ -46,8 +46,8 @@ abstract class BeaconRepositoryPort {
     String? successCriteria,
   });
 
-  /// Updates an OPEN (state 0) beacon owned by [userId].
-  /// Throws if not found, not owned, or not in the OPEN state.
+  /// Updates an OPEN (0) or WRAPPING UP (5) beacon owned by [userId].
+  /// Throws if not found, not owned, or not editable in the current lifecycle state.
   Future<BeaconEntity> updateBeacon({
     required String beaconId,
     required String userId,
@@ -67,6 +67,16 @@ abstract class BeaconRepositoryPort {
   });
 
   Future<void> deleteBeaconById(String id, {required String userId});
+
+  /// Sets beacon state to 2 (soft-deleted tombstone).
+  Future<void> softDeleteBeacon(String beaconId);
+
+  /// Row-lock beacon and run [fn] with the locked entity snapshot.
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  });
 
   Future<void> updateBeaconState({
     required String beaconId,

@@ -91,6 +91,20 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
   Future<void> deleteDraftEvaluationsForBeacon(String beaconId) async {}
 
   @override
+  Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId) async =>
+      {};
+
+  @override
+  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {}
+
+  @override
+  Future<DateTime> extendReviewWindow(String beaconId) async =>
+      DateTime.timestamp().add(const Duration(days: 7));
+
+  @override
+  Future<void> closeBeaconReviewWindow(String beaconId) async {}
+
+  @override
   Future<void> insertParticipant({
     required String beaconId,
     required String userId,

@@ -38,6 +38,24 @@ type beacon {
     where: beacon_pinned_bool_exp
   ): [beacon_pinned!]!
 
+  """An array relationship"""
+  beacon_archiveds(
+    """distinct select on columns"""
+    distinct_on: [beacon_archived_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_archived_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_archived_bool_exp
+  ): [beacon_archived!]!
+
   """An object relationship"""
   beacon_review_window: beacon_review_window
 
@@ -259,6 +277,7 @@ input beacon_bool_exp {
   _not: beacon_bool_exp
   _or: [beacon_bool_exp!]
   author: user_bool_exp
+  beacon_archiveds: beacon_archived_bool_exp
   beacon_pinneds: beacon_pinned_bool_exp
   beacon_review_window: beacon_review_window_bool_exp
   help_offers: beacon_help_offer_bool_exp
@@ -1314,6 +1333,98 @@ enum beacon_pinned_update_column {
   _PLACEHOLDER
 }
 
+"""
+columns and relationships of "beacon_archived"
+"""
+type beacon_archived {
+  archived_at: timestamptz!
+  """An object relationship"""
+  beacon: beacon!
+  beacon_id: String!
+  """An object relationship"""
+  user: user!
+  user_id: String!
+}
+
+"""
+Boolean expression to filter rows from the table "beacon_archived". All fields are combined with a logical 'AND'.
+"""
+input beacon_archived_bool_exp {
+  _and: [beacon_archived_bool_exp!]
+  _not: beacon_archived_bool_exp
+  _or: [beacon_archived_bool_exp!]
+  archived_at: timestamptz_comparison_exp
+  beacon: beacon_bool_exp
+  beacon_id: String_comparison_exp
+  user: user_bool_exp
+  user_id: String_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "beacon_archived"
+"""
+enum beacon_archived_constraint {
+  """
+  unique or primary key constraint on columns "user_id", "beacon_id"
+  """
+  beacon_archived_pkey
+}
+
+"""
+input type for inserting data into table "beacon_archived"
+"""
+input beacon_archived_insert_input {
+  beacon_id: String
+}
+
+"""
+response of any mutation on the table "beacon_archived"
+"""
+type beacon_archived_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [beacon_archived!]!
+}
+
+"""
+on_conflict condition type for table "beacon_archived"
+"""
+input beacon_archived_on_conflict {
+  constraint: beacon_archived_constraint!
+  update_columns: [beacon_archived_update_column!]! = []
+  where: beacon_archived_bool_exp
+}
+
+"""Ordering options when selecting data from "beacon_archived"."""
+input beacon_archived_order_by {
+  archived_at: order_by
+  beacon: beacon_order_by
+  beacon_id: order_by
+  user: user_order_by
+  user_id: order_by
+}
+
+"""
+select columns of table "beacon_archived"
+"""
+enum beacon_archived_select_column {
+  """column name"""
+  archived_at
+  """column name"""
+  beacon_id
+  """column name"""
+  user_id
+}
+
+"""
+placeholder for update columns of table "beacon_archived" (current role has no relevant permissions)
+"""
+enum beacon_archived_update_column {
+  """placeholder (do not use)"""
+  _PLACEHOLDER
+}
+
 """primary key columns input for table: beacon"""
 input beacon_pk_columns_input {
   id: String!
@@ -2317,7 +2428,11 @@ enum invitation_update_column {
 
 """mutation root"""
 type mutation_root {
-  beaconCloseWithReview(id: String!): v2_BeaconCloseReviewResult!
+  beaconClose(id: String!, expectedRequiresReviewWindow: Boolean!): v2_BeaconCloseResult!
+  beaconCancel(id: String!): v2_BeaconLifecycleResult!
+  beaconExtendReview(id: String!): v2_BeaconExtendReviewResult!
+  beaconReopen(id: String!): v2_BeaconLifecycleResult!
+  beaconCloseNow(id: String!): v2_BeaconLifecycleResult!
   beaconFork(id: String!): v2_Beacon!
   beaconOfferHelp(helpTypes: [String!], id: String!, message: String): Boolean!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_Beacon!
@@ -2423,6 +2538,14 @@ type mutation_root {
   delete_beacon_pinned_by_pk(beacon_id: String!, user_id: String!): beacon_pinned
 
   """
+  delete data from the table: "beacon_archived"
+  """
+  delete_beacon_archived(
+    """filter the rows which have to be deleted"""
+    where: beacon_archived_bool_exp!
+  ): beacon_archived_mutation_response
+
+  """
   delete data from the table: "user_context"
   """
   delete_user_context(
@@ -2520,6 +2643,17 @@ type mutation_root {
     """upsert condition"""
     on_conflict: beacon_pinned_on_conflict
   ): beacon_pinned
+
+  """
+  insert a single row into the table: "beacon_archived"
+  """
+  insert_beacon_archived_one(
+    """the row to be inserted"""
+    object: beacon_archived_insert_input!
+
+    """upsert condition"""
+    on_conflict: beacon_archived_on_conflict
+  ): beacon_archived
 
   """
   insert data into the table: "beacon_update"
@@ -3564,6 +3698,26 @@ type query_root {
 
   """fetch data from the table: "beacon_pinned" using primary key columns"""
   beacon_pinned_by_pk(beacon_id: String!, user_id: String!): beacon_pinned
+
+  """
+  fetch data from the table: "beacon_archived"
+  """
+  beacon_archived(
+    """distinct select on columns"""
+    distinct_on: [beacon_archived_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [beacon_archived_order_by!]
+
+    """filter the rows returned"""
+    where: beacon_archived_bool_exp
+  ): [beacon_archived!]!
 
   """
   fetch data from the table: "beacon_review_window"
@@ -5623,8 +5777,21 @@ type BeaconLineageForwardSuggestions {
   suggestions: [BeaconLineageSuggestion!]!
 }
 
-type v2_BeaconCloseReviewResult {
+type v2_BeaconCloseResult {
+  branchMismatch: Boolean!
+  closesAt: String
+  id: String!
+  requiresReviewWindow: Boolean!
+  state: Int!
+}
+
+type v2_BeaconExtendReviewResult {
   closesAt: String!
+  extensionsRemaining: Int!
+  id: String!
+}
+
+type v2_BeaconLifecycleResult {
   id: String!
   state: Int!
 }

@@ -1,14 +1,13 @@
 /// Beacon lifecycle (`beacon.state` smallint in DB / Hasura).
 enum BeaconLifecycle {
   open(0),
-  closed(1),
+  cancelled(1),
   deleted(2),
   draft(3),
-  pendingReview(4),
-  /// Post-success review window open (Phase 1 evaluation).
-  closedReviewOpen(5),
-  /// Review window completed; beacon remains closed for listing.
-  closedReviewComplete(6);
+  /// Post-success review window ("Wrapping up").
+  reviewOpen(5),
+  /// Review complete / done without review window.
+  closed(6);
 
   const BeaconLifecycle(this.smallintValue);
 
@@ -16,28 +15,33 @@ enum BeaconLifecycle {
 
   static BeaconLifecycle fromSmallint(int v) => switch (v) {
         0 => BeaconLifecycle.open,
-        1 => BeaconLifecycle.closed,
+        1 => BeaconLifecycle.cancelled,
         2 => BeaconLifecycle.deleted,
         3 => BeaconLifecycle.draft,
-        4 => BeaconLifecycle.pendingReview,
-        5 => BeaconLifecycle.closedReviewOpen,
-        6 => BeaconLifecycle.closedReviewComplete,
+        4 => BeaconLifecycle.closed, // legacy PENDING_REVIEW → closed
+        5 => BeaconLifecycle.reviewOpen,
+        6 => BeaconLifecycle.closed,
         _ => BeaconLifecycle.open,
       };
 
-  /// Union of non-closed lifecycles (OPEN, DRAFT, PENDING_REVIEW, CLOSED_REVIEW_OPEN).
-  /// Used for listing / `Beacon.isListed`, not the My Work "Active" tab alone.
+  /// Union of non-finished lifecycles (OPEN, DRAFT, WRAPPING UP).
   bool get isActiveSection =>
-      this == open ||
-      this == draft ||
-      this == pendingReview ||
-      this == closedReviewOpen;
+      this == open || this == draft || this == reviewOpen;
 
-  /// CLOSED, DELETED, CLOSED_REVIEW_COMPLETE — My Work "Closed" tab.
-  bool get isClosedSection =>
-      this == closed || this == deleted || this == closedReviewComplete;
+  /// DELETED only — lifecycle tombstone; finished cards use [isFinished].
+  bool get isClosedSection => this == deleted;
 
-  bool get isReviewWindowOpen => this == closedReviewOpen;
+  bool get isReviewWindowOpen => this == reviewOpen;
+
+  bool get isWrappingUp => this == reviewOpen;
+
+  bool get isFinished => this == cancelled || this == closed;
+
+  /// NOW line + coordination items editable in OPEN and WRAPPING UP.
+  bool get allowsCoordination => this == open || this == reviewOpen;
+
+  /// Forwarding only while OPEN.
+  bool get allowsForward => this == open;
 
   /// My Work "Drafts" tab (`beacon.state` == 3).
   bool get isMyWorkDraftsTab => this == draft;
@@ -46,6 +50,5 @@ enum BeaconLifecycle {
   bool get isMyWorkActiveTab => this == open;
 
   /// My Work "Review" tab — evaluation / post-close review window.
-  bool get isMyWorkReviewTab =>
-      this == pendingReview || this == closedReviewOpen;
+  bool get isMyWorkReviewTab => this == reviewOpen;
 }

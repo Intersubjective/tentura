@@ -24,6 +24,8 @@ import 'package:tentura/features/beacon_room/domain/entity/room_unread_snapshot.
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 
+import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
+
 import '../../domain/use_case/beacon_view_case.dart';
 import '../message/beacon_update_messages.dart';
 import '../message/help_offer_messages.dart';
@@ -204,20 +206,68 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
-  Future<void> toggleLifecycle() async {
+  Future<BeaconCloseResult?> closeBeacon({
+    required bool expectedRequiresReviewWindow,
+  }) async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final next = state.beacon.isListed
-          ? BeaconLifecycle.closed
-          : BeaconLifecycle.open;
-      if (state.isBeaconMine &&
-          next == BeaconLifecycle.closed &&
-          state.beacon.lifecycle == BeaconLifecycle.open) {
-        await _case.beaconCloseWithReview(state.beacon.id);
-      } else {
-        await _case.setBeaconLifecycle(next, id: state.beacon.id);
-      }
+      final result = await _case.beaconClose(
+        beaconId: state.beacon.id,
+        expectedRequiresReviewWindow: expectedRequiresReviewWindow,
+      );
       await _fetchBeaconByIdWithTimeline();
+      return result;
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+      return null;
+    }
+  }
+
+  Future<void> cancelBeacon() async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _case.beaconCancel(state.beacon.id);
+      await _fetchBeaconByIdWithTimeline();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> reopenBeacon() async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _case.beaconReopen(state.beacon.id);
+      await _fetchBeaconByIdWithTimeline();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> closeBeaconNow() async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _case.beaconCloseNow(state.beacon.id);
+      await _fetchBeaconByIdWithTimeline();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> extendReview() async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _case.beaconExtendReview(state.beacon.id);
+      await _fetchBeaconByIdWithTimeline();
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  Future<void> archiveBeacon() async {
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _case.archiveBeacon(state.beacon.id);
+      emit(state.copyWith(status: StateIsNavigating.back));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }

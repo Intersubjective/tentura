@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/features/geo/ui/widget/place_name_text.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -18,6 +19,7 @@ import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
+import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 
@@ -60,9 +62,16 @@ class MyWorkCardMetadataRow extends StatelessWidget {
                   );
           },
         ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: _MyWorkNowRow(
+            beacon: beacon,
+            viewModel: viewModel,
+          ),
+        ),
         if (viewModel.youResponsibility != null)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: 6),
             child: BeaconYouResponsibilityLine(
               beacon: beacon,
               responsibility: viewModel.youResponsibility!,
@@ -76,6 +85,36 @@ class MyWorkCardMetadataRow extends StatelessWidget {
           highlight: highlight,
         ),
       ],
+    );
+  }
+}
+
+class _MyWorkNowRow extends StatelessWidget {
+  const _MyWorkNowRow({
+    required this.beacon,
+    required this.viewModel,
+  });
+
+  final Beacon beacon;
+  final MyWorkCardViewModel viewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final nowDisplay = myWorkDeskNowDisplay(
+      l10n,
+      beacon: beacon,
+      roomCurrentLine: viewModel.roomCurrentLine,
+      openBlockerTitle: viewModel.roomOpenBlockerTitle,
+    );
+
+    return HudLabeledMultiline(
+      label: l10n.beaconHudNowLabel,
+      text: nowDisplay.primaryText,
+      subline: nowDisplay.blockerText,
+      mutedColor: tt.textMuted,
+      isPlaceholder: nowDisplay.isPlaceholder,
     );
   }
 }

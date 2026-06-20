@@ -62,7 +62,7 @@ void main() {
     final x = _vm(
       id: 'x',
       role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredClosed,
+      kind: MyWorkCardKind.authoredFinished,
       lifecycle: BeaconLifecycle.closed,
     );
     final s = MyWorkState(
@@ -72,11 +72,8 @@ void main() {
     expect(s.visibleCards, [x]);
   });
 
-  test('archivedCountHint dedupes shared ids', () {
-    const s = MyWorkState(
-      authoredClosedIdHints: ['a', 'b'],
-      helpOfferedClosedIdHints: ['b', 'c'],
-    );
+  test('archivedCountHint from init', () {
+    const s = MyWorkState(archivedCountHint: 3);
     expect(s.archivedCountHint, 3);
   });
 }

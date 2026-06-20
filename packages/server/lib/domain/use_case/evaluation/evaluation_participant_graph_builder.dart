@@ -1,5 +1,7 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/evaluation/acknowledged_committer.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -20,11 +22,13 @@ typedef EvaluationParticipantGraphBundle = ({
 final class EvaluationParticipantGraphBuilder {
   EvaluationParticipantGraphBuilder(
     this._helpOfferRepository,
+    this._coordinationRepository,
     this._forwardEdgeRepository,
     this._userRepository,
   );
 
   final HelpOfferRepositoryPort _helpOfferRepository;
+  final CoordinationRepositoryPort _coordinationRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final UserRepositoryPort _userRepository;
 
@@ -34,9 +38,20 @@ final class EvaluationParticipantGraphBuilder {
     required bool preClosure,
   }) async {
     final helpOffers = await _helpOfferRepository.fetchByBeaconId(beaconId);
+    final coordinationByUserId =
+        await _coordinationRepository.coordinationResponseTypeByOfferUserId(
+      beaconId,
+    );
+    final acknowledgedCommitters = helpOffers
+        .where(
+          (c) => isAcknowledgedCommitterResponse(
+            coordinationByUserId[c.userId],
+          ),
+        )
+        .toList();
     final edges = await _forwardEdgeRepository.fetchByBeaconId(beaconId);
 
-    final helpOffererIds = helpOffers.map((c) => c.userId).toList();
+    final helpOffererIds = acknowledgedCommitters.map((c) => c.userId).toList();
 
     final latestEdgeToCommitter = <String, ForwardEdgeEntity>{};
     for (final c in helpOffererIds) {
@@ -68,7 +83,7 @@ final class EvaluationParticipantGraphBuilder {
       ),
     ];
 
-    for (final c in helpOffers) {
+    for (final c in acknowledgedCommitters) {
       final localDate = c.createdAt.toLocal();
       final d =
           '${localDate.year}-${localDate.month.toString().padLeft(2, '0')}-${localDate.day.toString().padLeft(2, '0')}';

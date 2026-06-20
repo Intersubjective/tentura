@@ -140,6 +140,18 @@
                     }
                   }
                 }
+              },
+              {
+                "name": "beacon_archiveds",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "beacon_id",
+                    "table": {
+                      "name": "beacon_archived",
+                      "schema": "public"
+                    }
+                  }
+                }
               }
             ],
             "computed_fields": [
@@ -226,21 +238,71 @@
                 },
                 "comment": ""
               }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_archived",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "foreign_key_constraint_on": "beacon_id"
+                }
+              },
+              {
+                "name": "user",
+                "using": {
+                  "foreign_key_constraint_on": "user_id"
+                }
+              }
             ],
-            "update_permissions": [
+            "insert_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "check": {},
+                  "set": {
+                    "user_id": "x-hasura-User-Id"
+                  },
+                  "columns": [
+                    "beacon_id"
+                  ]
+                },
+                "comment": ""
+              }
+            ],
+            "select_permissions": [
               {
                 "role": "user",
                 "permission": {
                   "columns": [
-                    "state"
+                    "beacon_id",
+                    "user_id",
+                    "archived_at"
                   ],
                   "filter": {
                     "user_id": {
                       "_eq": "X-Hasura-User-Id"
                     }
-                  },
-                  "check": null
-                }
+                  }
+                },
+                "comment": ""
+              }
+            ],
+            "delete_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "filter": {
+                    "user_id": {
+                      "_eq": "X-Hasura-User-Id"
+                    }
+                  }
+                },
+                "comment": ""
               }
             ]
           },
@@ -1139,7 +1201,13 @@
               {
                 "role": "user",
                 "permission": {
-                  "check": {},
+                  "check": {
+                    "beacon": {
+                      "state": {
+                        "_eq": 0
+                      }
+                    }
+                  },
                   "set": {
                     "user_id": "x-hasura-User-Id"
                   },
@@ -1182,7 +1250,13 @@
                       "_eq": "X-Hasura-User-Id"
                     }
                   },
-                  "check": null
+                  "check": {
+                    "beacon": {
+                      "state": {
+                        "_eq": 0
+                      }
+                    }
+                  }
                 }
               }
             ]

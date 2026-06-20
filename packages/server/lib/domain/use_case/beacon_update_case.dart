@@ -39,7 +39,7 @@ final class BeaconUpdateCase extends UseCaseBase {
         description: 'Only the beacon author can post updates',
       );
     }
-    if (!beacon.isActive) {
+    if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(
         description: 'Beacon is not open for updates',
       );
@@ -75,7 +75,7 @@ final class BeaconUpdateCase extends UseCaseBase {
         description: 'Only the beacon author can edit updates',
       );
     }
-    if (!beacon.isActive) {
+    if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(
         description: 'Beacon is not open for updates',
       );

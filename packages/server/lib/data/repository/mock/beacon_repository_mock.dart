@@ -148,10 +148,10 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }) async {
     final existing = storageById[beaconId];
     if (existing == null ||
-        existing.state != 0 ||
+        (existing.state != 0 && existing.state != 5) ||
         existing.author.id != userId) {
       throw const BeaconCreateException(
-        description: 'Only open beacons can be edited',
+        description: 'Only open or wrapping-up beacons can be edited',
       );
     }
     final updated = existing.copyWith(
@@ -190,6 +190,24 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   @override
   Future<void> deleteBeaconById(String id, {required String userId}) async =>
       storageById.removeWhere((key, value) => value.id == id);
+
+  @override
+  Future<void> softDeleteBeacon(String beaconId) async {
+    final b = storageById[beaconId];
+    if (b != null) {
+      storageById[beaconId] = b.copyWith(state: 2);
+    }
+  }
+
+  @override
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  }) async {
+    final locked = await getBeaconById(beaconId: beaconId);
+    return fn(locked);
+  }
 
   @override
   Future<void> updateBeaconState({

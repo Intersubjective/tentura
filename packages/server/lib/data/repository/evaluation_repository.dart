@@ -302,12 +302,144 @@ class EvaluationRepository implements EvaluationRepositoryPort {
           .delete();
 
   @override
+  Future<Map<String, int>> listReviewStatusesForBeacon(String beaconId) async {
+    final rows = await _db.managers.beaconReviewStatuses
+        .filter((e) => e.beaconId.id(beaconId))
+        .get();
+    return {for (final r in rows) r.userId: r.status};
+  }
+
+  @override
+  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {
+    await _db.managers.beaconEvaluations
+        .filter((e) => e.beaconId.id(beaconId))
+        .delete();
+    await _db.managers.beaconEvaluationVisibility
+        .filter((e) => e.beaconId.id(beaconId))
+        .delete();
+    await _db.managers.beaconEvaluationParticipants
+        .filter((e) => e.beaconId.id(beaconId))
+        .delete();
+    await _db.managers.beaconReviewStatuses
+        .filter((e) => e.beaconId.id(beaconId))
+        .delete();
+    await _db.managers.beaconReviewWindows
+        .filter((e) => e.beaconId.id(beaconId))
+        .delete();
+  }
+
+  static const Duration _reviewExtensionDuration = Duration(days: 7);
+
+  static const int _maxReviewExtensions = 2;
+
+  @override
+  Future<DateTime> extendReviewWindow(String beaconId) async {
+    final row = await _db.managers.beaconReviewWindows
+        .filter((e) => e.beaconId.id(beaconId))
+        .getSingleOrNull();
+    if (row == null || row.status != 0) {
+      throw StateError('Review window not open');
+    }
+    if (row.extensionsUsed >= _maxReviewExtensions) {
+      throw StateError('Review extension limit reached');
+    }
+    final newClosesAt = row.closesAt.dateTime.add(_reviewExtensionDuration);
+    final now = DateTime.timestamp();
+    await _db.managers.beaconReviewWindows
+        .filter((e) => e.beaconId.id(beaconId))
+        .update(
+          (o) => o(
+            closesAt: Value(PgDateTime(newClosesAt)),
+            extensionsUsed: Value(row.extensionsUsed + 1),
+            updatedAt: Value(PgDateTime(now)),
+          ),
+        );
+    return newClosesAt;
+  }
+
+  @override
+  Future<void> closeBeaconReviewWindow(String beaconId) async {
+    final now = DateTime.timestamp();
+    final window = await _db.managers.beaconReviewWindows
+        .filter((e) => e.beaconId.id(beaconId))
+        .getSingleOrNull();
+    if (window == null || window.status != 0) {
+      return;
+    }
+
+    await _db.managers.beaconReviewWindows
+        .filter((e) => e.beaconId.id(beaconId))
+        .update(
+          (o) => o(
+            status: const Value(1),
+            updatedAt: Value(PgDateTime(now)),
+          ),
+        );
+
+    await _db.managers.beacons
+        .filter((b) => b.id.equals(beaconId))
+        .update((o) => o(state: const Value(6)));
+
+    await _db.managers.beaconReviewStatuses
+        .filter(
+          (s) =>
+              s.beaconId.id(beaconId) &
+              (s.status.equals(0) | s.status.equals(1)),
+        )
+        .update(
+          (o) => o(
+            status: const Value(4),
+            updatedAt: Value(PgDateTime(now)),
+          ),
+        );
+
+    final batchesBySource = <String, List<TrustEvidence>>{};
+
+    final transitioned = await _db.customSelect(
+      r'''
+UPDATE beacon_evaluation
+SET status = $1, updated_at = now()
+WHERE beacon_id = $2 AND status = $3
+RETURNING evaluator_id, evaluated_user_id, value
+''',
+      variables: [
+        const Variable<int>(BeaconEvaluationRowStatus.final_),
+        Variable<String>(beaconId),
+        const Variable<int>(BeaconEvaluationRowStatus.submitted),
+      ],
+    ).get();
+
+    for (final row in transitioned) {
+      final evaluatorId = row.read<String>('evaluator_id');
+      final evaluatedUserId = row.read<String>('evaluated_user_id');
+      final value = row.read<int>('value');
+      final bin = reviewValueToBin(value);
+      if (bin == null) continue;
+      batchesBySource.putIfAbsent(evaluatorId, () => []).add(
+        TrustEvidence(
+          targetUserId: evaluatedUserId,
+          bin: bin,
+          count: kTrustReviewEvidenceCount,
+        ),
+      );
+    }
+
+    await deleteDraftEvaluationsForBeacon(beaconId);
+
+    final sortedSources = batchesBySource.keys.toList()..sort();
+    for (final source in sortedSources) {
+      await _trustEdgeRepository.applyEvidenceInTransaction(
+        TrustEvidenceBatch(
+          sourceUserId: source,
+          at: now,
+          items: batchesBySource[source]!,
+        ),
+      );
+    }
+  }
+
+  @override
   Future<void> closeExpiredWindows() => _db.transaction(() async {
-        final now = DateTime.timestamp();
-        // Compare against the transaction clock in SQL: drift cannot bind a
-        // raw `PgDateTime` as a custom-statement variable (it throws
-        // "Unsupported type: Instance of 'PgDateTime'"), and `now()` is the
-        // same instant we stamp `updated_at` with below.
         final expiredBeaconIds = await _db.customSelect(
           '''
 SELECT beacon_id
@@ -317,76 +449,8 @@ FOR UPDATE
 ''',
         ).map((r) => r.read<String>('beacon_id')).get();
 
-        final batchesBySource = <String, List<TrustEvidence>>{};
-
         for (final beaconId in expiredBeaconIds) {
-          await _db.managers.beaconReviewWindows
-              .filter((e) => e.beaconId.id(beaconId))
-              .update(
-                (o) => o(
-                  status: const Value(1),
-                  updatedAt: Value(PgDateTime(now)),
-                ),
-              );
-
-          await _db.managers.beacons
-              .filter((b) => b.id.equals(beaconId))
-              .update((o) => o(state: const Value(6)));
-
-          await _db.managers.beaconReviewStatuses
-              .filter(
-                (s) =>
-                    s.beaconId.id(beaconId) &
-                    (s.status.equals(0) | s.status.equals(1)),
-              )
-              .update(
-                (o) => o(
-                  status: const Value(4),
-                  updatedAt: Value(PgDateTime(now)),
-                ),
-              );
-
-          final transitioned = await _db.customSelect(
-            r'''
-UPDATE beacon_evaluation
-SET status = $1, updated_at = now()
-WHERE beacon_id = $2 AND status = $3
-RETURNING evaluator_id, evaluated_user_id, value
-''',
-            variables: [
-              const Variable<int>(BeaconEvaluationRowStatus.final_),
-              Variable<String>(beaconId),
-              const Variable<int>(BeaconEvaluationRowStatus.submitted),
-            ],
-          ).get();
-
-          for (final row in transitioned) {
-            final evaluatorId = row.read<String>('evaluator_id');
-            final evaluatedUserId = row.read<String>('evaluated_user_id');
-            final value = row.read<int>('value');
-            final bin = reviewValueToBin(value);
-            if (bin == null) continue;
-            batchesBySource.putIfAbsent(evaluatorId, () => []).add(
-              TrustEvidence(
-                targetUserId: evaluatedUserId,
-                bin: bin,
-                count: kTrustReviewEvidenceCount,
-              ),
-            );
-          }
-
-          await deleteDraftEvaluationsForBeacon(beaconId);
-        }
-
-        final sortedSources = batchesBySource.keys.toList()..sort();
-        for (final source in sortedSources) {
-          await _trustEdgeRepository.applyEvidenceInTransaction(
-            TrustEvidenceBatch(
-              sourceUserId: source,
-              at: now,
-              items: batchesBySource[source]!,
-            ),
-          );
+          await closeBeaconReviewWindow(beaconId);
         }
       });
 }

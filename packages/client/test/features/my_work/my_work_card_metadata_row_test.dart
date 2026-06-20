@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
+import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -62,6 +63,49 @@ void main() {
     expect(find.textContaining('updated'), findsOneWidget);
     expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
     expect(find.byType(MyWorkCardMetadataRow), findsOneWidget);
+  });
+
+  testWidgets('metadata row shows NOW label above YOU', (tester) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b-now',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(360, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                child: MyWorkCardMetadataRow(
+                  beacon: beacon,
+                  viewModel: _viewModel(beacon).copyWith(
+                    roomCurrentLine: 'Pick up supplies at noon',
+                    youResponsibility: CoordinationResponsibility(
+                      beaconId: beacon.id,
+                    ),
+                  ),
+                  currentUserId: 'viewer',
+                  highlight: MyWorkCardHighlightKind.none,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = lookupL10n(const Locale('en'));
+    expect(find.text(l10n.beaconHudNowLabel), findsOneWidget);
+    expect(find.text('Pick up supplies at noon'), findsOneWidget);
+    expect(find.text(l10n.beaconHudYouLabel), findsOneWidget);
   });
 
   testWidgets('metadata row uses wrap layout on very narrow width', (

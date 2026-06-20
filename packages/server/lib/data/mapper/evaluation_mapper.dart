@@ -38,6 +38,7 @@ BeaconReviewWindowRecord beaconReviewWindowToRecord(BeaconReviewWindow r) =>
       openedAt: r.openedAt.dateTime,
       closesAt: r.closesAt.dateTime,
       status: r.status,
+      extensionsUsed: r.extensionsUsed,
       createdAt: r.createdAt.dateTime,
       updatedAt: r.updatedAt.dateTime,
     );
