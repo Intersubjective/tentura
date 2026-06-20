@@ -81,6 +81,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           status: const StateIsSuccess(),
           nonArchivedCards: init.nonArchivedCards,
           archivedCountHint: init.archivedCountHint,
+          finishedArchiveHintDismissed: init.finishedArchiveHintDismissed,
           archivedCards: const [],
           archivedDataFetched: false,
         ),
@@ -98,7 +99,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   Future<void> archiveBeacon(String beaconId) async {
-    await _myWorkCase.archiveBeacon(beaconId);
+    await _myWorkCase.archiveBeacon(beaconId: beaconId, userId: _userId);
     _removeBeaconFromState(beaconId);
     emit(
       state.copyWith(
@@ -124,9 +125,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     unawaited(fetch());
   }
 
-  void dismissFinishedArchiveHint() {
+  Future<void> dismissFinishedArchiveHint() async {
     if (state.finishedArchiveHintDismissed) return;
     emit(state.copyWith(finishedArchiveHintDismissed: true));
+    await _myWorkCase.dismissFinishedArchiveHint(userId: _userId);
   }
 
   void setFilter(MyWorkFilter filter) {

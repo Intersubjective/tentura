@@ -19,6 +19,7 @@ import 'package:tentura/features/my_work/data/repository/archive_repository.dart
 import 'package:tentura/features/my_work/data/repository/my_work_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_fetch_types.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
+import 'package:tentura/features/my_work/domain/port/my_work_desk_preferences_port.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
@@ -152,8 +153,25 @@ BeaconRoomCase buildTestBeaconRoomCase(FakeRoomHints hints) {
   );
 }
 
-MyWorkCase buildTestMyWorkCase([FakeMyWorkRepository? repo]) {
+class FakeMyWorkDeskPreferencesPort implements MyWorkDeskPreferencesPort {
+  final dismissedByUserId = <String, bool>{};
+
+  @override
+  Future<bool> isFinishedArchiveHintDismissed({required String userId}) async =>
+      dismissedByUserId[userId] ?? false;
+
+  @override
+  Future<void> setFinishedArchiveHintDismissed({required String userId}) async {
+    dismissedByUserId[userId] = true;
+  }
+}
+
+MyWorkCase buildTestMyWorkCase([
+  FakeMyWorkRepository? repo,
+  FakeMyWorkDeskPreferencesPort? deskPreferences,
+]) {
   final hints = FakeRoomHints();
+  final prefs = deskPreferences ?? FakeMyWorkDeskPreferencesPort();
   return MyWorkCase(
     repo ?? FakeMyWorkRepository(),
     FakeArchiveRepository(),
@@ -162,6 +180,7 @@ MyWorkCase buildTestMyWorkCase([FakeMyWorkRepository? repo]) {
     CoordinationItemCase(FakeCoordinationItemRepository()),
     buildTestBeaconRoomCase(hints),
     hints,
+    prefs,
     env: const Env(),
     logger: Logger('test'),
   );

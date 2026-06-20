@@ -27,6 +27,16 @@ void main() {
     expect(init.nonArchivedCards, hasLength(1));
     expect(init.nonArchivedCards.single.kind, MyWorkCardKind.authoredActive);
     expect(init.archivedCountHint, 2);
+    expect(init.finishedArchiveHintDismissed, isFalse);
+  });
+
+  test('loadDeskInit returns finishedArchiveHintDismissed from prefs', () async {
+    final prefs = FakeMyWorkDeskPreferencesPort()
+      ..dismissedByUserId['u1'] = true;
+    final case_ = buildTestMyWorkCase(null, prefs);
+
+    final init = await case_.loadDeskInit(userId: 'u1');
+    expect(init.finishedArchiveHintDismissed, isTrue);
   });
 
   test('loadDeskArchived returns archived cards', () async {
