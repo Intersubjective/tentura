@@ -4,6 +4,7 @@ import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
+import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Modal sheet to set one participant evaluation.
@@ -148,9 +149,9 @@ Future<void> showEvaluationDetailSheet({
                     maxLines: 3,
                     maxLength: 280,
                   ),
-                  Text(
-                    l10n.evaluationPrivateHint,
-                    style: Theme.of(context).textTheme.bodySmall,
+                  EvaluationPrivacyInfoRow(
+                    shortLabel: l10n.evaluationPrivacyShort,
+                    fullText: l10n.evaluationPrivateHint,
                   ),
                   const SizedBox(height: 12),
                   FilledButton(

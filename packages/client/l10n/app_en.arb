@@ -2489,6 +2489,7 @@
   "evaluationAcknowledgeTitle": "Acknowledge contributions",
   "evaluationAcknowledgeTitleDraft": "Draft review notes",
   "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this beacon will not see your answers by default. It is only used to improve your own local trust view: who you may want to trust more, trust less, or route beacons through next time. In simple terms: your answers help Tentura make better personal recommendations and matching for you around the people involved here and the people connected to them. Please judge only what you actually saw in this beacon. If you are not sure, choose \"No basis\".",
+  "evaluationPrivacyShort": "Your feedback is private.",
   "evaluationDraftDone": "Done",
   "evaluationSectionAuthor": "Author",
   "evaluationSectionHelpOfferer": "Helpers",
