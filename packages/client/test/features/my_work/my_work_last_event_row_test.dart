@@ -7,7 +7,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
@@ -30,7 +29,6 @@ Future<void> _pumpRow(
   required Beacon beacon,
   required MyWorkCardViewModel viewModel,
   String currentUserId = 'viewer',
-  MyWorkCardHighlightKind highlight = MyWorkCardHighlightKind.none,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -43,7 +41,6 @@ Future<void> _pumpRow(
           beacon: beacon,
           viewModel: viewModel,
           currentUserId: currentUserId,
-          highlight: highlight,
         ),
       ),
     ),
@@ -144,17 +141,5 @@ void main() {
     expect(find.textContaining(l10n.myWorkLastEventYou), findsNothing);
     expect(find.byType(TenturaAvatar), findsOneWidget);
     expect(find.byType(ProfileAuthorStarBadge), findsOneWidget);
-  });
-
-  testWidgets('hidden for new beacon highlight', (tester) async {
-    final beacon = Beacon.empty.copyWith(id: 'b3');
-    await _pumpRow(
-      tester,
-      beacon: beacon,
-      viewModel: _vm(beacon: beacon),
-      highlight: MyWorkCardHighlightKind.newBeacon,
-    );
-
-    expect(find.textContaining('updated'), findsNothing);
   });
 }

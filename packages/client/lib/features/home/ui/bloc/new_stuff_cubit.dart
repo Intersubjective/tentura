@@ -140,19 +140,6 @@ class NewStuffCubit extends Cubit<NewStuffState> {
     return InboxRowHighlightKind.none;
   }
 
-  /// My Work card: brand-new beacon vs backend activity since last visit.
-  MyWorkCardHighlightKind myWorkCardHighlight({
-    required DateTime createdAt,
-    required int activityEpochMs,
-  }) {
-    final seen = state.myWorkLastSeenMs;
-    if (seen == null) return MyWorkCardHighlightKind.none;
-    final cMs = createdAt.millisecondsSinceEpoch;
-    if (cMs > seen) return MyWorkCardHighlightKind.newBeacon;
-    if (activityEpochMs > seen) return MyWorkCardHighlightKind.updatedBeaconOnly;
-    return MyWorkCardHighlightKind.none;
-  }
-
   bool get hasNewInboxDot =>
       _authCubit.state.currentAccountId.isNotEmpty &&
       state.inboxLastSeenMs != null &&

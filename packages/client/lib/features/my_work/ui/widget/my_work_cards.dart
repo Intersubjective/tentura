@@ -23,7 +23,6 @@ import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
@@ -34,54 +33,37 @@ class MyWorkCardRouter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<NewStuffCubit, NewStuffState>(
-      builder: (context, _) {
-        final b = vm.beacon;
-        final highlight = context.read<NewStuffCubit>().myWorkCardHighlight(
-          createdAt: b.createdAt,
-          activityEpochMs: vm.newStuffActivityEpochMs,
-        );
-        final currentUserId =
-            context.read<ProfileCubit>().state.profile.id;
-        return switch (vm.kind) {
-          MyWorkCardKind.authoredDraft => _DraftAuthoredCard(
-            vm: vm,
-            highlight: highlight,
-            currentUserId: currentUserId,
-          ),
-          MyWorkCardKind.authoredActive => _AuthoredActiveCard(
-            vm: vm,
-            highlight: highlight,
-            currentUserId: currentUserId,
-          ),
-          MyWorkCardKind.helpOfferedActive => _HelpOfferedActiveCard(
-            vm: vm,
-            highlight: highlight,
-            currentUserId: currentUserId,
-          ),
-          MyWorkCardKind.authoredFinished => _FinishedAuthoredCard(
-            vm: vm,
-            highlight: highlight,
-            currentUserId: currentUserId,
-          ),
-          MyWorkCardKind.helpOfferedFinished => _FinishedHelpOfferedCard(
-            vm: vm,
-            highlight: highlight,
-            currentUserId: currentUserId,
-          ),
-          MyWorkCardKind.authoredArchived => _FinishedAuthoredCard(
-            vm: vm,
-            highlight: highlight,
-            currentUserId: currentUserId,
-          ),
-          MyWorkCardKind.helpOfferedArchived => _FinishedHelpOfferedCard(
-            vm: vm,
-            highlight: highlight,
-            currentUserId: currentUserId,
-          ),
-        };
-      },
-    );
+    final currentUserId = context.read<ProfileCubit>().state.profile.id;
+    return switch (vm.kind) {
+      MyWorkCardKind.authoredDraft => _DraftAuthoredCard(
+        vm: vm,
+        currentUserId: currentUserId,
+      ),
+      MyWorkCardKind.authoredActive => _AuthoredActiveCard(
+        vm: vm,
+        currentUserId: currentUserId,
+      ),
+      MyWorkCardKind.helpOfferedActive => _HelpOfferedActiveCard(
+        vm: vm,
+        currentUserId: currentUserId,
+      ),
+      MyWorkCardKind.authoredFinished => _FinishedAuthoredCard(
+        vm: vm,
+        currentUserId: currentUserId,
+      ),
+      MyWorkCardKind.helpOfferedFinished => _FinishedHelpOfferedCard(
+        vm: vm,
+        currentUserId: currentUserId,
+      ),
+      MyWorkCardKind.authoredArchived => _FinishedAuthoredCard(
+        vm: vm,
+        currentUserId: currentUserId,
+      ),
+      MyWorkCardKind.helpOfferedArchived => _FinishedHelpOfferedCard(
+        vm: vm,
+        currentUserId: currentUserId,
+      ),
+    };
   }
 }
 
@@ -138,12 +120,10 @@ Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
 class _AuthoredActiveCard extends StatelessWidget {
   const _AuthoredActiveCard({
     required this.vm,
-    required this.highlight,
     required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
-  final MyWorkCardHighlightKind highlight;
   final String currentUserId;
 
   @override
@@ -298,7 +278,6 @@ class _AuthoredActiveCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
-            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
@@ -316,12 +295,10 @@ class _AuthoredActiveCard extends StatelessWidget {
 class _HelpOfferedActiveCard extends StatelessWidget {
   const _HelpOfferedActiveCard({
     required this.vm,
-    required this.highlight,
     required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
-  final MyWorkCardHighlightKind highlight;
   final String currentUserId;
 
   @override
@@ -382,7 +359,6 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
-            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
@@ -400,12 +376,10 @@ class _HelpOfferedActiveCard extends StatelessWidget {
 class _DraftAuthoredCard extends StatelessWidget {
   const _DraftAuthoredCard({
     required this.vm,
-    required this.highlight,
     required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
-  final MyWorkCardHighlightKind highlight;
   final String currentUserId;
 
   @override
@@ -464,7 +438,6 @@ class _DraftAuthoredCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
-            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
@@ -489,12 +462,10 @@ class _DraftAuthoredCard extends StatelessWidget {
 class _FinishedAuthoredCard extends StatelessWidget {
   const _FinishedAuthoredCard({
     required this.vm,
-    required this.highlight,
     required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
-  final MyWorkCardHighlightKind highlight;
   final String currentUserId;
 
   @override
@@ -615,7 +586,6 @@ class _FinishedAuthoredCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
-            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(
@@ -633,12 +603,10 @@ class _FinishedAuthoredCard extends StatelessWidget {
 class _FinishedHelpOfferedCard extends StatelessWidget {
   const _FinishedHelpOfferedCard({
     required this.vm,
-    required this.highlight,
     required this.currentUserId,
   });
 
   final MyWorkCardViewModel vm;
-  final MyWorkCardHighlightKind highlight;
   final String currentUserId;
 
   @override
@@ -691,7 +659,6 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
-            highlight: highlight,
           ),
           const SizedBox(height: 6),
           MyWorkCardStatusStrip(

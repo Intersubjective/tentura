@@ -10,7 +10,6 @@ import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/features/geo/ui/widget/place_name_text.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
@@ -29,14 +28,12 @@ class MyWorkCardMetadataRow extends StatelessWidget {
     required this.beacon,
     required this.viewModel,
     required this.currentUserId,
-    required this.highlight,
     super.key,
   });
 
   final Beacon beacon;
   final MyWorkCardViewModel viewModel;
   final String currentUserId;
-  final MyWorkCardHighlightKind highlight;
 
   static const double _compactWrapWidth = 320;
 
@@ -82,7 +79,6 @@ class MyWorkCardMetadataRow extends StatelessWidget {
           beacon: beacon,
           viewModel: viewModel,
           currentUserId: currentUserId,
-          highlight: highlight,
         ),
       ],
     );
