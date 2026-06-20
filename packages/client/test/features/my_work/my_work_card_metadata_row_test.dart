@@ -6,7 +6,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -50,7 +49,6 @@ void main() {
                   beacon: beacon,
                   viewModel: _viewModel(beacon),
                   currentUserId: 'viewer',
-                  highlight: MyWorkCardHighlightKind.none,
                 ),
               ),
             ),
@@ -92,7 +90,6 @@ void main() {
                     ),
                   ),
                   currentUserId: 'viewer',
-                  highlight: MyWorkCardHighlightKind.none,
                 ),
               ),
             ),
@@ -133,7 +130,6 @@ void main() {
                   beacon: beacon,
                   viewModel: _viewModel(beacon),
                   currentUserId: 'viewer',
-                  highlight: MyWorkCardHighlightKind.none,
                 ),
               ),
             ),

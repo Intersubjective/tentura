@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/features/home/ui/bloc/new_stuff_highlight.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -25,14 +24,12 @@ class MyWorkLastEventRow extends StatefulWidget {
     required this.beacon,
     required this.viewModel,
     required this.currentUserId,
-    required this.highlight,
     super.key,
   });
 
   final Beacon beacon;
   final MyWorkCardViewModel viewModel;
   final String currentUserId;
-  final MyWorkCardHighlightKind highlight;
 
   @override
   State<MyWorkLastEventRow> createState() => _MyWorkLastEventRowState();
@@ -57,10 +54,6 @@ class _MyWorkLastEventRowState extends State<MyWorkLastEventRow> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.highlight == MyWorkCardHighlightKind.newBeacon) {
-      return const SizedBox.shrink();
-    }
-
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;

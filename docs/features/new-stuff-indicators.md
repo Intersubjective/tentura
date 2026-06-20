@@ -6,7 +6,7 @@ Client-only “since last visit” cues for the **Inbox** and **My Work** home t
 
 - **Bottom navigation** — A small dot on the Inbox or My Work destination when there is activity **newer** than the stored last-seen cursor **and** the user is **not** currently on that tab.
 - **Inbox rows** — Pills distinguish **New** (forward / inbox activity after last visit) vs **Updated** (beacon content changed after last visit without newer forward activity than the cursor). The tab dot’s max-activity snapshot uses `max(latest_forward_at, beacon.updated_at)` per row so beacon-only edits still count.
-- **My Work cards** — Pills distinguish **New** (beacon `created_at` after last visit) vs **Updated** (edited after last visit but created on or before it). The nav dot still uses the max of `beacon.updated_at` across cards.
+- **My Work (My Desk)** — Bottom-nav dot only when any card has activity newer than the last-seen cursor. No per-card markers.
 
 There is **no** server API dedicated to this feature: cursors are **per account**, stored in `Settings` as epoch milliseconds (`valueInt`).
 
@@ -36,7 +36,7 @@ There is **no** server API dedicated to this feature: cursors are **per account*
 | Mark on tab entry | `packages/client/lib/features/home/ui/screen/home_screen.dart` |
 | Nav dots | `packages/client/lib/features/home/ui/widget/inbox_navbar_item.dart`, `my_work_navbar_item.dart` |
 | Activity reporting | `packages/client/lib/features/inbox/ui/bloc/inbox_cubit.dart`, `packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart` |
-| Row/card UI | `packages/client/lib/features/inbox/ui/widget/inbox_item_tile.dart`, `packages/client/lib/features/my_work/ui/widget/my_work_cards.dart` |
+| Row/card UI | `packages/client/lib/features/inbox/ui/widget/inbox_item_tile.dart` |
 
 ## Design notes
 
