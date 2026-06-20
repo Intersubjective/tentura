@@ -109,6 +109,7 @@ jobs:
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
+            --env WEB_BUILD_ID="${{ github.sha }}" \
             --env IMAGE_SERVER="${{ steps.webcfg.outputs.image_server }}" \
             --env CLIENT_SERVER_NAME="${{ steps.webcfg.outputs.client_server_name }}" \
             ${{ env.BUILDER_IMAGE }}:latest \
@@ -144,6 +145,9 @@ jobs:
               # emitted a manifest without main.dart.wasm).
               dart run tool/generate_wasm_preload_artifacts.dart
               grep -q 'main.dart.wasm' build/web/wasm-preload-manifest.json
+              # Block deploy if index.html / manifest / preload manifest / SW
+              # disagree on the cache-busting build version (stale-asset guard).
+              dart run tool/verify_web_version_consistency.dart
               cd build/web && tar -czf /app/web-dev-\${SERVER_VERSION}.tar.gz . && cd ../..
             "
 
