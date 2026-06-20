@@ -74,8 +74,8 @@ ON CONFLICT (id) DO UPDATE SET
     );
     await db.customStatement(
       r'''
-INSERT INTO public.beacon (id, user_id, title, created_at, updated_at)
-VALUES ('Bresptestbcn1', 'Uresptestauth1', 'Responsibility test', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+INSERT INTO public.beacon (id, user_id, title, description, created_at, updated_at)
+VALUES ('Bresptestbcn1', 'Uresptestauth1', 'Responsibility test', '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''',
     );
@@ -88,7 +88,7 @@ INSERT INTO public.coordination_item (
   ('Iresptestask01', 'Bresptestbcn1', 2, 0, 'Ask me', '', 'Uresptestauth1', 'Uresptestview1', NULL, true,
    '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 0, 0),
   ('Iresptestprom01', 'Bresptestbcn1', 5, 0, 'My promise', '', 'Uresptestview1', 'Uresptestauth1', NULL, true,
-   '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z', 0, 0),
+   '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z', '2026-01-04T00:00:00Z', 0, 0),
   ('Iresptestblk01', 'Bresptestbcn1', 3, 0, 'Blocker', '', 'Uresptestauth1', 'Uresptestview1', NULL, true,
    '2026-01-03T00:00:00Z', '2026-01-03T00:00:00Z', '2026-01-03T00:00:00Z', 0, 0),
   ('Iresptestrev01', 'Bresptestbcn1', 4, 0, 'Review', '', 'Uresptestauth1', NULL, 'Iresptestask01', true,
