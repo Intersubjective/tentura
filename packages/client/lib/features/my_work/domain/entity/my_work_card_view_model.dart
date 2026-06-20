@@ -22,9 +22,6 @@ enum MyWorkCardKind {
 }
 
 enum MyWorkAttentionChip {
-  /// Author: help offers waiting for review (beacon-level signal).
-  reviewPending,
-
   /// Author: beacon in review window (Wrapping up).
   reviewWindowOpen,
 
@@ -43,7 +40,6 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     CoordinationResponseType? authorResponseType,
     @Default([]) List<Profile> forwarderSenders,
     @Default(false) bool showReviewHelpOffersCta,
-    @Default(false) bool showReadyForReviewChip,
     @Default(false) bool showReviewCta,
     @Default(false) bool showArchiveAffordance,
     MyWorkAttentionChip? attentionChip,

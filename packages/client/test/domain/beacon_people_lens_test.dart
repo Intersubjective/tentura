@@ -20,7 +20,7 @@ Beacon _beacon({required String authorId}) {
     createdAt: t,
     updatedAt: t,
     lifecycle: BeaconLifecycle.open,
-    coordinationStatus: BeaconCoordinationStatus.helpOffersWaitingForReview,
+    coordinationStatus: BeaconCoordinationStatus.neutral,
   );
 }
 

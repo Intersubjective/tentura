@@ -47,7 +47,6 @@ class BeaconClosureConfirmationSummary {
     required this.hasWholeBeaconDoneSignal,
     required this.enoughHelpOffered,
     required this.hasSuccessfulHelpOfferResult,
-    required this.helpOffersWaitingForReviewCoordination,
     required this.requiresReviewWindow,
   });
 
@@ -59,7 +58,6 @@ class BeaconClosureConfirmationSummary {
   final bool hasWholeBeaconDoneSignal;
   final bool enoughHelpOffered;
   final bool hasSuccessfulHelpOfferResult;
-  final bool helpOffersWaitingForReviewCoordination;
   final bool requiresReviewWindow;
 }
 
@@ -217,9 +215,7 @@ BeaconClosureReadiness computeClosureReadiness(BeaconViewState state) {
 
   if (enoughHelp ||
       successfulResult ||
-      settled ||
-      state.beacon.coordinationStatus ==
-          BeaconCoordinationStatus.helpOffersWaitingForReview) {
+      settled) {
     return BeaconClosureReadiness.waitingForReview;
   }
 
@@ -276,9 +272,6 @@ BeaconClosureConfirmationSummary buildClosureConfirmationSummary(
     hasWholeBeaconDoneSignal: hasExplicitWholeBeaconDoneSignal(state),
     enoughHelpOffered: authorMarkedEnoughHelp(state),
     hasSuccessfulHelpOfferResult: hasSuccessfulHelpOfferResult(state),
-    helpOffersWaitingForReviewCoordination:
-        state.beacon.coordinationStatus ==
-        BeaconCoordinationStatus.helpOffersWaitingForReview,
     requiresReviewWindow: expectedRequiresReviewWindowForState(state),
   );
 }

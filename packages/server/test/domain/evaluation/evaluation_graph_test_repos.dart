@@ -41,10 +41,6 @@ final class EmptyGraphCoordinationRepository implements CoordinationRepositoryPo
       throw UnimplementedError();
 
   @override
-  Future<void> recomputeAndPersistBeaconCoordinationStatus(String beaconId) =>
-      throw UnimplementedError();
-
-  @override
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
     String beaconId, {
     required String viewerId,

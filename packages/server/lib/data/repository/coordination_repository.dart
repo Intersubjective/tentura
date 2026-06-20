@@ -116,56 +116,6 @@ class CoordinationRepository implements CoordinationRepositoryPort {
         ),
       );
 
-  /// Deterministic coordination status from active commits + author responses.
-  @override
-  Future<void> recomputeAndPersistBeaconCoordinationStatus(
-    String beaconId,
-  ) async {
-    final beacon = await _database.managers.beacons
-        .filter((e) => e.id.equals(beaconId))
-        .getSingleOrNull();
-    if (beacon == null) return;
-
-    final active = await _database.managers.beaconHelpOffers
-        .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))
-        .get();
-
-    if (active.isEmpty) {
-      await setBeaconCoordinationFields(
-        beaconId: beaconId,
-        coordinationStatus: 0,
-      );
-      return;
-    }
-
-    final coords = await _coordinationByCommitUserId(beaconId);
-    for (final c in active) {
-      if (!coords.containsKey(c.userId)) {
-        await setBeaconCoordinationFields(
-          beaconId: beaconId,
-          coordinationStatus: 1,
-        );
-        return;
-      }
-    }
-
-    for (final c in active) {
-      final rt = coords[c.userId]!.responseType;
-      if (rt != 0) {
-        await setBeaconCoordinationFields(
-          beaconId: beaconId,
-          coordinationStatus: 2,
-        );
-        return;
-      }
-    }
-
-    await setBeaconCoordinationFields(
-      beaconId: beaconId,
-      coordinationStatus: 3,
-    );
-  }
-
   @override
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
     String beaconId, {

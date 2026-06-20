@@ -8,7 +8,7 @@ bool beaconDeleteBlockedByCommitters(Beacon beacon) =>
     beacon.lifecycle == BeaconLifecycle.closed ||
     (beacon.helpOfferCount > 0 &&
         beacon.coordinationStatus !=
-            BeaconCoordinationStatus.noHelpOffersYet);
+            BeaconCoordinationStatus.neutral);
 
 bool beaconAllowsCancel(Beacon beacon) =>
     beacon.lifecycle == BeaconLifecycle.open && beacon.helpOfferCount == 0;

@@ -10,8 +10,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 // --- Semantic colors (on neutral [ColorScheme.surface] / body text) ------------
 //
 // Beacon coordination (beacon.coordination_status):
-//   noHelpOffersYet          -> onSurfaceVariant  (idle)
-//   helpOffersWaitingForReview -> primary         (action / review)
+//   neutral                  -> onSurfaceVariant  (idle)
 //   moreOrDifferentHelpNeeded -> error             (gap)
 //   enoughHelpOffered     -> tertiary           (satisfied)
 //
@@ -28,9 +27,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 String coordinationStatusLabel(L10n l10n, BeaconCoordinationStatus s) =>
     switch (s) {
-      BeaconCoordinationStatus.noHelpOffersYet => l10n.coordinationNoHelpOffers,
-      BeaconCoordinationStatus.helpOffersWaitingForReview =>
-        l10n.coordinationWaitingForReview,
+      BeaconCoordinationStatus.neutral => l10n.coordinationNeutral,
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
         l10n.coordinationMoreHelpNeeded,
       BeaconCoordinationStatus.enoughHelpOffered => l10n.coordinationEnoughHelp,
@@ -54,8 +51,7 @@ Color coordinationStatusOnSurfaceColor(
   BeaconCoordinationStatus s,
 ) =>
     switch (s) {
-      BeaconCoordinationStatus.noHelpOffersYet => scheme.onSurfaceVariant,
-      BeaconCoordinationStatus.helpOffersWaitingForReview => scheme.primary,
+      BeaconCoordinationStatus.neutral => scheme.onSurfaceVariant,
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded => scheme.error,
       BeaconCoordinationStatus.enoughHelpOffered => scheme.tertiary,
     };

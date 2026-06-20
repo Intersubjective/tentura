@@ -17,7 +17,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 Beacon _openBeacon({
   BeaconCoordinationStatus coordinationStatus =
-      BeaconCoordinationStatus.noHelpOffersYet,
+      BeaconCoordinationStatus.neutral,
 }) =>
     Beacon(
       createdAt: DateTime.utc(2025),
@@ -166,12 +166,10 @@ void main() {
       expect(computeClosureReadiness(s), BeaconClosureReadiness.readyToClose);
     });
 
-    test('waitingForReview when helpOffersWaitingForReview and no strong path',
-        () {
+    test('premature when neutral with offers and no strong path', () {
       final s = _baseAuthorState(
         beacon: _openBeacon(
-          coordinationStatus:
-              BeaconCoordinationStatus.helpOffersWaitingForReview,
+          coordinationStatus: BeaconCoordinationStatus.neutral,
         ),
         helpOffers: [
           _helpOffer(userId: 'h1'),
@@ -179,7 +177,7 @@ void main() {
       );
       expect(
         computeClosureReadiness(s),
-        BeaconClosureReadiness.waitingForReview,
+        BeaconClosureReadiness.premature,
       );
     });
 

@@ -91,9 +91,6 @@ final class HelpOfferCase extends UseCaseBase {
           }
         }
       }
-      await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
-        beaconId,
-      );
       return;
     }
     if (beacon.author.id == userId) {
@@ -121,9 +118,6 @@ final class HelpOfferCase extends UseCaseBase {
         }
       }
     }
-    await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
-      beaconId,
-    );
     await _autoAdmitIfTrusted(
       beacon: beacon,
       helpOffererId: userId,
@@ -207,9 +201,6 @@ final class HelpOfferCase extends UseCaseBase {
       userId: userId,
       message: message,
       withdrawReason: withdrawReason,
-    );
-    await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
-      beaconId,
     );
     final beaconAfter = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (beaconAfter.state == 0) {

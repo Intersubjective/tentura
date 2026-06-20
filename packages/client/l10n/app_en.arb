@@ -1739,20 +1739,8 @@
   "@myWorkChipForwarded": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusDraft": "Draft",
-  "@myWorkStatusDraft": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusNoHelpOffers": "No help offers",
-  "@myWorkStatusNoHelpOffers": {
-    "context": "MyWorkScreen"
-  },
   "myWorkStatusNeedsMoreHelp": "Needs more help",
   "@myWorkStatusNeedsMoreHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusReviewingHelpOffers": "Reviewing help offers",
-  "@myWorkStatusReviewingHelpOffers": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusEnoughHelp": "Enough help",
@@ -1784,69 +1772,8 @@
       }
     }
   },
-  "myWorkStatusNoDeadline": "no deadline",
-  "@myWorkStatusNoDeadline": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusAwaitingClose": "awaiting close",
-  "@myWorkStatusAwaitingClose": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusReviewOpen": "review open",
-  "@myWorkStatusReviewOpen": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusWaitingOnAuthor": "waiting on author",
-  "@myWorkStatusWaitingOnAuthor": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusZeroHelpOffered": "0 offered help",
-  "@myWorkStatusZeroHelpOffered": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusOneHelpOffered": "1 offered help",
-  "@myWorkStatusOneHelpOffered": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusNHelpOffered": "{count} offered help",
-  "@myWorkStatusNHelpOffered": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "myWorkStatusReadyToClose": "ready to close",
-  "@myWorkStatusReadyToClose": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusReadyForReview": "Ready for review",
-  "@myWorkStatusReadyForReview": {
-    "context": "MyWorkScreen"
-  },
   "myWorkStatusHelpOfferedPersonal": "Help Offered",
   "@myWorkStatusHelpOfferedPersonal": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusMirrorNeedsMoreHelp": "needs more help",
-  "@myWorkStatusMirrorNeedsMoreHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusMirrorReviewingHelpOffers": "reviewing help offers",
-  "@myWorkStatusMirrorReviewingHelpOffers": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusMirrorEnoughHelp": "enough help",
-  "@myWorkStatusMirrorEnoughHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusMirrorClosed": "closed",
-  "@myWorkStatusMirrorClosed": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusAcknowledgeContributions": "acknowledge contributions",
-  "@myWorkStatusAcknowledgeContributions": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusHelpOfferWithResponse": "{helpOffer}: {response}",
@@ -1858,15 +1785,6 @@
       },
       "response": {
         "type": "String"
-      }
-    }
-  },
-  "myWorkStatusNParticipants": "{count, plural, =0{0 participants} one{1 participant} other{{count} participants}}",
-  "@myWorkStatusNParticipants": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
       }
     }
   },
@@ -2577,8 +2495,7 @@
   "evaluationReviewDurationLessThanMinute": "<1m",
   "labelHelpTypeOptional": "Type of help (optional)",
   "labelWithdrawReasonRequired": "Why are you stepping back?",
-  "coordinationNoHelpOffers": "No help offers yet",
-  "coordinationWaitingForReview": "Commitments waiting for review",
+  "coordinationNeutral": "—",
   "coordinationMoreHelpNeeded": "More or different help needed",
   "coordinationEnoughHelp": "Enough help committed",
   "coordinationUseful": "Useful",

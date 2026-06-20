@@ -88,9 +88,6 @@ final class CoordinationCase extends UseCaseBase {
         authorUserId: authorUserId,
       );
     }
-    await _coordinationRepository.recomputeAndPersistBeaconCoordinationStatus(
-      beaconId,
-    );
     final snap = await _coordinationRepository.beaconCoordinationSnapshot(
       beaconId,
     );

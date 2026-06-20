@@ -179,9 +179,6 @@ void main() {
         ),
       ).thenAnswer((_) => Future.value());
       when(
-        coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
-      ).thenAnswer((_) => Future.value());
-      when(
         inboxRepo.upsertWatchingForSender(
           senderId: 'U1',
           beaconId: 'B1',
@@ -227,9 +224,6 @@ void main() {
             userId: 'U1',
             withdrawReason: 'timing',
           ),
-        ).thenAnswer((_) => Future.value());
-        when(
-          coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
         ).thenAnswer((_) => Future.value());
         when(
           inboxRepo.applyTombstoneAfterWithdraw(
@@ -320,9 +314,6 @@ void main() {
           message: 'updated',
         ),
       ).thenAnswer((_) => Future.value());
-      when(
-        coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
-      ).thenAnswer((_) => Future.value());
 
       await case_.offerHelp(beaconId: 'B1', userId: 'U1', message: 'updated');
 
@@ -373,9 +364,6 @@ void main() {
       when(
         helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) async {});
-      when(
-        coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
-      ).thenAnswer((_) => Future.value());
     }
 
     void stubAdmitCalls() {
@@ -564,9 +552,6 @@ void main() {
       when(
         helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
       ).thenAnswer((_) => Future.value());
-      when(
-        coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
-      ).thenAnswer((_) => Future.value());
     }
 
     test('notifies author on initial help offer', () async {
@@ -590,9 +575,6 @@ void main() {
       ).thenAnswer((_) async => true);
       when(
         helpOfferRepo.upsert(beaconId: 'B1', userId: 'U1'),
-      ).thenAnswer((_) => Future.value());
-      when(
-        coordinationRepo.recomputeAndPersistBeaconCoordinationStatus('B1'),
       ).thenAnswer((_) => Future.value());
 
       await case_.offerHelp(beaconId: 'B1', userId: 'U1');

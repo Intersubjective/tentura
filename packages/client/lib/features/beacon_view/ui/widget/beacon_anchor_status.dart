@@ -6,8 +6,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Semantic tone for the operational "anchor" status line (coordination + help offers).
 TenturaTone beaconAnchorStatusTone(BeaconCoordinationStatus s) => switch (s) {
-      BeaconCoordinationStatus.noHelpOffersYet => TenturaTone.neutral,
-      BeaconCoordinationStatus.helpOffersWaitingForReview => TenturaTone.info,
+      BeaconCoordinationStatus.neutral => TenturaTone.neutral,
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded => TenturaTone.warn,
       BeaconCoordinationStatus.enoughHelpOffered => TenturaTone.good,
     };
@@ -31,9 +30,7 @@ String beaconAnchorStatusLineShort(
   int activeHelpOfferCount,
 ) =>
     switch (beacon.coordinationStatus) {
-      BeaconCoordinationStatus.noHelpOffersYet => 'IDLE',
-      BeaconCoordinationStatus.helpOffersWaitingForReview =>
-        activeHelpOfferCount > 0 ? 'REVIEW · $activeHelpOfferCount' : 'REVIEW',
+      BeaconCoordinationStatus.neutral => 'IDLE',
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded =>
         activeHelpOfferCount > 0 ? 'GAP · $activeHelpOfferCount' : 'GAP',
       BeaconCoordinationStatus.enoughHelpOffered =>
