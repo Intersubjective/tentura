@@ -71,7 +71,7 @@ void main() {
     expect(find.byIcon(Icons.campaign_outlined), findsNothing);
   });
 
-  testWidgets('renders event label, you highlight, and author star', (
+  testWidgets('renders event label and inline you without avatar for self', (
     tester,
   ) async {
     final l10n = lookupL10n(const Locale('en'));
@@ -101,11 +101,49 @@ void main() {
     );
 
     expect(find.textContaining(l10n.beaconActivityBeaconPublished), findsOneWidget);
-    expect(find.textContaining(l10n.labelYou), findsOneWidget);
-    expect(find.byType(ProfileAuthorStarBadge), findsOneWidget);
-    expect(find.byIcon(Icons.star_rounded), findsOneWidget);
+    expect(find.textContaining(l10n.myWorkLastEventYou), findsOneWidget);
+    expect(find.textContaining(l10n.labelYou), findsNothing);
+    expect(find.byType(TenturaAvatar), findsNothing);
+    expect(find.byType(ProfileAuthorStarBadge), findsNothing);
+    expect(find.byIcon(Icons.star_rounded), findsNothing);
     expect(find.byIcon(Icons.campaign_outlined), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
+  });
+
+  testWidgets('renders avatar and first name for another actor', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+
+    final authorId = 'author1';
+    final beacon = Beacon.empty.copyWith(
+      id: 'b4',
+      author: Profile(id: authorId, displayName: 'Alice Author'),
+    );
+    final last = MyWorkLastEvent(
+      event: BeaconActivityEvent(
+        id: 'e2',
+        beaconId: 'b4',
+        visibility: 0,
+        type: BeaconActivityEventTypeBits.beaconPublished,
+        createdAt: DateTime.now().subtract(const Duration(hours: 1)),
+        actorId: authorId,
+      ),
+      actor: Profile(id: authorId, displayName: 'Alice Author'),
+    );
+
+    await _pumpRow(
+      tester,
+      beacon: beacon,
+      viewModel: _vm(beacon: beacon, lastActivityEvent: last),
+      currentUserId: 'viewer',
+    );
+
+    expect(find.textContaining(l10n.beaconActivityBeaconPublished), findsOneWidget);
+    expect(find.textContaining('Alice'), findsOneWidget);
+    expect(find.textContaining(l10n.myWorkLastEventYou), findsNothing);
+    expect(find.byType(TenturaAvatar), findsOneWidget);
+    expect(find.byType(ProfileAuthorStarBadge), findsOneWidget);
   });
 
   testWidgets('hidden for new beacon highlight', (tester) async {

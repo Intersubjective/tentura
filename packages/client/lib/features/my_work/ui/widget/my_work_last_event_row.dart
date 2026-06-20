@@ -183,19 +183,20 @@ class _EventLine extends StatelessWidget {
                         color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
                       ),
                     ),
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: ExcludeSemantics(
-                          child: TenturaAvatar.tiny(
-                            profile: actor,
-                            size: _kMyWorkLastEventAvatarSize,
-                            showAuthorStar: isAuthor,
+                    if (!isYou)
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: ExcludeSemantics(
+                            child: TenturaAvatar.tiny(
+                              profile: actor,
+                              size: _kMyWorkLastEventAvatarSize,
+                              showAuthorStar: isAuthor,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     TextSpan(
                       text: actorLabel,
                       style: isYou ? youStyle : bodyStyle,
@@ -219,7 +220,7 @@ class _EventLine extends StatelessWidget {
 
 String _actorShortName(L10n l10n, Profile actor, {required bool isYou}) {
   if (isYou) {
-    return l10n.labelYou;
+    return l10n.myWorkLastEventYou;
   }
   final name = actor.shownName.trim();
   if (name.isEmpty) {

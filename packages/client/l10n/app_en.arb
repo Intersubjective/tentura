@@ -1968,6 +1968,11 @@
   "@myWorkLastEventBy": {
     "context": "MyWorkScreen"
   },
+  "myWorkLastEventYou": "you",
+  "@myWorkLastEventYou": {
+    "context": "MyWorkScreen",
+    "description": "Mid-sentence label for the current user on My Desk last-event rows"
+  },
   "myWorkLastEventSemantics": "{event} by {actor}, {ago}{authorSuffix}",
   "@myWorkLastEventSemantics": {
     "context": "MyWorkScreen",

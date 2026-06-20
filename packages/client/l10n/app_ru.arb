@@ -1964,6 +1964,11 @@
   "@myWorkLastEventBy": {
     "context": "MyWorkScreen"
   },
+  "myWorkLastEventYou": "вы",
+  "@myWorkLastEventYou": {
+    "context": "MyWorkScreen",
+    "description": "Mid-sentence label for the current user on My Desk last-event rows"
+  },
   "myWorkLastEventSemantics": "{event} от {actor}, {ago}{authorSuffix}",
   "@myWorkLastEventSemantics": {
     "context": "MyWorkScreen",
