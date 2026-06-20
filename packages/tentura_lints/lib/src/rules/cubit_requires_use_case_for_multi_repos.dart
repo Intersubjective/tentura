@@ -59,7 +59,7 @@ final class _Visitor extends SimpleAstVisitor<void> {
         continue;
       }
 
-      for (final member in decl.members) {
+      for (final member in decl.body.members) {
         if (member is! ConstructorDeclaration) {
           continue;
         }
