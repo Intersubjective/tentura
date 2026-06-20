@@ -181,7 +181,7 @@ void main() {
       createdAt: now,
       updatedAt: now,
       ordering: 0,
-      staleAt: PgDateTime(DateTime.utc(2026, 6, 20)),
+      staleAt: PgDateTime(DateTime.utc(2099, 1, 1)),
     );
     await expectLater(
       () => sut.call(userId: observerId, itemId: itemId),
