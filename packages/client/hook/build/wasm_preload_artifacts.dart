@@ -3,16 +3,27 @@ import 'dart:io';
 
 import 'package:pubspec_parse/pubspec_parse.dart';
 
+import 'version_update.dart';
+
 /// After `flutter build web`, scan [buildWebDir] and emit preload manifest + SW.
-void generateWasmPreloadArtifacts({String buildWebDir = 'build/web'}) {
+///
+/// [version] is the single cache-busting build version (see
+/// `resolveWebBuildVersion`); it is written into `index.html` + `manifest.json`
+/// and reused for the preload manifest version and SW `CACHE_VERSION`, so all
+/// four entry-point references always agree.
+void generateWasmPreloadArtifacts({String buildWebDir = 'build/web', String? version}) {
   final webDir = Directory(buildWebDir);
   if (!webDir.existsSync()) {
     stdout.writeln('wasm_preload: skip — $buildWebDir missing');
     return;
   }
 
-  final pubspec = Pubspec.parse(File('pubspec.yaml').readAsStringSync());
-  final version = pubspec.version.toString();
+  final resolvedVersion = version ??
+      Pubspec.parse(File('pubspec.yaml').readAsStringSync()).version.toString();
+
+  // Align index.html bootstrap query + PWA manifest BEFORE scanning so the
+  // emitted ASSET_PATHS / preload manifest match the SW CACHE_VERSION.
+  versionUpdate(webDir: buildWebDir, version: resolvedVersion);
 
   final wasmFiles = <String>[];
   final preload = <String>[];
@@ -78,7 +89,7 @@ void generateWasmPreloadArtifacts({String buildWebDir = 'build/web'}) {
   if (!preload.contains(mainWasm)) preload.insert(0, mainWasm);
 
   final manifest = {
-    'version': version,
+    'version': resolvedVersion,
     'mainWasm': mainWasm,
     'preload': preload.toSet().toList(),
     'prefetch': <String>[],
@@ -90,7 +101,8 @@ void generateWasmPreloadArtifacts({String buildWebDir = 'build/web'}) {
   );
 
   final assetPathsJson = jsonEncode(manifest['preload']);
-  final sw = _serviceWorkerSource(version: version, assetPathsJson: assetPathsJson);
+  final sw =
+      _serviceWorkerSource(version: resolvedVersion, assetPathsJson: assetPathsJson);
   File('${webDir.path}/tentura-app-cache-sw.js').writeAsStringSync(sw);
 
   stdout.writeln(

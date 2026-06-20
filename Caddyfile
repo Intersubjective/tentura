@@ -162,6 +162,10 @@
 		}
 	}
 
+	# Service worker + preload manifest must always revalidate so a new deploy's
+	# cache version is picked up on a normal refresh (not only a hard refresh).
+	@appUpdateFiles path /tentura-app-cache-sw.js /wasm-preload-manifest.json
+
 	# Public root: cookie present → WASM; absent → landing (Level 1).
 	@rootWithSession {
 		path /
@@ -191,6 +195,7 @@
 	handle {
 		root * {$APP_ROOT:/srv/web}
 		try_files {path} /index.html
+		header @appUpdateFiles Cache-Control "no-cache"
 		file_server
 		header Cross-Origin-Opener-Policy "same-origin"
 		header Cross-Origin-Embedder-Policy "credentialless"
