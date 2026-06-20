@@ -110,7 +110,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   ferry_generator: ^0.14.0-dev.2
   sentry_dart_plugin: ^3.0.0
-  auto_route_generator: ^10.4.0
+  auto_route_generator: ^10.6.0
   flutter_launcher_icons: ^0.14.4
 
 flutter:

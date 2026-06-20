@@ -50,11 +50,11 @@ final class _Visitor extends SimpleAstVisitor<void> {
     }
     for (final decl in node.declarations) {
       if (decl is ClassDeclaration) {
-        _checkClassLike(decl.members);
+        _checkClassLike(decl.body.members);
       } else if (decl is MixinDeclaration) {
-        _checkClassLike(decl.members);
+        _checkClassLike(decl.body.members);
       } else if (decl is ExtensionDeclaration) {
-        _checkClassLike(decl.members);
+        _checkClassLike(decl.body.members);
       } else if (decl is FunctionDeclaration) {
         _checkTopLevelFunction(decl);
       }
