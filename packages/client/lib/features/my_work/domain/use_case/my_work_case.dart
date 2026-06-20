@@ -18,6 +18,7 @@ import '../../data/repository/my_work_repository.dart';
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
 import '../entity/my_work_desk_load_types.dart';
+import '../port/my_work_desk_preferences_port.dart';
 
 @singleton
 final class MyWorkCase extends UseCaseBase {
@@ -28,7 +29,8 @@ final class MyWorkCase extends UseCaseBase {
     this._beaconRepository,
     this._coordinationItemCase,
     this._beaconRoomCase,
-    this._roomHints, {
+    this._roomHints,
+    this._deskPreferences, {
     required super.env,
     required super.logger,
   });
@@ -47,6 +49,8 @@ final class MyWorkCase extends UseCaseBase {
 
   final BeaconRoomHintsRepository _roomHints;
 
+  final MyWorkDeskPreferencesPort _deskPreferences;
+
   Stream<RepositoryEvent<Beacon>> get beaconChanges => _beaconRepository.changes;
 
   Stream<HelpOfferEvent> get helpOfferChanges => _forwardRepository.helpOfferChanges;
@@ -61,7 +65,16 @@ final class MyWorkCase extends UseCaseBase {
   Future<MyWorkArchivedResult> fetchArchived({required String userId}) =>
       _repository.fetchArchived(userId: userId);
 
-  Future<void> archiveBeacon(String beaconId) => _archiveRepository.archive(beaconId);
+  Future<void> archiveBeacon({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _archiveRepository.archive(beaconId);
+    await _deskPreferences.setFinishedArchiveHintDismissed(userId: userId);
+  }
+
+  Future<void> dismissFinishedArchiveHint({required String userId}) =>
+      _deskPreferences.setFinishedArchiveHintDismissed(userId: userId);
 
   Future<void> unarchiveBeacon({
     required String beaconId,
@@ -81,9 +94,12 @@ final class MyWorkCase extends UseCaseBase {
           : c.copyWith(lastCoordinationItemMessageAt: at);
     }).toList();
     final enriched = await _enrichDeskCards(nonArchived);
+    final finishedArchiveHintDismissed =
+        await _deskPreferences.isFinishedArchiveHintDismissed(userId: userId);
     return (
       nonArchivedCards: enriched,
       archivedCountHint: init.archivedCountHint,
+      finishedArchiveHintDismissed: finishedArchiveHintDismissed,
     );
   }
 

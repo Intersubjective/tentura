@@ -71,4 +71,64 @@ void main() {
 
     await cubit.close();
   });
+
+  test('fetch hydrates finishedArchiveHintDismissed from prefs', () async {
+    final prefs = FakeMyWorkDeskPreferencesPort()
+      ..dismissedByUserId['user-1'] = true;
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(null, prefs),
+    );
+
+    await cubit.stream.firstWhere((s) => s.isSuccess);
+    expect(cubit.state.finishedArchiveHintDismissed, isTrue);
+
+    await cubit.close();
+  });
+
+  test('dismissFinishedArchiveHint persists to prefs', () async {
+    final prefs = FakeMyWorkDeskPreferencesPort();
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(null, prefs),
+    );
+    await cubit.stream.firstWhere((s) => s.isSuccess);
+
+    await cubit.dismissFinishedArchiveHint();
+    expect(cubit.state.finishedArchiveHintDismissed, isTrue);
+    expect(prefs.dismissedByUserId['user-1'], isTrue);
+
+    await cubit.close();
+  });
+
+  test('dismissFinishedArchiveHint survives fetch', () async {
+    final prefs = FakeMyWorkDeskPreferencesPort();
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(null, prefs),
+    );
+    await cubit.stream.firstWhere((s) => s.isSuccess);
+
+    await cubit.dismissFinishedArchiveHint();
+    await cubit.fetch();
+
+    expect(cubit.state.finishedArchiveHintDismissed, isTrue);
+
+    await cubit.close();
+  });
+
+  test('archiveBeacon persists finishedArchiveHintDismissed', () async {
+    final prefs = FakeMyWorkDeskPreferencesPort();
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(null, prefs),
+    );
+    await cubit.stream.firstWhere((s) => s.isSuccess);
+
+    await cubit.archiveBeacon('beacon-1');
+    expect(cubit.state.finishedArchiveHintDismissed, isTrue);
+    expect(prefs.dismissedByUserId['user-1'], isTrue);
+
+    await cubit.close();
+  });
 }
