@@ -11,7 +11,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_finished_status_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
@@ -93,6 +92,20 @@ void _openReviewContributions(BuildContext context, String id) {
   unawaited(context.router.pushPath('$kPathReviewContributions/$id'));
 }
 
+({String? statusLine, TenturaTone statusTone}) _myWorkCardHeaderStatus(
+  MyWorkStatusLineData data, {
+  String? roomSubtitle,
+}) {
+  final line = myWorkStatusDisplayLine(data, roomSubtitle: roomSubtitle);
+  if (line.isEmpty) {
+    return (statusLine: null, statusTone: TenturaTone.neutral);
+  }
+  return (
+    statusLine: line,
+    statusTone: myWorkStatusTone(data),
+  );
+}
+
 Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
   if (!vm.showArchiveAffordance) return null;
   final l10n = L10n.of(context)!;
@@ -134,6 +147,11 @@ class _AuthoredActiveCard extends StatelessWidget {
     final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
+    final headerStatus = _myWorkCardHeaderStatus(
+      statusLine,
+      roomSubtitle:
+          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+    );
 
     final hasReviewCta = vm.showReviewHelpOffersCta;
     final needsForwardCta = !vm.authorHasForwardedOnce;
@@ -176,6 +194,9 @@ class _AuthoredActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
+            titleMaxLines: 1,
+            statusLine: headerStatus.statusLine,
+            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               onShare: () => unawaited(
@@ -279,13 +300,6 @@ class _AuthoredActiveCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
           ),
-          const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-            roomSubtitle: vm.roomInboxSubtitle.isEmpty
-                ? null
-                : vm.roomInboxSubtitle,
-          ),
         ],
       ),
     );
@@ -306,6 +320,11 @@ class _HelpOfferedActiveCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
+    final headerStatus = _myWorkCardHeaderStatus(
+      statusLine,
+      roomSubtitle:
+          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+    );
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),
@@ -323,6 +342,9 @@ class _HelpOfferedActiveCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
+            titleMaxLines: 1,
+            statusLine: headerStatus.statusLine,
+            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               onForward: b.allowsForward
@@ -360,13 +382,6 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
           ),
-          const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-            roomSubtitle: vm.roomInboxSubtitle.isEmpty
-                ? null
-                : vm.roomInboxSubtitle,
-          ),
         ],
       ),
     );
@@ -388,6 +403,11 @@ class _DraftAuthoredCard extends StatelessWidget {
     final theme = Theme.of(context);
     final b = vm.beacon;
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
+    final headerStatus = _myWorkCardHeaderStatus(
+      statusLine,
+      roomSubtitle:
+          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+    );
 
     return BeaconCardShell(
       muted: true,
@@ -404,6 +424,9 @@ class _DraftAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
+            titleMaxLines: 1,
+            statusLine: headerStatus.statusLine,
+            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               editActionLabel: l10n.myWorkEditDraft,
@@ -439,13 +462,6 @@ class _DraftAuthoredCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
           ),
-          const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-            roomSubtitle: vm.roomInboxSubtitle.isEmpty
-                ? null
-                : vm.roomInboxSubtitle,
-          ),
           const SizedBox(height: kSpacingSmall),
           Text(
             l10n.myWorkDraftStatusLine(b.helpOfferCount),
@@ -475,6 +491,11 @@ class _FinishedAuthoredCard extends StatelessWidget {
     final repo = GetIt.I<BeaconRepository>();
     final evaluationRepo = GetIt.I<EvaluationRepository>();
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
+    final headerStatus = _myWorkCardHeaderStatus(
+      statusLine,
+      roomSubtitle:
+          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+    );
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
@@ -484,6 +505,9 @@ class _FinishedAuthoredCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
+            titleMaxLines: 1,
+            statusLine: headerStatus.statusLine,
+            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               onShare: () => unawaited(
@@ -587,13 +611,6 @@ class _FinishedAuthoredCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
           ),
-          const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-            roomSubtitle: vm.roomInboxSubtitle.isEmpty
-                ? null
-                : vm.roomInboxSubtitle,
-          ),
         ],
       ),
     );
@@ -614,6 +631,11 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final b = vm.beacon;
     final statusLine = myWorkStatusLine(l10n: l10n, vm: vm);
+    final headerStatus = _myWorkCardHeaderStatus(
+      statusLine,
+      roomSubtitle:
+          vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
+    );
     return BeaconCardShell(
       muted: true,
       onTap: () => _openBeacon(context, b.id),
@@ -623,6 +645,9 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: b,
+            titleMaxLines: 1,
+            statusLine: headerStatus.statusLine,
+            statusTone: headerStatus.statusTone,
             menu: BeaconOverflowMenu(
               beacon: b,
               onForward: b.allowsForward
@@ -659,13 +684,6 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
-          ),
-          const SizedBox(height: 6),
-          MyWorkCardStatusStrip(
-            data: statusLine,
-            roomSubtitle: vm.roomInboxSubtitle.isEmpty
-                ? null
-                : vm.roomInboxSubtitle,
           ),
         ],
       ),

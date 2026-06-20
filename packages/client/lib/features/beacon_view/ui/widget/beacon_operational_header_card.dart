@@ -1,26 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/beacon_involved_profiles.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
+import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 import 'beacon_hud_action_button.dart';
 
-/// Compact HUD header: NOW/YOU, people strip, action rail.
+/// Compact HUD header: metadata strip, NOW/YOU, action rail.
 class BeaconOperationalHeaderCard extends StatelessWidget {
   const BeaconOperationalHeaderCard({
     required this.state,
@@ -88,6 +85,11 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         CoordinationResponsibility(beaconId: state.beacon.id);
 
     final bundle = _buildHudActions(l10n);
+    final activeHelpUsers = [
+      for (final offer in state.helpOffers)
+        if (!offer.isWithdrawn) offer.user,
+    ];
+    final viewerId = context.watch<ProfileCubit>().state.profile.id;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -100,6 +102,13 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          BeaconCompactMetadataStrip(
+            beacon: state.beacon,
+            involvedProfiles: activeHelpUsers,
+            currentUserId: viewerId,
+            onFacePileTap: onSwitchToPeopleTab,
+          ),
+          const SizedBox(height: 6),
           HudLabeledMultiline(
             label: l10n.beaconHudNowLabel,
             text: nowDisplay.primaryText,
@@ -117,11 +126,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             responsibility: youResponsibility,
             isAuthorOrSteward: state.isAuthorOrSteward,
             showNewBadges: false,
-          ),
-          const SizedBox(height: 8),
-          _HudPeopleStrip(
-            state: state,
-            onTap: onSwitchToPeopleTab,
           ),
           if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen)
             ReviewWindowBannerHost(beaconId: state.beacon.id)
@@ -461,52 +465,6 @@ class _HudActionSpec {
   final String label;
   final VoidCallback? onPressed;
   final bool filled;
-}
-
-class _HudPeopleStrip extends StatelessWidget {
-  const _HudPeopleStrip({
-    required this.state,
-    this.onTap,
-  });
-
-  final BeaconViewState state;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final beacon = state.beacon;
-    final author = beacon.author;
-    final active = state.helpOffers.where((c) => !c.isWithdrawn).toList();
-
-    final helpUsers = [for (final c in active) c.user];
-    final ordered = orderBeaconInvolvedProfiles(author, helpUsers);
-    final display = involvedPeopleDisplayFromOrdered(ordered: ordered);
-
-    final viewerId = context.watch<ProfileCubit>().state.profile.id;
-
-    final child = OverlappingPeopleAvatars(
-      profiles: display.visible,
-      overflowCount: display.overflow,
-      size: 28,
-      starredProfileId: author.id,
-      selfUserId: viewerId,
-      semanticsLabel: l10n.facepileSemantics(
-        display.visible.length,
-        display.overflow,
-      ),
-    );
-
-    if (onTap == null) return child;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: child,
-      ),
-    );
-  }
 }
 
 class _HudActionRail extends StatelessWidget {

@@ -1,8 +1,10 @@
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_anchor_status.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/duration_format.dart';
@@ -30,6 +32,34 @@ final class MyWorkStatusLineData {
   final bool timeSlotOverdue;
 
   bool get isEmpty => slot1.trim().isEmpty && slot2.trim().isEmpty;
+}
+
+/// Assembles `slot1 [· slot2]` for compact header / app bar subtitles.
+String myWorkStatusDisplayLine(
+  MyWorkStatusLineData data, {
+  String? roomSubtitle,
+}) {
+  var slot2 = data.slot2.trim();
+  if (slot2.isEmpty) {
+    slot2 = roomSubtitle?.trim() ?? '';
+  }
+  final slot1 = data.slot1.trim();
+  if (slot1.isEmpty && slot2.isEmpty) return '';
+  if (slot1.isEmpty) return slot2;
+  if (slot2.isEmpty) return slot1;
+  return '$slot1 · $slot2';
+}
+
+TenturaTone myWorkStatusTone(MyWorkStatusLineData data) {
+  final response = data.slot1ResponseType;
+  if (response != null) {
+    return coordinationResponseTone(response);
+  }
+  final coord = data.slot1CoordinationStatus;
+  if (coord != null) {
+    return beaconAnchorStatusTone(coord);
+  }
+  return TenturaTone.neutral;
 }
 
 /// Derives `slot1 [· slot2]` for My Work cards (role-specific grammar).

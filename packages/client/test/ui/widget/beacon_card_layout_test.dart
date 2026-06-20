@@ -3,8 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/design_system/tentura_tokens.dart';
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -78,6 +77,50 @@ void main() {
     expect(titleFinder, findsOneWidget);
     final renderObject = tester.renderObject<RenderParagraph>(titleFinder);
     expect(renderObject.size.height <= 50, isTrue);
+  });
+
+  testWidgets('header shows one-line title and status subtitle', (tester) async {
+    const status = 'Needs more help';
+    final beacon = Beacon.empty.copyWith(
+      createdAt: DateTime(2025),
+      updatedAt: DateTime(2025),
+      id: 'b-status',
+      title: 'One line beacon title for header alignment',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(360, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                child: BeaconCardHeaderRow(
+                  beacon: beacon,
+                  titleMaxLines: 1,
+                  statusLine: status,
+                  statusTone: TenturaTone.warn,
+                  menu: const SizedBox(
+                    width: 32,
+                    height: 40,
+                    child: Placeholder(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final titleFinder = find.textContaining('One line beacon title');
+    final titleRender = tester.renderObject<RenderParagraph>(titleFinder);
+    expect(titleRender.maxLines, 1);
+    expect(find.text(status), findsOneWidget);
   });
 
   testWidgets('metadata block aligns updated line with author name column', (

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
-import 'package:tentura/design_system/tentura_text.dart';
-import 'package:tentura/design_system/tentura_tokens.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -335,7 +334,7 @@ bool beaconHasRealUpdate(
   return updated.isAfter(created.add(tolerance));
 }
 
-/// Identity tile, title, and trailing overflow (single header row; no sublines).
+/// Identity tile, title, optional status subtitle, and trailing overflow.
 class BeaconCardHeaderRow extends StatelessWidget {
   const BeaconCardHeaderRow({
     required this.beacon,
@@ -344,6 +343,8 @@ class BeaconCardHeaderRow extends StatelessWidget {
     this.identitySize = kBeaconCardHeaderIconSize,
     this.onTitleBlockTap,
     this.titleStyle,
+    this.statusLine,
+    this.statusTone = TenturaTone.neutral,
     super.key,
   });
 
@@ -362,6 +363,12 @@ class BeaconCardHeaderRow extends StatelessWidget {
   /// outranks section cards.
   final TextStyle? titleStyle;
 
+  /// Optional single-line operational status under the title (My Work cards).
+  final String? statusLine;
+
+  /// Semantic tone for [statusLine].
+  final TenturaTone statusTone;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -371,7 +378,7 @@ class BeaconCardHeaderRow extends StatelessWidget {
           color: scheme.onSurface,
         );
 
-    Widget title = Text(
+    Widget titleBlock = Text(
       beacon.title.isEmpty ? '—' : beacon.title,
       style: resolvedTitleStyle,
       maxLines: titleMaxLines,
@@ -379,18 +386,34 @@ class BeaconCardHeaderRow extends StatelessWidget {
     );
     final onTap = onTitleBlockTap;
     if (onTap != null) {
-      title = GestureDetector(
+      titleBlock = GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.translucent,
-        child: title,
+        child: titleBlock,
       );
     }
 
+    final subtitle = statusLine?.trim() ?? '';
+    final titleColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        titleBlock,
+        if (subtitle.isNotEmpty)
+          TenturaStatusText(
+            subtitle,
+            tone: statusTone,
+          ),
+      ],
+    );
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         BeaconIdentityTile(beacon: beacon, size: identitySize),
         const SizedBox(width: kSpacingSmall),
-        Expanded(child: title),
+        Expanded(child: titleColumn),
         SizedBox(
           width: kBeaconCardMenuSlotWidth,
           height: kBeaconCardMenuSlotHeight,
