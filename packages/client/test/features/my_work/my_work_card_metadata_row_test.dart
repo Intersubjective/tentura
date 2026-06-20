@@ -8,7 +8,9 @@ import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 
 MyWorkCardViewModel _viewModel(Beacon beacon) => MyWorkCardViewModel(
   beaconId: beacon.id,
@@ -61,6 +63,8 @@ void main() {
     expect(find.textContaining('updated'), findsOneWidget);
     expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
     expect(find.byType(MyWorkCardMetadataRow), findsOneWidget);
+    expect(find.byType(MyWorkCardStatusStrip), findsNothing);
+    expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
   });
 
   testWidgets('metadata row shows NOW label above YOU', (tester) async {

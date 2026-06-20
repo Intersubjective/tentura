@@ -1,0 +1,82 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
+
+import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
+
+class _MockProfileCubit extends Mock implements ProfileCubit {
+  @override
+  ProfileState get state => const ProfileState(
+    profile: Profile(id: 'viewer', displayName: 'Viewer'),
+  );
+
+  @override
+  Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
+}
+
+void main() {
+  final t = DateTime.utc(2026, 6, 20);
+
+  testWidgets('HUD renders compact metadata strip before NOW row', (tester) async {
+    final beacon = Beacon(
+      id: 'b-hud',
+      title: 'Beacon HUD',
+      author: const Profile(id: 'auth', displayName: 'Author'),
+      createdAt: t,
+      updatedAt: t,
+      lifecycle: BeaconLifecycle.open,
+      coordinationStatus: BeaconCoordinationStatus.neutral,
+      startAt: DateTime.utc(2099, 6, 20, 12),
+    );
+    final state = BeaconViewState(
+      beacon: beacon,
+      myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'h1', displayName: 'Helper'),
+          message: 'help',
+          createdAt: t,
+          updatedAt: t,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: BlocProvider<ProfileCubit>.value(
+          value: _MockProfileCubit(),
+          child: TenturaResponsiveScope(
+            child: Scaffold(
+              body: BeaconOperationalHeaderCard(
+                state: state,
+                onAuthorTap: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = lookupL10n(const Locale('en'));
+    expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
+    expect(find.text(l10n.beaconHudNowLabel), findsOneWidget);
+
+    final stripY = tester.getTopLeft(find.byType(BeaconCompactMetadataStrip)).dy;
+    final nowY = tester.getTopLeft(find.text(l10n.beaconHudNowLabel)).dy;
+    expect(stripY, lessThan(nowY));
+  });
+}

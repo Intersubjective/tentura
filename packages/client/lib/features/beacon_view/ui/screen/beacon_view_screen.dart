@@ -942,10 +942,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               state.timeline.isEmpty &&
               state.helpOffers.isEmpty;
 
-          final activeHelpOfferCount = state.helpOffers
-              .where((c) => !c.isWithdrawn)
-              .length;
+
           final roomUnread = _effectiveRoomUnreadCount(state);
+          final statusSlots = beaconViewStatusSlots(l10n, state);
           final (appBarStatusLine, appBarStatusTone) = _showRoomSurface
               ? (roomUnread > 0
                     ? (
@@ -954,11 +953,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       )
                     : ('ROOM · UP-TO-DATE', TenturaTone.neutral))
               : (
-                  beaconAnchorStatusLineShort(
-                    state.beacon,
-                    activeHelpOfferCount,
-                  ),
-                  beaconAnchorStatusTone(state.beacon.coordinationStatus),
+                  statusSlots.displayLine,
+                  statusSlots.tone,
                 );
 
           Widget body;
