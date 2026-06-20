@@ -52,7 +52,7 @@ BeaconViewState _peopleState({
       createdAt: _t,
       updatedAt: _t,
       lifecycle: BeaconLifecycle.open,
-      coordinationStatus: BeaconCoordinationStatus.helpOffersWaitingForReview,
+      coordinationStatus: BeaconCoordinationStatus.neutral,
     ),
     myProfile: const Profile(id: 'auth', displayName: 'Author'),
     helpOffers: helpOffers,

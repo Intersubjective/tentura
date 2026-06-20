@@ -21,8 +21,6 @@ abstract class CoordinationRepositoryPort {
     required int coordinationStatus,
   });
 
-  Future<void> recomputeAndPersistBeaconCoordinationStatus(String beaconId);
-
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
     String beaconId, {
     required String viewerId,

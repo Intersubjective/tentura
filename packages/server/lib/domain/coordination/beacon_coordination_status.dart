@@ -1,7 +1,6 @@
 /// Beacon-level coordination (`beacon.coordination_status`).
 enum BeaconCoordinationStatus {
-  noHelpOffersYet(0),
-  helpOffersWaitingForReview(1),
+  neutral(0),
   moreOrDifferentHelpNeeded(2),
   enoughHelpOffered(3);
 
@@ -10,8 +9,7 @@ enum BeaconCoordinationStatus {
   final int smallintValue;
 
   static BeaconCoordinationStatus? tryFromInt(int v) => switch (v) {
-        0 => noHelpOffersYet,
-        1 => helpOffersWaitingForReview,
+        0 => neutral,
         2 => moreOrDifferentHelpNeeded,
         3 => enoughHelpOffered,
         _ => null,

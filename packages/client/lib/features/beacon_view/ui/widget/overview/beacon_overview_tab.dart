@@ -1008,9 +1008,7 @@ String _coordinationHeaderSummary(L10n l10n, BeaconViewState state) {
         l10n.beaconOverviewNeedsShortMoreHelp,
         l10n.coordinationNeedDifferentSkill,
       ),
-    BeaconCoordinationStatus.noHelpOffersYet => l10n.coordinationNoHelpOffers,
-    BeaconCoordinationStatus.helpOffersWaitingForReview =>
-      l10n.coordinationWaitingForReview,
+    BeaconCoordinationStatus.neutral => l10n.coordinationNeutral,
     BeaconCoordinationStatus.enoughHelpOffered => l10n.coordinationEnoughHelp,
   };
 }

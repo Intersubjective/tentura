@@ -640,19 +640,6 @@ class MockCoordinationRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
-  _i3.Future<void> recomputeAndPersistBeaconCoordinationStatus(
-    String? beaconId,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#recomputeAndPersistBeaconCoordinationStatus, [
-              beaconId,
-            ]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
-          )
-          as _i3.Future<void>);
-
-  @override
   _i3.Future<List<_i11.HelpOfferWithCoordinationRow>>
   helpOffersWithCoordination(String? beaconId, {required String? viewerId}) =>
       (super.noSuchMethod(

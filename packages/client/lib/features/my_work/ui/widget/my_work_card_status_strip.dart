@@ -4,10 +4,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 
-/// Single-line operational status for My Desk cards: `slot1 · slot2 · slot3`.
-///
-/// [MyWorkStatusLineData.slot3] is the rightmost segment and ellipsizes first
-/// under tight width ([Expanded]).
+/// Single-line operational status for My Desk cards: `slot1 [· slot2]`.
 class MyWorkCardStatusStrip extends StatelessWidget {
   const MyWorkCardStatusStrip({
     required this.data,
@@ -22,6 +19,23 @@ class MyWorkCardStatusStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (data.isEmpty) {
+      final room = roomSubtitle?.trim();
+      if (room == null || room.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      final tt = context.tt;
+      return Padding(
+        padding: EdgeInsets.zero,
+        child: Text(
+          room,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TenturaText.bodySmall(tt.textMuted),
+        ),
+      );
+    }
+
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final tt = context.tt;
@@ -52,9 +66,6 @@ class MyWorkCardStatusStrip extends StatelessWidget {
         ..add(TextSpan(text: ' · ', style: baseStyle))
         ..add(TextSpan(text: slot2, style: slot2Style));
     }
-    spans
-      ..add(TextSpan(text: ' · ', style: baseStyle))
-      ..add(TextSpan(text: data.slot3, style: baseStyle));
 
     final line = Text.rich(
       TextSpan(children: spans),

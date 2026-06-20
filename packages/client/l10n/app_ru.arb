@@ -1739,20 +1739,8 @@
   "@myWorkChipForwarded": {
     "context": "MyWorkScreen"
   },
-  "myWorkStatusDraft": "Черновик",
-  "@myWorkStatusDraft": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusNoHelpOffers": "Нет предложений помощи",
-  "@myWorkStatusNoHelpOffers": {
-    "context": "MyWorkScreen"
-  },
   "myWorkStatusNeedsMoreHelp": "Нужна помощь",
   "@myWorkStatusNeedsMoreHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusReviewingHelpOffers": "Проверяем предложения помощи",
-  "@myWorkStatusReviewingHelpOffers": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusEnoughHelp": "Помощи достаточно",
@@ -1784,69 +1772,8 @@
       }
     }
   },
-  "myWorkStatusNoDeadline": "без срока",
-  "@myWorkStatusNoDeadline": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusAwaitingClose": "ожидает закрытия",
-  "@myWorkStatusAwaitingClose": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusReviewOpen": "проверка открыта",
-  "@myWorkStatusReviewOpen": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusWaitingOnAuthor": "ждём автора",
-  "@myWorkStatusWaitingOnAuthor": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusZeroHelpOffered": "0 предложений",
-  "@myWorkStatusZeroHelpOffered": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusOneHelpOffered": "1 предложение",
-  "@myWorkStatusOneHelpOffered": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusNHelpOffered": "{count} предложений",
-  "@myWorkStatusNHelpOffered": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "myWorkStatusReadyToClose": "можно закрыть",
-  "@myWorkStatusReadyToClose": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusReadyForReview": "Готово к проверке",
-  "@myWorkStatusReadyForReview": {
-    "context": "MyWorkScreen"
-  },
   "myWorkStatusHelpOfferedPersonal": "Помощь предложена",
   "@myWorkStatusHelpOfferedPersonal": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusMirrorNeedsMoreHelp": "нужна помощь",
-  "@myWorkStatusMirrorNeedsMoreHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusMirrorReviewingHelpOffers": "проверяем предложения помощи",
-  "@myWorkStatusMirrorReviewingHelpOffers": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusMirrorEnoughHelp": "помощи достаточно",
-  "@myWorkStatusMirrorEnoughHelp": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusMirrorClosed": "закрыто",
-  "@myWorkStatusMirrorClosed": {
-    "context": "MyWorkScreen"
-  },
-  "myWorkStatusAcknowledgeContributions": "подтвердить вклад",
-  "@myWorkStatusAcknowledgeContributions": {
     "context": "MyWorkScreen"
   },
   "myWorkStatusHelpOfferWithResponse": "{helpOffer}: {response}",
@@ -1858,15 +1785,6 @@
       },
       "response": {
         "type": "String"
-      }
-    }
-  },
-  "myWorkStatusNParticipants": "{count, plural, =0{0 участников} one{1 участник} few{{count} участника} many{{count} участников} other{{count} участников}}",
-  "@myWorkStatusNParticipants": {
-    "context": "MyWorkScreen",
-    "placeholders": {
-      "count": {
-        "type": "int"
       }
     }
   },
@@ -2573,8 +2491,7 @@
   "evaluationReviewDurationLessThanMinute": "<1 мин.",
   "labelHelpTypeOptional": "Тип помощи (необязательно)",
   "labelWithdrawReasonRequired": "Почему вы отзываете помощь?",
-  "coordinationNoHelpOffers": "Пока нет предложений помощи",
-  "coordinationWaitingForReview": "Обязательства ждут просмотра",
+  "coordinationNeutral": "—",
   "coordinationMoreHelpNeeded": "Нужна другая или большая помощь",
   "coordinationEnoughHelp": "Достаточно помощи",
   "coordinationUseful": "Полезно",

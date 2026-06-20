@@ -1,7 +1,6 @@
 /// Beacon-level coordination (`beacon.coordination_status` smallint).
 enum BeaconCoordinationStatus {
-  noHelpOffersYet(0),
-  helpOffersWaitingForReview(1),
+  neutral(0),
   moreOrDifferentHelpNeeded(2),
   enoughHelpOffered(3);
 
@@ -10,10 +9,10 @@ enum BeaconCoordinationStatus {
   final int smallintValue;
 
   static BeaconCoordinationStatus fromSmallint(int v) => switch (v) {
-        0 => noHelpOffersYet,
-        1 => helpOffersWaitingForReview,
+        0 => neutral,
+        1 => neutral, // ACL: legacy auto-derived value during migration rollout
         2 => moreOrDifferentHelpNeeded,
         3 => enoughHelpOffered,
-        _ => noHelpOffersYet,
+        _ => neutral,
       };
 }

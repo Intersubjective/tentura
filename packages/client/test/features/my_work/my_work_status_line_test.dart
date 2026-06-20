@@ -10,9 +10,7 @@ import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 void main() {
-  testWidgets('committed review-open status matches post-close grammar', (
-    tester,
-  ) async {
+  Future<L10n> loadL10n(WidgetTester tester) async {
     L10n? l10nRef;
     await tester.pumpWidget(
       MaterialApp(
@@ -28,46 +26,75 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final l10n = l10nRef!;
+    return l10nRef!;
+  }
 
+  testWidgets('authored open neutral hides strip', (tester) async {
+    final l10n = await loadL10n(tester);
     final vm = MyWorkCardViewModel(
-      beaconId: 'x',
-      role: MyWorkCardRole.helpOffered,
-      kind: MyWorkCardKind.helpOfferedActive,
+      beaconId: 'n',
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredActive,
       beacon: Beacon.empty.copyWith(
-        id: 'x',
-        lifecycle: BeaconLifecycle.reviewOpen,
-        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+        id: 'n',
+        lifecycle: BeaconLifecycle.open,
+        coordinationStatus: BeaconCoordinationStatus.neutral,
+        helpOfferCount: 2,
       ),
-      showReadyForReviewChip: true,
-      showReviewCta: true,
     );
     final line = myWorkStatusLine(l10n: l10n, vm: vm);
-    expect(line.slot1, l10n.myWorkStatusReadyForReview);
-    expect(line.slot2, l10n.myWorkStatusMirrorClosed);
-    expect(line.slot3, l10n.myWorkStatusAcknowledgeContributions);
+    expect(line.isEmpty, isTrue);
+  });
+
+  testWidgets('authored open needsMoreHelp shows slot1 only', (tester) async {
+    final l10n = await loadL10n(tester);
+    final vm = MyWorkCardViewModel(
+      beaconId: 'm',
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredActive,
+      beacon: Beacon.empty.copyWith(
+        id: 'm',
+        lifecycle: BeaconLifecycle.open,
+        coordinationStatus: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+      ),
+    );
+    final line = myWorkStatusLine(l10n: l10n, vm: vm);
+    expect(line.slot1, l10n.myWorkStatusNeedsMoreHelp);
+    expect(line.slot2, isEmpty);
+    expect(
+      line.slot1CoordinationStatus,
+      BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+    );
+  });
+
+  testWidgets('authored reviewOpen shows wrapping up and countdown', (
+    tester,
+  ) async {
+    final l10n = await loadL10n(tester);
+    final closesAt = DateTime.utc(2026, 6, 25, 12);
+    final now = DateTime.utc(2026, 6, 22, 12);
+    final vm = MyWorkCardViewModel(
+      beaconId: 'a',
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredActive,
+      beacon: Beacon.empty.copyWith(
+        id: 'a',
+        lifecycle: BeaconLifecycle.reviewOpen,
+        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+        reviewClosesAt: closesAt,
+        reviewWindowStatus: 0,
+        helpOfferCount: 3,
+      ),
+    );
+    final line = myWorkStatusLine(l10n: l10n, vm: vm, now: now);
+    expect(line.slot1, l10n.myWorkStatusWrappingUp);
+    expect(line.slot2, isNotEmpty);
   });
 
   testWidgets('committed active folds author response into slot1', (
     tester,
   ) async {
-    L10n? l10nRef;
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        home: Builder(
-          builder: (context) {
-            l10nRef = L10n.of(context);
-            return const SizedBox.shrink();
-          },
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final l10n = l10nRef!;
-
+    final l10n = await loadL10n(tester);
     final vm = MyWorkCardViewModel(
       beaconId: 'c',
       role: MyWorkCardRole.helpOffered,
@@ -80,7 +107,6 @@ void main() {
       authorResponseType: CoordinationResponseType.useful,
     );
     final line = myWorkStatusLine(l10n: l10n, vm: vm);
-    expect(line.slot3, l10n.myWorkStatusMirrorEnoughHelp);
     expect(
       line.slot1,
       l10n.myWorkStatusHelpOfferWithResponse(
@@ -88,78 +114,46 @@ void main() {
         l10n.coordinationUseful.toLowerCase(),
       ),
     );
+    expect(line.slot2, isEmpty);
+    expect(line.slot1ResponseType, CoordinationResponseType.useful);
   });
 
-  testWidgets('authored reviewOpen uses Closed · wrapping up · participants',
-      (tester) async {
-    L10n? l10nRef;
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        home: Builder(
-          builder: (context) {
-            l10nRef = L10n.of(context);
-            return const SizedBox.shrink();
-          },
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final l10n = l10nRef!;
-
+  testWidgets('help offered reviewOpen shows wrapping up', (tester) async {
+    final l10n = await loadL10n(tester);
     final vm = MyWorkCardViewModel(
-      beaconId: 'a',
-      role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredActive,
+      beaconId: 'x',
+      role: MyWorkCardRole.helpOffered,
+      kind: MyWorkCardKind.helpOfferedActive,
       beacon: Beacon.empty.copyWith(
-        id: 'a',
+        id: 'x',
         lifecycle: BeaconLifecycle.reviewOpen,
         coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
-        helpOfferCount: 3,
+        reviewClosesAt: DateTime.utc(2026, 6, 25),
+        reviewWindowStatus: 0,
+      ),
+      showReviewCta: true,
+    );
+    final line = myWorkStatusLine(
+      l10n: l10n,
+      vm: vm,
+      now: DateTime.utc(2026, 6, 22),
+    );
+    expect(line.slot1, l10n.myWorkStatusWrappingUp);
+  });
+
+  testWidgets('authored finished shows closed', (tester) async {
+    final l10n = await loadL10n(tester);
+    final vm = MyWorkCardViewModel(
+      beaconId: 'f',
+      role: MyWorkCardRole.authored,
+      kind: MyWorkCardKind.authoredFinished,
+      beacon: Beacon.empty.copyWith(
+        id: 'f',
+        lifecycle: BeaconLifecycle.closed,
       ),
     );
     final line = myWorkStatusLine(l10n: l10n, vm: vm);
     expect(line.slot1, l10n.myWorkStatusClosed);
-    expect(line.slot2, l10n.myWorkStatusWrappingUp);
-    expect(line.slot3, l10n.myWorkStatusNParticipants(3));
-  });
-
-  testWidgets('authored active omits slot2 when beacon has schedule dates', (
-    tester,
-  ) async {
-    L10n? l10nRef;
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        home: Builder(
-          builder: (context) {
-            l10nRef = L10n.of(context);
-            return const SizedBox.shrink();
-          },
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final l10n = l10nRef!;
-
-    final vm = MyWorkCardViewModel(
-      beaconId: 'sched',
-      role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredActive,
-      beacon: Beacon.empty.copyWith(
-        id: 'sched',
-        lifecycle: BeaconLifecycle.open,
-        coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
-        helpOfferCount: 2,
-        endAt: DateTime(2026, 7, 1),
-      ),
-    );
-    final line = myWorkStatusLine(l10n: l10n, vm: vm);
     expect(line.slot2, isEmpty);
-    expect(line.slot1, l10n.myWorkStatusEnoughHelp);
   });
 }

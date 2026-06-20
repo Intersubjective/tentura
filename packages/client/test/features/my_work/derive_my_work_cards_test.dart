@@ -10,7 +10,7 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 Beacon _b({
   required String id,
   required BeaconLifecycle lifecycle,
-  BeaconCoordinationStatus coordination = BeaconCoordinationStatus.noHelpOffersYet,
+  BeaconCoordinationStatus coordination = BeaconCoordinationStatus.neutral,
   int helpOfferCount = 0,
 }) =>
     Beacon.empty.copyWith(
@@ -32,12 +32,12 @@ void main() {
     expect(vms.single.kind, MyWorkCardKind.authoredDraft);
   });
 
-  test('authored active shows Review commitments CTA when waiting review', () {
+  test('authored active shows Review commitments CTA when neutral with offers', () {
     final authored = [
       _b(
         id: 'a',
         lifecycle: BeaconLifecycle.open,
-        coordination: BeaconCoordinationStatus.helpOffersWaitingForReview,
+        coordination: BeaconCoordinationStatus.neutral,
         helpOfferCount: 2,
       ),
     ];
@@ -48,7 +48,7 @@ void main() {
     expect(vms.single.showReviewHelpOffersCta, isTrue);
   });
 
-  test('committed active shows ready for review chip in reviewOpen', () {
+  test('committed active shows review CTA in reviewOpen', () {
     final row = (
       beacon: _b(id: 'c', lifecycle: BeaconLifecycle.reviewOpen),
       offerHelpMessage: 'note',
@@ -62,7 +62,6 @@ void main() {
       authoredNonArchived: const [],
       helpOfferedNonArchived: [row],
     );
-    expect(vms.single.showReadyForReviewChip, isTrue);
     expect(vms.single.showReviewCta, isTrue);
   });
 

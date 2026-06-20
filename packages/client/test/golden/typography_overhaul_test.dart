@@ -280,7 +280,6 @@ class _MyWorkGoldenBody extends StatelessWidget {
             data: MyWorkStatusLineData(
               slot1: 'Open',
               slot2: 'Closes 2025-05-01',
-              slot3: '3 people committed',
               timeSlotOverdue: false,
             ),
           ),

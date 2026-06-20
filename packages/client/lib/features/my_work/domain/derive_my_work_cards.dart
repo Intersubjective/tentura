@@ -11,10 +11,9 @@ import 'entity/my_work_sort.dart';
 
 /// Sort key: higher = earlier in list. Tie-break with [Beacon.updatedAt], then id.
 int myWorkCardSortTier(MyWorkCardViewModel vm) {
-  if (vm.showReadyForReviewChip || vm.showReviewCta) return 400;
+  if (vm.showReviewCta) return 400;
   if (vm.attentionChip == MyWorkAttentionChip.reviewWindowOpen) return 390;
   if (vm.showReviewHelpOffersCta) return 350;
-  if (vm.attentionChip == MyWorkAttentionChip.reviewPending) return 330;
   if (vm.attentionChip == MyWorkAttentionChip.moreHelpNeeded) return 250;
   if (vm.kind == MyWorkCardKind.authoredDraft) return 50;
   if (vm.kind == MyWorkCardKind.authoredFinished ||
@@ -90,16 +89,12 @@ MyWorkCardViewModel _deriveAuthored({
   if (lc == BeaconLifecycle.reviewOpen) {
     attention = MyWorkAttentionChip.reviewWindowOpen;
   } else if (beacon.coordinationStatus ==
-      BeaconCoordinationStatus.helpOffersWaitingForReview) {
-    attention = MyWorkAttentionChip.reviewPending;
-  } else if (beacon.coordinationStatus ==
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
     attention = MyWorkAttentionChip.moreHelpNeeded;
   }
 
   final showReviewHelpOffersCta =
-      beacon.coordinationStatus ==
-          BeaconCoordinationStatus.helpOffersWaitingForReview &&
+      beacon.coordinationStatus == BeaconCoordinationStatus.neutral &&
       beacon.helpOfferCount > 0;
 
   return MyWorkCardViewModel(
@@ -159,7 +154,6 @@ MyWorkCardViewModel _deriveHelpOffered({
     offerHelpMessage: row.offerHelpMessage,
     authorResponseType: row.authorResponseType,
     forwarderSenders: row.forwarderSenders,
-    showReadyForReviewChip: reviewOpen,
     showReviewCta: reviewOpen,
     helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
     authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,

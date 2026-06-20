@@ -114,14 +114,12 @@ List<BeaconDerivedChip> _missingHelpChips(
   switch (status) {
     case BeaconCoordinationStatus.moreOrDifferentHelpNeeded:
       return [BeaconDerivedChip(label: l10n.beaconChipMoreHelpNeeded, emphasized: true)];
-    case BeaconCoordinationStatus.helpOffersWaitingForReview:
-      return [BeaconDerivedChip(label: l10n.beaconChipReviewingHelpOffers)];
     case BeaconCoordinationStatus.enoughHelpOffered:
       if (activeHelpOfferCount(helpOffers) == 0) {
         return [];
       }
       return [BeaconDerivedChip(label: l10n.beaconChipEnoughHelp)];
-    case BeaconCoordinationStatus.noHelpOffersYet:
+    case BeaconCoordinationStatus.neutral:
       return [];
   }
 }

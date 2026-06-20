@@ -42,7 +42,7 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// `beacon_review_window.status` (0=open, 1=complete); null if no row.
     int? reviewWindowStatus,
-    @Default(BeaconCoordinationStatus.noHelpOffersYet)
+    @Default(BeaconCoordinationStatus.neutral)
     BeaconCoordinationStatus coordinationStatus,
     DateTime? coordinationStatusUpdatedAt,
 

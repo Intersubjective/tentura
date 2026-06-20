@@ -263,8 +263,8 @@ Future<void> showBeaconCoordinationStatusBottomSheet({
   final l10n = L10n.of(context)!;
   final options = <(int, String)>[
     (
-      BeaconCoordinationStatus.helpOffersWaitingForReview.smallintValue,
-      l10n.coordinationWaitingForReview,
+      BeaconCoordinationStatus.neutral.smallintValue,
+      l10n.coordinationNeutral,
     ),
     (
       BeaconCoordinationStatus.moreOrDifferentHelpNeeded.smallintValue,
