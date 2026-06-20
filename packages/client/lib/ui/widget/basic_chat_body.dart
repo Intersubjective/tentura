@@ -677,9 +677,8 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       );
       return;
     }
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
-      withData: true,
     );
     if (!mounted || result == null || result.files.isEmpty) {
       return;
@@ -688,10 +687,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       if (_remainingSlots <= 0) {
         break;
       }
-      final bytes = pf.bytes;
-      if (bytes == null) {
-        continue;
-      }
+      final bytes = await pf.readAsBytes();
       var mime = pf.extension != null && pf.extension!.trim().isNotEmpty
           ? _mimeFromExtension(pf.extension!)
           : 'application/octet-stream';
