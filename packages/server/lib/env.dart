@@ -18,7 +18,6 @@ class Env {
     int? workersCount,
     Uri? serverUri,
     bool? printEnv,
-    bool? renderSharedPreview,
 
     // Auth
     bool? isNeedInvite,
@@ -91,8 +90,6 @@ class Env {
        isDebugModeOn = isDebugModeOn ?? _env['DEBUG_MODE'] == 'true',
        environment = environment ?? _env['ENVIRONMENT'] ?? Environment.prod,
        serverUri = serverUri ?? Uri.parse(kServerName),
-       renderSharedPreview =
-           renderSharedPreview ?? _env['RENDER_SHARED_PREVIEW'] == 'true',
        workersCount =
            workersCount ??
            int.tryParse(_env['WORKERS_COUNT'] ?? '') ??
@@ -263,7 +260,6 @@ class Env {
   Env.test()
     : this(
         environment: Environment.test,
-        renderSharedPreview: true,
         isDebugModeOn: true,
         logLevel: Level.ALL,
         workersCount: 1,
@@ -280,8 +276,6 @@ class Env {
   final Uri serverUri;
 
   final int workersCount;
-
-  final bool renderSharedPreview;
 
   late final isolatesCount = isDebugModeOn ? 1 : workersCount;
 

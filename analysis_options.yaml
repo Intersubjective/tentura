@@ -14,13 +14,6 @@ plugins:
       no_operational_raw_color: true
       no_operational_raw_text_style: true
       no_operational_pill_widgets_in_beacon_view: true
-  jaspr_lints:
-    version: ^0.7.1
-    diagnostics:
-      sort_children_last: true
-      prefer_html_components: true
-      styles_ordering: true
-      prefer_styles_getter: true
 
 analyzer:
   exclude:

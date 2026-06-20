@@ -16,7 +16,7 @@ import 'controllers/invite_accept_existing_controller.dart';
 import 'controllers/invite_preview_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/session_controller.dart';
-import 'controllers/shared_view_controller.dart';
+import 'controllers/app_link_redirect_controller.dart';
 import 'middleware/auth_middleware.dart';
 
 @Injectable(order: 4)
@@ -28,7 +28,7 @@ class RootRouter {
     this._graphqlController,
     this._graphiqlController,
     this._firebaseSwController,
-    this._sharedViewController,
+    this._appLinkRedirectController,
     this._roomAttachmentDownloadController,
     this._invitePreviewController,
     this._inviteAcceptExistingController,
@@ -51,7 +51,7 @@ class RootRouter {
 
   final FirebaseSwController _firebaseSwController;
 
-  final SharedViewController _sharedViewController;
+  final AppLinkRedirectController _appLinkRedirectController;
 
   final RoomAttachmentDownloadController _roomAttachmentDownloadController;
 
@@ -83,7 +83,7 @@ class RootRouter {
       )
       ..get('/health', () => 'I`m fine!')
       ..get('/graphiql', _graphiqlController.handler)
-      ..get(kPathAppLinkView, _sharedViewController.handler)
+      ..get(kPathAppLinkView, _appLinkRedirectController.handler)
       ..get(kPathFirebaseSwJs, _firebaseSwController.handler)
       ..get(kPathWebSocketEndpoint, _wsController.handler)
       ..post(

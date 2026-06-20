@@ -42,7 +42,7 @@ These are **project invariants**. Stricter checks live in `.cursor/rules/archite
 
 ### CI
 
-- The GitHub workflow runs **`dart analyze --no-fatal-warnings`** (server) and **`flutter analyze --no-fatal-warnings --no-fatal-infos`** (client) **before** tests. Plugin lints (`tentura_lints`, `jaspr_lints`) run inside analyze automatically — no separate `custom_lint` step. New work should stay clean under those flags (or fix pre-existing debt in the same area you touch).
+- The GitHub workflow runs **`dart analyze --no-fatal-warnings`** (server) and **`flutter analyze --no-fatal-warnings --no-fatal-infos`** (client) **before** tests. Plugin lints (`tentura_lints`) run inside analyze automatically — no separate `custom_lint` step. New work should stay clean under those flags (or fix pre-existing debt in the same area you touch).
 - **Server Postgres integration tests** (see `packages/server/README.md` § Tests) are skipped in CI when no database is available; they run locally against dev Postgres. Do not add a Postgres service to the main pipeline unless the integration surface grows materially.
 
 ## Ferry custom scalars (Hasura)
