@@ -10,7 +10,6 @@ analyzer:
     - "**/*.gr.dart"
     - "**/*.schema.dart"
     - "**/*.freezed.dart"
-    - "lib/jaspr_options.dart"
 
 linter:
   rules:

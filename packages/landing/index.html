@@ -12,10 +12,8 @@
       content="Someone invited you to connect on Tentura."
     />
     <!--
-      OG/preview meta for link crawlers (Telegram/iMessage) is served by the
-      Dart server's Jaspr path (/shared/view) — see shared_view_controller.dart.
-      This static page is the in-browser human experience; it fetches the JSON
-      preview at /api/v2/invite/:code/preview and renders one of five states.
+      Invite landing page: fetches JSON preview at /api/v2/invite/:code/preview
+      and renders one of five states. GET /shared/view redirects to the Flutter SPA.
       No third-party scripts except Sentry (analytics decision, Phase 0).
     -->
     <link rel="stylesheet" href="styles.css" />

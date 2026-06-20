@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:isolate';
-import 'package:jaspr/server.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 
 import 'package:tentura_server/env.dart';
-import 'package:tentura_server/jaspr_options.dart';
 import 'package:tentura_server/api/root_router.dart';
 
 import '../di.dart';
@@ -13,7 +11,6 @@ Future<void> serveWeb(({SendPort sendPort, Env env}) params) async {
   final receivePort = ReceivePort();
   params.sendPort.send(receivePort.sendPort);
 
-  Jaspr.initializeApp(options: defaultJasprOptions);
   final getIt = await configureDependencies(params.env);
   await getIt.allReady();
 
