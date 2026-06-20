@@ -48,7 +48,7 @@ final class CoordinationCase extends UseCaseBase {
       );
 
   // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: no_map_dynamic_in_use_case_api
+  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
   Future<Map<String, dynamic>> setCoordinationResponse({
     required String beaconId,
     required String offerUserId,

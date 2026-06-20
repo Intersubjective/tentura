@@ -33,7 +33,7 @@ These are **project invariants**. Stricter checks live in `.cursor/rules/archite
 
 ### Client (`packages/client`)
 
-- **`lib/domain/`** (shared root domain) must **not** import `package:tentura/.../data/` or `.../ui/`. Enforced by **`custom_lint`** in **`packages/tentura_lints`** (`no_domain_to_data_or_ui_import`). *Note:* feature folders named `domain/` under `features/*/domain/` are not the same path — still follow the same **spirit** (no upward imports to data/ui types from domain code).
+- **`lib/domain/`** (shared root domain) must **not** import `package:tentura/.../data/` or `.../ui/`. Enforced by **`tentura_lints`** analyzer plugin (`no_domain_to_data_or_ui_import`). *Note:* feature folders named `domain/` under `features/*/domain/` are not the same path — still follow the same **spirit** (no upward imports to data/ui types from domain code).
 - **`lib/**/ui/bloc/*_cubit.dart`** must **not** import `package:tentura/.../data/service/`. Use **repositories** or **`features/*/domain/use_case/*_case`**. Lint: **`no_cubit_to_data_service_import`**.
 - **Orchestration:** When a cubit coordinates **multiple repositories** or **streams**, add or extend a **`@singleton`** `*Case` in `features/<feature>/domain/use_case/` and inject it (optional ctor param + `GetIt.I` fallback) so the cubit stays thin.
 - **Immutable cubit state:** Never mutate lists/maps **on** `state` (no `state.items.add`, `state.likes[id]=`, in-place `sort`, etc.). Always **`emit(state.copyWith(...))`** with **new** collection instances.
@@ -42,7 +42,7 @@ These are **project invariants**. Stricter checks live in `.cursor/rules/archite
 
 ### CI
 
-- The GitHub workflow runs **`dart analyze --fatal-infos`** (server) and **`flutter analyze --fatal-infos`** (client) **before** tests. New work should stay clean under those flags (or fix pre-existing debt in the same area you touch).
+- The GitHub workflow runs **`dart analyze --no-fatal-warnings`** (server) and **`flutter analyze --no-fatal-warnings --no-fatal-infos`** (client) **before** tests. Plugin lints (`tentura_lints`, `jaspr_lints`) run inside analyze automatically — no separate `custom_lint` step. New work should stay clean under those flags (or fix pre-existing debt in the same area you touch).
 - **Server Postgres integration tests** (see `packages/server/README.md` § Tests) are skipped in CI when no database is available; they run locally against dev Postgres. Do not add a Postgres service to the main pipeline unless the integration surface grows materially.
 
 ## Ferry custom scalars (Hasura)
@@ -288,7 +288,7 @@ Tentura uses **semantic typography** and **width-based layout classes**, not pro
 - **Body:** minimum **15** — `bodyMedium` / `TenturaText.body`.
 - **Primary actions / buttons:** minimum **15** — `labelLarge`.
 - **Bottom navigation labels:** **12.5** is the **only** exception below 13 — `TenturaText.navLabel` or equivalent.
-- **Do not** use literal font sizes **8, 10, 11, 12** in `packages/client/lib/features/**` or `packages/client/lib/ui/**` (use semantic roles; `custom_lint` may enforce).
+- **Do not** use literal font sizes **8, 10, 11, 12** in `packages/client/lib/features/**` or `packages/client/lib/ui/**` (use semantic roles; `tentura_lints` enforces via `dart analyze`).
 
 ### WindowClass breakpoints
 

@@ -44,8 +44,9 @@ jobs:
               git config --global --add safe.directory "*"
               dart pub get
               flutter pub get
-              ( cd packages/server && dart run build_runner build -d && dart analyze --no-fatal-warnings && dart run custom_lint && dart test ) &&
-              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && dart run custom_lint && flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+              ( cd packages/tentura_lints && dart test ) &&
+              ( cd packages/server && dart run build_runner build -d && dart analyze --no-fatal-warnings && dart test ) &&
+              cd packages/client && flutter gen-l10n && dart run build_runner build -d && flutter analyze --no-fatal-warnings --no-fatal-infos && flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
             '
 
   build-web:

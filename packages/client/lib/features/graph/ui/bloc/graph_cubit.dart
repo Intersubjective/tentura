@@ -46,7 +46,7 @@ enum ForwardsGraphViewerRole {
 
 class GraphCubit extends Cubit<GraphState> {
   // TODO(contract): Phase-2 DTO migration — route multi-repo orchestration through a *Case.
-  // ignore: cubit_requires_use_case_for_multi_repos
+  // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos
   GraphCubit({
     required Profile me,
     String? focus,

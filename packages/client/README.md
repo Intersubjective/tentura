@@ -4,9 +4,9 @@ Social network based on MeritRank
 
 ## Architecture (short)
 
-- `**custom_lint`:** repo package `**packages/tentura_lints`** (see root `**DEV_GUIDELINES.md**` § *Layer boundaries*).
+- **`analysis_server_plugin`:** repo package **`packages/tentura_lints`** (see root **`DEV_GUIDELINES.md`** § *Layer boundaries*; enabled in root **`analysis_options.yaml`**).
 - **Orchestration:** prefer `**lib/features/*/domain/use_case/*_case.dart*`* for multi-repo flows; cubits avoid `**data/service/**` imports.
-- **Analyze:** match CI — `flutter analyze --fatal-infos` before opening a PR.
+- **Analyze:** match CI — `flutter analyze --no-fatal-warnings --no-fatal-infos` before opening a PR.
 
 ## How to build
 

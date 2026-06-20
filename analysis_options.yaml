@@ -1,6 +1,27 @@
 include:
   - package:very_good_analysis/analysis_options.yaml
 
+plugins:
+  tentura_lints:
+    path: packages/tentura_lints
+    diagnostics:
+      no_domain_to_data_or_ui_import: true
+      no_cubit_to_data_service_import: true
+      no_map_dynamic_in_use_case_api: true
+      no_raw_graphql_in_dart: true
+      no_inline_font_size: true
+      cubit_requires_use_case_for_multi_repos: true
+      no_operational_raw_color: true
+      no_operational_raw_text_style: true
+      no_operational_pill_widgets_in_beacon_view: true
+  jaspr_lints:
+    version: ^0.7.1
+    diagnostics:
+      sort_children_last: true
+      prefer_html_components: true
+      styles_ordering: true
+      prefer_styles_getter: true
+
 analyzer:
   exclude:
     - ".pub-cache/**"
