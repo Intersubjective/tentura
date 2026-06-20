@@ -3,3 +3,7 @@
 dependency_overrides:
   cli_util: ^0.5.0
   lean_builder: 0.1.10
+  ferry_generator:
+    path: packages/ferry_generator
+  adaptive_number:
+    git: https://github.com/alexandrim0/adaptive_number_dart.git
