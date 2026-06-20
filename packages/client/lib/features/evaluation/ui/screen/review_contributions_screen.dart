@@ -11,6 +11,7 @@ import 'package:tentura/features/evaluation/domain/entity/evaluation_participant
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
+import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -150,9 +151,9 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
                         },
                       ),
                     ],
-                    Text(
-                      l10n.evaluationPrivacyBlock,
-                      style: theme.textTheme.bodySmall,
+                    EvaluationPrivacyInfoRow(
+                      shortLabel: l10n.evaluationPrivacyShort,
+                      fullText: l10n.evaluationPrivacyBlock,
                     ),
                     const SizedBox(height: 12),
                     ..._participantSections(
