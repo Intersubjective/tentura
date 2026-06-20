@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -12,6 +13,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -71,12 +73,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final l10n = lookupL10n(const Locale('en'));
     expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
-    expect(find.text(l10n.beaconHudNowLabel), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.now), findsOneWidget);
+    expect(find.text('NOW'), findsNothing);
 
     final stripY = tester.getTopLeft(find.byType(BeaconCompactMetadataStrip)).dy;
-    final nowY = tester.getTopLeft(find.text(l10n.beaconHudNowLabel)).dy;
+    final nowY = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dy;
     expect(stripY, lessThan(nowY));
   });
 }

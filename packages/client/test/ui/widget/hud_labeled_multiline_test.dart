@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
 void main() {
@@ -23,7 +24,8 @@ void main() {
             body: SizedBox(
               width: 320,
               child: HudLabeledMultiline(
-                label: 'NOW',
+                leadingIcon: BeaconHudRowIcons.now,
+                semanticsLabel: 'NOW',
                 text: text,
                 mutedColor: Colors.grey,
                 onShowDetail: onShowDetail,
@@ -73,7 +75,7 @@ void main() {
     expect(detailTaps, 1);
   });
 
-  testWidgets('label and subline taps fire onShowDetail', (tester) async {
+  testWidgets('lead icon and subline taps fire onShowDetail', (tester) async {
     var detailTaps = 0;
     await tester.pumpWidget(
       MaterialApp(
@@ -86,7 +88,8 @@ void main() {
             body: SizedBox(
               width: 320,
               child: HudLabeledMultiline(
-                label: 'NOW',
+                leadingIcon: BeaconHudRowIcons.now,
+                semanticsLabel: 'NOW',
                 text: 'Current focus',
                 subline: 'Blocked: credentials',
                 mutedColor: Colors.grey,
@@ -99,7 +102,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('NOW'));
+    await tester.tap(find.byIcon(BeaconHudRowIcons.now));
     await tester.pumpAndSettle();
     expect(detailTaps, 1);
 

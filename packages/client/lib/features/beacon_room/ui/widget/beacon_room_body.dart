@@ -26,6 +26,7 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart'
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_detail_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_ask_sheet.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_staleness_picker.dart';
 
@@ -1529,7 +1530,8 @@ class _PinnedNowRow extends StatelessWidget {
             child: Padding(
               padding: tt.cardPadding,
               child: HudLabeledMultiline(
-                label: l10n.beaconHudNowLabel,
+                leadingIcon: BeaconHudRowIcons.now,
+                semanticsLabel: l10n.beaconHudNowLabel,
                 text: nowDisplay.primaryText,
                 subline: nowDisplay.blockerText,
                 mutedColor: tt.textMuted,

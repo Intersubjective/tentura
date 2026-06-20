@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_you_presentation.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 class BeaconYouResponsibilityLine extends StatelessWidget {
   const BeaconYouResponsibilityLine({
@@ -13,7 +14,6 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     required this.isAuthorOrSteward,
     this.showNewBadges = true,
     this.onTap,
-    this.leadingLabel,
     super.key,
   });
 
@@ -22,7 +22,6 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
   final bool isAuthorOrSteward;
   final bool showNewBadges;
   final VoidCallback? onTap;
-  final String? leadingLabel;
 
   static const double _compactWrapWidth = 320;
 
@@ -54,7 +53,6 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        final label = leadingLabel ?? l10n.beaconHudYouLabel;
         final bodyStyle = theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurface,
         );
@@ -89,18 +87,11 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
           );
         }
 
-        final row = Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 44,
-              child: Text(
-                label,
-                style: mutedStyle?.copyWith(fontWeight: FontWeight.w600),
-              ),
-            ),
-            Expanded(child: content),
-          ],
+        final row = BeaconHudIconRow(
+          leadIcon: BeaconHudRowIcons.you,
+          semanticsLabel: l10n.beaconHudYouLabel,
+          leadAlign: BeaconHudRowLeadAlign.center,
+          body: content,
         );
 
         if (onTap == null) {

@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_now_detail_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
 void main() {
@@ -91,7 +92,8 @@ void main() {
         home: TenturaResponsiveScope(
           child: Scaffold(
             body: HudLabeledMultiline(
-              label: l10n.beaconHudNowLabel,
+              leadingIcon: BeaconHudRowIcons.now,
+              semanticsLabel: l10n.beaconHudNowLabel,
               text: display.primaryText,
               mutedColor: Colors.grey,
               onShowDetail: () {},
@@ -102,7 +104,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(l10n.beaconHudNowLabel), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.now), findsOneWidget);
+    expect(find.text(l10n.beaconHudNowLabel), findsNothing);
     expect(find.text(l10n.beaconRoomStripCurrentLineLabel), findsNothing);
     expect(find.text('Coordinate pickup at noon'), findsOneWidget);
   });

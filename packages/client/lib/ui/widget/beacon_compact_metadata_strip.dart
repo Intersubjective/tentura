@@ -15,6 +15,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 /// Compact people / schedule / location strip shared by My Work cards and beacon HUD.
@@ -32,16 +33,41 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
   final String currentUserId;
   final VoidCallback? onFacePileTap;
 
-  static const double _compactWrapWidth = 320;
+  static const double _compactWrapWidth = 360;
+
+  static bool hasVisibleContent({
+    required Beacon beacon,
+    required List<Profile> involvedProfiles,
+  }) {
+    final display = beaconInvolvedPeopleDisplay(
+      author: beacon.author,
+      helpOfferUsers: involvedProfiles,
+      helpOfferCount: involvedProfiles.length,
+    );
+    final hasPile = display.visible.isNotEmpty;
+    final hasSchedule = beacon.hasScheduleDates;
+    final hasLocation = beacon.coordinates?.isNotEmpty ?? false;
+    return hasPile || hasSchedule || hasLocation;
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!hasVisibleContent(
+      beacon: beacon,
+      involvedProfiles: involvedProfiles,
+    )) {
+      return const SizedBox.shrink();
+    }
+
+    final l10n = L10n.of(context)!;
+
     return LayoutBuilder(
       builder: (context, constraints) {
+        final bodyWidth = constraints.maxWidth - kBeaconHudRowLeadWidth;
         final useWrap =
             context.windowClass == WindowClass.compact &&
-            constraints.maxWidth < _compactWrapWidth;
-        return useWrap
+            bodyWidth < _compactWrapWidth;
+        final strip = useWrap
             ? _MetadataWrapLayout(
                 beacon: beacon,
                 involvedProfiles: involvedProfiles,
@@ -54,6 +80,13 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
                 currentUserId: currentUserId,
                 onFacePileTap: onFacePileTap,
               );
+
+        return BeaconHudIconRow(
+          leadIcon: BeaconHudRowIcons.people,
+          semanticsLabel: l10n.beaconHudPeopleRowSemantics,
+          leadAlign: BeaconHudRowLeadAlign.center,
+          body: strip,
+        );
       },
     );
   }

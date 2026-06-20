@@ -10,11 +10,9 @@ import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/coordination_item_presenter.dart';
-import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 const _kMyWorkLastEventAvatarSize = 18.0;
 
@@ -71,11 +69,16 @@ class _MyWorkLastEventRowState extends State<MyWorkLastEventRow> {
       );
       return Padding(
         padding: const EdgeInsets.only(top: 4),
-        child: Text(
-          l10n.myWorkUpdatedRelative(ago),
-          style: beaconCardUpdatedLineTextStyle(theme),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        child: BeaconHudIconRow(
+          leadIcon: BeaconHudRowIcons.lastEvent,
+          semanticsLabel: l10n.beaconHudLastEventRowSemantics,
+          leadAlign: BeaconHudRowLeadAlign.center,
+          body: Text(
+            l10n.myWorkUpdatedRelative(ago),
+            style: beaconCardUpdatedLineTextStyle(theme),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       );
     }
@@ -115,7 +118,6 @@ class _EventLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final event = last.event;
     final label = beaconActivityEventLabel(l10n, event);
-    final iconColor = beaconActivityLogIconColor(theme, event);
     final ago = compactRelativeTimeAgo(
       when: event.createdAt,
       now: now,
@@ -149,62 +151,48 @@ class _EventLine extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4),
       child: Semantics(
         label: semanticsLabel,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            ExcludeSemantics(
-              child: coordinationCompoundActivityIcon(
-                    event,
-                    tt: context.tt,
-                  ) ??
-                  Icon(
-                    beaconActivityLogIcon(event),
-                    size: kCoordinationLogEventIconSize,
-                    color: iconColor,
-                  ),
-            ),
-            SizedBox(width: kSpacingSmall),
-            Expanded(
-              child: Text.rich(
+        child: BeaconHudIconRow(
+          leadIcon: BeaconHudRowIcons.lastEvent,
+          semanticsLabel: l10n.beaconHudLastEventRowSemantics,
+          leadAlign: BeaconHudRowLeadAlign.center,
+          body: Text.rich(
+            TextSpan(
+              style: bodyStyle,
+              children: [
+                TextSpan(text: label),
                 TextSpan(
-                  style: bodyStyle,
-                  children: [
-                    TextSpan(text: label),
-                    TextSpan(
-                      text: ' ${l10n.myWorkLastEventBy} ',
-                      style: bodyStyle.copyWith(
-                        color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
-                      ),
-                    ),
-                    if (!isYou)
-                      WidgetSpan(
-                        alignment: PlaceholderAlignment.middle,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: ExcludeSemantics(
-                            child: TenturaAvatar.tiny(
-                              profile: actor,
-                              size: _kMyWorkLastEventAvatarSize,
-                              showAuthorStar: isAuthor,
-                            ),
-                          ),
+                  text: ' ${l10n.myWorkLastEventBy} ',
+                  style: bodyStyle.copyWith(
+                    color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
+                  ),
+                ),
+                if (!isYou)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: ExcludeSemantics(
+                        child: TenturaAvatar.tiny(
+                          profile: actor,
+                          size: _kMyWorkLastEventAvatarSize,
+                          showAuthorStar: isAuthor,
                         ),
                       ),
-                    TextSpan(
-                      text: actorLabel,
-                      style: isYou ? youStyle : bodyStyle,
                     ),
-                    TextSpan(
-                      text: ', $ago',
-                      style: agoStyle,
-                    ),
-                  ],
+                  ),
+                TextSpan(
+                  text: actorLabel,
+                  style: isYou ? youStyle : bodyStyle,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+                TextSpan(
+                  text: ', $ago',
+                  style: agoStyle,
+                ),
+              ],
             ),
-          ],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ),
     );

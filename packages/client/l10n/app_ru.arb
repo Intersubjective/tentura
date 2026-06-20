@@ -2533,6 +2533,8 @@
   "itemsTabCreatePlanSheetPrompt": "Какой план?",
   "beaconHudNowLabel": "СЕЙЧАС",
   "beaconHudYouLabel": "ВЫ",
+  "beaconHudPeopleRowSemantics": "Участники",
+  "beaconHudLastEventRowSemantics": "Последняя активность",
   "beaconYouAskCount": "{count, plural, one{1 просьба} few{{count} просьбы} many{{count} просьб} other{{count} просьбы}}",
   "beaconYouPromiseCount": "{count, plural, one{1 обещание} few{{count} обещания} many{{count} обещаний} other{{count} обещания}}",
   "beaconYouBlockerCount": "{count, plural, one{1 блокер} few{{count} блокера} many{{count} блокеров} other{{count} блокера}}",

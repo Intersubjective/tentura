@@ -9,6 +9,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 /// My Work list card metadata: face pile + schedule countdown + location.
 class MyWorkCardMetadataRow extends StatelessWidget {
@@ -81,7 +82,8 @@ class _MyWorkNowRow extends StatelessWidget {
     );
 
     return HudLabeledMultiline(
-      label: l10n.beaconHudNowLabel,
+      leadingIcon: BeaconHudRowIcons.now,
+      semanticsLabel: l10n.beaconHudNowLabel,
       text: nowDisplay.primaryText,
       subline: nowDisplay.blockerText,
       mutedColor: tt.textMuted,
