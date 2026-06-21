@@ -47,3 +47,4 @@ temp/
 .env
 packages/client/env/local-web.env
 .enable-ollama-compress
+packages/client/test/**/failures/
