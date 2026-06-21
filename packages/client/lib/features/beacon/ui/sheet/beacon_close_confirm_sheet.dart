@@ -66,7 +66,7 @@ Future<bool> showBeaconCloseConfirmSheet({
 
   final evidence = <Widget>[
     if (branchPreview != null)
-      _evidenceRow(scheme, branchPreview, positive: true),
+      _evidenceRow(scheme, branchPreview),
     _evidenceRow(
       scheme,
       summary.hasOpenBlocker

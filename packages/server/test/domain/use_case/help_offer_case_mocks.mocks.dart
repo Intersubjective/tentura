@@ -10,10 +10,8 @@ import 'package:mockito/src/dummies.dart' as _i7;
 import 'package:tentura_server/data/database/tentura_db.dart' as _i5;
 import 'package:tentura_server/data/repository/beacon_room_repository.dart'
     as _i16;
-import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart'
-    as _i18;
 import 'package:tentura_server/data/service/beacon_room_push_service.dart'
-    as _i19;
+    as _i18;
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart'
     as _i17;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
@@ -358,6 +356,27 @@ class MockBeaconRepositoryPort extends _i1.Mock
             Invocation.method(#updateBeaconState, [], {
               #beaconId: beaconId,
               #state: state,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> recordBeaconLifecycleTransition({
+    required String? beaconId,
+    required int? fromState,
+    required int? toState,
+    required String? reason,
+    required String? actorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#recordBeaconLifecycleTransition, [], {
+              #beaconId: beaconId,
+              #fromState: fromState,
+              #toState: toState,
+              #reason: reason,
+              #actorId: actorId,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
@@ -1899,63 +1918,11 @@ class MockBeaconRoomRepository extends _i1.Mock
           as _i3.Future<void>);
 }
 
-/// A class which mocks [VoteUserFriendshipLookup].
-///
-/// See the documentation for Mockito's code generation for more information.
-class MockVoteUserFriendshipLookup extends _i1.Mock
-    implements _i18.VoteUserFriendshipLookup {
-  MockVoteUserFriendshipLookup() {
-    _i1.throwOnMissingStub(this);
-  }
-
-  @override
-  _i3.Future<Set<String>> reciprocalPositivePeerIds({
-    required String? viewerId,
-    required Iterable<String>? peerIds,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#reciprocalPositivePeerIds, [], {
-              #viewerId: viewerId,
-              #peerIds: peerIds,
-            }),
-            returnValue: _i3.Future<Set<String>>.value(<String>{}),
-          )
-          as _i3.Future<Set<String>>);
-
-  @override
-  _i3.Future<bool> isReciprocalSubscribe({
-    required String? viewerId,
-    required String? peerId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#isReciprocalSubscribe, [], {
-              #viewerId: viewerId,
-              #peerId: peerId,
-            }),
-            returnValue: _i3.Future<bool>.value(false),
-          )
-          as _i3.Future<bool>);
-
-  @override
-  _i3.Future<bool> isSubscribedTo({
-    required String? viewerId,
-    required String? peerId,
-  }) =>
-      (super.noSuchMethod(
-            Invocation.method(#isSubscribedTo, [], {
-              #viewerId: viewerId,
-              #peerId: peerId,
-            }),
-            returnValue: _i3.Future<bool>.value(false),
-          )
-          as _i3.Future<bool>);
-}
-
 /// A class which mocks [BeaconRoomPushService].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomPushService extends _i1.Mock
-    implements _i19.BeaconRoomPushService {
+    implements _i18.BeaconRoomPushService {
   MockBeaconRoomPushService() {
     _i1.throwOnMissingStub(this);
   }

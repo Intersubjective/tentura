@@ -50,10 +50,10 @@ void main() {
     });
 
     test('existing-user awaits confirmation', () async {
-      repo.previewResult = InvitePreview(
+      repo.previewResult = const InvitePreview(
         codeStatus: InviteCodeStatus.available,
         callerStatus: InviteCallerStatus.existingUser,
-        inviter: const InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
+        inviter: InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
       );
       await cubit.start('Iabc123');
       expect(cubit.state.needsConfirmation, isTrue);
@@ -61,10 +61,10 @@ void main() {
     });
 
     test('confirmAccept posts accept-as-existing', () async {
-      repo.previewResult = InvitePreview(
+      repo.previewResult = const InvitePreview(
         codeStatus: InviteCodeStatus.available,
         callerStatus: InviteCallerStatus.existingUser,
-        inviter: const InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
+        inviter: InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
       );
       await cubit.start('Iabc123');
       await cubit.confirmAccept();
@@ -80,10 +80,10 @@ void main() {
     });
 
     test('404 after confirm is non-fatal messaging', () async {
-      repo.previewResult = InvitePreview(
+      repo.previewResult = const InvitePreview(
         codeStatus: InviteCodeStatus.available,
         callerStatus: InviteCallerStatus.existingUser,
-        inviter: const InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
+        inviter: InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
       );
       repo.acceptError = const InvitationNoLongerValid();
       await cubit.start('Iabc123');

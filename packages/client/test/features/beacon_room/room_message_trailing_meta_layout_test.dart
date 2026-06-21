@@ -89,7 +89,7 @@ void main() {
         dateLine: '12:34',
         metaStyle: metaStyle,
         bodyStyle: bodyStyle,
-        trailingGap: 4.0,
+        trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -104,7 +104,7 @@ void main() {
         dateLine: '12:34',
         metaStyle: metaStyle,
         bodyStyle: bodyStyle,
-        trailingGap: 4.0,
+        trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -112,7 +112,7 @@ void main() {
         dateLine: '12:34 · edited',
         metaStyle: metaStyle,
         bodyStyle: bodyStyle,
-        trailingGap: 4.0,
+        trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -167,7 +167,7 @@ void main() {
         dateLine: dateLine,
         metaStyle: metaStyle,
         bodyStyle: bodyStyle,
-        trailingGap: 4.0,
+        trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -332,7 +332,7 @@ void main() {
       const dateLine = '12:34';
 
       final timePainter = TextPainter(
-        text: TextSpan(text: dateLine, style: metaStyle),
+        text: const TextSpan(text: dateLine, style: metaStyle),
         textDirection: textDirection,
         textScaler: textScaler,
         maxLines: 1,
@@ -377,7 +377,7 @@ void main() {
         dateLine: '12:34',
         metaStyle: metaStyle,
         bodyStyle: bodyStyle,
-        trailingGap: 4.0,
+        trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -386,7 +386,7 @@ void main() {
         time: '12:34',
         labelStyle: metaStyle.copyWith(fontWeight: FontWeight.w600),
         timeStyle: metaStyle,
-        itemGap: 4.0,
+        itemGap: 4,
         showChevron: true,
         textDirection: textDirection,
         textScaler: textScaler,

@@ -41,18 +41,18 @@ Future<void> main() async {
 
     tearDown(() async {
       await db.customStatement(
-        r"DELETE FROM public.coordination_item WHERE id LIKE 'Iresptest%'",
+        "DELETE FROM public.coordination_item WHERE id LIKE 'Iresptest%'",
       );
       if (await _hasBeaconItemsSeenTable(db)) {
         await db.customStatement(
-          r"DELETE FROM public.beacon_items_seen WHERE beacon_id = 'Bresptestbcn1'",
+          "DELETE FROM public.beacon_items_seen WHERE beacon_id = 'Bresptestbcn1'",
         );
       }
       await db.customStatement(
-        r"DELETE FROM public.beacon WHERE id = 'Bresptestbcn1'",
+        "DELETE FROM public.beacon WHERE id = 'Bresptestbcn1'",
       );
       await db.customStatement(
-        r'''DELETE FROM public."user" WHERE id IN ('Uresptestview1', 'Uresptestauth1')''',
+        '''DELETE FROM public."user" WHERE id IN ('Uresptestview1', 'Uresptestauth1')''',
       );
     });
   }
@@ -73,14 +73,14 @@ ON CONFLICT (id) DO UPDATE SET
       [viewerKey, authorKey],
     );
     await db.customStatement(
-      r'''
+      '''
 INSERT INTO public.beacon (id, user_id, title, description, created_at, updated_at)
 VALUES ('Bresptestbcn1', 'Uresptestauth1', 'Responsibility test', '', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''',
     );
     await db.customStatement(
-      r'''
+      '''
 INSERT INTO public.coordination_item (
   id, beacon_id, kind, status, title, body, creator_id, target_person_id,
   target_item_id, published, created_at, updated_at, published_at, source, ordering
@@ -239,7 +239,7 @@ Env _testEnv() => Env(
 
 Future<bool> _hasBeaconItemsSeenTable(TenturaDb db) async {
   final rows = await db.customSelect(
-    r'''
+    '''
 SELECT 1 FROM information_schema.tables
 WHERE table_schema = 'public' AND table_name = 'beacon_items_seen'
 LIMIT 1
@@ -250,7 +250,7 @@ LIMIT 1
 
 Future<bool> _hasResponsibilitySchema(TenturaDb db) async {
   final publishedAt = await db.customSelect(
-    r'''
+    '''
 SELECT 1 FROM information_schema.columns
 WHERE table_schema = 'public'
   AND table_name = 'coordination_item'

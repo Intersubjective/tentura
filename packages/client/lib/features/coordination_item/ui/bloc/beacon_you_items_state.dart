@@ -1,4 +1,3 @@
-import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/ui/bloc/state_base.dart';

@@ -2,7 +2,7 @@ import 'package:test/test.dart';
 
 void main() {
   test('m0089 backfill SQL is idempotent on type 15 and published states', () {
-    const sql = r'''
+    const sql = '''
 INSERT INTO public.beacon_activity_event (
   id,
   beacon_id,

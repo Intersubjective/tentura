@@ -27,7 +27,6 @@ class ProfileAppBar extends StatelessWidget {
           SelfAwareAvatar.medium(
             profile: profile,
             size: 32,
-            withRating: false,
           ),
           const SizedBox(width: 8),
           Expanded(

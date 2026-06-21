@@ -173,6 +173,7 @@ class InvitationRepository implements InvitationAcceptPort {
   }
 
   /// Caller-aware preview (`GET /api/v2/invite/:code/preview`).
+  @override
   Future<InvitePreview> fetchInvitePreview(String code) async {
     try {
       final json = await _remoteApiService.getAuthenticatedJson(
@@ -189,6 +190,7 @@ class InvitationRepository implements InvitationAcceptPort {
   }
 
   /// Befriend issuer as an already-authenticated user (V2 REST).
+  @override
   Future<void> acceptExistingInvite(String code) async {
     try {
       await _remoteApiService.postAuthenticatedJson(

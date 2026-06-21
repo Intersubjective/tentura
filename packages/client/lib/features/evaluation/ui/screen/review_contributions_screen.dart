@@ -314,7 +314,6 @@ class _ParticipantTile extends StatelessWidget {
       child: ListTile(
         leading: SelfAwareAvatar.small(
           profile: profile,
-          withRating: false,
         ),
         title: BlocBuilder<ProfileCubit, ProfileState>(
           buildWhen: (p, c) => p.profile.id != c.profile.id,

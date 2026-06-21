@@ -37,7 +37,6 @@ void main() {
       _b(
         id: 'a',
         lifecycle: BeaconLifecycle.open,
-        coordination: BeaconCoordinationStatus.neutral,
         helpOfferCount: 2,
       ),
     ];

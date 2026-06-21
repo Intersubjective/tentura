@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -46,7 +45,7 @@ void main() {
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
           home: MediaQuery(
-            data: MediaQueryData(size: logicalSize),
+            data: const MediaQueryData(size: logicalSize),
             child: TenturaResponsiveScope(
               child: Scaffold(
                 body: RepaintBoundary(
@@ -124,7 +123,6 @@ void main() {
           body: 'Hello room',
         ),
         myProfile: me,
-        nextMessage: null,
       );
     });
 
@@ -218,7 +216,7 @@ void main() {
             localizationsDelegates: L10n.localizationsDelegates,
             supportedLocales: L10n.supportedLocales,
             home: MediaQuery(
-              data: MediaQueryData(size: logicalSize),
+              data: const MediaQueryData(size: logicalSize),
               child: TenturaResponsiveScope(
                 child: Scaffold(
                   body: SizedBox(

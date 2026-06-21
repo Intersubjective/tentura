@@ -678,7 +678,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       return;
     }
     final result = await FilePicker.pickFiles(
-      allowMultiple: true,
+      
     );
     if (!mounted || result == null || result.files.isEmpty) {
       return;

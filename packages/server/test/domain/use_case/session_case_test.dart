@@ -2,8 +2,6 @@ import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
-import 'package:tentura_server/domain/entity/jwt_entity.dart';
-import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/auth_case.dart';

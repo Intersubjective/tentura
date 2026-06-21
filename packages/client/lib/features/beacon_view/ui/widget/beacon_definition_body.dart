@@ -11,7 +11,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/beacon_image_gallery.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 
 /// Beacon definition content for the Items tab foldable section.
 class BeaconDefinitionBody extends StatelessWidget {

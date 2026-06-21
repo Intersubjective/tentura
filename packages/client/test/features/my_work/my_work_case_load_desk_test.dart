@@ -14,7 +14,7 @@ void main() {
           Beacon.empty.copyWith(
             id: 'b1',
             lifecycle: BeaconLifecycle.open,
-            updatedAt: DateTime(2025, 6, 1),
+            updatedAt: DateTime(2025, 6),
           ),
         ],
         helpOfferedNonArchived: const [],

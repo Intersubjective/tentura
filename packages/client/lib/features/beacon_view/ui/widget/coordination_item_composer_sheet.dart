@@ -19,9 +19,8 @@ Future<void> showCoordinationItemComposerSheet(
   required String beaconAuthorId,
   required String myUserId,
   required bool isAuthorOrSteward,
-  CoordinationItem? existingDraft,
+  required VoidCallback onSaved, CoordinationItem? existingDraft,
   AskComposerSeed? seed,
-  required VoidCallback onSaved,
 }) async {
   final l10n = L10n.of(context)!;
   final coordinationCase = GetIt.I<CoordinationItemCase>();
@@ -443,11 +442,10 @@ class _TargetPicker extends StatelessWidget {
 
     if (kind == CoordinationItemKind.ask) {
       return DropdownButtonFormField<String?>(
-        value: selectedId,
+        initialValue: selectedId,
         decoration: InputDecoration(labelText: label),
         items: [
           DropdownMenuItem<String?>(
-            value: null,
             child: Text(noneLabel),
           ),
           for (final userId in askTargetIds)
@@ -468,14 +466,13 @@ class _TargetPicker extends StatelessWidget {
     }
 
     return DropdownButtonFormField<String?>(
-      value: selectedId != null &&
+      initialValue: selectedId != null &&
               participantTargets.any((p) => p.userId == selectedId)
           ? selectedId
           : null,
       decoration: InputDecoration(labelText: label),
       items: [
         DropdownMenuItem<String?>(
-          value: null,
           child: Text(noneLabel),
         ),
         for (final p in participantTargets)

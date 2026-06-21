@@ -58,7 +58,6 @@ class NetworkPersonCard extends StatelessWidget {
           children: [
             SelfAwareAvatar.small(
               profile: profile,
-              withRating: false,
               withContactBadge: true,
             ),
             const SizedBox(width: 16),

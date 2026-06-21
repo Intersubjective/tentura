@@ -19,7 +19,7 @@ class NoDomainToDataImportsTest extends AnalysisRuleTest {
 
   Future<void> test_reports_data_import() async {
     await assertDiagnostics(
-      r'''
+      '''
 import 'package:tentura/data/repository/foo_repository.dart';
 ''',
       [
@@ -31,7 +31,7 @@ import 'package:tentura/data/repository/foo_repository.dart';
 
   Future<void> test_allows_domain_import() async {
     await assertDiagnostics(
-      r'''
+      '''
 import 'package:tentura/domain/entity/foo.dart';
 ''',
       [error(diag.uriDoesNotExist, 7, 40)],
@@ -52,7 +52,7 @@ class NoCubitToDataServiceImportsTest extends AnalysisRuleTest {
 
   Future<void> test_reports_data_service_import() async {
     await assertDiagnostics(
-      r'''
+      '''
 import 'package:tentura/data/service/remote_api_client.dart';
 ''',
       [
@@ -64,7 +64,7 @@ import 'package:tentura/data/service/remote_api_client.dart';
 
   Future<void> test_allows_repository_import() async {
     await assertDiagnostics(
-      r'''
+      '''
 import 'package:tentura/data/repository/foo_repository.dart';
 ''',
       [error(diag.uriDoesNotExist, 7, 53)],
@@ -106,7 +106,7 @@ class CubitRequiresUseCaseForMultiReposTest extends AnalysisRuleTest {
 
   Future<void> test_reports_multi_repo_without_case() async {
     await assertDiagnostics(
-      r'''
+      '''
 import 'package:bloc/bloc.dart';
 import 'package:tentura/data/repository/foo_repository.dart';
 import 'package:tentura/data/repository/bar_repository.dart';
@@ -124,7 +124,7 @@ class FooCubit extends Cubit<int> {
 
   Future<void> test_allows_multi_repo_with_case() async {
     await assertDiagnostics(
-      r'''
+      '''
 import 'package:bloc/bloc.dart';
 import 'package:tentura/data/repository/foo_repository.dart';
 import 'package:tentura/data/repository/bar_repository.dart';
@@ -167,7 +167,7 @@ class NoRawGraphqlInDartTest extends AnalysisRuleTest {
 
   Future<void> test_allows_regular_string() async {
     await assertNoDiagnostics(
-      r'''
+      '''
 const title = 'hello world';
 ''',
     );

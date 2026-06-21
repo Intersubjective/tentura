@@ -25,8 +25,8 @@ void main() {
         status: CoordinationItemStatus.open,
         creatorId: 'c',
         targetPersonId: 't',
-        createdAt: DateTime.utc(2026, 6, 1),
-        updatedAt: DateTime.utc(2026, 6, 1),
+        createdAt: DateTime.utc(2026, 6),
+        updatedAt: DateTime.utc(2026, 6),
         staleAt: DateTime.utc(2026, 6, 10),
       );
       expect(
@@ -43,8 +43,8 @@ void main() {
         status: CoordinationItemStatus.open,
         creatorId: 'c',
         targetPersonId: 't',
-        createdAt: DateTime.utc(2026, 6, 1),
-        updatedAt: DateTime.utc(2026, 6, 1),
+        createdAt: DateTime.utc(2026, 6),
+        updatedAt: DateTime.utc(2026, 6),
         staleAt: DateTime.utc(2026, 6, 10),
       );
       expect(item.canRemind('observer'), isTrue);

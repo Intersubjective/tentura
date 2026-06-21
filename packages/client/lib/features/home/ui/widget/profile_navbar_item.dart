@@ -49,7 +49,6 @@ class ProfileNavBarItem extends StatelessWidget {
                 builder: (context, state) {
                   return SelfAwareAvatar.medium(
                     profile: state.profile,
-                    withRating: false,
                   );
                 },
               ),
@@ -82,7 +81,6 @@ class _AccountMenuItem extends StatelessWidget {
           padding: kPaddingAllS,
           child: SelfAwareAvatar.small(
             profile: profile,
-            withRating: false,
           ),
         ),
         Padding(

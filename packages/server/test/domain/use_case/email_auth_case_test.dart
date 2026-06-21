@@ -41,16 +41,13 @@ final class _FakeEmailSender implements EmailSenderPort {
 final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   final Map<String, EmailAuthTransactionEntity> _byToken = {};
   final Set<String> _consumed = {};
-  var resolveShouldThrow = false;
+  bool resolveShouldThrow = false;
 
   @override
   Future<String> create({
     required String normalizedEmail,
-    String? inviteCode,
+    required Duration expiresIn, required String userAgentHash, required String ipHash, String? inviteCode,
     String? linkAccountId,
-    required Duration expiresIn,
-    required String userAgentHash,
-    required String ipHash,
   }) async {
     const token = 'opaque-token';
     _byToken[token] = EmailAuthTransactionEntity(
@@ -303,7 +300,7 @@ void main() {
         contacts: anyNamed('contacts'),
       ),
     ).thenAnswer(
-      (_) async => AccountCredentialEntity(
+      (_) async => const AccountCredentialEntity(
         id: 'Cemail',
         accountId: accountId,
         type: CredentialType.emailOtp,
@@ -472,7 +469,6 @@ void main() {
         accountId: googleAccountId,
         type: CredentialType.emailOtp,
         identifier: email,
-        publicData: null,
         contacts: anyNamed('contacts'),
       ),
     ).called(1);

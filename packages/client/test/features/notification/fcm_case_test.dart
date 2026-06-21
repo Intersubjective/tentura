@@ -26,7 +26,7 @@ void main() {
 
   test('skips server when accountId, appId, and token unchanged', () async {
     await settings.setLastFcmRegistration(
-      LastFcmRegistration(
+      const LastFcmRegistration(
         accountId: accountA,
         appId: appId,
         token: tokenT,
@@ -45,7 +45,7 @@ void main() {
 
   test('registers when accountId changes but token is the same', () async {
     await settings.setLastFcmRegistration(
-      LastFcmRegistration(
+      const LastFcmRegistration(
         accountId: accountA,
         appId: appId,
         token: tokenT,
@@ -65,7 +65,7 @@ void main() {
 
   test('forceRegister always calls server', () async {
     await settings.setLastFcmRegistration(
-      LastFcmRegistration(
+      const LastFcmRegistration(
         accountId: accountA,
         appId: appId,
         token: tokenT,
@@ -84,7 +84,7 @@ void main() {
 
   test('unregister clears last registration and deletes on server', () async {
     await settings.setLastFcmRegistration(
-      LastFcmRegistration(
+      const LastFcmRegistration(
         accountId: accountA,
         appId: appId,
         token: tokenT,

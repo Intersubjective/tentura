@@ -47,9 +47,8 @@ class AppUpdateCubit extends Cubit<AppUpdateState> {
   // ignore: tentura_lints/cubit_requires_use_case_for_multi_repos
   AppUpdateCubit({
     required AppUpdateRepository appUpdateRepository,
-    required PlatformRepositoryPort platformRepository,
-  }) : _platformRepository = platformRepository,
-       super(const AppUpdateState()) {
+    required this._platformRepository,
+  }) : super(const AppUpdateState()) {
     _minVersionSubscription = appUpdateRepository.minClientVersionStream.listen(
       _onMinClientVersion,
       cancelOnError: false,

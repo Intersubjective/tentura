@@ -50,16 +50,12 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   SettingsCubit({
-    required AuthCase authCase,
-    required AuthCubit authCubit,
-    required AccountCase accountCase,
-    required SettingsRepositoryPort settingsRepository,
+    required this._authCase,
+    required this._authCubit,
+    required this._accountCase,
+    required this._settingsRepository,
     SettingsState state = const SettingsState(),
-  }) : _authCase = authCase,
-       _authCubit = authCubit,
-       _accountCase = accountCase,
-       _settingsRepository = settingsRepository,
-       super(state);
+  }) : super(state);
 
   final AuthCase _authCase;
 

@@ -1,9 +1,6 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -411,7 +408,6 @@ class _ItemDiscussionHeader extends StatelessWidget {
           ),
         ),
         child: ExpansionTile(
-          initiallyExpanded: false,
           leading: Container(width: 3, color: statusColor),
           title: Text(
             preview,

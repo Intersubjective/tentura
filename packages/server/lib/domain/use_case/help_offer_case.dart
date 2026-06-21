@@ -13,7 +13,6 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
-import 'package:tentura_server/data/repository/vote_user_friendship_lookup.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 
 import 'capability_case.dart';
@@ -28,7 +27,6 @@ final class HelpOfferCase extends UseCaseBase {
     this._inboxRepository,
     this._capabilityCase,
     this._beaconRoomRepository,
-    this._friendshipLookup,
     this._forwardEdgeRepository,
     this._roomPush, {
     required super.env,
@@ -41,7 +39,6 @@ final class HelpOfferCase extends UseCaseBase {
   final InboxRepositoryPort _inboxRepository;
   final CapabilityCase _capabilityCase;
   final BeaconRoomRepository _beaconRoomRepository;
-  final VoteUserFriendshipLookup _friendshipLookup;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final BeaconRoomPushService _roomPush;
 
@@ -134,24 +131,17 @@ final class HelpOfferCase extends UseCaseBase {
   }
 
   /// Auto-admits [helpOffererId] to the beacon room without waiting for explicit
-  /// author approval when the offering user is "trusted":
-  ///   1. the author directly forwarded this beacon to them, OR
-  ///   2. they share a mutual (reciprocal) explicit subscription with the author.
+  /// author approval when the author directly forwarded this beacon to them.
   /// Skipped when the author previously revoked room access for this user.
   Future<void> _autoAdmitIfTrusted({
     required BeaconEntity beacon,
     required String helpOffererId,
   }) async {
-    final isTrusted =
-        await _forwardEdgeRepository.isDirectAuthorForward(
-          beaconId: beacon.id,
-          authorId: beacon.author.id,
-          userId: helpOffererId,
-        ) ||
-        await _friendshipLookup.isReciprocalSubscribe(
-          viewerId: beacon.author.id,
-          peerId: helpOffererId,
-        );
+    final isTrusted = await _forwardEdgeRepository.isDirectAuthorForward(
+      beaconId: beacon.id,
+      authorId: beacon.author.id,
+      userId: helpOffererId,
+    );
     if (!isTrusted) return;
 
     final existing = await _beaconRoomRepository.findParticipant(

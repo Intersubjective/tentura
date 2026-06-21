@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
@@ -35,8 +32,6 @@ void main() {
       author: const Profile(id: 'auth', displayName: 'Author'),
       createdAt: t,
       updatedAt: t,
-      lifecycle: BeaconLifecycle.open,
-      coordinationStatus: BeaconCoordinationStatus.neutral,
       startAt: DateTime.utc(2099, 6, 20, 12),
     );
     final state = BeaconViewState(

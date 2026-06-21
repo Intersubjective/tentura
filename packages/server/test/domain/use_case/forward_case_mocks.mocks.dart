@@ -348,6 +348,27 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> recordBeaconLifecycleTransition({
+    required String? beaconId,
+    required int? fromState,
+    required int? toState,
+    required String? reason,
+    required String? actorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#recordBeaconLifecycleTransition, [], {
+              #beaconId: beaconId,
+              #fromState: fromState,
+              #toState: toState,
+              #reason: reason,
+              #actorId: actorId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> addImage({
     required String? beaconId,
     required String? imageId,

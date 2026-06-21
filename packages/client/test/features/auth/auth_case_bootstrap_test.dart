@@ -209,7 +209,7 @@ class FakeAuthRemote implements AuthRemoteRepositoryPort {
   final bool sessionRejected;
   final bool sessionNetworkError;
   final bool clearAcknowledged;
-  var clearSessionCookieCalls = 0;
+  int clearSessionCookieCalls = 0;
 
   @override
   Future<String> signInWithSession() async {

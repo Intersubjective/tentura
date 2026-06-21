@@ -121,7 +121,7 @@ class _PreviewBody extends StatelessWidget {
     }
     return ListView.separated(
       itemCount: state.rows.length,
-      separatorBuilder: (_, __) => const TenturaHairlineDivider(),
+      separatorBuilder: (_, _) => const TenturaHairlineDivider(),
       itemBuilder: (context, i) {
         final row = state.rows[i];
         return ForwardRecipientRow(

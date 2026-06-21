@@ -2,7 +2,6 @@
 // new `kPadding*` / spacing constants here — use design-system tokens instead.
 
 import 'package:intl/intl.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

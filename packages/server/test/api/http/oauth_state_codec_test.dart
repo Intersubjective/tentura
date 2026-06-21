@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart' show Environment;
-import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/http/oauth_state_codec.dart';

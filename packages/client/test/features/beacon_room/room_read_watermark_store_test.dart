@@ -13,7 +13,7 @@ void main() {
     tearDown(() => store.dispose());
 
     test('observeReadThrough is monotonic', () {
-      final t1 = DateTime.utc(2026, 1, 1);
+      final t1 = DateTime.utc(2026);
       final t2 = DateTime.utc(2026, 1, 2);
 
       expect(store.observeReadThrough('b1', t1), isTrue);
@@ -34,7 +34,7 @@ void main() {
     });
 
     test('hasPendingSync when local ahead of synced', () {
-      final t1 = DateTime.utc(2026, 1, 1);
+      final t1 = DateTime.utc(2026);
       final t2 = DateTime.utc(2026, 1, 2);
       store.observeReadThrough('b1', t2);
       expect(store.hasPendingSync('b1'), isTrue);
@@ -44,7 +44,7 @@ void main() {
 
     test('resolveUnread matrix', () {
       final local = DateTime.utc(2026, 1, 5);
-      final staleSeen = DateTime.utc(2026, 1, 1);
+      final staleSeen = DateTime.utc(2026);
       final freshSeen = DateTime.utc(2026, 1, 6);
 
       expect(

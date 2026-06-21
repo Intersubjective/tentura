@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:tentura/features/auth/domain/entity/account_entity.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
@@ -100,7 +99,7 @@ class _FakeAuthLocal implements AuthLocalRepositoryPort {
 }
 
 class _FakeAuthRemote implements AuthRemoteRepositoryPort {
-  _FakeAuthRemote(this.order, {this.sessionUserId = 'U1'});
+  _FakeAuthRemote(this.order) : sessionUserId = 'U1';
 
   final List<String> order;
   final String sessionUserId;

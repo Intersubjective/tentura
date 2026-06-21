@@ -4,26 +4,26 @@ part of '_migrations.dart';
 /// beacon_archived table, m0071 reopen (5→0) tombstone revert.
 final m0091 = Migration('0091', [
   // Data coercion BEFORE CHECK swap (state 4 forbidden; state 1 = old CLOSED → 6).
-  r'''
+  '''
 UPDATE public.beacon SET state = 6 WHERE state = 4;
 ''',
-  r'''
+  '''
 UPDATE public.beacon SET state = 6 WHERE state = 1;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon
   DROP CONSTRAINT IF EXISTS beacon_state_range;
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon
   ADD CONSTRAINT beacon_state_range
   CHECK (state IN (0, 1, 2, 3, 5, 6));
 ''',
-  r'''
+  '''
 ALTER TABLE public.beacon_review_window
   ADD COLUMN IF NOT EXISTS extensions_used integer NOT NULL DEFAULT 0;
 ''',
-  r'''
+  '''
 CREATE TABLE public.beacon_archived (
   user_id text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
   beacon_id text NOT NULL REFERENCES public.beacon(id) ON DELETE CASCADE,
@@ -31,7 +31,7 @@ CREATE TABLE public.beacon_archived (
   PRIMARY KEY (user_id, beacon_id)
 );
 ''',
-  r'''
+  '''
 CREATE INDEX idx_beacon_archived_user_id
   ON public.beacon_archived(user_id);
 ''',

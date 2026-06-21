@@ -4,7 +4,7 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
-    hide isNull, isNotNull;
+    hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/mock/user_trust_edge_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
@@ -43,11 +43,11 @@ Future<void> main() async {
 
     tearDown(() async {
       await db.customStatement(
-        r"DELETE FROM account_credential WHERE account_id = $1",
+        r'DELETE FROM account_credential WHERE account_id = $1',
         [accountId],
       );
       await db.customStatement(
-        r"DELETE FROM account_verified_contact WHERE account_id = $1",
+        r'DELETE FROM account_verified_contact WHERE account_id = $1',
         [accountId],
       );
       await db.customStatement(
@@ -65,13 +65,13 @@ Future<void> main() async {
         [accountId, 'Link Test', 'pk-email-link-test'],
       );
       await db.customStatement(
-        r'INSERT INTO account_credential (id, account_id, type, identifier) '
+        'INSERT INTO account_credential (id, account_id, type, identifier) '
         r"VALUES ('CgoogleLinkTest01', $1, 'oidc:google', 'google-sub-link-test')",
         [accountId],
       );
       await db.customStatement(
-        r'INSERT INTO account_verified_contact '
-        r"(id, account_id, kind, value, last_source) "
+        'INSERT INTO account_verified_contact '
+        '(id, account_id, kind, value, last_source) '
         r"VALUES ('VgoogleLinkTest01', $1, 'email', $2, 'oidc:google')",
         [accountId, email],
       );

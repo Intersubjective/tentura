@@ -154,7 +154,6 @@ BeaconCoordinationPhaseResult _derivePublicTier(
   if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.wrappingUp,
-      slot2Kind: BeaconPhaseSlot2Kind.none,
       suggestedAction: BeaconPhasePrimaryAction.none,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
@@ -176,7 +175,6 @@ BeaconCoordinationPhaseResult _derivePublicTier(
   if (pub == 2) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.needsMoreHelp,
-      slot2Kind: BeaconPhaseSlot2Kind.none,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
@@ -185,7 +183,6 @@ BeaconCoordinationPhaseResult _derivePublicTier(
   if (pub == 3) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.enoughHelpInMotion,
-      slot2Kind: BeaconPhaseSlot2Kind.none,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
@@ -194,7 +191,6 @@ BeaconCoordinationPhaseResult _derivePublicTier(
   if (pub == 1 || beacon.helpOfferCount > 0) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.coordinating,
-      slot2Kind: BeaconPhaseSlot2Kind.none,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,

@@ -26,7 +26,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
       _invalidationSub = (invalidationService ?? GetIt.I<InvalidationService>())
           .beaconRoomInvalidations
           .where(
-            (BeaconRoomInvalidation e) =>
+            (e) =>
                 e.beaconId == item.beaconId &&
                 e.entityType == BeaconRoomEntityType.coordinationItem,
           )

@@ -82,8 +82,7 @@ class _FakeBeaconRoomRepository extends Fake implements BeaconRoomRepository {
   @override
   Future<DateTime> markRoomSeen({
     required String beaconId,
-    String? threadItemId,
-    required DateTime readThroughAt,
+    required DateTime readThroughAt, String? threadItemId,
   }) async {
     markRoomSeenCalled = true;
     participantLastSeenRoomAt = readThroughAt;

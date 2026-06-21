@@ -14,10 +14,9 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 class BeaconYouItemsCubit extends Cubit<BeaconYouItemsState> {
   BeaconYouItemsCubit({
-    required String beaconId,
+    required this._beaconId,
     CoordinationItemCase? coordinationItemCase,
-  })  : _beaconId = beaconId,
-        _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
+  })  : _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
         super(const BeaconYouItemsState()) {
     unawaited(fetch());
   }

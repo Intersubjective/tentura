@@ -239,8 +239,7 @@ class BeaconRoomRepository {
 
   Future<DateTime> markRoomSeen({
     required String beaconId,
-    String? threadItemId,
-    required DateTime readThroughAt,
+    required DateTime readThroughAt, String? threadItemId,
   }) async {
     final readThroughIso = readThroughAt.toUtc().toIso8601String();
     if (threadItemId == null) {

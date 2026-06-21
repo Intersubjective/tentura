@@ -136,7 +136,7 @@ class BeaconFactCardRepository {
           systemPayload: {
             'factCardId': row.id,
             'factText': trimmed,
-            if (sourceMessageId != null) 'sourceMessageId': sourceMessageId,
+            'sourceMessageId': ?sourceMessageId,
           },
         );
         await _room.insertActivityEvent(

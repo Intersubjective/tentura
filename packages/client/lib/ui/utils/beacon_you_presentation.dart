@@ -190,9 +190,8 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallbackFromBeacon({
   required CoordinationResponsibility responsibility,
   required bool isAuthorOrSteward,
   required bool compactSurface,
-  BeaconCoordinationPhaseResult? phaseResult,
+  required String viewerUserId, BeaconCoordinationPhaseResult? phaseResult,
   OpenBlockerCue? openBlocker,
-  required String viewerUserId,
 }) {
   final blocked = shouldShowBlockedYouSegment(
     phaseResult: phaseResult,

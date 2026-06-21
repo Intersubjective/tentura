@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/items_tab.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class _MockItemsTabCubit extends Mock implements ItemsTabCubit {
@@ -54,11 +50,8 @@ BeaconViewState _viewState() {
       author: const Profile(id: 'auth', displayName: 'Author'),
       createdAt: _t,
       updatedAt: _t,
-      lifecycle: BeaconLifecycle.open,
-      coordinationStatus: BeaconCoordinationStatus.neutral,
     ),
     myProfile: const Profile(id: 'auth', displayName: 'Author'),
-    status: const StateIsSuccess(),
   );
 }
 
@@ -82,7 +75,6 @@ void main() {
     final tabState = ItemsTabState(
       openItems: [openItem],
       closedItems: [closedItem],
-      status: const StateIsSuccess(),
     );
     final cubit = _MockItemsTabCubit(tabState);
 

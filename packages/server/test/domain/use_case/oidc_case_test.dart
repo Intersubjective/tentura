@@ -125,8 +125,6 @@ void main() {
         type: CredentialType.oidcGoogle,
         identifier: 'google-sub',
         displayName: 'Ada',
-        handle: null,
-        publicData: null,
         contacts: anyNamed('contacts'),
       ),
     ).called(1);
@@ -167,7 +165,6 @@ void main() {
         accountId: 'Uemail',
         type: CredentialType.oidcGoogle,
         identifier: 'google-sub',
-        publicData: null,
         contacts: captureAnyNamed('contacts'),
       ),
     ).captured.single as List;
@@ -180,7 +177,6 @@ void main() {
       sub: 'google-sub',
       email: 'ada@example.com',
       name: 'Ada',
-      emailVerified: false,
     );
     when(
       userRepo.linkCredentialToAccountStrict(
@@ -210,7 +206,6 @@ void main() {
         accountId: 'Uacc',
         type: CredentialType.oidcGoogle,
         identifier: 'google-sub',
-        publicData: null,
         contacts: captureAnyNamed('contacts'),
       ),
     ).captured.single as List;
@@ -258,7 +253,6 @@ void main() {
         sub: 'google-sub',
         email: 'ada@example.com',
         name: 'Ada',
-        emailVerified: false,
       ),
     );
 
@@ -267,8 +261,6 @@ void main() {
         type: CredentialType.oidcGoogle,
         identifier: 'google-sub',
         displayName: 'Ada',
-        handle: null,
-        publicData: null,
         contacts: captureAnyNamed('contacts'),
       ),
     ).captured.single as List;

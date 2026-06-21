@@ -15,10 +15,9 @@ export 'my_work_state.dart';
 
 class MyWorkCubit extends Cubit<MyWorkState> {
   MyWorkCubit({
-    required String userId,
+    required this._userId,
     MyWorkCase? myWorkCase,
-  })  : _userId = userId,
-        _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
+  })  : _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
        super(const MyWorkState()) {
     _beaconChanges = _myWorkCase.beaconChanges.listen(
       _onBeaconChanged,

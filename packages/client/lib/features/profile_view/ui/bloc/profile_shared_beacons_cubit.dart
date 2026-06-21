@@ -29,12 +29,10 @@ abstract class ProfileSharedBeaconsState extends StateBase
 
 class ProfileSharedBeaconsCubit extends Cubit<ProfileSharedBeaconsState> {
   ProfileSharedBeaconsCubit({
-    required String meId,
-    required String targetId,
+    required this._meId,
+    required this._targetId,
     ProfileSharedBeaconsRepository? repository,
-  }) : _meId = meId,
-       _targetId = targetId,
-       _repository = repository ?? GetIt.I<ProfileSharedBeaconsRepository>(),
+  }) : _repository = repository ?? GetIt.I<ProfileSharedBeaconsRepository>(),
        super(const ProfileSharedBeaconsState()) {
     unawaited(fetch());
   }

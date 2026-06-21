@@ -197,11 +197,11 @@ void main() {
   testWidgets('finished beacon hides NOW, YOU, and last-event rows', (
     tester,
   ) async {
-    final authorId = 'author1';
+    const authorId = 'author1';
     final beacon = Beacon.empty.copyWith(
       id: 'b-finished',
       lifecycle: BeaconLifecycle.closed,
-      author: Profile(id: authorId, displayName: 'Alice Author'),
+      author: const Profile(id: authorId, displayName: 'Alice Author'),
       helpOfferCount: 1,
       helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],
       startAt: DateTime.utc(2099, 6, 20, 12),
@@ -217,7 +217,7 @@ void main() {
         createdAt: DateTime.now().subtract(const Duration(hours: 3)),
         actorId: authorId,
       ),
-      actor: Profile(id: authorId, displayName: 'Alice Author'),
+      actor: const Profile(id: authorId, displayName: 'Alice Author'),
     );
 
     await tester.pumpWidget(

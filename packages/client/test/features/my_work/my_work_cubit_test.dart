@@ -1,8 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'my_work_test_support.dart';
 

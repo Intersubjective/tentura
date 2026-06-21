@@ -43,7 +43,7 @@ class CoordinationStalenessPicker extends StatelessWidget {
           l10n.coordinationStalenessLabel,
           style: textTheme.labelMedium,
         ),
-        SizedBox(height: kSpacingSmall),
+        const SizedBox(height: kSpacingSmall),
         Wrap(
           spacing: 8,
           runSpacing: 8,

@@ -66,8 +66,7 @@ class LineageForwardSuggestion {
     required this.userId,
     required this.group,
     required this.reasonCode,
-    this.reasonArg,
-    required this.autoSelect,
+    required this.autoSelect, this.reasonArg,
   });
 
   final String userId;

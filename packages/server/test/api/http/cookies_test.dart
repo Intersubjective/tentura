@@ -1,4 +1,3 @@
-import 'package:logging/logging.dart';
 import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
 

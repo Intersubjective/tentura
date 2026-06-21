@@ -13,8 +13,8 @@ import 'package:tentura/domain/port/platform_repository_port.dart';
 )
 class PlatformRepository implements PlatformRepositoryPort {
   const PlatformRepository({
-    required Logger log,
-  }) : _log = log;
+    required this._log,
+  });
 
   final Logger _log;
 

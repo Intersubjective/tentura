@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:logging/logging.dart';
+import 'package:tentura_server/data/service/email/resend_email_sender.dart' show ResendEmailSender;
 
 import 'package:tentura_server/domain/port/email_sender_port.dart';
 import 'package:tentura_server/env.dart';

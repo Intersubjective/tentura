@@ -659,7 +659,6 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             kind: updated.kind,
             creatorId: actorId,
             linkedMessageId: updated.linkedMessageId,
-            targetPersonId: null,
             title: updated.title,
             body: updated.body,
           );
@@ -767,7 +766,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         final now = PgDateTime(DateTime.timestamp());
         final cooldownBefore = PgDateTime(
           DateTime.timestamp().subtract(
-            Duration(hours: kCoordinationItemRemindCooldownHours),
+            const Duration(hours: kCoordinationItemRemindCooldownHours),
           ),
         );
         final updated = await (_db.update(_db.coordinationItems)
@@ -1151,7 +1150,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     Object? existing,
     Map<String, Object?> patch,
   ) {
-    Map<String, Object?> base = {};
+    var base = <String, Object?>{};
     if (existing != null) {
       if (existing is Map) {
         base = Map<String, Object?>.from(existing);
@@ -1225,7 +1224,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     )
   ''';
 
-  static const _sqlActivePublished = r'''
+  static const _sqlActivePublished = '''
     ci.published = true AND ci.status IN (0, 1)
   ''';
 
@@ -1484,10 +1483,10 @@ WHERE ci.beacon_id = $2
 
       final seenAtIso = at.toUtc().toIso8601String();
       await _db.customStatement(
-        r'INSERT INTO beacon_items_seen (user_id, beacon_id, last_seen_at) '
+        'INSERT INTO beacon_items_seen (user_id, beacon_id, last_seen_at) '
         r'VALUES ($1, $2, $3::timestamptz) '
-        r'ON CONFLICT (user_id, beacon_id) '
-        r'DO UPDATE SET last_seen_at = GREATEST(beacon_items_seen.last_seen_at, EXCLUDED.last_seen_at)',
+        'ON CONFLICT (user_id, beacon_id) '
+        'DO UPDATE SET last_seen_at = GREATEST(beacon_items_seen.last_seen_at, EXCLUDED.last_seen_at)',
         [userId, beaconId, seenAtIso],
       );
 

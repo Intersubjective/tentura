@@ -1,7 +1,6 @@
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:injectable/injectable.dart';
 
-import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/env.dart';
 

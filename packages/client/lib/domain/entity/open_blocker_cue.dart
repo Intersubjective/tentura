@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura/domain/entity/coordination_item.dart' show CoordinationItem;
 
 import 'profile.dart';
 
@@ -9,10 +10,9 @@ part 'open_blocker_cue.freezed.dart';
 abstract class OpenBlockerCue with _$OpenBlockerCue {
   const factory OpenBlockerCue({
     required String creatorId,
-    @Default('') String targetPersonId,
+    required DateTime raisedAt, @Default('') String targetPersonId,
     @Default('') String responsibleUserId,
     @Default('') String title,
-    required DateTime raisedAt,
     Profile? raiser,
   }) = _OpenBlockerCue;
 
