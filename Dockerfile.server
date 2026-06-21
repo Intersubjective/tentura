@@ -16,11 +16,12 @@ RUN dart pub get
 COPY . .
 WORKDIR /app/packages/server
 RUN dart run build_runner build -d
-RUN dart compile exe bin/tentura.dart -o bin/tentura
+RUN dart build cli -t bin/tentura.dart -o bin/cli-build
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=build /app/packages/server/bin/tentura /tentura
+COPY --from=build /app/packages/server/bin/cli-build/bundle/bin/tentura /tentura
+COPY --from=build /app/packages/server/bin/cli-build/bundle/lib/libsqlite3.so /lib/libsqlite3.so
 
 EXPOSE 2080/tcp
 USER 33:33
