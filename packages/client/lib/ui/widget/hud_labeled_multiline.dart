@@ -90,9 +90,28 @@ class HudLabeledMultiline extends StatelessWidget {
             kBeaconHudRowLeadWidth -
             editReserved;
 
+        final exceeds = _textExceedsMaxLines(
+          text: text,
+          style: primaryStyle,
+          maxWidth: bodyMaxWidth,
+          maxLines: _primaryMaxLines,
+        );
+        final singleLine = subline == null &&
+            !exceeds &&
+            _textFitsSingleLine(
+              text: text,
+              style: primaryStyle,
+              maxWidth: bodyMaxWidth,
+            );
+        final leadAlign = singleLine
+            ? BeaconHudRowLeadAlign.center
+            : BeaconHudRowLeadAlign.start;
+
         final iconRow = BeaconHudIconRow(
           leadIcon: leadingIcon,
           semanticsLabel: semanticsLabel,
+          leadAlign: leadAlign,
+          minRowHeight: singleLine ? kBeaconHudRowMinHeight : null,
           body: buildBody(bodyMaxWidth),
         );
 
@@ -104,15 +123,16 @@ class HudLabeledMultiline extends StatelessWidget {
                 child: InkWell(
                   onTap: onShowDetail,
                   borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: iconRow,
-                  ),
+                  child: iconRow,
                 ),
               );
 
+        final rowCrossAxisAlignment = singleLine
+            ? CrossAxisAlignment.center
+            : CrossAxisAlignment.start;
+
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: rowCrossAxisAlignment,
           children: [
             Expanded(child: detailTarget),
             if (onEdit != null) ...[
@@ -155,5 +175,19 @@ class HudLabeledMultiline extends StatelessWidget {
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: maxWidth);
     return painter.didExceedMaxLines;
+  }
+
+  static bool _textFitsSingleLine({
+    required String text,
+    required TextStyle? style,
+    required double maxWidth,
+  }) {
+    if (maxWidth <= 0 || text.isEmpty) return true;
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: maxWidth);
+    return !painter.didExceedMaxLines;
   }
 }

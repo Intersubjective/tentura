@@ -67,18 +67,16 @@ class _MyWorkLastEventRowState extends State<MyWorkLastEventRow> {
         now: now,
         l10n: l10n,
       );
-      return Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: BeaconHudIconRow(
-          leadIcon: BeaconHudRowIcons.lastEvent,
-          semanticsLabel: l10n.beaconHudLastEventRowSemantics,
-          leadAlign: BeaconHudRowLeadAlign.center,
-          body: Text(
-            l10n.myWorkUpdatedRelative(ago),
-            style: beaconCardUpdatedLineTextStyle(theme),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+      return BeaconHudIconRow(
+        leadIcon: BeaconHudRowIcons.lastEvent,
+        semanticsLabel: l10n.beaconHudLastEventRowSemantics,
+        leadAlign: BeaconHudRowLeadAlign.center,
+        minRowHeight: kBeaconHudRowMinHeight,
+        body: Text(
+          l10n.myWorkUpdatedRelative(ago),
+          style: beaconCardUpdatedLineTextStyle(theme),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       );
     }
@@ -147,52 +145,50 @@ class _EventLine extends StatelessWidget {
       fontWeight: FontWeight.w500,
     );
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Semantics(
-        label: semanticsLabel,
-        child: BeaconHudIconRow(
-          leadIcon: BeaconHudRowIcons.lastEvent,
-          semanticsLabel: l10n.beaconHudLastEventRowSemantics,
-          leadAlign: BeaconHudRowLeadAlign.center,
-          body: Text.rich(
-            TextSpan(
-              style: bodyStyle,
-              children: [
-                TextSpan(text: label),
-                TextSpan(
-                  text: ' ${l10n.myWorkLastEventBy} ',
-                  style: bodyStyle.copyWith(
-                    color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
-                  ),
+    return Semantics(
+      label: semanticsLabel,
+      child: BeaconHudIconRow(
+        leadIcon: BeaconHudRowIcons.lastEvent,
+        semanticsLabel: l10n.beaconHudLastEventRowSemantics,
+        leadAlign: BeaconHudRowLeadAlign.center,
+        minRowHeight: kBeaconHudRowMinHeight,
+        body: Text.rich(
+          TextSpan(
+            style: bodyStyle,
+            children: [
+              TextSpan(text: label),
+              TextSpan(
+                text: ' ${l10n.myWorkLastEventBy} ',
+                style: bodyStyle.copyWith(
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
                 ),
-                if (!isYou)
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: ExcludeSemantics(
-                        child: TenturaAvatar.tiny(
-                          profile: actor,
-                          size: _kMyWorkLastEventAvatarSize,
-                          showAuthorStar: isAuthor,
-                        ),
+              ),
+              if (!isYou)
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: ExcludeSemantics(
+                      child: TenturaAvatar.tiny(
+                        profile: actor,
+                        size: _kMyWorkLastEventAvatarSize,
+                        showAuthorStar: isAuthor,
                       ),
                     ),
                   ),
-                TextSpan(
-                  text: actorLabel,
-                  style: isYou ? youStyle : bodyStyle,
                 ),
-                TextSpan(
-                  text: ', $ago',
-                  style: agoStyle,
-                ),
-              ],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+              TextSpan(
+                text: actorLabel,
+                style: isYou ? youStyle : bodyStyle,
+              ),
+              TextSpan(
+                text: ', $ago',
+                style: agoStyle,
+              ),
+            ],
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

@@ -230,10 +230,7 @@ class _FacePile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: child,
-      ),
+      child: child,
     );
   }
 }

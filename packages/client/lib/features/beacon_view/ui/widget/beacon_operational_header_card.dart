@@ -103,31 +103,33 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          BeaconCompactMetadataStrip(
-            beacon: state.beacon,
-            involvedProfiles: activeHelpUsers,
-            currentUserId: viewerId,
-            onFacePileTap: onSwitchToPeopleTab,
-          ),
-          const SizedBox(height: 6),
-          HudLabeledMultiline(
-            leadingIcon: BeaconHudRowIcons.now,
-            semanticsLabel: l10n.beaconHudNowLabel,
-            text: nowDisplay.primaryText,
-            subline: nowDisplay.blockerText,
-            mutedColor: tt.textMuted,
-            isPlaceholder: nowDisplay.isPlaceholder,
-            onEdit: onEditNowLine,
-            editSemanticLabel: l10n.beaconHudEditNowLine,
-            onShowDetail: onShowNowDetail,
-            showDetailSemanticLabel: l10n.beaconHudNowLabel,
-          ),
-          const SizedBox(height: 6),
-          BeaconYouResponsibilityLine(
-            beacon: state.beacon,
-            responsibility: youResponsibility,
-            isAuthorOrSteward: state.isAuthorOrSteward,
-            showNewBadges: false,
+          BeaconHudMetadataColumn(
+            children: [
+              BeaconCompactMetadataStrip(
+                beacon: state.beacon,
+                involvedProfiles: activeHelpUsers,
+                currentUserId: viewerId,
+                onFacePileTap: onSwitchToPeopleTab,
+              ),
+              HudLabeledMultiline(
+                leadingIcon: BeaconHudRowIcons.now,
+                semanticsLabel: l10n.beaconHudNowLabel,
+                text: nowDisplay.primaryText,
+                subline: nowDisplay.blockerText,
+                mutedColor: tt.textMuted,
+                isPlaceholder: nowDisplay.isPlaceholder,
+                onEdit: onEditNowLine,
+                editSemanticLabel: l10n.beaconHudEditNowLine,
+                onShowDetail: onShowNowDetail,
+                showDetailSemanticLabel: l10n.beaconHudNowLabel,
+              ),
+              BeaconYouResponsibilityLine(
+                beacon: state.beacon,
+                responsibility: youResponsibility,
+                isAuthorOrSteward: state.isAuthorOrSteward,
+                showNewBadges: false,
+              ),
+            ],
           ),
           if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen)
             ReviewWindowBannerHost(beaconId: state.beacon.id)
