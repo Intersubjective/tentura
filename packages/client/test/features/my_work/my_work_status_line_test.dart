@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
 void main() {
   Future<L10n> loadL10n(WidgetTester tester) async {
@@ -29,8 +32,28 @@ void main() {
     return l10nRef!;
   }
 
-  testWidgets('authored open neutral hides strip', (tester) async {
+  MyWorkStatusLineData expectedFromPresenter(
+    L10n l10n,
+    MyWorkCardViewModel vm, {
+    DateTime? now,
+  }) {
+    final clock = now ?? DateTime.now();
+    final input = beaconPhaseInputFromMyWorkCard(vm, now: clock);
+    final result = deriveBeaconCoordinationPhase(input);
+    final pres = formatBeaconPhaseStatus(l10n, result, now: clock);
+    return MyWorkStatusLineData(
+      slot1: pres.statusLine,
+      slot2: '',
+      timeSlotOverdue: false,
+      tone: pres.tone,
+    );
+  }
+
+  testWidgets('authored open neutral with offers shows offers awaiting author', (
+    tester,
+  ) async {
     final l10n = await loadL10n(tester);
+    final now = DateTime.utc(2026, 6, 22, 12);
     final vm = MyWorkCardViewModel(
       beaconId: 'n',
       role: MyWorkCardRole.authored,
@@ -40,14 +63,22 @@ void main() {
         lifecycle: BeaconLifecycle.open,
         coordinationStatus: BeaconCoordinationStatus.neutral,
         helpOfferCount: 2,
+        updatedAt: now,
       ),
     );
-    final line = myWorkStatusLine(l10n: l10n, vm: vm);
-    expect(line.isEmpty, isTrue);
+    final line = myWorkStatusLine(l10n: l10n, vm: vm, now: now);
+    final expected = expectedFromPresenter(l10n, vm, now: now);
+    expect(line.isEmpty, isFalse);
+    expect(line.slot1, expected.slot1);
+    expect(line.slot2, isEmpty);
+    expect(line.tone, TenturaTone.info);
   });
 
-  testWidgets('authored open needsMoreHelp shows slot1 only', (tester) async {
+  testWidgets('authored open needsMoreHelp shows phase status line', (
+    tester,
+  ) async {
     final l10n = await loadL10n(tester);
+    final now = DateTime.utc(2026, 6, 22, 12);
     final vm = MyWorkCardViewModel(
       beaconId: 'm',
       role: MyWorkCardRole.authored,
@@ -56,15 +87,15 @@ void main() {
         id: 'm',
         lifecycle: BeaconLifecycle.open,
         coordinationStatus: BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
+        updatedAt: now.subtract(const Duration(days: 2)),
       ),
     );
-    final line = myWorkStatusLine(l10n: l10n, vm: vm);
-    expect(line.slot1, l10n.myWorkStatusNeedsMoreHelp);
+    final line = myWorkStatusLine(l10n: l10n, vm: vm, now: now);
+    final expected = expectedFromPresenter(l10n, vm, now: now);
+    expect(line.slot1, expected.slot1);
+    expect(line.slot1, contains(l10n.beaconPhaseNeedsMoreHelp));
     expect(line.slot2, isEmpty);
-    expect(
-      line.slot1CoordinationStatus,
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded,
-    );
+    expect(line.tone, TenturaTone.warn);
   });
 
   testWidgets('authored reviewOpen shows wrapping up and countdown', (
@@ -84,17 +115,22 @@ void main() {
         reviewClosesAt: closesAt,
         reviewWindowStatus: 0,
         helpOfferCount: 3,
+        updatedAt: now,
       ),
     );
     final line = myWorkStatusLine(l10n: l10n, vm: vm, now: now);
-    expect(line.slot1, l10n.myWorkStatusWrappingUp);
-    expect(line.slot2, isNotEmpty);
+    final expected = expectedFromPresenter(l10n, vm, now: now);
+    expect(line.slot1, expected.slot1);
+    expect(line.slot1, contains(l10n.beaconPhaseWrappingUp));
+    expect(line.slot2, isEmpty);
+    expect(line.tone, TenturaTone.info);
   });
 
-  testWidgets('committed active folds author response into slot1', (
+  testWidgets('help offered enough help shows shared phase status', (
     tester,
   ) async {
     final l10n = await loadL10n(tester);
+    final now = DateTime.utc(2026, 6, 22, 12);
     final vm = MyWorkCardViewModel(
       beaconId: 'c',
       role: MyWorkCardRole.helpOffered,
@@ -103,23 +139,20 @@ void main() {
         id: 'c',
         lifecycle: BeaconLifecycle.open,
         coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
-      ),
-      authorResponseType: CoordinationResponseType.useful,
-    );
-    final line = myWorkStatusLine(l10n: l10n, vm: vm);
-    expect(
-      line.slot1,
-      l10n.myWorkStatusHelpOfferWithResponse(
-        l10n.myWorkStatusHelpOfferedPersonal.toLowerCase(),
-        l10n.coordinationUseful.toLowerCase(),
+        updatedAt: now.subtract(const Duration(days: 1)),
       ),
     );
+    final line = myWorkStatusLine(l10n: l10n, vm: vm, now: now);
+    final expected = expectedFromPresenter(l10n, vm, now: now);
+    expect(line.slot1, expected.slot1);
+    expect(line.slot1, contains(l10n.beaconPhaseEnoughHelpInMotion));
     expect(line.slot2, isEmpty);
-    expect(line.slot1ResponseType, CoordinationResponseType.useful);
+    expect(line.tone, TenturaTone.good);
   });
 
   testWidgets('help offered reviewOpen shows wrapping up', (tester) async {
     final l10n = await loadL10n(tester);
+    final now = DateTime.utc(2026, 6, 22);
     final vm = MyWorkCardViewModel(
       beaconId: 'x',
       role: MyWorkCardRole.helpOffered,
@@ -130,15 +163,19 @@ void main() {
         coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
         reviewClosesAt: DateTime.utc(2026, 6, 25),
         reviewWindowStatus: 0,
+        updatedAt: now,
       ),
       showReviewCta: true,
     );
     final line = myWorkStatusLine(
       l10n: l10n,
       vm: vm,
-      now: DateTime.utc(2026, 6, 22),
+      now: now,
     );
-    expect(line.slot1, l10n.myWorkStatusWrappingUp);
+    final expected = expectedFromPresenter(l10n, vm, now: now);
+    expect(line.slot1, expected.slot1);
+    expect(line.slot1, contains(l10n.beaconPhaseWrappingUp));
+    expect(line.tone, TenturaTone.info);
   });
 
   testWidgets('authored finished shows closed', (tester) async {
@@ -153,7 +190,10 @@ void main() {
       ),
     );
     final line = myWorkStatusLine(l10n: l10n, vm: vm);
-    expect(line.slot1, l10n.myWorkStatusClosed);
+    final expected = expectedFromPresenter(l10n, vm);
+    expect(line.slot1, expected.slot1);
+    expect(line.slot1, l10n.beaconPhaseClosed);
     expect(line.slot2, isEmpty);
+    expect(line.tone, TenturaTone.neutral);
   });
 }
