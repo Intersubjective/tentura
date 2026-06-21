@@ -105,6 +105,8 @@ String? _formatSlot2(
     BeaconPhaseSlot2Kind.reviewCountdown => _reviewCountdown(l10n, result, now),
     BeaconPhaseSlot2Kind.freshness => _freshness(l10n, result, now),
     BeaconPhaseSlot2Kind.noOffersYet => l10n.beaconPhaseNoOffersYet,
+    BeaconPhaseSlot2Kind.lifecycleEndedAt =>
+      _lifecycleEndedAt(l10n, result, now),
     BeaconPhaseSlot2Kind.none => null,
   };
 }
@@ -131,6 +133,20 @@ String? _freshness(
   final days = now.toUtc().difference(at.toUtc()).inDays;
   if (days <= 0) return l10n.beaconPhaseActiveToday;
   return l10n.beaconPhaseQuietForDays(days);
+}
+
+String? _lifecycleEndedAt(
+  L10n l10n,
+  BeaconCoordinationPhaseResult result,
+  DateTime now,
+) {
+  final endedAt = result.lifecycleEndedAt;
+  if (endedAt == null) return null;
+  return formatBeaconLifecycleEndedAt(
+    endedAt: endedAt,
+    now: now,
+    localeName: l10n.localeName,
+  );
 }
 
 String _joinSlots(String slot1, String? slot2) {

@@ -16,18 +16,21 @@ BeaconCoordinationPhaseResult deriveBeaconCoordinationPhase(
     return _terminal(
       phase: BeaconCoordinationPhase.closed,
       action: BeaconPhasePrimaryAction.none,
+      lifecycleEndedAt: beacon.updatedAt,
     );
   }
   if (beacon.lifecycle == BeaconLifecycle.cancelled) {
     return _terminal(
       phase: BeaconCoordinationPhase.cancelled,
       action: BeaconPhasePrimaryAction.none,
+      lifecycleEndedAt: beacon.updatedAt,
     );
   }
   if (beacon.lifecycle == BeaconLifecycle.closed) {
     return _terminal(
       phase: BeaconCoordinationPhase.closed,
       action: BeaconPhasePrimaryAction.none,
+      lifecycleEndedAt: beacon.updatedAt,
     );
   }
   if (beacon.lifecycle == BeaconLifecycle.draft) {
@@ -106,7 +109,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
   if (unreviewed) {
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.offersAwaitingAuthor,
-      slot2Kind: BeaconPhaseSlot2Kind.courtAuthor,
+      slot2Kind: BeaconPhaseSlot2Kind.freshness,
       suggestedAction: BeaconPhasePrimaryAction.reviewOffers,
       rowHarmony: const BeaconPhaseRowHarmony(
         suppressYouAwaitingAuthor: true,
@@ -170,6 +173,7 @@ BeaconCoordinationPhaseResult _derivePublicTier(
       phase: BeaconCoordinationPhase.closed,
       action: BeaconPhasePrimaryAction.none,
       lastActivityAt: activityAt,
+      lifecycleEndedAt: beacon.updatedAt,
     );
   }
   if (pub == 2) {
@@ -222,12 +226,17 @@ BeaconCoordinationPhaseResult _terminal({
   required BeaconCoordinationPhase phase,
   required BeaconPhasePrimaryAction action,
   DateTime? lastActivityAt,
+  DateTime? lifecycleEndedAt,
 }) {
   return BeaconCoordinationPhaseResult(
     phase: phase,
+    slot2Kind: lifecycleEndedAt != null
+        ? BeaconPhaseSlot2Kind.lifecycleEndedAt
+        : BeaconPhaseSlot2Kind.none,
     suggestedAction: action,
     rowHarmony: BeaconPhaseRowHarmony.empty,
     lastActivityAt: lastActivityAt,
+    lifecycleEndedAt: lifecycleEndedAt,
   );
 }
 

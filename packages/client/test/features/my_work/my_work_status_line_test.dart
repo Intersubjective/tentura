@@ -180,6 +180,8 @@ void main() {
 
   testWidgets('authored finished shows closed', (tester) async {
     final l10n = await loadL10n(tester);
+    final endedAt = DateTime.utc(2026, 6, 15, 14, 30);
+    final now = DateTime.utc(2026, 6, 22, 12);
     final vm = MyWorkCardViewModel(
       beaconId: 'f',
       role: MyWorkCardRole.authored,
@@ -187,12 +189,14 @@ void main() {
       beacon: Beacon.empty.copyWith(
         id: 'f',
         lifecycle: BeaconLifecycle.closed,
+        updatedAt: endedAt,
       ),
     );
-    final line = myWorkStatusLine(l10n: l10n, vm: vm);
-    final expected = expectedFromPresenter(l10n, vm);
+    final line = myWorkStatusLine(l10n: l10n, vm: vm, now: now);
+    final expected = expectedFromPresenter(l10n, vm, now: now);
     expect(line.slot1, expected.slot1);
-    expect(line.slot1, l10n.beaconPhaseClosed);
+    expect(line.slot1, startsWith(l10n.beaconPhaseClosed));
+    expect(line.slot1, contains('·'));
     expect(line.slot2, isEmpty);
     expect(line.tone, TenturaTone.neutral);
   });

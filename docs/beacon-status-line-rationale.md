@@ -61,10 +61,10 @@ Data / Server
 | 2 | wrappingUp | review countdown | reviewOpen |
 | 3 | needsMoreHelp | freshness | coordinationStatus = more help |
 | 4 | enoughHelpInMotion | freshness | coordinationStatus = enough |
-| 5 | offersAwaitingAuthor | author's move | unreviewed offers |
+| 5 | offersAwaitingAuthor | freshness | unreviewed offers |
 | 6 | coordinating | freshness | reviewed / room asks |
 | 7 | lookingForHelpers | no offers yet | open + 0 offers |
-| terminal | closed / cancelled | — | lifecycle |
+| terminal | closed / cancelled | lifecycle ended at | lifecycle terminal |
 | floor | draft / open | — | gap |
 
 **Public tier** maps from `beacon.publicStatus` — never exposes `Offers awaiting author`.

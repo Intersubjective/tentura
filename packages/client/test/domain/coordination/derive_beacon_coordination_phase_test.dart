@@ -40,9 +40,26 @@ void main() {
       ),
     );
     expect(result.phase, BeaconCoordinationPhase.offersAwaitingAuthor);
-    expect(result.slot2Kind, BeaconPhaseSlot2Kind.courtAuthor);
+    expect(result.slot2Kind, BeaconPhaseSlot2Kind.freshness);
     expect(result.suggestedAction, BeaconPhasePrimaryAction.reviewOffers);
     expect(result.rowHarmony.suppressYouAwaitingAuthor, isTrue);
+  });
+
+  test('offersAwaitingAuthor with stale activity uses freshness quiet days', () {
+    final now = DateTime.utc(2026, 6, 20, 12);
+    final updatedAt = now.subtract(const Duration(days: 3));
+    final beacon = _beacon(helpOfferCount: 2).copyWith(updatedAt: updatedAt);
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: beacon,
+        tier: BeaconVisibilityTier.coordination,
+        now: now,
+        hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
+      ),
+    );
+    expect(result.phase, BeaconCoordinationPhase.offersAwaitingAuthor);
+    expect(result.slot2Kind, BeaconPhaseSlot2Kind.freshness);
+    expect(result.lastActivityAt, updatedAt);
   });
 
   test('open neutral zero offers is lookingForHelpers', () {
@@ -104,5 +121,51 @@ void main() {
       ),
     );
     expect(result.phase, isNotNull);
+  });
+
+  test('closed lifecycle uses lifecycleEndedAt slot2', () {
+    final endedAt = DateTime.utc(2026, 6, 15, 14, 30);
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: _beacon(lifecycle: BeaconLifecycle.closed).copyWith(
+          updatedAt: endedAt,
+        ),
+        tier: BeaconVisibilityTier.coordination,
+        now: _t,
+      ),
+    );
+    expect(result.phase, BeaconCoordinationPhase.closed);
+    expect(result.slot2Kind, BeaconPhaseSlot2Kind.lifecycleEndedAt);
+    expect(result.lifecycleEndedAt, endedAt);
+  });
+
+  test('cancelled lifecycle uses lifecycleEndedAt slot2', () {
+    final endedAt = DateTime.utc(2026, 6, 10, 9, 0);
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: _beacon(lifecycle: BeaconLifecycle.cancelled).copyWith(
+          updatedAt: endedAt,
+        ),
+        tier: BeaconVisibilityTier.public,
+        now: _t,
+      ),
+    );
+    expect(result.phase, BeaconCoordinationPhase.cancelled);
+    expect(result.slot2Kind, BeaconPhaseSlot2Kind.lifecycleEndedAt);
+    expect(result.lifecycleEndedAt, endedAt);
+  });
+
+  test('public closed via publicStatus uses lifecycleEndedAt slot2', () {
+    final endedAt = DateTime.utc(2026, 6, 18, 16, 45);
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: _beacon(publicStatus: 4).copyWith(updatedAt: endedAt),
+        tier: BeaconVisibilityTier.public,
+        now: _t,
+      ),
+    );
+    expect(result.phase, BeaconCoordinationPhase.closed);
+    expect(result.slot2Kind, BeaconPhaseSlot2Kind.lifecycleEndedAt);
+    expect(result.lifecycleEndedAt, endedAt);
   });
 }
