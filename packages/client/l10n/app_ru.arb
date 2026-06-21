@@ -2471,7 +2471,7 @@
       }
     }
   },
-  "evaluationReviewDurationDaysHours": "{days} дн. {hours} ч.",
+  "evaluationReviewDurationDaysHours": "{days}д {hours}ч",
   "@evaluationReviewDurationDaysHours": {
     "placeholders": {
       "days": {
@@ -2482,7 +2482,7 @@
       }
     }
   },
-  "evaluationReviewDurationHoursMinutes": "{hours} ч. {minutes} мин.",
+  "evaluationReviewDurationHoursMinutes": "{hours}ч {minutes}м",
   "@evaluationReviewDurationHoursMinutes": {
     "placeholders": {
       "hours": {
@@ -2493,7 +2493,7 @@
       }
     }
   },
-  "evaluationReviewDurationMinutes": "{minutes} мин.",
+  "evaluationReviewDurationMinutes": "{minutes}м",
   "@evaluationReviewDurationMinutes": {
     "placeholders": {
       "minutes": {
@@ -2501,7 +2501,7 @@
       }
     }
   },
-  "evaluationReviewDurationLessThanMinute": "<1 мин.",
+  "evaluationReviewDurationLessThanMinute": "<1м",
   "labelHelpTypeOptional": "Тип помощи (необязательно)",
   "labelWithdrawReasonRequired": "Почему вы отзываете помощь?",
   "coordinationNeutral": "—",
@@ -3506,21 +3506,21 @@
   "beaconLineagePreviewError": "Не удалось загрузить предложения",
   "beaconLineagePreviewRetry": "Повторить",
   "beaconPhaseBlocked": "Заблокировано",
-  "beaconPhaseBlockerNeedsClearing": "нужно снять блок",
+  "beaconPhaseBlockerNeedsClearing": "снять блок",
   "beaconPhaseWrappingUp": "Завершение",
   "beaconPhaseNeedsMoreHelp": "Нужна помощь",
-  "beaconPhaseEnoughHelpInMotion": "Достаточно помощи — в работе",
-  "beaconPhaseOffersAwaitingAuthor": "Предложения ждут автора",
-  "beaconPhaseCoordinating": "Согласование плана",
-  "beaconPhaseLookingForHelpers": "Ищем помощников",
-  "beaconPhaseDraftNotPosted": "Черновик — не опубликован",
+  "beaconPhaseEnoughHelpInMotion": "В работе",
+  "beaconPhaseOffersAwaitingAuthor": "Ждут автора",
+  "beaconPhaseCoordinating": "Согласование",
+  "beaconPhaseLookingForHelpers": "Ищем помощь",
+  "beaconPhaseDraftNotPosted": "Черновик",
   "beaconPhaseOpen": "Открыт",
   "beaconPhaseClosed": "Закрыт",
   "beaconPhaseCancelled": "Отменён",
   "beaconPhaseCourtAuthor": "ход автора",
-  "beaconPhaseNoOffersYet": "пока нет предложений",
-  "beaconPhaseActiveToday": "активен сегодня",
-  "beaconPhaseQuietForDays": "тишина {days} д",
+  "beaconPhaseNoOffersYet": "нет предложений",
+  "beaconPhaseActiveToday": "сегодня",
+  "beaconPhaseQuietForDays": "неакт. {days} д",
   "beaconYouBlockedGeneric": "Нужно снять блок",
   "beaconYouBlockedSemantics": "Блок поставил {name}, {elapsed} назад",
   "beaconPhaseCtaResolveBlocker": "Снять блок",

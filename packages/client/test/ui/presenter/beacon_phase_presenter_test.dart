@@ -8,6 +8,7 @@ import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dar
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
@@ -25,6 +26,7 @@ Beacon _beacon() => Beacon.empty.copyWith(
 void main() {
   setUpAll(() async {
     await initializeDateFormatting('en');
+    await initializeDateFormatting('ru');
   });
 
   test('blocked status never includes blocker title', () {
@@ -150,5 +152,25 @@ void main() {
     expect(pres.statusLine, contains(_l10n.beaconPhaseOffersAwaitingAuthor));
     expect(pres.statusLine, contains(_l10n.beaconPhaseQuietForDays(5)));
     expect(pres.tone, TenturaTone.info);
+  });
+
+  test('ru enough help in motion uses compact status line', () {
+    final l10nRu = lookupL10n(const Locale('ru'));
+    final now = DateTime.utc(2026, 6, 20, 12);
+    final beacon = _beacon().copyWith(
+      coordinationStatus: BeaconCoordinationStatus.enoughHelpOffered,
+      updatedAt: now,
+    );
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: beacon,
+        tier: BeaconVisibilityTier.coordination,
+        now: now,
+      ),
+    );
+    final pres = formatBeaconPhaseStatus(l10nRu, result, now: now);
+    expect(pres.statusLine, 'В работе · сегодня');
+    expect(pres.statusLine.length, lessThan(30));
+    expect(pres.tone, TenturaTone.good);
   });
 }
