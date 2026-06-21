@@ -83,6 +83,15 @@ abstract class BeaconRepositoryPort {
     required int state,
   });
 
+  /// Atomically updates beacon state and inserts a lifecycle activity log row.
+  Future<void> recordBeaconLifecycleTransition({
+    required String beaconId,
+    required int fromState,
+    required int toState,
+    required String reason,
+    required String? actorId,
+  });
+
   Future<void> addImage({
     required String beaconId,
     required String imageId,

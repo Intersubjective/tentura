@@ -102,7 +102,11 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
       DateTime.timestamp().add(const Duration(days: 7));
 
   @override
-  Future<void> closeBeaconReviewWindow(String beaconId) async {}
+  Future<void> closeBeaconReviewWindow(
+    String beaconId, {
+    required String reason,
+    String? actorUserId,
+  }) async {}
 
   @override
   Future<void> insertParticipant({

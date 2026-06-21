@@ -1905,6 +1905,19 @@
       }
     }
   },
+  "myWorkLastEventSystemSemantics": "{event}, {ago}",
+  "@myWorkLastEventSystemSemantics": {
+    "context": "MyWorkScreen",
+    "description": "Accessibility label for system lifecycle events without an actor",
+    "placeholders": {
+      "event": {
+        "type": "String"
+      },
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkLastEventAuthorSuffix": ", автор",
   "@myWorkLastEventAuthorSuffix": {
     "context": "MyWorkScreen"
@@ -3127,6 +3140,9 @@
   "beaconActivityNeedInfoOpened": "Запрос информации",
   "beaconActivityDoneMarked": "Отмечено выполнено",
   "beaconActivityBeaconPublished": "Опубликовано",
+  "beaconActivityLifecycleClosedAfterReview": "Закрыто после обзора",
+  "beaconActivityLifecycleReopened": "Снова открыто",
+  "beaconActivityLifecycleReviewExpired": "Срок обзора истёк",
   "beaconActivityCoordinationFallback": "Обновление комнаты",
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
   "beaconRoomReactionAddTooltip": "Добавить реакцию",

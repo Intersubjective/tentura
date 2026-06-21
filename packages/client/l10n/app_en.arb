@@ -1909,6 +1909,19 @@
       }
     }
   },
+  "myWorkLastEventSystemSemantics": "{event}, {ago}",
+  "@myWorkLastEventSystemSemantics": {
+    "context": "MyWorkScreen",
+    "description": "Accessibility label for system lifecycle events without an actor",
+    "placeholders": {
+      "event": {
+        "type": "String"
+      },
+      "ago": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkLastEventAuthorSuffix": ", author",
   "@myWorkLastEventAuthorSuffix": {
     "context": "MyWorkScreen"
@@ -3168,6 +3181,18 @@
   "beaconActivityNeedInfoOpened": "Need-info requested",
   "beaconActivityDoneMarked": "Marked done",
   "beaconActivityBeaconPublished": "Published",
+  "beaconActivityLifecycleClosedAfterReview": "Closed after review",
+  "@beaconActivityLifecycleClosedAfterReview": {
+    "description": "Activity log: author closed beacon after review window"
+  },
+  "beaconActivityLifecycleReopened": "Reopened",
+  "@beaconActivityLifecycleReopened": {
+    "description": "Activity log: author reopened beacon from review"
+  },
+  "beaconActivityLifecycleReviewExpired": "Review period ended",
+  "@beaconActivityLifecycleReviewExpired": {
+    "description": "Activity log: review window expired and beacon closed"
+  },
   "beaconActivityCoordinationFallback": "Room update",
   "beaconRoomMessageActionsTitle": "Message actions",
   "beaconRoomReactionAddTooltip": "Add reaction",

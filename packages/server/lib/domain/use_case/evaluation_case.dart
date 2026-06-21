@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
@@ -103,7 +104,13 @@ final class EvaluationCase extends UseCaseBase {
         }
 
         if (!requiresReviewWindow) {
-          await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 6);
+          await _beaconRepository.recordBeaconLifecycleTransition(
+            beaconId: beaconId,
+            fromState: beacon.state,
+            toState: 6,
+            reason: BeaconLifecycleChangeReason.directClose,
+            actorId: userId,
+          );
           return {
             'id': beaconId,
             'state': 6,
@@ -117,7 +124,13 @@ final class EvaluationCase extends UseCaseBase {
         final openedAt = DateTime.timestamp();
         final closesAt = openedAt.add(_reviewWindowDuration);
 
-        await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 5);
+        await _beaconRepository.recordBeaconLifecycleTransition(
+          beaconId: beaconId,
+          fromState: beacon.state,
+          toState: 5,
+          reason: BeaconLifecycleChangeReason.reviewWindowOpened,
+          actorId: userId,
+        );
 
         await _evaluationRepository.insertReviewWindow(
           beaconId: beaconId,
@@ -247,7 +260,13 @@ final class EvaluationCase extends UseCaseBase {
           );
         }
         await _evaluationRepository.deleteReviewScaffoldingForBeacon(beaconId);
-        await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 0);
+        await _beaconRepository.recordBeaconLifecycleTransition(
+          beaconId: beaconId,
+          fromState: beacon.state,
+          toState: 0,
+          reason: BeaconLifecycleChangeReason.reopenedFromReview,
+          actorId: userId,
+        );
         return {
           'id': beaconId,
           'state': 0,
@@ -292,7 +311,11 @@ final class EvaluationCase extends UseCaseBase {
             description: 'Required reviewers have not finished or skipped',
           );
         }
-        await _evaluationRepository.closeBeaconReviewWindow(beaconId);
+        await _evaluationRepository.closeBeaconReviewWindow(
+          beaconId,
+          reason: BeaconLifecycleChangeReason.authorCloseNow,
+          actorUserId: userId,
+        );
         return {
           'id': beaconId,
           'state': 6,

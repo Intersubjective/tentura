@@ -6594,5 +6594,6 @@ type MyWorkLastActivityEventRow {
   actorTitle: String
   actorImageId: String
   createdAt: String
+  diffJson: String
 }
 

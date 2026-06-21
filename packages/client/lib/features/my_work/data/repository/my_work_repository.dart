@@ -122,6 +122,7 @@ class MyWorkRepository {
           type: eventType,
           createdAt: DateTime.parse(createdAtRaw).toLocal(),
           actorId: actorId.isEmpty ? null : actorId,
+          diffJson: row.diffJson,
         ),
         actor: actor,
       );

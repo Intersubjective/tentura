@@ -664,6 +664,7 @@ final gqlTypeMyWorkLastActivityEventRow =
         field('actorTitle', graphQLString),
         field('actorImageId', graphQLString),
         field('createdAt', graphQLString),
+        field('diffJson', graphQLString),
       ]);
 
 final gqlTypeBeaconLineageSuggestion =

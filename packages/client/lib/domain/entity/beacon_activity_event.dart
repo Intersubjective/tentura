@@ -36,6 +36,7 @@ abstract class BeaconActivityEvent with _$BeaconActivityEvent {
       BeaconActivityEventTypeBits.doneMarked => true,
       BeaconActivityEventTypeBits.factVisibilityChanged => true,
       BeaconActivityEventTypeBits.beaconPublished => true,
+      BeaconActivityEventTypeBits.beaconLifecycleChanged => true,
       _ => false,
     };
   }

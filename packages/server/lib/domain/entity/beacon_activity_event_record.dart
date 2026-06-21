@@ -6,6 +6,7 @@ class BeaconActivityEventRecord {
     required this.visibility,
     required this.type,
     this.actorId,
+    this.diffJson,
     required this.createdAt,
   });
 
@@ -14,6 +15,7 @@ class BeaconActivityEventRecord {
   final int visibility;
   final int type;
   final String? actorId;
+  final String? diffJson;
   final DateTime createdAt;
 }
 

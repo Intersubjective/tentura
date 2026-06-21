@@ -7,6 +7,7 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/capability/capability_tag.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/evaluation/acknowledged_committer.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -477,7 +478,13 @@ final class BeaconCase extends UseCaseBase {
               description: 'Cannot cancel a beacon with committers',
             );
           }
-          await _beaconRepository.updateBeaconState(beaconId: beaconId, state: 1);
+          await _beaconRepository.recordBeaconLifecycleTransition(
+            beaconId: beaconId,
+            fromState: beacon.state,
+            toState: 1,
+            reason: BeaconLifecycleChangeReason.cancelled,
+            actorId: userId,
+          );
           return {
             'id': beaconId,
             'state': 1,
