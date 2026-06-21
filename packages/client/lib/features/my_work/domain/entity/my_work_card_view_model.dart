@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
+import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 import 'my_work_last_event.dart';
@@ -54,6 +55,9 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
     /// Open blocker title for NOW subline (V2 inbox room context batch).
     @Default('') String roomOpenBlockerTitle,
+
+    /// Open blocker cue for phase / YOU blocked segment (V2 batch).
+    OpenBlockerCue? roomOpenBlocker,
 
     /// Help-offered cards: `beacon_help_offers.updated_at` from My Work fetch.
     DateTime? helpOfferRowUpdatedAt,

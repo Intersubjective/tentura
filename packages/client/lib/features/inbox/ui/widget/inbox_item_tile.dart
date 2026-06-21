@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
+import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
@@ -114,6 +116,17 @@ class InboxItemTile extends StatelessWidget {
           : null,
     };
 
+    final phaseInput = beaconPhaseInputFromInbox(
+      beacon: beacon,
+      roomHints: item.roomHints,
+    );
+    final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
+    final phaseStatus = formatBeaconPhaseStatus(
+      l10n,
+      phaseResult,
+      now: DateTime.now(),
+    );
+
     return BeaconCardShell(
       onTap: onOpenBeacon,
       footer: showCtaRow
@@ -132,6 +145,8 @@ class InboxItemTile extends StatelessWidget {
         children: [
           BeaconCardHeaderRow(
             beacon: beacon,
+            statusLine: phaseStatus.statusLine,
+            statusTone: phaseStatus.tone,
             menu: BeaconOverflowMenu(
               beacon: beacon,
               onOpenBeacon: onOpenBeacon,
@@ -155,18 +170,6 @@ class InboxItemTile extends StatelessWidget {
           BeaconCardMetadataLine(
             beacon: beacon,
             updatedLine: updatedLine,
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              coordinationStatusLabel(l10n, beacon.coordinationStatus),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: coordinationStatusOnSurfaceColor(
-                  theme.colorScheme,
-                  beacon.coordinationStatus,
-                ),
-              ),
-            ),
           ),
           if (beacon.needs.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -261,12 +264,14 @@ class InboxItemTile extends StatelessWidget {
           ),
         ),
       );
-      if (h.openBlockerTitle.isNotEmpty) {
+      if (h.openBlockerTitle.isNotEmpty ||
+          (h.openBlocker?.title.isNotEmpty ?? false)) {
+        final title = h.openBlocker?.title ?? h.openBlockerTitle;
         out.add(
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
-              l10n.inboxCardOpenBlocker(h.openBlockerTitle),
+              l10n.inboxCardOpenBlocker(title),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.tertiary,
               ),

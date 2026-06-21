@@ -5689,6 +5689,13 @@ type InboxRoomContextRow {
   roomUnreadCount: Int!
   lastSeenAt: String
   openBlockerTitle: String
+  openBlockerCreatorId: String
+  openBlockerTargetPersonId: String
+  openBlockerResponsibleUserId: String
+  openBlockerCreatedAt: String
+  openBlockerCreatorDisplayName: String
+  openBlockerCreatorImageId: String
+  openBlockerCreatorHasPicture: Boolean
   publicFactSnippet: String
 }
 

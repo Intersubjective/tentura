@@ -1,0 +1,268 @@
+import '../entity/beacon.dart';
+import '../entity/beacon_coordination_phase.dart';
+import '../entity/beacon_lifecycle.dart';
+import '../entity/coordination_status.dart';
+import '../entity/open_blocker_cue.dart';
+import 'beacon_coordination_phase_input.dart';
+import 'beacon_has_unreviewed_offers.dart';
+
+/// Priority ladder: first match wins; floor is never blank ([phase] always set).
+BeaconCoordinationPhaseResult deriveBeaconCoordinationPhase(
+  BeaconCoordinationPhaseInput input,
+) {
+  final beacon = input.beacon;
+
+  if (beacon.lifecycle == BeaconLifecycle.deleted) {
+    return _terminal(
+      phase: BeaconCoordinationPhase.closed,
+      action: BeaconPhasePrimaryAction.none,
+    );
+  }
+  if (beacon.lifecycle == BeaconLifecycle.cancelled) {
+    return _terminal(
+      phase: BeaconCoordinationPhase.cancelled,
+      action: BeaconPhasePrimaryAction.none,
+    );
+  }
+  if (beacon.lifecycle == BeaconLifecycle.closed) {
+    return _terminal(
+      phase: BeaconCoordinationPhase.closed,
+      action: BeaconPhasePrimaryAction.none,
+    );
+  }
+  if (beacon.lifecycle == BeaconLifecycle.draft) {
+    return const BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.draft,
+      suggestedAction: BeaconPhasePrimaryAction.none,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+    );
+  }
+
+  if (input.tier == BeaconVisibilityTier.public) {
+    return _derivePublicTier(input);
+  }
+
+  return _deriveCoordinationTier(input);
+}
+
+BeaconCoordinationPhaseResult _deriveCoordinationTier(
+  BeaconCoordinationPhaseInput input,
+) {
+  final beacon = input.beacon;
+  final activityAt = _activityAt(input);
+
+  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.wrappingUp,
+      slot2Kind: _reviewSlot2(beacon),
+      suggestedAction: BeaconPhasePrimaryAction.reviewContributions,
+      rowHarmony: const BeaconPhaseRowHarmony(suppressNowPlaceholder: true),
+      reviewClosesAt: beacon.reviewClosesAt,
+      lastActivityAt: activityAt,
+    );
+  }
+
+  if (beacon.lifecycle != BeaconLifecycle.open) {
+    return _floor(activityAt);
+  }
+
+  if (input.hasOpenBlocker) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.blocked,
+      slot2Kind: BeaconPhaseSlot2Kind.blockerNeedsClearing,
+      suggestedAction: BeaconPhasePrimaryAction.resolveBlocker,
+      rowHarmony: const BeaconPhaseRowHarmony(
+        preferBlockedYouSegment: true,
+        showBlockedTitleInNowSubline: true,
+        suppressNowPlaceholder: true,
+      ),
+      lastActivityAt: activityAt,
+    );
+  }
+
+  if (beacon.coordinationStatus ==
+      BeaconCoordinationStatus.moreOrDifferentHelpNeeded) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.needsMoreHelp,
+      slot2Kind: BeaconPhaseSlot2Kind.freshness,
+      suggestedAction: BeaconPhasePrimaryAction.offerHelp,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+      lastActivityAt: activityAt,
+    );
+  }
+
+  if (beacon.coordinationStatus == BeaconCoordinationStatus.enoughHelpOffered) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.enoughHelpInMotion,
+      slot2Kind: BeaconPhaseSlot2Kind.freshness,
+      suggestedAction: BeaconPhasePrimaryAction.postUpdate,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+      lastActivityAt: activityAt,
+    );
+  }
+
+  final unreviewed = input.hasUnreviewedOffers ||
+      beaconHasUnreviewedOffers(beacon);
+  if (unreviewed) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.offersAwaitingAuthor,
+      slot2Kind: BeaconPhaseSlot2Kind.courtAuthor,
+      suggestedAction: BeaconPhasePrimaryAction.reviewOffers,
+      rowHarmony: const BeaconPhaseRowHarmony(
+        suppressYouAwaitingAuthor: true,
+      ),
+      lastActivityAt: activityAt,
+    );
+  }
+
+  if (input.hasOpenRoomAsks ||
+      (beacon.helpOfferCount > 0 && !unreviewed)) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.coordinating,
+      slot2Kind: BeaconPhaseSlot2Kind.freshness,
+      suggestedAction: BeaconPhasePrimaryAction.postUpdate,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+      lastActivityAt: activityAt,
+    );
+  }
+
+  if (beacon.helpOfferCount == 0) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.lookingForHelpers,
+      slot2Kind: BeaconPhaseSlot2Kind.noOffersYet,
+      suggestedAction: BeaconPhasePrimaryAction.forward,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+      lastActivityAt: activityAt,
+    );
+  }
+
+  return BeaconCoordinationPhaseResult(
+    phase: BeaconCoordinationPhase.coordinating,
+    slot2Kind: BeaconPhaseSlot2Kind.freshness,
+    suggestedAction: BeaconPhasePrimaryAction.postUpdate,
+    rowHarmony: BeaconPhaseRowHarmony.empty,
+    lastActivityAt: activityAt,
+  );
+}
+
+BeaconCoordinationPhaseResult _derivePublicTier(
+  BeaconCoordinationPhaseInput input,
+) {
+  final beacon = input.beacon;
+  final activityAt = _activityAt(input);
+
+  if (beacon.lifecycle == BeaconLifecycle.reviewOpen) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.wrappingUp,
+      slot2Kind: BeaconPhaseSlot2Kind.none,
+      suggestedAction: BeaconPhasePrimaryAction.none,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+      lastActivityAt: activityAt,
+    );
+  }
+
+  if (beacon.lifecycle != BeaconLifecycle.open) {
+    return _floor(activityAt);
+  }
+
+  final pub = beacon.publicStatus;
+  if (pub == 4) {
+    return _terminal(
+      phase: BeaconCoordinationPhase.closed,
+      action: BeaconPhasePrimaryAction.none,
+      lastActivityAt: activityAt,
+    );
+  }
+  if (pub == 2) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.needsMoreHelp,
+      slot2Kind: BeaconPhaseSlot2Kind.none,
+      suggestedAction: BeaconPhasePrimaryAction.offerHelp,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+      lastActivityAt: activityAt,
+    );
+  }
+  if (pub == 3) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.enoughHelpInMotion,
+      slot2Kind: BeaconPhaseSlot2Kind.none,
+      suggestedAction: BeaconPhasePrimaryAction.offerHelp,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+      lastActivityAt: activityAt,
+    );
+  }
+  if (pub == 1 || beacon.helpOfferCount > 0) {
+    return BeaconCoordinationPhaseResult(
+      phase: BeaconCoordinationPhase.coordinating,
+      slot2Kind: BeaconPhaseSlot2Kind.none,
+      suggestedAction: BeaconPhasePrimaryAction.offerHelp,
+      rowHarmony: BeaconPhaseRowHarmony.empty,
+      lastActivityAt: activityAt,
+    );
+  }
+
+  return BeaconCoordinationPhaseResult(
+    phase: BeaconCoordinationPhase.lookingForHelpers,
+    slot2Kind: BeaconPhaseSlot2Kind.noOffersYet,
+    suggestedAction: BeaconPhasePrimaryAction.offerHelp,
+    rowHarmony: BeaconPhaseRowHarmony.empty,
+    lastActivityAt: activityAt,
+  );
+}
+
+BeaconPhaseSlot2Kind _reviewSlot2(Beacon beacon) {
+  final closesAt = beacon.reviewClosesAt;
+  if (closesAt == null || beacon.reviewWindowStatus == 1) {
+    return BeaconPhaseSlot2Kind.none;
+  }
+  return BeaconPhaseSlot2Kind.reviewCountdown;
+}
+
+DateTime? _activityAt(BeaconCoordinationPhaseInput input) {
+  return input.lastActivityAt ?? input.beacon.updatedAt;
+}
+
+BeaconCoordinationPhaseResult _terminal({
+  required BeaconCoordinationPhase phase,
+  required BeaconPhasePrimaryAction action,
+  DateTime? lastActivityAt,
+}) {
+  return BeaconCoordinationPhaseResult(
+    phase: phase,
+    suggestedAction: action,
+    rowHarmony: BeaconPhaseRowHarmony.empty,
+    lastActivityAt: lastActivityAt,
+  );
+}
+
+BeaconCoordinationPhaseResult _floor(DateTime? lastActivityAt) {
+  return BeaconCoordinationPhaseResult(
+    phase: BeaconCoordinationPhase.openFloor,
+    suggestedAction: BeaconPhasePrimaryAction.none,
+    rowHarmony: BeaconPhaseRowHarmony.empty,
+    lastActivityAt: lastActivityAt,
+  );
+}
+
+/// Builds [BeaconCoordinationPhaseInput] with shared defaults.
+BeaconCoordinationPhaseInput buildBeaconCoordinationPhaseInput({
+  required Beacon beacon,
+  required BeaconVisibilityTier tier,
+  DateTime? now,
+  bool hasOpenBlocker = false,
+  bool hasUnreviewedOffers = false,
+  bool hasOpenRoomAsks = false,
+  OpenBlockerCue? openBlocker,
+  DateTime? lastActivityAt,
+}) {
+  return BeaconCoordinationPhaseInput(
+    beacon: beacon,
+    tier: tier,
+    now: now ?? DateTime.now(),
+    hasOpenBlocker: hasOpenBlocker,
+    hasUnreviewedOffers: hasUnreviewedOffers,
+    hasOpenRoomAsks: hasOpenRoomAsks,
+    openBlocker: openBlocker,
+    lastActivityAt: lastActivityAt,
+  );
+}

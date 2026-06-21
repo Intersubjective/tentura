@@ -1,3 +1,4 @@
+import 'package:tentura/domain/coordination/beacon_has_unreviewed_offers.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
@@ -93,9 +94,7 @@ MyWorkCardViewModel _deriveAuthored({
     attention = MyWorkAttentionChip.moreHelpNeeded;
   }
 
-  final showReviewHelpOffersCta =
-      beacon.coordinationStatus == BeaconCoordinationStatus.neutral &&
-      beacon.helpOfferCount > 0;
+  final showReviewHelpOffersCta = beaconHasUnreviewedOffers(beacon);
 
   return MyWorkCardViewModel(
     beaconId: beacon.id,

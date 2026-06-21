@@ -314,6 +314,7 @@ final class BeaconRoomCase extends UseCaseBase {
           'roomUnreadCount': 0,
           'lastSeenAt': null,
           'openBlockerTitle': null,
+          ..._emptyOpenBlockerBatchFields(),
           'publicFactSnippet': factSnippet,
         });
         continue;
@@ -333,6 +334,7 @@ final class BeaconRoomCase extends UseCaseBase {
         bid,
         viewerUserId: userId,
       );
+      final blockerFields = await _openBlockerBatchFields(openBlocker);
       out.add({
         'beaconId': bid,
         'isRoomMember': true,
@@ -342,6 +344,7 @@ final class BeaconRoomCase extends UseCaseBase {
         'roomUnreadCount': unread,
         'lastSeenAt': seenAt?.toUtc().toIso8601String(),
         'openBlockerTitle': openBlocker?.title,
+        ...blockerFields,
         'publicFactSnippet': factSnippet,
       });
     }
@@ -962,5 +965,41 @@ final class BeaconRoomCase extends UseCaseBase {
       status: coordinationItemStatusOpen,
     );
     return rows.isEmpty ? null : rows.first.item;
+  }
+
+  Map<String, Object?> _emptyOpenBlockerBatchFields() => {
+        'openBlockerCreatorId': null,
+        'openBlockerTargetPersonId': null,
+        'openBlockerResponsibleUserId': null,
+        'openBlockerCreatedAt': null,
+        'openBlockerCreatorDisplayName': null,
+        'openBlockerCreatorImageId': null,
+        'openBlockerCreatorHasPicture': false,
+      };
+
+  Future<Map<String, Object?>> _openBlockerBatchFields(
+    CoordinationItem? openBlocker,
+  ) async {
+    if (openBlocker == null) {
+      return _emptyOpenBlockerBatchFields();
+    }
+    final creatorId = openBlocker.creatorId;
+    final target = openBlocker.targetPersonId;
+    final responsible = target != null && target.isNotEmpty
+        ? target
+        : creatorId;
+    final titles = await _room.userTitlesByIds([creatorId]);
+    final pics = await _room.userPicMetaByIds([creatorId]);
+    final pic = pics[creatorId];
+    return {
+      'openBlockerCreatorId': creatorId,
+      'openBlockerTargetPersonId': target,
+      'openBlockerResponsibleUserId': responsible,
+      'openBlockerCreatedAt':
+          openBlocker.createdAt.dateTime.toUtc().toIso8601String(),
+      'openBlockerCreatorDisplayName': titles[creatorId] ?? '',
+      'openBlockerCreatorImageId': pic?.imageId,
+      'openBlockerCreatorHasPicture': pic?.hasPicture ?? false,
+    };
   }
 }

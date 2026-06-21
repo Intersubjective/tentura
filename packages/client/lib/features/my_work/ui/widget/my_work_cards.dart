@@ -10,8 +10,10 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
-import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
+import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
@@ -154,36 +156,66 @@ class _AuthoredActiveCard extends StatelessWidget {
 
     final hasReviewCta = vm.showReviewHelpOffersCta;
     final needsForwardCta = !vm.authorHasForwardedOnce;
-    final footerActions = (hasReviewCta || needsForwardCta)
-        ? Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (hasReviewCta)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TenturaCommandButton(
-                    label: l10n.myWorkReviewHelpOffersCta,
-                    onPressed: () =>
-                        _openBeaconReviewHelpOffers(context, b.id),
-                  ),
+    final phaseAction = myWorkEffectivePrimaryAction(
+      vm: vm,
+      viewerUserId: currentUserId,
+    );
+    final phaseCtaLabel = myWorkPhasePrimaryCtaLabel(
+      l10n: l10n,
+      vm: vm,
+      viewerUserId: currentUserId,
+    );
+
+    final Widget? footerActions;
+    if (phaseCtaLabel != null) {
+      footerActions = Align(
+        alignment: Alignment.centerRight,
+        child: TenturaCommandButton(
+          label: phaseCtaLabel,
+          onPressed: () => switch (phaseAction) {
+            BeaconPhasePrimaryAction.reviewOffers =>
+              _openBeaconReviewHelpOffers(context, b.id),
+            BeaconPhasePrimaryAction.forward => unawaited(
+                context.router.pushPath('$kPathForwardBeacon/${b.id}'),
+              ),
+            BeaconPhasePrimaryAction.resolveBlocker =>
+              _openBeacon(context, b.id),
+            _ => _openBeacon(context, b.id),
+          },
+        ),
+      );
+    } else if (hasReviewCta || needsForwardCta) {
+      footerActions = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (hasReviewCta)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TenturaCommandButton(
+                label: l10n.myWorkReviewHelpOffersCta,
+                onPressed: () =>
+                    _openBeaconReviewHelpOffers(context, b.id),
+              ),
+            ),
+          if (hasReviewCta && needsForwardCta)
+            const SizedBox(height: kSpacingSmall),
+          if (needsForwardCta)
+            SizedBox(
+              width: double.infinity,
+              child: TenturaCommandButton(
+                label: l10n.inboxCardOpenBeacon,
+                icon: const Icon(Icons.arrow_forward),
+                onPressed: () => unawaited(
+                  context.router.pushPath('$kPathForwardBeacon/${b.id}'),
                 ),
-              if (hasReviewCta && needsForwardCta)
-                const SizedBox(height: kSpacingSmall),
-              if (needsForwardCta)
-                SizedBox(
-                  width: double.infinity,
-                  child: TenturaCommandButton(
-                    label: l10n.inboxCardOpenBeacon,
-                    icon: const Icon(Icons.arrow_forward),
-                    onPressed: () => unawaited(
-                      context.router.pushPath('$kPathForwardBeacon/${b.id}'),
-                    ),
-                  ),
-                ),
-            ],
-          )
-        : null;
+              ),
+            ),
+        ],
+      );
+    } else {
+      footerActions = null;
+    }
 
     return BeaconCardShell(
       onTap: () => _openBeacon(context, b.id),

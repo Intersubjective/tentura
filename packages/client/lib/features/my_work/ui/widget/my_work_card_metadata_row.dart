@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
@@ -38,10 +40,19 @@ class MyWorkCardMetadataRow extends StatelessWidget {
           viewModel: viewModel,
         ),
         if (viewModel.youResponsibility != null)
-          BeaconYouResponsibilityLine(
-            beacon: beacon,
-            responsibility: viewModel.youResponsibility!,
-            isAuthorOrSteward: beacon.author.id == currentUserId,
+          Builder(
+            builder: (context) {
+              final phaseInput = beaconPhaseInputFromMyWorkCard(viewModel);
+              final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
+              return BeaconYouResponsibilityLine(
+                beacon: beacon,
+                responsibility: viewModel.youResponsibility!,
+                isAuthorOrSteward: beacon.author.id == currentUserId,
+                viewerUserId: currentUserId,
+                openBlocker: viewModel.roomOpenBlocker,
+                phaseResult: phaseResult,
+              );
+            },
           ),
         MyWorkLastEventRow(
           beacon: beacon,
