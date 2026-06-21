@@ -3,12 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
+import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
+import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
@@ -187,5 +192,74 @@ void main() {
       ),
     ).dx;
     expect(scheduleX, greaterThan(pileRect.right));
+  });
+
+  testWidgets('finished beacon hides NOW, YOU, and last-event rows', (
+    tester,
+  ) async {
+    final authorId = 'author1';
+    final beacon = Beacon.empty.copyWith(
+      id: 'b-finished',
+      lifecycle: BeaconLifecycle.closed,
+      author: Profile(id: authorId, displayName: 'Alice Author'),
+      helpOfferCount: 1,
+      helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],
+      startAt: DateTime.utc(2099, 6, 20, 12),
+      endAt: DateTime.utc(2099, 6, 25, 12),
+      coordinates: const Coordinates(lat: 52.52, long: 13.405),
+    );
+    final last = MyWorkLastEvent(
+      event: BeaconActivityEvent(
+        id: 'e1',
+        beaconId: beacon.id,
+        visibility: 0,
+        type: BeaconActivityEventTypeBits.beaconPublished,
+        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+        actorId: authorId,
+      ),
+      actor: Profile(id: authorId, displayName: 'Alice Author'),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(360, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                child: MyWorkCardMetadataRow(
+                  beacon: beacon,
+                  viewModel: MyWorkCardViewModel(
+                    beaconId: beacon.id,
+                    role: MyWorkCardRole.authored,
+                    kind: MyWorkCardKind.authoredFinished,
+                    beacon: beacon,
+                    roomCurrentLine: 'Pick up supplies at noon',
+                    youResponsibility: CoordinationResponsibility(
+                      beaconId: beacon.id,
+                    ),
+                    lastActivityEvent: last,
+                  ),
+                  currentUserId: 'viewer',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.now), findsNothing);
+    expect(find.byIcon(BeaconHudRowIcons.you), findsNothing);
+    expect(find.byIcon(BeaconHudRowIcons.lastEvent), findsNothing);
+    expect(find.byType(MyWorkLastEventRow), findsNothing);
+    expect(find.text('Pick up supplies at noon'), findsNothing);
   });
 }
