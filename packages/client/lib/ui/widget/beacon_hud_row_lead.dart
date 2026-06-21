@@ -6,6 +6,12 @@ const double kBeaconHudRowLeadWidth = 32;
 /// Lead icon size for beacon HUD / My Work metadata rows.
 const double kBeaconHudRowIconSize = 20;
 
+/// Minimum height for single-line HUD metadata rows (matches metadata avatar).
+const double kBeaconHudRowMinHeight = 24;
+
+/// Vertical gap between stacked HUD metadata rows (8dp rhythm).
+const double kBeaconHudRowGap = 6;
+
 /// Neutral outlined icons for aligned HUD metadata rows.
 abstract final class BeaconHudRowIcons {
   static const IconData people = Icons.groups_outlined;
@@ -23,12 +29,46 @@ enum BeaconHudRowLeadAlign {
   center,
 }
 
+/// Vertical stack of HUD metadata rows with uniform [kBeaconHudRowGap].
+class BeaconHudMetadataColumn extends StatelessWidget {
+  const BeaconHudMetadataColumn({
+    required this.children,
+    super.key,
+  });
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (children.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final spaced = <Widget>[children.first];
+    for (var i = 1; i < children.length; i++) {
+      spaced
+        ..add(const SizedBox(height: kBeaconHudRowGap))
+        ..add(children[i]);
+    }
+
+    return ClipRect(
+      clipBehavior: Clip.none,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: spaced,
+      ),
+    );
+  }
+}
+
 /// Fixed-width lead slot with a neutral semantic icon (always left-aligned).
 class BeaconHudRowLead extends StatelessWidget {
   const BeaconHudRowLead({
     required this.icon,
     required this.semanticsLabel,
     this.align = BeaconHudRowLeadAlign.start,
+    this.topInset,
     super.key,
   });
 
@@ -36,7 +76,10 @@ class BeaconHudRowLead extends StatelessWidget {
   final String semanticsLabel;
   final BeaconHudRowLeadAlign align;
 
-  static const double _startTopInset = 2;
+  /// Optional top inset for optical alignment (e.g. center icon on avatar).
+  final double? topInset;
+
+  static const double _startTopInset = 1;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +89,9 @@ class BeaconHudRowLead extends StatelessWidget {
       size: kBeaconHudRowIconSize,
       color: scheme.onSurfaceVariant,
     );
+
+    final inset = topInset ??
+        (align == BeaconHudRowLeadAlign.start ? _startTopInset : 0.0);
 
     return Semantics(
       label: semanticsLabel,
@@ -57,7 +103,7 @@ class BeaconHudRowLead extends StatelessWidget {
                 child: iconWidget,
               )
             : Padding(
-                padding: const EdgeInsets.only(top: _startTopInset),
+                padding: EdgeInsets.only(top: inset),
                 child: iconWidget,
               ),
       ),
@@ -72,6 +118,8 @@ class BeaconHudIconRow extends StatelessWidget {
     required this.semanticsLabel,
     required this.body,
     this.leadAlign = BeaconHudRowLeadAlign.start,
+    this.leadTopInset,
+    this.minRowHeight,
     this.trailing,
     super.key,
   });
@@ -80,6 +128,10 @@ class BeaconHudIconRow extends StatelessWidget {
   final String semanticsLabel;
   final Widget body;
   final BeaconHudRowLeadAlign leadAlign;
+  final double? leadTopInset;
+
+  /// When set, enforces a minimum row height (single-line text rows only).
+  final double? minRowHeight;
   final Widget? trailing;
 
   @override
@@ -88,17 +140,35 @@ class BeaconHudIconRow extends StatelessWidget {
         ? CrossAxisAlignment.center
         : CrossAxisAlignment.start;
 
-    return Row(
-      crossAxisAlignment: rowAlign,
-      children: [
-        BeaconHudRowLead(
-          icon: leadIcon,
-          semanticsLabel: semanticsLabel,
-          align: leadAlign,
-        ),
-        Expanded(child: body),
-        ?trailing,
-      ],
+    final row = ClipRect(
+      clipBehavior: Clip.none,
+      child: Row(
+        crossAxisAlignment: rowAlign,
+        children: [
+          BeaconHudRowLead(
+            icon: leadIcon,
+            semanticsLabel: semanticsLabel,
+            align: leadAlign,
+            topInset: leadTopInset,
+          ),
+          Expanded(
+            child: ClipRect(
+              clipBehavior: Clip.none,
+              child: body,
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
+    );
+
+    if (minRowHeight == null) {
+      return row;
+    }
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minRowHeight!),
+      child: row,
     );
   }
 }

@@ -7,9 +7,9 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
-import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 /// My Work list card metadata: face pile + schedule countdown + location.
 class MyWorkCardMetadataRow extends StatelessWidget {
@@ -26,30 +26,22 @@ class MyWorkCardMetadataRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
+    return BeaconHudMetadataColumn(
       children: [
         BeaconCompactMetadataStrip(
           beacon: beacon,
           involvedProfiles: beacon.helpOfferUsers,
           currentUserId: currentUserId,
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: _MyWorkNowRow(
-            beacon: beacon,
-            viewModel: viewModel,
-          ),
+        _MyWorkNowRow(
+          beacon: beacon,
+          viewModel: viewModel,
         ),
         if (viewModel.youResponsibility != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: BeaconYouResponsibilityLine(
-              beacon: beacon,
-              responsibility: viewModel.youResponsibility!,
-              isAuthorOrSteward: beacon.author.id == currentUserId,
-            ),
+          BeaconYouResponsibilityLine(
+            beacon: beacon,
+            responsibility: viewModel.youResponsibility!,
+            isAuthorOrSteward: beacon.author.id == currentUserId,
           ),
         MyWorkLastEventRow(
           beacon: beacon,

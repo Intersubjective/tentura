@@ -11,7 +11,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_finished_status_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
@@ -290,10 +289,6 @@ class _AuthoredActiveCard extends StatelessWidget {
               },
             ),
           ),
-          if (vm.isFinishedCard || vm.isArchived) ...[
-            const SizedBox(height: 6),
-            MyWorkFinishedStatusRow(beacon: b),
-          ],
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -372,10 +367,6 @@ class _HelpOfferedActiveCard extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
           ),
-          if (vm.isFinishedCard || vm.isArchived) ...[
-            const SizedBox(height: 6),
-            MyWorkFinishedStatusRow(beacon: b),
-          ],
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -452,10 +443,6 @@ class _DraftAuthoredCard extends StatelessWidget {
               },
             ),
           ),
-          if (vm.isFinishedCard || vm.isArchived) ...[
-            const SizedBox(height: 6),
-            MyWorkFinishedStatusRow(beacon: b),
-          ],
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -601,10 +588,6 @@ class _FinishedAuthoredCard extends StatelessWidget {
               },
             ),
           ),
-          if (vm.isFinishedCard || vm.isArchived) ...[
-            const SizedBox(height: 6),
-            MyWorkFinishedStatusRow(beacon: b),
-          ],
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,
@@ -675,10 +658,6 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(b.id),
             ),
           ),
-          if (vm.isFinishedCard || vm.isArchived) ...[
-            const SizedBox(height: 6),
-            MyWorkFinishedStatusRow(beacon: b),
-          ],
           const SizedBox(height: 6),
           MyWorkCardMetadataRow(
             beacon: b,

@@ -510,7 +510,7 @@ class BeaconCardMetaItem extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: mainAxisSize,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(icon, size: 16, color: scheme.onSurfaceVariant),
         const SizedBox(width: 4),

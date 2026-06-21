@@ -90,15 +90,17 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
         final row = BeaconHudIconRow(
           leadIcon: BeaconHudRowIcons.you,
           semanticsLabel: l10n.beaconHudYouLabel,
-          leadAlign: BeaconHudRowLeadAlign.center,
+          leadAlign: presentation.fallbackText != null
+              ? BeaconHudRowLeadAlign.center
+              : BeaconHudRowLeadAlign.start,
+          minRowHeight: presentation.fallbackText != null
+              ? kBeaconHudRowMinHeight
+              : null,
           body: content,
         );
 
         if (onTap == null) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: row,
-          );
+          return row;
         }
 
         return Material(
@@ -108,8 +110,8 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 44),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
                 child: row,
               ),
             ),
