@@ -126,11 +126,21 @@ class _MetadataRowLayout extends StatelessWidget {
     return Row(
       children: [
         if (hasPile) pile,
-        if (hasPile && (hasSchedule || hasLocation))
-          const SizedBox(width: kSpacingSmall),
-        if (hasSchedule) Flexible(child: schedule),
-        if (hasSchedule && hasLocation) const SizedBox(width: kSpacingSmall),
-        if (hasLocation) Expanded(child: location),
+        if (hasSchedule || hasLocation)
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (hasSchedule) schedule,
+                  if (hasSchedule && hasLocation)
+                    const SizedBox(width: kSpacingSmall),
+                  if (hasLocation) location,
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -167,14 +177,23 @@ class _MetadataWrapLayout extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Wrap(
-      spacing: kSpacingSmall,
-      runSpacing: 4,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (hasPile) pile,
-        if (hasSchedule) schedule,
-        if (hasLocation) location,
+        if (hasSchedule || hasLocation)
+          Expanded(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: kSpacingSmall,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (hasSchedule) schedule,
+                if (hasLocation) location,
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -354,8 +373,7 @@ class _LocationMeta extends StatelessWidget {
       ),
       child: BeaconCardMetaItem(
         icon: TenturaIcons.location,
-        mainAxisSize: MainAxisSize.max,
-        child: Expanded(child: label),
+        child: label,
       ),
     );
   }
