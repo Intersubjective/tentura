@@ -28,6 +28,7 @@ enum BeaconPhaseSlot2Kind {
   reviewCountdown,
   freshness,
   noOffersYet,
+  lifecycleEndedAt,
   none,
 }
 
@@ -68,6 +69,7 @@ class BeaconCoordinationPhaseResult {
     this.slot2Kind = BeaconPhaseSlot2Kind.none,
     this.reviewClosesAt,
     this.lastActivityAt,
+    this.lifecycleEndedAt,
   });
 
   final BeaconCoordinationPhase phase;
@@ -80,6 +82,9 @@ class BeaconCoordinationPhaseResult {
 
   /// For presenter freshness slot2 (days quiet / active today).
   final DateTime? lastActivityAt;
+
+  /// When lifecycle became closed or cancelled (`beacon.updatedAt`).
+  final DateTime? lifecycleEndedAt;
 
   bool get isNeverEmpty => phase != BeaconCoordinationPhase.openFloor ||
       suggestedAction != BeaconPhasePrimaryAction.none;
