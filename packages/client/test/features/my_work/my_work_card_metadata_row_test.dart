@@ -12,6 +12,7 @@ import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dar
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
+import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 MyWorkCardViewModel _viewModel(Beacon beacon) => MyWorkCardViewModel(
   beaconId: beacon.id,
@@ -67,6 +68,22 @@ void main() {
     expect(find.byType(MyWorkCardMetadataRow), findsOneWidget);
     expect(find.byType(MyWorkCardStatusStrip), findsNothing);
     expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
+
+    final strip = find.byType(BeaconCompactMetadataStrip);
+    final pileRect = tester.getRect(
+      find.descendant(
+        of: strip,
+        matching: find.byType(OverlappingPeopleAvatars),
+      ),
+    );
+    final scheduleX = tester.getTopLeft(
+      find.descendant(
+        of: strip,
+        matching: find.byIcon(Icons.schedule_outlined),
+      ),
+    ).dx;
+    expect(scheduleX, greaterThan(pileRect.right));
+    expect(scheduleX, greaterThan(180));
   });
 
   testWidgets('metadata row shows NOW icon above YOU icon', (tester) async {
@@ -121,6 +138,10 @@ void main() {
   ) async {
     final beacon = Beacon.empty.copyWith(
       id: 'b2',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+      helpOfferCount: 1,
+      helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],
+      startAt: DateTime.utc(2099, 6, 20, 12),
       endAt: DateTime(2026, 6, 25, 12),
       coordinates: const Coordinates(lat: 52.52, long: 13.405),
     );
@@ -151,5 +172,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Wrap), findsOneWidget);
+
+    final strip = find.byType(BeaconCompactMetadataStrip);
+    final pileRect = tester.getRect(
+      find.descendant(
+        of: strip,
+        matching: find.byType(OverlappingPeopleAvatars),
+      ),
+    );
+    final scheduleX = tester.getTopLeft(
+      find.descendant(
+        of: strip,
+        matching: find.byIcon(Icons.schedule_outlined),
+      ),
+    ).dx;
+    expect(scheduleX, greaterThan(pileRect.right));
   });
 }
