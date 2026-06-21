@@ -104,10 +104,9 @@ BeaconEntity _forkedBeacon({String id = 'b-src', String parentId = 'b-parent'}) 
     BeaconEntity(
       id: id,
       title: 't',
-      author: UserEntity(id: 'author'),
+      author: const UserEntity(id: 'author'),
       createdAt: DateTime.utc(2024),
       updatedAt: DateTime.utc(2024),
-      state: 0,
       lineageParentBeaconId: parentId,
       lineageRootBeaconId: parentId,
     );
@@ -121,14 +120,14 @@ void main() {
           LineageForwardEdgeFact(
             recipientId: 'u-helped',
             note: 'older note',
-            createdAt: DateTime.utc(2024, 1, 1),
+            createdAt: DateTime.utc(2024),
             beaconId: 'b1',
             rejected: false,
           ),
           LineageForwardEdgeFact(
             recipientId: 'u-routed',
             note: 'newest note',
-            createdAt: DateTime.utc(2024, 6, 1),
+            createdAt: DateTime.utc(2024, 6),
             beaconId: 'b1',
             rejected: false,
           ),
@@ -162,10 +161,9 @@ void main() {
     final beacon = BeaconEntity(
       id: 'b-new',
       title: 't',
-      author: UserEntity(id: 'author'),
+      author: const UserEntity(id: 'author'),
       createdAt: DateTime.utc(2024),
       updatedAt: DateTime.utc(2024),
-      state: 0,
     );
     final case_ = _caseFor(
       beacon: beacon,
@@ -191,7 +189,7 @@ void main() {
           LineageForwardEdgeFact(
             recipientId: 'u-forwarded',
             note: '',
-            createdAt: DateTime.utc(2024, 1, 1),
+            createdAt: DateTime.utc(2024),
             beaconId: 'b1',
             rejected: false,
           ),

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -73,7 +72,7 @@ class AuthRecoveryListener extends StatelessWidget {
       unawaited(
         context.router.replaceAll([
           RecoverRoute(
-            invite: null,
+            
           ),
         ]),
       );
@@ -100,7 +99,7 @@ class AuthRecoveryListener extends StatelessWidget {
                 messenger.clearMaterialBanners();
                 unawaited(
                   context.router.push(
-                    RecoverRoute(invite: null),
+                    RecoverRoute(),
                   ),
                 );
               },

@@ -165,7 +165,7 @@ TextSpan buildRoomMessageAnnotatedBodySpan({
 
   data.splitMapJoin(
     regExp,
-    onMatch: (Match regexMatch) {
+    onMatch: (regexMatch) {
       final matchedText = regexMatch.group(0)!;
       late final Annotation matchedAnnotation;
 
@@ -187,7 +187,7 @@ TextSpan buildRoomMessageAnnotatedBodySpan({
       contents.add(content);
       return '';
     },
-    onNonMatch: (String unmatchedText) {
+    onNonMatch: (unmatchedText) {
       contents.add(TextSpan(text: unmatchedText));
       return '';
     },

@@ -26,7 +26,6 @@ void main() {
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
   late MockBeaconRoomRepository roomRepo;
-  late MockVoteUserFriendshipLookup friendshipLookup;
   late MockForwardEdgeRepositoryPort forwardEdgeRepo;
   late MockBeaconRoomPushService roomPush;
   late CapabilityCase capabilityCase;
@@ -60,7 +59,6 @@ void main() {
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
     roomRepo = MockBeaconRoomRepository();
-    friendshipLookup = MockVoteUserFriendshipLookup();
     forwardEdgeRepo = MockForwardEdgeRepositoryPort();
     roomPush = MockBeaconRoomPushService();
     capabilityCase = CapabilityCase(
@@ -75,24 +73,17 @@ void main() {
       inboxRepo,
       capabilityCase,
       roomRepo,
-      friendshipLookup,
       forwardEdgeRepo,
       roomPush,
       env: Env(environment: Environment.test),
       logger: Logger('HelpOfferCaseTest'),
     );
-    // Default: not trusted — no direct forward, no mutual friendship.
+    // Default: not trusted — no direct forward from author.
     when(
       forwardEdgeRepo.isDirectAuthorForward(
         beaconId: anyNamed('beaconId'),
         authorId: anyNamed('authorId'),
         userId: anyNamed('userId'),
-      ),
-    ).thenAnswer((_) async => false);
-    when(
-      friendshipLookup.isReciprocalSubscribe(
-        viewerId: anyNamed('viewerId'),
-        peerId: anyNamed('peerId'),
       ),
     ).thenAnswer((_) async => false);
     when(
@@ -332,12 +323,6 @@ void main() {
           userId: anyNamed('userId'),
         ),
       );
-      verifyNever(
-        friendshipLookup.isReciprocalSubscribe(
-          viewerId: anyNamed('viewerId'),
-          peerId: anyNamed('peerId'),
-        ),
-      );
     });
   });
 
@@ -415,33 +400,9 @@ void main() {
       ).called(1);
     });
 
-    test('admits when help offerer is a mutual (reciprocal) friend of author',
+    test('skips admit when help offerer is a mutual friend but not directly forwarded',
         () async {
       stubNewHelpOffer();
-      // No direct forward — forward check returns false (default from setUp).
-      when(
-        friendshipLookup.isReciprocalSubscribe(
-          viewerId: 'Uauth',
-          peerId: 'U1',
-        ),
-      ).thenAnswer((_) async => true);
-      stubAdmitCalls();
-
-      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
-
-      verify(
-        roomRepo.inviteOfferUserToBeaconRoom(
-          beaconId: 'B1',
-          offerUserId: 'U1',
-          authorUserId: 'Uauth',
-        ),
-      ).called(1);
-    });
-
-    test('skips admit when only one-way author trust (not mutual, no direct forward)',
-        () async {
-      stubNewHelpOffer();
-      // Both checks return false (defaults from setUp).
 
       await case_.offerHelp(beaconId: 'B1', userId: 'U1');
 

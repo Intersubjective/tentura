@@ -7,7 +7,7 @@ part of '_migrations.dart';
 /// `account_credential` rows where `type = 'email_otp'` against any exported
 /// Google signup logs for the same inbox.
 final m0083 = Migration('0083', [
-  r'''
+  '''
 CREATE TABLE public.account_verified_contact (
   id text PRIMARY KEY,
   account_id text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
@@ -22,15 +22,15 @@ CREATE TABLE public.account_verified_contact (
     CHECK (char_length(value) > 0)
 );
 ''',
-  r'''
+  '''
 CREATE UNIQUE INDEX account_verified_contact__kind_value
   ON public.account_verified_contact (kind, value);
 ''',
-  r'''
+  '''
 CREATE INDEX account_verified_contact__account_id
   ON public.account_verified_contact (account_id);
 ''',
-  r'''
+  '''
 INSERT INTO public.account_verified_contact (
   id,
   account_id,

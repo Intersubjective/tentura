@@ -4,8 +4,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
-import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
-import 'package:tentura/features/my_work/domain/entity/my_work_sort.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_state.dart';
 
 MyWorkCardViewModel _vm({

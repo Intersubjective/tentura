@@ -21,11 +21,10 @@ export 'profile_state.dart';
 @singleton
 class ProfileCubit extends Cubit<ProfileState> {
   ProfileCubit({
-    required AccountCase accountCase,
+    required this._accountCase,
     required AuthCase authCase,
     required ProfileRepositoryPort profileRepository,
-  }) : _accountCase = accountCase,
-       _profileRepository = profileRepository,
+  }) : _profileRepository = profileRepository,
        super(const ProfileState()) {
     _authChanges = authCase.currentAccountChanges().listen(
       _onAuthChanges,

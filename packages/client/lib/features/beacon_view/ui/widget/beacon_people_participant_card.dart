@@ -15,7 +15,6 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 
 /// One person row in the Beacon **People** tab (Phase 4).
 class BeaconPeopleParticipantCard extends StatelessWidget {

@@ -2,7 +2,6 @@
 // ignore_for_file: prefer_void_public_cubit_methods
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/env.dart';
@@ -213,7 +212,6 @@ class AuthCubit extends Cubit<AuthState> {
         }
         emit(
           AuthState(
-            accounts: const [],
             updatedAt: DateTime.timestamp(),
             pendingRecoveryNavigation: nav.pending,
           ),

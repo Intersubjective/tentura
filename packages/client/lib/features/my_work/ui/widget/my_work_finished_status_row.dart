@@ -20,7 +20,7 @@ class MyWorkFinishedArchiveHint extends StatelessWidget {
     final tt = context.tt;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: kSpacingSmall),
+      padding: const EdgeInsets.only(bottom: kSpacingSmall),
       child: Material(
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(8),

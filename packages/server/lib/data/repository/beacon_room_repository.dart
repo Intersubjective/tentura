@@ -947,18 +947,18 @@ class BeaconRoomRepository {
         final seenAtIso = at.toUtc().toIso8601String();
         if (threadItemId == null) {
           await _db.customStatement(
-            r'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+            'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
             r'VALUES ($1, $2, NULL, $3::timestamptz) '
-            r'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
-            r'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
+            'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
+            'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
             [userId, beaconId, seenAtIso],
           );
         } else {
           await _db.customStatement(
-            r'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
+            'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
             r'VALUES ($1, $2, $3, $4::timestamptz) '
-            r'ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL '
-            r'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
+            'ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL '
+            'DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at',
             [userId, beaconId, threadItemId, seenAtIso],
           );
         }

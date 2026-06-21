@@ -91,7 +91,6 @@ void main() {
         destinationAfterOAuthCallback(
           returnTo: 'https://dev.lvh.me:9443/invite/Iabc123',
           publicOrigin: origin,
-          isNewAccount: false,
         ),
         'https://dev.lvh.me:9443/invite/Iabc123?signed_in=1',
       );

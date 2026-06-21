@@ -8,7 +8,7 @@ void main() {
       final store = RoomReadWatermarkStore.testing();
       addTearDown(store.dispose);
 
-      final serverSeen = DateTime.utc(2026, 1, 1);
+      final serverSeen = DateTime.utc(2026);
       final readThrough = DateTime.utc(2026, 1, 5);
       store.observeReadThrough('b1', readThrough);
 

@@ -23,8 +23,8 @@ class CredentialsRepository extends RemoteRepository {
   CredentialsRepository({
     required super.remoteApiService,
     required super.log,
-    required Env env,
-  }) : _env = env;
+    required this._env,
+  });
 
   final Env _env;
 

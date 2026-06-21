@@ -8,7 +8,6 @@ void main() {
       expect(
         CoordinationItemRepository.roomBodyForCreatedItem(
           title: 'Blocked on API',
-          body: '',
         ),
         'Blocked on API',
       );

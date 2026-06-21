@@ -2,10 +2,10 @@ part of '_migrations.dart';
 
 /// Rename user identity column `title` → `display_name`; update SQL that references it.
 final m0078 = Migration('0078', [
-  r'''
+  '''
 ALTER TABLE public."user" RENAME COLUMN title TO display_name;
 ''',
-  r'''
+  '''
 ALTER TABLE public."user" RENAME CONSTRAINT user__title_len TO user__display_name_len;
 ''',
   // mutual_friends ORDER BY (from m0031)

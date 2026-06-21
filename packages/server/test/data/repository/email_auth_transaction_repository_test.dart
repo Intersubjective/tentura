@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart' hide isNull, isNotNull;
+import 'package:tentura_server/data/database/tentura_db.dart' hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/email_auth_transaction_repository.dart';
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/env.dart';
@@ -34,7 +34,7 @@ Future<void> main() async {
       final schemaCurrent = await _hasLinkAccountIdColumn(db);
       if (!schemaCurrent) {
         await db.customStatement(
-          r'ALTER TABLE public.email_auth_transaction ADD COLUMN link_account_id text',
+          'ALTER TABLE public.email_auth_transaction ADD COLUMN link_account_id text',
         );
       }
     });
@@ -45,7 +45,7 @@ Future<void> main() async {
 
     tearDown(() async {
       await db.customStatement(
-        r"DELETE FROM public.email_auth_transaction WHERE normalized_email LIKE 'consume-test-%'",
+        "DELETE FROM public.email_auth_transaction WHERE normalized_email LIKE 'consume-test-%'",
       );
     });
   }
@@ -112,7 +112,7 @@ Future<void> main() async {
 
 Future<bool> _hasLinkAccountIdColumn(TenturaDb db) async {
   final rows = await db.customSelect(
-    r'''
+    '''
 SELECT 1
 FROM information_schema.columns
 WHERE table_schema = 'public'

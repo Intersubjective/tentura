@@ -29,7 +29,6 @@ class AccountListTile extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: SelfAwareAvatar.small(
         profile: profile,
-        withRating: false,
       ),
       title: BlocBuilder<ProfileCubit, ProfileState>(
         buildWhen: (p, c) => p.profile.id != c.profile.id,

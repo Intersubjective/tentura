@@ -6,7 +6,7 @@ part of '_migrations.dart';
 /// once a beacon_activity_event backfill; DBs that applied that row skip [m0080]
 /// and would otherwise fail here with 42P01.
 final m0081 = Migration('0081', [
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.account_credential (
   id text PRIMARY KEY,
   account_id text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
@@ -16,15 +16,15 @@ CREATE TABLE IF NOT EXISTS public.account_credential (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 ''',
-  r'''
+  '''
 CREATE UNIQUE INDEX IF NOT EXISTS account_credential__type_identifier
   ON public.account_credential (type, identifier);
 ''',
-  r'''
+  '''
 CREATE INDEX IF NOT EXISTS account_credential__account_id
   ON public.account_credential (account_id);
 ''',
-  r'''
+  '''
 INSERT INTO public.account_credential (id, account_id, type, identifier)
 SELECT 'C' || substr(md5(random()::text || u.id), 1, 12),
        u.id,
@@ -33,7 +33,7 @@ SELECT 'C' || substr(md5(random()::text || u.id), 1, 12),
 FROM public."user" u
 ON CONFLICT (type, identifier) DO NOTHING;
 ''',
-  r'''
+  '''
 CREATE TABLE IF NOT EXISTS public.account_session (
   id text PRIMARY KEY,
   account_id text NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
@@ -44,11 +44,11 @@ CREATE TABLE IF NOT EXISTS public.account_session (
   revoked_at timestamptz
 );
 ''',
-  r'''
+  '''
 CREATE UNIQUE INDEX IF NOT EXISTS account_session__token_hash
   ON public.account_session (token_hash);
 ''',
-  r'''
+  '''
 CREATE INDEX IF NOT EXISTS account_session__account_id
   ON public.account_session (account_id);
 ''',

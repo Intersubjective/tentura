@@ -252,8 +252,7 @@ final class BeaconRoomCase extends UseCaseBase {
 
   Future<RoomSeenOutcome> markRoomSeenIfAllowed({
     required String beaconId,
-    String? threadItemId,
-    required DateTime readThroughAt,
+    required DateTime readThroughAt, String? threadItemId,
   }) async {
     try {
       final persistedAt = await _room.markRoomSeen(

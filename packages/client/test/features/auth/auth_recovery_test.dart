@@ -54,9 +54,9 @@ void main() {
     test('GraphQL invalid-jwt maps to AuthSessionLostException', () {
       expect(
         mapRemoteFailure(
-          GraphQLError(
+          const GraphQLError(
             message: 'invalid jwt',
-            extensions: const {'code': 'invalid-jwt'},
+            extensions: {'code': 'invalid-jwt'},
           ),
         ),
         isA<AuthSessionLostException>(),

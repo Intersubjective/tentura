@@ -56,7 +56,7 @@ void main() {
       BeaconEntity(
         id: 'Bdraft',
         title: 'Draft title',
-        author: UserEntity(id: 'Uauth'),
+        author: const UserEntity(id: 'Uauth'),
         createdAt: now,
         updatedAt: now,
         state: kBeaconStateDraft,

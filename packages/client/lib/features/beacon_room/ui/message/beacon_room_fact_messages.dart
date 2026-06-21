@@ -2,7 +2,7 @@ import 'package:tentura/ui/message/action_message_base.dart';
 
 /// Snack shown when pinning is blocked — action opens the facts sheet (via cubit hook).
 final class BeaconFactAlreadyPinnedSnackMessage extends LocalizableActionMessage {
-  BeaconFactAlreadyPinnedSnackMessage({required void Function() onOpenFacts}) : _onOpenFacts = onOpenFacts;
+  BeaconFactAlreadyPinnedSnackMessage({required this._onOpenFacts});
 
   final void Function() _onOpenFacts;
 

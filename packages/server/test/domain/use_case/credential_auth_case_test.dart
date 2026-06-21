@@ -133,8 +133,6 @@ void main() {
         type: CredentialType.emailOtp,
         identifier: 'ada@example.com',
         displayName: 'ada',
-        handle: null,
-        publicData: null,
         contacts: emailContact,
       ),
     ).called(1);
@@ -195,7 +193,6 @@ void main() {
         accountId: 'Ugoogle',
         type: CredentialType.emailOtp,
         identifier: 'ada@example.com',
-        publicData: null,
         contacts: emailContact,
       ),
     ).called(1);
@@ -245,7 +242,6 @@ void main() {
         accountId: 'Uemail',
         type: CredentialType.oidcGoogle,
         identifier: 'google-sub',
-        publicData: null,
         contacts: emailContact,
       ),
     ).called(1);

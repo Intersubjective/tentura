@@ -178,7 +178,6 @@ class _MetadataWrapLayout extends StatelessWidget {
     }
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (hasPile) pile,
         if (hasSchedule || hasLocation)

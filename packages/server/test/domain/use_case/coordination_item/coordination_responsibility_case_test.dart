@@ -74,7 +74,7 @@ class _RecordingItemsPort extends Fake implements CoordinationItemRepositoryPort
     required String beaconId,
     required int kind,
   }) {
-    final now = PgDateTime(DateTime.utc(2026, 5, 1));
+    final now = PgDateTime(DateTime.utc(2026, 5));
     return CoordinationItemWithCounts(
       item: CoordinationItem(
         id: id,

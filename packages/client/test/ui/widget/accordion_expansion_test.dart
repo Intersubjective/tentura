@@ -24,20 +24,20 @@ void main() {
 
       await tester.pumpWidget(
         wrap(
-          AccordionExpansionGroup(
+          const AccordionExpansionGroup(
             accordionMode: true,
             initialExpandedId: 'a',
             child: Column(
               children: [
                 AccordionExpansionTile(
                   id: 'a',
-                  title: const Text('Section A'),
-                  children: const [Text('Body A')],
+                  title: Text('Section A'),
+                  children: [Text('Body A')],
                 ),
                 AccordionExpansionTile(
                   id: 'b',
-                  title: const Text('Section B'),
-                  children: const [Text('Body B')],
+                  title: Text('Section B'),
+                  children: [Text('Body B')],
                 ),
               ],
             ),
@@ -67,7 +67,7 @@ void main() {
         wrap(
           StatefulBuilder(
             builder: (context, setState) {
-              return AccordionExpansionGroup(
+              return const AccordionExpansionGroup(
                 accordionMode: true,
                 initialExpandedId: 'a',
                 requestedExpandedId: 'b',
@@ -75,13 +75,13 @@ void main() {
                   children: [
                     AccordionExpansionTile(
                       id: 'a',
-                      title: const Text('Section A'),
-                      children: const [Text('Body A')],
+                      title: Text('Section A'),
+                      children: [Text('Body A')],
                     ),
                     AccordionExpansionTile(
                       id: 'b',
-                      title: const Text('Section B'),
-                      children: const [Text('Body B')],
+                      title: Text('Section B'),
+                      children: [Text('Body B')],
                     ),
                   ],
                 ),
@@ -107,21 +107,21 @@ void main() {
 
       await tester.pumpWidget(
         wrap(
-          AccordionExpansionGroup(
+          const AccordionExpansionGroup(
             accordionMode: false,
             child: Column(
               children: [
                 AccordionExpansionTile(
                   id: 'a',
                   initiallyExpanded: true,
-                  title: const Text('Section A'),
-                  children: const [Text('Body A')],
+                  title: Text('Section A'),
+                  children: [Text('Body A')],
                 ),
                 AccordionExpansionTile(
                   id: 'b',
                   initiallyExpanded: true,
-                  title: const Text('Section B'),
-                  children: const [Text('Body B')],
+                  title: Text('Section B'),
+                  children: [Text('Body B')],
                 ),
               ],
             ),

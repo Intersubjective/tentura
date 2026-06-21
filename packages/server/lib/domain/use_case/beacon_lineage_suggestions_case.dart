@@ -95,7 +95,7 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
     for (final recipientId in whoHelped) {
       if (_isPushbackSuppressed(recipientId, pushbackCounts)) continue;
       if (_hasSinglePushback(recipientId, pushbackCounts)) continue;
-      classified[recipientId] = _ClassifiedSuggestion(
+      classified[recipientId] = const _ClassifiedSuggestion(
         group: LineageSuggestionGroup.involved,
         reasonCode: LineageSuggestionReasonCodes.helpedBefore,
       );
@@ -121,7 +121,7 @@ final class BeaconLineageSuggestionsCase extends UseCaseBase {
       if (_isPushbackSuppressed(recipientId, pushbackCounts)) continue;
       if (_hasSinglePushback(recipientId, pushbackCounts)) continue;
       if (classified.containsKey(recipientId)) continue;
-      classified[recipientId] = _ClassifiedSuggestion(
+      classified[recipientId] = const _ClassifiedSuggestion(
         group: LineageSuggestionGroup.routedHelp,
         reasonCode: LineageSuggestionReasonCodes.routedHelp,
       );

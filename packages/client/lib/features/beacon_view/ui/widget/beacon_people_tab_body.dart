@@ -8,7 +8,6 @@ import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
 import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
@@ -248,7 +247,6 @@ class BeaconPeopleTabBody extends StatelessWidget {
                 const SizedBox(height: 8),
                 AccordionExpansionTile(
                   id: BeaconPeopleAccordionSection.withdrawn,
-                  initiallyExpanded: false,
                   title: Text(l10n.beaconShowWithdrawn(withdrawn.length)),
                   children: [
                     for (var j = 0; j < withdrawn.length; j++) ...[
@@ -310,7 +308,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         for (var i = 0; i < feedRows.length; i++) ...[
-                          if (i > 0) SizedBox(height: kSpacingMedium),
+                          if (i > 0) const SizedBox(height: kSpacingMedium),
                           feedRows[i],
                         ],
                       ],
@@ -337,10 +335,10 @@ class BeaconPeopleTabBody extends StatelessWidget {
             },
           ),
         ] else if (state.forwardsLoading)
-          Center(
+          const Center(
             child: Padding(
               padding: kPaddingSmallV,
-              child: const CircularProgressIndicator.adaptive(),
+              child: CircularProgressIndicator.adaptive(),
             ),
           )
         else

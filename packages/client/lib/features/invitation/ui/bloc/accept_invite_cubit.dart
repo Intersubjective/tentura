@@ -1,5 +1,4 @@
 import 'package:injectable/injectable.dart';
-import 'package:meta/meta.dart';
 
 import '../../data/repository/invitation_repository.dart';
 
@@ -33,7 +32,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
 
   Future<void> start(String rawCode) async {
     final code = rawCode.trim();
-    emit(AcceptInviteState(code: code, status: StateStatus.isLoading));
+    emit(AcceptInviteState(code: code));
     if (!kInvitationCodeRegExp.hasMatch(code)) {
       _finishWithMessage(const InviteInvalidCodeMessage());
       return;

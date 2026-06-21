@@ -169,7 +169,7 @@ void main() {
     test('premature when neutral with offers and no strong path', () {
       final s = _baseAuthorState(
         beacon: _openBeacon(
-          coordinationStatus: BeaconCoordinationStatus.neutral,
+          
         ),
         helpOffers: [
           _helpOffer(userId: 'h1'),

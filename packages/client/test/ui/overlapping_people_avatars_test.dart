@@ -9,8 +9,8 @@ void main() {
     tester,
   ) async {
     final profiles = [
-      Profile(id: 'a', displayName: 'Alice'),
-      Profile(id: 'b', displayName: 'Bob'),
+      const Profile(id: 'a', displayName: 'Alice'),
+      const Profile(id: 'b', displayName: 'Bob'),
     ];
 
     await tester.pumpWidget(

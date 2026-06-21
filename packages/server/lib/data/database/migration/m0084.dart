@@ -5,7 +5,7 @@ part of '_migrations.dart';
 /// `link_account_id` is set, `verify` strict-links `email_otp` to that account
 /// and mints no session.
 final m0084 = Migration('0084', [
-  r'''
+  '''
 ALTER TABLE public.email_auth_transaction
   ADD COLUMN IF NOT EXISTS link_account_id text;
 ''',

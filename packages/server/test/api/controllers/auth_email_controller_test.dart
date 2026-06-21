@@ -4,7 +4,6 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/auth_email_controller.dart';
-import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/entity/email_auth_peek.dart';
 import 'package:tentura_server/domain/entity/email_auth_transaction_entity.dart';
@@ -34,11 +33,8 @@ final class _FakeTxRepo implements EmailAuthTransactionRepositoryPort {
   @override
   Future<String> create({
     required String normalizedEmail,
-    String? inviteCode,
+    required Duration expiresIn, required String userAgentHash, required String ipHash, String? inviteCode,
     String? linkAccountId,
-    required Duration expiresIn,
-    required String userAgentHash,
-    required String ipHash,
   }) async {
     _tx = EmailAuthTransactionEntity(
       id: 'Etest',

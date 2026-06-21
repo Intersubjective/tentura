@@ -1,26 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_optimistic.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 Beacon _beacon({required String authorId}) {
-  final t = DateTime.utc(2025, 1, 1);
+  final t = DateTime.utc(2025);
   return Beacon(
     id: 'B1',
     title: 'Test',
     author: Profile(id: authorId, displayName: 'Author'),
     createdAt: t,
     updatedAt: t,
-    lifecycle: BeaconLifecycle.open,
-    coordinationStatus: BeaconCoordinationStatus.neutral,
   );
 }
 

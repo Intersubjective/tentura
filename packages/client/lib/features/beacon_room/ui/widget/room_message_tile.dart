@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:meta/meta.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
@@ -499,7 +497,7 @@ class RoomMessageTile extends StatelessWidget {
         message.editedAt != null ? l10n.beaconRoomMessageEdited : null;
     final dateLine = [
       _formatMessageTime(message.editedAt ?? message.createdAt),
-      if (editedSuffix != null) editedSuffix,
+      ?editedSuffix,
     ].join(' · ');
     final useInlineMeta = shouldUseInlineTrailingMeta(
       hasDisplayText: display.isNotEmpty,
@@ -619,7 +617,6 @@ class RoomMessageTile extends StatelessWidget {
             child: Wrap(
               spacing: kSpacingSmall,
               runSpacing: kSpacingSmall,
-              alignment: WrapAlignment.start,
               children: [
                 for (final a in fileAttachments)
                   ActionChip(
@@ -1340,7 +1337,6 @@ class _MessageLifecycleFooter extends StatelessWidget {
                   child: Wrap(
                     spacing: kSpacingSmall,
                     runSpacing: kSpacingSmall / 2,
-                    alignment: WrapAlignment.start,
                     children: [
                       for (final entry in reactionEntries)
                         UnconstrainedBox(

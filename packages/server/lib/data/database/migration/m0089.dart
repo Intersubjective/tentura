@@ -3,7 +3,7 @@ part of '_migrations.dart';
 /// Backfill `beaconPublished` (type 15) activity events for beacons published
 /// before the V2 `beaconPublish` mutation existed.
 final m0089 = Migration('0089', [
-  r'''
+  '''
 INSERT INTO public.beacon_activity_event (
   id,
   beacon_id,

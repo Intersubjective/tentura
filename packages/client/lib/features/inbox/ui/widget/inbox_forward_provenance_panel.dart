@@ -391,7 +391,6 @@ class _ProvenanceCollapsedHeader extends StatelessWidget {
                   profiles: restProfiles,
                   overflowCount: overflowCount,
                   size: _kAvatarSize,
-                  overlap: _kAvatarOverlap,
                   selfUserId: viewerUserId,
                   overflowRingColor: scheme.surfaceContainerLowest,
                   overflowBadgeFillColor: scheme.outlineVariant,

@@ -7,8 +7,8 @@ import 'package:tentura/domain/entity/profile.dart';
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleTenturaAvatarMedium() => TenturaAvatar.medium(
-  profile: const Profile(id: '1', displayName: 'Alex Rivera'),
+Widget sampleTenturaAvatarMedium() => const TenturaAvatar.medium(
+  profile: Profile(id: '1', displayName: 'Alex Rivera'),
 );
 
 @Preview(
@@ -16,8 +16,8 @@ Widget sampleTenturaAvatarMedium() => TenturaAvatar.medium(
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleTenturaAvatarBig() => TenturaAvatar.big(
-  profile: const Profile(id: '1', displayName: 'Alex Rivera'),
+Widget sampleTenturaAvatarBig() => const TenturaAvatar.big(
+  profile: Profile(id: '1', displayName: 'Alex Rivera'),
 );
 
 @Preview(
@@ -25,8 +25,8 @@ Widget sampleTenturaAvatarBig() => TenturaAvatar.big(
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleTenturaAvatarMediumEyeOpen() => TenturaAvatar.medium(
-  profile: const Profile(id: '1', displayName: 'Alex Rivera', score: 50),
+Widget sampleTenturaAvatarMediumEyeOpen() => const TenturaAvatar.medium(
+  profile: Profile(id: '1', displayName: 'Alex Rivera', score: 50),
   withContactBadge: true,
 );
 
@@ -35,8 +35,8 @@ Widget sampleTenturaAvatarMediumEyeOpen() => TenturaAvatar.medium(
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleTenturaAvatarMediumEyeClosed() => TenturaAvatar.medium(
-  profile: const Profile(id: '1', displayName: 'Alex Rivera'),
+Widget sampleTenturaAvatarMediumEyeClosed() => const TenturaAvatar.medium(
+  profile: Profile(id: '1', displayName: 'Alex Rivera'),
   withContactBadge: true,
 );
 
@@ -45,8 +45,8 @@ Widget sampleTenturaAvatarMediumEyeClosed() => TenturaAvatar.medium(
   group: commonWidgetsGroup,
   theme: previewThemeData,
 )
-Widget sampleTenturaAvatarMediumHandshake() => TenturaAvatar.medium(
-  profile: const Profile(
+Widget sampleTenturaAvatarMediumHandshake() => const TenturaAvatar.medium(
+  profile: Profile(
     id: '1',
     displayName: 'Alex Rivera',
     isMutualFriend: true,

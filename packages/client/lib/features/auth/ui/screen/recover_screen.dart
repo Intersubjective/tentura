@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -147,7 +146,7 @@ class _RecoverScreenState extends State<RecoverScreen> {
               ),
               const SizedBox(height: kSpacingMedium),
               FilledButton(
-                onPressed: () => authCubit.signInAgain(),
+                onPressed: authCubit.signInAgain,
                 child: Text(l10n.authRecoverySignInAgain),
               ),
               const SizedBox(height: kSpacingSmall),

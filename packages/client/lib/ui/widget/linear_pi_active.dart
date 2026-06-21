@@ -18,11 +18,11 @@ class LinearPiActive extends StatefulWidget {
       : const SizedBox(height: height);
 
   const LinearPiActive({
-    Duration duration = const Duration(seconds: 2),
+    this._duration = const Duration(seconds: 2),
     this.color,
     this.backgroundColor,
     super.key,
-  }) : _duration = duration;
+  });
 
   final Duration _duration;
   final Color? color;

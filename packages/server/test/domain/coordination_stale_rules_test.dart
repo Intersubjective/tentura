@@ -21,14 +21,14 @@ void main() {
   group('computeStaleAt', () {
     test('zero days returns null', () {
       expect(
-        computeStaleAt(DateTime.utc(2026, 1, 1), 0),
+        computeStaleAt(DateTime.utc(2026), 0),
         isNull,
       );
     });
 
     test('adds days', () {
       expect(
-        computeStaleAt(DateTime.utc(2026, 1, 1), 3),
+        computeStaleAt(DateTime.utc(2026), 3),
         DateTime.utc(2026, 1, 4),
       );
     });

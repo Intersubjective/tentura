@@ -17,7 +17,6 @@ import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
 import 'package:tentura/features/my_work/data/repository/archive_repository.dart';
 import 'package:tentura/features/my_work/data/repository/my_work_repository.dart';
-import 'package:tentura/features/my_work/domain/entity/my_work_fetch_types.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/features/my_work/domain/port/my_work_desk_preferences_port.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';

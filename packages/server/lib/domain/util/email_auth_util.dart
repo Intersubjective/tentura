@@ -6,7 +6,7 @@ String displayNameFromEmail(String normalizedEmail) {
   final at = normalizedEmail.indexOf('@');
   final local = at > 0 ? normalizedEmail.substring(0, at) : normalizedEmail;
   final cleaned = local
-      .replaceAll(RegExp(r'[._+-]+'), ' ')
+      .replaceAll(RegExp('[._+-]+'), ' ')
       .trim();
   if (cleaned.isEmpty) return 'User';
   if (cleaned.length <= 50) return cleaned;

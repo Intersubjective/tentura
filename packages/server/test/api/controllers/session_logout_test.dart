@@ -3,8 +3,6 @@ import 'package:shelf_plus/shelf_plus.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/session_controller.dart';
-import 'package:tentura_server/api/http/cookies.dart';
-import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
 import 'package:tentura_server/domain/port/session_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
@@ -84,8 +82,8 @@ void main() {
   String setCookieHeader(Response response) {
     final raw = response.headers['set-cookie'];
     if (raw == null) return '';
-    if (raw is String) return raw;
-    return raw.toString();
+    return raw;
+    return raw;
   }
 
   test('logout without cookie still clears session cookie', () async {

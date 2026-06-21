@@ -73,10 +73,10 @@ void main() {
   ) async {
     final l10n = lookupL10n(const Locale('en'));
 
-    final authorId = 'author1';
+    const authorId = 'author1';
     final beacon = Beacon.empty.copyWith(
       id: 'b2',
-      author: Profile(id: authorId, displayName: 'Alice Author'),
+      author: const Profile(id: authorId, displayName: 'Alice Author'),
     );
     final last = MyWorkLastEvent(
       event: BeaconActivityEvent(
@@ -87,7 +87,7 @@ void main() {
         createdAt: DateTime.now().subtract(const Duration(hours: 3)),
         actorId: authorId,
       ),
-      actor: Profile(id: authorId, displayName: 'Alice Author'),
+      actor: const Profile(id: authorId, displayName: 'Alice Author'),
     );
 
     await _pumpRow(
@@ -113,10 +113,10 @@ void main() {
   ) async {
     final l10n = lookupL10n(const Locale('en'));
 
-    final authorId = 'author1';
+    const authorId = 'author1';
     final beacon = Beacon.empty.copyWith(
       id: 'b4',
-      author: Profile(id: authorId, displayName: 'Alice Author'),
+      author: const Profile(id: authorId, displayName: 'Alice Author'),
     );
     final last = MyWorkLastEvent(
       event: BeaconActivityEvent(
@@ -127,14 +127,13 @@ void main() {
         createdAt: DateTime.now().subtract(const Duration(hours: 1)),
         actorId: authorId,
       ),
-      actor: Profile(id: authorId, displayName: 'Alice Author'),
+      actor: const Profile(id: authorId, displayName: 'Alice Author'),
     );
 
     await _pumpRow(
       tester,
       beacon: beacon,
       viewModel: _vm(beacon: beacon, lastActivityEvent: last),
-      currentUserId: 'viewer',
     );
 
     expect(find.textContaining(l10n.beaconActivityBeaconPublished), findsOneWidget);
@@ -160,7 +159,7 @@ void main() {
         diffJson:
             '{"fromState":5,"toState":6,"reason":"${BeaconLifecycleChangeReason.reviewExpired}"}',
       ),
-      actor: Profile(),
+      actor: const Profile(),
     );
 
     await _pumpRow(

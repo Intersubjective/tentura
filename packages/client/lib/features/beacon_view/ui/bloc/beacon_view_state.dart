@@ -265,8 +265,8 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   /// Author signaled this help offer may use the beacon room (`notSuitable` counts as denial).
   ///
-  /// Also true when the server auto-admitted the viewer (trusted forward / mutual
-  /// subscribe): `roomAccess` is `RoomAccessBits.admitted` before any coordination row.
+  /// Also true when the server auto-admitted the viewer (author direct forward):
+  /// `roomAccess` is `RoomAccessBits.admitted` before any coordination row.
   bool get hasRoomAdmission {
     final c = myActiveHelpOffer;
     if (c == null) return false;

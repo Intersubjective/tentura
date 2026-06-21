@@ -221,7 +221,6 @@ class BeaconCardMetadataBlock extends StatelessWidget {
           children: [
             SelfAwareAvatar.small(
               profile: author,
-              withRating: false,
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -510,7 +509,6 @@ class BeaconCardMetaItem extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       mainAxisSize: mainAxisSize,
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(icon, size: 16, color: scheme.onSurfaceVariant),
         const SizedBox(width: 4),

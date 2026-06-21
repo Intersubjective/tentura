@@ -6,7 +6,7 @@ import 'package:tentura/ui/utils/relative_time.dart';
 
 void main() {
   final l10n = lookupL10n(const Locale('en'));
-  final now = DateTime(2026, 6, 12, 12, 0);
+  final now = DateTime(2026, 6, 12, 12);
 
   group('compactRelativeTimeAgo', () {
     test('returns just now for under one minute', () {
@@ -45,7 +45,7 @@ void main() {
     test('returns calendar days for one day or more', () {
       expect(
         compactRelativeTimeAgo(
-          when: DateTime(2026, 6, 10, 12, 0),
+          when: DateTime(2026, 6, 10, 12),
           now: now,
           l10n: l10n,
         ),

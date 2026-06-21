@@ -14,7 +14,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../bloc/beacon_view_state.dart';
@@ -304,12 +303,10 @@ class _AuthorFooter extends StatelessWidget {
     final hasResponse = coordinationLabel != null && responseType != null;
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: hasResponse
               ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     SelfAwareAvatar.small(
                       profile: beaconAuthor,

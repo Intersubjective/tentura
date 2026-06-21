@@ -8,7 +8,6 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/api/controllers/auth_google_controller.dart';
 import 'package:tentura_server/api/http/oauth_state_codec.dart';
-import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart'
     show AccountCredentialEntity, CredentialType;
 import 'package:tentura_server/domain/entity/account_session_entity.dart';
@@ -154,8 +153,8 @@ void main() {
   String setCookieHeader(Response response) {
     final raw = response.headers['set-cookie'];
     if (raw == null) return '';
-    if (raw is String) return raw;
-    return raw.toString();
+    return raw;
+    return raw;
   }
 
   Future<String> readBody(Response response) => response.readAsString();

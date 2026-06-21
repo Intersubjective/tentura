@@ -200,7 +200,7 @@ class EmptyAuthRemote implements AuthRemoteRepositoryPort {
 
   final String sessionUserId;
   final bool sessionRejected;
-  var clearSessionCookieCalls = 0;
+  int clearSessionCookieCalls = 0;
 
   @override
   Future<void> signOut() async {}

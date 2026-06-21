@@ -41,7 +41,7 @@ const kJwtExpiresIn = 3_600;
 const kAuthJwtExpiresIn = 30;
 
 /// Web session cookie lifetime (seconds). Default 30 days.
-const kSessionExpiresIn = 30 * 24 * 3600;
+const int kSessionExpiresIn = 30 * 24 * 3600;
 
 /// OAuth state cookie lifetime (seconds).
 const kOAuthStateExpiresIn = 600;

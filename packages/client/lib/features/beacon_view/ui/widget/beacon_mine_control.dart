@@ -70,7 +70,7 @@ class BeaconMineControl extends StatelessWidget {
               ? () async {
                   await runBeaconCreateFromAction(
                     context,
-                    fork: () => beaconViewCubit.forkFromThis(),
+                    fork: beaconViewCubit.forkFromThis,
                   );
                 }
               : null,

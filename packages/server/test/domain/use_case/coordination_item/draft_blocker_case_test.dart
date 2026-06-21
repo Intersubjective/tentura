@@ -163,7 +163,7 @@ void main() {
     late CreateDraftBlockerCase sut;
 
     setUp(() {
-      beacons = _StubBeacons(_openBeacon(beaconId, authorId: ownerId));
+      beacons = _StubBeacons(_openBeacon(beaconId));
       items = _StubItems();
       items.nextReturn = _draftBlocker(
         id: itemId,
@@ -239,7 +239,7 @@ void main() {
     late PublishDraftBlockerCase sut;
 
     setUp(() {
-      beacons = _StubBeacons(_openBeacon(beaconId, authorId: ownerId));
+      beacons = _StubBeacons(_openBeacon(beaconId));
       items = _StubItems();
       items.item = _draftBlocker(
         id: itemId,
@@ -283,7 +283,7 @@ void main() {
     late DeleteDraftBlockerCase sut;
 
     setUp(() {
-      beacons = _StubBeacons(_openBeacon(beaconId, authorId: ownerId));
+      beacons = _StubBeacons(_openBeacon(beaconId));
       items = _StubItems();
       items.item = _draftBlocker(
         id: itemId,

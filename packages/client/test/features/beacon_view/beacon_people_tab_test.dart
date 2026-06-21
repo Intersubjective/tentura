@@ -1,22 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -51,13 +45,10 @@ BeaconViewState _peopleState({
       author: const Profile(id: 'auth', displayName: 'Author'),
       createdAt: _t,
       updatedAt: _t,
-      lifecycle: BeaconLifecycle.open,
-      coordinationStatus: BeaconCoordinationStatus.neutral,
     ),
     myProfile: const Profile(id: 'auth', displayName: 'Author'),
     helpOffers: helpOffers,
     roomParticipants: roomParticipants,
-    status: const StateIsSuccess(),
   );
 }
 
