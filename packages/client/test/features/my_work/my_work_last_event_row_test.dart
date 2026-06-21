@@ -143,4 +143,37 @@ void main() {
     expect(find.byType(TenturaAvatar), findsOneWidget);
     expect(find.byType(ProfileAuthorStarBadge), findsOneWidget);
   });
+
+  testWidgets('reviewExpired system event omits by-actor clause', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+
+    final beacon = Beacon.empty.copyWith(id: 'b5');
+    final last = MyWorkLastEvent(
+      event: BeaconActivityEvent(
+        id: 'e3',
+        beaconId: 'b5',
+        visibility: 0,
+        type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
+        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+        diffJson:
+            '{"fromState":5,"toState":6,"reason":"${BeaconLifecycleChangeReason.reviewExpired}"}',
+      ),
+      actor: Profile(),
+    );
+
+    await _pumpRow(
+      tester,
+      beacon: beacon,
+      viewModel: _vm(beacon: beacon, lastActivityEvent: last),
+    );
+
+    expect(
+      find.textContaining(l10n.beaconActivityLifecycleReviewExpired),
+      findsOneWidget,
+    );
+    expect(find.textContaining(l10n.myWorkLastEventBy), findsNothing);
+    expect(find.textContaining('ago'), findsOneWidget);
+  });
 }

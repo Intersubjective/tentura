@@ -104,7 +104,11 @@ abstract class EvaluationRepositoryPort {
   Future<DateTime> extendReviewWindow(String beaconId);
 
   /// Finalize one beacon review window (state 6, trust evidence, purge drafts).
-  Future<void> closeBeaconReviewWindow(String beaconId);
+  Future<void> closeBeaconReviewWindow(
+    String beaconId, {
+    required String reason,
+    String? actorUserId,
+  });
 
   Future<void> closeExpiredWindows();
 }

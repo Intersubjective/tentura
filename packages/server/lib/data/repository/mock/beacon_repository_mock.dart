@@ -221,6 +221,17 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
+  Future<void> recordBeaconLifecycleTransition({
+    required String beaconId,
+    required int fromState,
+    required int toState,
+    required String reason,
+    required String? actorId,
+  }) async {
+    await updateBeaconState(beaconId: beaconId, state: toState);
+  }
+
+  @override
   Future<void> addImage({
     required String beaconId,
     required String imageId,

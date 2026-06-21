@@ -20,7 +20,6 @@ enum _ActivityTier { high, medium, low }
 
 _ActivityTier _tierFor(TimelineEntry e) => switch (e) {
       TimelineCreation() ||
-      TimelineBeaconLifecycleChanged() ||
       TimelineBeaconCoordinationStatusChanged() =>
         _ActivityTier.high,
       TimelineHelpOfferUpdated() => _ActivityTier.low,
@@ -294,7 +293,6 @@ class _ActivityEntryTile extends StatelessWidget {
 
 IconData _icon(TimelineEntry e) => switch (e) {
       TimelineCreation() => Icons.flag_rounded,
-      TimelineBeaconLifecycleChanged() => Icons.flag_circle_outlined,
       TimelineBeaconCoordinationStatusChanged() => Icons.sync_alt,
       TimelineHelpOfferCreated() => Icons.handshake,
       TimelineHelpOfferUpdated() => Icons.edit_note,
@@ -335,22 +333,8 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
           e.author.shownName,
           coordinationStatusLabel(l10n, e.status),
         ),
-      final TimelineBeaconLifecycleChanged e =>
-        l10n.timelineBeaconLifecycleChanged(
-          e.author.shownName,
-          _lifecycleLabel(l10n, e.lifecycle),
-        ),
       final TimelineCreation e => l10n.timelineCreated(e.author.shownName),
       TimelineUpdate() => '',
-    };
-
-String _lifecycleLabel(L10n l10n, BeaconLifecycle lc) => switch (lc) {
-      BeaconLifecycle.open => l10n.beaconLifecycleOpen,
-      BeaconLifecycle.cancelled => l10n.beaconLifecycleCancelled,
-      BeaconLifecycle.closed => l10n.beaconLifecycleClosed,
-      BeaconLifecycle.deleted => l10n.beaconLifecycleDeleted,
-      BeaconLifecycle.draft => l10n.beaconLifecycleDraft,
-      BeaconLifecycle.reviewOpen => l10n.beaconLifecycleReviewOpen,
     };
 
 String _timelineHelpOfferUpdatedLine(L10n l10n, TimelineHelpOfferUpdated e) {

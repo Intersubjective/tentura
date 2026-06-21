@@ -1,7 +1,6 @@
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
@@ -162,22 +161,6 @@ class TimelineUpdate extends TimelineEntry {
   DateTime get timestamp => createdAt;
 }
 
-/// Beacon author changed lifecycle/state (open/closed/review/etc).
-class TimelineBeaconLifecycleChanged extends TimelineEntry {
-  TimelineBeaconLifecycleChanged({
-    required this.author,
-    required this.lifecycle,
-    required this.at,
-  });
-
-  final Profile author;
-  final BeaconLifecycle lifecycle;
-  final DateTime at;
-
-  @override
-  DateTime get timestamp => at;
-}
-
 /// Beacon-level coordination status changed (computed or set by author).
 class TimelineBeaconCoordinationStatusChanged extends TimelineEntry {
   TimelineBeaconCoordinationStatusChanged({
@@ -222,7 +205,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// Forward edges where the current user is the sender for this beacon.
     @Default([]) List<ForwardEdge> myForwards,
 
-    /// Forward edges involving the viewer (sender or recipient), newest first — Forwards screen feed.
+    /// Forward edges involving the viewer (sender or recipient), newest first  -  Forwards screen feed.
     @Default([]) List<ForwardEdge> viewerForwardEdges,
 
     /// Capability tags per forward edge, keyed by `'${senderId}__${recipientId}'`.
@@ -253,7 +236,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     /// Server-backed coordination events (Phase 5+); empty when no room API access.
     @Default([]) List<BeaconActivityEvent> roomActivityEvents,
 
-    /// Open beacon: viewer has draft evaluation targets (overflow → draft review).
+    /// Open beacon: viewer has draft evaluation targets (overflow ? draft review).
     @Default(false) bool showDraftEvaluationCta,
 
     /// From V2 inbox room hints batch; unread messages in beacon room for viewer.
@@ -322,7 +305,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
   /// Room chip only when the viewer may use room APIs (mirrors server: author,
   /// steward, or admitted participant). Non-authors without a help offer or
-  /// coordination admission must not navigate — they get [isRoomAdmissionBlocked]
+  /// coordination admission must not navigate  -  they get [isRoomAdmissionBlocked]
   /// or no room chip.
   bool get canNavigateBeaconRoom =>
       isBeaconMine || isSteward || (isHelpOffered && hasRoomAdmission);

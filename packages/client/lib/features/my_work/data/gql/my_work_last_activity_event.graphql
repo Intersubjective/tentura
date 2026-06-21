@@ -7,5 +7,6 @@ query MyWorkLastActivityEvent($beaconIds: [String!]!) {
     actorTitle
     actorImageId
     createdAt
+    diffJson
   }
 }

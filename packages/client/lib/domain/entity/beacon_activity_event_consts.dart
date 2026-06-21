@@ -23,10 +23,21 @@ abstract final class BeaconActivityEventTypeBits {
   static const doneMarked = 13;
   static const factVisibilityChanged = 14;
   static const beaconPublished = 15;
+  static const beaconLifecycleChanged = 16;
 
   /// Inclusive lower bound of the `kind * 100 + eventKind` coordination range.
   static const coordinationTypeMin = 100;
 
   /// Exclusive upper bound (excludes promise = kind 5, i.e. 500+).
   static const coordinationTypeMax = 500;
+}
+
+/// [`beacon_activity_event.diff.reason`] for type [BeaconActivityEventTypeBits.beaconLifecycleChanged].
+abstract final class BeaconLifecycleChangeReason {
+  static const reviewWindowOpened = 'reviewWindowOpened';
+  static const directClose = 'directClose';
+  static const authorCloseNow = 'authorCloseNow';
+  static const reviewExpired = 'reviewExpired';
+  static const reopenedFromReview = 'reopenedFromReview';
+  static const cancelled = 'cancelled';
 }

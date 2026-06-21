@@ -40,4 +40,41 @@ void main() {
     );
     expect(beaconActivityLogTier(e), BeaconActivityLogTier.high);
   });
+
+  test('lifecycle reviewExpired label icon and system flag', () {
+    final e = BeaconActivityEvent(
+      id: 'e1',
+      beaconId: 'b1',
+      visibility: 0,
+      type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
+      createdAt: DateTime(2026, 6, 18),
+      diffJson:
+          '{"fromState":5,"toState":6,"reason":"${BeaconLifecycleChangeReason.reviewExpired}"}',
+    );
+    expect(
+      beaconActivityEventLabel(l10n, e),
+      l10n.beaconActivityLifecycleReviewExpired,
+    );
+    expect(beaconActivityLogIcon(e), Icons.timer_off_outlined);
+    expect(beaconLifecycleEventIsSystem(e), isTrue);
+    expect(beaconActivityLogTier(e), BeaconActivityLogTier.high);
+  });
+
+  test('lifecycle authorCloseNow uses closed-after-review label', () {
+    final e = BeaconActivityEvent(
+      id: 'e2',
+      beaconId: 'b1',
+      visibility: 0,
+      type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
+      createdAt: DateTime(2026, 6, 18),
+      diffJson:
+          '{"fromState":5,"toState":6,"reason":"${BeaconLifecycleChangeReason.authorCloseNow}"}',
+      actorId: 'author1',
+    );
+    expect(
+      beaconActivityEventLabel(l10n, e),
+      l10n.beaconActivityLifecycleClosedAfterReview,
+    );
+    expect(beaconLifecycleEventIsSystem(e), isFalse);
+  });
 }

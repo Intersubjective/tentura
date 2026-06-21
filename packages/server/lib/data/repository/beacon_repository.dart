@@ -315,6 +315,27 @@ class BeaconRepository implements BeaconRepositoryPort {
       .update((o) => o(state: Value(state)));
 
   @override
+  Future<void> recordBeaconLifecycleTransition({
+    required String beaconId,
+    required int fromState,
+    required int toState,
+    required String reason,
+    required String? actorId,
+  }) =>
+      _database.transaction(() async {
+        await _database.managers.beacons
+            .filter((e) => e.id.equals(beaconId))
+            .update((o) => o(state: Value(toState)));
+        await _insertBeaconLifecycleEvent(
+          beaconId: beaconId,
+          fromState: fromState,
+          toState: toState,
+          reason: reason,
+          actorId: actorId,
+        );
+      });
+
+  @override
   Future<void> addImage({
     required String beaconId,
     required String imageId,
@@ -461,6 +482,30 @@ class BeaconRepository implements BeaconRepositoryPort {
         type: BeaconActivityEventTypeBits.beaconPublished,
         actorId: Value(actorId),
         diff: diff.isEmpty ? const Value(null) : Value(diff),
+        createdAt: const Value.absent(),
+      ),
+    );
+  }
+
+  Future<void> _insertBeaconLifecycleEvent({
+    required String beaconId,
+    required int fromState,
+    required int toState,
+    required String reason,
+    required String? actorId,
+  }) async {
+    await _database.managers.beaconActivityEvents.create(
+      (o) => o(
+        id: Value(BeaconActivityEventEntity.newId),
+        beaconId: beaconId,
+        visibility: BeaconActivityEventVisibilityBits.public,
+        type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
+        actorId: actorId == null ? const Value(null) : Value(actorId),
+        diff: Value(<String, Object?>{
+          'fromState': fromState,
+          'toState': toState,
+          'reason': reason,
+        }),
         createdAt: const Value.absent(),
       ),
     );

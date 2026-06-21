@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -9,12 +11,33 @@ import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
 enum BeaconActivityLogTier { high, medium, low }
 
+String? lifecycleChangeReasonFromEvent(BeaconActivityEvent e) {
+  if (e.type != BeaconActivityEventTypeBits.beaconLifecycleChanged) {
+    return null;
+  }
+  final raw = e.diffJson;
+  if (raw == null || raw.trim().isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return null;
+    final reason = decoded['reason'];
+    return reason is String && reason.isNotEmpty ? reason : null;
+  } on Object {
+    return null;
+  }
+}
+
+bool beaconLifecycleEventIsSystem(BeaconActivityEvent e) =>
+    lifecycleChangeReasonFromEvent(e) ==
+    BeaconLifecycleChangeReason.reviewExpired;
+
 BeaconActivityLogTier beaconActivityLogTier(BeaconActivityEvent e) {
   if (e.type >= 100 && e.type < 500) return BeaconActivityLogTier.high;
   return switch (e.type) {
     BeaconActivityEventTypeBits.blockerOpened ||
     BeaconActivityEventTypeBits.blockerResolved ||
-    BeaconActivityEventTypeBits.doneMarked =>
+    BeaconActivityEventTypeBits.doneMarked ||
+    BeaconActivityEventTypeBits.beaconLifecycleChanged =>
       BeaconActivityLogTier.high,
     BeaconActivityEventTypeBits.planUpdated ||
     BeaconActivityEventTypeBits.factPinned ||
@@ -64,9 +87,23 @@ IconData beaconActivityLogIcon(BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.factVisibilityChanged =>
       Icons.visibility_outlined,
     BeaconActivityEventTypeBits.beaconPublished => Icons.campaign_outlined,
+    BeaconActivityEventTypeBits.beaconLifecycleChanged =>
+      _beaconLifecycleLogIcon(lifecycleChangeReasonFromEvent(e)),
     _ => Icons.hub_outlined,
   };
 }
+
+IconData _beaconLifecycleLogIcon(String? reason) => switch (reason) {
+      BeaconLifecycleChangeReason.reviewWindowOpened =>
+        Icons.hourglass_top_outlined,
+      BeaconLifecycleChangeReason.directClose ||
+      BeaconLifecycleChangeReason.authorCloseNow =>
+        Icons.flag_circle_outlined,
+      BeaconLifecycleChangeReason.reviewExpired => Icons.timer_off_outlined,
+      BeaconLifecycleChangeReason.reopenedFromReview => Icons.replay_outlined,
+      BeaconLifecycleChangeReason.cancelled => Icons.cancel_outlined,
+      _ => Icons.flag_circle_outlined,
+    };
 
 Color _coordinationSemanticAccentColor(TenturaTokens tt, int type) {
   final kind = type ~/ 100;
@@ -160,6 +197,9 @@ Color beaconActivityLogIconColor(ThemeData theme, BeaconActivityEvent e) {
     return theme.colorScheme.primary;
   }
   final tt = theme.extension<TenturaTokens>() ?? TenturaTokens.light;
+  if (e.type == BeaconActivityEventTypeBits.beaconLifecycleChanged) {
+    return _beaconLifecycleLogIconColor(tt, lifecycleChangeReasonFromEvent(e));
+  }
   if (e.type >= 100 && e.type < 500) {
     return _coordinationSemanticAccentColor(tt, e.type);
   }
@@ -168,6 +208,30 @@ Color beaconActivityLogIconColor(ThemeData theme, BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.needInfoOpened => tt.warn,
     BeaconActivityEventTypeBits.doneMarked => tt.good,
     _ => tt.textMuted,
+  };
+}
+
+Color _beaconLifecycleLogIconColor(TenturaTokens tt, String? reason) =>
+    switch (reason) {
+      BeaconLifecycleChangeReason.reopenedFromReview => tt.good,
+      BeaconLifecycleChangeReason.cancelled => tt.danger,
+      _ => tt.textMuted,
+    };
+
+String beaconLifecycleEventLabel(L10n l10n, BeaconActivityEvent e) {
+  final reason = lifecycleChangeReasonFromEvent(e);
+  return switch (reason) {
+    BeaconLifecycleChangeReason.reviewWindowOpened =>
+      l10n.beaconLifecycleReviewOpen,
+    BeaconLifecycleChangeReason.directClose => l10n.beaconLifecycleClosed,
+    BeaconLifecycleChangeReason.authorCloseNow =>
+      l10n.beaconActivityLifecycleClosedAfterReview,
+    BeaconLifecycleChangeReason.reviewExpired =>
+      l10n.beaconActivityLifecycleReviewExpired,
+    BeaconLifecycleChangeReason.reopenedFromReview =>
+      l10n.beaconActivityLifecycleReopened,
+    BeaconLifecycleChangeReason.cancelled => l10n.beaconLifecycleCancelled,
+    _ => l10n.beaconLifecycleClosed,
   };
 }
 
@@ -220,6 +284,8 @@ String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
     BeaconActivityEventTypeBits.doneMarked => l10n.beaconActivityDoneMarked,
     BeaconActivityEventTypeBits.beaconPublished =>
       l10n.beaconActivityBeaconPublished,
+    BeaconActivityEventTypeBits.beaconLifecycleChanged =>
+      beaconLifecycleEventLabel(l10n, e),
     _ => l10n.beaconActivityCoordinationFallback,
   };
 }

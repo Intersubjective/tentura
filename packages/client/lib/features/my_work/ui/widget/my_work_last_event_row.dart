@@ -121,6 +121,29 @@ class _EventLine extends StatelessWidget {
       now: now,
       l10n: l10n,
     );
+    final isSystemEvent = beaconLifecycleEventIsSystem(event);
+
+    if (isSystemEvent) {
+      return Semantics(
+        label: l10n.myWorkLastEventSystemSemantics(label, ago),
+        child: BeaconHudIconRow(
+          leadIcon: BeaconHudRowIcons.lastEvent,
+          semanticsLabel: l10n.beaconHudLastEventRowSemantics,
+          leadAlign: BeaconHudRowLeadAlign.center,
+          minRowHeight: kBeaconHudRowMinHeight,
+          body: Text(
+            '$label, $ago',
+            style: theme.textTheme.bodySmall!.copyWith(
+              height: 1.15,
+              color: scheme.onSurfaceVariant,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      );
+    }
+
     final actor = last.actor;
     final isYou = actor.id.isNotEmpty && actor.id == currentUserId;
     final isAuthor = actor.id.isNotEmpty && actor.id == beacon.author.id;

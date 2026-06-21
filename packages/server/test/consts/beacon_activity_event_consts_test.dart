@@ -16,6 +16,12 @@ void main() {
         isTrue,
       );
       expect(
+        isCoordinationLogEventType(
+          BeaconActivityEventTypeBits.beaconLifecycleChanged,
+        ),
+        isTrue,
+      );
+      expect(
         isCoordinationLogEventType(BeaconActivityEventTypeBits.blockerOpened),
         isTrue,
       );

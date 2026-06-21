@@ -1,8 +1,10 @@
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
+import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/user_trust_edge_repository_port.dart';
@@ -358,84 +360,107 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   }
 
   @override
-  Future<void> closeBeaconReviewWindow(String beaconId) async {
+  Future<void> closeBeaconReviewWindow(
+    String beaconId, {
+    required String reason,
+    String? actorUserId,
+  }) async {
     final now = DateTime.timestamp();
-    final window = await _db.managers.beaconReviewWindows
-        .filter((e) => e.beaconId.id(beaconId))
-        .getSingleOrNull();
-    if (window == null || window.status != 0) {
-      return;
-    }
+    await _db.transaction(() async {
+      final window = await _db.managers.beaconReviewWindows
+          .filter((e) => e.beaconId.id(beaconId))
+          .getSingleOrNull();
+      if (window == null || window.status != 0) {
+        return;
+      }
 
-    await _db.managers.beaconReviewWindows
-        .filter((e) => e.beaconId.id(beaconId))
-        .update(
-          (o) => o(
-            status: const Value(1),
-            updatedAt: Value(PgDateTime(now)),
-          ),
-        );
+      final beaconRow = await _db.managers.beacons
+          .filter((b) => b.id.equals(beaconId))
+          .getSingleOrNull();
+      if (beaconRow == null) {
+        return;
+      }
 
-    await _db.managers.beacons
-        .filter((b) => b.id.equals(beaconId))
-        .update((o) => o(state: const Value(6)));
+      await _db.managers.beaconReviewWindows
+          .filter((e) => e.beaconId.id(beaconId))
+          .update(
+            (o) => o(
+              status: const Value(1),
+              updatedAt: Value(PgDateTime(now)),
+            ),
+          );
 
-    await _db.managers.beaconReviewStatuses
-        .filter(
-          (s) =>
-              s.beaconId.id(beaconId) &
-              (s.status.equals(0) | s.status.equals(1)),
-        )
-        .update(
-          (o) => o(
-            status: const Value(4),
-            updatedAt: Value(PgDateTime(now)),
-          ),
-        );
+      await _db.managers.beacons
+          .filter((b) => b.id.equals(beaconId))
+          .update((o) => o(state: const Value(6)));
 
-    final batchesBySource = <String, List<TrustEvidence>>{};
+      await _insertBeaconLifecycleEvent(
+        db: _db,
+        beaconId: beaconId,
+        fromState: beaconRow.state,
+        toState: 6,
+        reason: reason,
+        actorId: actorUserId,
+        mutatingUserId: actorUserId ?? beaconRow.userId,
+      );
 
-    final transitioned = await _db.customSelect(
-      r'''
+      await _db.managers.beaconReviewStatuses
+          .filter(
+            (s) =>
+                s.beaconId.id(beaconId) &
+                (s.status.equals(0) | s.status.equals(1)),
+          )
+          .update(
+            (o) => o(
+              status: const Value(4),
+              updatedAt: Value(PgDateTime(now)),
+            ),
+          );
+
+      final batchesBySource = <String, List<TrustEvidence>>{};
+
+      final transitioned = await _db.customSelect(
+        r'''
 UPDATE beacon_evaluation
 SET status = $1, updated_at = now()
 WHERE beacon_id = $2 AND status = $3
 RETURNING evaluator_id, evaluated_user_id, value
 ''',
-      variables: [
-        const Variable<int>(BeaconEvaluationRowStatus.final_),
-        Variable<String>(beaconId),
-        const Variable<int>(BeaconEvaluationRowStatus.submitted),
-      ],
-    ).get();
+        variables: [
+          const Variable<int>(BeaconEvaluationRowStatus.final_),
+          Variable<String>(beaconId),
+          const Variable<int>(BeaconEvaluationRowStatus.submitted),
+        ],
+      ).get();
 
-    for (final row in transitioned) {
-      final evaluatorId = row.read<String>('evaluator_id');
-      final evaluatedUserId = row.read<String>('evaluated_user_id');
-      final value = row.read<int>('value');
-      final bin = reviewValueToBin(value);
-      if (bin == null) continue;
-      batchesBySource.putIfAbsent(evaluatorId, () => []).add(
-        TrustEvidence(
-          targetUserId: evaluatedUserId,
-          bin: bin,
-          count: kTrustReviewEvidenceCount,
-        ),
-      );
-    }
+      for (final row in transitioned) {
+        final evaluatorId = row.read<String>('evaluator_id');
+        final evaluatedUserId = row.read<String>('evaluated_user_id');
+        final value = row.read<int>('value');
+        final bin = reviewValueToBin(value);
+        if (bin == null) continue;
+        batchesBySource.putIfAbsent(evaluatorId, () => []).add(
+          TrustEvidence(
+            targetUserId: evaluatedUserId,
+            bin: bin,
+            count: kTrustReviewEvidenceCount,
+          ),
+        );
+      }
 
-    await deleteDraftEvaluationsForBeacon(beaconId);
+      await deleteDraftEvaluationsForBeacon(beaconId);
 
-    final sortedSources = batchesBySource.keys.toList()..sort();
-    for (final source in sortedSources) {
-      await _trustEdgeRepository.applyEvidenceInTransaction(
-        TrustEvidenceBatch(
-          sourceUserId: source,
-          at: now,
-          items: batchesBySource[source]!,
-        ),
-      );
-    }
+      final sortedSources = batchesBySource.keys.toList()..sort();
+      for (final source in sortedSources) {
+        await _trustEdgeRepository.applyEvidenceInTransaction(
+          TrustEvidenceBatch(
+            sourceUserId: source,
+            at: now,
+            items: batchesBySource[source]!,
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -450,7 +475,37 @@ FOR UPDATE
         ).map((r) => r.read<String>('beacon_id')).get();
 
         for (final beaconId in expiredBeaconIds) {
-          await closeBeaconReviewWindow(beaconId);
+          await closeBeaconReviewWindow(
+            beaconId,
+            reason: BeaconLifecycleChangeReason.reviewExpired,
+          );
         }
       });
 }
+
+Future<void> _insertBeaconLifecycleEvent({
+  required TenturaDb db,
+  required String beaconId,
+  required int fromState,
+  required int toState,
+  required String reason,
+  required String? actorId,
+  required String mutatingUserId,
+}) =>
+    db.withMutatingUser(mutatingUserId, () async {
+      await db.managers.beaconActivityEvents.create(
+        (o) => o(
+          id: Value(BeaconActivityEventEntity.newId),
+          beaconId: beaconId,
+          visibility: BeaconActivityEventVisibilityBits.public,
+          type: BeaconActivityEventTypeBits.beaconLifecycleChanged,
+          actorId: actorId == null ? const Value(null) : Value(actorId),
+          diff: Value(<String, Object?>{
+            'fromState': fromState,
+            'toState': toState,
+            'reason': reason,
+          }),
+          createdAt: const Value.absent(),
+        ),
+      );
+    });

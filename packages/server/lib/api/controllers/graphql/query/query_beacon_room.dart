@@ -121,5 +121,6 @@ Map<String, Object?> _myWorkLastActivityEventToMap(
     'actorTitle': row.actorTitle,
     'actorImageId': row.actorImageId,
     'createdAt': event?.createdAt.toUtc().toIso8601String(),
+    'diffJson': event?.diffJson,
   };
 }

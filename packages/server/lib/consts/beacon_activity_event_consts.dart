@@ -14,6 +14,17 @@ abstract final class BeaconActivityEventTypeBits {
   static const doneMarked = 13;
   static const factVisibilityChanged = 14;
   static const beaconPublished = 15;
+  static const beaconLifecycleChanged = 16;
+}
+
+/// [`beacon_activity_event.diff.reason`] for type [BeaconActivityEventTypeBits.beaconLifecycleChanged].
+abstract final class BeaconLifecycleChangeReason {
+  static const reviewWindowOpened = 'reviewWindowOpened';
+  static const directClose = 'directClose';
+  static const authorCloseNow = 'authorCloseNow';
+  static const reviewExpired = 'reviewExpired';
+  static const reopenedFromReview = 'reopenedFromReview';
+  static const cancelled = 'cancelled';
 }
 
 /// Matches client [`BeaconActivityEvent.isCoordinationLogEvent`] / Log tab filter.
@@ -28,6 +39,7 @@ bool isCoordinationLogEventType(int type) {
     BeaconActivityEventTypeBits.doneMarked => true,
     BeaconActivityEventTypeBits.factVisibilityChanged => true,
     BeaconActivityEventTypeBits.beaconPublished => true,
+    BeaconActivityEventTypeBits.beaconLifecycleChanged => true,
     _ => false,
   };
 }

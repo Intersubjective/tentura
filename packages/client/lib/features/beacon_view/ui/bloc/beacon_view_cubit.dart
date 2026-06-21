@@ -731,13 +731,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             status: beacon.coordinationStatus,
             at: beacon.coordinationStatusUpdatedAt!,
           ),
-        if (beacon.lifecycle != BeaconLifecycle.open &&
-            beacon.updatedAt != beacon.createdAt)
-          TimelineBeaconLifecycleChanged(
-            author: beacon.author,
-            lifecycle: beacon.lifecycle,
-            at: beacon.updatedAt,
-          ),
         for (final u in updates)
           TimelineUpdate(
             id: u.id,

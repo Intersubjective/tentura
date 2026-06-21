@@ -1185,6 +1185,15 @@ class BeaconRoomRepository {
     };
   }
 
+  String? _activityEventDiffJson(Object? diff) {
+    if (diff == null) return null;
+    if (diff is Map) {
+      if (diff.isEmpty) return null;
+      return jsonEncode(diff);
+    }
+    return diff.toString();
+  }
+
   Future<String?> beaconAuthorUserId(String beaconId) async {
     final b =
         await _db.managers.beacons
@@ -1242,6 +1251,7 @@ class BeaconRoomRepository {
         BeaconActivityEventTypeBits.doneMarked,
         BeaconActivityEventTypeBits.factVisibilityChanged,
         BeaconActivityEventTypeBits.beaconPublished,
+        BeaconActivityEventTypeBits.beaconLifecycleChanged,
       ];
 
       final row = await (_db.select(_db.beaconActivityEvents)
@@ -1279,6 +1289,7 @@ class BeaconRoomRepository {
         visibility: row.visibility,
         type: row.type,
         actorId: row.actorId,
+        diffJson: _activityEventDiffJson(row.diff),
         createdAt: row.createdAt.dateTime.toUtc(),
       );
       eventsByBeacon[beaconId] = record;
