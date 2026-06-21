@@ -188,6 +188,13 @@ final gqlTypeInboxRoomContextRow =
         field('roomUnreadCount', graphQLInt.nonNullable()),
         field('lastSeenAt', graphQLString),
         field('openBlockerTitle', graphQLString),
+        field('openBlockerCreatorId', graphQLString),
+        field('openBlockerTargetPersonId', graphQLString),
+        field('openBlockerResponsibleUserId', graphQLString),
+        field('openBlockerCreatedAt', graphQLString),
+        field('openBlockerCreatorDisplayName', graphQLString),
+        field('openBlockerCreatorImageId', graphQLString),
+        field('openBlockerCreatorHasPicture', graphQLBoolean),
         field('publicFactSnippet', graphQLString),
       ]);
 

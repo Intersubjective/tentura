@@ -8,6 +8,13 @@ query InboxRoomContextBatch($beaconIds: [String!]!) {
     roomUnreadCount
     lastSeenAt
     openBlockerTitle
+    openBlockerCreatorId
+    openBlockerTargetPersonId
+    openBlockerResponsibleUserId
+    openBlockerCreatedAt
+    openBlockerCreatorDisplayName
+    openBlockerCreatorImageId
+    openBlockerCreatorHasPicture
     publicFactSnippet
   }
 }

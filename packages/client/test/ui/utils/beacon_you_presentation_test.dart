@@ -198,6 +198,7 @@ void main() {
           isAuthorOrSteward: false,
           othersOpenCount: 0,
           compactSurface: false,
+          hasPersonalObligation: false,
         ),
         BeaconYouEmptyFallback.closed,
       );
@@ -210,6 +211,7 @@ void main() {
           isAuthorOrSteward: false,
           othersOpenCount: 2,
           compactSurface: false,
+          hasPersonalObligation: false,
         ),
         BeaconYouEmptyFallback.waitingOnOthers,
       );
@@ -222,20 +224,35 @@ void main() {
           isAuthorOrSteward: false,
           othersOpenCount: 0,
           compactSurface: false,
+          hasPersonalObligation: false,
         ),
         BeaconYouEmptyFallback.enoughHelp,
       );
     });
 
-    test('compact surface returns hidden', () {
+    test('compact surface without obligation returns hidden', () {
       expect(
         deriveBeaconYouEmptyFallback(
           lifecycle: BeaconLifecycle.open,
           isAuthorOrSteward: false,
           othersOpenCount: 0,
           compactSurface: true,
+          hasPersonalObligation: false,
         ),
         BeaconYouEmptyFallback.hidden,
+      );
+    });
+
+    test('compact surface with obligation does not return hidden', () {
+      expect(
+        deriveBeaconYouEmptyFallback(
+          lifecycle: BeaconLifecycle.open,
+          isAuthorOrSteward: false,
+          othersOpenCount: 0,
+          compactSurface: true,
+          hasPersonalObligation: true,
+        ),
+        isNot(BeaconYouEmptyFallback.hidden),
       );
     });
 
@@ -246,6 +263,7 @@ void main() {
           isAuthorOrSteward: true,
           othersOpenCount: 0,
           compactSurface: false,
+          hasPersonalObligation: false,
         ),
         BeaconYouEmptyFallback.noOpenItems,
       );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
@@ -12,6 +13,7 @@ import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -91,6 +93,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         if (!offer.isWithdrawn) offer.user,
     ];
     final viewerId = context.watch<ProfileCubit>().state.profile.id;
+    final phaseInput = beaconPhaseInputFromViewState(state);
+    final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
+    final openBlocker = phaseInput.openBlocker;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -128,6 +133,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
                 responsibility: youResponsibility,
                 isAuthorOrSteward: state.isAuthorOrSteward,
                 showNewBadges: false,
+                viewerUserId: viewerId,
+                openBlocker: openBlocker,
+                phaseResult: phaseResult,
               ),
             ],
           ),

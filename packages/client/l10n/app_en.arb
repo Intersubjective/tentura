@@ -3626,5 +3626,52 @@
   "beaconLineagePreviewSubjectivity": "Only you can see this — based on your own activity.",
   "beaconLineagePreviewEmpty": "No suggestions yet — based on your own past activity",
   "beaconLineagePreviewError": "Could not load suggestions",
-  "beaconLineagePreviewRetry": "Try again"
+  "beaconLineagePreviewRetry": "Try again",
+  "beaconPhaseBlocked": "Blocked",
+  "@beaconPhaseBlocked": {
+    "description": "Shared STATUS phase verb when an open blocker exists"
+  },
+  "beaconPhaseBlockerNeedsClearing": "clearing needed",
+  "@beaconPhaseBlockerNeedsClearing": {
+    "description": "STATUS slot2 for blocked phase — action cue, not group diffusion"
+  },
+  "beaconPhaseWrappingUp": "Wrapping up",
+  "beaconPhaseNeedsMoreHelp": "Needs more help",
+  "beaconPhaseEnoughHelpInMotion": "Enough help — in motion",
+  "beaconPhaseOffersAwaitingAuthor": "Offers awaiting author",
+  "beaconPhaseCoordinating": "Coordinating the plan",
+  "beaconPhaseLookingForHelpers": "Looking for helpers",
+  "beaconPhaseDraftNotPosted": "Draft — not posted",
+  "beaconPhaseOpen": "Open",
+  "beaconPhaseClosed": "Closed",
+  "beaconPhaseCancelled": "Cancelled",
+  "beaconPhaseCourtAuthor": "author's move",
+  "beaconPhaseNoOffersYet": "no offers yet",
+  "beaconPhaseActiveToday": "active today",
+  "beaconPhaseQuietForDays": "quiet {days}d",
+  "@beaconPhaseQuietForDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconYouBlockedGeneric": "Blocker needs clearing",
+  "@beaconYouBlockedGeneric": {
+    "description": "YOU line generic blocked copy — no title"
+  },
+  "beaconYouBlockedSemantics": "Blocker raised by {name}, {elapsed} ago",
+  "@beaconYouBlockedSemantics": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconPhaseCtaResolveBlocker": "Resolve blocker",
+  "beaconPhaseCtaReviewOffers": "Review offers",
+  "beaconYouOfferSent": "Offer sent — author reviewing"
 }

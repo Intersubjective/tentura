@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
+import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_you_presentation.dart';
+import 'package:tentura/ui/utils/duration_format.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 class BeaconYouResponsibilityLine extends StatelessWidget {
@@ -14,6 +17,9 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     required this.isAuthorOrSteward,
     this.showNewBadges = true,
     this.onTap,
+    this.viewerUserId = '',
+    this.openBlocker,
+    this.phaseResult,
     super.key,
   });
 
@@ -22,6 +28,9 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
   final bool isAuthorOrSteward;
   final bool showNewBadges;
   final VoidCallback? onTap;
+  final String viewerUserId;
+  final OpenBlockerCue? openBlocker;
+  final BeaconCoordinationPhaseResult? phaseResult;
 
   static const double _compactWrapWidth = 320;
 
@@ -35,11 +44,15 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
       builder: (context, constraints) {
         final collapse = context.windowClass == WindowClass.compact &&
             constraints.maxWidth < _compactWrapWidth;
-        final emptyFallback = deriveBeaconYouEmptyFallback(
-          lifecycle: beacon.lifecycle,
+        final blockedSegment = _buildBlockedSegment(context, l10n);
+        final emptyFallback = deriveBeaconYouEmptyFallbackFromBeacon(
+          beacon: beacon,
+          responsibility: responsibility,
           isAuthorOrSteward: isAuthorOrSteward,
-          othersOpenCount: responsibility.othersOpenCount,
           compactSurface: collapse,
+          phaseResult: phaseResult,
+          openBlocker: openBlocker,
+          viewerUserId: viewerUserId,
         );
         final presentation = buildBeaconYouPresentation(
           l10n,
@@ -47,6 +60,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
           collapse: collapse,
           emptyFallback: emptyFallback,
           showNewBadges: showNewBadges,
+          blockedSegment: blockedSegment,
         );
 
         if (presentation.isHidden) {
@@ -68,12 +82,27 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           );
+        } else if (presentation.blockedOnly && presentation.blockedSegment != null) {
+          content = _BlockedSegmentRow(
+            segment: presentation.blockedSegment!,
+            bodyStyle: bodyStyle,
+            mutedStyle: mutedStyle,
+          );
         } else {
           content = Wrap(
             spacing: 6,
             runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              if (presentation.blockedSegment != null) ...[
+                _BlockedSegmentRow(
+                  segment: presentation.blockedSegment!,
+                  bodyStyle: bodyStyle,
+                  mutedStyle: mutedStyle,
+                ),
+                if (presentation.segments.isNotEmpty)
+                  Text('·', style: mutedStyle),
+              ],
               for (var i = 0; i < presentation.segments.length; i++) ...[
                 if (i > 0)
                   Text('·', style: mutedStyle),
@@ -118,6 +147,82 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  BeaconYouBlockedSegmentPresentation? _buildBlockedSegment(
+    BuildContext context,
+    L10n l10n,
+  ) {
+    if (!shouldShowBlockedYouSegment(
+      phaseResult: phaseResult,
+      openBlocker: openBlocker,
+      viewerUserId: viewerUserId,
+      responsibility: responsibility,
+    )) {
+      return null;
+    }
+    final cue = openBlocker!;
+    final raiser = cue.raiser;
+    final name = raiser?.shownName ?? '';
+    final elapsed = formatCompactDurationRemaining(
+      DateTime.now().toUtc().difference(cue.raisedAt.toUtc()),
+      l10n,
+    );
+    Widget? avatar;
+    if (raiser != null && raiser.id.isNotEmpty) {
+      avatar = TenturaAvatar(
+        profile: raiser,
+        sizeBucket: TenturaAvatarSize.tiny,
+        size: context.tt.metadataAvatarSize,
+      );
+    }
+    return BeaconYouBlockedSegmentPresentation(
+      label: l10n.beaconYouBlockedGeneric,
+      semanticsLabel: l10n.beaconYouBlockedSemantics(
+        name.isEmpty ? '…' : name,
+        elapsed,
+      ),
+      raiserAvatar: avatar,
+      elapsedLabel: elapsed,
+    );
+  }
+}
+
+class _BlockedSegmentRow extends StatelessWidget {
+  const _BlockedSegmentRow({
+    required this.segment,
+    required this.bodyStyle,
+    required this.mutedStyle,
+  });
+
+  final BeaconYouBlockedSegmentPresentation segment;
+  final TextStyle? bodyStyle;
+  final TextStyle? mutedStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: segment.semanticsLabel,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (segment.raiserAvatar != null) ...[
+            segment.raiserAvatar!,
+            const SizedBox(width: 6),
+          ],
+          Text(segment.label, style: bodyStyle),
+          if (segment.elapsedLabel != null) ...[
+            Text(' · ', style: mutedStyle),
+            Text(
+              segment.elapsedLabel!,
+              style: bodyStyle?.copyWith(fontFeatures: const [
+                FontFeature.tabularFigures(),
+              ]),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
