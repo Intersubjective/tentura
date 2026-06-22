@@ -75,7 +75,7 @@ String coordinationTargetLabel({
 
 String coordinationTargetPickerLabel(L10n l10n, CoordinationItemKind kind) {
   return switch (kind) {
-    CoordinationItemKind.ask => l10n.beaconPreparedAskPublishSheetTitle,
+    CoordinationItemKind.ask => l10n.beaconRoomNeedInfoPickTarget,
     CoordinationItemKind.promise => l10n.coordinationPromiseTargetPickerLabel,
     CoordinationItemKind.blocker => l10n.beaconRoomNeedInfoPickTarget,
     _ => l10n.beaconRoomNeedInfoPickTarget,
@@ -84,17 +84,12 @@ String coordinationTargetPickerLabel(L10n l10n, CoordinationItemKind kind) {
 
 String coordinationComposerSheetTitle(L10n l10n, CoordinationItemKind kind, bool isEdit) {
   if (isEdit) {
-    return switch (kind) {
-      CoordinationItemKind.ask => l10n.beaconPreparedAskEditorTitleEdit,
-      CoordinationItemKind.promise => l10n.beaconPreparedPromiseEditorTitleEdit,
-      CoordinationItemKind.blocker => l10n.beaconPreparedBlockerEditorTitleEdit,
-      _ => l10n.myWorkEditDraft,
-    };
+    return l10n.myWorkEditDraft;
   }
   return switch (kind) {
-    CoordinationItemKind.ask => l10n.beaconPreparedAskEditorTitleNew,
-    CoordinationItemKind.promise => l10n.beaconPreparedPromiseEditorTitleNew,
-    CoordinationItemKind.blocker => l10n.beaconPreparedBlockerEditorTitleNew,
+    CoordinationItemKind.ask => l10n.coordinationMarkAskTitle,
+    CoordinationItemKind.promise => l10n.coordinationCreatePromiseAction,
+    CoordinationItemKind.blocker => l10n.coordinationMarkBlockerTitle,
     _ => l10n.myWorkEditDraft,
   };
 }

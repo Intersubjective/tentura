@@ -49,6 +49,45 @@ Future<void> showCoordinationItemComposerSheet(
   }
 }
 
+Future<void> confirmDeleteCoordinationDraft(
+  BuildContext context, {
+  required CoordinationItemKind kind,
+  required String itemId,
+  required VoidCallback onDeleted,
+}) async {
+  final l10n = L10n.of(context)!;
+  final coordinationCase = GetIt.I<CoordinationItemCase>();
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(l10n.coordinationDeleteDraftTitle),
+      content: Text(l10n.coordinationDeleteDraftBody),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text(MaterialLocalizations.of(ctx).cancelButtonLabel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text(l10n.buttonDelete),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  switch (kind) {
+    case CoordinationItemKind.ask:
+      await coordinationCase.deleteDraftAsk(itemId: itemId);
+    case CoordinationItemKind.promise:
+      await coordinationCase.deleteDraftPromise(itemId: itemId);
+    case CoordinationItemKind.blocker:
+      await coordinationCase.deleteDraftBlocker(itemId: itemId);
+    default:
+      return;
+  }
+  onDeleted();
+}
+
 class _CoordinationItemComposerBody extends StatefulWidget {
   const _CoordinationItemComposerBody({
     required this.kind,
