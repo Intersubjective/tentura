@@ -703,10 +703,6 @@
   "@network": {
     "context": "HomeScreen"
   },
-  "favorites": "Favorites",
-  "@favorites": {
-    "context": "HomeScreen"
-  },
   "friends": "Friends",
   "@friends": {
     "context": "HomeScreen"
@@ -965,10 +961,6 @@
   },
   "notImplementedYet": "Not implemented yet",
   "@notImplementedYet": {
-    "context": "UpdatesScreen"
-  },
-  "markAllAsRead": "Mark all as read",
-  "@markAllAsRead": {
     "context": "UpdatesScreen"
   },
   "scanQrCode": "Scan the QR Code",
