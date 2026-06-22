@@ -26,7 +26,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onViewChain,
     this.onSwitchToPeopleTab,
     this.onCloseBeacon,
-    this.onOpenRoomSurface,
     this.onOpenReview,
     this.onOpenLogTab,
     this.onEditNowLine,
@@ -50,9 +49,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   /// Author-only: close beacon (confirm + mutation), wired from screen when allowed.
   final VoidCallback? onCloseBeacon;
-
-  /// Opens Room surface (resolve blockers / coordination).
-  final VoidCallback? onOpenRoomSurface;
 
   /// Closed beacon: open contribution review.
   final VoidCallback? onOpenReview;
@@ -162,10 +158,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
     if (state.isAuthorOrSteward) {
       final cp = state.closureActionPriority;
-      final readiness = state.closureReadiness;
-      final showResolve = readiness == BeaconClosureReadiness.blocked &&
-          onOpenRoomSurface != null &&
-          state.canNavigateBeaconRoom;
 
       final overflowClose =
           cp == ClosureActionPriority.overflow && onCloseBeacon != null;
@@ -196,18 +188,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         );
       }
 
-      void addResolve() {
-        if (onOpenRoomSurface == null) return;
-        specs.add(
-          _HudActionSpec(
-            icon: Icons.bolt_outlined,
-            label: l10n.beaconHudResolveBlocker,
-            onPressed: onOpenRoomSurface,
-            filled: false,
-          ),
-        );
-      }
-
       void addUpdateStatus() {
         if (onUpdateStatus == null) return;
         specs.add(
@@ -220,21 +200,16 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         );
       }
 
-      if (showResolve) {
-        addResolve();
-        addForward();
-      } else {
-        switch (cp) {
-          case ClosureActionPriority.primary:
-            addClose(filled: true);
-            addForward();
-          case ClosureActionPriority.secondary:
-            addClose(filled: false);
-            addForward();
-          case ClosureActionPriority.overflow:
-          case ClosureActionPriority.hidden:
-            addForward();
-        }
+      switch (cp) {
+        case ClosureActionPriority.primary:
+          addClose(filled: true);
+          addForward();
+        case ClosureActionPriority.secondary:
+          addClose(filled: false);
+          addForward();
+        case ClosureActionPriority.overflow:
+        case ClosureActionPriority.hidden:
+          addForward();
       }
       addUpdateStatus();
 
@@ -250,14 +225,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         if (removed) continue;
         for (var i = specs.length - 1; i >= 0; i--) {
           if (specs[i].label == l10n.buttonClose) {
-            specs.removeAt(i);
-            removed = true;
-            break;
-          }
-        }
-        if (removed) continue;
-        for (var i = specs.length - 1; i >= 0; i--) {
-          if (specs[i].label == l10n.beaconHudResolveBlocker) {
             specs.removeAt(i);
             removed = true;
             break;

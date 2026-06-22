@@ -538,12 +538,6 @@ class BeaconStatusDashboard extends StatelessWidget {
                         onPressed: onOpenRoom,
                         child: Text(l10n.beaconBlockersPanelAskInRoom),
                       ),
-                    if (hasOpenBlocker &&
-                        (onOpenRoom == null || !state.canNavigateBeaconRoom))
-                      OutlinedButton(
-                        onPressed: onViewAllHelpOffers,
-                        child: Text(l10n.beaconHudResolveBlocker),
-                      ),
                   ],
                 ),
               ],

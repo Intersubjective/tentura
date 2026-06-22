@@ -1374,10 +1374,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                                 ClosureActionPriority.hidden
                         ? () => unawaited(_beaconViewAuthorCloseFlow(context))
                         : null,
-                    onOpenRoomSurface:
-                        state.canNavigateBeaconRoom
-                        ? onEnterRoomSurface
-                        : null,
                     onOpenReview:
                         state.isBeaconMine &&
                             state.beacon.lifecycle != BeaconLifecycle.open &&

@@ -2703,7 +2703,6 @@
     }
   },
   "beaconHudClosedSummary": "Закрыт",
-  "beaconHudResolveBlocker": "Решить",
   "beaconHudOverflowMore": "Ещё действия",
   "beaconHudOverflowCloseBeacon": "Закрыть маяк…",
   "beaconHudYouAuthorReadyToClose": "Завершите цикл",
