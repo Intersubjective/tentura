@@ -37,6 +37,8 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
 
   final _authCubit = GetIt.I<AuthCubit>();
 
+  final _formKey = GlobalKey<FormState>();
+
   final _codeController = TextEditingController();
 
   final _titleController = TextEditingController();
@@ -82,10 +84,12 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
         ),
       ),
     ),
-    body: SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    body: Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
         // Invite Code
         if (_env.needInviteCode)
           Padding(
@@ -181,21 +185,35 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
         // Register
         Padding(
           padding: kPaddingAll,
-          child: FilledButton(
-            onPressed: () => _authCubit.signUp(
-              invitationCode: _codeController.text,
-              displayName: _titleController.text,
-              handle: _handleController.text.trim().toLowerCase().isEmpty
-                  ? null
-                  : _handleController.text.trim().toLowerCase(),
+          child: BlocSelector<AuthCubit, AuthState, bool>(
+            bloc: _authCubit,
+            selector: (state) => state.isLoading,
+            builder: (context, isLoading) => FilledButton(
+              onPressed: isLoading ? null : _submitSignUp,
+              child: Text(_l10n.buttonCreate),
             ),
-            child: Text(_l10n.buttonCreate),
           ),
         ),
-      ],
+          ],
+        ),
       ),
     ),
   );
+
+  void _submitSignUp() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    unawaited(
+      _authCubit.signUp(
+        invitationCode: _codeController.text,
+        displayName: _titleController.text,
+        handle: _handleController.text.trim().toLowerCase().isEmpty
+            ? null
+            : _handleController.text.trim().toLowerCase(),
+      ),
+    );
+  }
 
   Future<void> _getCodeFromClipboard({
     bool supressError = false,
