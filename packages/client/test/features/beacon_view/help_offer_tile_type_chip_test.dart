@@ -30,7 +30,7 @@ Widget _wrap(Widget child) {
     home: MultiBlocProvider(
       providers: [
         BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
-        BlocProvider<ScreenCubit>(create: (_) => ScreenCubit()),
+        BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
       ],
       child: Scaffold(body: child),
     ),

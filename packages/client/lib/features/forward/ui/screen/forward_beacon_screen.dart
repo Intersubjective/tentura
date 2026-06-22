@@ -13,7 +13,6 @@ import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 
 import '../bloc/forward_cubit.dart';
@@ -42,20 +41,7 @@ class ForwardBeaconScreen extends StatelessWidget implements AutoRouteWrapper {
       beaconId: beaconId,
       context: context.read<ContextCubit>().state.selected,
     ),
-    child: BlocListener<ForwardCubit, ForwardState>(
-      listener: (context, state) {
-        if (state.isNavigating) {
-          unawaited(context.router.maybePop(true));
-          return;
-        }
-        commonScreenBlocListener(
-          context,
-          state,
-          listenNavigatingState: false,
-        );
-      },
-      child: this,
-    ),
+    child: this,
   );
 
   @override
@@ -266,9 +252,7 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
 
     return BlocProvider.value(
       value: _invitationCubit,
-      child: BlocListener<InvitationCubit, InvitationState>(
-        listener: commonScreenBlocListener,
-        child: BlocListener<ForwardCubit, ForwardState>(
+      child: BlocListener<ForwardCubit, ForwardState>(
           listenWhen: (prev, next) =>
               prev.note != next.note &&
               next.lineageSuggestions.isNotEmpty &&
@@ -549,7 +533,6 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
               },
             ),
           ),
-        ),
         ),
       ),
     );

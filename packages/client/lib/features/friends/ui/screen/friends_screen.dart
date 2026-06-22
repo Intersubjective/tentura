@@ -128,13 +128,7 @@ class _FriendsScreenState extends State<FriendsScreen>
 
     return BlocProvider.value(
       value: _invitationCubit,
-      child: MultiBlocListener(
-        listeners: const [
-          BlocListener<InvitationCubit, InvitationState>(
-            listener: commonScreenBlocListener,
-          ),
-        ],
-        child: Scaffold(
+      child: Scaffold(
           backgroundColor: scheme.surface,
           appBar: InboxStyleAppBar(
             title: BlocSelector<InvitationCubit, InvitationState, int>(
@@ -224,7 +218,6 @@ class _FriendsScreenState extends State<FriendsScreen>
             ],
           ),
         ),
-      ),
     );
   }
 }

@@ -7,6 +7,8 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../data/repository/invitation_repository.dart';
 import 'invitation_state.dart';
@@ -14,9 +16,12 @@ import 'invitation_state.dart';
 export 'invitation_state.dart';
 
 class InvitationCubit extends Cubit<InvitationState> {
-  InvitationCubit({InvitationRepository? invitationRepository})
-    : _invitationRepository =
+  InvitationCubit({
+    InvitationRepository? invitationRepository,
+    UiEffectPort? effects,
+  }) : _invitationRepository =
           invitationRepository ?? GetIt.I<InvitationRepository>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
       super(const InvitationState()) {
     _repoChanges = _invitationRepository.changes.listen((_) {
       unawaited(fetch());
@@ -24,6 +29,15 @@ class InvitationCubit extends Cubit<InvitationState> {
   }
 
   final InvitationRepository _invitationRepository;
+
+  final UiEffectPort _effects;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: StateStatus.isSuccess));
+    }
+  }
 
   StreamSubscription<void>? _repoChanges;
 
@@ -55,7 +69,7 @@ class InvitationCubit extends Cubit<InvitationState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -76,7 +90,7 @@ class InvitationCubit extends Cubit<InvitationState> {
       emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
       return invitation;
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
     return null;
   }
@@ -96,7 +110,7 @@ class InvitationCubit extends Cubit<InvitationState> {
       ];
       emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -107,7 +121,7 @@ class InvitationCubit extends Cubit<InvitationState> {
       final next = state.invitations.where((e) => e.id != id).toList();
       emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 

@@ -3,7 +3,6 @@ import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
@@ -35,14 +34,6 @@ class RatingScreen extends StatefulWidget implements AutoRouteWrapper {
           listenWhen: (p, c) => p.selected != c.selected,
           listener: (context, state) =>
               context.read<RatingCubit>().setContext(state.selected),
-        ),
-        BlocListener<RatingCubit, RatingState>(
-          listener: (context, state) {
-            commonScreenBlocListener(context, state);
-            if (state.isNavigating) {
-              context.read<RatingCubit>().clearNavigationIntent();
-            }
-          },
         ),
       ],
       child: this,

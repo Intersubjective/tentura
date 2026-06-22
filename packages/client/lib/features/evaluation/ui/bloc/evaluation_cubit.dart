@@ -5,6 +5,8 @@ import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'evaluation_state.dart';
 
@@ -17,7 +19,9 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     required String beaconId,
     String beaconTitle = '',
     bool isDraftMode = false,
-  }) : super(
+    UiEffectPort? effects,
+  }) : _effects = effects ?? GetIt.I<UiEffectPort>(),
+       super(
          EvaluationState(
            beaconId: beaconId,
            beaconTitle: beaconTitle,
@@ -38,6 +42,22 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       );
 
   final EvaluationCase _evaluationCase;
+
+  final UiEffectPort _effects;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: StateStatus.isSuccess));
+    }
+  }
+
+  void _emitNavigateBack() {
+    _effects.emit(const NavigateBack());
+    if (!isClosed) {
+      emit(state.copyWith(status: StateStatus.isSuccess));
+    }
+  }
 
   Future<void> loadAll() async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -60,7 +80,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -89,7 +109,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -139,35 +159,35 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
   Future<void> finalize() async {
     if (state.isDraftMode) {
-      emit(state.copyWith(status: StateIsNavigating.back));
+      _emitNavigateBack();
       return;
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _evaluationCase.finalize(state.beaconId);
-      emit(state.copyWith(status: StateIsNavigating.back));
+      _emitNavigateBack();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
   Future<void> skip() async {
     if (state.isDraftMode) {
-      emit(state.copyWith(status: StateIsNavigating.back));
+      _emitNavigateBack();
       return;
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _evaluationCase.skip(state.beaconId);
-      emit(state.copyWith(status: StateIsNavigating.back));
+      _emitNavigateBack();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 }

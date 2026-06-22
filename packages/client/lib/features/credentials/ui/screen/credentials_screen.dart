@@ -85,8 +85,7 @@ class _CredentialsScreenState extends State<CredentialsScreen>
         ),
       ),
       body: SafeArea(
-        child: BlocConsumer<CredentialsCubit, CredentialsState>(
-          listener: commonScreenBlocListener,
+        child: BlocBuilder<CredentialsCubit, CredentialsState>(
           builder: (context, state) {
             final itemCount = _listItemCount(state);
             return ListView.builder(

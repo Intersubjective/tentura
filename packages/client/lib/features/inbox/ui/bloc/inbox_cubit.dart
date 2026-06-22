@@ -4,6 +4,8 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/use_case/inbox_case.dart';
@@ -21,10 +23,12 @@ class InboxCubit extends Cubit<InboxState> {
     InboxCase? inboxCase,
     ForwardRepository? forwardRepository,
     NewStuffCubit? newStuffCubit,
+    UiEffectPort? effects,
   }) : _userId = userId,
        _inboxCase = inboxCase ?? GetIt.I<InboxCase>(),
        _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        _newStuffCubit = newStuffCubit ?? GetIt.I<NewStuffCubit>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(InboxState(currentUserId: userId)) {
     _helpOfferChanges = _forwardRepository.helpOfferChanges.listen(
       _onHelpOfferChanged,
@@ -46,9 +50,18 @@ class InboxCubit extends Cubit<InboxState> {
   final ForwardRepository _forwardRepository;
   final NewStuffCubit _newStuffCubit;
 
+  final UiEffectPort _effects;
+
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
   late final StreamSubscription<String> _forwardCompleted;
   late final StreamSubscription<void> _inboxLocalMutations;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   void _onHelpOfferChanged(HelpOfferEvent event) => switch (event) {
         HelpOfferCreated(:final beaconId) => _removeInboxItem(beaconId),
@@ -84,10 +97,9 @@ class InboxCubit extends Cubit<InboxState> {
     final previousStatus =
         previousIdx >= 0 ? state.items[previousIdx].status : null;
 
-    await fetch(showLoading: false);
+    final ok = await fetch(showLoading: false);
 
-    if (isClosed) return;
-    if (state.hasError) return;
+    if (isClosed || !ok) return;
 
     final newIdx = state.items.indexWhere((e) => e.beaconId == beaconId);
     if (newIdx < 0) return;
@@ -141,7 +153,7 @@ class InboxCubit extends Cubit<InboxState> {
     );
   }
 
-  Future<void> fetch({bool showLoading = true}) async {
+  Future<bool> fetch({bool showLoading = true}) async {
     if (showLoading) {
       emit(state.copyWith(status: StateStatus.isLoading));
     }
@@ -158,8 +170,10 @@ class InboxCubit extends Cubit<InboxState> {
         ),
       );
       _reportInboxActivity();
+      return true;
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
+      return false;
     }
   }
 
@@ -213,7 +227,7 @@ class InboxCubit extends Cubit<InboxState> {
       );
       _reportInboxActivity();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -246,7 +260,7 @@ class InboxCubit extends Cubit<InboxState> {
       );
       _reportInboxActivity();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 }

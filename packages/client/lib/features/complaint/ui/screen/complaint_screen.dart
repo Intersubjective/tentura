@@ -39,22 +39,9 @@ class ComplaintScreen extends StatefulWidget implements AutoRouteWrapper {
   State<ComplaintScreen> createState() => _ComplaintScreenState();
 
   @override
-  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
-    providers: [
-      BlocProvider.value(value: GetIt.I<ScreenCubit>()),
-      BlocProvider(create: (_) => ComplaintCubit(id: id)),
-    ],
-    child: MultiBlocListener(
-      listeners: const [
-        BlocListener<ComplaintCubit, ComplaintState>(
-          listener: commonScreenBlocListener,
-        ),
-        BlocListener<ScreenCubit, ScreenState>(
-          listener: commonScreenBlocListener,
-        ),
-      ],
-      child: this,
-    ),
+  Widget wrappedRoute(BuildContext context) => BlocProvider(
+    create: (_) => ComplaintCubit(id: id),
+    child: this,
   );
 }
 

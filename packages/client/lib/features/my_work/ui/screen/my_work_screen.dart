@@ -38,14 +38,7 @@ class MyWorkScreen extends StatelessWidget implements AutoRouteWrapper {
           return BlocProvider(
             key: ValueKey(accountId),
             create: (_) => MyWorkCubit(userId: accountId),
-            child: MultiBlocListener(
-              listeners: const [
-                BlocListener<MyWorkCubit, MyWorkState>(
-                  listener: commonScreenBlocListener,
-                ),
-              ],
-              child: MyWorkNewStuffReporter(child: this),
-            ),
+            child: MyWorkNewStuffReporter(child: this),
           );
         },
       );

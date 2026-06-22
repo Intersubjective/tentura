@@ -6,6 +6,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
 
@@ -25,9 +27,11 @@ class BeaconCubit extends Cubit<BeaconState> {
     required String profileId,
     BeaconRepository? beaconRepository,
     AuthLocalRepositoryPort? authLocalRepository,
+    UiEffectPort? effects,
   }) : _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _authLocalRepository =
            authLocalRepository ?? GetIt.I<AuthLocalRepositoryPort>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          BeaconState(
            beacons: [],
@@ -43,6 +47,8 @@ class BeaconCubit extends Cubit<BeaconState> {
   final BeaconRepository _beaconRepository;
 
   final AuthLocalRepositoryPort _authLocalRepository;
+
+  final UiEffectPort _effects;
 
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
@@ -86,7 +92,8 @@ class BeaconCubit extends Cubit<BeaconState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 

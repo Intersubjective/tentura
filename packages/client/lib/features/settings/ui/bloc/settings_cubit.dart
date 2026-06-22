@@ -6,6 +6,8 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/auth/domain/use_case/account_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
@@ -29,6 +31,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     AccountCase accountCase,
     PlatformRepositoryPort platformRepository,
     SettingsRepositoryPort settingsRepository,
+    UiEffectPort effects,
   ) async {
     final isIntroEnabled = await settingsRepository.getIsIntroEnabled() ?? true;
     final themeModeName =
@@ -43,6 +46,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       authCubit: authCubit,
       accountCase: accountCase,
       settingsRepository: settingsRepository,
+      effects: effects,
       state: SettingsState(
         introEnabled: isIntroEnabled,
         visibleVersion: await platformRepository.getAppVersion(),
@@ -60,8 +64,10 @@ class SettingsCubit extends Cubit<SettingsState> {
     required this._authCubit,
     required this._accountCase,
     required this._settingsRepository,
+    required UiEffectPort effects,
     SettingsState state = const SettingsState(),
-  }) : super(state);
+  }) : _effects = effects,
+       super(state);
 
   final AuthCase _authCase;
 
@@ -70,6 +76,8 @@ class SettingsCubit extends Cubit<SettingsState> {
   final AccountCase _accountCase;
 
   final SettingsRepositoryPort _settingsRepository;
+
+  final UiEffectPort _effects;
 
   //
   //
@@ -88,7 +96,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       await _settingsRepository.setThemeMode(themeMode.name);
       emit(state.copyWith(themeMode: themeMode));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
     }
   }
 
@@ -102,7 +110,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       await _settingsRepository.setLocalePreference(localePreference);
       emit(state.copyWith(localePreference: localePreference));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
     }
   }
 
@@ -113,7 +121,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       await _settingsRepository.setIsIntroEnabled(isEnabled);
       emit(state.copyWith(introEnabled: isEnabled));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
     }
   }
 

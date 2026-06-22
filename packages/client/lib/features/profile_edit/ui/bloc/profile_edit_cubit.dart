@@ -3,6 +3,8 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
@@ -19,8 +21,10 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
     required Profile profile,
     ImageRepository? imageRepository,
     ProfileRepositoryPort? profileRepository,
+    UiEffectPort? effects,
   }) : _imageRepository = imageRepository ?? GetIt.I<ImageRepository>(),
        _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          ProfileEditState(
            original: profile,
@@ -34,6 +38,15 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
   final ImageRepository _imageRepository;
 
   final ProfileRepositoryPort _profileRepository;
+
+  final UiEffectPort _effects;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   //
   void setDisplayName(String value) =>
@@ -60,7 +73,7 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
       }
     } catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     }
   }
@@ -91,11 +104,12 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
         image: state.image,
       );
       if (!isClosed) {
-        emit(state.copyWith(status: StateIsNavigating.back));
+        _effects.emit(const NavigateBack());
+        emit(state.copyWith(status: const StateIsSuccess()));
       }
     } catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     }
   }

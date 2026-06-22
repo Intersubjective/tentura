@@ -11,6 +11,8 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/message/common_messages.dart';
 
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -62,6 +64,7 @@ class GraphCubit extends Cubit<GraphState> {
     this.helpOffererFocusUserId,
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
+    UiEffectPort? effects,
   }) : _egoNode = UserNode(
          user: me.copyWith(displayName: 'Me', score: 2),
          pinned: true,
@@ -71,6 +74,7 @@ class GraphCubit extends Cubit<GraphState> {
        _graphSource = graphSourceRepository ?? GetIt.I<GraphRepository>(),
        _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          GraphState(
            focus: focus ?? '',
@@ -89,6 +93,8 @@ class GraphCubit extends Cubit<GraphState> {
   final BeaconRepository _beaconRepository;
 
   final ProfileRepositoryPort _profileRepository;
+
+  final UiEffectPort _effects;
 
   /// Resolved viewer role for the help-offerer-path view; null when the cubit
   /// is operating in any other mode (regular forwards graph or MeritRank).
@@ -307,12 +313,7 @@ class GraphCubit extends Cubit<GraphState> {
       _updateGraph(edges);
 
       if (showNoHelpOffererPathMessage) {
-        emit(
-          state.copyWith(
-            status: StateIsMessaging(const NoHelpOffererForwardPathMessage()),
-          ),
-        );
-        emit(state.copyWith(status: StateStatus.isSuccess));
+        _effects.emit(const ShowMessage(NoHelpOffererForwardPathMessage()));
       }
 
       // Recenter on the derived focus node in help-offerer-path mode so the
@@ -343,7 +344,8 @@ class GraphCubit extends Cubit<GraphState> {
         }
       }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 

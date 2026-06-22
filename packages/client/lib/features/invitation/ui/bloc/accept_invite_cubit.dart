@@ -1,3 +1,4 @@
+import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../data/repository/invitation_repository.dart';
@@ -6,6 +7,8 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/data/service/web_redirect.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 import '../../domain/entity/invite_preview.dart';
@@ -19,16 +22,31 @@ export 'accept_invite_state.dart';
 @injectable
 class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   @factoryMethod
-  AcceptInviteCubit(InvitationRepository repository)
-    : _repository = repository,
+  AcceptInviteCubit(
+    InvitationRepository repository,
+    UiEffectPort effects,
+  ) : _repository = repository,
+      _effects = effects,
       super(const AcceptInviteState());
 
   @visibleForTesting
-  AcceptInviteCubit.withPort(InvitationAcceptPort repository)
-    : _repository = repository,
-      super(const AcceptInviteState());
+  AcceptInviteCubit.withPort(
+    InvitationAcceptPort repository, {
+    UiEffectPort? effects,
+  }) : _repository = repository,
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
+       super(const AcceptInviteState());
 
   final InvitationAcceptPort _repository;
+
+  final UiEffectPort _effects;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   Future<void> start(String rawCode) async {
     final code = rawCode.trim();
@@ -43,7 +61,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     } on InvitationAuthLost {
       _bounceUnauthenticated(code);
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -64,7 +82,7 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
     } on InvitationAuthLost {
       _bounceUnauthenticated(code);
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -101,18 +119,21 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   }
 
   void _finishWithMessage(LocalizableMessage message) {
+    _effects.emit(ShowMessage(message));
+    _effects.emit(const NavigateReplace(NavigateReplaceTarget.home));
     emit(
       state.copyWith(
-        status: StateIsMessaging(message),
+        status: const StateIsSuccess(),
         pendingInviter: null,
       ),
     );
   }
 
   void _goHome() {
+    _effects.emit(const NavigateReplace(NavigateReplaceTarget.home));
     emit(
       state.copyWith(
-        status: const StateIsNavigating(kPathHome),
+        status: const StateIsSuccess(),
         pendingInviter: null,
       ),
     );

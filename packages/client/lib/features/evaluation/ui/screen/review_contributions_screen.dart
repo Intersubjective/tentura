@@ -15,7 +15,6 @@ import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.da
 import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
@@ -97,8 +96,7 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
         ),
       ),
       body: SafeArea(
-        child: BlocConsumer<EvaluationCubit, EvaluationState>(
-          listener: commonScreenBlocListener,
+        child: BlocBuilder<EvaluationCubit, EvaluationState>(
           builder: (context, state) {
             if (state.isLoading && state.participants.isEmpty) {
               return const Center(

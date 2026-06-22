@@ -13,8 +13,8 @@ import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
 import '../bloc/state_base.dart';
+import '../effect/ui_effect_dispatcher.dart';
 import '../l10n/l10n.dart';
-import '../message/action_message_base.dart';
 
 const kSpacingSmall = 8.0;
 const kSpacingMedium = 16.0;
@@ -150,46 +150,12 @@ void commonScreenBlocListener(
   bool listenHasErrorState = true,
   String? localeName,
 }) {
-  localeName ??= L10n.of(context)?.localeName;
-  return switch (state.status) {
-    final StateIsNavigating s when listenNavigatingState =>
-      s.path == kPathBack
-          ? context.back()
-          : context.router.pushPath(
-              s.path,
-              includePrefixMatches: true,
-              onFailure: GetIt.I<Logger>().fine,
-            ),
-    final StateIsMessaging s when listenMessagingState => switch (s.message) {
-      final LocalizableActionMessage m => showSnackBar(
-        context,
-        text: m.toL10n(localeName),
-        action: SnackBarAction(
-          label: m.label.toL10n(localeName),
-          onPressed: m.onPressed,
-        ),
-      ),
-      final LocalizableMessage m => showSnackBar(
-        context,
-        text: m.toL10n(localeName),
-      ),
-    },
-    final StateHasError s when listenHasErrorState =>
-      switch (s.error) {
-        AuthSessionLostException() => GetIt.I<AuthCubit>().noteAuthSessionLoss(
-          s.error,
-        ),
-        final Localizable e => showSnackBar(
-          context,
-          isError: true,
-          text: e.toL10n(localeName),
-        ),
-        final Object e => showSnackBar(
-          context,
-          isError: true,
-          text: e.toString(),
-        ),
-      },
-    _ => null,
-  };
+  dispatchStateBaseEffects(
+    context,
+    state,
+    listenNavigatingState: listenNavigatingState,
+    listenMessagingState: listenMessagingState,
+    listenHasErrorState: listenHasErrorState,
+    localeName: localeName,
+  );
 }

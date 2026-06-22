@@ -9,6 +9,9 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/features/auth/domain/use_case/account_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
+
 import '../../domain/port/profile_repository_port.dart';
 import 'profile_state.dart';
 
@@ -24,7 +27,9 @@ class ProfileCubit extends Cubit<ProfileState> {
     required this._accountCase,
     required AuthCase authCase,
     required ProfileRepositoryPort profileRepository,
+    required UiEffectPort effects,
   }) : _profileRepository = profileRepository,
+       _effects = effects,
        super(const ProfileState()) {
     _authChanges = authCase.currentAccountChanges().listen(
       _onAuthChanges,
@@ -39,6 +44,8 @@ class ProfileCubit extends Cubit<ProfileState> {
   final AccountCase _accountCase;
 
   final ProfileRepositoryPort _profileRepository;
+
+  final UiEffectPort _effects;
 
   late final StreamSubscription<String> _authChanges;
 
@@ -64,7 +71,8 @@ class ProfileCubit extends Cubit<ProfileState> {
       final profile = await _profileRepository.fetchById(state.profile.id);
       emit(ProfileState(profile: profile));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 
@@ -74,9 +82,11 @@ class ProfileCubit extends Cubit<ProfileState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _profileRepository.delete(state.profile.id);
-      emit(const ProfileState(status: StateIsNavigating(kPathSignIn)));
+      _effects.emit(NavigatePush(kPathSignIn));
+      emit(const ProfileState());
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 

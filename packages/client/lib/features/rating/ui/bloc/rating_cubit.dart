@@ -1,8 +1,12 @@
 import 'dart:async';
 
+import 'package:get_it/get_it.dart';
+
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../data/repository/rating_repository.dart';
 import 'rating_state.dart';
@@ -15,23 +19,27 @@ class RatingCubit extends Cubit<RatingState> {
   RatingCubit({
     String initialContext = '',
     RatingRepository? repository,
+    UiEffectPort? effects,
   }) : _repository = repository ?? GetIt.I<RatingRepository>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(const RatingState()) {
     unawaited(fetch(initialContext));
   }
 
   final RatingRepository _repository;
 
-  void showProfile(String id) => emit(
-    state.copyWith(
-      status: StateIsNavigating('$kPathProfileView/$id'),
-    ),
-  );
+  final UiEffectPort _effects;
 
-  /// Call from the screen listener after navigation is handled, so later
-  /// `copyWith` updates (sort, search, etc.) do not keep re-firing navigation.
-  void clearNavigationIntent() {
-    if (state.isNavigating) {
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: StateStatus.isSuccess));
+    }
+  }
+
+  void showProfile(String id) {
+    _effects.emit(NavigatePush('$kPathProfileView/$id'));
+    if (!isClosed) {
       emit(state.copyWith(status: StateStatus.isSuccess));
     }
   }
@@ -59,11 +67,7 @@ class RatingCubit extends Cubit<RatingState> {
       );
       _sort();
     } catch (e) {
-      emit(
-        state.copyWith(
-          status: StateHasError(e),
-        ),
-      );
+      _emitSnackError(e);
     }
   }
 

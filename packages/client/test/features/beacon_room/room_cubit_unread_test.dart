@@ -18,6 +18,8 @@ import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.
 import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
+
+import '../../ui/effect/fake_ui_effect_port.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -147,6 +149,7 @@ RoomCubit _roomCubit(_FakeBeaconRoomRepository fakeRoom) => RoomCubit(
       beaconId: _kBeaconId,
       beaconRoomCase: _makeCase(fakeRoom),
       coordinationItemRoomSync: _testItemSync,
+      effects: FakeUiEffectPort(),
     );
 
 /// Creates a [BeaconRoomCase] backed by [fakeRoom] and minimal stubs.
@@ -244,6 +247,7 @@ void main() {
         beaconId: _kBeaconId,
         beaconRoomCase: case_,
         coordinationItemRoomSync: _testItemSync,
+        effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
 
@@ -297,6 +301,7 @@ void main() {
         beaconId: _kBeaconId,
         beaconRoomCase: case_,
         coordinationItemRoomSync: _testItemSync,
+        effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
 

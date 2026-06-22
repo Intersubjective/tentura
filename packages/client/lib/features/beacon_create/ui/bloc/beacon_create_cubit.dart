@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 
 import 'package:get_it/get_it.dart';
+import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/data/repository/image_repository.dart';
@@ -10,6 +11,8 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
@@ -28,8 +31,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     BeaconRepository? beaconRepository,
     String? draftBeaconIdToLoad,
     String? editBeaconIdToLoad,
+    UiEffectPort? effects,
   }) : _beaconRepository = beaconRepository ?? GetIt.I<BeaconRepository>(),
        _imageRepository = imageRepository ?? GetIt.I<ImageRepository>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          BeaconCreateState(
            status:
@@ -51,6 +56,29 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   final ImageRepository _imageRepository;
 
+  final UiEffectPort _effects;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
+
+  void _emitSnackMessage(LocalizableMessage message) {
+    _effects.emit(ShowMessage(message));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
+
+  void _emitNavigateBack() {
+    _effects.emit(const NavigateBack());
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
+
   static const kNeedSummaryHardMax = 280;
 
   static const kNeedSummaryPublishMin = 16;
@@ -70,13 +98,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     try {
       final beacon = await _beaconRepository.fetchBeaconById(id);
       if (beacon.lifecycle != BeaconLifecycle.draft) {
-        emit(
-          state.copyWith(
-            status: StateHasError(
-              Exception('Beacon is not a draft'),
-            ),
-          ),
-        );
+        _emitSnackError(Exception('Beacon is not a draft'));
         return;
       }
 
@@ -112,7 +134,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
       validate();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -121,13 +143,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     try {
       final beacon = await _beaconRepository.fetchBeaconById(id);
       if (beacon.lifecycle != BeaconLifecycle.open) {
-        emit(
-          state.copyWith(
-            status: StateHasError(
-              Exception('Only open beacons can be edited'),
-            ),
-          ),
-        );
+        _emitSnackError(Exception('Only open beacons can be edited'));
         return;
       }
 
@@ -162,7 +178,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
       validate();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -248,7 +264,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         emit(state.copyWith(images: combined));
       }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -383,10 +399,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
               for (final img in refreshed.images)
                 if (img.id.isNotEmpty) img.id,
             },
-            status: StateIsMessaging(const DraftSavedMessage()),
+            status: const StateIsSuccess(),
           ),
         );
-        emit(state.copyWith(status: const StateIsSuccess()));
+        _emitSnackMessage(const DraftSavedMessage());
       } else {
         final id = state.draftId!;
         await _syncDraftServerImages(id);
@@ -398,13 +414,13 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
               for (final img in updated.images)
                 if (img.id.isNotEmpty) img.id,
             },
-            status: StateIsMessaging(const DraftSavedMessage()),
+            status: const StateIsSuccess(),
           ),
         );
-        emit(state.copyWith(status: const StateIsSuccess()));
+        _emitSnackMessage(const DraftSavedMessage());
       }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -447,11 +463,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             for (final img in updated.images)
               if (img.id.isNotEmpty) img.id,
           },
-          status: StateIsNavigating.back,
+          status: const StateIsSuccess(),
         ),
       );
+      _emitNavigateBack();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -476,11 +493,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   ///
   Future<void> publish({required String context}) async {
     if (state.needSummary.trim().length < kNeedSummaryPublishMin) {
-      return emit(
-        state.copyWith(
-          status: StateHasError(const BeaconNeedSummaryTooShortException()),
-        ),
-      );
+      _emitSnackError(const BeaconNeedSummaryTooShortException());
+      return;
     }
 
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -493,16 +507,15 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         await _syncDraftServerImages(id);
         await _beaconRepository.updateDraft(beaconPayload);
         await _beaconRepository.publishDraft(id);
-        emit(
-          state.copyWith(
-            status: StateIsMessaging(
-              BeaconCreatedMessage(
-                onPressed: () => GetIt.I<ScreenCubit>().showBeacon(id),
-              ),
+        emit(state.copyWith(status: const StateIsSuccess()));
+        _effects.emit(
+          ShowMessage(
+            BeaconCreatedMessage(
+              onPressed: () => GetIt.I<ScreenCubit>().showBeacon(id),
             ),
           ),
         );
-        emit(state.copyWith(status: StateIsNavigating.back));
+        _emitNavigateBack();
       } else {
         final iconCode = state.iconCode?.trim();
         final hasIcon = iconCode != null && iconCode.isNotEmpty;
@@ -527,19 +540,18 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             iconBackground: hasIcon ? state.iconBackground : null,
           ),
         );
-        emit(
-          state.copyWith(
-            status: StateIsMessaging(
-              BeaconCreatedMessage(
-                onPressed: () => GetIt.I<ScreenCubit>().showBeacon(beacon.id),
-              ),
+        emit(state.copyWith(status: const StateIsSuccess()));
+        _effects.emit(
+          ShowMessage(
+            BeaconCreatedMessage(
+              onPressed: () => GetIt.I<ScreenCubit>().showBeacon(beacon.id),
             ),
           ),
         );
-        emit(state.copyWith(status: StateIsNavigating.back));
+        _emitNavigateBack();
       }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 }

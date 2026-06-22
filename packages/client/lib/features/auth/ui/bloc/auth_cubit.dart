@@ -4,12 +4,17 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_root/domain/entity/localizable.dart';
+
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/exception/user_input_exception.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/message/common_messages.dart';
+
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
@@ -36,6 +41,7 @@ class AuthCubit extends Cubit<AuthState> {
     AuthCase authCase,
     AccountCase accountCase,
     ProfileRepositoryPort profileRepository,
+    UiEffectPort effects,
   ) async {
     final accounts = await accountCase.getAccountsAll();
     final cubit = AuthCubit._(
@@ -43,6 +49,7 @@ class AuthCubit extends Cubit<AuthState> {
       authCase,
       accountCase,
       profileRepository,
+      effects,
       AuthState(
         accounts: accounts..sort(_compareAccounts),
         updatedAt: DateTime.timestamp(),
@@ -61,6 +68,7 @@ class AuthCubit extends Cubit<AuthState> {
     this._authCase,
     this._accountCase,
     ProfileRepositoryPort profileRepository,
+    this._effects,
     AuthState state,
   ) : super(state) {
     _authChanges = _authCase.currentAccountChanges().listen(
@@ -79,6 +87,8 @@ class AuthCubit extends Cubit<AuthState> {
 
   final AccountCase _accountCase;
 
+  final UiEffectPort _effects;
+
   late final StreamSubscription<String> _authChanges;
 
   late final StreamSubscription<RepositoryEvent<Profile>> _profileChanges;
@@ -88,6 +98,20 @@ class AuthCubit extends Cubit<AuthState> {
   String? _pendingSuppressedAccountId;
 
   String get inviteEmail => _env.inviteEmail;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
+
+  void _emitSnackMessage(LocalizableMessage message) {
+    _effects.emit(ShowMessage(message));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   @disposeMethod
   Future<void> dispose() async {
@@ -196,7 +220,7 @@ class AuthCubit extends Cubit<AuthState> {
           ),
         );
       } catch (e) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     });
   }
@@ -217,7 +241,7 @@ class AuthCubit extends Cubit<AuthState> {
           ),
         );
       } catch (e) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     });
   }
@@ -277,17 +301,13 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       final code = await _accountCase.getCodeFromClipboard(prefix: 'I');
       if (code.isEmpty) {
-        emit(
-          state.copyWith(
-            status: StateIsMessaging(const NoValidCodeMessage()),
-          ),
-        );
+        _emitSnackMessage(const NoValidCodeMessage());
       } else {
         return code;
       }
     } catch (e) {
       if (!supressError) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     }
     return '';
@@ -325,7 +345,7 @@ class AuthCubit extends Cubit<AuthState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -350,7 +370,7 @@ class AuthCubit extends Cubit<AuthState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -362,18 +382,12 @@ class AuthCubit extends Cubit<AuthState> {
     String? handle,
   }) async {
     if (_env.needInviteCode && invitationCode.length < kIdLength) {
-      return emit(
-        state.copyWith(
-          status: StateHasError(const InvitationCodeIsWrongException()),
-        ),
+      return _effects.emit(
+        const ShowError(InvitationCodeIsWrongException()),
       );
     }
     if (displayName.length < kTitleMinLength) {
-      return emit(
-        state.copyWith(
-          status: StateHasError(const TitleTooShortException()),
-        ),
-      );
+      return _effects.emit(const ShowError(TitleTooShortException()));
     }
 
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -396,7 +410,7 @@ class AuthCubit extends Cubit<AuthState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -419,7 +433,7 @@ class AuthCubit extends Cubit<AuthState> {
     } on AuthSessionLostException catch (e) {
       noteAuthSessionLoss(e);
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -442,7 +456,7 @@ class AuthCubit extends Cubit<AuthState> {
           ),
         );
       } catch (e) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
       _authCase.logger.fine('Sign out');
     });
@@ -469,7 +483,7 @@ class AuthCubit extends Cubit<AuthState> {
           ),
         );
       } catch (e) {
-        emit(state.copyWith(status: StateHasError(e)));
+        _emitSnackError(e);
       }
     });
   }
@@ -480,7 +494,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       await addAccount(await _accountCase.getSeedFromClipboard());
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -547,7 +561,7 @@ class AuthCubit extends Cubit<AuthState> {
             ),
           );
         } catch (e) {
-          emit(state.copyWith(status: StateHasError(e)));
+          _emitSnackError(e);
         }
 
       case RepositoryEventCreate<Profile>():
