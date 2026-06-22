@@ -56,7 +56,7 @@ You are operating in a loop. Each invocation must complete **exactly one task** 
 - [x] TASK-15: `BeaconViewScreen` — replace `ListTile(dense: true)` in the status bottom sheet with standard-density tiles (≥ 48 dp); verify all touch targets
 - [x] TASK-16: `beacon_color_selector.dart` — increase swatch tap targets from 36×36 dp to ≥ 48 dp (add `InkWell` padding or `ConstrainedBox`)
 - [x] TASK-17: `beacon_overflow_menu.dart` — increase `BeaconOverflowMenu` to ≥ 48 dp minimum tap target and add a `tooltip` to the button
-- [ ] TASK-18: `RatingScreen` — add `leading: AutoLeadingButton()` (or `AutoLeadingWithFallback`) so the screen has a back affordance when pushed
+- [x] TASK-18: `RatingScreen` — add `leading: AutoLeadingButton()` (or `AutoLeadingWithFallback`) so the screen has a back affordance when pushed
 - [ ] TASK-19: `FriendsScreen` — add a loading indicator and an empty/error state to the Friends tab body during fetch (currently only the Invites tab has this)
 - [ ] TASK-20: `HomeScreen` — add a `selectedIcon` to the Profile `NavigationRailDestination` so it has a selected visual state matching other rail destinations
 - [ ] TASK-21: `account_list_tile.dart` — add `tooltip` and `semanticLabel` to the `PopupMenuButton` in `AccountListTile`
