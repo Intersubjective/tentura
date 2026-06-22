@@ -117,10 +117,17 @@ class SettingsCubit extends Cubit<SettingsState> {
   //
   //
   Future<void> setIntroEnabled(bool isEnabled) async {
+    emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _settingsRepository.setIsIntroEnabled(isEnabled);
-      emit(state.copyWith(introEnabled: isEnabled));
+      emit(
+        state.copyWith(
+          introEnabled: isEnabled,
+          status: const StateIsSuccess(),
+        ),
+      );
     } catch (e) {
+      emit(state.copyWith(status: const StateIsSuccess()));
       _effects.emit(ShowError(e));
     }
   }
