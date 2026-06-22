@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
@@ -760,14 +760,7 @@ class BeaconNeedSectionBody extends StatelessWidget {
     final ns = beacon.needSummary?.trim() ?? '';
     final sc = beacon.successCriteria?.trim();
 
-    final requirementTags = <CapabilityTag>[];
-    for (final slug in beacon.needs) {
-      final tag = CapabilityTag.fromSlug(slug);
-      if (tag != null) {
-        requirementTags.add(tag);
-      }
-    }
-    requirementTags.sort((a, b) => a.slug.compareTo(b.slug));
+    final requirementTags = resolveCapabilityRequirementTags(beacon.needs);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -786,26 +779,7 @@ class BeaconNeedSectionBody extends StatelessWidget {
         ],
         if (requirementTags.isNotEmpty) ...[
           SizedBox(height: context.tt.rowGap),
-          Text(
-            l10n.beaconRequirementsSubheading,
-            style: theme.textTheme.titleSmall!.copyWith(
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              for (final tag in requirementTags)
-                Chip(
-                  avatar: Icon(tag.icon, size: 18),
-                  label: Text(tag.labelOf(l10n)),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-            ],
-          ),
+          CapabilityRequirementTags(tags: requirementTags),
         ],
       ],
     );

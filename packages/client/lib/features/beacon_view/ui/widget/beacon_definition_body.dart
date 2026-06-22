@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 import 'package:tentura/features/geo/ui/widget/place_name_text.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -34,7 +34,7 @@ class BeaconDefinitionBody extends StatelessWidget {
 
     final needText = beacon.needSummary?.trim() ?? '';
     final doneWhen = beacon.successCriteria?.trim();
-    final requirementTags = _requirementTags(beacon);
+    final requirementTags = resolveCapabilityRequirementTags(beacon.needs);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -118,19 +118,7 @@ class BeaconDefinitionBody extends StatelessWidget {
         ],
         if (requirementTags.isNotEmpty) ...[
           SizedBox(height: tt.rowGap / 2),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: [
-              for (final tag in requirementTags)
-                Chip(
-                  avatar: Icon(tag.icon, size: 18),
-                  label: Text(tag.labelOf(l10n)),
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-            ],
-          ),
+          CapabilityRequirementTags(tags: requirementTags),
         ],
         if (beacon.hasPicture) ...[
           SizedBox(height: tt.rowGap),
@@ -187,17 +175,6 @@ class BeaconDefinitionBody extends StatelessWidget {
     );
   }
 
-  static List<CapabilityTag> _requirementTags(Beacon beacon) {
-    final tags = <CapabilityTag>[];
-    for (final slug in beacon.needs) {
-      final tag = CapabilityTag.fromSlug(slug);
-      if (tag != null) {
-        tags.add(tag);
-      }
-    }
-    tags.sort((a, b) => a.slug.compareTo(b.slug));
-    return tags;
-  }
 }
 
 class _BeaconDefinitionMediaBand extends StatelessWidget {
