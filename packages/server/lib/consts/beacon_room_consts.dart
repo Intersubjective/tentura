@@ -63,6 +63,9 @@ const kMaxRoomMessageAttachments = 10;
 /// Max upload size per attachment (bytes).
 const kMaxRoomMessageAttachmentBytes = 10 * 1024 * 1024;
 
+/// Max length for beacon room `currentLine` (HUD NOW row + plan sync).
+const kBeaconRoomCurrentLineMaxLength = 60;
+
 /// `beacon_participant.room_access`.
 abstract final class RoomAccessBits {
   static const none = 0;

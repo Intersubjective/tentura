@@ -10,7 +10,6 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
-import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -78,7 +77,7 @@ void main() {
     expect(stripY, lessThan(nowY));
   });
 
-  testWidgets('NOW edit and detail taps are independent', (tester) async {
+  testWidgets('NOW edit works and row body is not tappable', (tester) async {
     final beacon = Beacon(
       id: 'b-hud-tap',
       title: 'Beacon HUD',
@@ -91,7 +90,6 @@ void main() {
       myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
     );
 
-    var detailTaps = 0;
     var editTaps = 0;
 
     await tester.pumpWidget(
@@ -107,7 +105,6 @@ void main() {
               body: BeaconOperationalHeaderCard(
                 state: state,
                 onAuthorTap: () {},
-                onShowNowDetail: () => detailTaps++,
                 onEditNowLine: () => editTaps++,
               ),
             ),
@@ -120,11 +117,9 @@ void main() {
     await tester.tap(find.byIcon(Icons.edit_outlined));
     await tester.pumpAndSettle();
     expect(editTaps, 1);
-    expect(detailTaps, 0);
 
     await tester.tap(find.byIcon(BeaconHudRowIcons.now));
     await tester.pumpAndSettle();
-    expect(detailTaps, 1);
     expect(editTaps, 1);
   });
 }

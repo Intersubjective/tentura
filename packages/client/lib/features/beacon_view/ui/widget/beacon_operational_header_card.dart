@@ -31,7 +31,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onOpenReview,
     this.onOpenLogTab,
     this.onEditNowLine,
-    this.onShowNowDetail,
     this.onOpenItemDiscussion,
     super.key,
   });
@@ -66,9 +65,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   /// Edit room current line (NOW row).
   final VoidCallback? onEditNowLine;
 
-  /// Opens NOW detail bottom sheet.
-  final VoidCallback? onShowNowDetail;
-
   /// Opens an item discussion thread (YOU sheet Reply action).
   final void Function(CoordinationItem item)? onOpenItemDiscussion;
 
@@ -96,7 +92,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               state: state,
               onFacePileTap: onSwitchToPeopleTab,
               onEditNowLine: onEditNowLine,
-              onShowNowDetail: onShowNowDetail,
             ),
           ),
           if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen)

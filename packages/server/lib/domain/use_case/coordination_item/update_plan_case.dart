@@ -8,6 +8,7 @@ import 'package:tentura_server/data/database/tentura_db.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 
 import 'coordination_room_access.dart';
 import '../_use_case_base.dart';
@@ -39,6 +40,12 @@ final class UpdatePlanCase extends UseCaseBase {
     final trimmed = title.trim();
     if (trimmed.isEmpty) {
       throw const BeaconCreateException(description: 'Plan text is required');
+    }
+    if (trimmed.length > kBeaconRoomCurrentLineMaxLength) {
+      throw BeaconCreateException(
+        description:
+            'Plan text must be at most $kBeaconRoomCurrentLineMaxLength characters',
+      );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.allowsCoordination) {

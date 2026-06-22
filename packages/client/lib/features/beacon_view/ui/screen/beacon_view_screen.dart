@@ -37,7 +37,6 @@ import '../bloc/beacon_view_cubit.dart';
 import '../dialog/help_offer_message_dialog.dart';
 import '../widget/activity_list.dart';
 import '../widget/beacon_current_line_sheet.dart';
-import '../widget/beacon_now_detail_sheet.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
 import '../widget/beacon_operational_header_card.dart';
 import '../util/beacon_hud_derivation.dart';
@@ -1467,32 +1466,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                             ),
                           )
                         : null,
-                    onShowNowDetail: () => unawaited(
-                      showBeaconNowDetailSheet(
-                        context,
-                        model: beaconNowDetailModelFromViewState(
-                          l10n,
-                          state,
-                          canEdit: state.canCoordinateInBeaconRoom,
-                          onEdit: state.canCoordinateInBeaconRoom
-                              ? () => unawaited(
-                                    showBeaconCurrentLineSheet(
-                                      context,
-                                      beaconId: beaconId,
-                                      initialText:
-                                          state.beaconRoomCue?.currentLine ??
-                                              '',
-                                      onSaved: (line) => unawaited(
-                                        beaconViewCubit.refreshBeaconRoomCue(
-                                          savedCurrentLine: line,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                              : null,
-                        ),
-                      ),
-                    ),
                   ),
                 ),
               ),

@@ -22,7 +22,6 @@ import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_now_detail_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_ask_sheet.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
@@ -208,27 +207,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                               _showPlanUpdateSheet(context, cubit, l10n),
                             )
                         : null,
-                    onShowDetail: () => unawaited(
-                      showBeaconNowDetailSheet(
-                        context,
-                        model: beaconNowDetailModelFromRoom(
-                          l10n,
-                          roomState: state.roomState,
-                          openCoordinationBlocker:
-                              state.openCoordinationBlocker,
-                          canEdit: _roomCanCreatePromise(cubit),
-                          onEdit: _roomCanCreatePromise(cubit)
-                              ? () => unawaited(
-                                    _showPlanUpdateSheet(
-                                      context,
-                                      cubit,
-                                      l10n,
-                                    ),
-                                  )
-                              : null,
-                        ),
-                      ),
-                    ),
                   )
                 : null,
             messages: state.messages,
@@ -651,6 +629,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         title: l10n.beaconRoomActionUpdatePlan,
         hintText: l10n.beaconRoomStripCurrentLineLabel,
         initialText: cubit.state.roomState?.currentLine ?? '',
+        maxLength: kBeaconRoomCurrentLineMaxLength,
       ),
     );
     if (plan == null || !context.mounted) return;
@@ -1281,11 +1260,13 @@ class _BeaconRoomTextBottomSheet extends StatefulWidget {
     required this.title,
     required this.hintText,
     this.initialText = '',
+    this.maxLength,
   });
 
   final String title;
   final String hintText;
   final String initialText;
+  final int? maxLength;
 
   @override
   State<_BeaconRoomTextBottomSheet> createState() =>
@@ -1328,8 +1309,9 @@ class _BeaconRoomTextBottomSheetState extends State<_BeaconRoomTextBottomSheet> 
           const SizedBox(height: kSpacingSmall),
           TextField(
             controller: _controller,
-            maxLines: 6,
-            minLines: 3,
+            maxLines: widget.maxLength != null ? 2 : 6,
+            minLines: widget.maxLength != null ? 1 : 3,
+            maxLength: widget.maxLength,
             decoration: InputDecoration(
               hintText: widget.hintText,
             ),
@@ -1492,12 +1474,10 @@ class _PinnedNowRow extends StatelessWidget {
   const _PinnedNowRow({
     required this.state,
     this.onEdit,
-    this.onShowDetail,
   });
 
   final RoomState state;
   final VoidCallback? onEdit;
-  final VoidCallback? onShowDetail;
 
   @override
   Widget build(BuildContext context) {
@@ -1537,8 +1517,8 @@ class _PinnedNowRow extends StatelessWidget {
                 isPlaceholder: nowDisplay.isPlaceholder,
                 onEdit: onEdit,
                 editSemanticLabel: l10n.beaconHudEditNowLine,
-                onShowDetail: onShowDetail,
-                showDetailSemanticLabel: l10n.beaconHudNowLabel,
+                primaryMaxLines: 1,
+                showTruncationHint: false,
               ),
             ),
           ),

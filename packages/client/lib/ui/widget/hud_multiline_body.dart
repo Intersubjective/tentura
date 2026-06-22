@@ -10,6 +10,8 @@ class HudMultilineBody extends StatelessWidget {
     required this.mutedColor,
     this.subline,
     this.isPlaceholder = false,
+    this.primaryMaxLines = defaultPrimaryMaxLines,
+    this.showTruncationHint = true,
     super.key,
   });
 
@@ -17,8 +19,10 @@ class HudMultilineBody extends StatelessWidget {
   final String? subline;
   final Color mutedColor;
   final bool isPlaceholder;
+  final int primaryMaxLines;
+  final bool showTruncationHint;
 
-  static const int primaryMaxLines = 2;
+  static const int defaultPrimaryMaxLines = 2;
 
   @override
   Widget build(BuildContext context) {
@@ -33,12 +37,13 @@ class HudMultilineBody extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final exceeds = HudMultilineLayout.textExceedsMaxLines(
-          text: text,
-          style: primaryStyle,
-          maxWidth: constraints.maxWidth,
-          maxLines: primaryMaxLines,
-        );
+        final exceeds = showTruncationHint &&
+            HudMultilineLayout.textExceedsMaxLines(
+              text: text,
+              style: primaryStyle,
+              maxWidth: constraints.maxWidth,
+              maxLines: primaryMaxLines,
+            );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

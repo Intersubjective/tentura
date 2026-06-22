@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -53,8 +54,9 @@ Future<void> showBeaconCurrentLineSheet(
                       hintText: l10n.beaconRoomStripCurrentLineLabel,
                     ),
                     onChanged: (_) => setState(() {}),
-                    maxLines: 6,
-                    minLines: 3,
+                    maxLength: kBeaconRoomCurrentLineMaxLength,
+                    maxLines: 2,
+                    minLines: 1,
                     textInputAction: TextInputAction.done,
                     enabled: !submitting,
                     autofocus: true,
