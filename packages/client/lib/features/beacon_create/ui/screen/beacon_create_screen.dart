@@ -4,7 +4,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
@@ -44,17 +43,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
         ),
       ),
     ],
-    child: MultiBlocListener(
-      listeners: const [
-        BlocListener<ContextCubit, ContextState>(
-          listener: commonScreenBlocListener,
-        ),
-        BlocListener<BeaconCreateCubit, BeaconCreateState>(
-          listener: commonScreenBlocListener,
-        ),
-      ],
-      child: this,
-    ),
+    child: this,
   );
 }
 

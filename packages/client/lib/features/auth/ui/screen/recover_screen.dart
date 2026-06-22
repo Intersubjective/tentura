@@ -42,10 +42,7 @@ class RecoverScreen extends StatefulWidget implements AutoRouteWrapper {
           }
         }
       },
-      child: BlocListener<AuthCubit, AuthState>(
-        listener: commonScreenBlocListener,
-        child: this,
-      ),
+      child: this,
     );
   }
 

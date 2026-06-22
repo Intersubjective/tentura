@@ -28,11 +28,7 @@ class AuthRegisterScreen extends StatefulWidget implements AutoRouteWrapper {
   State<AuthRegisterScreen> createState() => _AuthRegisterScreenState();
 
   @override
-  Widget wrappedRoute(BuildContext context) =>
-      BlocListener<ScreenCubit, ScreenState>(
-        listener: commonScreenBlocListener,
-        child: this,
-      );
+  Widget wrappedRoute(BuildContext context) => this;
 }
 
 class _AuthRegisterScreenState extends State<AuthRegisterScreen>

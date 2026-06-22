@@ -7,6 +7,9 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
+
 import 'like_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,6 +22,7 @@ class LikeCubit extends Cubit<LikeState> {
   LikeCubit(
     AuthCase authCase,
     this._likeRemoteRepository,
+    this._effects,
   ) : super(
         LikeState(
           likes: {},
@@ -36,6 +40,8 @@ class LikeCubit extends Cubit<LikeState> {
   }
 
   final LikeRemoteRepository _likeRemoteRepository;
+
+  final UiEffectPort _effects;
 
   late final StreamSubscription<String> _authChanges;
 
@@ -59,11 +65,7 @@ class LikeCubit extends Cubit<LikeState> {
         amount: (state.likes[entity.id] ?? entity.votes) + 1,
       );
     } catch (e) {
-      emit(
-        state.copyWith(
-          status: StateHasError(e),
-        ),
-      );
+      _effects.emit(ShowError(e));
     }
   }
 
@@ -76,11 +78,7 @@ class LikeCubit extends Cubit<LikeState> {
         amount: (state.likes[entity.id] ?? entity.votes) - 1,
       );
     } catch (e) {
-      emit(
-        state.copyWith(
-          status: StateHasError(e),
-        ),
-      );
+      _effects.emit(ShowError(e));
     }
   }
 

@@ -7,7 +7,6 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/data/service/web_redirect.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/accept_invite_cubit.dart';
 import '../dialog/invitation_accept_dialog.dart';
@@ -46,14 +45,9 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
   @override
   Widget build(BuildContext context) => BlocConsumer<AcceptInviteCubit, AcceptInviteState>(
     listener: (context, state) {
-      commonScreenBlocListener(context, state);
       if (state.needsConfirmation && !_confirmStarted) {
         _confirmStarted = true;
         unawaited(_runConfirmation(context, state));
-        return;
-      }
-      if (state.status is StateIsMessaging) {
-        unawaited(_replaceHome(context));
         return;
       }
       if (state.status is StateIsNavigating) {
@@ -97,10 +91,6 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
     AcceptInviteState state,
   ) async {
     final path = (state.status as StateIsNavigating).path;
-    if (path == kPathHome) {
-      await _replaceHome(context);
-      return;
-    }
     if (path.startsWith(kPathSignUp)) {
       if (goToLanding(invitePath: '/invite/${state.code}')) {
         return;
@@ -112,12 +102,5 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
         AuthRegisterRoute(id: state.code),
       ]);
     }
-  }
-
-  Future<void> _replaceHome(BuildContext context) async {
-    if (!context.mounted) {
-      return;
-    }
-    await context.router.replaceAll([const HomeRoute()]);
   }
 }

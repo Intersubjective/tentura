@@ -11,7 +11,6 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 
 import '../bloc/inbox_cubit.dart';
-import '../message/inbox_messages.dart';
 import '../widget/inbox_item_tile.dart';
 
 @RoutePage()
@@ -30,17 +29,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
             unawaited(cubit.fetch());
             return cubit;
           },
-          child: BlocListener<InboxCubit, InboxState>(
-            listener: (context, state) {
-              final s = state.status;
-              if (s is StateIsMessaging &&
-                  s.message is InboxBeaconMovedMessage) {
-                return;
-              }
-              commonScreenBlocListener(context, state);
-            },
-            child: this,
-          ),
+          child: this,
         ),
       );
 

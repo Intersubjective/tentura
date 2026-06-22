@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/domain/exception/credential_exception.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/use_case/credentials_case.dart';
 import 'credentials_state.dart';
@@ -16,12 +19,28 @@ class CredentialsCubit extends Cubit<CredentialsState> {
   CredentialsCubit(
     this._case,
     this._platformRepository,
+    this._effects,
   ) : super(CredentialsState(updatedAt: DateTime.timestamp())) {
     unawaited(fetch());
   }
 
   final CredentialsCase _case;
   final PlatformRepositoryPort _platformRepository;
+  final UiEffectPort _effects;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
+
+  void _emitSnackMessage(LocalizableMessage message) {
+    _effects.emit(ShowMessage(message));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   Future<void> fetch() async {
     emit(state.copyWith(status: StateStatus.isLoading));
@@ -35,7 +54,7 @@ class CredentialsCubit extends Cubit<CredentialsState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -45,7 +64,7 @@ class CredentialsCubit extends Cubit<CredentialsState> {
       await _case.remove(id);
       await fetch();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(_case.mapRemoveError(e))));
+      _emitSnackError(_case.mapRemoveError(e));
     }
   }
 
@@ -55,14 +74,10 @@ class CredentialsCubit extends Cubit<CredentialsState> {
     try {
       final seed = await _case.linkRecoverySeed();
       await fetch();
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(const CredentialLinkedMessage('seed')),
-        ),
-      );
+      _emitSnackMessage(const CredentialLinkedMessage('seed'));
       return seed;
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(_case.mapLinkError(e))));
+      _emitSnackError(_case.mapLinkError(e));
       return null;
     }
   }
@@ -72,13 +87,9 @@ class CredentialsCubit extends Cubit<CredentialsState> {
     try {
       await _case.linkGoogleNative();
       await fetch();
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(const CredentialLinkedMessage('google')),
-        ),
-      );
+      _emitSnackMessage(const CredentialLinkedMessage('google'));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(_case.mapLinkError(e))));
+      _emitSnackError(_case.mapLinkError(e));
     }
   }
 
@@ -89,7 +100,7 @@ class CredentialsCubit extends Cubit<CredentialsState> {
       await _platformRepository.launchUrl(url);
       emit(state.copyWith(status: StateStatus.isSuccess));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(_case.mapLinkError(e))));
+      _emitSnackError(_case.mapLinkError(e));
     }
   }
 
@@ -97,22 +108,14 @@ class CredentialsCubit extends Cubit<CredentialsState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.startEmailLink(email.trim());
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(const CredentialEmailLinkSentMessage()),
-        ),
-      );
+      _emitSnackMessage(const CredentialEmailLinkSentMessage());
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(_case.mapLinkError(e))));
+      _emitSnackError(_case.mapLinkError(e));
     }
   }
 
   void notifyLinkedFromRedirect(String method) {
     unawaited(fetch());
-    emit(
-      state.copyWith(
-        status: StateIsMessaging(CredentialLinkedMessage(method)),
-      ),
-    );
+    _emitSnackMessage(CredentialLinkedMessage(method));
   }
 }

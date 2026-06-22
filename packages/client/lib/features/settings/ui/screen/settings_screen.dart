@@ -16,12 +16,7 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
   const SettingsScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) =>
-      BlocListener<SettingsCubit, SettingsState>(
-        listener: commonScreenBlocListener,
-        bloc: GetIt.I<SettingsCubit>(),
-        child: this,
-      );
+  Widget wrappedRoute(BuildContext context) => this;
 
   Future<void> _confirmResetLocal(BuildContext context, L10n l10n) async {
     final cubit = GetIt.I<SettingsCubit>();

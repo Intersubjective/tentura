@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:get_it/get_it.dart';
+import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/data/service/remote_api_client/graphql_v2_exceptions.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
@@ -9,6 +11,8 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/coordination_item_room_sync.dart';
 import '../../domain/entity/room_seen_outcome.dart';
@@ -28,8 +32,10 @@ class RoomCubit extends Cubit<RoomState> {
     DateTime? initialUnreadAnchorAt,
     BeaconRoomCase? beaconRoomCase,
     CoordinationItemRoomSync? coordinationItemRoomSync,
+    UiEffectPort? effects,
   }) : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
        _itemSync = coordinationItemRoomSync ?? GetIt.I<CoordinationItemRoomSync>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          RoomState(
            beaconId: beaconId,
@@ -51,6 +57,19 @@ class RoomCubit extends Cubit<RoomState> {
   final BeaconRoomCase _case;
 
   final CoordinationItemRoomSync _itemSync;
+
+  final UiEffectPort _effects;
+
+  void _showMessage(LocalizableMessage message) {
+    _effects.emit(ShowMessage(message));
+  }
+
+  void _showSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   late final StreamSubscription<String> _refreshSub;
 
@@ -290,7 +309,11 @@ class RoomCubit extends Cubit<RoomState> {
       }
     } on Object catch (e) {
       if (!isClosed) {
-        emit(state.copyWith(status: StateHasError(e)));
+        if (state.messages.isEmpty) {
+          emit(state.copyWith(status: StateHasError(e)));
+        } else {
+          _showSnackError(e);
+        }
       }
     } finally {
       _loadInProgress = false;
@@ -318,7 +341,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -331,17 +354,10 @@ class RoomCubit extends Cubit<RoomState> {
       (f) => f.sourceMessageId == sourceMessageId,
     ).firstOrNull;
     if (existing != null) {
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(
-            BeaconFactAlreadyPinnedSnackMessage(
-              onOpenFacts: () => emit(
-                state.copyWith(
-                  pendingFactsFocusFactId: existing.id,
-                  status: const StateIsSuccess(),
-                ),
-              ),
-            ),
+      _showMessage(
+        BeaconFactAlreadyPinnedSnackMessage(
+          onOpenFacts: () => emit(
+            state.copyWith(pendingFactsFocusFactId: existing.id),
           ),
         ),
       );
@@ -357,28 +373,17 @@ class RoomCubit extends Cubit<RoomState> {
         sourceMessageId: sourceMessageId,
       );
       await load();
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(const BeaconFactPinSuccessMessage()),
-        ),
-      );
+      _showMessage(const BeaconFactPinSuccessMessage());
     } on BeaconFactAlreadyPinnedRemoteException catch (e) {
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(
-            BeaconFactAlreadyPinnedSnackMessage(
-              onOpenFacts: () => emit(
-                state.copyWith(
-                  pendingFactsFocusFactId: e.factCardId,
-                  status: const StateIsSuccess(),
-                ),
-              ),
-            ),
+      _showMessage(
+        BeaconFactAlreadyPinnedSnackMessage(
+          onOpenFacts: () => emit(
+            state.copyWith(pendingFactsFocusFactId: e.factCardId),
           ),
         ),
       );
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -394,13 +399,9 @@ class RoomCubit extends Cubit<RoomState> {
         newText: newText,
       );
       await load();
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(const BeaconFactEditSuccessMessage()),
-        ),
-      );
+      _showMessage(const BeaconFactEditSuccessMessage());
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -412,13 +413,9 @@ class RoomCubit extends Cubit<RoomState> {
         factCardId: factCardId,
       );
       await load();
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(const BeaconFactRemoveSuccessMessage()),
-        ),
-      );
+      _showMessage(const BeaconFactRemoveSuccessMessage());
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -434,13 +431,9 @@ class RoomCubit extends Cubit<RoomState> {
         visibility: visibility,
       );
       await load();
-      emit(
-        state.copyWith(
-          status: StateIsMessaging(const BeaconFactVisibilitySuccessMessage()),
-        ),
-      );
+      _showMessage(const BeaconFactVisibilitySuccessMessage());
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -465,7 +458,7 @@ class RoomCubit extends Cubit<RoomState> {
       if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -495,14 +488,10 @@ class RoomCubit extends Cubit<RoomState> {
       );
     } on Object catch (e) {
       if (previousMessages != null) {
-        emit(
-          state.copyWith(
-            messages: previousMessages,
-            status: StateHasError(e),
-          ),
-        );
+        emit(state.copyWith(messages: previousMessages));
+        _showSnackError(e);
       } else {
-        emit(state.copyWith(status: StateHasError(e)));
+        _showSnackError(e);
       }
     }
   }
@@ -520,7 +509,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -537,7 +526,8 @@ class RoomCubit extends Cubit<RoomState> {
         messageId: messageId,
       );
     } on Object catch (e) {
-      emit(state.copyWith(messages: previousMessages, status: StateHasError(e)));
+      emit(state.copyWith(messages: previousMessages));
+      _showSnackError(e);
     }
   }
 
@@ -560,7 +550,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -583,7 +573,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -606,7 +596,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -616,7 +606,7 @@ class RoomCubit extends Cubit<RoomState> {
       await _case.resolveCoordinationBlocker(itemId: itemId);
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -629,7 +619,7 @@ class RoomCubit extends Cubit<RoomState> {
       );
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -667,9 +657,9 @@ class RoomCubit extends Cubit<RoomState> {
       emit(
         state.copyWith(
           messages: previousMessages ?? state.messages,
-          status: StateHasError(e),
         ),
       );
+      _showSnackError(e);
     }
   }
 
@@ -695,7 +685,7 @@ class RoomCubit extends Cubit<RoomState> {
       if (!isClosed) emit(state.copyWith(unreadAnchorAt: null));
       await load();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 

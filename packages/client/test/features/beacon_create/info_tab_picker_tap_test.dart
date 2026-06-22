@@ -12,6 +12,8 @@ import 'package:tentura/features/beacon_create/ui/widget/info_tab.dart';
 import 'package:tentura/features/geo/data/repository/geo_repository.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../ui/effect/fake_ui_effect_port.dart';
+
 class _GeoRepositoryMock extends Mock implements GeoRepository {}
 
 Widget _infoTabHarness(BeaconCreateCubit cubit) {
@@ -39,6 +41,7 @@ void main() {
     cubit = BeaconCreateCubit(
       beaconRepository: BeaconRepositoryMock(),
       imageRepository: ImageRepositoryMock(),
+      effects: FakeUiEffectPort(),
     );
   });
 

@@ -36,17 +36,7 @@ class InboxScreen extends StatelessWidget implements AutoRouteWrapper {
         builder: (_, accountId) => BlocProvider(
           key: ValueKey(accountId),
           create: (_) => InboxCubit(userId: accountId),
-          child: BlocListener<InboxCubit, InboxState>(
-            listener: (context, state) {
-              final s = state.status;
-              if (s is StateIsMessaging &&
-                  s.message is InboxBeaconMovedMessage) {
-                return;
-              }
-              commonScreenBlocListener(context, state);
-            },
-            child: this,
-          ),
+          child: this,
         ),
       );
 

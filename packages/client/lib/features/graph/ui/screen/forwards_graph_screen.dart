@@ -39,7 +39,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
         providers: [
           BlocProvider(
-            create: (_) => ScreenCubit(),
+            create: (_) => ScreenCubit.local(),
           ),
           BlocProvider(
             create: (_) {
@@ -54,15 +54,9 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
             },
           ),
         ],
-        child: MultiBlocListener(
-          listeners: const [
-            BlocListener<GraphCubit, GraphState>(
-              listener: commonScreenBlocListener,
-            ),
-            BlocListener<ScreenCubit, ScreenState>(
-              listener: commonScreenBlocListener,
-            ),
-          ],
+        child: BlocListener<ScreenCubit, ScreenState>(
+          // Route-local nested-router navigation only (see UiEffect port plan Phase 6).
+      listener: commonScreenBlocListener,
           child: this,
         ),
       );

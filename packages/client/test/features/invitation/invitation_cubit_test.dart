@@ -4,6 +4,9 @@ import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+
+import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _StubInvitationRepository implements InvitationRepository {
   _StubInvitationRepository();
@@ -39,7 +42,11 @@ void main() {
   group('InvitationCubit.fetch', () {
     test('failed refetch keeps the already-loaded list and count', () async {
       final repo = _StubInvitationRepository()..fetchResult = [invite];
-      final cubit = InvitationCubit(invitationRepository: repo);
+      final effects = FakeUiEffectPort();
+      final cubit = InvitationCubit(
+        invitationRepository: repo,
+        effects: effects,
+      );
 
       await cubit.fetch();
       expect(cubit.state.invitations, hasLength(1));
@@ -52,14 +59,18 @@ void main() {
         hasLength(1),
         reason: 'a failed refetch must not wipe the visible list',
       );
-      expect(cubit.state.status, isA<StateHasError>());
+      expect(cubit.state.status, isA<StateIsSuccess>());
+      expect(effects.emitted.whereType<ShowError>(), isNotEmpty);
 
       await cubit.close();
     });
 
     test('successful clear-refetch replaces, not appends', () async {
       final repo = _StubInvitationRepository()..fetchResult = [invite];
-      final cubit = InvitationCubit(invitationRepository: repo);
+      final cubit = InvitationCubit(
+        invitationRepository: repo,
+        effects: FakeUiEffectPort(),
+      );
 
       await cubit.fetch();
       await cubit.fetch();

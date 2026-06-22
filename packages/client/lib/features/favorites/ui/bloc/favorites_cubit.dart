@@ -9,6 +9,9 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/favorites/data/repository/favorites_remote_repository.dart';
 
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
+
 import 'favorites_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,6 +24,7 @@ class FavoritesCubit extends Cubit<FavoritesState> {
   FavoritesCubit(
     AuthCase authCase,
     this._favoritesRemoteRepository,
+    this._effects,
   ) : super(const FavoritesState()) {
     _authChanges = authCase.currentAccountChanges().listen(
       _onAuthChanges,
@@ -33,6 +37,8 @@ class FavoritesCubit extends Cubit<FavoritesState> {
   }
 
   final FavoritesRemoteRepository _favoritesRemoteRepository;
+
+  final UiEffectPort _effects;
 
   late final StreamSubscription<String> _authChanges;
 
@@ -62,7 +68,8 @@ class FavoritesCubit extends Cubit<FavoritesState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 
@@ -72,7 +79,8 @@ class FavoritesCubit extends Cubit<FavoritesState> {
     try {
       await _favoritesRemoteRepository.pin(beacon);
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 
@@ -85,7 +93,8 @@ class FavoritesCubit extends Cubit<FavoritesState> {
         userId: state.userId,
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 

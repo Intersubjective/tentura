@@ -6,15 +6,20 @@ import 'package:tentura/features/invitation/domain/exception.dart';
 import 'package:tentura/features/invitation/ui/bloc/accept_invite_cubit.dart';
 import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+
+import '../../ui/effect/fake_ui_effect_port.dart';
 
 void main() {
   group('AcceptInviteCubit', () {
     late FakeInvitationAcceptPort repo;
+    late FakeUiEffectPort effects;
     late AcceptInviteCubit cubit;
 
     setUp(() {
       repo = FakeInvitationAcceptPort();
-      cubit = AcceptInviteCubit.withPort(repo);
+      effects = FakeUiEffectPort();
+      cubit = AcceptInviteCubit.withPort(repo, effects: effects);
     });
 
     tearDown(() => cubit.close());
@@ -22,13 +27,14 @@ void main() {
     test('invalid code emits messaging without preview call', () async {
       await cubit.start('bad');
       expect(repo.previewCalls, 0);
+      expect(cubit.state.status, isA<StateIsSuccess>());
       expect(
-        cubit.state.status,
-        isA<StateIsMessaging>().having(
-          (s) => s.message,
-          'message',
-          isA<InviteInvalidCodeMessage>(),
-        ),
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<InviteInvalidCodeMessage>()),
+      );
+      expect(
+        effects.emitted.whereType<NavigateReplace>(),
+        isNotEmpty,
       );
     });
 
@@ -39,13 +45,10 @@ void main() {
       );
       await cubit.start('Iabc123');
       expect(repo.acceptCalls, 0);
+      expect(cubit.state.status, isA<StateIsSuccess>());
       expect(
-        cubit.state.status,
-        isA<StateIsMessaging>().having(
-          (s) => s.message,
-          'message',
-          isA<InviteAlreadyFriendsMessage>(),
-        ),
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<InviteAlreadyFriendsMessage>()),
       );
     });
 
@@ -67,15 +70,13 @@ void main() {
         inviter: InvitePreviewInviter(id: 'U1', displayName: 'Alice'),
       );
       await cubit.start('Iabc123');
+      effects.clear();
       await cubit.confirmAccept();
       expect(repo.acceptCalls, 1);
+      expect(cubit.state.status, isA<StateIsSuccess>());
       expect(
-        cubit.state.status,
-        isA<StateIsMessaging>().having(
-          (s) => s.message,
-          'message',
-          isA<InviteAcceptedMessage>(),
-        ),
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<InviteAcceptedMessage>()),
       );
     });
 
@@ -87,14 +88,12 @@ void main() {
       );
       repo.acceptError = const InvitationNoLongerValid();
       await cubit.start('Iabc123');
+      effects.clear();
       await cubit.confirmAccept();
+      expect(cubit.state.status, isA<StateIsSuccess>());
       expect(
-        cubit.state.status,
-        isA<StateIsMessaging>().having(
-          (s) => s.message,
-          'message',
-          isA<InviteNoLongerValidMessage>(),
-        ),
+        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
+        contains(isA<InviteNoLongerValidMessage>()),
       );
     });
 

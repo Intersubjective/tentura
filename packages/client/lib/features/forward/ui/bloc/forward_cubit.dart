@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/use_case/forward_case.dart';
 import '../../domain/entity/forward_candidate.dart';
@@ -18,9 +20,11 @@ class ForwardCubit extends Cubit<ForwardState> {
     required String beaconId,
     String context = '',
     ForwardCase? forwardCase,
+    UiEffectPort? effects,
     @visibleForTesting bool debugSkipInitialLoad = false,
   }) : _forwardCase = forwardCase ??
            (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(ForwardState(beaconId: beaconId, context: context)) {
     if (!debugSkipInitialLoad) {
       unawaited(_loadCandidates());
@@ -28,6 +32,15 @@ class ForwardCubit extends Cubit<ForwardState> {
   }
 
   final ForwardCase? _forwardCase;
+
+  final UiEffectPort _effects;
+
+  void _emitSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   String? _loadMemoKey;
 
@@ -62,7 +75,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -172,7 +185,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       emit(state.copyWith(editingRecipientId: null));
       await _loadCandidates();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -186,19 +199,14 @@ class ForwardCubit extends Cubit<ForwardState> {
     try {
       final ok = await forwardCase.cancelForward(edgeId);
       if (!ok) {
-        emit(
-          state.copyWith(
-            status: StateHasError(
-              Exception('Forward cannot be cancelled: already read or forwarded onward'),
-            ),
-          ),
+        _emitSnackError(
+          Exception('Forward cannot be cancelled: already read or forwarded onward'),
         );
-        emit(state.copyWith(status: const StateIsSuccess()));
         return;
       }
       await _loadCandidates();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 
@@ -210,12 +218,9 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (state.selectedIds.isEmpty) return;
     final beacon = state.beacon;
     if (beacon == null || beacon.lifecycle != BeaconLifecycle.open) {
-      emit(
-        state.copyWith(
-          status: StateHasError(Exception('Forwarding is only available while the beacon is open')),
-        ),
+      _emitSnackError(
+        Exception('Forwarding is only available while the beacon is open'),
       );
-      emit(state.copyWith(status: const StateIsSuccess()));
       return;
     }
 
@@ -229,8 +234,7 @@ class ForwardCubit extends Cubit<ForwardState> {
 
     final ineligible = selectedCandidates.where((c) => !c.canForwardTo).toList();
     if (ineligible.isNotEmpty) {
-      emit(state.copyWith(status: StateHasError(const IneligibleRecipientsException())));
-      emit(state.copyWith(status: const StateIsSuccess()));
+      _emitSnackError(const IneligibleRecipientsException());
       return;
     }
 
@@ -254,9 +258,10 @@ class ForwardCubit extends Cubit<ForwardState> {
             ? null
             : state.recipientReasons,
       );
-      emit(state.copyWith(status: StateIsNavigating.back));
+      _effects.emit(const NavigateBack(result: true));
+      emit(state.copyWith(status: const StateIsSuccess()));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _emitSnackError(e);
     }
   }
 }

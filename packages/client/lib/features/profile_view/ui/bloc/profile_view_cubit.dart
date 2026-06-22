@@ -5,6 +5,8 @@ import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -23,17 +25,22 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
     ProfileRepositoryPort? profileRepository,
     LikeRemoteRepository? likeRemoteRepository,
     CapabilityRepositoryPort? capabilityRepository,
+    UiEffectPort? effects,
   }) : _profileRepository = profileRepository ?? GetIt.I<ProfileRepositoryPort>(),
        _likeRemoteRepository =
            likeRemoteRepository ?? GetIt.I<LikeRemoteRepository>(),
        _capabilityRepository =
            capabilityRepository ?? GetIt.I<CapabilityRepositoryPort>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(switch (id) {
          _ when id.startsWith('U') => ProfileViewState(
            profile: Profile(id: id),
          ),
          _ => ProfileViewState(status: StateHasError('Wrong id: $id')),
        }) {
+    if (state.status case StateHasError(:final error)) {
+      _effects.emit(ShowError(error));
+    }
     unawaited(fetch());
     _capabilitySub = _capabilityRepository.changes.listen(
       (_) => unawaited(_refreshCues()),
@@ -43,6 +50,15 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
   final ProfileRepositoryPort _profileRepository;
   final LikeRemoteRepository _likeRemoteRepository;
   final CapabilityRepositoryPort _capabilityRepository;
+
+  final UiEffectPort _effects;
+
+  void _showSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   late final StreamSubscription<void> _capabilitySub;
 
@@ -64,7 +80,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
       );
       await _refreshCues();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -92,7 +108,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -109,7 +125,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 

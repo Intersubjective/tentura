@@ -26,23 +26,14 @@ class BeaconRoomScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget wrappedRoute(_) => MultiBlocProvider(
     providers: [
-      BlocProvider(create: (_) => ScreenCubit()),
+      BlocProvider(create: (_) => ScreenCubit.local()),
       BlocProvider(
         create: (_) => RoomCubit(beaconId: beaconId),
       ),
     ],
-    child: MultiBlocListener(
-      listeners: [
-        // Listener tear-off is not a const callback; avoid bogus const lint.
-        // ignore: prefer_const_constructors
-        BlocListener<ScreenCubit, ScreenState>(
-          listener: commonScreenBlocListener,
-        ),
-        BlocListener<RoomCubit, RoomState>(
-          listenWhen: (p, c) => c.status != p.status,
-          listener: commonScreenBlocListener,
-        ),
-      ],
+    child: BlocListener<ScreenCubit, ScreenState>(
+      // Route-local nested-router navigation only (see UiEffect port plan Phase 6).
+      listener: commonScreenBlocListener,
       child: this,
     ),
   );

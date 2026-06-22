@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
@@ -14,7 +15,10 @@ import 'package:tentura/features/forward/ui/screen/forward_beacon_screen.dart';
 import 'package:tentura/features/forward/ui/widget/compact_beacon_context_strip.dart';
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -67,15 +71,31 @@ void _registerInvitationRepository() {
   });
 }
 
+void _registerUiEffectPort() {
+  final getIt = GetIt.I;
+  if (!getIt.isRegistered<UiEffectPort>()) {
+    getIt.registerSingleton<UiEffectPort>(FakeUiEffectPort());
+    addTearDown(() {
+      unawaited((() async {
+        if (getIt.isRegistered<UiEffectPort>()) {
+          await getIt.unregister<UiEffectPort>();
+        }
+      })());
+    });
+  }
+}
+
 void main() {
   testWidgets('compact forward page has no chip filters; shows scope row', (
     tester,
   ) async {
     _registerInvitationRepository();
+    _registerUiEffectPort();
 
     final cubit = ForwardCubit(
       beaconId: 'b1',
       debugSkipInitialLoad: true,
+      effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
 
@@ -145,10 +165,12 @@ void main() {
     tester,
   ) async {
     _registerInvitationRepository();
+    _registerUiEffectPort();
 
     final cubit = ForwardCubit(
       beaconId: 'b1',
       debugSkipInitialLoad: true,
+      effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
 
@@ -197,10 +219,12 @@ void main() {
     tester,
   ) async {
     _registerInvitationRepository();
+    _registerUiEffectPort();
 
     final cubit = ForwardCubit(
       beaconId: 'b1',
       debugSkipInitialLoad: true,
+      effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
 
@@ -263,10 +287,12 @@ void main() {
 
   testWidgets('add shared note expands textarea', (tester) async {
     _registerInvitationRepository();
+    _registerUiEffectPort();
 
     final cubit = ForwardCubit(
       beaconId: 'b1',
       debugSkipInitialLoad: true,
+      effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
 

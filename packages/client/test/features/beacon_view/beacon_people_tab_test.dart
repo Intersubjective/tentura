@@ -76,7 +76,7 @@ void main() {
         home: MultiBlocProvider(
           providers: [
             BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
-            BlocProvider<ScreenCubit>(create: (_) => ScreenCubit()),
+            BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
             BlocProvider<BeaconViewCubit>.value(value: _MockBeaconViewCubit()),
           ],
           child: Scaffold(
@@ -117,7 +117,7 @@ void main() {
         home: MultiBlocProvider(
           providers: [
             BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
-            BlocProvider<ScreenCubit>(create: (_) => ScreenCubit()),
+            BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
             BlocProvider<BeaconViewCubit>.value(value: _MockBeaconViewCubit()),
           ],
           child: Scaffold(
@@ -175,7 +175,7 @@ void main() {
           child: MultiBlocProvider(
             providers: [
               BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
-              BlocProvider<ScreenCubit>(create: (_) => ScreenCubit()),
+              BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
               BlocProvider<BeaconViewCubit>.value(
                 value: _MockBeaconViewCubit(),
               ),

@@ -483,7 +483,7 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
   Widget wrappedRoute(_) => MultiBlocProvider(
     providers: [
       BlocProvider(
-        create: (_) => ScreenCubit(),
+        create: (_) => ScreenCubit.local(),
       ),
       BlocProvider(
         create: (_) => BeaconViewCubit(
@@ -492,15 +492,9 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
         ),
       ),
     ],
-    child: MultiBlocListener(
-      listeners: const [
-        BlocListener<ScreenCubit, ScreenState>(
-          listener: commonScreenBlocListener,
-        ),
-        BlocListener<BeaconViewCubit, BeaconViewState>(
-          listener: commonScreenBlocListener,
-        ),
-      ],
+    child: BlocListener<ScreenCubit, ScreenState>(
+      // Route-local nested-router navigation only (see UiEffect port plan Phase 6).
+      listener: commonScreenBlocListener,
       child: this,
     ),
   );

@@ -5,6 +5,9 @@ import 'package:tentura/domain/entity/repository_event.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
+
 import '../../data/repository/context_repository.dart';
 import '../../domain/exception.dart';
 import '../../domain/entity/context_entity.dart';
@@ -19,9 +22,11 @@ class ContextCubit extends Cubit<ContextState> {
   ContextCubit({
     AuthCase? authCase,
     ContextRepository? contextRepository,
+    UiEffectPort? effects,
     bool fetchFromCache = true,
   }) : _authCase = authCase ?? GetIt.I<AuthCase>(),
        _contextRepository = contextRepository ?? GetIt.I<ContextRepository>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(const ContextState()) {
     _authChanges = _authCase.currentAccountChanges().listen(
       _onAuthChanges,
@@ -38,6 +43,8 @@ class ContextCubit extends Cubit<ContextState> {
   final AuthCase _authCase;
 
   final ContextRepository _contextRepository;
+
+  final UiEffectPort _effects;
 
   StreamSubscription<String>? _authChanges;
 
@@ -63,7 +70,8 @@ class ContextCubit extends Cubit<ContextState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 
@@ -95,7 +103,8 @@ class ContextCubit extends Cubit<ContextState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 
@@ -112,7 +121,8 @@ class ContextCubit extends Cubit<ContextState> {
         emit(state.copyWith(selected: ''));
       }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 
@@ -149,9 +159,8 @@ class ContextCubit extends Cubit<ContextState> {
 
   ///
   ///
-  void _onContextChangesError(Object? e) => emit(
-    state.copyWith(
-      status: StateHasError(e ?? const ContextUnknownException()),
-    ),
-  );
+  void _onContextChangesError(Object? e) {
+    _effects.emit(ShowError(e ?? const ContextUnknownException()));
+    emit(state.copyWith(status: const StateIsSuccess()));
+  }
 }

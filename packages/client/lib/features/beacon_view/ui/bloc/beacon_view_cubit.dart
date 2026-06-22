@@ -19,6 +19,8 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import 'package:tentura/features/beacon_room/domain/entity/room_unread_snapshot.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
@@ -40,9 +42,11 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     required Profile myProfile,
     BeaconViewCase? beaconViewCase,
     CoordinationItemCase? coordinationItemCase,
+    UiEffectPort? effects,
   }) : _case = beaconViewCase ?? GetIt.I<BeaconViewCase>(),
        _coordinationItemCase =
            coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
+       _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(_idToState(id, myProfile)) {
     _forwardCompletedSub = _case.forwardCompleted.listen(
       (beaconId) {
@@ -75,11 +79,23 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       cancelOnError: false,
     );
     unawaited(_fetchBeaconByIdWithTimeline());
+    if (state.status case StateHasError(:final error)) {
+      _effects.emit(ShowError(error));
+    }
   }
 
   final BeaconViewCase _case;
 
   final CoordinationItemCase _coordinationItemCase;
+
+  final UiEffectPort _effects;
+
+  void _showSnackError(Object error) {
+    _effects.emit(ShowError(error));
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
 
   late final StreamSubscription<String> _forwardCompletedSub;
 
@@ -138,7 +154,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
       emit(state.copyWith(inboxStatus: InboxItemStatus.watching));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -151,7 +167,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
       emit(state.copyWith(inboxStatus: InboxItemStatus.needsMe));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -165,7 +181,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
       emit(state.copyWith(inboxStatus: InboxItemStatus.rejected));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -178,7 +194,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
       emit(state.copyWith(inboxStatus: InboxItemStatus.needsMe));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -186,9 +202,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.deleteBeacon(beaconId);
-      emit(state.copyWith(status: StateIsNavigating.back));
+      _effects.emit(const NavigateBack());
+      emit(state.copyWith(status: const StateIsSuccess()));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -200,7 +217,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       emit(state.copyWith(status: StateStatus.isSuccess));
       return draft.id;
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
       return null;
     }
   }
@@ -217,7 +234,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _fetchBeaconByIdWithTimeline();
       return result;
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
       return null;
     }
   }
@@ -228,7 +245,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _case.beaconCancel(state.beacon.id);
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -238,7 +255,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _case.beaconReopen(state.beacon.id);
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -248,7 +265,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _case.beaconCloseNow(state.beacon.id);
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -258,7 +275,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _case.beaconExtendReview(state.beacon.id);
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -266,9 +283,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.archiveBeacon(state.beacon.id);
-      emit(state.copyWith(status: StateIsNavigating.back));
+      _effects.emit(const NavigateBack());
+      emit(state.copyWith(status: const StateIsSuccess()));
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -287,16 +305,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
       await _fetchBeaconByIdWithTimeline();
       if (!state.hasError && !wasAlreadyHelpOffered) {
-        emit(
-          state.copyWith(
-            status: StateIsMessaging(
-              HelpOfferedForwardNudgeMessage(state.beacon.id),
-            ),
-          ),
+        _effects.emit(
+          ShowMessage(HelpOfferedForwardNudgeMessage(state.beacon.id)),
         );
       }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -313,14 +327,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
       await _fetchBeaconByIdWithTimeline();
       if (!state.hasError) {
-        emit(
-          state.copyWith(
-            status: StateIsMessaging(const MovedToInboxMessage()),
-          ),
-        );
+        _effects.emit(const ShowMessage(MovedToInboxMessage()));
       }
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -368,7 +378,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       unawaited(_fetchBeaconByIdWithTimeline());
     } catch (e) {
       await _fetchBeaconByIdWithTimeline();
-      if (!isClosed) emit(state.copyWith(status: StateHasError(e)));
+      if (!isClosed) _showSnackError(e);
       rethrow;
     }
   }
@@ -386,7 +396,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -401,7 +411,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       );
       await _fetchBeaconByIdWithTimeline();
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -447,7 +457,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     try {
       await _fetchForEntityTypes(types);
     } catch (e) {
-      if (!isClosed) emit(state.copyWith(status: StateHasError(e)));
+      if (!isClosed) _showSnackError(e);
     } finally {
       _fetchInProgress = false;
       if (!isClosed) {
@@ -757,7 +767,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       }
       unawaited(_refreshYouResponsibility());
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _showSnackError(e);
     }
   }
 
@@ -782,9 +792,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         emit(
           state.copyWith(
             forwardsLoading: false,
-            status: StateHasError(e),
           ),
         );
+        _showSnackError(e);
       }
     }
   }

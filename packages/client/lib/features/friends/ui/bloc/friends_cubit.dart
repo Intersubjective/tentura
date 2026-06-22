@@ -9,6 +9,9 @@ import 'package:tentura/features/friends/data/repository/friends_remote_reposito
 import 'package:tentura/features/invitation/data/repository/invitation_repository.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
+
 import 'friends_state.dart';
 
 export 'friends_state.dart';
@@ -22,6 +25,7 @@ class FriendsCubit extends Cubit<FriendsState> {
     this._likeRemoteRepository,
     this._friendsRemoteRepository,
     AuthCase _authCase,
+    this._effects,
   ) : super(const FriendsState(friends: {})) {
     _authChanges = _authCase.currentAccountChanges().listen(
       _onAuthChanged,
@@ -40,6 +44,8 @@ class FriendsCubit extends Cubit<FriendsState> {
   final InvitationRepository _invitationRepository;
 
   final LikeRemoteRepository _likeRemoteRepository;
+
+  final UiEffectPort _effects;
 
   late final StreamSubscription<String> _authChanges;
 
@@ -68,7 +74,8 @@ class FriendsCubit extends Cubit<FriendsState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      _effects.emit(ShowError(e));
+      emit(state.copyWith(status: const StateIsSuccess()));
     }
   }
 

@@ -25,6 +25,8 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 /// Records the last `showHelpOffererForwardPathFor` call so the test can
 /// assert routing parameters without spinning up the AutoRoute stack.
 class _RecordingScreenCubit extends ScreenCubit {
+  _RecordingScreenCubit() : super.local();
+
   String? lastBeaconId;
   String? lastHelpOffererId;
   String? lastHelpOffererName;
