@@ -39,7 +39,12 @@ class ContextDropDown extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(e),
+                    Flexible(
+                      child: Text(
+                        e,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     if (state.selected == e)
                       IconButton(
                         icon: const Icon(Icons.delete_forever),

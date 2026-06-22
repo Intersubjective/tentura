@@ -70,14 +70,16 @@ Widget _situationLabeledRow(
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 92,
+        Flexible(
+          flex: 2,
           child: Text(
             label,
             style: TenturaText.typeLabel(scheme.onSurface),
           ),
         ),
+        SizedBox(width: context.tt.iconTextGap),
         Expanded(
+          flex: 5,
           child: SelectableText(
             value,
             style: TenturaText.body(scheme.onSurfaceVariant),

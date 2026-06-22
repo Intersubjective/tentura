@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -351,43 +352,55 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                   slivers: [
                     SliverPadding(
                       padding: const EdgeInsets.all(8),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 4,
-                              mainAxisSpacing: 8,
-                              crossAxisSpacing: 8,
-                              childAspectRatio: 0.85,
-                            ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, i) {
-                            final entry = entries[i];
-                            final selected = sel.iconCode == entry.key;
-                            return _IconGridTile(
-                              key: ValueKey(entry.key),
-                              iconData: entry.value.icon,
-                              label: entry.value.label,
-                              selected: selected,
-                              selectionBackgroundArgb: selected
-                                  ? sel.iconBackground
-                                  : null,
-                              scheme: scheme,
-                              baseLabelStyle: theme.textTheme.labelSmall,
-                              onTap: () {
-                                final cur = _selectionNotifier.value;
-                                _selectionNotifier.value = (
-                                  iconCode: entry.key,
-                                  iconBackground:
-                                      cur.iconBackground ??
-                                      kBeaconIdentityPalette
-                                          .first
-                                          .backgroundArgb,
+                      sliver: SliverLayoutBuilder(
+                        builder: (context, constraints) {
+                          final windowClass = windowClassForWidth(
+                            constraints.crossAxisExtent,
+                          );
+                          final crossAxisCount = switch (windowClass) {
+                            WindowClass.compact => 4,
+                            WindowClass.regular => 5,
+                            WindowClass.expanded => 6,
+                          };
+                          return SliverGrid(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  mainAxisSpacing: 8,
+                                  crossAxisSpacing: 8,
+                                  childAspectRatio: 0.85,
+                                ),
+                            delegate: SliverChildBuilderDelegate(
+                              (context, i) {
+                                final entry = entries[i];
+                                final selected = sel.iconCode == entry.key;
+                                return _IconGridTile(
+                                  key: ValueKey(entry.key),
+                                  iconData: entry.value.icon,
+                                  label: entry.value.label,
+                                  selected: selected,
+                                  selectionBackgroundArgb: selected
+                                      ? sel.iconBackground
+                                      : null,
+                                  scheme: scheme,
+                                  baseLabelStyle: theme.textTheme.labelSmall,
+                                  onTap: () {
+                                    final cur = _selectionNotifier.value;
+                                    _selectionNotifier.value = (
+                                      iconCode: entry.key,
+                                      iconBackground:
+                                          cur.iconBackground ??
+                                          kBeaconIdentityPalette
+                                              .first
+                                              .backgroundArgb,
+                                    );
+                                  },
                                 );
                               },
-                            );
-                          },
-                          childCount: entries.length,
-                        ),
+                              childCount: entries.length,
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],

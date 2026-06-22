@@ -12,6 +12,9 @@ Operational, minimal, record-list UI for `packages/client`. Not a social feed, m
 | Components | [`packages/client/lib/design_system/components/`](../packages/client/lib/design_system/components/) |
 | Barrel export | [`tentura_design_system.dart`](../packages/client/lib/design_system/tentura_design_system.dart) |
 | App wiring | [`packages/client/lib/app/app.dart`](../packages/client/lib/app/app.dart) uses `TenturaTheme.light()` / `dark()` + `TenturaResponsiveScope` |
+| Adaptive shell | [`home_screen.dart`](../packages/client/lib/features/home/ui/screen/home_screen.dart) — bottom nav vs `NavigationRail` |
+| Orientation policy | [`orientation_policy.dart`](../packages/client/lib/app/platform/orientation_policy.dart) (native vs web) |
+| PWA manifest | [`packages/client/web/manifest.json`](../packages/client/web/manifest.json) |
 | Theme compatibility | [`packages/client/lib/ui/theme.dart`](../packages/client/lib/ui/theme.dart) — `createAppTheme` for tests/previews |
 
 Access tokens: `import 'package:tentura/design_system/tentura_design_system.dart';` then `context.tt` ([`TenturaThemeX`](../packages/client/lib/design_system/tentura_tokens.dart)).
@@ -52,6 +55,84 @@ Width drives layout density, **not** font size:
 
 
 `TenturaResponsiveScope` selects `TenturaTokens` preset per class. **TextTheme sizes stay identical** across classes; only padding, gaps, icon sizes, avatar sizes, button heights, app bar / bottom nav heights, and max content width change.
+
+On **regular** and **expanded**, content is centered with `contentMaxWidth` **560** / **720** logical px respectively. **Compact** has no cap (full bleed within the window).
+
+### Full-bleed routes
+
+Some surfaces (graph canvas, wide interactive viewers) must use the **full viewport width**, not the centered column. Wrap the route body in [`TenturaFullBleed`](../packages/client/lib/design_system/tentura_responsive_scope.dart) — it breaks out of the scope’s max-width using `LayoutBuilder` + horizontal translate. Do **not** duplicate ad-hoc “escape” hacks per screen.
+
+**Current use:** [`graph_screen.dart`](../packages/client/lib/features/graph/ui/screen/graph_screen.dart), [`forwards_graph_screen.dart`](../packages/client/lib/features/graph/ui/screen/forwards_graph_screen.dart).
+
+## Adaptive layout rules
+
+Drive layout from **logical width** (or parent `constraints.maxWidth`), not device type or orientation.
+
+| Do | Don’t |
+|----|--------|
+| `LayoutBuilder` + `windowClassForWidth(constraints.maxWidth)` | `OrientationBuilder`, `MediaQuery.orientationOf` for shell/layout |
+| `context.windowClass` / `context.tt` for density | `isTablet` / `isPhone` / `Platform.is*` for layout branching |
+| `Expanded` / `Flexible` / `CustomScrollView` for lists and rows | `ListView(shrinkWrap: true)` inside unbounded `Column` without `Expanded` |
+| `ListView.builder` / `GridView.builder` for dynamic lists | Spread `...items.map(...)` into static `ListView` children |
+
+When a widget sits inside a sliver or grid, prefer **`windowClassForWidth(constraints.crossAxisExtent)`** (or the relevant constraint axis), not viewport `MediaQuery` width — the parent may be narrower than the window.
+
+### Home shell (main tabs)
+
+[`HomeScreen`](../packages/client/lib/features/home/ui/screen/home_screen.dart) switches navigation chrome at the same **600** px breakpoint as `WindowClass.regular`:
+
+| WindowClass | Navigation |
+|-------------|------------|
+| `compact` | Bottom [`NavigationBar`](https://api.flutter.dev/flutter/material/NavigationBar-class.html) |
+| `regular` | [`NavigationRail`](https://api.flutter.dev/flutter/material/NavigationRail-class.html) (labels below icons) |
+| `expanded` | `NavigationRail` with `extended: true` (labels beside icons) |
+
+Implementation uses `AutoTabsRouter` (not `AutoTabsScaffold`) so one tab router drives both layouts. Tab reselect behavior and [`HomeBottomNavListener`](../packages/client/lib/features/home/ui/widget/home_bottom_nav_listener.dart) wrap nav in both modes.
+
+### Expanded-window flows (≥ 600 px)
+
+These flows keep a **single-pane / bottom-sheet** UX on compact and add a wider layout on regular/expanded:
+
+| Flow | Compact | Regular / expanded |
+|------|---------|-------------------|
+| Forward recipient search | Single column + inline notes | Master–detail split ([`forward_search_overlay.dart`](../packages/client/lib/features/forward/ui/widget/forward_search_overlay.dart)) |
+| Connect | `showModalBottomSheet` | Centered `Dialog` ([`connect_bottom_sheet.dart`](../packages/client/lib/features/connect/ui/widget/connect_bottom_sheet.dart)) |
+| Beacon create images | `ReorderableListView` | 2- / 3-column grid ([`image_tab.dart`](../packages/client/lib/features/beacon_create/ui/widget/image_tab.dart)) |
+| Beacon definition media | Fixed-height band | Taller band + max-width centering ([`beacon_definition_body.dart`](../packages/client/lib/features/beacon_view/ui/widget/beacon_definition_body.dart)) |
+| Graph | Full bleed + pan/zoom | Optional side rail controls ([`graph_body.dart`](../packages/client/lib/features/graph/ui/widget/graph_body.dart)) |
+
+## Orientation policy
+
+Product goal: **phones stay portrait** when rotated; **tablets and desktop** may use landscape (matches adaptive shell and Android large-screen guidance).
+
+Policy is **split by platform** — do not use `device_info_plus` or user-agent parsing for orientation on web.
+
+### Native app (Android / iOS)
+
+[`orientation_policy_native.dart`](../packages/client/lib/app/platform/orientation_policy_native.dart):
+
+- Applied at startup in `App.runner()` and re-applied on [`didChangeMetrics`](../packages/client/lib/app/platform/lifecycle_handler_native.dart) (foldables / window resize).
+- **Lock portrait** when logical **shortest side** &lt; **600** (`kPortraitLockMaxLogicalShortestSide`) — same threshold as `WindowClass.compact`, but uses **shortest side** so a phone held landscape (wide width, short height) stays locked.
+- **Unlock all orientations** when shortest side ≥ 600 (tablets).
+- **Desktop** (`linux` / `windows` / `macos` native): no lock.
+
+**iOS plist backup:** iPhone [`UISupportedInterfaceOrientations`](../packages/client/ios/Runner/Info.plist) lists **portrait only**; iPad (`~ipad`) keeps all orientations.
+
+**Android:** no `android:screenOrientation` on `MainActivity` — tablet rotation is controlled in Dart only.
+
+Unit tests: [`test/app/orientation_policy_test.dart`](../packages/client/test/app/orientation_policy_test.dart).
+
+### Web / PWA
+
+[`orientation_policy_web.dart`](../packages/client/lib/app/platform/orientation_policy_web.dart) is a **no-op** — Flutter web does not reliably enforce orientation via `SystemChrome`.
+
+| Surface | Mechanism |
+|---------|-----------|
+| **Installed PWA** (`display: standalone`) | [`manifest.json`](../packages/client/web/manifest.json) → `"orientation": "portrait-primary"` |
+| **Mobile browser tab** (not installed) | Browser controls rotation; responsive layout must tolerate landscape |
+| **Desktop web** | No orientation lock; `WindowClass` + rail layout apply |
+
+After changing `manifest.json` orientation, users may need to **re-install** the PWA to pick up the new manifest.
 
 ## Hard floors
 
@@ -150,5 +231,7 @@ Custom lint: `no_operational_raw_color`, `no_operational_raw_text_style`, `no_op
 ## Web viewport
 
 `packages/client/web/index.html` must use `width=device-width, initial-scale=1.0`, `viewport-fit=cover`. Do **not** set `maximum-scale=1` or `user-scalable=no` (hurts accessibility and zoom).
+
+**PWA:** `manifest.json` sets `"display": "standalone"` and `"orientation": "portrait-primary"` for installed mobile apps. See [Orientation policy](#orientation-policy) above.
 
 If the design doc and code disagree, update the doc after confirming product intent.

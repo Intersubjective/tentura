@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/consts.dart';
@@ -92,7 +93,7 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
       ),
 
       // Graph
-      body: const GraphBody(),
+      body: const TenturaFullBleed(child: GraphBody()),
     );
   }
 }

@@ -4,14 +4,22 @@ import 'package:blurhash_shader/blurhash_shader.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-/// Inline PageView height for multi-image room messages and pinned facts
-/// (keep in sync with layout in RoomMessageInlineImageAlbum).
+/// Default inline album height for [WindowClass.regular] (layout estimates).
 const double kRoomMessageInlineImageAlbumHeight = 220;
+
+/// Inline PageView height for multi-image room messages, keyed to window class.
+double roomMessageInlineImageAlbumHeight(BuildContext context) =>
+    switch (context.windowClass) {
+      WindowClass.compact => 180,
+      WindowClass.regular => 220,
+      WindowClass.expanded => 280,
+    };
 
 String roomAttachmentImageUrl(RoomMessageAttachment a) =>
     '$kImageServer/$kImagesPath/${a.imageAuthorId}/${a.imageId}.$kImageExt';
@@ -114,7 +122,7 @@ class _RoomMessageInlineImageAlbumState
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
-              height: kRoomMessageInlineImageAlbumHeight,
+              height: roomMessageInlineImageAlbumHeight(context),
               width: double.infinity,
               child: PageView.builder(
                 controller: _pageController,

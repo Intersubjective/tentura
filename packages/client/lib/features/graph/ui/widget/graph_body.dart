@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/node_details.dart';
@@ -96,7 +98,33 @@ class GraphBodyState extends State<GraphBody>
   }
 
   @override
-  Widget build(_) => GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final windowClass = windowClassForWidth(constraints.maxWidth);
+      if (windowClass == WindowClass.compact) {
+        return SizedBox(
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
+          child: _buildGraphView(),
+        );
+      }
+
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: constraints.maxHeight,
+              child: _buildGraphView(),
+            ),
+          ),
+          _GraphSideControls(showFilterToggle: windowClass == WindowClass.expanded),
+        ],
+      );
+    },
+  );
+
+  Widget _buildGraphView() => GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
     controller: _graphCubit.graphController,
     canvasSize: widget.canvasSize,
     minScale: widget.scaleRange.dx,
@@ -132,4 +160,58 @@ class GraphBodyState extends State<GraphBody>
       onTap: () => _onNodeTap(node),
     ),
   );
+}
+
+class _GraphSideControls extends StatelessWidget {
+  const _GraphSideControls({required this.showFilterToggle});
+
+  final bool showFilterToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
+    final cubit = context.read<GraphCubit>();
+
+    return Material(
+      color: scheme.surfaceContainerLow,
+      child: SafeArea(
+        left: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: tt.iconTextGap,
+            vertical: tt.rowGap,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: l10n.goToEgo,
+                onPressed: cubit.jumpToEgo,
+                icon: const Icon(Icons.center_focus_strong_outlined),
+              ),
+              if (showFilterToggle)
+                BlocBuilder<GraphCubit, GraphState>(
+                  builder: (context, state) {
+                    final positiveOnly = state.positiveOnly;
+                    return IconButton(
+                      tooltip: positiveOnly
+                          ? l10n.showNegative
+                          : l10n.hideNegative,
+                      onPressed: cubit.togglePositiveOnly,
+                      icon: Icon(
+                        positiveOnly
+                            ? Icons.filter_alt_off_outlined
+                            : Icons.filter_alt_outlined,
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

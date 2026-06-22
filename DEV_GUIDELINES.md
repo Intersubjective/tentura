@@ -302,6 +302,25 @@ Drive **density** (padding, gaps, icon size, avatar sizes, button height, app ba
 
 **Do not** change `TextTheme` font sizes per class — only `TenturaTokens` (via `TenturaResponsiveScope` / `context.tt`).
 
+### Adaptive layout & orientation
+
+Full spec: [`docs/tentura-design-system.md`](docs/tentura-design-system.md) sections **Breakpoints**, **Adaptive layout rules**, **Orientation policy**, and **Full-bleed routes**.
+
+**Layout:** Use `LayoutBuilder` + `windowClassForWidth(constraints.maxWidth)` — not orientation or hardware type. Main tabs: bottom `NavigationBar` when compact, `NavigationRail` when regular/expanded (`home_screen.dart`).
+
+**Content width:** Most screens inherit centered `contentMaxWidth` (560 / 720) from `TenturaResponsiveScope`. Graph routes wrap body in `TenturaFullBleed` to use full viewport width.
+
+**Orientation (phones stay portrait):**
+
+| Platform | Behavior |
+|----------|----------|
+| Native Android/iOS | `SystemChrome` portrait lock when logical **shortest side** &lt; 600; unlock on tablets; re-applied on metrics change (`app/platform/orientation_policy.dart`) |
+| iOS | iPhone plist: portrait only; iPad: all orientations |
+| Installed PWA | `web/manifest.json` → `orientation: portrait-primary` |
+| Web browser tab | No reliable lock; layout must work in landscape |
+
+Do **not** use `device_info_plus` for orientation on web/PWA.
+
 ### Proportional sizing
 
 **Do not** size typography or global UI from `MediaQuery.sizeOf(context).width / N` or similar “design width” ratios. That shrinks already-small text on phones and blows up type on tablets. **Allowed** exceptions: layout that is inherently proportional (e.g. chat bubble `maxWidth: screenWidth * 0.75`, bottom sheet height fractions) — document in the typography journal if non-obvious.
