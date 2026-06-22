@@ -35,7 +35,7 @@ You are operating in a loop. Each invocation must complete **exactly one task** 
 
 - [x] TASK-01: `IntroScreen` — disable the "Start" button and show a loading indicator while `setIntroEnabled` is in flight; wire `onPressed: state.isLoading ? null : …`
 - [x] TASK-02: `RecoverScreen` — disable primary action buttons during loading via `BlocSelector`; button should be null-pressed while `state.isLoading`
-- [ ] TASK-03: `AuthRegisterScreen` — wire register button to `onPressed: state.isLoading ? null : …`; wrap fields in a `Form` with `validate()` called before `signUp`
+- [x] TASK-03: `AuthRegisterScreen` — wire register button to `onPressed: state.isLoading ? null : …`; wrap fields in a `Form` with `validate()` called before `signUp`
 - [ ] TASK-04: `ProfileEditScreen` — add an in-flight indicator (e.g. `LinearPiActive` or overlay) while `pickImage()` is open (gallery/cropper)
 - [ ] TASK-05: `SettingsScreen` — add a `BlocListener` (or `MultiBlocListener`) for `AuthCubit` to surface sign-out / reset-local progress and errors; the screen currently only listens to `SettingsCubit`
 - [ ] TASK-06: `ItemDiscussionScreen` / `ItemActionsCubit` — emit `StateIsLoading` before mutations (resolve, close, reopen) and return to `StateIsSuccess` on completion so menu buttons disable during the call
