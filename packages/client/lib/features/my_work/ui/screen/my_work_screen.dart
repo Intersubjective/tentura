@@ -161,8 +161,7 @@ class _MyWorkFilterMenu extends StatelessWidget {
             child: TextButton(
               style: TextButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
-                minimumSize: Size(0, tt.buttonHeight),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
                 foregroundColor: scheme.onPrimary,
               ),
               onPressed: () =>
@@ -241,8 +240,7 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
           child: TextButton(
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              minimumSize: Size(0, tt.buttonHeight),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
               foregroundColor: scheme.onPrimary,
             ),
             onPressed: () => _onPressed(sort),

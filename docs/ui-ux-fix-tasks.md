@@ -52,7 +52,7 @@ You are operating in a loop. Each invocation must complete **exactly one task** 
 
 ### Touch Targets & Accessibility
 
-- [ ] TASK-14: `MyWorkScreen` — remove `MaterialTapTargetSize.shrinkWrap` from filter and sort buttons; ensure minimum 48 dp tap targets
+- [x] TASK-14: `MyWorkScreen` — remove `MaterialTapTargetSize.shrinkWrap` from filter and sort buttons; ensure minimum 48 dp tap targets
 - [ ] TASK-15: `BeaconViewScreen` — replace `ListTile(dense: true)` in the status bottom sheet with standard-density tiles (≥ 48 dp); verify all touch targets
 - [ ] TASK-16: `beacon_color_selector.dart` — increase swatch tap targets from 36×36 dp to ≥ 48 dp (add `InkWell` padding or `ConstrainedBox`)
 - [ ] TASK-17: `beacon_overflow_menu.dart` — increase `BeaconOverflowMenu` to ≥ 48 dp minimum tap target and add a `tooltip` to the button
