@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
@@ -230,3 +231,39 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallbackFromBeacon({
     rowHarmony: phaseResult?.rowHarmony ?? BeaconPhaseRowHarmony.empty,
   );
 }
+
+/// Whether the YOU metadata table row should be emitted (vs omitted entirely).
+bool isBeaconYouMetadataVisible({
+  required Beacon beacon,
+  required CoordinationResponsibility responsibility,
+  required bool isAuthorOrSteward,
+  required bool compactSurface,
+  required bool isAwaitingAuthorReview,
+  BeaconCoordinationPhaseResult? phaseResult,
+  OpenBlockerCue? openBlocker,
+  String viewerUserId = '',
+}) {
+  final blocked = shouldShowBlockedYouSegment(
+    phaseResult: phaseResult,
+    openBlocker: openBlocker,
+    viewerUserId: viewerUserId,
+    responsibility: responsibility,
+  );
+  if (responsibility.hasAny || blocked) {
+    return true;
+  }
+  final emptyFallback = deriveBeaconYouEmptyFallback(
+    lifecycle: beacon.lifecycle,
+    isAuthorOrSteward: isAuthorOrSteward,
+    othersOpenCount: responsibility.othersOpenCount,
+    compactSurface: compactSurface,
+    hasPersonalObligation: false,
+    isAwaitingAuthorReview: isAwaitingAuthorReview,
+    rowHarmony: phaseResult?.rowHarmony ?? BeaconPhaseRowHarmony.empty,
+  );
+  return emptyFallback != BeaconYouEmptyFallback.hidden;
+}
+
+/// [tableRowWidth] is the full metadata table width (not body column).
+bool beaconYouCompactSurface(BuildContext context, double tableRowWidth) =>
+    context.windowClass == WindowClass.compact && tableRowWidth < 320;

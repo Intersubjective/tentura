@@ -8,15 +8,15 @@ import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_you_presentation.dart';
 import 'package:tentura/ui/utils/duration_format.dart';
-import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
+/// YOU responsibility body for metadata table rows (no lead icon).
 class BeaconYouResponsibilityLine extends StatelessWidget {
   const BeaconYouResponsibilityLine({
     required this.beacon,
     required this.responsibility,
     required this.isAuthorOrSteward,
+    required this.tableRowWidth,
     this.showNewBadges = true,
-    this.onTap,
     this.viewerUserId = '',
     this.openBlocker,
     this.phaseResult,
@@ -27,14 +27,12 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
   final Beacon beacon;
   final CoordinationResponsibility responsibility;
   final bool isAuthorOrSteward;
+  final double tableRowWidth;
   final bool showNewBadges;
-  final VoidCallback? onTap;
   final String viewerUserId;
   final OpenBlockerCue? openBlocker;
   final BeaconCoordinationPhaseResult? phaseResult;
   final bool isAwaitingAuthorReview;
-
-  static const double _compactWrapWidth = 320;
 
   @override
   Widget build(BuildContext context) {
@@ -42,114 +40,78 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     final tt = context.tt;
     final theme = Theme.of(context);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final collapse = context.windowClass == WindowClass.compact &&
-            constraints.maxWidth < _compactWrapWidth;
-        final blockedSegment = _buildBlockedSegment(context, l10n);
-        final emptyFallback = deriveBeaconYouEmptyFallbackFromBeacon(
-          beacon: beacon,
-          responsibility: responsibility,
-          isAuthorOrSteward: isAuthorOrSteward,
-          compactSurface: collapse,
-          phaseResult: phaseResult,
-          openBlocker: openBlocker,
-          viewerUserId: viewerUserId,
-          isAwaitingAuthorReview: isAwaitingAuthorReview,
-        );
-        final presentation = buildBeaconYouPresentation(
-          l10n,
-          responsibility,
-          collapse: collapse,
-          emptyFallback: emptyFallback,
-          showNewBadges: showNewBadges,
-          blockedSegment: blockedSegment,
-        );
+    final collapse = beaconYouCompactSurface(context, tableRowWidth);
+    final blockedSegment = _buildBlockedSegment(context, l10n);
+    final emptyFallback = deriveBeaconYouEmptyFallbackFromBeacon(
+      beacon: beacon,
+      responsibility: responsibility,
+      isAuthorOrSteward: isAuthorOrSteward,
+      compactSurface: collapse,
+      phaseResult: phaseResult,
+      openBlocker: openBlocker,
+      viewerUserId: viewerUserId,
+      isAwaitingAuthorReview: isAwaitingAuthorReview,
+    );
+    final presentation = buildBeaconYouPresentation(
+      l10n,
+      responsibility,
+      collapse: collapse,
+      emptyFallback: emptyFallback,
+      showNewBadges: showNewBadges,
+      blockedSegment: blockedSegment,
+    );
 
-        if (presentation.isHidden) {
-          return const SizedBox.shrink();
-        }
+    if (presentation.isHidden) {
+      return const SizedBox.shrink();
+    }
 
-        final bodyStyle = theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurface,
-        );
-        final mutedStyle = theme.textTheme.bodySmall?.copyWith(
-          color: tt.textMuted,
-        );
+    final bodyStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurface,
+    );
+    final mutedStyle = theme.textTheme.bodySmall?.copyWith(
+      color: tt.textMuted,
+    );
 
-        Widget content;
-        if (presentation.fallbackText != null) {
-          content = Text(
-            presentation.fallbackText!,
-            style: bodyStyle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          );
-        } else if (presentation.blockedOnly && presentation.blockedSegment != null) {
-          content = _BlockedSegmentRow(
+    if (presentation.fallbackText != null) {
+      return Text(
+        presentation.fallbackText!,
+        style: bodyStyle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+    if (presentation.blockedOnly && presentation.blockedSegment != null) {
+      return _BlockedSegmentRow(
+        segment: presentation.blockedSegment!,
+        bodyStyle: bodyStyle,
+        mutedStyle: mutedStyle,
+      );
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (presentation.blockedSegment != null) ...[
+          _BlockedSegmentRow(
             segment: presentation.blockedSegment!,
             bodyStyle: bodyStyle,
             mutedStyle: mutedStyle,
-          );
-        } else {
-          content = Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (presentation.blockedSegment != null) ...[
-                _BlockedSegmentRow(
-                  segment: presentation.blockedSegment!,
-                  bodyStyle: bodyStyle,
-                  mutedStyle: mutedStyle,
-                ),
-                if (presentation.segments.isNotEmpty)
-                  Text('·', style: mutedStyle),
-              ],
-              for (var i = 0; i < presentation.segments.length; i++) ...[
-                if (i > 0)
-                  Text('·', style: mutedStyle),
-                _SegmentChip(
-                  segment: presentation.segments[i],
-                  bodyStyle: bodyStyle,
-                  accentColor: tt.info,
-                ),
-              ],
-            ],
-          );
-        }
-
-        final row = BeaconHudIconRow(
-          leadIcon: BeaconHudRowIcons.you,
-          semanticsLabel: l10n.beaconHudYouLabel,
-          leadAlign: presentation.fallbackText != null
-              ? BeaconHudRowLeadAlign.center
-              : BeaconHudRowLeadAlign.start,
-          minRowHeight: presentation.fallbackText != null
-              ? kBeaconHudRowMinHeight
-              : null,
-          body: content,
-        );
-
-        if (onTap == null) {
-          return row;
-        }
-
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 44),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: row,
-              ),
-            ),
           ),
-        );
-      },
+          if (presentation.segments.isNotEmpty)
+            Text('·', style: mutedStyle),
+        ],
+        for (var i = 0; i < presentation.segments.length; i++) ...[
+          if (i > 0)
+            Text('·', style: mutedStyle),
+          _SegmentChip(
+            segment: presentation.segments[i],
+            bodyStyle: bodyStyle,
+            accentColor: tt.info,
+          ),
+        ],
+      ],
     );
   }
 
