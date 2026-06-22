@@ -1193,7 +1193,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
               ),
               for (final o in publicOptions)
                 ListTile(
-                  dense: true,
                   leading: state.beacon.publicStatus == o.$1
                       ? Icon(Icons.check, size: tt.iconSize)
                       : SizedBox(width: tt.iconSize),
@@ -1219,7 +1218,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                 ),
                 for (final o in coordinationOptions)
                   ListTile(
-                    dense: true,
                     title: Text(o.$2),
                     onTap: () {
                       Navigator.of(ctx).pop();
