@@ -74,8 +74,12 @@ class FriendsCubit extends Cubit<FriendsState> {
         ),
       );
     } catch (e) {
-      _effects.emit(ShowError(e));
-      emit(state.copyWith(status: const StateIsSuccess()));
+      if (state.friends.isEmpty) {
+        emit(state.copyWith(status: StateHasError(e)));
+      } else {
+        _effects.emit(ShowError(e));
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
     }
   }
 
