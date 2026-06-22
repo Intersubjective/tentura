@@ -39,11 +39,47 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
   final CoordinationItemRoomSync _itemSync;
   StreamSubscription<BeaconRoomInvalidation>? _invalidationSub;
 
-  void _publishItem(CoordinationItem item) {
-    if (!isClosed) {
-      emit(state.copyWith(item: item));
+  Future<void> _runItemMutation(
+    Future<CoordinationItem> Function() mutate,
+  ) async {
+    if (isClosed) {
+      return;
     }
-    _itemSync.notifyItemUpdated(item);
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      final updated = await mutate();
+      if (isClosed) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          item: updated,
+          status: const StateIsSuccess(),
+        ),
+      );
+      _itemSync.notifyItemUpdated(updated);
+    } on Object catch (e) {
+      if (!isClosed) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
+    }
+  }
+
+  Future<void> _runVoidMutation(Future<void> Function() mutate) async {
+    if (isClosed) {
+      return;
+    }
+    emit(state.copyWith(status: const StateIsLoading()));
+    try {
+      await mutate();
+      if (!isClosed) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
+    } on Object catch (e) {
+      if (!isClosed) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
+    }
   }
 
   Future<void> _refreshItem() async {
@@ -74,7 +110,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
     required String title,
     String body = '',
   }) async {
-    try {
+    await _runVoidMutation(() async {
       final resolution = await _case.createResolution(
         beaconId: state.item.beaconId,
         title: title,
@@ -84,103 +120,66 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
       if (!isClosed) {
         emit(state.copyWith(pendingResolution: resolution));
       }
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
+    });
   }
 
-  Future<void> resolveBlocker() async {
-    try {
-      _publishItem(await _case.resolveBlocker(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> resolveBlocker() async =>
+      _runItemMutation(() => _case.resolveBlocker(itemId: state.item.id));
 
-  Future<void> cancelBlocker() async {
-    try {
-      _publishItem(await _case.cancelBlocker(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> cancelBlocker() async =>
+      _runItemMutation(() => _case.cancelBlocker(itemId: state.item.id));
 
-  Future<void> acceptAsk() async {
-    try {
-      _publishItem(await _case.acceptAsk(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> acceptAsk() async =>
+      _runItemMutation(() => _case.acceptAsk(itemId: state.item.id));
 
-  Future<void> resolveAsk() async {
-    try {
-      _publishItem(await _case.resolveAsk(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> resolveAsk() async =>
+      _runItemMutation(() => _case.resolveAsk(itemId: state.item.id));
 
-  Future<void> cancelAsk() async {
-    try {
-      _publishItem(await _case.cancelAsk(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> cancelAsk() async =>
+      _runItemMutation(() => _case.cancelAsk(itemId: state.item.id));
 
-  Future<void> acceptPromise() async {
-    try {
-      _publishItem(await _case.acceptPromise(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> acceptPromise() async =>
+      _runItemMutation(() => _case.acceptPromise(itemId: state.item.id));
 
-  Future<void> resolvePromise() async {
-    try {
-      _publishItem(await _case.resolvePromise(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> resolvePromise() async =>
+      _runItemMutation(() => _case.resolvePromise(itemId: state.item.id));
 
-  Future<void> cancelPromise() async {
-    try {
-      _publishItem(await _case.cancelPromise(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> cancelPromise() async =>
+      _runItemMutation(() => _case.cancelPromise(itemId: state.item.id));
 
-  Future<void> remindItem() async {
-    try {
-      _publishItem(await _case.remindItem(itemId: state.item.id));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
+  Future<void> remindItem() async =>
+      _runItemMutation(() => _case.remindItem(itemId: state.item.id));
 
   Future<void> acceptResolution() async {
     final resolutionId = state.pendingResolution?.id;
-    if (resolutionId == null) return;
+    if (resolutionId == null) {
+      return;
+    }
+    if (isClosed) {
+      return;
+    }
+    emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.acceptResolution(itemId: resolutionId);
       await _refreshItem();
     } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+      if (!isClosed) {
+        emit(state.copyWith(status: StateHasError(e)));
+      }
     }
   }
 
   Future<void> rejectResolution() async {
     final resolutionId = state.pendingResolution?.id;
-    if (resolutionId == null) return;
-    try {
-      await _case.rejectResolution(itemId: resolutionId);
-      if (!isClosed) emit(state.copyWith(pendingResolution: null));
-    } on Object catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
+    if (resolutionId == null) {
+      return;
     }
+    await _runVoidMutation(() async {
+      await _case.rejectResolution(itemId: resolutionId);
+      if (!isClosed) {
+        emit(state.copyWith(pendingResolution: null));
+      }
+    });
   }
 
   @override
