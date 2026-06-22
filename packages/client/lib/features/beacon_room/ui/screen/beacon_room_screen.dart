@@ -8,6 +8,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/room_cubit.dart';
 import '../widget/beacon_room_body.dart';
@@ -76,6 +77,13 @@ class BeaconRoomScreen extends StatelessWidget implements AutoRouteWrapper {
             ),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: LinearPiActive.size,
+          child: BlocSelector<RoomCubit, RoomState, bool>(
+            selector: (state) => state.isLoading,
+            builder: LinearPiActive.builder,
+          ),
+        ),
       ),
       body: const BeaconRoomBody(),
     );
