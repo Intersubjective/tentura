@@ -46,7 +46,7 @@ You are operating in a loop. Each invocation must complete **exactly one task** 
 
 - [x] TASK-09: `InboxRejectedScreen` — `buildWhen` already watches `hasError`; add inline error UI in the body (or document the snackbar-only pattern with a comment)
 - [x] TASK-10: `ItemDiscussionScreen` — add a `BlocListener` (or extend `commonScreenBlocListener`) for `ItemActionsCubit` errors so they surface to the user
-- [ ] TASK-11: `BeaconViewScreen` — add a dedicated error/empty state widget when the initial fetch fails and `state.data` is empty
+- [x] TASK-11: `BeaconViewScreen` — add a dedicated error/empty state widget when the initial fetch fails and `state.data` is empty
 - [ ] TASK-12: `BeaconScreen` — add inline error UI with a retry action (matching the My Work pattern); screen currently relies only on the listener
 - [ ] TASK-13: `AcceptInviteScreen` — when `state.needsConfirmation` is true and the confirmation dialog is open, show a dimmed backdrop or keep a loading spinner visible so the body is not blank
 
