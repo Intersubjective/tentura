@@ -109,8 +109,6 @@ bool _hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
   return false;
 }
 
-const _beaconAuthorUpdateEditWindow = Duration(hours: 1);
-
 /// Initial help offer dialog + [BeaconViewCubit.offerHelp].
 Future<void> _beaconViewRunInitialHelpOfferDialog(
   BuildContext context,
@@ -167,10 +165,6 @@ Future<void> _beaconViewOpenForwardThenMaybeNudgeOfferHelp(
   );
 }
 
-bool _authorUpdateEditableNow(DateTime createdAt) =>
-    DateTime.now().toUtc().difference(createdAt.toUtc()) <=
-    _beaconAuthorUpdateEditWindow;
-
 bool _authorLifecycleToggleEnabled(BeaconViewState state) {
   final b = state.beacon;
   if (b.lifecycle == BeaconLifecycle.open && b.isListed) {
@@ -215,9 +209,6 @@ Future<void> _beaconViewRunAuthorCloseSheet({
         isLoading: cubit.state.isLoading,
         onCloseBeacon: attemptClose,
         onOpenPeople: onOpenPeopleTab,
-        onPostUpdate: () async {
-          await _showPostAuthorUpdateSheet(context, cubit, l10n);
-        },
         onResolveRoom: cubit.state.canNavigateBeaconRoom
             ? () => onEnterRoomSurface()
             : null,
@@ -232,9 +223,6 @@ Future<void> _beaconViewRunAuthorCloseSheet({
     isLoading: cubit.state.isLoading,
     onCloseBeacon: attemptClose,
     onOpenPeople: onOpenPeopleTab,
-    onPostUpdate: () async {
-      await _showPostAuthorUpdateSheet(context, cubit, l10n);
-    },
     onResolveRoom: cubit.state.canNavigateBeaconRoom
         ? () => onEnterRoomSurface()
         : null,
@@ -1290,14 +1278,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
               c.needCoordinationHelpOffersCount,
       builder: (context, state) {
         final beaconId = state.beacon.id;
-        Future<void> editUpdate(TimelineUpdate u) => _showEditAuthorUpdateSheet(
-          context,
-          beaconViewCubit,
-          l10n,
-          initial: u.content,
-          updateId: u.id,
-          createdAt: u.createdAt,
-        );
 
         final tabBody = switch (idx) {
           kBeaconTabItems => ItemsTab(
@@ -1315,7 +1295,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             timeline: const [],
             beacon: state.beacon,
             isAuthorView: state.isBeaconMine,
-            onEditTimelineUpdate: editUpdate,
             roomActivityEvents: state.roomActivityEvents,
             coordinationLogOnly: true,
             onTapCoordinationEvent: onTapCoordinationLogEvent,
@@ -1369,17 +1348,6 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                         state.isAuthorOrSteward &&
                             state.beacon.lifecycle == BeaconLifecycle.open
                         ? () => unawaited(_showUpdateStatusSheet(context, state))
-                        : null,
-                    onPostUpdate:
-                        state.isBeaconMine &&
-                            state.beacon.lifecycle == BeaconLifecycle.open
-                        ? () => unawaited(
-                            _showPostAuthorUpdateSheet(
-                              context,
-                              beaconViewCubit,
-                              l10n,
-                            ),
-                          )
                         : null,
                     onOfferHelp:
                         !state.isBeaconMine &&
@@ -1559,143 +1527,5 @@ class _PinnedSegmentBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _PinnedSegmentBarDelegate oldDelegate) {
     return child != oldDelegate.child;
-  }
-}
-
-Future<void> _showPostAuthorUpdateSheet(
-  BuildContext context,
-  BeaconViewCubit cubit,
-  L10n l10n,
-) async {
-  final text = await showModalBottomSheet<String?>(
-    context: context,
-    isScrollControlled: true,
-    builder: (ctx) => _AuthorUpdateComposerSheet(
-      title: l10n.postUpdateCTA,
-      hintText: l10n.beaconUpdateComposerHint,
-      submitText: l10n.postUpdateCTA,
-      footerHint: l10n.beaconUpdateEditWindowHint,
-    ),
-  );
-  final t = text?.trim();
-  if (t != null && t.isNotEmpty && context.mounted) {
-    await cubit.postAuthorUpdate(t);
-  }
-}
-
-Future<void> _showEditAuthorUpdateSheet(
-  BuildContext context,
-  BeaconViewCubit cubit,
-  L10n l10n, {
-  required String initial,
-  required String updateId,
-  required DateTime createdAt,
-}) async {
-  if (!_authorUpdateEditableNow(createdAt)) {
-    if (context.mounted) {
-      showSnackBar(
-        context,
-        isError: true,
-        text: l10n.beaconUpdateEditExpired,
-      );
-    }
-    return;
-  }
-  final text = await showModalBottomSheet<String?>(
-    context: context,
-    isScrollControlled: true,
-    builder: (ctx) => _AuthorUpdateComposerSheet(
-      title: l10n.editUpdateCTA,
-      hintText: l10n.beaconUpdateComposerHint,
-      submitText: l10n.buttonSaveChanges,
-      footerHint: l10n.beaconUpdateEditWindowHint,
-      initialText: initial,
-    ),
-  );
-
-  final t = text?.trim();
-  if (t != null && t.isNotEmpty && t != initial && context.mounted) {
-    await cubit.editAuthorUpdate(id: updateId, content: t);
-  }
-}
-
-class _AuthorUpdateComposerSheet extends StatefulWidget {
-  const _AuthorUpdateComposerSheet({
-    required this.title,
-    required this.hintText,
-    required this.submitText,
-    required this.footerHint,
-    this.initialText,
-  });
-
-  final String title;
-  final String hintText;
-  final String submitText;
-  final String footerHint;
-  final String? initialText;
-
-  @override
-  State<_AuthorUpdateComposerSheet> createState() =>
-      _AuthorUpdateComposerSheetState();
-}
-
-class _AuthorUpdateComposerSheetState
-    extends State<_AuthorUpdateComposerSheet> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialText);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    final theme = Theme.of(context);
-    return Padding(
-      padding: EdgeInsets.only(
-        left: kSpacingSmall,
-        right: kSpacingSmall,
-        top: kSpacingMedium,
-        bottom: bottom + kSpacingMedium,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(widget.title, style: theme.textTheme.titleMedium),
-          const SizedBox(height: kSpacingSmall),
-          TextField(
-            controller: _controller,
-            maxLines: 6,
-            maxLength: kDescriptionMaxLength,
-            decoration: InputDecoration(hintText: widget.hintText),
-          ),
-          const SizedBox(height: kSpacingSmall),
-          Text(
-            widget.footerHint,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: kSpacingSmall),
-          FilledButton(
-            onPressed: () {
-              final t = _controller.text.trim();
-              if (t.isEmpty) return;
-              Navigator.of(context).pop(t);
-            },
-            child: Text(widget.submitText),
-          ),
-        ],
-      ),
-    );
   }
 }

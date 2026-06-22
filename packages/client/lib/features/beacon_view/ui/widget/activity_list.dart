@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -32,7 +31,6 @@ class BeaconActivityList extends StatelessWidget {
     required this.timeline,
     required this.beacon,
     required this.isAuthorView,
-    required this.onEditTimelineUpdate,
     this.roomActivityEvents = const [],
     this.actors = const {},
     this.coordinationLogOnly = false,
@@ -43,7 +41,6 @@ class BeaconActivityList extends StatelessWidget {
   final List<TimelineEntry> timeline;
   final Beacon beacon;
   final bool isAuthorView;
-  final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
   final List<BeaconActivityEvent> roomActivityEvents;
 
   /// Maps userId → participant for room activity event actors/targets.
@@ -101,7 +98,6 @@ class BeaconActivityList extends StatelessWidget {
           entry: e,
           beacon: beacon,
           isAuthorView: isAuthorView,
-          onEditTimelineUpdate: onEditTimelineUpdate,
           tier: _tierFor(e),
         ),
       ));
@@ -217,14 +213,12 @@ class _ActivityEntryTile extends StatelessWidget {
     required this.entry,
     required this.beacon,
     required this.isAuthorView,
-    required this.onEditTimelineUpdate,
     required this.tier,
   });
 
   final TimelineEntry entry;
   final Beacon beacon;
   final bool isAuthorView;
-  final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
   final _ActivityTier tier;
 
   @override
@@ -236,57 +230,26 @@ class _ActivityEntryTile extends StatelessWidget {
 
     return Padding(
       padding: kPaddingSmallV,
-      child: switch (entry) {
-        final TimelineUpdate u => Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(iconData, size: kCoordinationLogEventIconSize, color: iconColor),
-              const SizedBox(width: kSpacingSmall),
-              Expanded(
-                child: Text(
-                  '${l10n.updateNumberLabel(u.number)} · ${l10n.timelineUpdate(u.author.shownName, u.content)}',
-                  style: theme.textTheme.bodySmall,
-                ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(iconData, size: kCoordinationLogEventIconSize, color: iconColor),
+          const SizedBox(width: kSpacingSmall),
+          Expanded(
+            child: Text(
+              _line(l10n, entry),
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight:
+                    tier == _ActivityTier.high ? FontWeight.w600 : null,
               ),
-              if (isAuthorView &&
-                  beacon.lifecycle == BeaconLifecycle.open &&
-                  _authorUpdateEditableNow(u.createdAt))
-                IconButton(
-                  tooltip: l10n.editUpdateCTA,
-                  icon: const Icon(Icons.edit_outlined),
-                  iconSize: 18,
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  onPressed: () => onEditTimelineUpdate(u),
-                ),
-              Text(
-                coordinationLogTimestampLabel(u.timestamp),
-                style: theme.textTheme.labelSmall,
-              ),
-            ],
+            ),
           ),
-        _ => Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(iconData, size: kCoordinationLogEventIconSize, color: iconColor),
-              const SizedBox(width: kSpacingSmall),
-              Expanded(
-                child: Text(
-                  _line(l10n, entry),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight:
-                        tier == _ActivityTier.high ? FontWeight.w600 : null,
-                  ),
-                ),
-              ),
-              Text(
-                coordinationLogTimestampLabel(entry.timestamp),
-                style: theme.textTheme.labelSmall,
-              ),
-            ],
+          Text(
+            coordinationLogTimestampLabel(entry.timestamp),
+            style: theme.textTheme.labelSmall,
           ),
-      },
+        ],
+      ),
     );
   }
 }
@@ -298,7 +261,6 @@ IconData _icon(TimelineEntry e) => switch (e) {
       TimelineHelpOfferUpdated() => Icons.edit_note,
       TimelineHelpOfferWithdrawn() => Icons.heart_broken,
       TimelineAuthorCoordinationResponse() => Icons.reply_rounded,
-      TimelineUpdate() => Icons.campaign_outlined,
     };
 
 Color _iconColor(ThemeData theme, TimelineEntry e, _ActivityTier tier) {
@@ -334,7 +296,6 @@ String _line(L10n l10n, TimelineEntry entry) => switch (entry) {
           coordinationStatusLabel(l10n, e.status),
         ),
       final TimelineCreation e => l10n.timelineCreated(e.author.shownName),
-      TimelineUpdate() => '',
     };
 
 String _timelineHelpOfferUpdatedLine(L10n l10n, TimelineHelpOfferUpdated e) {
@@ -345,9 +306,3 @@ String _timelineHelpOfferUpdatedLine(L10n l10n, TimelineHelpOfferUpdated e) {
   }
   return base;
 }
-
-const _beaconAuthorUpdateEditWindow = Duration(hours: 1);
-
-bool _authorUpdateEditableNow(DateTime createdAt) =>
-    DateTime.now().toUtc().difference(createdAt.toUtc()) <=
-    _beaconAuthorUpdateEditWindow;

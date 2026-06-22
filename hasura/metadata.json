@@ -118,18 +118,6 @@
                 }
               },
               {
-                "name": "updates",
-                "using": {
-                  "foreign_key_constraint_on": {
-                    "column": "beacon_id",
-                    "table": {
-                      "name": "beacon_update",
-                      "schema": "public"
-                    }
-                  }
-                }
-              },
-              {
                 "name": "beacon_images",
                 "using": {
                   "foreign_key_constraint_on": {
@@ -1557,63 +1545,6 @@
                   "filter": {}
                 },
                 "comment": ""
-              }
-            ]
-          },
-          {
-            "table": {
-              "name": "beacon_update",
-              "schema": "public"
-            },
-            "object_relationships": [
-              {
-                "name": "beacon",
-                "using": {
-                  "foreign_key_constraint_on": "beacon_id"
-                }
-              },
-              {
-                "name": "author",
-                "using": {
-                  "foreign_key_constraint_on": "author_id"
-                }
-              }
-            ],
-            "insert_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "check": {
-                    "beacon": {
-                      "user_id": {
-                        "_eq": "X-Hasura-User-Id"
-                      }
-                    }
-                  },
-                  "set": {
-                    "author_id": "x-hasura-User-Id"
-                  },
-                  "columns": [
-                    "beacon_id",
-                    "content"
-                  ]
-                }
-              }
-            ],
-            "select_permissions": [
-              {
-                "role": "user",
-                "permission": {
-                  "columns": [
-                    "id",
-                    "beacon_id",
-                    "author_id",
-                    "content",
-                    "created_at",
-                    "number"
-                  ],
-                  "filter": {}
-                }
               }
             ]
           },

@@ -2101,51 +2101,6 @@
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
   },
-  "beaconUpdatesSection": "Обновления",
-  "@beaconUpdatesSection": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdatesEmpty": "Пока нет обновлений.",
-  "@beaconUpdatesEmpty": {
-    "context": "BeaconViewScreen"
-  },
-  "postUpdateCTA": "Обновить",
-  "@postUpdateCTA": {
-    "context": "BeaconViewScreen"
-  },
-  "editUpdateCTA": "Редактировать обновление",
-  "@editUpdateCTA": {
-    "context": "BeaconViewScreen"
-  },
-  "updateNumberLabel": "#{number}",
-  "@updateNumberLabel": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconUpdateComposerHint": "Что изменилось? Расскажите помощникам и наблюдателям.",
-  "@beaconUpdateComposerHint": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdatePostedMessage": "Обновление опубликовано",
-  "@beaconUpdatePostedMessage": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdateSavedMessage": "Обновление сохранено",
-  "@beaconUpdateSavedMessage": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdateEditWindowHint": "Обновления можно редактировать в течение 1 часа после публикации.",
-  "@beaconUpdateEditWindowHint": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdateEditExpired": "Срок редактирования истёк (1 час после публикации).",
-  "@beaconUpdateEditExpired": {
-    "context": "BeaconViewScreen"
-  },
   "labelHelpOffered": "Помощь предложена",
   "@labelHelpOffered": {
     "context": "BeaconViewScreen"
@@ -2237,18 +2192,6 @@
   "@labelWithdrawn": {
     "context": "BeaconViewScreen",
     "description": "Badge for withdrawn help offer in help offers list"
-  },
-  "timelineUpdate": "{author}: {content}",
-  "@timelineUpdate": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "content": {
-        "type": "String"
-      }
-    }
   },
   "timelineCreated": "{author} создал(а) запрос",
   "@timelineCreated": {
@@ -2782,7 +2725,6 @@
   "beaconCloseSheetActionCloseAnyway": "Всё равно закрыть",
   "beaconCloseSheetActionKeepActive": "Оставить активным",
   "beaconCloseSheetActionOpenPeople": "Открыть людей",
-  "beaconCloseSheetActionPostUpdate": "Обновление",
   "beaconCloseSheetActionResolveRoom": "Открыть комнату",
   "beaconCloseSheetActionNotNow": "Не сейчас",
   "beaconCloseSheetBlockedForceHint": "Закрытие несмотря на блокеры отключено.",
@@ -2930,7 +2872,6 @@
   "beaconPublicStatusNoNote": "Без примечания",
   "beaconHelpOfferSnapshotTitle": "Предложения помощи",
   "beaconViewAllHelpOffers": "Все предложения помощи",
-  "beaconLatestUpdateTitle": "Обновление автора",
   "beaconForwardChainPreview": "Цепочка пересылок",
   "beaconForwardChainTapHint": "Нажмите для графа",
   "beaconDescriptionAttachmentsTitle": "Описание и вложения",
@@ -3031,7 +2972,6 @@
   "beaconOverviewDiagnosisNeedDifferentSkillBody": "Есть отклики, но они не закрывают оставшийся разрыв.",
   "beaconOverviewDiagnosisNeedCoordinationBody": "Участиям не хватает ясной координации, прежде чем двигаться дальше.",
   "beaconOverviewDiagnosisGenericMoreHelpBody": "Покрытие ещё не соответствует оставшейся потребности.",
-  "beaconOverviewNoAuthorUpdate": "Пока нет обновления",
   "beaconOverviewNeedEmpty": "Пока нет текста",
   "beaconOverviewNeedMeta": "Создал(а) {author} · {context}",
   "@beaconOverviewNeedMeta": {

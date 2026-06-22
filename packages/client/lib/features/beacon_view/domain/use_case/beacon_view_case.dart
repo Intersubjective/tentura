@@ -28,7 +28,6 @@ import 'package:tentura/features/beacon_room/domain/entity/room_unread_snapshot.
 import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
 
-import '../../data/repository/beacon_author_update_repository.dart';
 import '../../data/repository/coordination_repository.dart';
 
 @singleton
@@ -40,7 +39,6 @@ final class BeaconViewCase extends UseCaseBase {
     this._archiveRepository,
     this._coordinationRepository,
     this._inboxRepository,
-    this._beaconAuthorUpdateRepository,
     this._factCards,
     this._beaconRoomCase,
     this._activityEvents,
@@ -60,8 +58,6 @@ final class BeaconViewCase extends UseCaseBase {
   final CoordinationRepository _coordinationRepository;
 
   final InboxRepository _inboxRepository;
-
-  final BeaconAuthorUpdateRepository _beaconAuthorUpdateRepository;
 
   final BeaconFactCardRepository _factCards;
 
@@ -260,37 +256,6 @@ final class BeaconViewCase extends UseCaseBase {
   }) => _coordinationRepository.fetchHelpOffersWithCoordination(
     beaconId: beaconId,
   );
-
-  Future<
-    List<
-      ({
-        String id,
-        int number,
-        Profile author,
-        String content,
-        DateTime createdAt,
-      })
-    >
-  >
-  fetchBeaconUpdates({
-    required String beaconId,
-  }) => _forwardRepository.fetchUpdates(beaconId: beaconId);
-
-  Future<void> postBeaconAuthorUpdate({
-    required String beaconId,
-    required String content,
-  }) => _beaconAuthorUpdateRepository
-      .post(
-        beaconId: beaconId,
-        content: content,
-      )
-      .then((_) {});
-
-  Future<void> editBeaconAuthorUpdate({
-    required String id,
-    required String content,
-  }) =>
-      _beaconAuthorUpdateRepository.edit(id: id, content: content).then((_) {});
 
   Future<
     ({

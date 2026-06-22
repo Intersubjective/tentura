@@ -32,7 +32,6 @@ import '../gql/_g/help_offers_fetch.req.gql.dart';
 import '../../domain/entity/lineage_suggestion_group.dart';
 import '../gql/_g/beacon_lineage_suggestions.data.gql.dart';
 import '../gql/_g/beacon_lineage_suggestions.req.gql.dart';
-import '../gql/_g/beacon_updates_fetch.req.gql.dart';
 
 typedef BeaconInvolvementData = ({
   Beacon beacon,
@@ -376,36 +375,6 @@ class ForwardRepository {
                     createdAt: e.created_at,
                     updatedAt: e.updated_at,
                     isWithdrawn: e.status == 1,
-                  ),
-                )
-                .toList(),
-          );
-
-  Future<
-      List<
-          ({
-            String id,
-            int number,
-            Profile author,
-            String content,
-            DateTime createdAt,
-          })>>
-      fetchUpdates({required String beaconId}) => _remoteApiService
-          .request(
-            GBeaconUpdatesFetchReq((r) => r..vars.beaconId = beaconId),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then(
-            (r) => r
-                .dataOrThrow(label: _label)
-                .beacon_update
-                .map(
-                  (e) => (
-                    id: e.id,
-                    number: e.number,
-                    author: (e.author as UserModel).toEntity(),
-                    content: e.content,
-                    createdAt: e.created_at,
                   ),
                 )
                 .toList(),

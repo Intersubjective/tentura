@@ -131,15 +131,3 @@ String? firstParagraphNeedLine(Beacon beacon) {
   if (i < 0) return d;
   return d.substring(0, i).trim();
 }
-
-TimelineUpdate? latestTimelineUpdate(Iterable<TimelineEntry> timeline) {
-  TimelineUpdate? latest;
-  for (final e in timeline) {
-    if (e is TimelineUpdate) {
-      if (latest == null || e.timestamp.isAfter(latest.timestamp)) {
-        latest = e;
-      }
-    }
-  }
-  return latest;
-}

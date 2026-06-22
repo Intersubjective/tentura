@@ -19,7 +19,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     required this.state,
     required this.onAuthorTap,
     this.onUpdateStatus,
-    this.onPostUpdate,
     this.onOfferHelp,
     this.onForward,
     this.onWatch,
@@ -40,7 +39,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   final VoidCallback onAuthorTap;
 
   final VoidCallback? onUpdateStatus;
-  final VoidCallback? onPostUpdate;
   final VoidCallback? onOfferHelp;
   final VoidCallback? onForward;
   final VoidCallback? onWatch;
@@ -174,18 +172,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
       final specs = <_HudActionSpec>[];
 
-      void addPostUpdate() {
-        if (onPostUpdate == null) return;
-        specs.add(
-          _HudActionSpec(
-            icon: Icons.edit_note_outlined,
-            label: l10n.postUpdateCTA,
-            onPressed: onPostUpdate,
-            filled: false,
-          ),
-        );
-      }
-
       void addForward() {
         if (onForward == null) return;
         specs.add(
@@ -236,22 +222,18 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
       }
 
       if (showResolve) {
-        addPostUpdate();
         addResolve();
         addForward();
       } else {
         switch (cp) {
           case ClosureActionPriority.primary:
             addClose(filled: true);
-            addPostUpdate();
             addForward();
           case ClosureActionPriority.secondary:
-            addPostUpdate();
             addClose(filled: false);
             addForward();
           case ClosureActionPriority.overflow:
           case ClosureActionPriority.hidden:
-            addPostUpdate();
             addForward();
         }
         if (specs.length < 3) {

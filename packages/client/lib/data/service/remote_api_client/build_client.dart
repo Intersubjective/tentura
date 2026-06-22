@@ -120,8 +120,6 @@ class _V2RoutingLink extends Link {
     'BeaconLineageForwardSuggestions',
     'BeaconUpdate',
     'BeaconUpdateDraft',
-    'BeaconUpdatePost',
-    'BeaconUpdateEdit',
     'BeaconForwardGraph',
     'BeaconHelpOffererForwardPath',
     'BeaconInvolvementData',

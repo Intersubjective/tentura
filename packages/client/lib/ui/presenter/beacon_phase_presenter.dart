@@ -38,7 +38,6 @@ String? formatBeaconPhasePrimaryCtaLabel(
     BeaconPhasePrimaryAction.reviewOffers => l10n.beaconPhaseCtaReviewOffers,
     BeaconPhasePrimaryAction.forward => l10n.labelForward,
     BeaconPhasePrimaryAction.offerHelp => l10n.labelOfferHelp,
-    BeaconPhasePrimaryAction.postUpdate => l10n.postUpdateCTA,
     BeaconPhasePrimaryAction.reviewContributions =>
       l10n.beaconHudCtaReviewContributions,
     BeaconPhasePrimaryAction.none => null,
@@ -66,10 +65,6 @@ BeaconPhasePrimaryAction resolveEffectivePrimaryAction({
       isAuthor ? BeaconPhasePrimaryAction.forward : BeaconPhasePrimaryAction.none,
     BeaconPhasePrimaryAction.offerHelp =>
       canOfferHelp ? BeaconPhasePrimaryAction.offerHelp : BeaconPhasePrimaryAction.none,
-    BeaconPhasePrimaryAction.postUpdate =>
-      (isAuthorOrSteward && canCoordinateInRoom)
-          ? BeaconPhasePrimaryAction.postUpdate
-          : BeaconPhasePrimaryAction.none,
     BeaconPhasePrimaryAction.reviewContributions =>
       BeaconPhasePrimaryAction.reviewContributions,
     BeaconPhasePrimaryAction.none => BeaconPhasePrimaryAction.none,

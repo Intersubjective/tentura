@@ -13,7 +13,6 @@ Future<bool> showBeaconCloseConfirmSheet({
   required bool isLoading,
   required Future<bool> Function(bool expectedRequiresReviewWindow) onCloseBeacon,
   required VoidCallback onOpenPeople,
-  required VoidCallback onPostUpdate,
   VoidCallback? onResolveRoom,
 }) async {
   final l10n = L10n.of(context)!;
@@ -182,13 +181,6 @@ Future<bool> showBeaconCloseConfirmSheet({
                       confirmed = await onCloseBeacon(reviewBranch);
                     },
                     child: Text(l10n.beaconCloseSheetActionCloseAnyway),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(ctx).pop();
-                      onPostUpdate();
-                    },
-                    child: Text(l10n.beaconCloseSheetActionPostUpdate),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(ctx).pop(),
