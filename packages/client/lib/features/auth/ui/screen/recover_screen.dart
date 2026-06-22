@@ -136,82 +136,94 @@ class _RecoverScreenState extends State<RecoverScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.all(tt.screenHPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.authSessionProblemBanner,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: kSpacingMedium),
-              FilledButton(
-                onPressed: authCubit.signInAgain,
-                child: Text(l10n.authRecoverySignInAgain),
-              ),
-              const SizedBox(height: kSpacingSmall),
-              OutlinedButton(
-                onPressed: () => _confirmResetLocal(context, l10n),
-                child: Text(l10n.authRecoveryResetLocalTitle),
-              ),
-              const SizedBox(height: kSpacingLarge),
-              Text(
-                l10n.recoverFromSeedHint,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: kSpacingMedium),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final viewportH = MediaQuery.sizeOf(context).height;
-                  final qrHeight = (viewportH * 0.28).clamp(180.0, 320.0);
-                  return SizedBox(
-                    height: qrHeight,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(kBorderRadius),
-                      child: MobileScanner(onDetect: _handleBarcode),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: kSpacingMedium),
-              TextField(
-                controller: _seedController,
-                autocorrect: false,
-                enableSuggestions: false,
-                keyboardType: TextInputType.visiblePassword,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: l10n.recoverFromSeedFieldLabel,
-                  border: const OutlineInputBorder(),
-                ),
-                onSubmitted: _recover,
-              ),
-              const SizedBox(height: kSpacingSmall),
-              Text(
-                l10n.recoverFromSeedPrivacyNote,
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: kSpacingMedium),
-              Row(
+          child: BlocSelector<AuthCubit, AuthState, bool>(
+            bloc: authCubit,
+            selector: (state) => state.isLoading,
+            builder: (context, isLoading) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextButton.icon(
-                    onPressed: () async {
-                      final data = await Clipboard.getData(Clipboard.kTextPlain);
-                      final text = data?.text?.trim();
-                      if (text != null && text.isNotEmpty && mounted) {
-                        _seedController.text = text;
-                      }
-                    },
-                    icon: const Icon(Icons.paste_rounded),
-                    label: Text(l10n.buttonPaste),
+                  Text(
+                    l10n.authSessionProblemBanner,
+                    style: theme.textTheme.bodyMedium,
                   ),
-                  const Spacer(),
+                  const SizedBox(height: kSpacingMedium),
                   FilledButton(
-                    onPressed: () => _recover(_seedController.text),
-                    child: Text(l10n.recoverFromSeedAction),
+                    onPressed: isLoading ? null : authCubit.signInAgain,
+                    child: Text(l10n.authRecoverySignInAgain),
+                  ),
+                  const SizedBox(height: kSpacingSmall),
+                  OutlinedButton(
+                    onPressed: isLoading
+                        ? null
+                        : () => _confirmResetLocal(context, l10n),
+                    child: Text(l10n.authRecoveryResetLocalTitle),
+                  ),
+                  const SizedBox(height: kSpacingLarge),
+                  Text(
+                    l10n.recoverFromSeedHint,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: kSpacingMedium),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final viewportH = MediaQuery.sizeOf(context).height;
+                      final qrHeight = (viewportH * 0.28).clamp(180.0, 320.0);
+                      return SizedBox(
+                        height: qrHeight,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(kBorderRadius),
+                          child: MobileScanner(onDetect: _handleBarcode),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: kSpacingMedium),
+                  TextField(
+                    controller: _seedController,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    keyboardType: TextInputType.visiblePassword,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: l10n.recoverFromSeedFieldLabel,
+                      border: const OutlineInputBorder(),
+                    ),
+                    onSubmitted: _recover,
+                  ),
+                  const SizedBox(height: kSpacingSmall),
+                  Text(
+                    l10n.recoverFromSeedPrivacyNote,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: kSpacingMedium),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () async {
+                          final data = await Clipboard.getData(
+                            Clipboard.kTextPlain,
+                          );
+                          final text = data?.text?.trim();
+                          if (text != null && text.isNotEmpty && mounted) {
+                            _seedController.text = text;
+                          }
+                        },
+                        icon: const Icon(Icons.paste_rounded),
+                        label: Text(l10n.buttonPaste),
+                      ),
+                      const Spacer(),
+                      FilledButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => _recover(_seedController.text),
+                        child: Text(l10n.recoverFromSeedAction),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),
