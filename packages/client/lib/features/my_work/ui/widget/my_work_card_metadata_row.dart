@@ -11,6 +11,7 @@ import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
+import 'package:tentura/ui/utils/beacon_you_presentation.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 
 /// My Work list card metadata: face pile + schedule countdown + location.
@@ -54,6 +55,12 @@ class MyWorkCardMetadataRow extends StatelessWidget {
                   viewerUserId: currentUserId,
                   openBlocker: viewModel.roomOpenBlocker,
                   phaseResult: phaseResult,
+                  isAwaitingAuthorReview: viewerAwaitingAuthorHelpOfferReview(
+                    isAuthorOrSteward: beacon.author.id == currentUserId,
+                    viewerHasActiveHelpOffer:
+                        viewModel.role == MyWorkCardRole.helpOffered,
+                    viewerOfferAuthorResponse: viewModel.authorResponseType,
+                  ),
                 );
               },
             ),

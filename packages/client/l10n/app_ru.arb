@@ -1835,6 +1835,91 @@
   "@beaconCardScheduleInProgress": {
     "description": "Screen reader label when beacon is in progress without an end date"
   },
+  "beaconCardScheduleScheduledFor": "Запланировано: {date}",
+  "@beaconCardScheduleScheduledFor": {
+    "description": "Screen reader label for an upcoming event shown as an absolute date/range",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleUntil": "по {date}",
+  "@beaconCardScheduleUntil": {
+    "description": "Card line for an event in progress that runs until an absolute end date",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleHappeningNow": "Идёт сейчас",
+  "@beaconCardScheduleHappeningNow": {
+    "description": "Card line for an event in progress with no end date"
+  },
+  "beaconCardScheduleEndedOn": "Завершено {date}",
+  "@beaconCardScheduleEndedOn": {
+    "description": "Screen reader label for a finished event shown as an absolute date",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleDeadlineBy": "до {date}",
+  "@beaconCardScheduleDeadlineBy": {
+    "description": "Card line for a deadline shown as an absolute date (needs to happen by)",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleDueIn": "осталось {remaining}",
+  "@beaconCardScheduleDueIn": {
+    "description": "Card line for an approaching deadline shown as a countdown",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleOverdue": "Просрочено",
+  "@beaconCardScheduleOverdue": {
+    "description": "Card line for a deadline whose date has passed"
+  },
+  "beaconTimingWhenTitle": "Когда?",
+  "@beaconTimingWhenTitle": {
+    "description": "Section title for the beacon timing (schedule) selector on the create/edit form"
+  },
+  "beaconTimingDeadline": "Срок",
+  "@beaconTimingDeadline": {
+    "description": "Timing mode: the beacon needs to happen by a date"
+  },
+  "beaconTimingDeadlineHint": "Нужно успеть к дате",
+  "@beaconTimingDeadlineHint": {
+    "description": "Helper subtitle for the deadline timing mode"
+  },
+  "beaconTimingEvent": "Дата / период",
+  "@beaconTimingEvent": {
+    "description": "Timing mode: the beacon happens at a set date or period"
+  },
+  "beaconTimingEventHint": "Происходит в определённую дату или период",
+  "@beaconTimingEventHint": {
+    "description": "Helper subtitle for the event timing mode"
+  },
+  "beaconTimingNone": "Без даты",
+  "@beaconTimingNone": {
+    "description": "Timing mode: no date, flexible"
+  },
+  "beaconTimingNoneHint": "Гибко, в любое время",
+  "@beaconTimingNoneHint": {
+    "description": "Helper subtitle for the no-date timing mode"
+  },
+  "beaconTimingPickDate": "Нажмите, чтобы выбрать",
+  "@beaconTimingPickDate": {
+    "description": "Hint on the timing picker field before a date is chosen"
+  },
   "beaconCardLocationSemantics": "Место: {place}",
   "@beaconCardLocationSemantics": {
     "description": "Screen reader label for beacon location on My Work card",
@@ -2556,6 +2641,10 @@
   "beaconYouWaitingOnOthers": "Ждём других",
   "beaconYouNoOpenItems": "Нет открытых пунктов",
   "beaconYouEnoughHelp": "Достаточно помощи",
+  "beaconYouNoInfo": "Нет данных",
+  "@beaconYouNoInfo": {
+    "description": "YOU line fallback when non-author has no personal coordination items"
+  },
   "beaconYouClosed": "Закрыто",
   "beaconYouItemsSheetTitle": "Ваша ответственность",
   "beaconYouActionReply": "Ответить",
@@ -3525,5 +3614,5 @@
   "beaconYouBlockedSemantics": "Блок поставил {name}, {elapsed} назад",
   "beaconPhaseCtaResolveBlocker": "Снять блок",
   "beaconPhaseCtaReviewOffers": "Просмотреть предложения",
-  "beaconYouOfferSent": "Предложение отправлено — автор рассматривает"
+  "beaconYouOfferSent": "Ждём решения автора"
 }

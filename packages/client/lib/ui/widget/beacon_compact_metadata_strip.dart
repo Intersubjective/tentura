@@ -284,8 +284,7 @@ class _ScheduleMetaState extends State<_ScheduleMeta> {
   }
 
   void _maybeStartTimer() {
-    final phase = widget.beacon.schedulePhase();
-    if (beaconScheduleNeedsLiveTimer(phase)) {
+    if (beaconScheduleNeedsLiveTimer(widget.beacon)) {
       _timer = Timer.periodic(const Duration(minutes: 1), (_) {
         if (mounted) {
           setState(() {});
@@ -326,11 +325,16 @@ class _ScheduleMetaState extends State<_ScheduleMeta> {
         icon: presentation.icon,
         child: presentation.visibleText.isEmpty
             ? const SizedBox.shrink()
-            : Text(
-                presentation.visibleText,
-                style: textStyle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            : ConstrainedBox(
+                // Keep a long absolute date (e.g. a cross-year range) from
+                // overflowing this compact strip — it ellipsizes instead.
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: Text(
+                  presentation.visibleText,
+                  style: textStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
       ),
     );

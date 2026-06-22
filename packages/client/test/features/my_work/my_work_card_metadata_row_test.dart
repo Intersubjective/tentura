@@ -35,8 +35,8 @@ void main() {
       author: const Profile(id: 'a1', displayName: 'Alice'),
       helpOfferCount: 1,
       helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],
-      startAt: DateTime.utc(2099, 6, 20, 12),
-      endAt: DateTime.utc(2099, 6, 25, 12),
+      startAt: DateTime.utc(2099, 12, 20, 12),
+      endAt: DateTime.utc(2099, 12, 25, 12),
       coordinates: const Coordinates(lat: 52.52, long: 13.405),
       createdAt: DateTime(2026, 6, 10, 9),
       updatedAt: DateTime(2026, 6, 10, 10),
@@ -68,7 +68,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('updated'), findsOneWidget);
-    expect(find.byIcon(Icons.schedule_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.event_outlined), findsOneWidget);
     expect(find.byIcon(BeaconHudRowIcons.people), findsOneWidget);
     expect(find.byType(MyWorkCardMetadataRow), findsOneWidget);
     expect(find.byType(MyWorkCardStatusStrip), findsNothing);
@@ -84,7 +84,7 @@ void main() {
     final scheduleX = tester.getTopLeft(
       find.descendant(
         of: strip,
-        matching: find.byIcon(Icons.schedule_outlined),
+        matching: find.byIcon(Icons.event_outlined),
       ),
     ).dx;
     expect(scheduleX, greaterThan(pileRect.right));
@@ -188,7 +188,7 @@ void main() {
     final scheduleX = tester.getTopLeft(
       find.descendant(
         of: strip,
-        matching: find.byIcon(Icons.schedule_outlined),
+        matching: find.byIcon(Icons.event_outlined),
       ),
     ).dx;
     expect(scheduleX, greaterThan(pileRect.right));

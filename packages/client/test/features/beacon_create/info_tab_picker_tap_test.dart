@@ -55,17 +55,58 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('tapping date range field opens date range picker', (tester) async {
+  testWidgets('event timing mode opens the date range picker', (tester) async {
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
+    // Declare the timing meaning first, then the contextual picker appears.
+    await tester.tap(find.text('Date / period'));
+    await tester.pumpAndSettle();
+
     await tester.ensureVisible(
-      find.byKey(const Key('BeaconCreate.DateRangeField')),
+      find.byKey(const Key('BeaconCreate.TimingField')),
     );
-    await tester.tap(find.byKey(const Key('BeaconCreate.DateRangeField')));
+    await tester.tap(find.byKey(const Key('BeaconCreate.TimingField')));
     await tester.pumpAndSettle();
 
     expect(find.byType(DateRangePickerDialog), findsOneWidget);
+  });
+
+  testWidgets('deadline timing mode opens a single date picker', (tester) async {
+    await tester.pumpWidget(_infoTabHarness(cubit));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Deadline'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const Key('BeaconCreate.TimingField')),
+    );
+    await tester.tap(find.byKey(const Key('BeaconCreate.TimingField')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+  });
+
+  test('cubit timing setters write intent-correct nullability', () {
+    final start = DateTime(2026, 6, 20);
+    final end = DateTime(2026, 6, 23);
+
+    cubit.setDeadline(end);
+    expect(cubit.state.startAt, isNull);
+    expect(cubit.state.endAt, end);
+
+    cubit.setEventDates(startAt: start, endAt: end);
+    expect(cubit.state.startAt, start);
+    expect(cubit.state.endAt, end);
+
+    cubit.setEventDates(startAt: start);
+    expect(cubit.state.startAt, start);
+    expect(cubit.state.endAt, isNull);
+
+    cubit.clearTiming();
+    expect(cubit.state.startAt, isNull);
+    expect(cubit.state.endAt, isNull);
   });
 
   testWidgets('tapping location field opens choose location dialog', (tester) async {
