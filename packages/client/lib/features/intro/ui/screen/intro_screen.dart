@@ -7,6 +7,7 @@ import 'package:vector_graphics/vector_graphics.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
@@ -22,6 +23,8 @@ class IntroScreen extends StatefulWidget {
 
 class _IntroScreenState extends State<IntroScreen> {
   static const _pageCount = 3;
+
+  final _settingsCubit = GetIt.I<SettingsCubit>();
 
   final _controller = PageController();
 
@@ -44,12 +47,19 @@ class _IntroScreenState extends State<IntroScreen> {
       (title: l10n.introPage3Title, text: l10n.introPage3Text),
     ];
     final isLast = _page == _pageCount - 1;
-    return Scaffold(
-      body: SafeArea(
-        minimum: kPaddingAll,
-        child: Column(
-          children: [
-            Expanded(
+    return BlocBuilder<SettingsCubit, SettingsState>(
+      bloc: _settingsCubit,
+      buildWhen: (previous, current) =>
+          previous.isLoading != current.isLoading,
+      builder: (context, settingsState) {
+        final isPersistingIntro = settingsState.isLoading;
+        return Scaffold(
+          body: SafeArea(
+            minimum: kPaddingAll,
+            child: Column(
+              children: [
+                LinearPiActive.builder(context, isPersistingIntro),
+                Expanded(
               child: PageView.builder(
                 controller: _controller,
                 itemCount: _pageCount,
@@ -113,22 +123,26 @@ class _IntroScreenState extends State<IntroScreen> {
               ],
             ),
 
-            // Next / Start
-            Padding(
-              padding: kPaddingV,
-              child: FilledButton(
-                onPressed: isLast
-                    ? () => GetIt.I<SettingsCubit>().setIntroEnabled(false)
-                    : () => _controller.nextPage(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                      ),
-                child: Text(isLast ? l10n.buttonStart : l10n.buttonNext),
-              ),
+                // Next / Start
+                Padding(
+                  padding: kPaddingV,
+                  child: FilledButton(
+                    onPressed: isLast && isPersistingIntro
+                        ? null
+                        : isLast
+                        ? () => _settingsCubit.setIntroEnabled(false)
+                        : () => _controller.nextPage(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeInOut,
+                          ),
+                    child: Text(isLast ? l10n.buttonStart : l10n.buttonNext),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
