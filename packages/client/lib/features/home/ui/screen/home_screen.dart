@@ -123,6 +123,12 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                                   message: profileTooltipLabel,
                                   child: const ProfileNavBarItem(),
                                 ),
+                                selectedIcon: Tooltip(
+                                  message: profileTooltipLabel,
+                                  child: const ProfileNavBarItem(
+                                    selected: true,
+                                  ),
+                                ),
                                 label: Text(l10n.profile),
                               ),
                             ],
@@ -163,6 +169,9 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                         ),
                         NavigationDestination(
                           icon: const ProfileNavBarItem(),
+                          selectedIcon: const ProfileNavBarItem(
+                            selected: true,
+                          ),
                           label: l10n.profile,
                           tooltip: profileTooltipLabel,
                         ),

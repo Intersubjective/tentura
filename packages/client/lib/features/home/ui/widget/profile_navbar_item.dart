@@ -12,7 +12,9 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 class ProfileNavBarItem extends StatelessWidget {
-  const ProfileNavBarItem({super.key});
+  const ProfileNavBarItem({super.key, this.selected = false});
+
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +49,21 @@ class ProfileNavBarItem extends StatelessWidget {
                     p.profile.image?.blurHash != c.profile.image?.blurHash ||
                     p.profile.displayName != c.profile.displayName,
                 builder: (context, state) {
-                  return SelfAwareAvatar.medium(
+                  final avatar = SelfAwareAvatar.medium(
                     profile: state.profile,
+                  );
+                  if (!selected) {
+                    return avatar;
+                  }
+                  return DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      ),
+                    ),
+                    child: avatar,
                   );
                 },
               ),
