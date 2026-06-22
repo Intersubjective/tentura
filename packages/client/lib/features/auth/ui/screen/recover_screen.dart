@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
@@ -121,6 +122,7 @@ class _RecoverScreenState extends State<RecoverScreen> {
     final l10n = L10n.of(context)!;
     final authCubit = context.read<AuthCubit>();
     final theme = Theme.of(context);
+    final tt = context.tt;
 
     return Scaffold(
       appBar: AppBar(
@@ -136,7 +138,7 @@ class _RecoverScreenState extends State<RecoverScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: kPaddingAll,
+          padding: EdgeInsets.all(tt.screenHPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

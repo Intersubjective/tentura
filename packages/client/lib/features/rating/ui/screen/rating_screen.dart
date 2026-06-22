@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -65,9 +66,7 @@ class _RatingScreenState extends State<RatingScreen> {
           p.isSortedByAlter != c.isSortedByAlter ||
           p.isSortedByClass != c.isSortedByClass,
       builder: (context, state) {
-        if (state.isLoading && state.items.isEmpty) {
-          return const Center(child: CircularProgressIndicator.adaptive());
-        }
+        final tt = context.tt;
         final filter = state.searchFilter;
         final items = filter.isEmpty
             ? state.items
@@ -82,6 +81,46 @@ class _RatingScreenState extends State<RatingScreen> {
                         ),
                   )
                   .toList();
+        final isInitialLoading = state.isLoading && state.items.isEmpty;
+
+        late final Widget body;
+        if (isInitialLoading) {
+          body = const Center(child: CircularProgressIndicator.adaptive());
+        } else if (_isScatterView) {
+          body = RatingScatterView(profiles: items);
+        } else {
+          body = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _RatingHeatmapHeader(
+                l10n: l10n,
+                cubit: cubit,
+                isSortedByReverse: state.isSortedByReverse,
+                isSortedByAsc: state.isSortedByAsc,
+                isSortedByAlter: state.isSortedByAlter,
+                isSortedByClass: state.isSortedByClass,
+              ),
+              Expanded(
+                child: RefreshIndicator.adaptive(
+                  onRefresh: cubit.fetch,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: items.length,
+                    itemBuilder: (_, i) {
+                      final profile = items[i];
+                      return RatingListTile(
+                        key: ValueKey(profile.id),
+                        profile: profile,
+                      );
+                    },
+                    padding: kPaddingH + kPaddingT,
+                    separatorBuilder: separatorBuilder,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -97,8 +136,7 @@ class _RatingScreenState extends State<RatingScreen> {
               ),
               if (!_isScatterView)
                 IconButton(
-                  padding: EdgeInsets.zero,
-                  alignment: Alignment.center,
+                  tooltip: l10n.buttonClose,
                   icon: const Icon(Icons.clear_rounded),
                   onPressed:
                       filter.isEmpty ? null : cubit.clearSearchFilter,
@@ -109,35 +147,40 @@ class _RatingScreenState extends State<RatingScreen> {
                 : Row(
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(right: kSpacingLarge),
+                        padding: EdgeInsets.only(right: tt.sectionGap),
                         child: Text(l10n.rating),
                       ),
                       Expanded(
-                        child: TextFormField(
-                          decoration: InputDecoration(
-                            contentPadding: EdgeInsets.zero,
-                            hintText: l10n.searchBy,
-                            isCollapsed: true,
-                            isDense: true,
+                        child: Semantics(
+                          label: l10n.searchBy,
+                          child: TextFormField(
+                            decoration: InputDecoration(
+                              contentPadding: EdgeInsets.zero,
+                              hintText: l10n.searchBy,
+                              isCollapsed: true,
+                              isDense: true,
+                            ),
+                            initialValue: state.searchFilter,
+                            onChanged: cubit.setSearchFilter,
+                            textInputAction: TextInputAction.go,
                           ),
-                          initialValue: state.searchFilter,
-                          onChanged: cubit.setSearchFilter,
-                          textInputAction: TextInputAction.go,
                         ),
                       ),
                     ],
                   ),
             bottom: PreferredSize(
               preferredSize: Size.fromHeight(
-                state.isLoading && state.items.isNotEmpty ? 52 : 48,
+                state.isLoading && state.items.isNotEmpty
+                    ? tt.appBarHeight + tt.tightGap
+                    : tt.appBarHeight,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (state.isLoading && state.items.isNotEmpty)
-                    const SizedBox(
-                      height: 4,
-                      child: LinearProgressIndicator(),
+                    SizedBox(
+                      height: tt.tightGap,
+                      child: const LinearProgressIndicator(),
                     ),
                   // const Padding(
                   //   padding: kPaddingH,
@@ -152,39 +195,7 @@ class _RatingScreenState extends State<RatingScreen> {
               ),
             ),
           ),
-          body: _isScatterView
-              ? RatingScatterView(profiles: items)
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _RatingHeatmapHeader(
-                      l10n: l10n,
-                      cubit: cubit,
-                      isSortedByReverse: state.isSortedByReverse,
-                      isSortedByAsc: state.isSortedByAsc,
-                      isSortedByAlter: state.isSortedByAlter,
-                      isSortedByClass: state.isSortedByClass,
-                    ),
-                    Expanded(
-                      child: RefreshIndicator.adaptive(
-                        onRefresh: cubit.fetch,
-                        child: ListView.separated(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: items.length,
-                          itemBuilder: (_, i) {
-                            final profile = items[i];
-                            return RatingListTile(
-                              key: ValueKey(profile.id),
-                              profile: profile,
-                            );
-                          },
-                          padding: kPaddingH + kPaddingT,
-                          separatorBuilder: separatorBuilder,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+          body: SafeArea(child: body),
         );
       },
     );
@@ -210,17 +221,19 @@ class _RatingHeatmapHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final textTheme = theme.textTheme;
+    final tt = context.tt;
+    final colorScheme = Theme.of(context).colorScheme;
+    final headerLabelStyle = TenturaText.titleSmall(
+      colorScheme.onSurfaceVariant,
+    ).copyWith(fontWeight: FontWeight.w600);
     return SizedBox(
-      height: 48,
+      height: tt.buttonHeight,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(
-          kSpacingMedium,
-          kSpacingSmall,
-          kSpacingMedium,
-          kSpacingSmall,
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          tt.tightGap,
+          tt.screenHPadding,
+          tt.tightGap,
         ),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainer,
@@ -232,128 +245,112 @@ class _RatingHeatmapHeader extends StatelessWidget {
           children: [
             Expanded(
               flex: 4,
-              child: InkWell(
+              child: _RatingSortHeader(
+                label: l10n.alter,
+                isActive: isSortedByAlter,
+                isAscending: isSortedByAsc,
+                labelStyle: headerLabelStyle,
                 onTap: cubit.sortByAlterColumn,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        l10n.alter,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isSortedByAlter)
-                      Icon(
-                        isSortedByAsc
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                  ],
-                ),
               ),
             ),
-            const SizedBox(width: kSpacingSmall),
+            SizedBox(width: tt.tightGap),
             Expanded(
               flex: 2,
-              child: InkWell(
+              child: _RatingSortHeader(
+                label: l10n.iTrustThem,
+                isActive:
+                    !isSortedByReverse && !isSortedByAlter && !isSortedByClass,
+                isAscending: isSortedByAsc,
+                labelStyle: headerLabelStyle,
+                alignment: Alignment.centerRight,
                 onTap: cubit.sortByDirectColumn,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        l10n.iTrustThem,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (!isSortedByReverse && !isSortedByAlter && !isSortedByClass)
-                      Icon(
-                        isSortedByAsc
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                  ],
-                ),
               ),
             ),
-            const SizedBox(width: kSpacingSmall),
+            SizedBox(width: tt.tightGap),
             Expanded(
               flex: 2,
-              child: InkWell(
+              child: _RatingSortHeader(
+                label: l10n.theyTrustMe,
+                isActive: isSortedByReverse && !isSortedByAlter && !isSortedByClass,
+                isAscending: isSortedByAsc,
+                labelStyle: headerLabelStyle,
+                alignment: Alignment.centerRight,
                 onTap: cubit.sortByReverseColumn,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        l10n.theyTrustMe,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isSortedByReverse && !isSortedByAlter && !isSortedByClass)
-                      Icon(
-                        isSortedByAsc
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                  ],
-                ),
               ),
             ),
-            const SizedBox(width: kSpacingSmall),
+            SizedBox(width: tt.tightGap),
             SizedBox(
               width: 100,
-              child: InkWell(
+              child: _RatingSortHeader(
+                label: l10n.classLabel,
+                isActive: isSortedByClass,
+                isAscending: isSortedByAsc,
+                labelStyle: headerLabelStyle,
+                alignment: Alignment.center,
                 onTap: cubit.sortByClassColumn,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        l10n.classLabel,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isSortedByClass)
-                      Icon(
-                        isSortedByAsc
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                  ],
-                ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RatingSortHeader extends StatelessWidget {
+  const _RatingSortHeader({
+    required this.label,
+    required this.isActive,
+    required this.isAscending,
+    required this.labelStyle,
+    required this.onTap,
+    this.alignment = Alignment.centerLeft,
+  });
+
+  final String label;
+  final bool isActive;
+  final bool isAscending;
+  final TextStyle labelStyle;
+  final VoidCallback onTap;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: InkWell(
+          onTap: onTap,
+          child: Align(
+            alignment: alignment,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    style: labelStyle,
+                    textAlign: alignment == Alignment.center
+                        ? TextAlign.center
+                        : TextAlign.start,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isActive)
+                  Icon(
+                    isAscending
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: tt.iconSize,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

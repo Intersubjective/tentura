@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/show_seed_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../../domain/entity/credential_entity.dart';
 import '../../domain/entity/credential_types.dart';
@@ -70,19 +72,31 @@ class _CredentialsScreenState extends State<CredentialsScreen>
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final tt = context.tt;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.signInMethods)),
-      body: BlocConsumer<CredentialsCubit, CredentialsState>(
-        listener: commonScreenBlocListener,
-        builder: (context, state) {
-          final itemCount = _listItemCount(state);
-          return ListView.builder(
-            padding: kPaddingV,
-            itemCount: itemCount,
-            itemBuilder: (context, index) =>
-                _listItemAt(context, l10n, theme, state, index),
-          );
-        },
+      appBar: AppBar(
+        title: Text(l10n.signInMethods),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(LinearPiActive.height),
+          child: BlocSelector<CredentialsCubit, CredentialsState, bool>(
+            selector: (state) => state.isLoading,
+            builder: LinearPiActive.builder,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: BlocConsumer<CredentialsCubit, CredentialsState>(
+          listener: commonScreenBlocListener,
+          builder: (context, state) {
+            final itemCount = _listItemCount(state);
+            return ListView.builder(
+              padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
+              itemCount: itemCount,
+              itemBuilder: (context, index) =>
+                  _listItemAt(context, l10n, theme, state, index),
+            );
+          },
+        ),
       ),
     );
   }
@@ -113,8 +127,9 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     var i = index;
     if (state.credentials.isEmpty && !state.isLoading) {
       if (i == 0) {
+        final tt = context.tt;
         return Padding(
-          padding: kPaddingAll,
+          padding: EdgeInsets.all(tt.screenHPadding),
           child: Text(
             l10n.signInMethodsEmpty,
             textAlign: TextAlign.center,
@@ -147,11 +162,12 @@ class _CredentialsScreenState extends State<CredentialsScreen>
       return const SizedBox.shrink();
     }
     if (i == 0) {
-      return const Divider();
+      return const TenturaHairlineDivider();
     }
     if (i == 1) {
+      final tt = context.tt;
       return Padding(
-        padding: kPaddingH,
+        padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
         child: Text(
           l10n.addSignInMethod,
           style: theme.textTheme.titleSmall,
@@ -206,33 +222,39 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     final email = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          left: kSpacingMedium,
-          right: kSpacingMedium,
-          top: kSpacingMedium,
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + kSpacingMedium,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(l10n.linkEmailTitle, style: Theme.of(sheetContext).textTheme.titleMedium),
-            const SizedBox(height: kSpacingSmall),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              decoration: InputDecoration(hintText: l10n.linkEmailHint),
-            ),
-            const SizedBox(height: kSpacingMedium),
-            FilledButton(
-              onPressed: () => Navigator.of(sheetContext).pop(controller.text),
-              child: Text(l10n.linkEmailSend),
-            ),
-          ],
-        ),
-      ),
+      builder: (sheetContext) {
+        final tt = sheetContext.tt;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: tt.screenHPadding,
+            right: tt.screenHPadding,
+            top: tt.sectionGap,
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom + tt.sectionGap,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.linkEmailTitle,
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
+              SizedBox(height: tt.rowGap),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                decoration: InputDecoration(hintText: l10n.linkEmailHint),
+              ),
+              SizedBox(height: tt.sectionGap),
+              FilledButton(
+                onPressed: () => Navigator.of(sheetContext).pop(controller.text),
+                child: Text(l10n.linkEmailSend),
+              ),
+            ],
+          ),
+        );
+      },
     );
     controller.dispose();
     if (email == null || email.trim().isEmpty || !context.mounted) return;

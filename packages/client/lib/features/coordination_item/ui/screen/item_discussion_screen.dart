@@ -120,6 +120,12 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
               }
 
               return PopupMenuButton<String>(
+                tooltip: l10n.beaconHudOverflowMore,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 48,
+                  minHeight: 48,
+                ),
                 onSelected: (v) {
                   if (v == 'remind') {
                     unawaited(actionsCubit.remindItem());
@@ -392,7 +398,6 @@ class _ItemDiscussionHeader extends StatelessWidget {
       status: item.status,
       isPlanStep: item.isPlanStep,
       tt: tt,
-      size: 16,
     );
     final body = item.body.trim();
     final title = item.title.trim();
@@ -418,12 +423,12 @@ class _ItemDiscussionHeader extends StatelessWidget {
           subtitle: Row(
             children: [
               headerIcon,
-              const SizedBox(width: 6),
+              SizedBox(width: tt.iconTextGap),
               Text(
                 kindLabel,
                 style: theme.textTheme.labelSmall?.copyWith(color: statusColor),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: tt.rowGap),
               Text(
                 item.status.name.toUpperCase(),
                 style: theme.textTheme.labelSmall?.copyWith(color: statusColor),
@@ -432,13 +437,18 @@ class _ItemDiscussionHeader extends StatelessWidget {
           ),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: EdgeInsets.fromLTRB(
+                tt.screenHPadding,
+                0,
+                tt.screenHPadding,
+                tt.cardGap,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (title.isNotEmpty && title != preview)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
+                      padding: EdgeInsets.only(bottom: tt.tightGap * 2),
                       child: Text(
                         title,
                         style: theme.textTheme.labelMedium?.copyWith(
@@ -477,6 +487,7 @@ class _PendingResolutionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
     final colorScheme = theme.colorScheme;
     return Material(
       color: colorScheme.primaryContainer.withValues(alpha: 0.3),
@@ -489,7 +500,10 @@ class _PendingResolutionBanner extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: tt.screenHPadding,
+            vertical: tt.rowGap + tt.tightGap,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -497,10 +511,9 @@ class _PendingResolutionBanner extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.fact_check_outlined,
-                    size: 16,
                     color: colorScheme.primary,
                   ),
-                  const SizedBox(width: 6),
+                  SizedBox(width: tt.iconTextGap),
                   Text(
                     l10n.coordinationSemanticResolutionOpened,
                     style: theme.textTheme.labelMedium
@@ -509,17 +522,17 @@ class _PendingResolutionBanner extends StatelessWidget {
                 ],
               ),
               if (resolution.title.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                SizedBox(height: tt.tightGap * 2),
                 Text(resolution.title, style: theme.textTheme.bodySmall),
               ],
-              const SizedBox(height: 8),
+              SizedBox(height: tt.rowGap),
               Row(
                 children: [
                   FilledButton(
                     onPressed: onAccept,
                     child: Text(l10n.coordinationResolutionAcceptLabel),
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: tt.rowGap),
                   OutlinedButton(
                     onPressed: onReject,
                     child: Text(l10n.coordinationResolutionRejectLabel),

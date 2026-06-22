@@ -118,6 +118,11 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
                 hintText: _l10n.pleaseEnterCode,
                 labelText: _l10n.labelInvitationCode,
                 suffix: IconButton(
+                  tooltip: _l10n.buttonPaste,
+                  constraints: const BoxConstraints(
+                    minWidth: kMinInteractiveDimension,
+                    minHeight: kMinInteractiveDimension,
+                  ),
                   onPressed: _getCodeFromClipboard,
                   icon: const Icon(Icons.paste_rounded),
                 ),

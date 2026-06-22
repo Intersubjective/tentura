@@ -38,7 +38,6 @@ import '../widget/activity_list.dart';
 import '../widget/beacon_current_line_sheet.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
 import '../widget/beacon_operational_header_card.dart';
-import '../util/beacon_hud_derivation.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_view_app_bar_title.dart';
 import '../widget/beacon_people_tab_body.dart';
@@ -168,6 +167,16 @@ bool _authorLifecycleToggleEnabled(BeaconViewState state) {
     return state.closureActionPriority != ClosureActionPriority.hidden;
   }
   return true;
+}
+
+(String, TenturaTone) _beaconViewRoomAppBarStatus(L10n l10n, int roomUnread) {
+  if (roomUnread > 0) {
+    return (
+      '${l10n.beaconRoomTitle} · ${l10n.beaconRoomUnreadDividerCount(roomUnread)}',
+      TenturaTone.info,
+    );
+  }
+  return (l10n.inboxCardRoomUnread(0), TenturaTone.neutral);
 }
 
 String _beaconViewRoomAppBarTooltip(BeaconViewState state, L10n l10n) {
@@ -909,12 +918,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           final roomUnread = _effectiveRoomUnreadCount(state);
           final statusSlots = beaconViewStatusSlots(l10n, state);
           final (appBarStatusLine, appBarStatusTone) = _showRoomSurface
-              ? (roomUnread > 0
-                    ? (
-                        'ROOM · Unread: $roomUnread',
-                        TenturaTone.info,
-                      )
-                    : ('ROOM · UP-TO-DATE', TenturaTone.neutral))
+              ? _beaconViewRoomAppBarStatus(l10n, roomUnread)
               : (
                   statusSlots.displayLine,
                   statusSlots.tone,
@@ -1038,7 +1042,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   ),
                 ],
                 bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(4),
+                  preferredSize: LinearPiActive.size,
                   child: LinearPiActive.builder(context, state.isLoading),
                 ),
               ),
@@ -1160,7 +1164,12 @@ class _BeaconOperationalScrollView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(tt.screenHPadding, 4, tt.screenHPadding, 4),
+                padding: EdgeInsets.fromLTRB(
+                  tt.screenHPadding,
+                  tt.tightGap * 2,
+                  tt.screenHPadding,
+                  tt.tightGap * 2,
+                ),
                 child: Text(
                   l10n.beaconPublicStatusCardTitle,
                   style: Theme.of(ctx).textTheme.titleSmall,
@@ -1170,8 +1179,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                 ListTile(
                   dense: true,
                   leading: state.beacon.publicStatus == o.$1
-                      ? const Icon(Icons.check)
-                      : const SizedBox(width: 24),
+                      ? Icon(Icons.check, size: tt.iconSize)
+                      : SizedBox(width: tt.iconSize),
                   title: Text(o.$2),
                   onTap: () {
                     Navigator.of(ctx).pop();
@@ -1179,9 +1188,14 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                   },
                 ),
               if (state.isBeaconMine) ...[
-                const Divider(height: 8),
+                Divider(height: tt.rowGap),
                 Padding(
-                  padding: EdgeInsets.fromLTRB(tt.screenHPadding, 4, tt.screenHPadding, 4),
+                  padding: EdgeInsets.fromLTRB(
+                    tt.screenHPadding,
+                    tt.tightGap * 2,
+                    tt.screenHPadding,
+                    tt.tightGap * 2,
+                  ),
                   child: Text(
                     l10n.coordinationSetOverallStatus,
                     style: Theme.of(ctx).textTheme.titleSmall,
@@ -1201,7 +1215,7 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                     },
                   ),
               ],
-              const SizedBox(height: 8),
+              SizedBox(height: tt.rowGap),
             ],
           ),
         );
@@ -1294,9 +1308,15 @@ class _BeaconOperationalScrollView extends StatelessWidget {
           _ => const SizedBox.shrink(),
         };
 
+        final tt = context.tt;
         final tabPadding = idx == kBeaconTabPeople
-            ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
-            : kPaddingAll;
+            ? EdgeInsets.fromLTRB(
+                tt.screenHPadding,
+                tt.cardPadding.top,
+                tt.screenHPadding,
+                tt.cardPadding.bottom,
+              )
+            : EdgeInsets.all(tt.screenHPadding);
 
         final peopleTabBadge =
             state.isBeaconMine && state.unansweredHelpOffersCount > 0
@@ -1414,8 +1434,8 @@ class _BeaconOperationalScrollView extends StatelessWidget {
                 pinned: true,
                 delegate: _PinnedSegmentBarDelegate(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: kSpacingMedium,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.tt.screenHPadding,
                     ),
                     child: Align(
                       child: SizedBox(

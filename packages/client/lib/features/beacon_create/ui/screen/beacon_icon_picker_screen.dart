@@ -4,7 +4,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
 
@@ -204,10 +203,12 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tt = context.tt;
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
+          tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -224,7 +225,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 BeaconIdentityTile(beacon: previewBeacon, size: 32),
-                const SizedBox(width: 8),
+                SizedBox(width: tt.rowGap),
                 Flexible(
                   child: Text(
                     l10n.beaconSymbolTitle,
@@ -264,25 +265,33 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: l10n.beaconSymbolSearchHint,
-                isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 20),
+            padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+            child: Semantics(
+              label: l10n.beaconSymbolSearchHint,
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: l10n.beaconSymbolSearchHint,
+                  isDense: true,
+                  prefixIcon: Icon(Icons.search, size: tt.iconSize),
+                ),
+                onChanged: (v) => _queryNotifier.value = v,
               ),
-              onChanged: (v) => _queryNotifier.value = v,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: EdgeInsets.fromLTRB(
+              tt.screenHPadding,
+              tt.rowGap,
+              tt.screenHPadding,
+              tt.rowGap,
+            ),
             child: ValueListenableBuilder<int>(
               valueListenable: _categoryNotifier,
               builder: (context, cat, _) {
                 final chipStyle = _chipStyle;
                 return Wrap(
-                  spacing: kSpacingSmall,
-                  runSpacing: kSpacingSmall,
+                  spacing: tt.rowGap,
+                  runSpacing: tt.rowGap,
                   children: [
                     ChoiceChip(
                       showCheckmark: false,
@@ -351,7 +360,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                 return CustomScrollView(
                   slivers: [
                     SliverPadding(
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(tt.rowGap),
                       sliver: SliverLayoutBuilder(
                         builder: (context, constraints) {
                           final windowClass = windowClassForWidth(
@@ -366,8 +375,8 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                             gridDelegate:
                                 SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: crossAxisCount,
-                                  mainAxisSpacing: 8,
-                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: tt.rowGap,
+                                  crossAxisSpacing: tt.rowGap,
                                   childAspectRatio: 0.85,
                                 ),
                             delegate: SliverChildBuilderDelegate(
@@ -413,7 +422,12 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
             child: SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                padding: EdgeInsets.fromLTRB(
+                  tt.screenHPadding,
+                  tt.rowGap,
+                  tt.screenHPadding,
+                  tt.screenHPadding,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -421,7 +435,7 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                       l10n.beaconSymbolBackground,
                       style: theme.textTheme.labelLarge,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: tt.rowGap),
                     ValueListenableBuilder<_BeaconIconPickerSelection>(
                       valueListenable: _selectionNotifier,
                       builder: (context, sel, _) {
@@ -478,40 +492,51 @@ class _IconGridTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tt = context.tt;
     final colors = _pickerTileColors(
       selected: selected,
       selectionBackgroundArgb: selectionBackgroundArgb,
       scheme: scheme,
     );
     final fg = colors.fg;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.bg,
-          borderRadius: BorderRadius.circular(10),
-          border: selected
-              ? Border.all(
-                  color: scheme.outlineVariant.withValues(alpha: 0.35),
-                )
-              : null,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(iconData, color: fg),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: baseLabelStyle?.copyWith(color: fg),
-              ),
-            ],
+    return Semantics(
+      button: true,
+      label: label,
+      selected: selected,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colors.bg,
+            borderRadius: BorderRadius.circular(tt.cardRadius),
+            border: selected
+                ? Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.35),
+                  )
+                : null,
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.tightGap * 2,
+              vertical: tt.iconTextGap,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ExcludeSemantics(child: Icon(iconData, color: fg)),
+                SizedBox(height: tt.tightGap * 2),
+                ExcludeSemantics(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: baseLabelStyle?.copyWith(color: fg),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

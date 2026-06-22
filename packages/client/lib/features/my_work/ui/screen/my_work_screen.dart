@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -94,12 +95,16 @@ class _MyWorkOverflowMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
 
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert),
       tooltip: MaterialLocalizations.of(context).showMenuTooltip,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      constraints: BoxConstraints(
+        minWidth: tt.buttonHeight,
+        minHeight: tt.buttonHeight,
+      ),
       onSelected: (value) {
         if (value == 'archive') {
           context.read<MyWorkCubit>().setFilter(MyWorkFilter.archived);
@@ -155,14 +160,15 @@ class _MyWorkFilterMenu extends StatelessWidget {
       selector: (s) => s.filter,
       builder: (context, filter) {
         final scheme = theme.colorScheme;
+        final tt = context.tt;
         return Tooltip(
           message: l10n.myWorkFilterMenuTooltip,
           child: Align(
             alignment: Alignment.centerLeft,
             child: TextButton(
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                minimumSize: const Size(0, 40),
+                padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
+                minimumSize: Size(0, tt.buttonHeight),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 foregroundColor: scheme.onPrimary,
               ),
@@ -176,9 +182,8 @@ class _MyWorkFilterMenu extends StatelessWidget {
                       _labelForFilter(l10n, filter),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge?.copyWith(
+                      style: TenturaText.labelLarge(scheme.onPrimary).copyWith(
                         fontWeight: FontWeight.w600,
-                        color: scheme.onPrimary,
                       ),
                     ),
                   ),
@@ -232,40 +237,44 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
       selector: (s) => s.sort,
       builder: (context, sort) {
         final scheme = theme.colorScheme;
+        final tt = context.tt;
         final label = switch (sort) {
           MyWorkSort.recent => l10n.myWorkSortRecent,
           MyWorkSort.oldest => l10n.myWorkSortOldest,
           MyWorkSort.alphabetical => l10n.myWorkSortAlphabetical,
         };
-        return TextButton(
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            minimumSize: const Size(0, 40),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            foregroundColor: scheme.onPrimary,
-          ),
-          onPressed: () => _onPressed(sort),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 88),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onPrimary,
+        return Tooltip(
+          message: label,
+          child: TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              minimumSize: Size(0, tt.buttonHeight),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              foregroundColor: scheme.onPrimary,
+            ),
+            onPressed: () => _onPressed(sort),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 88),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onPrimary,
+                    ),
                   ),
                 ),
-              ),
-              Icon(
-                Icons.swap_vert,
-                size: 20,
-                color: scheme.onPrimary,
-              ),
-            ],
+                Icon(
+                  Icons.swap_vert,
+                  size: 20,
+                  color: scheme.onPrimary,
+                ),
+              ],
+            ),
           ),
         );
       },
