@@ -695,7 +695,7 @@
   "@inbox": {
     "context": "HomeScreen"
   },
-  "myWork": "My desk",
+  "myWork": "Caring",
   "@myWork": {
     "context": "HomeScreen"
   },
