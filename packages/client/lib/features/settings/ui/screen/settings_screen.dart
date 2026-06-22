@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/show_seed_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
+
+import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 
 import '../bloc/settings_cubit.dart';
 import '../widget/language_switch_button.dart';
@@ -16,7 +18,14 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
   const SettingsScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => this;
+  Widget wrappedRoute(BuildContext context) {
+    final authCubit = GetIt.I<AuthCubit>();
+    return BlocListener<AuthCubit, AuthState>(
+      bloc: authCubit,
+      listener: commonScreenBlocListener,
+      child: this,
+    );
+  }
 
   Future<void> _confirmResetLocal(BuildContext context, L10n l10n) async {
     final cubit = GetIt.I<SettingsCubit>();
@@ -51,6 +60,7 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final cubit = GetIt.I<SettingsCubit>();
+    final authCubit = GetIt.I<AuthCubit>();
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
@@ -62,6 +72,14 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
       appBar: AppBar(
         leading: const AutoLeadingButton(),
         title: Text(l10n.labelSettings),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(LinearPiActive.height),
+          child: BlocSelector<AuthCubit, AuthState, bool>(
+            bloc: authCubit,
+            selector: (state) => state.isLoading,
+            builder: LinearPiActive.builder,
+          ),
+        ),
         actions: visibleVersion != null && visibleVersion.isNotEmpty
             ? [
                 Padding(
@@ -126,21 +144,31 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                   onPressed: () => cubit.setIntroEnabled(true),
                 ),
 
-              OutlinedButton.icon(
-                style: actionButtonStyle,
-                onPressed: () => _confirmResetLocal(context, l10n),
-                icon: const Icon(Icons.delete_forever_outlined),
-                label: Text(l10n.authRecoveryResetLocalTitle),
+              BlocSelector<AuthCubit, AuthState, bool>(
+                bloc: authCubit,
+                selector: (state) => state.isLoading,
+                builder: (context, isLoading) => OutlinedButton.icon(
+                  style: actionButtonStyle,
+                  onPressed: isLoading
+                      ? null
+                      : () => _confirmResetLocal(context, l10n),
+                  icon: const Icon(Icons.delete_forever_outlined),
+                  label: Text(l10n.authRecoveryResetLocalTitle),
+                ),
               ),
 
-              FilledButton.icon(
-                onPressed: cubit.signOut,
-                icon: const Icon(Icons.logout),
-                label: Text(l10n.logout),
-                style: FilledButton.styleFrom(
-                  minimumSize: Size.fromHeight(tt.buttonHeight),
-                  backgroundColor: scheme.error,
-                  foregroundColor: scheme.onError,
+              BlocSelector<AuthCubit, AuthState, bool>(
+                bloc: authCubit,
+                selector: (state) => state.isLoading,
+                builder: (context, isLoading) => FilledButton.icon(
+                  onPressed: isLoading ? null : cubit.signOut,
+                  icon: const Icon(Icons.logout),
+                  label: Text(l10n.logout),
+                  style: FilledButton.styleFrom(
+                    minimumSize: Size.fromHeight(tt.buttonHeight),
+                    backgroundColor: scheme.error,
+                    foregroundColor: scheme.onError,
+                  ),
                 ),
               ),
             ],
