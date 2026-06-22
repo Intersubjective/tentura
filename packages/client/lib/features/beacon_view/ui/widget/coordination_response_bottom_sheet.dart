@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -253,60 +252,4 @@ class _CoordinationSignalSheetState extends State<_CoordinationSignalSheet> {
       ),
     );
   }
-}
-
-/// Author: override beacon-level coordination status (manual).
-Future<void> showBeaconCoordinationStatusBottomSheet({
-  required BuildContext context,
-  required void Function(int statusSmallint) onPick,
-}) async {
-  final l10n = L10n.of(context)!;
-  final options = <(int, String)>[
-    (
-      BeaconCoordinationStatus.neutral.smallintValue,
-      l10n.coordinationNeutral,
-    ),
-    (
-      BeaconCoordinationStatus.moreOrDifferentHelpNeeded.smallintValue,
-      l10n.coordinationMoreHelpNeeded,
-    ),
-    (
-      BeaconCoordinationStatus.enoughHelpOffered.smallintValue,
-      l10n.coordinationEnoughHelp,
-    ),
-  ];
-  await showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Text(
-              l10n.coordinationSetOverallStatus,
-              style: Theme.of(ctx).textTheme.titleSmall,
-            ),
-          ),
-          Flexible(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                for (final o in options)
-                  ListTile(
-                    title: Text(o.$2),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      onPick(o.$1);
-                    },
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
