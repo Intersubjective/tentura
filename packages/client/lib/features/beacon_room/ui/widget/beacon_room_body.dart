@@ -22,7 +22,6 @@ import 'package:tentura/features/polling/ui/widget/polling_variant_input.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_ask_sheet.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
@@ -753,7 +752,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomMessage message,
   ) async {
     final canCreatePromise = _roomCanCreatePromise(cubit);
-    final isAuthor = _roomIsBeaconAuthor(cubit);
     final askSeed = AskComposerSeed.fromMessage(
       messageId: message.id,
       messageBody: message.body,
@@ -796,22 +794,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       myUserId: myUserId,
                       isAuthorOrSteward: isAuthorOrSteward,
                       seed: askSeed,
-                    ),
-                  );
-                },
-              ),
-            if (isAuthor)
-              ListTile(
-                leading: const Icon(Icons.drafts_outlined),
-                title: Text(l10n.beaconPreparedAskFromMessage),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  unawaited(
-                    showPreparedAskEditorSheet(
-                      context,
-                      beaconId: cubit.state.beaconId,
-                      seed: askSeed,
-                      onSaved: () {},
                     ),
                   );
                 },

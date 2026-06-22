@@ -27,7 +27,6 @@ import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_prepared_promise_sheet.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -42,8 +41,6 @@ import '../widget/beacon_operational_header_card.dart';
 import '../util/beacon_hud_derivation.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_view_app_bar_title.dart';
-import '../widget/beacon_prepared_ask_sheet.dart';
-import '../widget/beacon_prepared_blocker_sheet.dart';
 import '../widget/beacon_people_tab_body.dart';
 import '../widget/items_tab.dart';
 
@@ -240,6 +237,26 @@ bool _canShowCreatePromise(BeaconViewState state) {
   );
 }
 
+VoidCallback? _beaconViewRoomCreatePromiseAction({
+  required BuildContext context,
+  required BeaconViewState state,
+  required String beaconId,
+  required VoidCallback onSaved,
+  required bool inRoomSurface,
+}) {
+  if (!inRoomSurface || !_canShowCreatePromise(state)) return null;
+  return () => unawaited(
+        showBeaconRoomPromiseSheet(
+          context,
+          beaconId: beaconId,
+          participants: state.roomParticipants,
+          myUserId: state.myProfile.id,
+          isAuthorOrSteward: state.isAuthorOrSteward,
+          onSaved: onSaved,
+        ),
+      );
+}
+
 Widget _beaconViewAppBarOverflow({
   required BuildContext context,
   required BeaconViewState state,
@@ -247,27 +264,39 @@ Widget _beaconViewAppBarOverflow({
   required ScreenCubit screenCubit,
   required L10n l10n,
   required Future<void> Function() onAuthorListedOpenClose,
+  required bool inRoomSurface,
   required VoidCallback onItemsTabRefresh,
 }) {
   final b = state.beacon;
   final beaconId = b.id;
   final hideOverflowForward = _forwardInPrimaryCta(state);
   final hideOfferHelpWithdraw = _hideOfferHelpWithdrawFromOverflow(state);
+  final showBeaconManagementOverflow = !inRoomSurface;
+  final onCreatePromise = _beaconViewRoomCreatePromiseAction(
+    context: context,
+    state: state,
+    beaconId: beaconId,
+    onSaved: onItemsTabRefresh,
+    inRoomSurface: inRoomSurface,
+  );
 
   if (state.isBeaconMine) {
     return BeaconOverflowMenu(
       beacon: b,
-      onShare: () => unawaited(
-        ShareCodeDialog.show(
-          context,
-          link: Uri.parse(kServerName).replace(
-            queryParameters: {'id': beaconId},
-            path: kPathAppLinkView,
-          ),
-          header: beaconId,
-        ),
-      ),
-      onCloseBeacon: state.isBeaconMine &&
+      onShare: showBeaconManagementOverflow
+          ? () => unawaited(
+              ShareCodeDialog.show(
+                context,
+                link: Uri.parse(kServerName).replace(
+                  queryParameters: {'id': beaconId},
+                  path: kPathAppLinkView,
+                ),
+                header: beaconId,
+              ),
+            )
+          : null,
+      onCloseBeacon: showBeaconManagementOverflow &&
+              state.isBeaconMine &&
               state.beacon.lifecycle == BeaconLifecycle.open &&
               state.closureActionPriority != ClosureActionPriority.hidden
           ? () async {
@@ -281,14 +310,14 @@ Widget _beaconViewAppBarOverflow({
               await cubit.cancelBeacon();
             }
           : null,
-      onEdit: b.lifecycle == BeaconLifecycle.open
+      onEdit: showBeaconManagementOverflow && b.lifecycle == BeaconLifecycle.open
           ? () => unawaited(
               context.router.pushPath(
                 '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
               ),
             )
           : null,
-      onCreateFrom: beaconAllowsLineageOverflow(b)
+      onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
           ? () async {
               await runBeaconCreateFromAction(
                 context,
@@ -296,49 +325,15 @@ Widget _beaconViewAppBarOverflow({
               );
             }
           : null,
-      onPrepareAsk: b.lifecycle == BeaconLifecycle.open
+      onCreatePromise: onCreatePromise,
+      onForward: showBeaconManagementOverflow
           ? () => unawaited(
-              showPreparedAskEditorSheet(
-                context,
-                beaconId: beaconId,
-                onSaved: onItemsTabRefresh,
-              ),
+              _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
             )
           : null,
-      onPrepareBlocker: b.lifecycle == BeaconLifecycle.open
-          ? () => unawaited(
-              showPreparedBlockerEditorSheet(
-                context,
-                beaconId: beaconId,
-                onSaved: onItemsTabRefresh,
-              ),
-            )
+      onForwardsGraph: showBeaconManagementOverflow
+          ? () => screenCubit.showForwardsGraphFor(beaconId)
           : null,
-      onPreparePromise: b.lifecycle == BeaconLifecycle.open
-          ? () => unawaited(
-              showPreparedPromiseEditorSheet(
-                context,
-                beaconId: beaconId,
-                onSaved: onItemsTabRefresh,
-              ),
-            )
-          : null,
-      onCreatePromise: _canShowCreatePromise(state)
-          ? () => unawaited(
-              showBeaconRoomPromiseSheet(
-                context,
-                beaconId: beaconId,
-                participants: state.roomParticipants,
-                myUserId: state.myProfile.id,
-                isAuthorOrSteward: state.isAuthorOrSteward,
-                onSaved: onItemsTabRefresh,
-              ),
-            )
-          : null,
-      onForward: () => unawaited(
-        _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
-      ),
-      onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
       onDraftReview: state.showDraftEvaluationCta
           ? () => unawaited(
               context.router.pushPath(
@@ -346,35 +341,26 @@ Widget _beaconViewAppBarOverflow({
               ),
             )
           : null,
-      onDelete: () async {
-        if (!context.mounted) return;
-        if (await BeaconDeleteDialog.show(
-              context,
-              lifecycle: b.lifecycle,
-              hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
-            ) ??
-            false) {
-          if (!context.mounted) return;
-          await cubit.delete(beaconId);
-        }
-      },
+      onDelete: showBeaconManagementOverflow
+          ? () async {
+              if (!context.mounted) return;
+              if (await BeaconDeleteDialog.show(
+                    context,
+                    lifecycle: b.lifecycle,
+                    hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
+                  ) ??
+                  false) {
+                if (!context.mounted) return;
+                await cubit.delete(beaconId);
+              }
+            }
+          : null,
     );
   }
 
   return BeaconOverflowMenu(
     beacon: b,
-    onCreatePromise: _canShowCreatePromise(state)
-        ? () => unawaited(
-            showBeaconRoomPromiseSheet(
-              context,
-              beaconId: beaconId,
-              participants: state.roomParticipants,
-              myUserId: state.myProfile.id,
-              isAuthorOrSteward: state.isAuthorOrSteward,
-              onSaved: onItemsTabRefresh,
-            ),
-          )
-        : null,
+    onCreatePromise: onCreatePromise,
     onOfferHelp:
         !hideOfferHelpWithdraw &&
             !state.isHelpOffered &&
@@ -404,13 +390,15 @@ Widget _beaconViewAppBarOverflow({
             }
           }
         : null,
-    onForward: hideOverflowForward
-        ? null
-        : () => unawaited(
+    onForward: showBeaconManagementOverflow && !hideOverflowForward
+        ? () => unawaited(
             _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
-          ),
-    onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
-    onCreateFrom: beaconAllowsLineageOverflow(b)
+          )
+        : null,
+    onForwardsGraph: showBeaconManagementOverflow
+        ? () => screenCubit.showForwardsGraphFor(beaconId)
+        : null,
+    onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
         ? () async {
             await runBeaconCreateFromAction(
               context,
@@ -1036,6 +1024,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     cubit: beaconViewCubit,
                     screenCubit: screenCubit,
                     l10n: l10n,
+                    inRoomSurface: _showRoomSurface,
                     onItemsTabRefresh: _refreshItemsTab,
                     onAuthorListedOpenClose: () =>
                         _beaconViewRunAuthorCloseSheet(

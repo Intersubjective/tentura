@@ -27,9 +27,6 @@ import '../bloc/items_tab_cubit.dart';
 import '../bloc/items_tab_state.dart';
 import 'beacon_definition_body.dart';
 import 'beacon_hud_action_button.dart';
-import 'beacon_prepared_ask_sheet.dart';
-import 'beacon_prepared_blocker_sheet.dart';
-import 'beacon_prepared_promise_sheet.dart';
 import 'coordination_item_composer_sheet.dart';
 
 List<BeaconFactCard> _pinnedFactsForCarousel(List<BeaconFactCard> factCards) {
@@ -662,28 +659,12 @@ class _MyDraftItemRow extends StatelessWidget {
     Future<void> refresh() => cubit.fetch();
 
     Future<void> onDelete() async {
-      switch (draft.kind) {
-        case CoordinationItemKind.ask:
-          await confirmDeletePreparedAsk(
-            context,
-            itemId: draft.id,
-            onDeleted: refresh,
-          );
-        case CoordinationItemKind.promise:
-          await confirmDeletePreparedPromise(
-            context,
-            itemId: draft.id,
-            onDeleted: refresh,
-          );
-        case CoordinationItemKind.blocker:
-          await confirmDeletePreparedBlocker(
-            context,
-            itemId: draft.id,
-            onDeleted: refresh,
-          );
-        default:
-          break;
-      }
+      await confirmDeleteCoordinationDraft(
+        context,
+        kind: draft.kind,
+        itemId: draft.id,
+        onDeleted: refresh,
+      );
     }
 
     return Column(

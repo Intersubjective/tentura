@@ -33,9 +33,6 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onCancelBeacon,
     this.onEdit,
     this.onCreateFrom,
-    this.onPrepareAsk,
-    this.onPrepareBlocker,
-    this.onPreparePromise,
     this.onCreatePromise,
     this.onOfferHelp,
     this.onWithdraw,
@@ -62,9 +59,6 @@ class BeaconOverflowMenu extends StatelessWidget {
   final Future<void> Function()? onCancelBeacon;
   final VoidCallback? onEdit;
   final Future<void> Function()? onCreateFrom;
-  final VoidCallback? onPrepareAsk;
-  final VoidCallback? onPrepareBlocker;
-  final VoidCallback? onPreparePromise;
   final VoidCallback? onCreatePromise;
   final Future<void> Function()? onOfferHelp;
   final Future<void> Function()? onWithdraw;
@@ -137,27 +131,6 @@ class BeaconOverflowMenu extends StatelessWidget {
         'create_from',
         Icons.content_copy_outlined,
         l10n.beaconCreateFromAction,
-      );
-    }
-    if (onPrepareAsk != null) {
-      add(
-        'prepare_ask',
-        Icons.edit_note_outlined,
-        l10n.beaconPreparedAskPrepareAction,
-      );
-    }
-    if (onPrepareBlocker != null) {
-      add(
-        'prepare_blocker',
-        Icons.block_outlined,
-        l10n.beaconPreparedBlockerPrepareAction,
-      );
-    }
-    if (onPreparePromise != null) {
-      add(
-        'prepare_promise',
-        Icons.edit_note_outlined,
-        l10n.beaconPreparedPromisePrepareAction,
       );
     }
     if (onCreatePromise != null) {
@@ -257,9 +230,6 @@ class BeaconOverflowMenu extends StatelessWidget {
           'create_from' => unawaited(
             _deferPopupAction(context, onCreateFrom),
           ),
-          'prepare_ask' => _deferSync(context, onPrepareAsk),
-          'prepare_blocker' => _deferSync(context, onPrepareBlocker),
-          'prepare_promise' => _deferSync(context, onPreparePromise),
           'create_promise' => _deferSync(context, onCreatePromise),
           'offerHelp' => unawaited(_deferPopupAction(context, onOfferHelp)),
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),

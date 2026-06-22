@@ -11,6 +11,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/room_cubit.dart';
 import '../widget/beacon_room_body.dart';
+import '../widget/beacon_room_overflow_menu.dart';
 import '../widget/room_facts_sheet.dart';
 
 @RoutePage()
@@ -72,6 +73,7 @@ class BeaconRoomScreen extends StatelessWidget implements AutoRouteWrapper {
         ),
         title: Text(l10n.beaconRoomTitle),
         actions: [
+          const BeaconRoomOverflowMenu(),
           IconButton(
             tooltip: l10n.beaconRoomFactsBrowseTooltip,
             icon: const Icon(Icons.manage_search_outlined),
