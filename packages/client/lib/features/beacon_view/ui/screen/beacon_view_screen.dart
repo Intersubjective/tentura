@@ -907,7 +907,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               state.isLoading &&
               state.timeline.isEmpty &&
               state.helpOffers.isEmpty;
-
+          final showInitialError =
+              state.hasError &&
+              state.timeline.isEmpty &&
+              state.helpOffers.isEmpty;
 
           final roomUnread = _effectiveRoomUnreadCount(state);
           final statusSlots = beaconViewStatusSlots(l10n, state);
@@ -922,6 +925,25 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           if (showInitialLoading) {
             body = const Center(
               child: CircularProgressIndicator.adaptive(),
+            );
+          } else if (showInitialError) {
+            body = Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: scheme.error,
+                  ),
+                  const SizedBox(height: kSpacingMedium),
+                  FilledButton(
+                    onPressed: () =>
+                        unawaited(beaconViewCubit.retryInitialLoad()),
+                    child: Text(l10n.myWorkRetry),
+                  ),
+                ],
+              ),
             );
           } else if (_showRoomSurface && state.canNavigateBeaconRoom) {
             final roomCubit = _roomCubit;

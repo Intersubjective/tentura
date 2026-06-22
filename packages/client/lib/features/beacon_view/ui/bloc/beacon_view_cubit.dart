@@ -767,8 +767,19 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       }
       unawaited(_refreshYouResponsibility());
     } catch (e) {
-      _showSnackError(e);
+      if (isClosed) return;
+      if (state.timeline.isEmpty && state.helpOffers.isEmpty) {
+        emit(state.copyWith(status: StateHasError(e)));
+      } else {
+        _showSnackError(e);
+      }
     }
+  }
+
+  /// Full reload when the initial fetch failed and the screen has no beacon data.
+  Future<void> retryInitialLoad() async {
+    emit(state.copyWith(status: const StateIsLoading()));
+    await _fetchBeaconByIdWithTimeline();
   }
 
   /// Lazy-load forwards subsection (People tab). Cached for cubit lifetime.
