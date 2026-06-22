@@ -70,6 +70,25 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                     child: CircularProgressIndicator.adaptive(),
                   );
                 }
+                if (state.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: scheme.error,
+                        ),
+                        const SizedBox(height: kSpacingMedium),
+                        FilledButton(
+                          onPressed: () => unawaited(inboxCubit.fetch()),
+                          child: Text(l10n.myWorkRetry),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 final items = state.rejected;
                 if (items.isEmpty) {
                   return Center(
