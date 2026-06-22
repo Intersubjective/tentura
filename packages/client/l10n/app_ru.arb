@@ -3593,6 +3593,7 @@
   "buttonDismiss": "Закрыть",
   "beaconCreateFromAction": "Создать на основе этого маяка",
   "beaconLineageSuggestionsAction": "Предложения пересылки по родословной",
+  "beaconLineageSuggestionsLinkSemantics": "Просмотреть предложения пересылки из похожих прошлых маяков",
   "beaconLineageParentLinkLabel": "Создано на основе предыдущего маяка",
   "beaconLineageParentLinkSemantics": "Открыть предыдущий маяк, на основе которого создан этот",
   "beaconLineageForwardSectionTitle": "Из ваших похожих прошлых маяков",

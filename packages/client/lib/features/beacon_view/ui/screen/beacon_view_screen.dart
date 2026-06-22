@@ -351,12 +351,6 @@ Widget _beaconViewAppBarOverflow({
         _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
       ),
       onForwardsGraph: () => screenCubit.showForwardsGraphFor(beaconId),
-      onLineageSuggestions: beaconAllowsLineageOverflow(b)
-          ? () => runBeaconLineageSuggestionsPreview(
-              context,
-              beaconId: beaconId,
-            )
-          : null,
       onDraftReview: state.showDraftEvaluationCta
           ? () => unawaited(
               context.router.pushPath(
@@ -435,12 +429,6 @@ Widget _beaconViewAppBarOverflow({
               fork: () => cubit.forkFromThis(),
             );
           }
-        : null,
-    onLineageSuggestions: beaconAllowsLineageOverflow(b)
-        ? () => runBeaconLineageSuggestionsPreview(
-            context,
-            beaconId: beaconId,
-          )
         : null,
     onDraftReview: state.showDraftEvaluationCta
         ? () => unawaited(
