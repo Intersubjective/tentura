@@ -14,6 +14,8 @@ plugins:
       no_operational_raw_color: true
       no_operational_raw_text_style: true
       no_operational_pill_widgets_in_beacon_view: true
+      no_raw_edge_insets: true
+      no_raw_border_radius: true
 
 analyzer:
   exclude:

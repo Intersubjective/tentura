@@ -12,6 +12,10 @@ abstract final class TenturaSpacing {
   static const double iconText = 6;
   static const double avatarText = 12;
 
+  /// Hairline nudge between tightly-related stacked lines (e.g. metadata rows).
+  /// Intentionally fixed — does not scale with [WindowClass].
+  static const double tight = 2;
+
   static const EdgeInsets screenHPadding = EdgeInsets.symmetric(
     horizontal: screenH,
   );

@@ -289,6 +289,7 @@ Tentura uses **semantic typography** and **width-based layout classes**, not pro
 - **Primary actions / buttons:** minimum **15** — `labelLarge`.
 - **Bottom navigation labels:** **12.5** is the **only** exception below 13 — `TenturaText.navLabel` or equivalent.
 - **Do not** use literal font sizes **8, 10, 11, 12** in `packages/client/lib/features/**` or `packages/client/lib/ui/**` (use semantic roles; `tentura_lints` enforces via `dart analyze`).
+- **Do not** build `EdgeInsets` from raw numbers (`no_raw_edge_insets`) or `BorderRadius` / `Radius` from raw numbers (`no_raw_border_radius`) in `packages/client/lib/features/**` or `.../ui/**`. Use `context.tt` spacing/radius tokens (or `TenturaSpacing.*` / `TenturaRadii.*`); if none fits, add the token to the design system first. See the `material-3-flutter` skill (`.claude/skills/material-3-flutter/SKILL.md`) and `docs/tentura-design-system.md`.
 
 ### WindowClass breakpoints
 

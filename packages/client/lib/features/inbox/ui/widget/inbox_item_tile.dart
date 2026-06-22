@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -91,6 +92,7 @@ class InboxItemTile extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tt = context.tt;
     final beacon = item.beacon;
     if (beacon == null) return const SizedBox.shrink();
 
@@ -166,21 +168,21 @@ class InboxItemTile extends StatelessWidget {
                   context.read<ScreenCubit>().showComplaint(beacon.id),
             ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: tt.rowGap),
           BeaconCardMetadataLine(
             beacon: beacon,
             updatedLine: updatedLine,
           ),
           if (beacon.needs.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: tt.rowGap),
             BeaconRequirementsBar(needs: beacon.needs),
           ],
           if (item.roomHints != null) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: tt.rowGap),
             ..._roomHintLines(context, l10n, item.roomHints!),
           ],
           if (showDeadlineOrForwardsRow) ...[
-            const SizedBox(height: 6),
+            SizedBox(height: tt.rowGap),
             InboxCardForwardsFold(
               provenance: item.provenance,
               deadlineEndAt: beacon.endAt,
@@ -189,7 +191,7 @@ class InboxItemTile extends StatelessWidget {
           if (item.status == InboxItemStatus.rejected &&
               item.rejectionMessage.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: kSpacingSmall),
+              padding: EdgeInsets.only(top: tt.rowGap),
               child: Text(
                 item.rejectionMessage,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -224,12 +226,15 @@ class InboxItemTile extends StatelessWidget {
                   color: scheme.outline,
                 );
                 return Padding(
-                  padding: const EdgeInsets.only(top: 6),
+                  padding: EdgeInsets.only(top: tt.rowGap),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const NewStuffDot(
-                        padding: EdgeInsets.only(right: 8, top: 2),
+                      NewStuffDot(
+                        padding: EdgeInsets.only(
+                          right: tt.rowGap,
+                          top: tt.tightGap,
+                        ),
                       ),
                       Expanded(
                         child: Text(
@@ -254,6 +259,7 @@ class InboxItemTile extends StatelessWidget {
     InboxRoomCardHints h,
   ) {
     final theme = Theme.of(context);
+    final tt = context.tt;
     final out = <Widget>[];
     if (h.isRoomMember) {
       out.add(
@@ -269,7 +275,7 @@ class InboxItemTile extends StatelessWidget {
         final title = h.openBlocker?.title ?? h.openBlockerTitle;
         out.add(
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: EdgeInsets.only(top: tt.tightGap),
             child: Text(
               l10n.inboxCardOpenBlocker(title),
               style: theme.textTheme.bodySmall?.copyWith(
@@ -284,7 +290,7 @@ class InboxItemTile extends StatelessWidget {
       if (h.currentLineSnippet.isNotEmpty) {
         out.add(
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: EdgeInsets.only(top: tt.tightGap),
             child: Text(
               l10n.inboxCardRoomCurrentLine(h.currentLineSnippet),
               style: theme.textTheme.bodySmall,
@@ -297,7 +303,7 @@ class InboxItemTile extends StatelessWidget {
       if (h.myNextMove.isNotEmpty) {
         out.add(
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: EdgeInsets.only(top: tt.tightGap),
             child: Text(
               l10n.inboxCardRoomNextMove(h.myNextMove),
               style: theme.textTheme.bodySmall,
@@ -310,7 +316,7 @@ class InboxItemTile extends StatelessWidget {
       if (h.lastRoomMeaningfulChange.isNotEmpty) {
         out.add(
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: EdgeInsets.only(top: tt.tightGap),
             child: Text(
               l10n.inboxCardRoomLastChange(h.lastRoomMeaningfulChange),
               style: theme.textTheme.bodySmall,
