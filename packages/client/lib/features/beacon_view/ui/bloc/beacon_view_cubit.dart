@@ -27,7 +27,6 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
 
 import '../../domain/use_case/beacon_view_case.dart';
-import '../message/beacon_update_messages.dart';
 import '../message/help_offer_messages.dart';
 import 'beacon_view_state.dart';
 
@@ -634,7 +633,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchHelpOffersWithCoordination(
           beaconId: beaconId,
         ),
-        _case.fetchBeaconUpdates(beaconId: beaconId),
         _case.fetchInboxContextForBeacon(beaconId),
         _case.fetchFactCards(beaconId),
         _case.fetchRoomParticipants(beaconId),
@@ -663,29 +661,18 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   int? roomAccess,
                 })
               >;
-      final updates =
-          results[2]!
-              as List<
-                ({
-                  String id,
-                  int number,
-                  Profile author,
-                  String content,
-                  DateTime createdAt,
-                })
-              >;
       final inboxCtx =
-          results[3]!
+          results[2]!
               as ({
                 InboxItemStatus? status,
                 InboxProvenance provenance,
                 String latestNotePreview,
               });
-      final factCards = results[4]! as List<BeaconFactCard>;
-      final roomParticipants = results[5]! as List<BeaconParticipant>;
-      final beaconRoomCue = results[6] as BeaconRoomState?;
-      final roomActivityEvents = results[7]! as List<BeaconActivityEvent>;
-      final roomUnreadSnapshot = results[8]! as RoomUnreadSnapshot;
+      final factCards = results[3]! as List<BeaconFactCard>;
+      final roomParticipants = results[4]! as List<BeaconParticipant>;
+      final beaconRoomCue = results[5] as BeaconRoomState?;
+      final roomActivityEvents = results[6]! as List<BeaconActivityEvent>;
+      final roomUnreadSnapshot = results[7]! as RoomUnreadSnapshot;
       _serverUnreadCount = roomUnreadSnapshot.count;
       _serverSeenAt = roomUnreadSnapshot.serverSeenAt;
       final roomUnreadCount = _case.resolveRoomUnread(
@@ -730,14 +717,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
             author: beacon.author,
             status: beacon.coordinationStatus,
             at: beacon.coordinationStatusUpdatedAt!,
-          ),
-        for (final u in updates)
-          TimelineUpdate(
-            id: u.id,
-            number: u.number,
-            author: u.author,
-            content: u.content,
-            createdAt: u.createdAt,
           ),
         TimelineCreation(author: beacon.author, createdAt: beacon.createdAt),
       ]..sort();
@@ -852,38 +831,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       await _applyForwardsFromRemote(beaconId, myUserId);
     } on Object catch (_) {
       // Non-fatal: keep existing forwards visible.
-    }
-  }
-
-  Future<void> postAuthorUpdate(String content) async {
-    try {
-      await _case.postBeaconAuthorUpdate(
-        beaconId: state.beacon.id,
-        content: content,
-      );
-      await _fetchBeaconByIdWithTimeline();
-    } catch (e) {
-      emit(state.copyWith(status: StateHasError(e)));
-    }
-  }
-
-  Future<void> editAuthorUpdate({
-    required String id,
-    required String content,
-  }) async {
-    try {
-      await _case.editBeaconAuthorUpdate(id: id, content: content);
-      await _fetchBeaconByIdWithTimeline();
-    } catch (e) {
-      if (e.toString().contains('Update edit window has expired')) {
-        emit(
-          state.copyWith(
-            status: StateIsMessaging(const BeaconUpdateEditExpiredMessage()),
-          ),
-        );
-      } else {
-        emit(state.copyWith(status: StateHasError(e)));
-      }
     }
   }
 

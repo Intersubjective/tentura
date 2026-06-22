@@ -2105,51 +2105,6 @@
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
   },
-  "beaconUpdatesSection": "Updates",
-  "@beaconUpdatesSection": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdatesEmpty": "No updates yet.",
-  "@beaconUpdatesEmpty": {
-    "context": "BeaconViewScreen"
-  },
-  "postUpdateCTA": "Update",
-  "@postUpdateCTA": {
-    "context": "BeaconViewScreen"
-  },
-  "editUpdateCTA": "Edit update",
-  "@editUpdateCTA": {
-    "context": "BeaconViewScreen"
-  },
-  "updateNumberLabel": "#{number}",
-  "@updateNumberLabel": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "number": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconUpdateComposerHint": "What changed? Share progress with helpers and watchers.",
-  "@beaconUpdateComposerHint": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdatePostedMessage": "Update posted",
-  "@beaconUpdatePostedMessage": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdateSavedMessage": "Update saved",
-  "@beaconUpdateSavedMessage": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdateEditWindowHint": "Updates can be edited within 1 hour of posting.",
-  "@beaconUpdateEditWindowHint": {
-    "context": "BeaconViewScreen"
-  },
-  "beaconUpdateEditExpired": "Edit window has expired (1 hour after posting).",
-  "@beaconUpdateEditExpired": {
-    "context": "BeaconViewScreen"
-  },
   "labelHelpOffered": "Help Offered",
   "@labelHelpOffered": {
     "context": "BeaconViewScreen"
@@ -2241,18 +2196,6 @@
   "@labelWithdrawn": {
     "context": "BeaconViewScreen",
     "description": "Badge for withdrawn help offer in help offers list"
-  },
-  "timelineUpdate": "{author}: {content}",
-  "@timelineUpdate": {
-    "context": "BeaconViewScreen",
-    "placeholders": {
-      "author": {
-        "type": "String"
-      },
-      "content": {
-        "type": "String"
-      }
-    }
   },
   "timelineCreated": "{author} created the beacon",
   "@timelineCreated": {
@@ -2821,7 +2764,6 @@
   "beaconCloseSheetActionCloseAnyway": "Close anyway",
   "beaconCloseSheetActionKeepActive": "Keep active",
   "beaconCloseSheetActionOpenPeople": "Open People",
-  "beaconCloseSheetActionPostUpdate": "Post update",
   "beaconCloseSheetActionResolveRoom": "Open room",
   "beaconCloseSheetActionNotNow": "Not now",
   "beaconCloseSheetBlockedForceHint": "Closing despite blockers is disabled.",
@@ -2965,7 +2907,6 @@
   "beaconPublicStatusNoNote": "No public note",
   "beaconHelpOfferSnapshotTitle": "Help offers",
   "beaconViewAllHelpOffers": "View all help offers",
-  "beaconLatestUpdateTitle": "Latest author update",
   "beaconForwardChainPreview": "Forward chain",
   "beaconForwardChainTapHint": "Tap for full graph",
   "beaconDescriptionAttachmentsTitle": "Description & attachments",
@@ -3066,7 +3007,6 @@
   "beaconOverviewDiagnosisNeedDifferentSkillBody": "Existing offers help, but do not cover the remaining gap.",
   "beaconOverviewDiagnosisNeedCoordinationBody": "Commitments need clearer coordination before work can move forward.",
   "beaconOverviewDiagnosisGenericMoreHelpBody": "Coverage does not match the remaining gap yet.",
-  "beaconOverviewNoAuthorUpdate": "No update posted yet",
   "beaconOverviewNeedEmpty": "No details yet",
   "beaconOverviewNeedMeta": "Created by {author} · {context}",
   "@beaconOverviewNeedMeta": {

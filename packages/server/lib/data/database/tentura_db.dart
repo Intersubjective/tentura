@@ -13,7 +13,6 @@ import 'package:tentura_server/domain/entity/verified_contact_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
-import 'package:tentura_server/domain/entity/beacon_update_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/polling_entity.dart';
@@ -36,7 +35,6 @@ import 'table/beacon_forward_edges.dart';
 import 'table/beacon_images.dart';
 import 'table/beacon_review_statuses.dart';
 import 'table/beacon_review_windows.dart';
-import 'table/beacon_updates.dart';
 import 'table/beacons.dart';
 import 'table/beacon_participants.dart';
 import 'table/beacon_room_message_attachments.dart';
@@ -85,7 +83,6 @@ part 'tentura_db.g.dart';
     BeaconImages,
     BeaconReviewStatuses,
     BeaconReviewWindows,
-    BeaconUpdates,
     BeaconParticipants,
     BeaconRoomMessageAttachments,
     BeaconRoomMessageReactions,

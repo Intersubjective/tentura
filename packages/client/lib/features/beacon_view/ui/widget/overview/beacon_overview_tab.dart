@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -11,11 +9,8 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_info.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_pinned_fact_carousel.dart';
-import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../bloc/beacon_view_state.dart';
 import '../../util/beacon_chip_derivation.dart';
@@ -373,10 +368,8 @@ class BeaconStatusDashboard extends StatelessWidget {
   const BeaconStatusDashboard({
     required this.state,
     required this.onViewAllHelpOffers,
-    required this.onEditTimelineUpdate,
     this.onOpenRoom,
     this.onClosureCloseBeacon,
-    this.onClosurePostUpdate,
     this.onClosureForward,
     this.onClosureOpenPeople,
     this.onClosureResolveRoom,
@@ -385,13 +378,11 @@ class BeaconStatusDashboard extends StatelessWidget {
 
   final BeaconViewState state;
   final VoidCallback onViewAllHelpOffers;
-  final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
 
   /// Opens Room surface when viewer has room access (AppBar toggle target).
   final VoidCallback? onOpenRoom;
 
   final VoidCallback? onClosureCloseBeacon;
-  final VoidCallback? onClosurePostUpdate;
   final VoidCallback? onClosureForward;
   final VoidCallback? onClosureOpenPeople;
   final VoidCallback? onClosureResolveRoom;
@@ -406,7 +397,6 @@ class BeaconStatusDashboard extends StatelessWidget {
       beaconStatus: beacon.coordinationStatus,
       dominantResponse: _dominantDiagnosisType(state),
     );
-    final latest = latestTimelineUpdate(state.timeline);
     final active = activeHelpOfferCount(state.helpOffers);
     final needCoord = _needCoordinationCount(state.helpOffers);
     final useful = usefulHelpOfferCount(state.helpOffers);
@@ -457,8 +447,6 @@ class BeaconStatusDashboard extends StatelessWidget {
         needCoordination: needCoord,
         active: active,
         diagnosisTitleColor: coordinationAccent,
-        latest: latest,
-        onEditTimelineUpdate: onEditTimelineUpdate,
       ),
     );
 
@@ -658,11 +646,6 @@ class BeaconStatusDashboard extends StatelessWidget {
                     onPressed: onClosureCloseBeacon,
                     child: Text(l10n.beaconCloseSheetActionCloseBeacon),
                   ),
-                if (onClosurePostUpdate != null)
-                  OutlinedButton(
-                    onPressed: onClosurePostUpdate,
-                    child: Text(l10n.beaconCloseSheetActionPostUpdate),
-                  ),
                 if (onClosureForward != null)
                   OutlinedButton(
                     onPressed: onClosureForward,
@@ -838,8 +821,6 @@ class _CoordinationBody extends StatelessWidget {
     required this.needCoordination,
     required this.active,
     required this.diagnosisTitleColor,
-    required this.latest,
-    required this.onEditTimelineUpdate,
   });
 
   final L10n l10n;
@@ -849,8 +830,6 @@ class _CoordinationBody extends StatelessWidget {
   final int needCoordination;
   final int active;
   final Color diagnosisTitleColor;
-  final TimelineUpdate? latest;
-  final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
 
   @override
   Widget build(BuildContext context) {
@@ -878,18 +857,6 @@ class _CoordinationBody extends StatelessWidget {
           style: bodyStyle,
         ),
         const SizedBox(height: 14),
-        Text(
-          l10n.beaconLatestUpdateTitle,
-          style: sectionHeaderStyle,
-        ),
-        const SizedBox(height: 6),
-        _CoordinationAuthorUpdateBlock(
-          l10n: l10n,
-          state: state,
-          latest: latest,
-          onEditTimelineUpdate: onEditTimelineUpdate,
-        ),
-        const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -931,71 +898,6 @@ class _CoordinationBody extends StatelessWidget {
           child: TenturaCommandButton(
             label: l10n.beaconViewAndCoordinateHelpOffers,
             onPressed: onViewAllHelpOffers,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CoordinationAuthorUpdateBlock extends StatelessWidget {
-  const _CoordinationAuthorUpdateBlock({
-    required this.l10n,
-    required this.state,
-    required this.latest,
-    required this.onEditTimelineUpdate,
-  });
-
-  final L10n l10n;
-  final BeaconViewState state;
-  final TimelineUpdate? latest;
-  final Future<void> Function(TimelineUpdate u) onEditTimelineUpdate;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final b = state.beacon;
-    final u = latest;
-    if (u == null) {
-      return Text(
-        l10n.beaconOverviewNoAuthorUpdate,
-        style: theme.textTheme.bodySmall!.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: BlocBuilder<ProfileCubit, ProfileState>(
-                buildWhen: (p, c) => p.profile.id != c.profile.id,
-                builder: (context, ps) {
-                  return Text(
-                    '${SelfUserHighlight.displayName(l10n, u.author, ps.profile.id)} · ${u.content}',
-                    style: theme.textTheme.bodyMedium,
-                  );
-                },
-              ),
-            ),
-            if (state.isBeaconMine &&
-                b.lifecycle == BeaconLifecycle.open &&
-                _authorUpdateEditableNow(u.createdAt))
-              IconButton(
-                tooltip: l10n.editUpdateCTA,
-                icon: const Icon(Icons.edit_outlined, size: 20),
-                onPressed: () => unawaited(onEditTimelineUpdate(u)),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '${dateFormatYMD(u.createdAt.toLocal())} ${timeFormatHm(u.createdAt.toLocal())}',
-          style: theme.textTheme.bodySmall!.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -1074,9 +976,3 @@ String _contextAttachmentsSummaryLine(L10n l10n, Beacon beacon) {
   }
   return l10n.beaconOverviewNeedEmpty;
 }
-
-const _beaconAuthorUpdateEditWindow = Duration(hours: 1);
-
-bool _authorUpdateEditableNow(DateTime createdAt) =>
-    DateTime.now().toUtc().difference(createdAt.toUtc()) <=
-    _beaconAuthorUpdateEditWindow;

@@ -98,7 +98,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.enoughHelpInMotion,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,
-      suggestedAction: BeaconPhasePrimaryAction.postUpdate,
+      suggestedAction: BeaconPhasePrimaryAction.none,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
     );
@@ -123,7 +123,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.coordinating,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,
-      suggestedAction: BeaconPhasePrimaryAction.postUpdate,
+      suggestedAction: BeaconPhasePrimaryAction.none,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
     );
@@ -142,7 +142,7 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
   return BeaconCoordinationPhaseResult(
     phase: BeaconCoordinationPhase.coordinating,
     slot2Kind: BeaconPhaseSlot2Kind.freshness,
-    suggestedAction: BeaconPhasePrimaryAction.postUpdate,
+    suggestedAction: BeaconPhasePrimaryAction.none,
     rowHarmony: BeaconPhaseRowHarmony.empty,
     lastActivityAt: activityAt,
   );

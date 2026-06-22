@@ -143,24 +143,6 @@ class TimelineHelpOfferWithdrawn extends TimelineEntry {
   DateTime get timestamp => withdrawnAt;
 }
 
-class TimelineUpdate extends TimelineEntry {
-  TimelineUpdate({
-    required this.id,
-    required this.number,
-    required this.author,
-    required this.content,
-    required this.createdAt,
-  });
-  final String id;
-  final int number;
-  final Profile author;
-  final String content;
-  final DateTime createdAt;
-
-  @override
-  DateTime get timestamp => createdAt;
-}
-
 /// Beacon-level coordination status changed (computed or set by author).
 class TimelineBeaconCoordinationStatusChanged extends TimelineEntry {
   TimelineBeaconCoordinationStatusChanged({

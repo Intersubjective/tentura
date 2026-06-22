@@ -6,7 +6,6 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_chip_derivation.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -47,12 +46,6 @@ String beaconHudNowLine(L10n l10n, BeaconViewState state) {
   final pub = beacon.lastPublicMeaningfulChange?.trim();
   if (pub != null && pub.isNotEmpty) {
     return pub;
-  }
-
-  final latest = latestTimelineUpdate(state.timeline);
-  final updateContent = latest?.content.trim() ?? '';
-  if (updateContent.isNotEmpty) {
-    return updateContent;
   }
 
   final coordShort = coordinationStatusLabel(l10n, beacon.coordinationStatus);
@@ -308,12 +301,6 @@ String beaconHudNowExpandedBody(L10n l10n, BeaconViewState state) {
   final pub = beacon.lastPublicMeaningfulChange?.trim();
   if (pub != null && pub.isNotEmpty) {
     lines.add(pub);
-  }
-
-  final latest = latestTimelineUpdate(state.timeline);
-  final updateContent = latest?.content.trim() ?? '';
-  if (updateContent.isNotEmpty) {
-    lines.add(updateContent);
   }
 
   if (lines.isEmpty) {

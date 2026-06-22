@@ -60,7 +60,6 @@ void main() {
       BeaconStatusDashboard(
         state: viewState(beacon),
         onViewAllHelpOffers: () {},
-        onEditTimelineUpdate: (_) async {},
       ),
     );
 
@@ -83,7 +82,6 @@ void main() {
       BeaconStatusDashboard(
         state: viewState(beacon),
         onViewAllHelpOffers: () {},
-        onEditTimelineUpdate: (_) async {},
       ),
     );
 
