@@ -113,6 +113,12 @@ class TestSettingsRepository implements SettingsRepositoryPort {
   Future<void> setThemeMode(String value) async {}
 
   @override
+  Future<String?> getLocalePreference() async => null;
+
+  @override
+  Future<void> setLocalePreference(String value) async {}
+
+  @override
   Future<int?> getNewStuffInboxLastSeenMs(String accountId) async => null;
 
   @override

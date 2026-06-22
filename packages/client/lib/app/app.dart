@@ -80,14 +80,22 @@ class App extends StatelessWidget {
   @override
   Widget build(
     BuildContext context,
-  ) => BlocSelector<SettingsCubit, SettingsState, ThemeMode>(
+  ) => BlocSelector<
+    SettingsCubit,
+    SettingsState,
+    ({ThemeMode themeMode, Locale? locale})
+  >(
     bloc: GetIt.I<SettingsCubit>(),
-    selector: (state) => state.themeMode,
-    builder: (_, themeMode) {
+    selector: (state) => (
+      themeMode: state.themeMode,
+      locale: state.resolvedAppLocale,
+    ),
+    builder: (_, selected) {
       final router = GetIt.I<RootRouter>();
       return MaterialApp.router(
         title: kAppTitle,
-        themeMode: themeMode,
+        themeMode: selected.themeMode,
+        locale: selected.locale,
         scaffoldMessengerKey: snackbarKey,
         debugShowCheckedModeBanner: false,
         theme: TenturaTheme.light(),

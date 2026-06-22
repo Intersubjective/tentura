@@ -136,6 +136,32 @@ class SettingsRepository implements SettingsRepositoryPort {
     ),
   );
 
+  ///
+  /// Locale
+  ///
+  @override
+  Future<String?> getLocalePreference() => _database.managers.settings
+      .filter((f) => f.key.equals(_kLocalePreferenceKey))
+      .getSingleOrNull()
+      .then((v) => v?.valueText);
+
+  //
+  //
+  @override
+  Future<void> setLocalePreference(String value) =>
+      _database.managers.settings.create(
+        (o) => o(
+          key: _kLocalePreferenceKey,
+          valueText: Value(value),
+        ),
+        mode: InsertMode.insertOrReplace,
+        onConflict: DoUpdate(
+          (_) => SettingsCompanion(
+            valueText: Value(value),
+          ),
+        ),
+      );
+
   // Keys
   /// Last-seen cursor for Inbox "new stuff" (epoch ms, server-aligned via max forward timestamps).
   @override
@@ -191,5 +217,6 @@ class SettingsRepository implements SettingsRepositoryPort {
   static const _kAppIdKey = 'appId';
   static const _kLastFcmRegistrationKey = 'lastFcmRegistration';
   static const _kThemeModeKey = 'themeMode';
+  static const _kLocalePreferenceKey = 'localePreference';
   static const _kIsIntroEnabledKey = 'isIntroEnabled';
 }
