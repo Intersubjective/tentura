@@ -92,8 +92,12 @@ class BeaconCubit extends Cubit<BeaconState> {
         ),
       );
     } catch (e) {
-      _effects.emit(ShowError(e));
-      emit(state.copyWith(status: const StateIsSuccess()));
+      if (state.beacons.isEmpty) {
+        emit(state.copyWith(status: StateHasError(e)));
+      } else {
+        _effects.emit(ShowError(e));
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
     }
   }
 

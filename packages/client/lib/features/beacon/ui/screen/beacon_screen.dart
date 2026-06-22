@@ -124,11 +124,30 @@ class _BeaconScreenState extends State<BeaconScreen> {
         minimum: kPaddingSmallH,
         child: BlocBuilder<BeaconCubit, BeaconState>(
           bloc: _beaconCubit,
-          buildWhen: (_, c) => c.isSuccess || c.isLoading,
+          buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
           builder: (context, state) {
             if (state.isLoading && state.beacons.isEmpty) {
               return const Center(
                 child: CircularProgressIndicator.adaptive(),
+              );
+            }
+            if (state.hasError && state.beacons.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: scheme.error,
+                    ),
+                    const SizedBox(height: kSpacingMedium),
+                    FilledButton(
+                      onPressed: () => unawaited(_beaconCubit.fetch(reset: true)),
+                      child: Text(_l10n.myWorkRetry),
+                    ),
+                  ],
+                ),
               );
             }
             if (state.beacons.isEmpty) {
