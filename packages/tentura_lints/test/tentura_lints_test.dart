@@ -3,6 +3,8 @@ import 'package:analyzer_testing/analysis_rule/analysis_rule.dart';
 import 'package:tentura_lints/src/rules/cubit_requires_use_case_for_multi_repos.dart';
 import 'package:tentura_lints/src/rules/no_cubit_to_data_service_imports.dart';
 import 'package:tentura_lints/src/rules/no_domain_to_data_imports.dart';
+import 'package:tentura_lints/src/rules/no_raw_border_radius.dart';
+import 'package:tentura_lints/src/rules/no_raw_edge_insets.dart';
 import 'package:tentura_lints/src/rules/no_raw_graphql_in_dart.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
@@ -174,11 +176,93 @@ const title = 'hello world';
   }
 }
 
+@reflectiveTest
+class NoRawEdgeInsetsTest extends AnalysisRuleTest {
+  @override
+  String get testFileName =>
+      'packages/client/lib/features/foo/ui/widget/foo.dart';
+
+  @override
+  void setUp() {
+    rule = NoRawEdgeInsets();
+    super.setUp();
+  }
+
+  Future<void> test_reports_numeric_edge_insets() async {
+    await assertDiagnostics(
+      '''
+final a = EdgeInsets.all(8);
+class EdgeInsets {
+  const EdgeInsets.all(double v);
+}
+''',
+      [lint(25, 1)],
+    );
+  }
+
+  Future<void> test_allows_token_derived_edge_insets() async {
+    await assertNoDiagnostics(
+      '''
+class EdgeInsets {
+  const EdgeInsets.all(double v);
+}
+class Tt {
+  double get cardPadding => 12;
+}
+final t = Tt();
+final a = EdgeInsets.all(t.cardPadding);
+''',
+    );
+  }
+}
+
+@reflectiveTest
+class NoRawBorderRadiusTest extends AnalysisRuleTest {
+  @override
+  String get testFileName =>
+      'packages/client/lib/features/foo/ui/widget/foo.dart';
+
+  @override
+  void setUp() {
+    rule = NoRawBorderRadius();
+    super.setUp();
+  }
+
+  Future<void> test_reports_numeric_border_radius() async {
+    await assertDiagnostics(
+      '''
+final a = BorderRadius.circular(8);
+class BorderRadius {
+  const BorderRadius.circular(double v);
+}
+''',
+      [lint(32, 1)],
+    );
+  }
+
+  Future<void> test_allows_token_derived_border_radius() async {
+    await assertNoDiagnostics(
+      '''
+class BorderRadius {
+  const BorderRadius.circular(double v);
+}
+class Tt {
+  double get cardRadius => 10;
+}
+final t = Tt();
+final a = BorderRadius.circular(t.cardRadius);
+''',
+    );
+  }
+}
+
 void main() {
   defineReflectiveSuite(() {
     defineReflectiveTests(NoDomainToDataImportsTest);
     defineReflectiveTests(NoCubitToDataServiceImportsTest);
     defineReflectiveTests(CubitRequiresUseCaseForMultiReposTest);
     defineReflectiveTests(NoRawGraphqlInDartTest);
+    defineReflectiveTests(NoRawEdgeInsetsTest);
+    defineReflectiveTests(NoRawBorderRadiusTest);
   });
 }

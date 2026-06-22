@@ -224,9 +224,10 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 | `context.tt` + `TenturaText` / `theme.textTheme` | `Color(0x…)`, `Colors.*` (except e.g. `Colors.transparent` where needed) in `beacon_view`, `my_work`, `inbox` feature code |
 | `TenturaTechCard` for record rows                | Ad-hoc `TextStyle(fontSize: …)` in those folders                                                                           |
 | Plain text status                                | `Chip` / `SegmentedButton` in `beacon_view` `widget/` + `screen/`                                                          |
+| `context.tt` gaps/padding (`rowGap`, `cardGap`, `tightGap`, …) + `tt.cardRadius` / `TenturaRadii.*` | `EdgeInsets.only(top: 6)` / `BorderRadius.circular(12)` and other raw-number insets/radii in **all** `features/**` and `ui/**` |
 
 
-Custom lint: `no_operational_raw_color`, `no_operational_raw_text_style`, `no_operational_pill_widgets_in_beacon_view` in [`packages/tentura_lints`](../packages/tentura_lints); plus `no_inline_font_size` for `features/**` and `ui/**` (allow-listed paths in rule).
+Custom lint: `no_operational_raw_color`, `no_operational_raw_text_style`, `no_operational_pill_widgets_in_beacon_view` in [`packages/tentura_lints`](../packages/tentura_lints); plus `no_inline_font_size`, `no_raw_edge_insets`, and `no_raw_border_radius` for `features/**` and `ui/**` (design-system files and the package `test/` tree are exempt). If a spacing/radius token is missing, add it to `tentura_spacing.dart` + `tentura_tokens.dart` (or `tentura_radii.dart`) first — e.g. `tightGap` (2px hairline nudge between stacked metadata lines). The `material-3-flutter` agent skill summarizes this workflow.
 
 ## Web viewport
 

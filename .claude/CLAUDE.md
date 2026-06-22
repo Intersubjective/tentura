@@ -36,6 +36,28 @@ If you need to understand a type or class, find the non-generated source (e.g. `
 
 ---
 
+## UI work → Material 3 design system
+
+Any change to client UI (widgets, layout, colors, typography, spacing) must go
+through the existing Material 3 design system — **invoke the
+`material-3-flutter` skill** (`.claude/skills/material-3-flutter/SKILL.md`) and
+read `docs/tentura-design-system.md`.
+
+Quick rules:
+
+- Import `package:tentura/design_system/tentura_design_system.dart`; use
+  `context.tt` density tokens, `TenturaText.*` / `Theme.of(context).textTheme.*`,
+  semantic `ColorScheme` roles, and the `Tentura*` components.
+- Do **not** put raw `Color(0x…)` / `Colors.*`, `TextStyle(…)`, inline
+  `fontSize:`, `EdgeInsets`-from-numbers, or `BorderRadius`/`Radius`-from-numbers
+  in `features/**` or `ui/**`. If a token is missing, add it to
+  `design_system/` first. Enforced by `tentura_lints` (`no_operational_raw_color`,
+  `no_operational_raw_text_style`, `no_inline_font_size`, `no_raw_edge_insets`,
+  `no_raw_border_radius`).
+- Verify: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos && flutter test`.
+
+---
+
 ## RAG (via ollama_explore.py)
 
 RAG is now called automatically by `ollama_explore.py` (step 2 in Search Precedence above). You do **not** need to invoke `rag_query.py` directly — `ollama_explore.py` runs it, reads the matched files, and returns a synthesized summary.

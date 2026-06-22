@@ -9,6 +9,8 @@ import 'src/rules/no_map_dynamic_in_use_case_api.dart';
 import 'src/rules/no_operational_pill_widgets.dart';
 import 'src/rules/no_operational_raw_color.dart';
 import 'src/rules/no_operational_raw_text_style.dart';
+import 'src/rules/no_raw_border_radius.dart';
+import 'src/rules/no_raw_edge_insets.dart';
 import 'src/rules/no_raw_graphql_in_dart.dart';
 
 final plugin = TenturaLintsPlugin();
@@ -28,6 +30,8 @@ class TenturaLintsPlugin extends Plugin {
       ..registerLintRule(CubitRequiresUseCaseForMultiRepos())
       ..registerLintRule(NoOperationalRawColor())
       ..registerLintRule(NoOperationalRawTextStyle())
-      ..registerLintRule(NoOperationalPillWidgetsInBeaconView());
+      ..registerLintRule(NoOperationalPillWidgetsInBeaconView())
+      ..registerLintRule(NoRawEdgeInsets())
+      ..registerLintRule(NoRawBorderRadius());
   }
 }

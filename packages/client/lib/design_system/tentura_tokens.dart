@@ -40,6 +40,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.sectionGap,
     required this.iconTextGap,
     required this.avatarTextGap,
+    required this.tightGap,
   });
 
   final Color bg;
@@ -81,6 +82,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   final double iconTextGap;
   final double avatarTextGap;
 
+  /// Hairline nudge between tightly-related stacked lines. Fixed across classes.
+  final double tightGap;
+
   static const TenturaTokens light = TenturaTokens(
     bg: TenturaPalette.bg,
     surface: TenturaPalette.surface,
@@ -111,6 +115,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     sectionGap: TenturaSpacing.section,
     iconTextGap: TenturaSpacing.iconText,
     avatarTextGap: TenturaSpacing.avatarText,
+    tightGap: TenturaSpacing.tight,
   );
 
   static const TenturaTokens dark = TenturaTokens(
@@ -143,6 +148,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     sectionGap: TenturaSpacing.section,
     iconTextGap: TenturaSpacing.iconText,
     avatarTextGap: TenturaSpacing.avatarText,
+    tightGap: TenturaSpacing.tight,
   );
 
   /// Mine / secondary info on cards (sky-tinted border emphasis).
@@ -171,6 +177,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           sectionGap: TenturaSpacing.section,
           iconTextGap: TenturaSpacing.iconText,
           avatarTextGap: TenturaSpacing.avatarText,
+          tightGap: TenturaSpacing.tight,
           refreshContentMaxWidth: true,
         );
       case WindowClass.regular:
@@ -190,6 +197,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           sectionGap: 14,
           iconTextGap: 7,
           avatarTextGap: 13,
+          tightGap: TenturaSpacing.tight,
           refreshContentMaxWidth: true,
         );
       case WindowClass.expanded:
@@ -209,6 +217,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           sectionGap: 16,
           iconTextGap: 8,
           avatarTextGap: 14,
+          tightGap: TenturaSpacing.tight,
           refreshContentMaxWidth: true,
         );
     }
@@ -246,6 +255,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? sectionGap,
     double? iconTextGap,
     double? avatarTextGap,
+    double? tightGap,
   }) {
     return TenturaTokens(
       bg: bg ?? this.bg,
@@ -279,6 +289,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       sectionGap: sectionGap ?? this.sectionGap,
       iconTextGap: iconTextGap ?? this.iconTextGap,
       avatarTextGap: avatarTextGap ?? this.avatarTextGap,
+      tightGap: tightGap ?? this.tightGap,
     );
   }
 
@@ -326,6 +337,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       sectionGap: lerpDouble(sectionGap, other.sectionGap, t)!,
       iconTextGap: lerpDouble(iconTextGap, other.iconTextGap, t)!,
       avatarTextGap: lerpDouble(avatarTextGap, other.avatarTextGap, t)!,
+      tightGap: lerpDouble(tightGap, other.tightGap, t)!,
     );
   }
 }
