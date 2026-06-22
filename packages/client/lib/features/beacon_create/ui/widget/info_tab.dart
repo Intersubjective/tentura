@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
@@ -35,8 +37,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
   late final _cubit = context.read<BeaconCreateCubit>();
 
-  late final _dateRangeController = TextEditingController(
-    text: _formatDateRange(_cubit.state.startAt, _cubit.state.endAt),
+  /// Declared timing meaning (event / deadline / none). Held locally so the user
+  /// can pick a mode before choosing a date; initialized from existing dates so
+  /// editing preselects the right mode.
+  late BeaconScheduleKind _timingKind = _deriveTimingKind(
+    _cubit.state.startAt,
+    _cubit.state.endAt,
   );
 
   late final _locationController = TextEditingController(
@@ -53,7 +59,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
   @override
   void dispose() {
-    _dateRangeController.dispose();
     _locationController.dispose();
     _needSummaryController.dispose();
     _successCriteriaController.dispose();
@@ -122,16 +127,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         bloc: _cubit,
         listenWhen: (prev, curr) =>
             prev.location != curr.location ||
-            prev.startAt != curr.startAt ||
-            prev.endAt != curr.endAt ||
             prev.needSummary != curr.needSummary ||
             prev.successCriteria != curr.successCriteria,
         listener: (context, state) {
-          final dateRangeText =
-              _formatDateRange(state.startAt, state.endAt);
-          if (_dateRangeController.text != dateRangeText) {
-            _dateRangeController.text = dateRangeText;
-          }
           if (_locationController.text != state.location) {
             _locationController.text = state.location;
           }
@@ -315,19 +313,70 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                 child: ContextDropDown(),
               ),
 
-            // Date range
+            // Timing — declare the meaning of the dates first (event vs
+            // deadline), then pick. This is where date ambiguity is removed.
             Padding(
               padding: kPaddingSmallV,
-              child: BlocSelector<BeaconCreateCubit, BeaconCreateState, String>(
-                bloc: _cubit,
-                selector: (s) => _formatDateRange(s.startAt, s.endAt),
-                builder: (_, displayText) => _pickerField(
-                  key: const Key('BeaconCreate.DateRangeField'),
-                  hint: _l10n.setDisplayPeriod,
-                  displayText: displayText,
-                  suffixIcon: const Icon(TenturaIcons.calendar),
-                  onTap: () => unawaited(_pickDateRange(context)),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _l10n.beaconTimingWhenTitle,
+                    style: _theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<BeaconScheduleKind>(
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(
+                          value: BeaconScheduleKind.deadline,
+                          label: Text(_l10n.beaconTimingDeadline),
+                        ),
+                        ButtonSegment(
+                          value: BeaconScheduleKind.event,
+                          label: Text(_l10n.beaconTimingEvent),
+                        ),
+                        ButtonSegment(
+                          value: BeaconScheduleKind.none,
+                          label: Text(_l10n.beaconTimingNone),
+                        ),
+                      ],
+                      selected: {_timingKind},
+                      onSelectionChanged: (s) => _onTimingKindChanged(s.first),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _timingKindHint(_timingKind),
+                    style: _theme.textTheme.bodySmall?.copyWith(
+                      color: _theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (_timingKind != BeaconScheduleKind.none)
+                    Padding(
+                      padding: kPaddingSmallT,
+                      child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
+                          String>(
+                        bloc: _cubit,
+                        selector: _timingSummary,
+                        builder: (_, displayText) => _pickerField(
+                          key: const Key('BeaconCreate.TimingField'),
+                          hint: _l10n.beaconTimingPickDate,
+                          displayText: displayText,
+                          suffixIcon: const Icon(TenturaIcons.calendar),
+                          onTap: () => unawaited(
+                            _timingKind == BeaconScheduleKind.deadline
+                                ? _pickDeadline(context)
+                                : _pickEventDates(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -474,7 +523,25 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
         ),
       );
 
-  Future<void> _pickDateRange(BuildContext context) async {
+  /// Deadline mode: one date → `endAt` only (startAt cleared).
+  Future<void> _pickDeadline(BuildContext context) async {
+    final now = DateTime.timestamp();
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: now,
+      currentDate: now,
+      initialDate: _cubit.state.endAt,
+      lastDate: now.add(const Duration(days: 365)),
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+    );
+    if (picked != null) {
+      _cubit.setDeadline(picked);
+    }
+  }
+
+  /// Event mode: a date or period. Same start/end day → single-moment event
+  /// (`startAt` only); a span → window (`startAt` + `endAt`).
+  Future<void> _pickEventDates(BuildContext context) async {
     final now = DateTime.timestamp();
     final dateRange = await showDateRangePicker(
       context: context,
@@ -485,13 +552,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
       saveText: _l10n.buttonOk,
     );
     if (dateRange != null) {
-      _dateRangeController.text = _formatDateRange(
-        dateRange.start,
-        dateRange.end,
-      );
-      _cubit.setDateRange(
+      final sameDay = dateRange.start.year == dateRange.end.year &&
+          dateRange.start.month == dateRange.end.month &&
+          dateRange.start.day == dateRange.end.day;
+      _cubit.setEventDates(
         startAt: dateRange.start,
-        endAt: dateRange.end,
+        endAt: sameDay ? null : dateRange.end,
       );
     }
   }
@@ -510,8 +576,58 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     }
   }
 
-  String _formatDateRange(DateTime? start, DateTime? end) =>
-      start == null || end == null
-      ? ''
-      : '${dateFormatYMD(start)} - ${dateFormatYMD(end)}';
+  static BeaconScheduleKind _deriveTimingKind(DateTime? start, DateTime? end) =>
+      start != null
+      ? BeaconScheduleKind.event
+      : (end != null ? BeaconScheduleKind.deadline : BeaconScheduleKind.none);
+
+  String _timingKindHint(BeaconScheduleKind kind) => switch (kind) {
+    BeaconScheduleKind.deadline => _l10n.beaconTimingDeadlineHint,
+    BeaconScheduleKind.event => _l10n.beaconTimingEventHint,
+    BeaconScheduleKind.none => _l10n.beaconTimingNoneHint,
+  };
+
+  /// Human summary of the chosen dates, reusing the same formatters the card
+  /// uses so authoring and display speak one language.
+  String _timingSummary(BeaconCreateState s) {
+    final now = DateTime.now();
+    final locale = _l10n.localeName;
+    if (s.startAt != null && s.endAt != null) {
+      return formatScheduleRange(
+        s.startAt!,
+        s.endAt!,
+        localeName: locale,
+        now: now,
+      );
+    }
+    if (s.startAt != null) {
+      return formatScheduleDate(s.startAt!, localeName: locale, now: now);
+    }
+    if (s.endAt != null) {
+      return _l10n.beaconCardScheduleDeadlineBy(
+        formatScheduleDate(s.endAt!, localeName: locale, now: now),
+      );
+    }
+    return '';
+  }
+
+  /// Switching mode clears the field that doesn't belong to the new kind so a
+  /// stale date can't leak into the wrong semantics; compatible dates are
+  /// reinterpreted rather than lost.
+  void _onTimingKindChanged(BeaconScheduleKind kind) {
+    setState(() => _timingKind = kind);
+    final s = _cubit.state;
+    switch (kind) {
+      case BeaconScheduleKind.none:
+        _cubit.clearTiming();
+      case BeaconScheduleKind.deadline:
+        // Keep an existing end (window end) as the deadline; drop the start.
+        _cubit.setDeadline(s.endAt);
+      case BeaconScheduleKind.event:
+        // Promote a bare deadline date to a single-day event.
+        if (s.startAt == null && s.endAt != null) {
+          _cubit.setEventDates(startAt: s.endAt!);
+        }
+    }
+  }
 }

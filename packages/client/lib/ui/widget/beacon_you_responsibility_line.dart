@@ -20,6 +20,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     this.viewerUserId = '',
     this.openBlocker,
     this.phaseResult,
+    this.isAwaitingAuthorReview = false,
     super.key,
   });
 
@@ -31,6 +32,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
   final String viewerUserId;
   final OpenBlockerCue? openBlocker;
   final BeaconCoordinationPhaseResult? phaseResult;
+  final bool isAwaitingAuthorReview;
 
   static const double _compactWrapWidth = 320;
 
@@ -53,6 +55,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
           phaseResult: phaseResult,
           openBlocker: openBlocker,
           viewerUserId: viewerUserId,
+          isAwaitingAuthorReview: isAwaitingAuthorReview,
         );
         final presentation = buildBeaconYouPresentation(
           l10n,
@@ -241,13 +244,21 @@ class _SegmentChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final label = segment.label?.trim();
+    final hasLabel = label != null && label.isNotEmpty;
     final children = <Widget>[
       Icon(segment.icon, size: 16, color: bodyStyle?.color),
-      const SizedBox(width: 4),
-      Text('${segment.count}', style: bodyStyle),
     ];
-    if (segment.label != null && segment.label!.isNotEmpty) {
-      children.add(Text(' ${segment.label}', style: bodyStyle));
+    if (hasLabel) {
+      children.addAll([
+        const SizedBox(width: 4),
+        Text(label, style: bodyStyle),
+      ]);
+    } else {
+      children.addAll([
+        const SizedBox(width: 4),
+        Text('${segment.count}', style: bodyStyle),
+      ]);
     }
     if (segment.newCount > 0) {
       children.addAll([

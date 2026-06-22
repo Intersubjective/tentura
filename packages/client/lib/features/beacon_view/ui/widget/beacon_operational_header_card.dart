@@ -14,6 +14,7 @@ import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
+import 'package:tentura/ui/utils/beacon_you_presentation.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -136,6 +137,12 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
                 viewerUserId: viewerId,
                 openBlocker: openBlocker,
                 phaseResult: phaseResult,
+                isAwaitingAuthorReview: viewerAwaitingAuthorHelpOfferReview(
+                  isAuthorOrSteward: state.isAuthorOrSteward,
+                  viewerHasActiveHelpOffer: state.isHelpOffered,
+                  viewerOfferAuthorResponse:
+                      state.myActiveHelpOffer?.coordinationResponse,
+                ),
               ),
             ],
           ),

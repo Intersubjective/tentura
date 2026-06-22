@@ -1835,6 +1835,91 @@
   "@beaconCardScheduleInProgress": {
     "description": "Screen reader label when beacon is in progress without an end date"
   },
+  "beaconCardScheduleScheduledFor": "Scheduled for {date}",
+  "@beaconCardScheduleScheduledFor": {
+    "description": "Screen reader label for an upcoming event shown as an absolute date/range",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleUntil": "until {date}",
+  "@beaconCardScheduleUntil": {
+    "description": "Card line for an event in progress that runs until an absolute end date",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleHappeningNow": "Happening now",
+  "@beaconCardScheduleHappeningNow": {
+    "description": "Card line for an event in progress with no end date"
+  },
+  "beaconCardScheduleEndedOn": "Ended {date}",
+  "@beaconCardScheduleEndedOn": {
+    "description": "Screen reader label for a finished event shown as an absolute date",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleDeadlineBy": "by {date}",
+  "@beaconCardScheduleDeadlineBy": {
+    "description": "Card line for a deadline shown as an absolute date (needs to happen by)",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleDueIn": "due in {remaining}",
+  "@beaconCardScheduleDueIn": {
+    "description": "Card line for an approaching deadline shown as a countdown",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCardScheduleOverdue": "Overdue",
+  "@beaconCardScheduleOverdue": {
+    "description": "Card line for a deadline whose date has passed"
+  },
+  "beaconTimingWhenTitle": "When?",
+  "@beaconTimingWhenTitle": {
+    "description": "Section title for the beacon timing (schedule) selector on the create/edit form"
+  },
+  "beaconTimingDeadline": "Deadline",
+  "@beaconTimingDeadline": {
+    "description": "Timing mode: the beacon needs to happen by a date"
+  },
+  "beaconTimingDeadlineHint": "Help is needed by a date",
+  "@beaconTimingDeadlineHint": {
+    "description": "Helper subtitle for the deadline timing mode"
+  },
+  "beaconTimingEvent": "Date / period",
+  "@beaconTimingEvent": {
+    "description": "Timing mode: the beacon happens at a set date or period"
+  },
+  "beaconTimingEventHint": "Happens at a set date or period",
+  "@beaconTimingEventHint": {
+    "description": "Helper subtitle for the event timing mode"
+  },
+  "beaconTimingNone": "No date",
+  "@beaconTimingNone": {
+    "description": "Timing mode: no date, flexible"
+  },
+  "beaconTimingNoneHint": "Flexible, anytime",
+  "@beaconTimingNoneHint": {
+    "description": "Helper subtitle for the no-date timing mode"
+  },
+  "beaconTimingPickDate": "Tap to choose",
+  "@beaconTimingPickDate": {
+    "description": "Hint on the timing picker field before a date is chosen"
+  },
   "beaconCardLocationSemantics": "Location: {place}",
   "@beaconCardLocationSemantics": {
     "description": "Screen reader label for beacon location on My Work card",
@@ -2595,6 +2680,10 @@
   "beaconYouWaitingOnOthers": "Waiting on others",
   "beaconYouNoOpenItems": "No open items",
   "beaconYouEnoughHelp": "Enough help",
+  "beaconYouNoInfo": "No info",
+  "@beaconYouNoInfo": {
+    "description": "YOU line fallback when non-author has no personal coordination items"
+  },
   "beaconYouClosed": "Closed",
   "beaconYouItemsSheetTitle": "Your responsibilities",
   "beaconYouActionReply": "Reply",
@@ -3698,5 +3787,5 @@
   },
   "beaconPhaseCtaResolveBlocker": "Resolve blocker",
   "beaconPhaseCtaReviewOffers": "Review offers",
-  "beaconYouOfferSent": "Offer sent — author reviewing"
+  "beaconYouOfferSent": "Waiting for author's review"
 }

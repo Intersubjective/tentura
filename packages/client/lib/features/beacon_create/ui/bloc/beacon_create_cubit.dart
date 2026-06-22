@@ -190,6 +190,23 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     ),
   );
 
+  /// Deadline timing: only [endAt] is set ("needs to happen by"); `startAt` is
+  /// cleared so the card derives a deadline (vs an event) from nullability.
+  void setDeadline(DateTime? endAt) => emit(
+    state.copyWith(startAt: null, endAt: endAt),
+  );
+
+  /// Event timing: [startAt] is the moment it happens; [endAt] (optional) makes
+  /// it a window. The card derives an event from a non-null [startAt].
+  void setEventDates({required DateTime startAt, DateTime? endAt}) => emit(
+    state.copyWith(startAt: startAt, endAt: endAt),
+  );
+
+  /// Clears all schedule dates (flexible / no date).
+  void clearTiming() => emit(
+    state.copyWith(startAt: null, endAt: null),
+  );
+
   ///
   ///
   void setLocation(Coordinates? value, String locationName) => emit(

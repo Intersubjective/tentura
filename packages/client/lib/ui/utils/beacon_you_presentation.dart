@@ -5,6 +5,7 @@ import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
+import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
@@ -14,9 +15,19 @@ enum BeaconYouEmptyFallback {
   hidden,
   waitingOnOthers,
   noOpenItems,
-  enoughHelp,
+  awaitingAuthorReview,
+  noInfo,
   closed,
 }
+
+bool viewerAwaitingAuthorHelpOfferReview({
+  required bool isAuthorOrSteward,
+  required CoordinationResponseType? viewerOfferAuthorResponse,
+  required bool viewerHasActiveHelpOffer,
+}) =>
+    !isAuthorOrSteward &&
+    viewerHasActiveHelpOffer &&
+    viewerOfferAuthorResponse == null;
 
 BeaconYouEmptyFallback deriveBeaconYouEmptyFallback({
   required BeaconLifecycle lifecycle,
@@ -24,6 +35,7 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallback({
   required int othersOpenCount,
   required bool compactSurface,
   required bool hasPersonalObligation,
+  bool isAwaitingAuthorReview = false,
   BeaconPhaseRowHarmony rowHarmony = BeaconPhaseRowHarmony.empty,
 }) {
   if (lifecycle == BeaconLifecycle.closed ||
@@ -36,10 +48,13 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallback({
   if (othersOpenCount > 0) {
     return BeaconYouEmptyFallback.waitingOnOthers;
   }
+  if (isAwaitingAuthorReview) {
+    return BeaconYouEmptyFallback.awaitingAuthorReview;
+  }
   if (!isAuthorOrSteward &&
       lifecycle == BeaconLifecycle.open &&
       !compactSurface) {
-    return BeaconYouEmptyFallback.enoughHelp;
+    return BeaconYouEmptyFallback.noInfo;
   }
   if (compactSurface && !hasPersonalObligation) {
     return BeaconYouEmptyFallback.hidden;
@@ -167,8 +182,12 @@ BeaconYouPresentation buildBeaconYouPresentation(
     BeaconYouEmptyFallback.noOpenItems => BeaconYouPresentation.fallback(
         fallbackText: l10n.beaconYouNoOpenItems,
       ),
-    BeaconYouEmptyFallback.enoughHelp => BeaconYouPresentation.fallback(
-        fallbackText: l10n.beaconYouEnoughHelp,
+    BeaconYouEmptyFallback.awaitingAuthorReview =>
+      BeaconYouPresentation.fallback(
+        fallbackText: l10n.beaconYouOfferSent,
+      ),
+    BeaconYouEmptyFallback.noInfo => BeaconYouPresentation.fallback(
+        fallbackText: l10n.beaconYouNoInfo,
       ),
     BeaconYouEmptyFallback.closed => BeaconYouPresentation.fallback(
         fallbackText: l10n.beaconYouClosed,
@@ -190,8 +209,10 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallbackFromBeacon({
   required CoordinationResponsibility responsibility,
   required bool isAuthorOrSteward,
   required bool compactSurface,
-  required String viewerUserId, BeaconCoordinationPhaseResult? phaseResult,
+  required String viewerUserId,
+  BeaconCoordinationPhaseResult? phaseResult,
   OpenBlockerCue? openBlocker,
+  bool isAwaitingAuthorReview = false,
 }) {
   final blocked = shouldShowBlockedYouSegment(
     phaseResult: phaseResult,
@@ -205,6 +226,7 @@ BeaconYouEmptyFallback deriveBeaconYouEmptyFallbackFromBeacon({
     othersOpenCount: responsibility.othersOpenCount,
     compactSurface: compactSurface,
     hasPersonalObligation: responsibility.hasAny || blocked,
+    isAwaitingAuthorReview: isAwaitingAuthorReview,
     rowHarmony: phaseResult?.rowHarmony ?? BeaconPhaseRowHarmony.empty,
   );
 }

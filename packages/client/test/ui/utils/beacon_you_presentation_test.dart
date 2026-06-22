@@ -151,16 +151,28 @@ void main() {
       expect(p.fallbackText, l10n.beaconYouNoOpenItems);
     });
 
-    test('empty responsibility uses enoughHelp fallback', () {
+    test('empty responsibility uses noInfo fallback', () {
       const r = CoordinationResponsibility(beaconId: 'b1');
       final p = buildBeaconYouPresentation(
         l10n,
         r,
         collapse: false,
-        emptyFallback: BeaconYouEmptyFallback.enoughHelp,
+        emptyFallback: BeaconYouEmptyFallback.noInfo,
         showNewBadges: false,
       );
-      expect(p.fallbackText, l10n.beaconYouEnoughHelp);
+      expect(p.fallbackText, l10n.beaconYouNoInfo);
+    });
+
+    test('empty responsibility uses awaitingAuthorReview fallback', () {
+      const r = CoordinationResponsibility(beaconId: 'b1');
+      final p = buildBeaconYouPresentation(
+        l10n,
+        r,
+        collapse: false,
+        emptyFallback: BeaconYouEmptyFallback.awaitingAuthorReview,
+        showNewBadges: false,
+      );
+      expect(p.fallbackText, l10n.beaconYouOfferSent);
     });
 
     test('empty responsibility uses closed fallback', () {
@@ -217,7 +229,7 @@ void main() {
       );
     });
 
-    test('non-author on open beacon returns enoughHelp', () {
+    test('non-author on open beacon returns noInfo', () {
       expect(
         deriveBeaconYouEmptyFallback(
           lifecycle: BeaconLifecycle.open,
@@ -226,7 +238,21 @@ void main() {
           compactSurface: false,
           hasPersonalObligation: false,
         ),
-        BeaconYouEmptyFallback.enoughHelp,
+        BeaconYouEmptyFallback.noInfo,
+      );
+    });
+
+    test('isAwaitingAuthorReview returns awaitingAuthorReview', () {
+      expect(
+        deriveBeaconYouEmptyFallback(
+          lifecycle: BeaconLifecycle.open,
+          isAuthorOrSteward: false,
+          othersOpenCount: 0,
+          compactSurface: false,
+          hasPersonalObligation: false,
+          isAwaitingAuthorReview: true,
+        ),
+        BeaconYouEmptyFallback.awaitingAuthorReview,
       );
     });
 
@@ -266,6 +292,30 @@ void main() {
           hasPersonalObligation: false,
         ),
         BeaconYouEmptyFallback.noOpenItems,
+      );
+    });
+  });
+
+  group('viewerAwaitingAuthorHelpOfferReview', () {
+    test('true when helper offer has no author response', () {
+      expect(
+        viewerAwaitingAuthorHelpOfferReview(
+          isAuthorOrSteward: false,
+          viewerHasActiveHelpOffer: true,
+          viewerOfferAuthorResponse: null,
+        ),
+        isTrue,
+      );
+    });
+
+    test('false when author responded or viewer is author', () {
+      expect(
+        viewerAwaitingAuthorHelpOfferReview(
+          isAuthorOrSteward: true,
+          viewerHasActiveHelpOffer: true,
+          viewerOfferAuthorResponse: null,
+        ),
+        isFalse,
       );
     });
   });
