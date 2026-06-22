@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 
 Widget _beaconOverflowMenuRow(BuildContext context, IconData icon, String label) {
   final scheme = Theme.of(context).colorScheme;
@@ -210,12 +210,22 @@ class BeaconOverflowMenu extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final tt = context.tt;
+    final hitSize = tt.buttonHeight < kMinInteractiveDimension
+        ? kMinInteractiveDimension
+        : tt.buttonHeight;
+
     return SizedBox(
-      width: 32,
-      height: 40,
+      width: hitSize,
+      height: hitSize,
       child: PopupMenuButton<String>(
+        tooltip: l10n.beaconHudOverflowMore,
         padding: EdgeInsets.zero,
-        iconSize: 22,
+        constraints: BoxConstraints(
+          minWidth: hitSize,
+          minHeight: hitSize,
+        ),
+        iconSize: tt.iconSize,
         itemBuilder: (_) => entries,
         onSelected: (value) => switch (value) {
           'open_beacon' => onOpenBeacon?.call(),
@@ -244,7 +254,7 @@ class BeaconOverflowMenu extends StatelessWidget {
           'complaint' => _deferSync(context, onComplaint),
           _ => null,
         },
-        icon: const Icon(Icons.more_vert, size: 22),
+        icon: Icon(Icons.more_vert, size: tt.iconSize),
       ),
     );
   }
