@@ -10,6 +10,7 @@ import 'package:tentura/features/coordination_item/domain/use_case/coordination_
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
 import '../bloc/item_actions_cubit.dart';
@@ -32,7 +33,10 @@ Widget _itemDiscussionProviders({
         create: (_) => ItemActionsCubit(item: item),
       ),
     ],
-    child: child,
+    child: BlocListener<ItemActionsCubit, ItemActionsState>(
+      listener: commonScreenBlocListener,
+      child: child,
+    ),
   );
 }
 
