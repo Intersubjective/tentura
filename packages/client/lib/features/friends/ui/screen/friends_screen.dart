@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
@@ -145,7 +146,9 @@ class _FriendsScreenState extends State<FriendsScreen>
                   automaticIndicatorColorAdjustment: false,
                   tabAlignment: TabAlignment.start,
                   isScrollable: true,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  labelPadding: EdgeInsets.symmetric(
+                    horizontal: context.tt.tightGap,
+                  ),
                   labelColor: scheme.onPrimary,
                   unselectedLabelColor: scheme.onPrimary.withValues(
                     alpha: 0.72,
@@ -443,6 +446,10 @@ class _InviteListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    const touchTarget = BoxConstraints(minWidth: 44, minHeight: 44);
+
     final tile = ListTile(
       title: Text(title),
       subtitle: Text(subtitle),
@@ -450,14 +457,20 @@ class _InviteListTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
+            padding: EdgeInsets.zero,
+            constraints: touchTarget,
+            tooltip: l10n.invitationAddresseeEditTitle,
             onPressed: () => unawaited(onEdit()),
             icon: const Icon(Icons.edit_outlined),
           ),
           IconButton(
+            padding: EdgeInsets.zero,
+            constraints: touchTarget,
+            tooltip: l10n.buttonDelete,
             onPressed: () => unawaited(onDelete()),
             icon: Icon(
               Icons.delete_outline_rounded,
-              color: Colors.red[300],
+              color: scheme.error,
             ),
           ),
         ],

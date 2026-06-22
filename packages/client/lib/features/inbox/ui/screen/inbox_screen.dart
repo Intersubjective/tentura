@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -285,11 +286,12 @@ class _InboxTabStrip extends StatelessWidget {
     return BlocSelector<InboxCubit, InboxState, int>(
       selector: (s) => s.needsMe.length,
       builder: (_, needsMeCount) {
+        final tt = context.tt;
         return TabBar(
           automaticIndicatorColorAdjustment: false,
           tabAlignment: TabAlignment.start,
           isScrollable: true,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+          labelPadding: EdgeInsets.symmetric(horizontal: tt.rowGap),
           labelColor: scheme.onPrimary,
           unselectedLabelColor: scheme.onPrimary.withValues(alpha: 0.72),
           indicatorColor: scheme.onPrimary,
@@ -356,35 +358,38 @@ class _InboxSortButtonState extends State<_InboxSortButton> {
           InboxSort.meritRank => l10n.inboxSortMeritRank,
           InboxSort.deadline => l10n.inboxSortDeadline,
         };
-        return TextButton(
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            minimumSize: const Size(0, 40),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            foregroundColor: scheme.onPrimary,
-          ),
-          onPressed: () => _onPressed(sort),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 88),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: scheme.onPrimary,
+        return Tooltip(
+          message: '${l10n.inboxSortMenuTitle}: $label',
+          child: TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              minimumSize: const Size(0, 48),
+              tapTargetSize: MaterialTapTargetSize.padded,
+              foregroundColor: scheme.onPrimary,
+            ),
+            onPressed: () => _onPressed(sort),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 88),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onPrimary,
+                    ),
                   ),
                 ),
-              ),
-              Icon(
-                Icons.swap_vert,
-                size: 20,
-                color: scheme.onPrimary,
-              ),
-            ],
+                Icon(
+                  Icons.swap_vert,
+                  size: 20,
+                  color: scheme.onPrimary,
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -403,7 +408,7 @@ class _InboxOverflowMenu extends StatelessWidget {
       icon: const Icon(Icons.more_vert),
       tooltip: MaterialLocalizations.of(context).showMenuTooltip,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       onSelected: (value) {
         if (value == 'rejected') {
           unawaited(openInboxRejectedArchive(context));

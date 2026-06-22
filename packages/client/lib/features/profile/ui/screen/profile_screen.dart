@@ -1,8 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/profile_cubit.dart';
 import '../widget/profile_app_bar.dart';
@@ -29,7 +29,7 @@ class ProfileScreen extends StatelessWidget {
 
               // Profile
               SliverPadding(
-                padding: kPaddingAll,
+                padding: context.tt.cardPadding,
                 sliver: ProfileBody(
                   key: Key('ProfileBody:${profile.id}'),
                   profile: profile,

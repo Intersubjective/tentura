@@ -19,6 +19,7 @@ import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import '../bloc/forward_cubit.dart';
 import '../widget/compact_beacon_context_strip.dart';
 import '../widget/forward_bottom_composer.dart';
+import '../widget/forward_input_decoration.dart';
 import '../widget/lineage_forward_section.dart';
 import '../widget/forward_recipient_row.dart';
 import '../widget/forward_scope_links.dart';
@@ -154,7 +155,9 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
       isScrollControlled: true,
       builder: (_) => UnfocusSheetBody(
         child: StatefulBuilder(
-          builder: (ctx, setModalState) => DraggableScrollableSheet(
+          builder: (ctx, setModalState) {
+            final modalTt = ctx.tt;
+            return DraggableScrollableSheet(
             expand: false,
             initialChildSize: 0.7,
             minChildSize: 0.4,
@@ -162,13 +165,18 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
             builder: (_, scrollController) => Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: EdgeInsets.fromLTRB(
+                    modalTt.screenHPadding,
+                    modalTt.screenHPadding,
+                    modalTt.screenHPadding,
+                    modalTt.rowGap,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           l10n.forwardReasonPrompt,
-                          style: Theme.of(ctx).textTheme.titleMedium,
+                          style: TenturaText.title(modalTt.text),
                         ),
                       ),
                       FilledButton(
@@ -187,7 +195,12 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                 Expanded(
                   child: ListView(
                     controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                    padding: EdgeInsets.fromLTRB(
+                      modalTt.screenHPadding,
+                      0,
+                      modalTt.screenHPadding,
+                      modalTt.sectionGap,
+                    ),
                     children: [
                       CapabilityChipSet(
                         selectedSlugs: selected,
@@ -199,7 +212,8 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                 ),
               ],
             ),
-          ),
+          );
+          },
         ),
       ),
     );
@@ -294,9 +308,14 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                 _syncRecipientNoteControllers(state);
                 _prunePersonalizedNoteEditors(state);
 
+                final actionLoading =
+                    state.isLoading && state.candidates.isNotEmpty;
+
                 return Stack(
                   children: [
-                    Column(
+                    AbsorbPointer(
+                      absorbing: actionLoading,
+                      child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         ForwardTopBar(
@@ -335,7 +354,9 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                           child: listIsEmpty
                               ? Center(
                                   child: Padding(
-                                    padding: kPaddingH,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: tt.screenHPadding,
+                                    ),
                                     child: Text(
                                       state.candidates.isEmpty
                                           ? l10n.noReachableContacts
@@ -502,6 +523,13 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                         ),
                       ],
                     ),
+                    ),
+                    if (actionLoading)
+                      const Positioned.fill(
+                        child: Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        ),
+                      ),
                     if (_searchOverlayOpen)
                       Positioned.fill(
                         child: ForwardSearchOverlay(
@@ -557,7 +585,8 @@ class _ForwardEditPanel extends StatelessWidget {
             onChanged: onNoteChanged,
             minLines: 2,
             maxLines: 5,
-            decoration: InputDecoration(
+            decoration: forwardNoteInputDecoration(
+              context,
               hintText: l10n.forwardNotePlaceholder,
             ),
           ),

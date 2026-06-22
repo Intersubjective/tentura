@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vector_graphics/vector_graphics.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -94,7 +95,9 @@ class _IntroScreenState extends State<IntroScreen> {
               children: [
                 for (var i = 0; i < _pageCount; i++)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.tt.iconTextGap,
+                    ),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       width: 8,

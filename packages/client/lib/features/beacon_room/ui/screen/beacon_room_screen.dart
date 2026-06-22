@@ -55,19 +55,18 @@ class BeaconRoomScreen extends StatelessWidget implements AutoRouteWrapper {
       appBar: AppBar(
         leading: Builder(
           builder: (ctx) {
-            final router = ctx.router;
-            final canPop = router.canPop();
-            return IconButton(
-              icon: canPop
-                  ? const Icon(Icons.arrow_back_rounded)
-                  : const Icon(Icons.close_rounded),
-              onPressed: () {
-                if (canPop) {
-                  unawaited(router.maybePop());
-                } else {
-                  unawaited(router.navigatePath(kPathHome));
-                }
-              },
+            if (ctx.router.canPop()) {
+              return const AutoLeadingButton();
+            }
+            return Semantics(
+              button: true,
+              label: l10n.buttonClose,
+              child: IconButton(
+                tooltip: l10n.buttonClose,
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () =>
+                    unawaited(ctx.router.navigatePath(kPathHome)),
+              ),
             );
           },
         ),

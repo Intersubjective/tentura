@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
@@ -61,7 +62,7 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
             context.read<ProfileViewCubit>().fetch(),
             context.read<ProfileSharedBeaconsCubit>().fetch(),
           ]),
-          child: const CustomScrollView(
+          child: CustomScrollView(
             slivers: [
               // Header
               ProfileViewAppBar(
@@ -70,7 +71,7 @@ class ProfileViewScreen extends StatelessWidget implements AutoRouteWrapper {
 
               // Body
               SliverPadding(
-                padding: kPaddingAll,
+                padding: context.tt.cardPadding,
                 sliver: ProfileViewBody(),
               ),
 

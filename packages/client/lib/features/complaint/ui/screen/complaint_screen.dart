@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura_root/domain/enums.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/complaint_cubit.dart';
 
@@ -57,94 +61,124 @@ class ComplaintScreen extends StatefulWidget implements AutoRouteWrapper {
 class _ComplaintScreenState extends State<ComplaintScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late final _l10n = L10n.of(context)!;
-
-  late final _cubit = context.read<ComplaintCubit>();
-
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(_l10n.submitComplaint),
-      leading: const AutoLeadingButton(),
-    ),
-    body: Form(
-      key: _formKey,
-      child: ListView(
-        padding: kPaddingAll,
-        children: [
-          // Type
-          BlocSelector<ComplaintCubit, ComplaintState, ComplaintType>(
-            selector: (state) => state.type,
-            builder: (_, type) => Theme(
-              data: ThemeData.from(colorScheme: Theme.of(context).colorScheme),
-              child: DropdownButtonFormField<ComplaintType>(
-                initialValue: type,
-                items: [
-                  DropdownMenuItem(
-                    value: ComplaintType.violatesCsaePolicy,
-                    child: Text(_l10n.violatesCSAE),
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final cubit = context.read<ComplaintCubit>();
+    final submitButtonStyle = FilledButton.styleFrom(
+      minimumSize: Size.fromHeight(tt.buttonHeight),
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.submitComplaint),
+        leading: const AutoLeadingButton(),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(LinearPiActive.height),
+          child: BlocSelector<ComplaintCubit, ComplaintState, bool>(
+            selector: (state) => state.isLoading,
+            builder: LinearPiActive.builder,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: EdgeInsets.all(tt.screenHPadding),
+            children: [
+              // Type
+              BlocSelector<ComplaintCubit, ComplaintState, (ComplaintType, bool)>(
+                selector: (state) => (state.type, state.isLoading),
+                builder: (_, state) {
+                  final (type, isLoading) = state;
+                  return DropdownButtonFormField<ComplaintType>(
+                    initialValue: type,
+                    items: [
+                      DropdownMenuItem(
+                        value: ComplaintType.violatesCsaePolicy,
+                        child: Text(l10n.violatesCSAE),
+                      ),
+                      DropdownMenuItem(
+                        value: ComplaintType.violatesPlatformRules,
+                        child: Text(l10n.violatesPlatformRules),
+                      ),
+                    ],
+                    onChanged: isLoading ? null : cubit.setType,
+                    decoration: InputDecoration(
+                      labelText: l10n.labelComplaintType,
+                      border: const OutlineInputBorder(),
+                    ),
+                  );
+                },
+              ),
+
+              SizedBox(height: tt.sectionGap),
+
+              // Details
+              BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                selector: (state) => state.isLoading,
+                builder: (_, isLoading) => TextFormField(
+                  maxLines: 5,
+                  autofocus: true,
+                  enabled: !isLoading,
+                  decoration: InputDecoration(
+                    labelText: l10n.detailsRequired,
+                    border: const OutlineInputBorder(),
+                    alignLabelWithHint: true,
                   ),
-                  DropdownMenuItem(
-                    value: ComplaintType.violatesPlatformRules,
-                    child: Text(_l10n.violatesPlatformRules),
-                  ),
-                ],
-                onChanged: _cubit.setType,
-                decoration: InputDecoration(
-                  labelText: _l10n.labelComplaintType,
-                  border: const OutlineInputBorder(),
+                  validator: (v) => _validateRequired(v, l10n.provideDetails),
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  onChanged: cubit.setDetails,
                 ),
               ),
-            ),
-          ),
 
-          // Details
-          Padding(
-            padding: kPaddingV,
-            child: TextFormField(
-              maxLines: 5,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: _l10n.detailsRequired,
-                border: const OutlineInputBorder(),
-                alignLabelWithHint: true,
+              SizedBox(height: tt.sectionGap),
+
+              // Email
+              BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                selector: (state) => state.isLoading,
+                builder: (_, isLoading) => TextFormField(
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
+                  enabled: !isLoading,
+                  decoration: InputDecoration(
+                    labelText: l10n.feedbackEmail,
+                    border: const OutlineInputBorder(),
+                  ),
+                  validator: (v) => _validateEmail(v, l10n.emailValidationError),
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  onChanged: cubit.setEmail,
+                  onFieldSubmitted: (_) {
+                    if (_formKey.currentState?.validate() ?? false) {
+                      unawaited(cubit.submit());
+                    }
+                  },
+                ),
               ),
-              validator: (v) => _validateRequired(v, _l10n.provideDetails),
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              onChanged: _cubit.setDetails,
-            ),
-          ),
 
-          // Email
-          Padding(
-            padding: kPaddingV,
-            child: TextFormField(
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: _l10n.feedbackEmail,
-                border: const OutlineInputBorder(),
+              SizedBox(height: tt.sectionGap),
+
+              // Submit
+              BlocSelector<ComplaintCubit, ComplaintState, bool>(
+                selector: (state) => state.isLoading,
+                builder: (_, isLoading) => FilledButton(
+                  style: submitButtonStyle,
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (_formKey.currentState?.validate() ?? false) {
+                            await cubit.submit();
+                          }
+                        },
+                  child: Text(l10n.buttonSubmitComplaint),
+                ),
               ),
-              validator: (v) => _validateEmail(v, _l10n.emailValidationError),
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              onChanged: _cubit.setEmail,
-            ),
+            ],
           ),
-
-          // Submit
-          Padding(
-            padding: kPaddingV,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(padding: kPaddingV),
-              onPressed: () async {
-                if (_formKey.currentState?.validate() ?? false) {
-                  await _cubit.submit();
-                }
-              },
-              child: Text(_l10n.buttonSubmitComplaint),
-            ),
-          ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

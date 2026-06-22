@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/dialog/qr_scan_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -29,6 +30,7 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
       bloc: authCubit,
       buildWhen: (_, c) => c.isSuccess,
       builder: (context, state) {
+        final tt = context.tt;
         return Scaffold(
           appBar: AppBar(
             centerTitle: true,
@@ -44,9 +46,10 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
               ),
             ),
           ),
-          body: Padding(
-            padding: kPaddingH,
-            child: Column(
+          body: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
@@ -117,15 +120,14 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
 
                 // Create new account
                 Padding(
-                  padding:
-                      kPaddingAll +
-                      const EdgeInsets.only(bottom: 60 - kSpacingMedium),
+                  padding: EdgeInsets.all(tt.screenHPadding),
                   child: FilledButton(
                     onPressed: context.read<ScreenCubit>().showProfileCreator,
                     child: Text(l10n.createNewAccount),
                   ),
                 ),
               ],
+            ),
             ),
           ),
         );

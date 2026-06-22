@@ -7,10 +7,11 @@ import 'package:auto_route/auto_route.dart';
 import 'package:image_cropper/image_cropper.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
-import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -46,6 +47,8 @@ class ProfileEditScreen extends StatelessWidget
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final textTheme = Theme.of(context).textTheme;
+    final tt = context.tt;
+    final fieldPadding = EdgeInsets.all(tt.screenHPadding);
     final cubit = context.read<ProfileEditCubit>();
     final cropUiSettings = _avatarCropUiSettings(context, l10n);
     void pickAvatar() {
@@ -55,21 +58,33 @@ class ProfileEditScreen extends StatelessWidget
     return Scaffold(
       // Header
       appBar: AppBar(
+        title: Text(l10n.profileOverflowEdit),
         actions: [
           // Save Button
-          BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
-            selector: (state) => state.hasChanges,
-            builder: (_, hasChanges) => TextButton(
-              onPressed: hasChanges ? cubit.save : null,
-              child: Text(l10n.buttonSave),
-            ),
+          BlocSelector<ProfileEditCubit, ProfileEditState, (bool, bool)>(
+            selector: (state) => (state.hasChanges, state.isLoading),
+            builder: (_, state) {
+              final (hasChanges, isLoading) = state;
+              return TextButton(
+                onPressed: hasChanges && !isLoading ? cubit.save : null,
+                child: Text(l10n.buttonSave),
+              );
+            },
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(LinearPiActive.height),
+          child: BlocSelector<ProfileEditCubit, ProfileEditState, bool>(
+            selector: (state) => state.isLoading,
+            builder: LinearPiActive.builder,
+          ),
+        ),
       ),
       resizeToAvoidBottomInset: false,
 
       // Form
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
           // Avatar
           BlocBuilder<ProfileEditCubit, ProfileEditState>(
@@ -83,7 +98,7 @@ class ProfileEditScreen extends StatelessWidget
                 foregroundColor: Theme.of(
                   context,
                 ).colorScheme.onSecondaryContainer,
-                iconSize: 24,
+                iconSize: tt.iconSize,
               );
               return Stack(
                 children: [
@@ -117,6 +132,7 @@ class ProfileEditScreen extends StatelessWidget
                                   children: [
                                     IconButton.filledTonal(
                                       style: overlayIconStyle,
+                                      tooltip: l10n.buttonRemove,
                                       icon: const Icon(
                                         Icons.highlight_remove_outlined,
                                       ),
@@ -124,6 +140,7 @@ class ProfileEditScreen extends StatelessWidget
                                     ),
                                     IconButton.filledTonal(
                                       style: overlayIconStyle,
+                                      tooltip: l10n.titleCropAvatar,
                                       icon: const Icon(Icons.edit_outlined),
                                       onPressed: pickAvatar,
                                     ),
@@ -132,6 +149,7 @@ class ProfileEditScreen extends StatelessWidget
                               // New pick in memory: remove draft only
                               : IconButton.filledTonal(
                                   style: overlayIconStyle,
+                                  tooltip: l10n.buttonRemove,
                                   icon: const Icon(
                                     Icons.highlight_remove_outlined,
                                   ),
@@ -140,6 +158,7 @@ class ProfileEditScreen extends StatelessWidget
                         // No avatar yet: pick first picture
                         : IconButton.filledTonal(
                             style: overlayIconStyle,
+                            tooltip: l10n.titleCropAvatar,
                             icon: const Icon(Icons.add_a_photo_outlined),
                             onPressed: pickAvatar,
                           ),
@@ -151,7 +170,7 @@ class ProfileEditScreen extends StatelessWidget
 
           // Username
           Padding(
-            padding: kPaddingAll,
+            padding: fieldPadding,
             child: TextFormField(
               autovalidateMode: AutovalidateMode.onUnfocus,
               decoration: InputDecoration(
@@ -169,7 +188,7 @@ class ProfileEditScreen extends StatelessWidget
 
           // Handle (optional)
           Padding(
-            padding: kPaddingAll,
+            padding: fieldPadding,
             child: TextFormField(
               autovalidateMode: AutovalidateMode.onUnfocus,
               decoration: InputDecoration(
@@ -199,7 +218,7 @@ class ProfileEditScreen extends StatelessWidget
           // User Description
           Expanded(
             child: Padding(
-              padding: kPaddingAll,
+              padding: fieldPadding,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final textStyle = textTheme.bodyMedium!;
@@ -231,6 +250,7 @@ class ProfileEditScreen extends StatelessWidget
             ),
           ),
         ],
+        ),
       ),
     );
   }

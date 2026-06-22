@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
-import 'package:tentura/design_system/tentura_responsive_scope.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/consts.dart';
@@ -53,6 +53,7 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final cubit = context.read<GraphCubit>();
+    final tt = context.tt;
     return Scaffold(
       appBar: AppBar(
         leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
@@ -62,22 +63,33 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
 
         // Menu :
         actions: [
-          PopupMenuButton(
-            itemBuilder: (_) => <PopupMenuEntry<void>>[
-              PopupMenuItem<void>(
-                onTap: cubit.jumpToEgo,
-                child: Text(l10n.goToEgo),
+          BlocBuilder<GraphCubit, GraphState>(
+            buildWhen: (previous, current) =>
+                previous.positiveOnly != current.positiveOnly,
+            builder: (context, state) => PopupMenuButton<void>(
+              icon: const Icon(Icons.more_vert),
+              tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+              padding: EdgeInsets.zero,
+              constraints: BoxConstraints(
+                minWidth: tt.buttonHeight,
+                minHeight: tt.buttonHeight,
               ),
-              //
-              const PopupMenuDivider(),
-              //
-              PopupMenuItem<void>(
-                onTap: cubit.togglePositiveOnly,
-                child: cubit.state.positiveOnly
-                    ? Text(l10n.showNegative)
-                    : Text(l10n.hideNegative),
-              ),
-            ],
+              itemBuilder: (_) => <PopupMenuEntry<void>>[
+                PopupMenuItem<void>(
+                  onTap: cubit.jumpToEgo,
+                  child: Text(l10n.goToEgo),
+                ),
+                //
+                const PopupMenuDivider(),
+                //
+                PopupMenuItem<void>(
+                  onTap: cubit.togglePositiveOnly,
+                  child: state.positiveOnly
+                      ? Text(l10n.showNegative)
+                      : Text(l10n.hideNegative),
+                ),
+              ],
+            ),
           ),
         ],
 

@@ -4,6 +4,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -46,8 +47,8 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
     final inboxCubit = context.read<InboxCubit>();
 
     return Scaffold(
@@ -57,7 +58,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        toolbarHeight: 48,
+        toolbarHeight: tt.appBarHeight,
         foregroundColor: scheme.onSurface,
         leading: BackButton(
           onPressed: () => context.router.maybePop(),
@@ -84,12 +85,10 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                 if (items.isEmpty) {
                   return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: tt.cardPadding,
                       child: Text(
                         l10n.inboxTabRejectedEmpty,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                        style: TenturaText.bodyMedium(scheme.onSurfaceVariant),
                         textAlign: TextAlign.center,
                       ),
                     ),

@@ -9,6 +9,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/graph_cubit.dart';
 import '../widget/graph_body.dart';
@@ -77,8 +78,22 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
           buildWhen: (p, c) => p.status != c.status,
           builder: (_, _) => Text(_titleFor(l10n, cubit.helpOffererViewerRole)),
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(LinearPiActive.height),
+          child: BlocSelector<GraphCubit, GraphState, bool>(
+            selector: (state) => state.isLoading,
+            builder: LinearPiActive.builder,
+          ),
+        ),
         actions: [
           PopupMenuButton<void>(
+            tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+            icon: const Icon(Icons.more_vert),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 48,
+              minHeight: 48,
+            ),
             itemBuilder: (_) => <PopupMenuEntry<void>>[
               PopupMenuItem<void>(
                 onTap: cubit.jumpToEgo,

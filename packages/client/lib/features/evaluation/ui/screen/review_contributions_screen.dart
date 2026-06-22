@@ -4,8 +4,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
@@ -15,6 +16,7 @@ import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_ro
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -73,6 +75,11 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final cubit = context.read<EvaluationCubit>();
+    final actionButtonStyle = FilledButton.styleFrom(
+      minimumSize: Size.fromHeight(tt.buttonHeight),
+    );
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -80,37 +87,48 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
               ? l10n.evaluationAcknowledgeTitleDraft
               : l10n.evaluationAcknowledgeTitle,
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(LinearPiActive.height),
+          child: BlocSelector<EvaluationCubit, EvaluationState, bool>(
+            bloc: cubit,
+            selector: (state) => state.isLoading,
+            builder: LinearPiActive.builder,
+          ),
+        ),
       ),
-      body: BlocConsumer<EvaluationCubit, EvaluationState>(
-        listener: commonScreenBlocListener,
-        builder: (context, state) {
-          if (state.isLoading && state.participants.isEmpty) {
-            return const Center(child: CircularProgressIndicator.adaptive());
-          }
-          if (state.participants.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: kPaddingAll,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (state.beaconTitle.isNotEmpty) ...[
+      body: SafeArea(
+        child: BlocConsumer<EvaluationCubit, EvaluationState>(
+          listener: commonScreenBlocListener,
+          builder: (context, state) {
+            if (state.isLoading && state.participants.isEmpty) {
+              return const Center(
+                child: CircularProgressIndicator.adaptive(),
+              );
+            }
+            if (state.participants.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: tt.cardPadding,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (state.beaconTitle.isNotEmpty) ...[
+                        Text(
+                          state.beaconTitle,
+                          style: Theme.of(context).textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: tt.sectionGap),
+                      ],
                       Text(
-                        state.beaconTitle,
-                        style: Theme.of(context).textTheme.titleMedium,
+                        l10n.evaluationEmptyTargets,
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 12),
                     ],
-                    Text(
-                      l10n.evaluationEmptyTargets,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            );
-          }
+              );
+            }
           final listItems = _ReviewListItems.build(
             context: context,
             l10n: l10n,
@@ -132,18 +150,17 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
               );
             },
           );
-          return Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  padding: kPaddingAll,
-                  itemCount: listItems.length,
-                  itemBuilder: listItems.itemBuilder,
+            return Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    padding: tt.cardPadding,
+                    itemCount: listItems.length,
+                    itemBuilder: listItems.itemBuilder,
+                  ),
                 ),
-              ),
-              SafeArea(
-                child: Padding(
-                  padding: kPaddingAll,
+                Padding(
+                  padding: tt.cardPadding,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -154,15 +171,14 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: tt.rowGap),
                       FilledButton(
-                        onPressed: () => draft
-                            ? context.read<EvaluationCubit>().finalize()
-                            : _onSubmitFinish(
-                                context,
-                                context.read<EvaluationCubit>(),
-                                state,
-                              ),
+                        style: actionButtonStyle,
+                        onPressed: state.isLoading
+                            ? null
+                            : () => draft
+                                ? cubit.finalize()
+                                : _onSubmitFinish(context, cubit, state),
                         child: Text(
                           draft
                               ? l10n.evaluationDraftDone
@@ -171,18 +187,17 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
                       ),
                       if (!draft) ...[
                         TextButton(
-                          onPressed: () =>
-                              context.read<EvaluationCubit>().skip(),
+                          onPressed: state.isLoading ? null : cubit.skip,
                           child: Text(l10n.evaluationSkipForNow),
                         ),
                       ],
                     ],
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -195,6 +210,7 @@ List<Widget> _participantSections({
 }) {
   final l10n = L10n.of(context)!;
   final theme = Theme.of(context);
+  final tt = context.tt;
   final byRole = <EvaluationParticipantRole, List<EvaluationParticipant>>{};
   for (final p in participants) {
     byRole.putIfAbsent(p.role, () => []).add(p);
@@ -210,10 +226,16 @@ List<Widget> _participantSections({
     }
     out.add(
       Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 4),
-        child: Text(
-          sectionTitle,
-          style: theme.textTheme.titleSmall,
+        padding: EdgeInsets.only(
+          top: tt.rowGap,
+          bottom: tt.tightGap * 2,
+        ),
+        child: Semantics(
+          header: true,
+          child: Text(
+            sectionTitle,
+            style: theme.textTheme.titleSmall,
+          ),
         ),
       ),
     );
@@ -264,6 +286,7 @@ class _ReviewListItems {
     required Future<void> Function(EvaluationParticipant p) onOpen,
   }) {
     final theme = Theme.of(context);
+    final tt = context.tt;
     final builders = <Widget Function(BuildContext)>[];
 
     if (state.beaconTitle.isNotEmpty) {
@@ -273,7 +296,7 @@ class _ReviewListItems {
           style: theme.textTheme.titleMedium,
         ),
       );
-      builders.add((_) => const SizedBox(height: 6));
+      builders.add((_) => SizedBox(height: tt.iconTextGap));
     }
 
     if (!draft) {
@@ -287,7 +310,7 @@ class _ReviewListItems {
                 Localizations.localeOf(ctx).toLanguageTag(),
               ).format(closes.toLocal());
               return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: EdgeInsets.only(bottom: tt.rowGap),
                 child: Text(
                   l10n.evaluationReviewDeadline(formatted),
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -307,7 +330,7 @@ class _ReviewListItems {
         fullText: l10n.evaluationPrivacyBlock,
       ),
     );
-    builders.add((_) => const SizedBox(height: 12));
+    builders.add((_) => SizedBox(height: tt.sectionGap));
 
     for (final section in _participantSections(
       context: context,
@@ -346,8 +369,9 @@ class _ParticipantTile extends StatelessWidget {
           ? ImageEntity(id: participant.imageId, authorId: participant.userId)
           : null,
     );
+    final tt = context.tt;
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: tt.rowGap),
       child: ListTile(
         leading: SelfAwareAvatar.small(
           profile: profile,

@@ -160,7 +160,10 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                                 label: Text(l10n.network),
                               ),
                               NavigationRailDestination(
-                                icon: const ProfileNavBarItem(),
+                                icon: Tooltip(
+                                  message: profileTooltipLabel,
+                                  child: const ProfileNavBarItem(),
+                                ),
                                 label: Text(l10n.profile),
                               ),
                             ],
