@@ -21,6 +21,8 @@ class HudLabeledMultiline extends StatelessWidget {
     this.onShowDetail,
     this.showDetailSemanticLabel,
     this.includeLead = true,
+    this.primaryMaxLines = HudMultilineBody.defaultPrimaryMaxLines,
+    this.showTruncationHint = true,
     super.key,
   });
 
@@ -37,6 +39,8 @@ class HudLabeledMultiline extends StatelessWidget {
 
   /// When false, body-only for metadata table rows (no lead, no tap).
   final bool includeLead;
+  final int primaryMaxLines;
+  final bool showTruncationHint;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +50,8 @@ class HudLabeledMultiline extends StatelessWidget {
         subline: subline,
         mutedColor: mutedColor,
         isPlaceholder: isPlaceholder,
+        primaryMaxLines: primaryMaxLines,
+        showTruncationHint: showTruncationHint,
       );
     }
 
@@ -61,6 +67,8 @@ class HudLabeledMultiline extends StatelessWidget {
         subline: subline,
         mutedColor: mutedColor,
         isPlaceholder: isPlaceholder,
+        primaryMaxLines: primaryMaxLines,
+        showTruncationHint: showTruncationHint,
       );
     }
 
@@ -75,7 +83,7 @@ class HudLabeledMultiline extends StatelessWidget {
           text: text,
           style: primaryStyle,
           maxWidth: bodyMaxWidth,
-          maxLines: HudMultilineBody.primaryMaxLines,
+          maxLines: primaryMaxLines,
         );
         final singleLine = subline == null &&
             !exceeds &&

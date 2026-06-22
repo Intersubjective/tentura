@@ -82,6 +82,16 @@ const kMaxRoomMessageAttachments = 10;
 /// Mirrors server [kMaxRoomMessageAttachmentBytes] (10 MiB).
 const kMaxRoomMessageAttachmentBytes = 10 * 1024 * 1024;
 
+/// Mirrors server [kBeaconRoomCurrentLineMaxLength].
+const kBeaconRoomCurrentLineMaxLength = 60;
+
+/// Truncates user-authored room current line for compact HUD display.
+String clipBeaconRoomCurrentLine(String raw) {
+  final t = raw.trim();
+  if (t.length <= kBeaconRoomCurrentLineMaxLength) return t;
+  return '${t.substring(0, kBeaconRoomCurrentLineMaxLength - 1)}…';
+}
+
 abstract final class BeaconParticipantStatusBits {
   static const watching = 0;
   static const offeredHelp = 1;

@@ -8,6 +8,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart'
 
 import 'package:tentura/features/inbox/data/gql/_g/inbox_room_context_batch.req.gql.dart';
 import 'package:tentura/features/inbox/data/gql/_g/inbox_room_context_batch.data.gql.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 
 /// V2 batch: room rows + public fact snippet for inbox / My Work cards.
 @lazySingleton
@@ -37,7 +38,7 @@ class BeaconRoomHintsRepository {
           isRoomMember: e.isRoomMember,
           roomUnreadCount: e.roomUnreadCount,
           lastSeenAt: _parseOptionalIso(e.lastSeenAt),
-          currentLineSnippet: _clip(e.currentLine ?? ''),
+          currentLineSnippet: clipBeaconRoomCurrentLine(e.currentLine ?? ''),
           lastRoomMeaningfulChange: _clip(e.lastRoomMeaningfulChange ?? ''),
           myNextMove: _clip(e.nextMoveText ?? ''),
           openBlockerTitle: _clip(e.openBlockerTitle ?? ''),

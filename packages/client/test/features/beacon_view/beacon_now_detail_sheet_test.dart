@@ -96,7 +96,6 @@ void main() {
               semanticsLabel: l10n.beaconHudNowLabel,
               text: display.primaryText,
               mutedColor: Colors.grey,
-              onShowDetail: () {},
             ),
           ),
         ),

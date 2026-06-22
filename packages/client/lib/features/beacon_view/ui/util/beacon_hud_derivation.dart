@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_chip_derivation.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_now_detail_sheet.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -110,7 +110,7 @@ BeaconHudNowDisplay beaconHudNowDisplay(L10n l10n, BeaconViewState state) {
   final currentLine = cue?.currentLine.trim() ?? '';
   if (currentLine.isNotEmpty) {
     return BeaconHudNowDisplay(
-      primaryText: currentLine,
+      primaryText: clipBeaconRoomCurrentLine(currentLine),
       blockerText: blockerText,
     );
   }
@@ -152,7 +152,7 @@ BeaconHudNowDisplay myWorkDeskNowDisplay(
   final currentLine = roomCurrentLine.trim();
   if (currentLine.isNotEmpty) {
     return BeaconHudNowDisplay(
-      primaryText: currentLine,
+      primaryText: clipBeaconRoomCurrentLine(currentLine),
       blockerText: blockerText,
     );
   }
@@ -179,7 +179,7 @@ BeaconHudNowDisplay beaconRoomHudNowDisplay(
   final currentLine = roomState?.currentLine.trim() ?? '';
   if (currentLine.isNotEmpty) {
     return BeaconHudNowDisplay(
-      primaryText: currentLine,
+      primaryText: clipBeaconRoomCurrentLine(currentLine),
       blockerText: blockerText,
     );
   }
@@ -200,76 +200,6 @@ bool beaconRoomShowsPinnedNow({
   final blockerTitle = roomState?.openBlockerTitle?.trim() ??
       openBlocker?.title.trim();
   return blockerTitle != null && blockerTitle.isNotEmpty;
-}
-
-BeaconNowDetailModel beaconNowDetailModelFromViewState(
-  L10n l10n,
-  BeaconViewState state, {
-  bool canEdit = false,
-  VoidCallback? onEdit,
-}) {
-  final beacon = state.beacon;
-  final cue = state.beaconRoomCue;
-  final nowDisplay = beaconHudNowDisplay(l10n, state);
-  final currentLine = cue?.currentLine.trim() ?? '';
-
-  final whatsNext = currentLine.isNotEmpty
-      ? currentLine
-      : (nowDisplay.isPlaceholder
-          ? l10n.beaconHudNoCurrentLine
-          : nowDisplay.primaryText);
-
-  final roomLast = cue?.lastRoomMeaningfulChange?.trim();
-  final pubLast = beacon.lastPublicMeaningfulChange?.trim();
-  String? lastChange;
-  if (roomLast != null && roomLast.isNotEmpty) {
-    lastChange = roomLast;
-  } else if (pubLast != null && pubLast.isNotEmpty) {
-    lastChange = pubLast;
-  }
-
-  final isReviewLifecycle = beacon.lifecycle == BeaconLifecycle.reviewOpen;
-
-  return BeaconNowDetailModel(
-    whatsNextText: whatsNext,
-    isPlaceholder: currentLine.isEmpty && nowDisplay.isPlaceholder,
-    blockerTitle: cue?.openBlockerTitle?.trim(),
-    blockerItem: state.openCoordinationBlocker,
-    publicStatus:
-        beacon.lifecycle.allowsCoordination ? beacon.publicStatus : null,
-    coordinationStatus:
-        isReviewLifecycle ? beacon.coordinationStatus : null,
-    lifecycle: beacon.lifecycle,
-    lastChangeText: lastChange,
-    canEdit: canEdit,
-    onEdit: onEdit,
-  );
-}
-
-BeaconNowDetailModel beaconNowDetailModelFromRoom(
-  L10n l10n, {
-  required BeaconRoomState? roomState,
-  CoordinationItem? openCoordinationBlocker,
-  bool canEdit = false,
-  VoidCallback? onEdit,
-}) {
-  final currentLine = roomState?.currentLine.trim() ?? '';
-  final blockerTitle = roomState?.openBlockerTitle?.trim() ??
-      openCoordinationBlocker?.title.trim();
-  final whatsNext =
-      currentLine.isNotEmpty ? currentLine : l10n.beaconHudNoCurrentLine;
-
-  return BeaconNowDetailModel(
-    whatsNextText: whatsNext,
-    isPlaceholder: currentLine.isEmpty,
-    blockerTitle: blockerTitle != null && blockerTitle.isNotEmpty
-        ? blockerTitle
-        : null,
-    blockerItem: openCoordinationBlocker,
-    lastChangeText: roomState?.lastRoomMeaningfulChange?.trim(),
-    canEdit: canEdit,
-    onEdit: onEdit,
-  );
 }
 
 /// User-relative “YOU” instruction line (no new server fields).

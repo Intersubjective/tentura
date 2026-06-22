@@ -66,6 +66,8 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
           mutedColor: tt.textMuted,
           isPlaceholder: nowDisplay.isPlaceholder,
           includeLead: false,
+          primaryMaxLines: 1,
+          showTruncationHint: false,
         ),
       ),
     );
@@ -137,7 +139,6 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   required BeaconViewState state,
   VoidCallback? onFacePileTap,
   VoidCallback? onEditNowLine,
-  VoidCallback? onShowNowDetail,
 }) {
   final l10n = L10n.of(context)!;
   final tt = context.tt;
@@ -174,10 +175,6 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
     BeaconHudMetadataEntry(
       icon: BeaconHudRowIcons.now,
       semanticsLabel: l10n.beaconHudNowLabel,
-      semanticsValue: onShowNowDetail != null
-          ? l10n.beaconHudNowLabel
-          : null,
-      onTap: onShowNowDetail,
       trailing: onEditNowLine != null
           ? hudNowRowEditButton(
               context: context,
@@ -185,15 +182,17 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
               editSemanticLabel: l10n.beaconHudEditNowLine,
             )
           : null,
-      body: HudLabeledMultiline(
-        leadingIcon: BeaconHudRowIcons.now,
-        semanticsLabel: l10n.beaconHudNowLabel,
-        text: nowDisplay.primaryText,
-        subline: nowDisplay.blockerText,
-        mutedColor: tt.textMuted,
-        isPlaceholder: nowDisplay.isPlaceholder,
-        includeLead: false,
-      ),
+        body: HudLabeledMultiline(
+          leadingIcon: BeaconHudRowIcons.now,
+          semanticsLabel: l10n.beaconHudNowLabel,
+          text: nowDisplay.primaryText,
+          subline: nowDisplay.blockerText,
+          mutedColor: tt.textMuted,
+          isPlaceholder: nowDisplay.isPlaceholder,
+          includeLead: false,
+          primaryMaxLines: 1,
+          showTruncationHint: false,
+        ),
     ),
   );
 
