@@ -77,7 +77,9 @@ class ProfileEditScreen extends StatelessWidget
           // Avatar
           BlocBuilder<ProfileEditCubit, ProfileEditState>(
             buildWhen: (p, c) =>
-                p.image != c.image || p.willDropImage != c.willDropImage,
+                p.image != c.image ||
+                p.willDropImage != c.willDropImage ||
+                p.isLoading != c.isLoading,
             builder: (_, state) {
               // Global [iconTheme] uses [ColorScheme.primary], same as
               // [secondaryContainer] on filled tonal buttons — icons would be
@@ -124,13 +126,17 @@ class ProfileEditScreen extends StatelessWidget
                                       icon: const Icon(
                                         Icons.highlight_remove_outlined,
                                       ),
-                                      onPressed: cubit.clearImage,
+                                      onPressed: state.isLoading
+                                          ? null
+                                          : cubit.clearImage,
                                     ),
                                     IconButton.filledTonal(
                                       style: overlayIconStyle,
                                       tooltip: l10n.titleCropAvatar,
                                       icon: const Icon(Icons.edit_outlined),
-                                      onPressed: pickAvatar,
+                                      onPressed: state.isLoading
+                                          ? null
+                                          : pickAvatar,
                                     ),
                                   ],
                                 )
@@ -141,14 +147,16 @@ class ProfileEditScreen extends StatelessWidget
                                   icon: const Icon(
                                     Icons.highlight_remove_outlined,
                                   ),
-                                  onPressed: cubit.clearImage,
+                                  onPressed: state.isLoading
+                                      ? null
+                                      : cubit.clearImage,
                                 )
                         // No avatar yet: pick first picture
                         : IconButton.filledTonal(
                             style: overlayIconStyle,
                             tooltip: l10n.titleCropAvatar,
                             icon: const Icon(Icons.add_a_photo_outlined),
-                            onPressed: pickAvatar,
+                            onPressed: state.isLoading ? null : pickAvatar,
                           ),
                   ),
                 ],
