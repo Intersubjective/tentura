@@ -57,7 +57,7 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
     builder: (context, state) => Scaffold(
       body: SafeArea(
         child: Center(
-          child: state.isLoading
+          child: state.isLoading || state.needsConfirmation
               ? const CircularProgressIndicator.adaptive()
               : const SizedBox.shrink(),
         ),
