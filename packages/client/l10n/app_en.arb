@@ -2589,6 +2589,28 @@
   "labelBeaconTabRoom": "Room",
   "labelBeaconTabItems": "Items",
   "beaconItemsEmptyPlaceholder": "No coordination items yet",
+  "beaconItemsActiveFoldTitle": "Active ({count})",
+  "@beaconItemsActiveFoldTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconItemsActiveFoldTitleFiltered": "Active ({filtered} of {total})",
+  "@beaconItemsActiveFoldTitleFiltered": {
+    "placeholders": {
+      "filtered": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconItemsActiveForMeFilter": "For me",
+  "beaconItemsActiveForMeFilterSemantics": "Show only items where you are the source or target",
+  "beaconItemsActiveForMeEmpty": "No active items for you",
   "itemsTabCreatePlanCta": "Create a plan",
   "beaconItemsFactsFoldTitle": "Pinned facts",
   "itemsTabCreatePlanSheetPrompt": "What is the plan?",

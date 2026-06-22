@@ -2585,6 +2585,28 @@
   "labelBeaconTabRoom": "Комната",
   "labelBeaconTabItems": "Элементы",
   "beaconItemsEmptyPlaceholder": "Элементов координации пока нет",
+  "beaconItemsActiveFoldTitle": "Активные ({count})",
+  "@beaconItemsActiveFoldTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconItemsActiveFoldTitleFiltered": "Активные ({filtered} из {total})",
+  "@beaconItemsActiveFoldTitleFiltered": {
+    "placeholders": {
+      "filtered": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconItemsActiveForMeFilter": "Для меня",
+  "beaconItemsActiveForMeFilterSemantics": "Показать только пункты, где вы источник или получатель",
+  "beaconItemsActiveForMeEmpty": "Нет активных пунктов для вас",
   "itemsTabCreatePlanCta": "Создать план",
   "beaconItemsFactsFoldTitle": "Закреплённые факты",
   "itemsTabCreatePlanSheetPrompt": "Какой план?",

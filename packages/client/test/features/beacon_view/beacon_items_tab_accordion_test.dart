@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
@@ -24,22 +27,53 @@ class _MockItemsTabCubit extends Mock implements ItemsTabCubit {
   Stream<ItemsTabState> get stream => Stream<ItemsTabState>.value(_state);
 }
 
+class _ToggleItemsTabCubit extends Mock implements ItemsTabCubit {
+  _ToggleItemsTabCubit(ItemsTabState initial) {
+    _state = initial;
+    _controller = StreamController<ItemsTabState>.broadcast();
+    _controller.add(initial);
+  }
+
+  late ItemsTabState _state;
+  late final StreamController<ItemsTabState> _controller;
+
+  @override
+  ItemsTabState get state => _state;
+
+  @override
+  Stream<ItemsTabState> get stream => _controller.stream;
+
+  @override
+  void setActiveForMeOnly(bool value) {
+    _state = _state.copyWith(activeForMeOnly: value);
+    _controller.add(_state);
+  }
+
+  @override
+  Future<void> close() async {
+    await _controller.close();
+  }
+}
+
 final _t = DateTime.utc(2025);
 
 CoordinationItem _item({
   required String id,
   required CoordinationItemStatus status,
   required String body,
+  String creatorId = 'auth',
+  String? targetPersonId,
 }) =>
     CoordinationItem(
       id: id,
       beaconId: 'B1',
       kind: CoordinationItemKind.ask,
       status: status,
-      creatorId: 'auth',
+      creatorId: creatorId,
       createdAt: _t,
       updatedAt: _t,
       body: body,
+      targetPersonId: targetPersonId,
     );
 
 BeaconViewState _viewState() {
@@ -52,6 +86,32 @@ BeaconViewState _viewState() {
       updatedAt: _t,
     ),
     myProfile: const Profile(id: 'auth', displayName: 'Author'),
+  );
+}
+
+Widget _wrapItemsTab({
+  required ItemsTabCubit cubit,
+  required Size size,
+  String? focusItemId,
+}) {
+  return MaterialApp(
+    theme: TenturaTheme.light(),
+    localizationsDelegates: L10n.localizationsDelegates,
+    supportedLocales: L10n.supportedLocales,
+    locale: const Locale('en'),
+    home: MediaQuery(
+      data: MediaQueryData(size: size),
+      child: Scaffold(
+        body: BlocProvider<ItemsTabCubit>.value(
+          value: cubit,
+          child: ItemsTab(
+            state: _viewState(),
+            onOpenItemThread: (_) {},
+            focusItemId: focusItemId,
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -79,29 +139,53 @@ void main() {
     final cubit = _MockItemsTabCubit(tabState);
 
     await tester.pumpWidget(
-      MaterialApp(
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        locale: const Locale('en'),
-        home: MediaQuery(
-          data: const MediaQueryData(size: compact),
-          child: Scaffold(
-            body: BlocProvider<ItemsTabCubit>.value(
-              value: cubit,
-              child: ItemsTab(
-                state: _viewState(),
-                onOpenItemThread: (_) {},
-                focusItemId: 'closed-1',
-              ),
-            ),
-          ),
-        ),
-      ),
+      _wrapItemsTab(cubit: cubit, size: compact, focusItemId: 'closed-1'),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('Closed item unique body'), findsOneWidget);
     expect(find.text('Open item unique body'), findsNothing);
+  });
+
+  testWidgets('for me filter toggles visible active items', (tester) async {
+    const regular = Size(800, 600);
+    await tester.binding.setSurfaceSize(regular);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final mine = _item(
+      id: 'mine',
+      status: CoordinationItemStatus.open,
+      body: 'My ask body',
+    );
+    final other = _item(
+      id: 'other',
+      status: CoordinationItemStatus.open,
+      body: 'Other ask body',
+      creatorId: 'stranger',
+      targetPersonId: 'someone',
+    );
+
+    final cubit = _ToggleItemsTabCubit(
+      ItemsTabState(openItems: [mine, other]),
+    );
+    addTearDown(cubit.close);
+
+    await tester.pumpWidget(_wrapItemsTab(cubit: cubit, size: regular));
+    await tester.pumpAndSettle();
+
+    expect(find.text('My ask body'), findsOneWidget);
+    expect(find.text('Other ask body'), findsOneWidget);
+
+    await tester.tap(find.text('For me'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('My ask body'), findsOneWidget);
+    expect(find.text('Other ask body'), findsNothing);
+
+    await tester.tap(find.text('For me'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('My ask body'), findsOneWidget);
+    expect(find.text('Other ask body'), findsOneWidget);
   });
 }
