@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_identity_catalog.dart';
 
 class BeaconColorSelector extends StatelessWidget {
@@ -15,30 +16,45 @@ class BeaconColorSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
+    const swatchSize = 36.0;
+    final hitSize = tt.buttonHeight < kMinInteractiveDimension
+        ? kMinInteractiveDimension
+        : tt.buttonHeight;
 
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       children: [
         for (final s in kBeaconIdentityPalette)
-          GestureDetector(
-            onTap: () => onSelected(s.backgroundArgb),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: s.background,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selectedArgb == s.backgroundArgb
-                      ? scheme.primary
-                      : scheme.outlineVariant.withValues(alpha: 0.5),
-                  width: selectedArgb == s.backgroundArgb ? 3 : 1,
+          SizedBox(
+            width: hitSize,
+            height: hitSize,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => onSelected(s.backgroundArgb),
+                child: Center(
+                  child: Container(
+                    width: swatchSize,
+                    height: swatchSize,
+                    decoration: BoxDecoration(
+                      color: s.background,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selectedArgb == s.backgroundArgb
+                            ? scheme.primary
+                            : scheme.outlineVariant.withValues(alpha: 0.5),
+                        width: selectedArgb == s.backgroundArgb ? 3 : 1,
+                      ),
+                    ),
+                    child: selectedArgb == s.backgroundArgb
+                        ? Icon(Icons.check, size: tt.iconSize, color: s.foreground)
+                        : null,
+                  ),
                 ),
               ),
-              child: selectedArgb == s.backgroundArgb
-                  ? Icon(Icons.check, size: 20, color: s.foreground)
-                  : null,
             ),
           ),
       ],
