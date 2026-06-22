@@ -38,3 +38,31 @@ class TenturaResponsiveScope extends StatelessWidget {
     );
   }
 }
+
+/// Expands [child] to the full viewport width, breaking out of the
+/// [TenturaResponsiveScope] content max-width cap (e.g. graph canvas routes).
+class TenturaFullBleed extends StatelessWidget {
+  const TenturaFullBleed({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= viewportWidth) {
+          return child;
+        }
+        final bleed = viewportWidth - constraints.maxWidth;
+        return Transform.translate(
+          offset: Offset(-bleed / 2, 0),
+          child: SizedBox(
+            width: viewportWidth,
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}

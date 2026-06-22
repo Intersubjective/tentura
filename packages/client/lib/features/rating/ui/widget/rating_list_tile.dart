@@ -177,8 +177,8 @@ class RatingListTile extends StatelessWidget {
             ),
             const SizedBox(width: kSpacingSmall),
             // Class badge
-            SizedBox(
-              width: 100,
+            Flexible(
+              flex: 2,
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(

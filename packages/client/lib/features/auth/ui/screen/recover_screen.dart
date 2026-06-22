@@ -160,12 +160,18 @@ class _RecoverScreenState extends State<RecoverScreen> {
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: kSpacingMedium),
-              SizedBox(
-                height: 240,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(kBorderRadius),
-                  child: MobileScanner(onDetect: _handleBarcode),
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final viewportH = MediaQuery.sizeOf(context).height;
+                  final qrHeight = (viewportH * 0.28).clamp(180.0, 320.0);
+                  return SizedBox(
+                    height: qrHeight,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(kBorderRadius),
+                      child: MobileScanner(onDetect: _handleBarcode),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: kSpacingMedium),
               TextField(

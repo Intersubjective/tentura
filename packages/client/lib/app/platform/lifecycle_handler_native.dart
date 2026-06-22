@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/platform/orientation_policy.dart';
 import 'package:tentura/app/router/root_router.dart';
 
 class LifecycleHandler extends StatefulWidget {
@@ -18,14 +19,25 @@ class LifecycleHandler extends StatefulWidget {
   State<LifecycleHandler> createState() => _LifecycleHandlerState();
 }
 
-class _LifecycleHandlerState extends State<LifecycleHandler> {
+class _LifecycleHandlerState extends State<LifecycleHandler>
+    with WidgetsBindingObserver {
   final _appLifecycleListener = AppLifecycleListener();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _appLifecycleListener.hashCode;
     unawaited(_attachFcmNotificationRouting());
+  }
+
+  @override
+  void didChangeMetrics() {
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    if (views.isEmpty) {
+      return;
+    }
+    unawaited(applyOrientationPolicyForView(views.first));
   }
 
   Future<void> _attachFcmNotificationRouting() async {
@@ -52,6 +64,7 @@ class _LifecycleHandlerState extends State<LifecycleHandler> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _appLifecycleListener.dispose();
     super.dispose();
   }

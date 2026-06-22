@@ -60,13 +60,16 @@ class BeaconTile extends StatelessWidget {
                         size: 16,
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () =>
-                          context.read<ContextCubit>().add(beacon.context),
-                      child: Text(
-                        beacon.context,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.primary,
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () =>
+                            context.read<ContextCubit>().add(beacon.context),
+                        child: Text(
+                          beacon.context,
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),

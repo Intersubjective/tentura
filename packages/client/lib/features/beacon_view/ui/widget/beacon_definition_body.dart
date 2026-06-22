@@ -134,23 +134,7 @@ class BeaconDefinitionBody extends StatelessWidget {
         ],
         if (beacon.hasPicture) ...[
           SizedBox(height: tt.rowGap),
-          if (beacon.images.length > 1)
-            BeaconImageGallery(
-              beacon: beacon,
-              maxHeight: 200,
-            )
-          else
-            ClipRRect(
-              borderRadius: BorderRadius.circular(tt.cardRadius),
-              child: SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: BeaconImage(
-                  beacon: beacon,
-                  enableGalleryTap: true,
-                ),
-              ),
-            ),
+          _BeaconDefinitionMediaBand(beacon: beacon),
         ],
         if (beacon.description.trim().isNotEmpty) ...[
           SizedBox(height: tt.rowGap),
@@ -213,6 +197,68 @@ class BeaconDefinitionBody extends StatelessWidget {
     }
     tags.sort((a, b) => a.slug.compareTo(b.slug));
     return tags;
+  }
+}
+
+class _BeaconDefinitionMediaBand extends StatelessWidget {
+  const _BeaconDefinitionMediaBand({required this.beacon});
+
+  final Beacon beacon;
+
+  static double _mediaHeight(WindowClass windowClass) => switch (windowClass) {
+        WindowClass.compact => 200,
+        WindowClass.regular => 260,
+        WindowClass.expanded => 320,
+      };
+
+  static double? _mediaMaxWidth(WindowClass windowClass) => switch (windowClass) {
+        WindowClass.compact => null,
+        WindowClass.regular => 560,
+        WindowClass.expanded => 720,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final windowClass = windowClassForWidth(constraints.maxWidth);
+        final mediaHeight = _mediaHeight(windowClass);
+        final mediaMaxWidth = _mediaMaxWidth(windowClass);
+
+        Widget media;
+        if (beacon.images.length > 1) {
+          media = BeaconImageGallery(
+            beacon: beacon,
+            maxHeight: mediaHeight,
+          );
+        } else {
+          media = ClipRRect(
+            borderRadius: BorderRadius.circular(tt.cardRadius),
+            child: SizedBox(
+              height: mediaHeight,
+              width: double.infinity,
+              child: BeaconImage(
+                beacon: beacon,
+                enableGalleryTap: true,
+              ),
+            ),
+          );
+        }
+
+        if (mediaMaxWidth == null) {
+          return media;
+        }
+
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: mediaMaxWidth),
+            child: media,
+          ),
+        );
+      },
+    );
   }
 }
 

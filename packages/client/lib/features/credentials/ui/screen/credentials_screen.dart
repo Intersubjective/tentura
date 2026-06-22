@@ -75,73 +75,121 @@ class _CredentialsScreenState extends State<CredentialsScreen>
       body: BlocConsumer<CredentialsCubit, CredentialsState>(
         listener: commonScreenBlocListener,
         builder: (context, state) {
-          return ListView(
+          final itemCount = _listItemCount(state);
+          return ListView.builder(
             padding: kPaddingV,
-            children: [
-              if (state.credentials.isEmpty && !state.isLoading)
-                Padding(
-                  padding: kPaddingAll,
-                  child: Text(
-                    l10n.signInMethodsEmpty,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ),
-              ...state.credentials.map(
-                (credential) => ListTile(
-                  leading: Icon(_iconForType(credential.type)),
-                  title: Text(_typeLabel(l10n, credential.type)),
-                  subtitle: Text(
-                    _subtitle(credential),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: l10n.buttonRemove,
-                    onPressed: state.isLoading
-                        ? null
-                        : () => _confirmRemove(context, l10n, credential),
-                  ),
-                ),
-              ),
-              if (state.showAddSection) ...[
-                const Divider(),
-                Padding(
-                  padding: kPaddingH,
-                  child: Text(
-                    l10n.addSignInMethod,
-                    style: theme.textTheme.titleSmall,
-                  ),
-                ),
-                if (state.canAddGoogle)
-                  ListTile(
-                    leading: const Icon(Icons.g_mobiledata),
-                    title: Text(l10n.credentialGoogle),
-                    enabled: !state.isLoading,
-                    onTap: state.isLoading ? null : () => _linkGoogle(context),
-                  ),
-                if (state.canAddEmail)
-                  ListTile(
-                    leading: const Icon(Icons.mail_outline),
-                    title: Text(l10n.credentialEmail),
-                    enabled: !state.isLoading,
-                    onTap: state.isLoading
-                        ? null
-                        : () => _linkEmail(context, l10n),
-                  ),
-                if (state.canAddRecoverySeed)
-                  ListTile(
-                    leading: const Icon(Icons.vpn_key_outlined),
-                    title: Text(l10n.credentialRecoverySeed),
-                    enabled: !state.isLoading,
-                    onTap: state.isLoading ? null : () => _linkSeed(context, l10n),
-                  ),
-              ],
-            ],
+            itemCount: itemCount,
+            itemBuilder: (context, index) =>
+                _listItemAt(context, l10n, theme, state, index),
           );
         },
       ),
     );
+  }
+
+  int _listItemCount(CredentialsState state) {
+    var count = 0;
+    if (state.credentials.isEmpty && !state.isLoading) {
+      count++;
+    }
+    count += state.credentials.length;
+    if (state.showAddSection) {
+      count++; // divider
+      count++; // section header
+      if (state.canAddGoogle) count++;
+      if (state.canAddEmail) count++;
+      if (state.canAddRecoverySeed) count++;
+    }
+    return count;
+  }
+
+  Widget _listItemAt(
+    BuildContext context,
+    L10n l10n,
+    ThemeData theme,
+    CredentialsState state,
+    int index,
+  ) {
+    var i = index;
+    if (state.credentials.isEmpty && !state.isLoading) {
+      if (i == 0) {
+        return Padding(
+          padding: kPaddingAll,
+          child: Text(
+            l10n.signInMethodsEmpty,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
+          ),
+        );
+      }
+      i--;
+    }
+    if (i < state.credentials.length) {
+      final credential = state.credentials[i];
+      return ListTile(
+        leading: Icon(_iconForType(credential.type)),
+        title: Text(_typeLabel(l10n, credential.type)),
+        subtitle: Text(
+          _subtitle(credential),
+          style: theme.textTheme.bodySmall,
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline),
+          tooltip: l10n.buttonRemove,
+          onPressed: state.isLoading
+              ? null
+              : () => _confirmRemove(context, l10n, credential),
+        ),
+      );
+    }
+    i -= state.credentials.length;
+    if (!state.showAddSection) {
+      return const SizedBox.shrink();
+    }
+    if (i == 0) {
+      return const Divider();
+    }
+    if (i == 1) {
+      return Padding(
+        padding: kPaddingH,
+        child: Text(
+          l10n.addSignInMethod,
+          style: theme.textTheme.titleSmall,
+        ),
+      );
+    }
+    i -= 2;
+    if (state.canAddGoogle) {
+      if (i == 0) {
+        return ListTile(
+          leading: const Icon(Icons.g_mobiledata),
+          title: Text(l10n.credentialGoogle),
+          enabled: !state.isLoading,
+          onTap: state.isLoading ? null : () => _linkGoogle(context),
+        );
+      }
+      i--;
+    }
+    if (state.canAddEmail) {
+      if (i == 0) {
+        return ListTile(
+          leading: const Icon(Icons.mail_outline),
+          title: Text(l10n.credentialEmail),
+          enabled: !state.isLoading,
+          onTap: state.isLoading ? null : () => _linkEmail(context, l10n),
+        );
+      }
+      i--;
+    }
+    if (state.canAddRecoverySeed && i == 0) {
+      return ListTile(
+        leading: const Icon(Icons.vpn_key_outlined),
+        title: Text(l10n.credentialRecoverySeed),
+        enabled: !state.isLoading,
+        onTap: state.isLoading ? null : () => _linkSeed(context, l10n),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   Future<void> _linkGoogle(BuildContext context) async {

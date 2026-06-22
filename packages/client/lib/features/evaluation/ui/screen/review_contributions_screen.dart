@@ -111,72 +111,34 @@ class ReviewContributionsScreen extends StatelessWidget implements AutoRouteWrap
               ),
             );
           }
-          final theme = Theme.of(context);
+          final listItems = _ReviewListItems.build(
+            context: context,
+            l10n: l10n,
+            state: state,
+            draft: draft,
+            onOpen: (p) async {
+              await showEvaluationDetailSheet(
+                context: context,
+                participant: p,
+                onSave: (v, tags, note, ackTags) => context
+                    .read<EvaluationCubit>()
+                    .submitOne(
+                      evaluatedUserId: p.userId,
+                      value: v,
+                      reasonTags: tags,
+                      note: note,
+                      acknowledgedHelpTags: ackTags.isEmpty ? null : ackTags,
+                    ),
+              );
+            },
+          );
           return Column(
             children: [
               Expanded(
-                child: ListView(
+                child: ListView.builder(
                   padding: kPaddingAll,
-                  children: [
-                    if (state.beaconTitle.isNotEmpty) ...[
-                      Text(
-                        state.beaconTitle,
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    if (!draft) ...[
-                      Builder(
-                        builder: (ctx) {
-                          final closesRaw = state.windowInfo?.closesAt;
-                          if (closesRaw == null || closesRaw.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-                          final closes = DateTime.tryParse(closesRaw);
-                          if (closes == null) {
-                            return const SizedBox.shrink();
-                          }
-                          final formatted = DateFormat.yMMMd(
-                            Localizations.localeOf(ctx).toLanguageTag(),
-                          ).format(closes.toLocal());
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              l10n.evaluationReviewDeadline(formatted),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                    EvaluationPrivacyInfoRow(
-                      shortLabel: l10n.evaluationPrivacyShort,
-                      fullText: l10n.evaluationPrivacyBlock,
-                    ),
-                    const SizedBox(height: 12),
-                    ..._participantSections(
-                      context: context,
-                      participants: state.participants,
-                      onOpen: (p) async {
-                        await showEvaluationDetailSheet(
-                          context: context,
-                          participant: p,
-                          onSave: (v, tags, note, ackTags) => context
-                              .read<EvaluationCubit>()
-                              .submitOne(
-                                evaluatedUserId: p.userId,
-                                value: v,
-                                reasonTags: tags,
-                                note: note,
-                                acknowledgedHelpTags:
-                                    ackTags.isEmpty ? null : ackTags,
-                              ),
-                        );
-                      },
-                    ),
-                  ],
+                  itemCount: listItems.length,
+                  itemBuilder: listItems.itemBuilder,
                 ),
               ),
               SafeArea(
@@ -282,6 +244,81 @@ List<Widget> _participantSections({
     out,
   );
   return out;
+}
+
+class _ReviewListItems {
+  const _ReviewListItems(this._builders);
+
+  final List<Widget Function(BuildContext)> _builders;
+
+  int get length => _builders.length;
+
+  Widget itemBuilder(BuildContext context, int index) =>
+      _builders[index](context);
+
+  static _ReviewListItems build({
+    required BuildContext context,
+    required L10n l10n,
+    required EvaluationState state,
+    required bool draft,
+    required Future<void> Function(EvaluationParticipant p) onOpen,
+  }) {
+    final theme = Theme.of(context);
+    final builders = <Widget Function(BuildContext)>[];
+
+    if (state.beaconTitle.isNotEmpty) {
+      builders.add(
+        (_) => Text(
+          state.beaconTitle,
+          style: theme.textTheme.titleMedium,
+        ),
+      );
+      builders.add((_) => const SizedBox(height: 6));
+    }
+
+    if (!draft) {
+      final closesRaw = state.windowInfo?.closesAt;
+      if (closesRaw != null && closesRaw.isNotEmpty) {
+        final closes = DateTime.tryParse(closesRaw);
+        if (closes != null) {
+          builders.add(
+            (ctx) {
+              final formatted = DateFormat.yMMMd(
+                Localizations.localeOf(ctx).toLanguageTag(),
+              ).format(closes.toLocal());
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  l10n.evaluationReviewDeadline(formatted),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              );
+            },
+          );
+        }
+      }
+    }
+
+    builders.add(
+      (_) => EvaluationPrivacyInfoRow(
+        shortLabel: l10n.evaluationPrivacyShort,
+        fullText: l10n.evaluationPrivacyBlock,
+      ),
+    );
+    builders.add((_) => const SizedBox(height: 12));
+
+    for (final section in _participantSections(
+      context: context,
+      participants: state.participants,
+      onOpen: onOpen,
+    )) {
+      builders.add((_) => section);
+    }
+
+    return _ReviewListItems(builders);
+  }
 }
 
 class _ParticipantTile extends StatelessWidget {

@@ -48,31 +48,30 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
             padding: kPaddingH,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (state.accounts.isEmpty)
-                  // No accounts yet
-                  Padding(
-                    padding: kPaddingAll,
-                    child: Text(
-                      l10n.alreadyHaveAccount,
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                else
-                  // Accounts list
-                  ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: state.accounts.length,
-                    itemBuilder: (_, i) {
-                      final account = state.accounts[i];
-                      return AccountListTile(
-                        key: ValueKey(account),
-                        account: account,
-                      );
-                    },
-                    separatorBuilder: separatorBuilder,
-                  ),
+                Expanded(
+                  child: state.accounts.isEmpty
+                      ? Padding(
+                          padding: kPaddingAll,
+                          child: Center(
+                            child: Text(
+                              l10n.alreadyHaveAccount,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: state.accounts.length,
+                          itemBuilder: (_, i) {
+                            final account = state.accounts[i];
+                            return AccountListTile(
+                              key: ValueKey(account),
+                              account: account,
+                            );
+                          },
+                          separatorBuilder: separatorBuilder,
+                        ),
+                ),
 
                 // Recover from seed (QR)
                 Padding(
@@ -115,8 +114,6 @@ class AuthLoginScreen extends StatelessWidget implements AutoRouteWrapper {
                     ],
                   ),
                 ),
-
-                const Spacer(),
 
                 // Create new account
                 Padding(

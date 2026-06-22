@@ -86,9 +86,10 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
         ),
       ),
     ),
-    body: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    body: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
         // Invite Code
         if (_env.needInviteCode)
           Padding(
@@ -191,6 +192,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
           ),
         ),
       ],
+      ),
     ),
   );
 

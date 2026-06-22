@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
-import 'package:flutter/services.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
@@ -26,6 +25,7 @@ import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'di/di.dart';
 import 'di/globals.dart';
 import 'platform/lifecycle_handler.dart';
+import 'platform/orientation_policy.dart';
 import 'router/root_router.dart';
 import 'debug_error_overlay.dart';
 
@@ -34,10 +34,9 @@ class App extends StatelessWidget {
     FlutterNativeSplash.preserve(
       widgetsBinding: WidgetsFlutterBinding.ensureInitialized(),
     );
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
     assertWebBuildConfig();
+    // Portrait on phone-sized native windows; PWA uses manifest.json. See docs/tentura-design-system.md § Orientation policy.
+    await applyInitialOrientationPolicy();
     await configureDependencies();
     // Start global FCM registration (permission, token, server upload).
     GetIt.I<FcmCubit>();

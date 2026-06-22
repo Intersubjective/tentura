@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_responsive_scope.dart';
 import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -87,7 +88,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
         ],
       ),
-      body: const GraphBody(),
+      body: const TenturaFullBleed(child: GraphBody()),
     );
   }
 
