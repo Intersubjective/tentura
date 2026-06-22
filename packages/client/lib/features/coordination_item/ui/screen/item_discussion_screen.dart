@@ -100,9 +100,26 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
           BlocBuilder<ItemActionsCubit, ItemActionsState>(
             buildWhen: (p, c) =>
                 p.item.status != c.item.status ||
-                p.pendingResolution != c.pendingResolution,
+                p.pendingResolution != c.pendingResolution ||
+                p.isLoading != c.isLoading,
             builder: (context, state) {
               if (!state.item.isActive) return const SizedBox.shrink();
+              if (state.isLoading) {
+                return SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: SizedBox(
+                      width: context.tt.iconSize,
+                      height: context.tt.iconSize,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                );
+              }
               final item = state.item;
               final hasPendingResolution = state.pendingResolution != null;
               final actionsCubit = context.read<ItemActionsCubit>();
@@ -246,11 +263,14 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
       ),
       body: BlocBuilder<ItemActionsCubit, ItemActionsState>(
         buildWhen: (p, c) =>
-            p.item != c.item || p.pendingResolution != c.pendingResolution,
+            p.item != c.item ||
+            p.pendingResolution != c.pendingResolution ||
+            p.isLoading != c.isLoading,
         builder: (context, actionsState) {
           final theme = Theme.of(context);
           final actionsCubit = context.read<ItemActionsCubit>();
           final pendingResolution = actionsState.pendingResolution;
+          final actionsBusy = actionsState.isLoading;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -264,8 +284,12 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
                   resolution: pendingResolution,
                   theme: theme,
                   l10n: l10n,
-                  onAccept: () => unawaited(actionsCubit.acceptResolution()),
-                  onReject: () => unawaited(actionsCubit.rejectResolution()),
+                  onAccept: actionsBusy
+                      ? null
+                      : () => unawaited(actionsCubit.acceptResolution()),
+                  onReject: actionsBusy
+                      ? null
+                      : () => unawaited(actionsCubit.rejectResolution()),
                 ),
               Expanded(
                 child: BeaconRoomBody(
@@ -482,8 +506,8 @@ class _PendingResolutionBanner extends StatelessWidget {
   final CoordinationItem resolution;
   final ThemeData theme;
   final L10n l10n;
-  final VoidCallback onAccept;
-  final VoidCallback onReject;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
 
   @override
   Widget build(BuildContext context) {

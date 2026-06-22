@@ -38,7 +38,7 @@ You are operating in a loop. Each invocation must complete **exactly one task** 
 - [x] TASK-03: `AuthRegisterScreen` — wire register button to `onPressed: state.isLoading ? null : …`; wrap fields in a `Form` with `validate()` called before `signUp`
 - [x] TASK-04: `ProfileEditScreen` — add an in-flight indicator (e.g. `LinearPiActive` or overlay) while `pickImage()` is open (gallery/cropper)
 - [x] TASK-05: `SettingsScreen` — add a `BlocListener` (or `MultiBlocListener`) for `AuthCubit` to surface sign-out / reset-local progress and errors; the screen currently only listens to `SettingsCubit`
-- [ ] TASK-06: `ItemDiscussionScreen` / `ItemActionsCubit` — emit `StateIsLoading` before mutations (resolve, close, reopen) and return to `StateIsSuccess` on completion so menu buttons disable during the call
+- [x] TASK-06: `ItemDiscussionScreen` / `ItemActionsCubit` — emit `StateIsLoading` before mutations (resolve, close, reopen) and return to `StateIsSuccess` on completion so menu buttons disable during the call
 - [ ] TASK-07: `BeaconRoomScreen` — add a top-level `LinearPiActive` progress indicator (matching `BeaconScreen` / `BeaconViewScreen` pattern) for refetch-with-messages states
 - [ ] TASK-08: `graph_body.dart` — add a body-level loading overlay or `LinearPiActive` while the graph is fetching; this fixes both `ForwardsGraphScreen` and `GraphScreen`
 
