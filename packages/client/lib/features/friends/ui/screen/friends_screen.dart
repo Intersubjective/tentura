@@ -237,8 +237,32 @@ class _FriendsTabBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<FriendsCubit, FriendsState>(
       bloc: friendsCubit,
-      buildWhen: (_, c) => c.isSuccess,
+      buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
       builder: (_, state) {
+        if (state.isLoading && state.friends.isEmpty) {
+          return const Center(
+            child: CircularProgressIndicator.adaptive(),
+          );
+        }
+        if (state.hasError && state.friends.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: theme.colorScheme.error,
+                ),
+                const SizedBox(height: kSpacingMedium),
+                FilledButton(
+                  onPressed: () => unawaited(friendsCubit.fetch()),
+                  child: Text(l10n.myWorkRetry),
+                ),
+              ],
+            ),
+          );
+        }
         final friends = state.friends.values.toList();
         return RefreshIndicator.adaptive(
           onRefresh: friendsCubit.fetch,
