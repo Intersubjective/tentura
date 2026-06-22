@@ -5,6 +5,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/node_details.dart';
@@ -98,27 +99,47 @@ class GraphBodyState extends State<GraphBody>
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final windowClass = windowClassForWidth(constraints.maxWidth);
-      if (windowClass == WindowClass.compact) {
-        return SizedBox(
-          width: constraints.maxWidth,
-          height: constraints.maxHeight,
-          child: _buildGraphView(),
-        );
-      }
-
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: SizedBox(
+  Widget build(BuildContext context) => BlocBuilder<GraphCubit, GraphState>(
+    buildWhen: (previous, current) => previous.isLoading != current.isLoading,
+    builder: (context, graphState) {
+      final body = LayoutBuilder(
+        builder: (context, constraints) {
+          final windowClass = windowClassForWidth(constraints.maxWidth);
+          if (windowClass == WindowClass.compact) {
+            return SizedBox(
+              width: constraints.maxWidth,
               height: constraints.maxHeight,
               child: _buildGraphView(),
-            ),
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: constraints.maxHeight,
+                  child: _buildGraphView(),
+                ),
+              ),
+              _GraphSideControls(
+                showFilterToggle: windowClass == WindowClass.expanded,
+              ),
+            ],
+          );
+        },
+      );
+
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          body,
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: LinearPiActive.builder(context, graphState.isLoading),
           ),
-          _GraphSideControls(showFilterToggle: windowClass == WindowClass.expanded),
         ],
       );
     },
