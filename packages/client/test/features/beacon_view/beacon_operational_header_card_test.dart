@@ -48,7 +48,6 @@ Future<void> _pumpHeaderCard(
   required BeaconViewState state,
   VoidCallback? onUpdateStatus,
   VoidCallback? onForward,
-  VoidCallback? onOpenRoomSurface,
   VoidCallback? onCloseBeacon,
 }) async {
   await tester.pumpWidget(
@@ -66,7 +65,6 @@ Future<void> _pumpHeaderCard(
               onAuthorTap: () {},
               onUpdateStatus: onUpdateStatus,
               onForward: onForward ?? () {},
-              onOpenRoomSurface: onOpenRoomSurface,
               onCloseBeacon: onCloseBeacon,
             ),
           ),
@@ -203,7 +201,7 @@ void main() {
       expect(find.text('Update status'), findsOneWidget);
     });
 
-    testWidgets('shown alongside Resolve when coordination is blocked', (
+    testWidgets('Update status shown when coordination is blocked', (
       tester,
     ) async {
       final state = BeaconViewState(
@@ -218,11 +216,11 @@ void main() {
         tester,
         state: state,
         onUpdateStatus: () {},
-        onOpenRoomSurface: () {},
       );
 
-      expect(find.text('Resolve'), findsOneWidget);
+      expect(find.text('Resolve'), findsNothing);
       expect(find.text('Update status'), findsOneWidget);
+      expect(find.text('Forward'), findsOneWidget);
     });
 
     testWidgets('hidden on closed beacon even when callback wired', (

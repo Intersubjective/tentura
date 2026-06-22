@@ -2742,7 +2742,6 @@
     }
   },
   "beaconHudClosedSummary": "Closed",
-  "beaconHudResolveBlocker": "Resolve",
   "beaconHudOverflowMore": "More actions",
   "beaconHudOverflowCloseBeacon": "Close beacon…",
   "beaconHudYouAuthorReadyToClose": "Close the loop",
