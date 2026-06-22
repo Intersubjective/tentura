@@ -135,4 +135,46 @@ void main() {
       expect(find.text('Body B'), findsOneWidget);
     });
   });
+
+  group('AccordionExpansionTile headerAction', () {
+    const regular = Size(800, 600);
+
+    testWidgets('tapping headerAction does not collapse expanded body', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(regular);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        wrap(
+          AccordionExpansionGroup(
+            accordionMode: false,
+            child: Column(
+              children: [
+                AccordionExpansionTile(
+                  id: 'a',
+                  initiallyExpanded: true,
+                  title: const Text('Section A'),
+                  headerAction: OutlinedButton(
+                    onPressed: () {},
+                    child: const Text('Action'),
+                  ),
+                  children: const [Text('Body A')],
+                ),
+              ],
+            ),
+          ),
+          size: regular,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Body A'), findsOneWidget);
+
+      await tester.tap(find.text('Action'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Body A'), findsOneWidget);
+    });
+  });
 }

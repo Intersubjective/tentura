@@ -110,12 +110,13 @@ class _AccordionExpansionGroupState extends State<AccordionExpansionGroup> {
 }
 
 /// Expansion section that participates in [AccordionExpansionGroup] on compact.
-class AccordionExpansionTile extends StatelessWidget {
+class AccordionExpansionTile extends StatefulWidget {
   const AccordionExpansionTile({
     required this.id,
     required this.title,
     required this.children,
     this.leading,
+    this.headerAction,
     this.initiallyExpanded = false,
     this.maintainState = true,
     super.key,
@@ -126,35 +127,82 @@ class AccordionExpansionTile extends StatelessWidget {
   final List<Widget> children;
   final Widget? leading;
 
+  /// Optional trailing control rendered before the expand chevron (e.g. filter toggle).
+  final Widget? headerAction;
+
   /// Used only when the parent group is not in accordion mode.
   final bool initiallyExpanded;
 
   final bool maintainState;
 
   @override
+  State<AccordionExpansionTile> createState() => _AccordionExpansionTileState();
+}
+
+class _AccordionExpansionTileState extends State<AccordionExpansionTile> {
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
+
+  Widget? _buildTrailing(ThemeData theme) {
+    final action = widget.headerAction;
+    if (action == null) return null;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        action,
+        AnimatedRotation(
+          turns: _expanded ? 0.5 : 0,
+          duration: kThemeAnimationDuration,
+          child: Icon(
+            Icons.expand_more,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _onExpansionChanged(bool open, AccordionExpansionScope? scope) {
+    setState(() => _expanded = open);
+    if (scope?.accordionMode ?? false) {
+      scope!.onTileChanged(widget.id, open);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scope = AccordionExpansionScope.maybeOf(context);
     final accordionMode = scope?.accordionMode ?? false;
+    final theme = Theme.of(context);
+    final trailing = _buildTrailing(theme);
 
     if (!accordionMode) {
       return ExpansionTile(
-        leading: leading,
-        initiallyExpanded: initiallyExpanded,
-        maintainState: maintainState,
-        title: title,
-        children: children,
+        leading: widget.leading,
+        initiallyExpanded: widget.initiallyExpanded,
+        maintainState: widget.maintainState,
+        trailing: trailing,
+        onExpansionChanged: (open) => _onExpansionChanged(open, scope),
+        title: widget.title,
+        children: widget.children,
       );
     }
 
-    final expanded = scope!.expandedId == id;
+    final expanded = scope!.expandedId == widget.id;
     return ExpansionTile(
-      key: ValueKey('$id-$expanded'),
-      leading: leading,
+      key: ValueKey('${widget.id}-$expanded'),
+      leading: widget.leading,
       initiallyExpanded: expanded,
-      maintainState: maintainState,
-      onExpansionChanged: (open) => scope.onTileChanged(id, open),
-      title: title,
-      children: children,
+      maintainState: widget.maintainState,
+      trailing: trailing,
+      onExpansionChanged: (open) => _onExpansionChanged(open, scope),
+      title: widget.title,
+      children: widget.children,
     );
   }
 }

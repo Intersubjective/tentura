@@ -83,6 +83,10 @@ class ItemsTabCubit extends Cubit<ItemsTabState> {
     }
   }
 
+  void setActiveForMeOnly(bool value) {
+    emit(state.copyWith(activeForMeOnly: value));
+  }
+
   Future<void> resolveBlocker(String itemId) async {
     try {
       emit(state.copyWith(status: const StateIsSuccess()));

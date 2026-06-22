@@ -162,12 +162,34 @@ class ItemsTab extends StatelessWidget {
         final openItems = _itemsTabVisibleItems(tabState.openItems);
         final closedItems = _itemsTabVisibleItems(tabState.closedItems);
         final myUserId = state.myProfile.id;
+        final lookupItems = _itemsTabVisibleItems([
+          ...tabState.openItems,
+          ...tabState.closedItems,
+        ]);
         final myDrafts = _myDraftItems(tabState, myUserId);
         final focusId = focusItemId?.trim();
         final hasFocus = focusId != null && focusId.isNotEmpty;
         final focusInClosed =
             hasFocus && closedItems.any((i) => i.id == focusId);
         final focusInDrafts = hasFocus && myDrafts.any((d) => d.id == focusId);
+        final displayedOpenItems = filterActiveItemsForUser(
+          openItems: openItems,
+          lookupItems: lookupItems,
+          userId: myUserId,
+          forMeOnly: tabState.activeForMeOnly,
+          alwaysIncludeItemId:
+              hasFocus && openItems.any((i) => i.id == focusId) ? focusId : null,
+        );
+        final activeForMeOnly = tabState.activeForMeOnly;
+        final activeFoldTitle = activeForMeOnly &&
+                displayedOpenItems.length < openItems.length
+            ? l10n.beaconItemsActiveFoldTitleFiltered(
+                displayedOpenItems.length,
+                openItems.length,
+              )
+            : l10n.beaconItemsActiveFoldTitle(
+                activeForMeOnly ? displayedOpenItems.length : openItems.length,
+              );
         final myDraftCount = myDrafts.length;
         final hasItems = openItems.isNotEmpty ||
             closedItems.isNotEmpty ||
@@ -224,10 +246,23 @@ class ItemsTab extends StatelessWidget {
                         id: BeaconItemsAccordionSection.active,
                         initiallyExpanded: true,
                         title: Text(
-                          'Active (${openItems.length})',
+                          activeFoldTitle,
                           style: Theme.of(context).textTheme.titleSmall,
                         ),
                         leading: const Icon(Icons.bolt_outlined),
+                        headerAction: Semantics(
+                          button: true,
+                          checked: activeForMeOnly,
+                          label: l10n.beaconItemsActiveForMeFilterSemantics,
+                          child: BeaconHudActionButton(
+                            icon: Icons.person_outline,
+                            label: l10n.beaconItemsActiveForMeFilter,
+                            filled: activeForMeOnly,
+                            onPressed: () => context
+                                .read<ItemsTabCubit>()
+                                .setActiveForMeOnly(!activeForMeOnly),
+                          ),
+                        ),
                         children: [
                       if (showCoordinationCtas) ...[
                         Padding(
@@ -235,11 +270,30 @@ class ItemsTab extends StatelessWidget {
                           child: _ActiveCoordinationCtas(state: state),
                         ),
                       ],
+                      if (activeForMeOnly &&
+                          displayedOpenItems.isEmpty &&
+                          openItems.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Center(
+                            child: Text(
+                              l10n.beaconItemsActiveForMeEmpty,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                            ),
+                          ),
+                        ),
                       _StaleDeadlineTicker(
-                        items: openItems,
+                        items: displayedOpenItems,
                         child: Column(
                           children: [
-                      for (final item in openItems)
+                      for (final item in displayedOpenItems)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: FocusFlashHighlight(
