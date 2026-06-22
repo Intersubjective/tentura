@@ -210,7 +210,6 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
       void addUpdateStatus() {
         if (onUpdateStatus == null) return;
-        if (state.unansweredHelpOffersCount != 0) return;
         specs.add(
           _HudActionSpec(
             icon: Icons.tune_outlined,
@@ -236,29 +235,35 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           case ClosureActionPriority.hidden:
             addForward();
         }
-        if (specs.length < 3) {
-          addUpdateStatus();
-        }
       }
+      addUpdateStatus();
 
       while (specs.length > 3) {
         var removed = false;
         for (var i = specs.length - 1; i >= 0; i--) {
-          final l = specs[i].label;
-          if (l == l10n.beaconCtaUpdateStatus) {
+          if (specs[i].label == l10n.labelForward) {
             specs.removeAt(i);
             removed = true;
             break;
           }
         }
-        if (!removed) {
-          for (var i = specs.length - 1; i >= 0; i--) {
-            if (specs[i].label == l10n.labelForward) {
-              specs.removeAt(i);
-              break;
-            }
+        if (removed) continue;
+        for (var i = specs.length - 1; i >= 0; i--) {
+          if (specs[i].label == l10n.buttonClose) {
+            specs.removeAt(i);
+            removed = true;
+            break;
           }
         }
+        if (removed) continue;
+        for (var i = specs.length - 1; i >= 0; i--) {
+          if (specs[i].label == l10n.beaconHudResolveBlocker) {
+            specs.removeAt(i);
+            removed = true;
+            break;
+          }
+        }
+        if (!removed) break;
       }
 
       return _HudActionBundle(
