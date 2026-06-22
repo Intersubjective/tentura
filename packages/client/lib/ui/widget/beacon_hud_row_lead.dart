@@ -29,39 +29,6 @@ enum BeaconHudRowLeadAlign {
   center,
 }
 
-/// Vertical stack of HUD metadata rows with uniform [kBeaconHudRowGap].
-class BeaconHudMetadataColumn extends StatelessWidget {
-  const BeaconHudMetadataColumn({
-    required this.children,
-    super.key,
-  });
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final spaced = <Widget>[children.first];
-    for (var i = 1; i < children.length; i++) {
-      spaced
-        ..add(const SizedBox(height: kBeaconHudRowGap))
-        ..add(children[i]);
-    }
-
-    return ClipRect(
-      clipBehavior: Clip.none,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: spaced,
-      ),
-    );
-  }
-}
-
 /// Fixed-width lead slot with a neutral semantic icon (always left-aligned).
 class BeaconHudRowLead extends StatelessWidget {
   const BeaconHudRowLead({

@@ -1,23 +1,15 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
-import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
-import 'package:tentura/ui/widget/beacon_you_responsibility_line.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
-import 'package:tentura/ui/utils/beacon_you_presentation.dart';
-import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
-import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
+import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 
 import 'beacon_hud_action_button.dart';
 
@@ -84,19 +76,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final nowDisplay = beaconHudNowDisplay(l10n, state);
-    final youResponsibility = state.youResponsibility ??
-        CoordinationResponsibility(beaconId: state.beacon.id);
-
     final bundle = _buildHudActions(l10n);
-    final activeHelpUsers = [
-      for (final offer in state.helpOffers)
-        if (!offer.isWithdrawn) offer.user,
-    ];
-    final viewerId = context.watch<ProfileCubit>().state.profile.id;
-    final phaseInput = beaconPhaseInputFromViewState(state);
-    final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
-    final openBlocker = phaseInput.openBlocker;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -109,42 +89,15 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          BeaconHudMetadataColumn(
-            children: [
-              BeaconCompactMetadataStrip(
-                beacon: state.beacon,
-                involvedProfiles: activeHelpUsers,
-                currentUserId: viewerId,
-                onFacePileTap: onSwitchToPeopleTab,
-              ),
-              HudLabeledMultiline(
-                leadingIcon: BeaconHudRowIcons.now,
-                semanticsLabel: l10n.beaconHudNowLabel,
-                text: nowDisplay.primaryText,
-                subline: nowDisplay.blockerText,
-                mutedColor: tt.textMuted,
-                isPlaceholder: nowDisplay.isPlaceholder,
-                onEdit: onEditNowLine,
-                editSemanticLabel: l10n.beaconHudEditNowLine,
-                onShowDetail: onShowNowDetail,
-                showDetailSemanticLabel: l10n.beaconHudNowLabel,
-              ),
-              BeaconYouResponsibilityLine(
-                beacon: state.beacon,
-                responsibility: youResponsibility,
-                isAuthorOrSteward: state.isAuthorOrSteward,
-                showNewBadges: false,
-                viewerUserId: viewerId,
-                openBlocker: openBlocker,
-                phaseResult: phaseResult,
-                isAwaitingAuthorReview: viewerAwaitingAuthorHelpOfferReview(
-                  isAuthorOrSteward: state.isAuthorOrSteward,
-                  viewerHasActiveHelpOffer: state.isHelpOffered,
-                  viewerOfferAuthorResponse:
-                      state.myActiveHelpOffer?.coordinationResponse,
-                ),
-              ),
-            ],
+          BeaconHudMetadataTable(
+            buildEntries: (rowWidth) => buildBeaconViewHudMetadataEntries(
+              context,
+              rowWidth: rowWidth,
+              state: state,
+              onFacePileTap: onSwitchToPeopleTab,
+              onEditNowLine: onEditNowLine,
+              onShowNowDetail: onShowNowDetail,
+            ),
           ),
           if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen)
             ReviewWindowBannerHost(beaconId: state.beacon.id)

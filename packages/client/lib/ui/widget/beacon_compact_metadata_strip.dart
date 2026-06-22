@@ -15,7 +15,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
 /// Compact people / schedule / location strip shared by My Work cards and beacon HUD.
@@ -59,15 +58,12 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final l10n = L10n.of(context)!;
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bodyWidth = constraints.maxWidth - kBeaconHudRowLeadWidth;
         final useWrap =
             context.windowClass == WindowClass.compact &&
-            bodyWidth < _compactWrapWidth;
-        final strip = useWrap
+            constraints.maxWidth < _compactWrapWidth;
+        return useWrap
             ? _MetadataWrapLayout(
                 beacon: beacon,
                 involvedProfiles: involvedProfiles,
@@ -80,13 +76,6 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
                 currentUserId: currentUserId,
                 onFacePileTap: onFacePileTap,
               );
-
-        return BeaconHudIconRow(
-          leadIcon: BeaconHudRowIcons.people,
-          semanticsLabel: l10n.beaconHudPeopleRowSemantics,
-          leadAlign: BeaconHudRowLeadAlign.center,
-          body: strip,
-        );
       },
     );
   }

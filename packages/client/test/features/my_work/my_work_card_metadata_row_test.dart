@@ -16,6 +16,7 @@ import 'package:tentura/features/my_work/ui/widget/my_work_card_status_strip.dar
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
+import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
@@ -136,6 +137,110 @@ void main() {
     final nowX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dx;
     final youX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.you)).dx;
     expect(nowX, youX);
+  });
+
+  testWidgets('segment YOU icon x-aligns with NOW and last-event icons', (
+    tester,
+  ) async {
+    const authorId = 'author1';
+    final beacon = Beacon.empty.copyWith(
+      id: 'b-align',
+      author: const Profile(id: authorId, displayName: 'Alice'),
+      createdAt: DateTime(2026, 6, 10, 9),
+      updatedAt: DateTime(2026, 6, 12, 9),
+    );
+    final last = MyWorkLastEvent(
+      event: BeaconActivityEvent(
+        id: 'e1',
+        beaconId: beacon.id,
+        visibility: 0,
+        type: BeaconActivityEventTypeBits.beaconPublished,
+        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
+        actorId: authorId,
+      ),
+      actor: const Profile(id: authorId, displayName: 'Alice'),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(360, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 360,
+                child: MyWorkCardMetadataRow(
+                  beacon: beacon,
+                  viewModel: _viewModel(beacon).copyWith(
+                    roomCurrentLine: 'Enough help — in motion',
+                    youResponsibility: CoordinationResponsibility(
+                      beaconId: beacon.id,
+                      promiseOpen: 1,
+                      promiseNew: 1,
+                    ),
+                    lastActivityEvent: last,
+                  ),
+                  currentUserId: 'viewer',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final nowX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dx;
+    final youX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.you)).dx;
+    final historyX =
+        tester.getTopLeft(find.byIcon(BeaconHudRowIcons.lastEvent)).dx;
+    expect(nowX, youX);
+    expect(nowX, historyX);
+  });
+
+  testWidgets('hidden YOU row omitted on compact width with empty obligation', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b-hidden-you',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(300, 800)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 300,
+                child: MyWorkCardMetadataRow(
+                  beacon: beacon,
+                  viewModel: _viewModel(beacon).copyWith(
+                    youResponsibility: CoordinationResponsibility(
+                      beaconId: beacon.id,
+                    ),
+                  ),
+                  currentUserId: 'viewer',
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(BeaconHudRowIcons.you), findsNothing);
+    expect(find.byType(BeaconHudMetadataTable), findsOneWidget);
   });
 
   testWidgets('metadata row uses wrap layout on very narrow width', (
@@ -259,7 +364,7 @@ void main() {
     expect(find.byIcon(BeaconHudRowIcons.now), findsNothing);
     expect(find.byIcon(BeaconHudRowIcons.you), findsNothing);
     expect(find.byIcon(BeaconHudRowIcons.lastEvent), findsNothing);
-    expect(find.byType(MyWorkLastEventRow), findsNothing);
+    expect(find.byType(MyWorkLastEventBody), findsNothing);
     expect(find.text('Pick up supplies at noon'), findsNothing);
   });
 }

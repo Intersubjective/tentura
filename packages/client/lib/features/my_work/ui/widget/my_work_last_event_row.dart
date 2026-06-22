@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -12,13 +11,19 @@ import 'package:tentura/ui/utils/beacon_activity_event_presenter.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 const _kMyWorkLastEventAvatarSize = 18.0;
 
-/// Last meaningful beacon event on My Work cards (icon + label + actor + ago).
-class MyWorkLastEventRow extends StatefulWidget {
-  const MyWorkLastEventRow({
+/// Whether the last-event metadata row should be emitted.
+bool myWorkLastEventMetadataVisible({
+  required Beacon beacon,
+  required MyWorkCardViewModel viewModel,
+}) =>
+    viewModel.lastActivityEvent != null || beaconHasRealUpdate(beacon);
+
+/// Last meaningful beacon event body for My Work metadata table rows.
+class MyWorkLastEventBody extends StatefulWidget {
+  const MyWorkLastEventBody({
     required this.beacon,
     required this.viewModel,
     required this.currentUserId,
@@ -30,10 +35,10 @@ class MyWorkLastEventRow extends StatefulWidget {
   final String currentUserId;
 
   @override
-  State<MyWorkLastEventRow> createState() => _MyWorkLastEventRowState();
+  State<MyWorkLastEventBody> createState() => _MyWorkLastEventBodyState();
 }
 
-class _MyWorkLastEventRowState extends State<MyWorkLastEventRow> {
+class _MyWorkLastEventBodyState extends State<MyWorkLastEventBody> {
   Timer? _timer;
 
   @override
@@ -59,29 +64,20 @@ class _MyWorkLastEventRowState extends State<MyWorkLastEventRow> {
     final last = widget.viewModel.lastActivityEvent;
 
     if (last == null) {
-      if (!beaconHasRealUpdate(widget.beacon)) {
-        return const SizedBox.shrink();
-      }
       final ago = compactRelativeTimeAgo(
         when: widget.beacon.updatedAt,
         now: now,
         l10n: l10n,
       );
-      return BeaconHudIconRow(
-        leadIcon: BeaconHudRowIcons.lastEvent,
-        semanticsLabel: l10n.beaconHudLastEventRowSemantics,
-        leadAlign: BeaconHudRowLeadAlign.center,
-        minRowHeight: kBeaconHudRowMinHeight,
-        body: Text(
-          l10n.myWorkUpdatedRelative(ago),
-          style: beaconCardUpdatedLineTextStyle(theme),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+      return Text(
+        l10n.myWorkUpdatedRelative(ago),
+        style: beaconCardUpdatedLineTextStyle(theme),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       );
     }
 
-    return _EventLine(
+    return _EventLineBody(
       l10n: l10n,
       theme: theme,
       scheme: scheme,
@@ -93,8 +89,8 @@ class _MyWorkLastEventRowState extends State<MyWorkLastEventRow> {
   }
 }
 
-class _EventLine extends StatelessWidget {
-  const _EventLine({
+class _EventLineBody extends StatelessWidget {
+  const _EventLineBody({
     required this.l10n,
     required this.theme,
     required this.scheme,
@@ -126,20 +122,14 @@ class _EventLine extends StatelessWidget {
     if (isSystemEvent) {
       return Semantics(
         label: l10n.myWorkLastEventSystemSemantics(label, ago),
-        child: BeaconHudIconRow(
-          leadIcon: BeaconHudRowIcons.lastEvent,
-          semanticsLabel: l10n.beaconHudLastEventRowSemantics,
-          leadAlign: BeaconHudRowLeadAlign.center,
-          minRowHeight: kBeaconHudRowMinHeight,
-          body: Text(
-            '$label, $ago',
-            style: theme.textTheme.bodySmall!.copyWith(
-              height: 1.15,
-              color: scheme.onSurfaceVariant,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        child: Text(
+          '$label, $ago',
+          style: theme.textTheme.bodySmall!.copyWith(
+            height: 1.15,
+            color: scheme.onSurfaceVariant,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       );
     }
@@ -170,49 +160,43 @@ class _EventLine extends StatelessWidget {
 
     return Semantics(
       label: semanticsLabel,
-      child: BeaconHudIconRow(
-        leadIcon: BeaconHudRowIcons.lastEvent,
-        semanticsLabel: l10n.beaconHudLastEventRowSemantics,
-        leadAlign: BeaconHudRowLeadAlign.center,
-        minRowHeight: kBeaconHudRowMinHeight,
-        body: Text.rich(
-          TextSpan(
-            style: bodyStyle,
-            children: [
-              TextSpan(text: label),
-              TextSpan(
-                text: ' ${l10n.myWorkLastEventBy} ',
-                style: bodyStyle.copyWith(
-                  color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
-                ),
+      child: Text.rich(
+        TextSpan(
+          style: bodyStyle,
+          children: [
+            TextSpan(text: label),
+            TextSpan(
+              text: ' ${l10n.myWorkLastEventBy} ',
+              style: bodyStyle.copyWith(
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
               ),
-              if (!isYou)
-                WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: ExcludeSemantics(
-                      child: TenturaAvatar.tiny(
-                        profile: actor,
-                        size: _kMyWorkLastEventAvatarSize,
-                        showAuthorStar: isAuthor,
-                      ),
+            ),
+            if (!isYou)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: ExcludeSemantics(
+                    child: TenturaAvatar.tiny(
+                      profile: actor,
+                      size: _kMyWorkLastEventAvatarSize,
+                      showAuthorStar: isAuthor,
                     ),
                   ),
                 ),
-              TextSpan(
-                text: actorLabel,
-                style: isYou ? youStyle : bodyStyle,
               ),
-              TextSpan(
-                text: ', $ago',
-                style: agoStyle,
-              ),
-            ],
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+            TextSpan(
+              text: actorLabel,
+              style: isYou ? youStyle : bodyStyle,
+            ),
+            TextSpan(
+              text: ', $ago',
+              style: agoStyle,
+            ),
+          ],
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
