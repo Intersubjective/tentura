@@ -60,16 +60,25 @@ class ProfileEditCubit extends Cubit<ProfileEditState> {
 
   //
   Future<void> pickImage(List<PlatformUiSettings> cropUiSettings) async {
+    if (!isClosed) {
+      emit(state.copyWith(status: const StateIsLoading()));
+    }
     try {
       final picked = await _imageRepository.pickAndCropImage(cropUiSettings);
-      if (picked != null && !isClosed) {
+      if (isClosed) {
+        return;
+      }
+      if (picked != null) {
         emit(
           state.copyWith(
             image: picked.toImageEntity(),
             canDropImage: true,
             willDropImage: false,
+            status: const StateIsSuccess(),
           ),
         );
+      } else {
+        emit(state.copyWith(status: const StateIsSuccess()));
       }
     } catch (e) {
       if (!isClosed) {
