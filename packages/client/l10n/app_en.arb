@@ -3733,6 +3733,7 @@
   },
   "beaconCreateFromAction": "Create from this beacon",
   "beaconLineageSuggestionsAction": "Lineage forward suggestions",
+  "beaconLineageSuggestionsLinkSemantics": "Preview forward suggestions from your similar beacons",
   "beaconLineageParentLinkLabel": "Created from a previous beacon",
   "beaconLineageParentLinkSemantics": "Open the previous beacon this was created from",
   "beaconLineageForwardSectionTitle": "From your previous similar beacons",

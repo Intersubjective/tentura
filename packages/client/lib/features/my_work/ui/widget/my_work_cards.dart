@@ -295,12 +295,6 @@ class _AuthoredActiveCard extends StatelessWidget {
                       );
                     }
                   : null,
-              onLineageSuggestions: beaconAllowsLineageOverflow(b)
-                  ? () => runBeaconLineageSuggestionsPreview(
-                      context,
-                      beaconId: b.id,
-                    )
-                  : null,
               onDelete: () async {
                 await Future<void>.delayed(Duration.zero);
                 if (!context.mounted) return;
@@ -388,12 +382,6 @@ class _HelpOfferedActiveCard extends StatelessWidget {
                         fork: () => forkBeaconViaRepository(b),
                       );
                     }
-                  : null,
-              onLineageSuggestions: beaconAllowsLineageOverflow(b)
-                  ? () => runBeaconLineageSuggestionsPreview(
-                      context,
-                      beaconId: b.id,
-                    )
                   : null,
               onComplaint: () =>
                   context.read<ScreenCubit>().showComplaint(b.id),
@@ -594,12 +582,6 @@ class _FinishedAuthoredCard extends StatelessWidget {
                       );
                     }
                   : null,
-              onLineageSuggestions: beaconAllowsLineageOverflow(b)
-                  ? () => runBeaconLineageSuggestionsPreview(
-                      context,
-                      beaconId: b.id,
-                    )
-                  : null,
               onDelete: () async {
                 await Future<void>.delayed(Duration.zero);
                 if (!context.mounted) return;
@@ -679,12 +661,6 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
                         fork: () => forkBeaconViaRepository(b),
                       );
                     }
-                  : null,
-              onLineageSuggestions: beaconAllowsLineageOverflow(b)
-                  ? () => runBeaconLineageSuggestionsPreview(
-                      context,
-                      beaconId: b.id,
-                    )
                   : null,
               onComplaint: () =>
                   context.read<ScreenCubit>().showComplaint(b.id),

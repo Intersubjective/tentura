@@ -41,7 +41,6 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.onWithdraw,
     this.onForward,
     this.onForwardsGraph,
-    this.onLineageSuggestions,
     this.onDraftReview,
     this.onWatch,
     this.onStopWatching,
@@ -71,7 +70,6 @@ class BeaconOverflowMenu extends StatelessWidget {
   final Future<void> Function()? onWithdraw;
   final VoidCallback? onForward;
   final VoidCallback? onForwardsGraph;
-  final VoidCallback? onLineageSuggestions;
   final VoidCallback? onDraftReview;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
@@ -196,13 +194,6 @@ class BeaconOverflowMenu extends StatelessWidget {
         l10n.forwardsGraphMenuTitle,
       );
     }
-    if (onLineageSuggestions != null) {
-      add(
-        'lineage_suggestions',
-        Icons.history,
-        l10n.beaconLineageSuggestionsAction,
-      );
-    }
     if (onDraftReview != null) {
       add(
         'draft_review',
@@ -274,7 +265,6 @@ class BeaconOverflowMenu extends StatelessWidget {
           'withdraw' => unawaited(_deferPopupAction(context, onWithdraw)),
           'forward' => onForward?.call(),
           'forwards_graph' => onForwardsGraph?.call(),
-          'lineage_suggestions' => _deferSync(context, onLineageSuggestions),
           'draft_review' => onDraftReview?.call(),
           'watch' => onWatch?.call(),
           'stop_watch' => onStopWatching?.call(),

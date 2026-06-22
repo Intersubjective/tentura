@@ -74,12 +74,6 @@ class BeaconMineControl extends StatelessWidget {
                   );
                 }
               : null,
-          onLineageSuggestions: beaconAllowsLineageOverflow(beacon)
-              ? () => runBeaconLineageSuggestionsPreview(
-                  context,
-                  beaconId: beacon.id,
-                )
-              : null,
           onDelete: () async {
             await Future<void>.delayed(Duration.zero);
             if (!context.mounted) return;
