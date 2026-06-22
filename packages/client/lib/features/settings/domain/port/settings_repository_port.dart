@@ -19,6 +19,10 @@ abstract class SettingsRepositoryPort {
 
   Future<void> setThemeMode(String value);
 
+  Future<String?> getLocalePreference();
+
+  Future<void> setLocalePreference(String value);
+
   Future<int?> getNewStuffInboxLastSeenMs(String accountId);
 
   Future<void> setNewStuffInboxLastSeenMs(String accountId, int epochMs);

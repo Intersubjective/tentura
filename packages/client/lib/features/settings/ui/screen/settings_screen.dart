@@ -7,6 +7,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/settings_cubit.dart';
+import '../widget/language_switch_button.dart';
 import '../widget/theme_switch_button.dart';
 
 @RoutePage()
@@ -76,6 +77,7 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: kSpacingMedium,
           children: [
+            const LanguageSwitchButton(),
             const ThemeSwitchButton(),
 
             // Seed (device-key accounts only; OAuth/session accounts have no local seed)

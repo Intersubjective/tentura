@@ -947,6 +947,22 @@
   "@dark": {
     "context": "ThemeSwitchButton"
   },
+  "labelLanguage": "Язык",
+  "@labelLanguage": {
+    "context": "LanguageSwitchButton"
+  },
+  "languageSystem": "Как в системе",
+  "@languageSystem": {
+    "context": "LanguageSwitchButton"
+  },
+  "english": "English",
+  "@english": {
+    "context": "LanguageSwitchButton"
+  },
+  "russian": "Русский",
+  "@russian": {
+    "context": "LanguageSwitchButton"
+  },
   "notImplementedYet": "Ещё не реализовано",
   "@notImplementedYet": {
     "context": "UpdatesScreen"

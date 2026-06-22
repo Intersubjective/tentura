@@ -33,6 +33,11 @@ class SettingsCubit extends Cubit<SettingsState> {
     final isIntroEnabled = await settingsRepository.getIsIntroEnabled() ?? true;
     final themeModeName =
         await settingsRepository.getThemeModeName() ?? 'system';
+    final localePreferenceRaw =
+        await settingsRepository.getLocalePreference();
+    final localePreference = SettingsState.normalizeLocalePreference(
+      localePreferenceRaw,
+    );
     return SettingsCubit(
       authCase: authCase,
       authCubit: authCubit,
@@ -41,6 +46,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       state: SettingsState(
         introEnabled: isIntroEnabled,
         visibleVersion: await platformRepository.getAppVersion(),
+        localePreference: localePreference,
         themeMode: ThemeMode.values.firstWhere(
           (themeMode) => themeMode.name == themeModeName,
           orElse: () => ThemeMode.system,
@@ -81,6 +87,20 @@ class SettingsCubit extends Cubit<SettingsState> {
     try {
       await _settingsRepository.setThemeMode(themeMode.name);
       emit(state.copyWith(themeMode: themeMode));
+    } catch (e) {
+      emit(state.copyWith(status: StateHasError(e)));
+    }
+  }
+
+  //
+  //
+  Future<void> setLocalePreference(String localePreference) async {
+    if (!kSupportedLocalePreferences.contains(localePreference)) {
+      return;
+    }
+    try {
+      await _settingsRepository.setLocalePreference(localePreference);
+      emit(state.copyWith(localePreference: localePreference));
     } catch (e) {
       emit(state.copyWith(status: StateHasError(e)));
     }
