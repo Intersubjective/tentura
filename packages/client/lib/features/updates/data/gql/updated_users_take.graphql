@@ -1,9 +1,0 @@
-# import '/data/gql/user_model.graphql'
-
-# mutation UpdatedUsersTake {
-#   updates(args: {prefix: "U"}) {
-#     user {
-#       ...UserModel
-#     }
-#   }
-# }

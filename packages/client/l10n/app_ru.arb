@@ -703,10 +703,6 @@
   "@network": {
     "context": "HomeScreen"
   },
-  "favorites": "Избранное",
-  "@favorites": {
-    "context": "HomeScreen"
-  },
   "friends": "Друзья",
   "@friends": {
     "context": "HomeScreen"
@@ -965,10 +961,6 @@
   },
   "notImplementedYet": "Ещё не реализовано",
   "@notImplementedYet": {
-    "context": "UpdatesScreen"
-  },
-  "markAllAsRead": "Отметить всё прочитанным",
-  "@markAllAsRead": {
     "context": "UpdatesScreen"
   },
   "scanQrCode": "Отсканируйте QR-код",
