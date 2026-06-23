@@ -1,5 +1,5 @@
 {
-  "resource_version": 51,
+  "resource_version": 52,
   "metadata": {
     "version": 3,
     "sources": [
@@ -204,6 +204,7 @@
                     "lat",
                     "long",
                     "need_summary",
+                    "needs",
                     "start_at",
                     "state",
                     "success_criteria",
