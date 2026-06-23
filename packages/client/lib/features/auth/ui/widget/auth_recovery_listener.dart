@@ -48,12 +48,12 @@ class AuthRecoveryListener extends StatelessWidget {
     if (pending == null) {
       return;
     }
-    final router = context.router;
+    final router = GetIt.I<RootRouter>();
     switch (pending) {
       case AuthRecoveryNavigation.nativeLogin:
         unawaited(router.replaceAll([const AuthLoginRoute()]));
       case AuthRecoveryNavigation.nativeBack:
-        context.back();
+        router.back();
       case AuthRecoveryNavigation.webInviteLanding:
       case AuthRecoveryNavigation.none:
         break;
@@ -70,7 +70,7 @@ class AuthRecoveryListener extends StatelessWidget {
     if (state.authSessionLossCount >= 2 && state.authRecoveryNeeded) {
       messenger.clearMaterialBanners();
       unawaited(
-        context.router.replaceAll([
+        GetIt.I<RootRouter>().replaceAll([
           RecoverRoute(
             
           ),
@@ -98,7 +98,7 @@ class AuthRecoveryListener extends StatelessWidget {
               onPressed: () {
                 messenger.clearMaterialBanners();
                 unawaited(
-                  context.router.push(
+                  GetIt.I<RootRouter>().push(
                     RecoverRoute(),
                   ),
                 );

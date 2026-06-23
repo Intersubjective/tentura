@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
@@ -16,31 +15,36 @@ import '../utils/ui_utils.dart';
 import 'ui_effect.dart';
 
 /// Executes a [UiEffect] using the given [BuildContext] (root adapter).
+///
+/// Navigation uses [RootRouter] from GetIt because [UiEffectHandler] lives in
+/// `MaterialApp.router`'s builder — above the AutoRouter subtree — so
+/// `context.router` is unavailable there.
 void dispatchUiEffect(
   BuildContext context,
   UiEffect effect, {
   String? localeName,
 }) {
   localeName ??= L10n.of(context)?.localeName;
+  final router = GetIt.I<RootRouter>();
   switch (effect) {
     case NavigatePush(:final path):
-      context.router.pushPath(
+      router.pushPath(
         path,
         includePrefixMatches: true,
         onFailure: GetIt.I<Logger>().fine,
       );
     case NavigateBack(:final result):
       if (result != null) {
-        unawaited(context.router.maybePop(result));
+        unawaited(router.maybePop(result));
       } else {
-        context.back();
+        router.back();
       }
     case NavigateReplace(:final target):
       switch (target) {
         case NavigateReplaceTarget.home:
-          unawaited(context.router.replaceAll([const HomeRoute()]));
+          unawaited(router.replaceAll([const HomeRoute()]));
         case NavigateReplaceTarget.authLogin:
-          unawaited(context.router.replaceAll([const AuthLoginRoute()]));
+          unawaited(router.replaceAll([const AuthLoginRoute()]));
       }
     case ShowMessage(:final message):
       switch (message) {
