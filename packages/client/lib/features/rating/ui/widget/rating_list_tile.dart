@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -43,6 +44,7 @@ class RatingListTile extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
+    final tt = context.tt;
     final l10n = L10n.of(context)!;
     final direct = profile.score;
     final reverse = profile.rScore;
@@ -62,9 +64,9 @@ class RatingListTile extends StatelessWidget {
         badgeBorder = colorScheme.primary.withValues(alpha: 4 / 10);
       case _ReciprocityClass.oneWayOut:
         badgeLabel = l10n.classOneWayOut;
-        badgeBg = const Color(0x1AFF9800); // amber 50 tint
-        badgeFg = const Color(0xFFE65100);
-        badgeBorder = const Color(0x4DFF9800);
+        badgeBg = tt.warn.withValues(alpha: 12 / 100);
+        badgeFg = tt.warn;
+        badgeBorder = tt.warn.withValues(alpha: 4 / 10);
       case _ReciprocityClass.oneWayIn:
         badgeLabel = l10n.classOneWayIn;
         badgeBg = colorScheme.secondary.withValues(alpha: 2 / 10);

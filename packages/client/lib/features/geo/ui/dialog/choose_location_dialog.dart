@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -43,12 +44,14 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => Dialog.fullscreen(
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Dialog.fullscreen(
     child: Scaffold(
       appBar: AppBar(
         centerTitle: true,
         forceMaterialTransparency: true,
-        foregroundColor: Colors.black,
+        foregroundColor: tt.text,
         title: Text(_l10n.tapToChooseLocation),
       ),
       extendBodyBehindAppBar: true,
@@ -94,12 +97,13 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
               markers: [
                 Marker(
                   point: widget.center!,
-                  child: const Icon(Icons.place, color: Colors.red),
+                  child: Icon(Icons.place, color: tt.danger),
                 ),
               ],
             ),
         ],
       ),
     ),
-  );
+    );
+  }
 }

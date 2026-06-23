@@ -11,6 +11,7 @@ import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/graph_cubit.dart';
+import '../../domain/entity/graph_edge_colors.dart';
 import '../widget/graph_body.dart';
 
 @RoutePage()
@@ -29,9 +30,10 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
         create: (_) => ScreenCubit.local(),
       ),
       BlocProvider(
-        create: (_) => GraphCubit(
+        create: (context) => GraphCubit(
           me: GetIt.I<ProfileCubit>().state.profile,
           focus: focus,
+          edgeColors: GraphEdgeColors.fromTokens(context.tt),
         ),
       ),
     ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_responsive_scope.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/graph/data/repository/forwards_graph_repository.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -12,6 +13,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/graph_cubit.dart';
+import '../../domain/entity/graph_edge_colors.dart';
 import '../widget/graph_body.dart';
 
 @RoutePage()
@@ -42,7 +44,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
             create: (_) => ScreenCubit.local(),
           ),
           BlocProvider(
-            create: (_) {
+            create: (context) {
               final me = GetIt.I<ProfileCubit>().state.profile;
               return GraphCubit(
                 me: me,
@@ -50,6 +52,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
                 graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
                 forwardsGraphBeaconId: focus,
                 helpOffererFocusUserId: helpOffererId,
+                edgeColors: GraphEdgeColors.fromTokens(context.tt),
               );
             },
           ),
