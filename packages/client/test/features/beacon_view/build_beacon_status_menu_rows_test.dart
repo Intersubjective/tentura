@@ -129,6 +129,18 @@ void main() {
     expect(_row(rows, BeaconStatusMenuRowId.closed).action, BeaconStatusMenuAction.closeNow);
   });
 
+  test('review open more help row enabled for author or steward', () {
+    final rows = buildBeaconStatusMenuRows(
+      _input(
+        beacon: _beacon(lifecycle: BeaconLifecycle.reviewOpen),
+        canSetCoordination: true,
+      ),
+    );
+    final moreHelp = _row(rows, BeaconStatusMenuRowId.moreHelp);
+    expect(moreHelp.isEnabled, isTrue);
+    expect(moreHelp.action, BeaconStatusMenuAction.setCoordinationMoreHelp);
+  });
+
   test('closed terminal disables all rows', () {
     final rows = buildBeaconStatusMenuRows(
       _input(beacon: _beacon(lifecycle: BeaconLifecycle.closed)),

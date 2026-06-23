@@ -172,7 +172,16 @@ class PersonCapabilityEventRepository
         INSERT INTO public.person_capability_event
           (id, subject_user_id, observer_user_id, tag_slug, source_type,
            beacon_id, visibility)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        SELECT $1, $2, $3, $4, $5, $6, $7
+        WHERE NOT EXISTS (
+          SELECT 1 FROM public.person_capability_event existing
+          WHERE existing.observer_user_id = $3
+            AND existing.subject_user_id = $2
+            AND existing.tag_slug = $4
+            AND existing.source_type = $5
+            AND existing.beacon_id = $6
+            AND existing.deleted_at IS NULL
+        )
         ''',
         [
           generateId('CE'),

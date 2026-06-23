@@ -4,6 +4,14 @@ import 'package:meta/meta.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
+import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
@@ -117,6 +125,71 @@ class _NoopCapabilityEventRepo implements PersonCapabilityEventRepositoryPort {
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
 
+class _LifecycleTransitionCall {
+  const _LifecycleTransitionCall({
+    required this.beaconId,
+    required this.fromState,
+    required this.toState,
+    required this.reason,
+    this.actorId,
+  });
+
+  final String beaconId;
+  final int fromState;
+  final int toState;
+  final String reason;
+  final String? actorId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _LifecycleTransitionCall &&
+      other.beaconId == beaconId &&
+      other.fromState == fromState &&
+      other.toState == toState &&
+      other.reason == reason &&
+      other.actorId == actorId;
+
+  @override
+  int get hashCode => Object.hash(beaconId, fromState, toState, reason, actorId);
+}
+
+class _TransactionStubBeaconRepo implements BeaconRepositoryPort {
+  _TransactionStubBeaconRepo(this.lockedBeacon);
+
+  final BeaconEntity lockedBeacon;
+  final lifecycleTransitions = <_LifecycleTransitionCall>[];
+
+  @override
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  }) =>
+      fn(lockedBeacon);
+
+  @override
+  Future<void> recordBeaconLifecycleTransition({
+    required String beaconId,
+    required int fromState,
+    required int toState,
+    required String reason,
+    String? actorId,
+  }) async {
+    lifecycleTransitions.add(
+      _LifecycleTransitionCall(
+        beaconId: beaconId,
+        fromState: fromState,
+        toState: toState,
+        reason: reason,
+        actorId: actorId,
+      ),
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 @immutable
 class _SetStatusCall {
   const _SetStatusCall(this.beaconId, this.userId, this.status);
@@ -146,6 +219,9 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   List<BeaconEvaluationVisibilityRecord> visibilityResult = [];
   List<BeaconEvaluationRecord> listEvaluationsForEvaluatorResult = [];
   final List<_SetStatusCall> setReviewUserStatusCalls = [];
+  int downgradeSubmittedCalls = 0;
+  int deleteScaffoldingCalls = 0;
+  int insertReviewWindowCalls = 0;
 
   @override
   Future<void> closeExpiredWindows() async {}
@@ -206,7 +282,9 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required DateTime openedAt,
     required DateTime closesAt,
-  }) async {}
+  }) async {
+    insertReviewWindowCalls++;
+  }
 
   @override
   Future<void> insertVisibility({
@@ -265,7 +343,15 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
       {};
 
   @override
-  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {}
+  Future<void> downgradeSubmittedReviewsToDraft(String beaconId) async {
+    downgradeSubmittedCalls++;
+  }
+
+  @override
+  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {
+    deleteScaffoldingCalls++;
+    reviewWindowResult = null;
+  }
 
   @override
   Future<DateTime> extendReviewWindow(String beaconId) async =>
@@ -610,6 +696,241 @@ void main() {
       );
     });
   });
+
+  group('reopenFromReview', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          state: 5,
+        ),
+      );
+      final helpOfferRepo = EmptyGraphHelpOfferRepository();
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final userRepo = StubUserRepository('User');
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        helpOfferRepo,
+        EmptyGraphCoordinationRepository(),
+        forwardRepo,
+        userRepo,
+      );
+      evaluationCase = EvaluationCase(
+        beaconRepo,
+        forwardRepo,
+        evalRepo,
+        userRepo,
+        MockBeaconRoomPushService(),
+        graphBuilder,
+        EvaluationDraftPurger(evalRepo),
+        CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        env: Env(environment: Environment.test),
+        logger: Logger('EvaluationCaseTest'),
+      );
+    });
+
+    test('downgrades submitted reviews and clears scaffolding only', () async {
+      evalRepo.reviewWindowResult = openWindow();
+
+      final result = await evaluationCase.reopenFromReview(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(result['state'], 0);
+      expect(evalRepo.downgradeSubmittedCalls, 1);
+      expect(evalRepo.deleteScaffoldingCalls, 1);
+      expect(beaconRepo.lifecycleTransitions, [
+        _LifecycleTransitionCall(
+          beaconId: beaconId,
+          fromState: 5,
+          toState: 0,
+          reason: BeaconLifecycleChangeReason.reopenedFromReview,
+          actorId: userId,
+        ),
+      ]);
+    });
+  });
+
+  group('beaconClose review cycle reset', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          state: 0,
+        ),
+      );
+      final now = DateTime.utc(2025);
+      final helpOfferRepo = _SingleCommitterHelpOfferRepo(
+        HelpOfferEntity(
+          beaconId: beaconId,
+          userId: 'helper1',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      final coordinationRepo = _SingleCommitterCoordinationRepo(
+        CoordinationResponseType.useful.smallintValue,
+      );
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final userRepo = StubUserRepository('User');
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        helpOfferRepo,
+        coordinationRepo,
+        forwardRepo,
+        userRepo,
+      );
+      evaluationCase = EvaluationCase(
+        beaconRepo,
+        forwardRepo,
+        evalRepo,
+        userRepo,
+        _NoopBeaconRoomPushService(),
+        graphBuilder,
+        EvaluationDraftPurger(evalRepo),
+        CapabilityCase(
+          _NoopCapabilityEventRepo(),
+          env: Env(environment: Environment.test),
+          logger: Logger('EvaluationCaseTest'),
+        ),
+        env: Env(environment: Environment.test),
+        logger: Logger('EvaluationCaseTest'),
+      );
+    });
+
+    test('resets stale scaffolding instead of throwing review exists', () async {
+      evalRepo.reviewWindowResult = openWindow();
+
+      final result = await evaluationCase.beaconClose(
+        beaconId: beaconId,
+        userId: userId,
+        expectedRequiresReviewWindow: true,
+      );
+
+      expect(result['state'], 5);
+      expect(evalRepo.downgradeSubmittedCalls, 1);
+      expect(evalRepo.deleteScaffoldingCalls, 1);
+      expect(evalRepo.insertReviewWindowCalls, 1);
+    });
+  });
 }
 
 class MockBeaconRoomPushService extends Mock implements BeaconRoomPushService {}
+
+class _NoopBeaconRoomPushService extends Fake implements BeaconRoomPushService {
+  @override
+  Future<void> notifyReviewOpened({
+    required String beaconId,
+    required String beaconTitle,
+    required Set<String> recipientUserIds,
+    required String actorUserId,
+  }) async {}
+}
+
+final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
+  _SingleCommitterHelpOfferRepo(this._offer);
+
+  final HelpOfferEntity _offer;
+
+  @override
+  Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async =>
+      [_offer];
+
+  @override
+  Future<void> upsert({
+    required String beaconId,
+    required String userId,
+    String message = '',
+    List<String>? helpTypes,
+    int status = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> withdraw({
+    required String beaconId,
+    required String userId,
+    required String withdrawReason,
+    String message = '',
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<HelpOfferEntity>> fetchByUserId(String userId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<bool> hasActiveHelpOffer({
+    required String beaconId,
+    required String userId,
+  }) =>
+      throw UnimplementedError();
+}
+
+final class _SingleCommitterCoordinationRepo implements CoordinationRepositoryPort {
+  _SingleCommitterCoordinationRepo(this._responseType);
+
+  final int _responseType;
+
+  @override
+  Future<Map<String, int>> coordinationResponseTypeByOfferUserId(
+    String beaconId,
+  ) async =>
+      {'helper1': _responseType};
+
+  @override
+  Future<void> deleteForCommit({
+    required String beaconId,
+    required String userId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> upsertResponse({
+    required String beaconId,
+    required String offerUserId,
+    required String authorUserId,
+    required int responseType,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<({int coordinationStatus, DateTime? coordinationStatusUpdatedAt})>
+      beaconCoordinationSnapshot(String beaconId) async =>
+          (coordinationStatus: 0, coordinationStatusUpdatedAt: null);
+
+  @override
+  Future<void> setBeaconCoordinationFields({
+    required String beaconId,
+    required int coordinationStatus,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
+    String beaconId, {
+    required String viewerId,
+  }) =>
+      throw UnimplementedError();
+}

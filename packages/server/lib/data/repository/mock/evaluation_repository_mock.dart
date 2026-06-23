@@ -95,6 +95,9 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
       {};
 
   @override
+  Future<void> downgradeSubmittedReviewsToDraft(String beaconId) async {}
+
+  @override
   Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {}
 
   @override
