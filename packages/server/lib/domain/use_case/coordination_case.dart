@@ -6,11 +6,12 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/coordination/beacon_coordination_status.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/gql_public/coordination_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
-import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/domain/port/beacon_room_coordination_port.dart';
 
 import '_use_case_base.dart';
 
@@ -29,7 +30,7 @@ final class CoordinationCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final CoordinationRepositoryPort _coordinationRepository;
-  final BeaconRoomRepository _beaconRoomRepository;
+  final BeaconRoomCoordinationPort _beaconRoomRepository;
   final EvaluationRepositoryPort _evaluationRepository;
 
   Future<void> _ensureAuthorOrSteward({
@@ -49,7 +50,7 @@ final class CoordinationCase extends UseCaseBase {
     }
   }
 
-  Future<void> _ensureAuthor({
+  Future<BeaconEntity> _ensureAuthor({
     required String beaconId,
     required String userId,
   }) async {
@@ -59,6 +60,7 @@ final class CoordinationCase extends UseCaseBase {
         coordinationCode: HelpOfferCoordinationExceptionCode.notBeaconAuthor,
       );
     }
+    return beacon;
   }
 
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination({
@@ -77,7 +79,15 @@ final class CoordinationCase extends UseCaseBase {
     required bool inviteToRoom,
     required bool removeFromRoom,
   }) async {
-    await _ensureAuthor(beaconId: beaconId, userId: authorUserId);
+    final beacon = await _ensureAuthor(
+      beaconId: beaconId,
+      userId: authorUserId,
+    );
+    if (beacon.state != 0) {
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,
+      );
+    }
     if (CoordinationResponseType.tryFromInt(responseType) == null) {
       throw HelpOfferCoordinationException(
         coordinationCode: HelpOfferCoordinationExceptionCode.invalidResponseType,

@@ -98,7 +98,8 @@ class BeaconPeopleTabBody extends StatelessWidget {
         isAuthorView: state.isAuthorOrSteward,
         participant: row.participant,
         showAuthorStar: row.isAuthor,
-        onAuthorTapCoordination: !row.isAuthor &&
+        onAuthorTapCoordination: beacon.lifecycle == BeaconLifecycle.open &&
+                !row.isAuthor &&
                 state.isAuthorOrSteward &&
                 !c.isWithdrawn &&
                 state.helpOffers.any(

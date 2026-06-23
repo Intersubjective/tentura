@@ -5,8 +5,10 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/coordination/beacon_coordination_status.dart';
+import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -253,6 +255,7 @@ void main() {
   const authorId = 'Uauth';
   const stewardId = 'Usteward';
   const outsiderId = 'Uother';
+  const offerUserId = 'Uhelper';
 
   final now = DateTime.utc(2025);
 
@@ -281,7 +284,7 @@ void main() {
   late _TransactionBeaconRepo beaconRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockCoordinationRepositoryPort coordinationRepo;
-  late MockBeaconRoomRepository roomRepo;
+  late MockBeaconRoomCoordinationPort roomRepo;
   late _TrackingEvaluationRepository evalRepo;
   late CoordinationCase case_;
 
@@ -289,7 +292,7 @@ void main() {
     beaconRepo = _TransactionBeaconRepo(beacon(state: 0));
     helpOfferRepo = MockHelpOfferRepositoryPort();
     coordinationRepo = MockCoordinationRepositoryPort();
-    roomRepo = MockBeaconRoomRepository();
+    roomRepo = MockBeaconRoomCoordinationPort();
     evalRepo = _TrackingEvaluationRepository();
     case_ = CoordinationCase(
       beaconRepo,
@@ -427,6 +430,129 @@ void main() {
           ),
         ),
       );
+    });
+  });
+
+  group('setCoordinationResponse', () {
+    HelpOfferEntity activeOffer() => HelpOfferEntity(
+          beaconId: beaconId,
+          userId: offerUserId,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+    void stubOpenCoordinationMutation() {
+      when(
+        helpOfferRepo.fetchByBeaconId(beaconId),
+      ).thenAnswer((_) async => [activeOffer()]);
+      when(
+        coordinationRepo.upsertResponse(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          authorUserId: anyNamed('authorUserId'),
+          responseType: anyNamed('responseType'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        coordinationRepo.beaconCoordinationSnapshot(beaconId),
+      ).thenAnswer(
+        (_) async => (
+          coordinationStatus:
+              BeaconCoordinationStatus.enoughHelpOffered.smallintValue,
+          coordinationStatusUpdatedAt: now,
+        ),
+      );
+    }
+
+    test('rejects wrapping up beacon', () async {
+      beaconRepo.locked = beacon(state: 5);
+
+      await expectLater(
+        case_.setCoordinationResponse(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          authorUserId: authorId,
+          responseType: CoordinationResponseType.useful.smallintValue,
+          inviteToRoom: false,
+          removeFromRoom: false,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const HelpOfferCoordinationExceptionCodes(
+              HelpOfferCoordinationExceptionCode.beaconNotOpen,
+            ).codeNumber,
+          ),
+        ),
+      );
+      verifyNever(
+        coordinationRepo.upsertResponse(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          authorUserId: anyNamed('authorUserId'),
+          responseType: anyNamed('responseType'),
+        ),
+      );
+    });
+
+    test('rejects closed beacon', () async {
+      beaconRepo.locked = beacon(state: 6);
+
+      await expectLater(
+        case_.setCoordinationResponse(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          authorUserId: authorId,
+          responseType: CoordinationResponseType.useful.smallintValue,
+          inviteToRoom: false,
+          removeFromRoom: false,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const HelpOfferCoordinationExceptionCodes(
+              HelpOfferCoordinationExceptionCode.beaconNotOpen,
+            ).codeNumber,
+          ),
+        ),
+      );
+      verifyNever(
+        coordinationRepo.upsertResponse(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          authorUserId: anyNamed('authorUserId'),
+          responseType: anyNamed('responseType'),
+        ),
+      );
+    });
+
+    test('succeeds on open beacon', () async {
+      beaconRepo.locked = beacon(state: 0);
+      stubOpenCoordinationMutation();
+
+      final result = await case_.setCoordinationResponse(
+        beaconId: beaconId,
+        offerUserId: offerUserId,
+        authorUserId: authorId,
+        responseType: CoordinationResponseType.useful.smallintValue,
+        inviteToRoom: false,
+        removeFromRoom: false,
+      );
+
+      expect(
+        result.coordinationStatus,
+        BeaconCoordinationStatus.enoughHelpOffered.smallintValue,
+      );
+      verify(
+        coordinationRepo.upsertResponse(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          authorUserId: authorId,
+          responseType: CoordinationResponseType.useful.smallintValue,
+        ),
+      ).called(1);
     });
   });
 }

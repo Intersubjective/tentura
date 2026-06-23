@@ -10,13 +10,15 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
 import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
+import 'package:tentura_server/domain/port/beacon_room_coordination_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/tentura_db.dart';
 
 /// Beacon Room messages + participants — Postgres via Drift.
-@lazySingleton
-class BeaconRoomRepository {
+@LazySingleton(as: BeaconRoomCoordinationPort)
+@LazySingleton()
+class BeaconRoomRepository implements BeaconRoomCoordinationPort {
   const BeaconRoomRepository(this._db);
 
   final TenturaDb _db;
@@ -789,6 +791,7 @@ class BeaconRoomRepository {
       });
 
   /// Author coordination: admit helper into beacon Room (creates participant row when absent).
+  @override
   Future<void> inviteOfferUserToBeaconRoom({
     required String beaconId,
     required String offerUserId,
@@ -829,6 +832,7 @@ class BeaconRoomRepository {
   }
 
   /// Author coordination: revoke Room access for this helper (`room_access = none`).
+  @override
   Future<void> revokeOfferUserBeaconRoomAccess({
     required String beaconId,
     required String offerUserId,
@@ -920,6 +924,7 @@ class BeaconRoomRepository {
     return b?.userId == userId;
   }
 
+  @override
   Future<bool> isBeaconSteward({
     required String beaconId,
     required String userId,

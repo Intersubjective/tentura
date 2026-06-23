@@ -11,7 +11,7 @@ import 'package:tentura_server/data/database/tentura_db.dart' as _i5;
 import 'package:tentura_server/data/repository/beacon_room_repository.dart'
     as _i16;
 import 'package:tentura_server/data/service/beacon_room_push_service.dart'
-    as _i18;
+    as _i19;
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart'
     as _i17;
 import 'package:tentura_server/domain/entity/beacon_entity.dart' as _i2;
@@ -21,6 +21,8 @@ import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordina
 import 'package:tentura_server/domain/entity/help_offer_entity.dart' as _i9;
 import 'package:tentura_server/domain/entity/inbox_item_entity.dart' as _i15;
 import 'package:tentura_server/domain/port/beacon_repository_port.dart' as _i6;
+import 'package:tentura_server/domain/port/beacon_room_coordination_port.dart'
+    as _i18;
 import 'package:tentura_server/domain/port/coordination_repository_port.dart'
     as _i10;
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart'
@@ -1890,11 +1892,69 @@ class MockBeaconRoomRepository extends _i1.Mock
           as _i3.Future<void>);
 }
 
+/// A class which mocks [BeaconRoomCoordinationPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockBeaconRoomCoordinationPort extends _i1.Mock
+    implements _i18.BeaconRoomCoordinationPort {
+  MockBeaconRoomCoordinationPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Future<bool> isBeaconSteward({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#isBeaconSteward, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<void> inviteOfferUserToBeaconRoom({
+    required String? beaconId,
+    required String? offerUserId,
+    required String? authorUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#inviteOfferUserToBeaconRoom, [], {
+              #beaconId: beaconId,
+              #offerUserId: offerUserId,
+              #authorUserId: authorUserId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> revokeOfferUserBeaconRoomAccess({
+    required String? beaconId,
+    required String? offerUserId,
+    required String? authorUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#revokeOfferUserBeaconRoomAccess, [], {
+              #beaconId: beaconId,
+              #offerUserId: offerUserId,
+              #authorUserId: authorUserId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+}
+
 /// A class which mocks [BeaconRoomPushService].
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockBeaconRoomPushService extends _i1.Mock
-    implements _i18.BeaconRoomPushService {
+    implements _i19.BeaconRoomPushService {
   MockBeaconRoomPushService() {
     _i1.throwOnMissingStub(this);
   }
