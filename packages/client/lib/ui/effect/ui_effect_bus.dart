@@ -11,6 +11,7 @@ class UiEffectBus implements UiEffectPort {
 
   final _controller = StreamController<UiEffect>.broadcast();
 
+  @override
   Stream<UiEffect> get effects => _controller.stream;
 
   @override

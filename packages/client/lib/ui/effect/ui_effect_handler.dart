@@ -1,23 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
-import 'package:injectable/injectable.dart';
-
-import 'package:tentura/app/router/root_router.dart';
 
 import 'ui_effect.dart';
-import 'ui_effect_bus.dart';
 import 'ui_effect_dispatcher.dart';
+import 'ui_effect_port.dart';
 
-/// Root-level adapter: subscribes to [UiEffectBus] and executes side effects once.
+/// Root-level adapter: subscribes to [UiEffectPort] and executes side effects once.
 class UiEffectHandler extends StatefulWidget {
   const UiEffectHandler({
     required this.child,
+    required this.effects,
     super.key,
   });
 
   final Widget child;
+  final UiEffectPort effects;
 
   @override
   State<UiEffectHandler> createState() => _UiEffectHandlerState();
@@ -29,8 +27,7 @@ class _UiEffectHandlerState extends State<UiEffectHandler> {
   @override
   void initState() {
     super.initState();
-    final bus = GetIt.I<UiEffectBus>();
-    _subscription = bus.effects.listen(_onEffect);
+    _subscription = widget.effects.effects.listen(_onEffect);
   }
 
   @override
