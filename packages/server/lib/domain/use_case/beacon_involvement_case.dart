@@ -9,6 +9,43 @@ import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 
 import '_use_case_base.dart';
 
+/// Per-recipient forward record from the current user's perspective
+/// (GraphQL `MyForwardRecipient`).
+final class MyForwardRecipientResult {
+  const MyForwardRecipientResult({
+    required this.edgeId,
+    required this.recipientId,
+    required this.note,
+    this.readAt,
+  });
+
+  final String edgeId;
+  final String recipientId;
+  final String note;
+  final String? readAt;
+}
+
+/// V2 forward-screen involvement id sets (GraphQL `BeaconInvolvement`).
+final class BeaconInvolvementResult {
+  const BeaconInvolvementResult({
+    required this.forwardedToIds,
+    required this.helpOfferedIds,
+    required this.withdrawnIds,
+    required this.rejectedIds,
+    required this.watchingIds,
+    required this.onwardForwarderIds,
+    required this.myForwardedRecipients,
+  });
+
+  final List<String> forwardedToIds;
+  final List<String> helpOfferedIds;
+  final List<String> withdrawnIds;
+  final List<String> rejectedIds;
+  final List<String> watchingIds;
+  final List<String> onwardForwarderIds;
+  final List<MyForwardRecipientResult> myForwardedRecipients;
+}
+
 /// Aggregates forward / help-offer / inbox-rejection data for a beacon.
 ///
 /// Used by the V2 `beaconInvolvement` query so the client does not rely on
@@ -28,13 +65,9 @@ final class BeaconInvolvementCase extends UseCaseBase {
   final HelpOfferRepositoryPort _helpOfferRepository;
   final InboxRepositoryPort _inboxRepository;
 
-  /// Returns a map matching `BeaconInvolvement` GraphQL field names.
-  ///
   /// [currentUserId] identifies the requesting user so the response can
   /// distinguish "forwarded by me" from "forwarded by others".
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> asMap({
+  Future<BeaconInvolvementResult> asMap({
     required String beaconId,
     required String currentUserId,
   }) async {
@@ -64,16 +97,18 @@ final class BeaconInvolvementCase extends UseCaseBase {
         .toSet()
         .toList();
 
-    final myForwardedRecipients = <Map<String, dynamic>>[];
+    final myForwardedRecipients = <MyForwardRecipientResult>[];
     final edgesToMarkRead = <ForwardEdgeEntity>[];
     for (final edge in edges) {
       if (edge.senderId == currentUserId) {
-        myForwardedRecipients.add({
-          'edgeId': edge.id,
-          'recipientId': edge.recipientId,
-          'note': edge.note,
-          'readAt': edge.recipientReadAt?.toIso8601String(),
-        });
+        myForwardedRecipients.add(
+          MyForwardRecipientResult(
+            edgeId: edge.id,
+            recipientId: edge.recipientId,
+            note: edge.note,
+            readAt: edge.recipientReadAt?.toIso8601String(),
+          ),
+        );
       }
       if (edge.recipientId == currentUserId && edge.recipientReadAt == null) {
         edgesToMarkRead.add(edge);
@@ -85,14 +120,14 @@ final class BeaconInvolvementCase extends UseCaseBase {
       );
     }
 
-    return {
-      'forwardedToIds': forwardedToIds,
-      'helpOfferedIds': helpOfferedIds,
-      'withdrawnIds': withdrawnIds,
-      'rejectedIds': rejectedIds,
-      'watchingIds': watchingIds,
-      'onwardForwarderIds': onwardForwarderIds,
-      'myForwardedRecipients': myForwardedRecipients,
-    };
+    return BeaconInvolvementResult(
+      forwardedToIds: forwardedToIds,
+      helpOfferedIds: helpOfferedIds,
+      withdrawnIds: withdrawnIds,
+      rejectedIds: rejectedIds,
+      watchingIds: watchingIds,
+      onwardForwarderIds: onwardForwarderIds,
+      myForwardedRecipients: myForwardedRecipients,
+    );
   }
 }
