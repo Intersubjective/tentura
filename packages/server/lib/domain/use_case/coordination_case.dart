@@ -13,6 +13,19 @@ import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 
 import '_use_case_base.dart';
 
+/// Domain result for `setCoordinationResponse` (GraphQL `CoordinationStatusResult`).
+final class CoordinationStatusResult {
+  const CoordinationStatusResult({
+    required this.beaconId,
+    required this.coordinationStatus,
+    this.coordinationStatusUpdatedAt,
+  });
+
+  final String beaconId;
+  final int coordinationStatus;
+  final String? coordinationStatusUpdatedAt;
+}
+
 @Singleton(order: 2)
 final class CoordinationCase extends UseCaseBase {
   CoordinationCase(
@@ -68,9 +81,7 @@ final class CoordinationCase extends UseCaseBase {
         viewerId: viewerId,
       );
 
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> setCoordinationResponse({
+  Future<CoordinationStatusResult> setCoordinationResponse({
     required String beaconId,
     required String offerUserId,
     required String authorUserId,
@@ -112,12 +123,12 @@ final class CoordinationCase extends UseCaseBase {
     final snap = await _coordinationRepository.beaconCoordinationSnapshot(
       beaconId,
     );
-    return {
-      'beaconId': beaconId,
-      'coordinationStatus': snap.coordinationStatus,
-      'coordinationStatusUpdatedAt':
+    return CoordinationStatusResult(
+      beaconId: beaconId,
+      coordinationStatus: snap.coordinationStatus,
+      coordinationStatusUpdatedAt:
           snap.coordinationStatusUpdatedAt?.toUtc().toIso8601String(),
-    };
+    );
   }
 
   Future<bool> setBeaconCoordinationStatus({
