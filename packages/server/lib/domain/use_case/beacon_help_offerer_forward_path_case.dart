@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -8,6 +9,7 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 import '_use_case_base.dart';
+import 'beacon_forward_graph_case.dart';
 
 /// Builds the edge set for the V2 `beaconHelpOffererForwardPath` query.
 ///
@@ -43,9 +45,7 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
 
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> asMap({
+  Future<ForwardGraphResult> asMap({
     required String beaconId,
     required String helpOffererId,
     required String currentUserId,
@@ -93,22 +93,21 @@ final class BeaconHelpOffererForwardPathCase extends UseCaseBase {
       viewerId: currentUserId,
     );
 
-    return {
-      'beaconId': beaconId,
-      'authorId': authorId,
-      'viewerId': currentUserId,
-      'helpOffererIds': <String>[helpOffererId],
-      'edges': [
-        for (final e in chainEdges)
-          {
-            'id': e.id,
-            'beaconId': e.beaconId,
-            'senderId': e.senderId,
-            'recipientId': e.recipientId,
-            'parentEdgeId': e.parentEdgeId,
-            'batchId': e.batchId,
-          },
-      ],
-    };
+    return ForwardGraphResult(
+      beaconId: beaconId,
+      authorId: authorId,
+      viewerId: currentUserId,
+      helpOffererIds: [helpOffererId],
+      edges: chainEdges.map(_edgeToResult).toList(),
+    );
   }
 }
+
+ForwardGraphEdgeResult _edgeToResult(ForwardEdgeEntity e) => ForwardGraphEdgeResult(
+      id: e.id,
+      beaconId: e.beaconId,
+      senderId: e.senderId,
+      recipientId: e.recipientId,
+      parentEdgeId: e.parentEdgeId,
+      batchId: e.batchId,
+    );

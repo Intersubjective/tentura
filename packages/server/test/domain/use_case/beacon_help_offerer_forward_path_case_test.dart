@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/use_case/beacon_forward_graph_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_help_offerer_forward_path_case.dart';
 
 import 'forward_case_mocks.mocks.dart';
@@ -116,10 +117,10 @@ void main() {
         helpOffererId: helpOffererId,
         currentUserId: authorId,
       );
-      expect(res['viewerId'], authorId);
-      expect(res['authorId'], authorId);
-      expect(res['beaconId'], beaconId);
-      expect(res['helpOffererIds'], [helpOffererId]);
+      expect(res.viewerId, authorId);
+      expect(res.authorId, authorId);
+      expect(res.beaconId, beaconId);
+      expect(res.helpOffererIds, [helpOffererId]);
       verify(
         forwardEdgeRepo.fetchHelpOffererPathChain(
           beaconId: beaconId,
@@ -137,8 +138,8 @@ void main() {
           helpOffererId: helpOffererId,
           currentUserId: viewerInvolvedId,
         );
-        expect(res['viewerId'], viewerInvolvedId);
-        expect(res['helpOffererIds'], [helpOffererId]);
+        expect(res.viewerId, viewerInvolvedId);
+        expect(res.helpOffererIds, [helpOffererId]);
         verify(
           forwardEdgeRepo.fetchHelpOffererPathChain(
             beaconId: beaconId,
@@ -157,8 +158,8 @@ void main() {
           helpOffererId: helpOffererId,
           currentUserId: helpOffererId,
         );
-        expect(res['viewerId'], helpOffererId);
-        expect(res['helpOffererIds'], [helpOffererId]);
+        expect(res.viewerId, helpOffererId);
+        expect(res.helpOffererIds, [helpOffererId]);
         verify(
           forwardEdgeRepo.fetchHelpOffererPathChain(
             beaconId: beaconId,
@@ -177,10 +178,10 @@ void main() {
         helpOffererId: helpOffererId,
         currentUserId: authorId,
       );
-      final edges = res['edges']! as List<Map<String, dynamic>>;
+      final edges = res.edges;
       expect(edges.length, 3);
       expect(
-        edges.map((e) => e['id']).toSet(),
+        edges.map((e) => e.id).toSet(),
         {
           edgeAuthorToHop.id,
           edgeHopToHelpOfferer.id,
@@ -189,10 +190,10 @@ void main() {
       );
       // Ancestor relationship preserved (multi-route: F2 -> F1, F3 root).
       final byId = {
-        for (final e in edges) e['id'] as String: e,
+        for (final e in edges) e.id: e,
       };
-      expect(byId[edgeHopToHelpOfferer.id]!['parentEdgeId'], edgeAuthorToHop.id);
-      expect(byId[edgeAuthorDirectToHelpOfferer.id]!['parentEdgeId'], isNull);
+      expect(byId[edgeHopToHelpOfferer.id]!.parentEdgeId, edgeAuthorToHop.id);
+      expect(byId[edgeAuthorDirectToHelpOfferer.id]!.parentEdgeId, isNull);
     });
   });
 
@@ -236,7 +237,7 @@ void main() {
           helpOffererId: helpOffererId,
           currentUserId: otherHelpOffererId,
         );
-        expect(res['viewerId'], otherHelpOffererId);
+        expect(res.viewerId, otherHelpOffererId);
       },
     );
   });
