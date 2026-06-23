@@ -8,6 +8,7 @@ import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widgets/app_choice_chip_style.dart';
 
 import '../widget/beacon_color_selector.dart';
+import '../widget/beacon_icon_filter_chip.dart';
 
 /// Result of [BeaconIconPickerScreen.show]; `iconCode == null` means cleared identity.
 typedef BeaconIconPickerResult = ({
@@ -42,8 +43,8 @@ typedef _BeaconIconPickerSelection = ({
   final argb = selectionBackgroundArgb!;
   final bg = Color(argb);
   final fg = bg.computeLuminance() > 0.5
-      ? Colors.black.withValues(alpha: 0.87)
-      : Colors.white;
+      ? scheme.onSurface
+      : scheme.onPrimary;
   return (bg: bg, fg: fg);
 }
 
@@ -293,17 +294,10 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                   spacing: tt.rowGap,
                   runSpacing: tt.rowGap,
                   children: [
-                    ChoiceChip(
-                      showCheckmark: false,
-                      color: chipStyle.background,
-                      labelStyle: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: chipStyle.labelForeground,
-                      ),
-                      checkmarkColor: chipStyle.checkmarkColor,
-                      side: chipStyle.outline,
+                    BeaconIconFilterChip(
+                      chipStyle: chipStyle,
+                      label: l10n.beaconSymbolCategoryAll,
                       selected: cat == 0,
-                      label: Text(l10n.beaconSymbolCategoryAll),
                       onSelected: (_) => _categoryNotifier.value = 0,
                     ),
                     for (
@@ -311,22 +305,13 @@ class _BeaconIconPickerScreenState extends State<BeaconIconPickerScreen> {
                       i < BeaconIdentityCategory.values.length;
                       i++
                     )
-                      ChoiceChip(
-                        showCheckmark: false,
-                        color: chipStyle.background,
-                        labelStyle: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: chipStyle.labelForeground,
+                      BeaconIconFilterChip(
+                        chipStyle: chipStyle,
+                        label: _categoryLabel(
+                          l10n,
+                          BeaconIdentityCategory.values[i],
                         ),
-                        checkmarkColor: chipStyle.checkmarkColor,
-                        side: chipStyle.outline,
                         selected: cat == i + 1,
-                        label: Text(
-                          _categoryLabel(
-                            l10n,
-                            BeaconIdentityCategory.values[i],
-                          ),
-                        ),
                         onSelected: (_) => _categoryNotifier.value = i + 1,
                       ),
                   ],

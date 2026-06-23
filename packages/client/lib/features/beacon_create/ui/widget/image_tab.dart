@@ -13,6 +13,8 @@ class ImageTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<BeaconCreateCubit>();
+    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
     return BlocSelector<BeaconCreateCubit, BeaconCreateState,
         List<ImageEntity>>(
       bloc: cubit,
@@ -20,13 +22,12 @@ class ImageTab extends StatelessWidget {
       builder: (context, images) {
         return LayoutBuilder(
           builder: (context, constraints) {
-            final tt = context.tt;
             final windowClass = windowClassForWidth(constraints.maxWidth);
             final useGrid = windowClass != WindowClass.compact;
             final crossAxisCount = windowClass == WindowClass.expanded ? 3 : 2;
 
             return ListView(
-              padding: EdgeInsets.all(tt.screenHPadding),
+              padding: EdgeInsets.zero,
               children: [
                 ListTile(
                   title: Text(L10n.of(context)!.attachImage),
@@ -38,7 +39,7 @@ class ImageTab extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
                       onPressed: cubit.clearAllImages,
-                      icon: const Icon(Icons.delete_sweep, size: 20),
+                      icon: Icon(Icons.delete_sweep, size: tt.iconSize),
                       label: Text(L10n.of(context)!.removeAll),
                     ),
                   ),
@@ -84,15 +85,19 @@ class ImageTab extends StatelessWidget {
                         onTap: cubit.pickImages,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black12),
+                            border: Border.all(color: scheme.outlineVariant),
                             borderRadius: BorderRadius.circular(tt.cardRadius),
                           ),
                           child: AspectRatio(
                             aspectRatio: windowClass == WindowClass.expanded
                                 ? 21 / 9
                                 : 4 / 3,
-                            child: const Center(
-                              child: Icon(Icons.photo_outlined, size: 64),
+                            child: Center(
+                              child: Icon(
+                                Icons.photo_outlined,
+                                size: tt.iconSize * 3,
+                                color: scheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                         ),
@@ -123,6 +128,8 @@ class _ImageCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tt = context.tt;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -137,44 +144,54 @@ class _ImageCard extends StatelessWidget {
             Image.network(
               '$kImageServer/$kImagesPath/${image.authorId}/${image.id}.$kImageExt',
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const Center(
-                child: Icon(Icons.photo_outlined, size: 64),
+              errorBuilder: (_, _, _) => Center(
+                child: Icon(
+                  Icons.photo_outlined,
+                  size: tt.iconSize * 3,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             )
           else
-            const Center(
-              child: Icon(Icons.photo_outlined, size: 64),
+            Center(
+              child: Icon(
+                Icons.photo_outlined,
+                size: tt.iconSize * 3,
+                color: scheme.onSurfaceVariant,
+              ),
             ),
           Positioned(
-            top: 4,
-            left: 4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            top: tt.tightGap,
+            left: tt.tightGap,
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(12),
+                color: scheme.scrim.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(tt.buttonRadius),
               ),
-              child: Text(
-                '${index + 1}',
-                style: theme.textTheme.labelMedium!.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: tt.tightGap * 2,
+                  vertical: tt.tightGap,
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: theme.textTheme.labelMedium!.copyWith(
+                    color: scheme.onPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
           ),
           Positioned(
-            top: 4,
-            right: 4,
+            top: tt.tightGap,
+            right: tt.tightGap,
             child: IconButton.filled(
               style: IconButton.styleFrom(
-                backgroundColor: Colors.black54,
+                backgroundColor: scheme.scrim.withValues(alpha: 0.55),
+                foregroundColor: scheme.onPrimary,
               ),
-              icon: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 20,
-              ),
+              icon: Icon(Icons.close, size: tt.iconSize),
               onPressed: onRemove,
             ),
           ),

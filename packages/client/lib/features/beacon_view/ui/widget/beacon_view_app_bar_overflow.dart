@@ -1,0 +1,395 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon_lifecycle.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/coordination_status.dart';
+import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
+import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
+import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
+import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
+import 'package:tentura/features/inbox/domain/enum.dart';
+import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/dialog/share_code_dialog.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
+
+import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart' show showBeaconCloseConfirmSheet;
+
+/// Initial help offer dialog + [BeaconViewCubit.offerHelp].
+Future<void> beaconViewRunInitialHelpOfferDialog(
+  BuildContext context,
+  BeaconViewCubit cubit,
+  L10n l10n,
+) async {
+  if (!context.mounted) return;
+  final useOfferHelpAnyway =
+      cubit.state.beacon.coordinationStatus ==
+      BeaconCoordinationStatus.enoughHelpOffered;
+  final outcome = await HelpOfferMessageDialog.show(
+    context,
+    title: useOfferHelpAnyway
+        ? l10n.dialogOfferHelpAnywayTitle
+        : l10n.dialogOfferHelpTitle,
+    hintText: l10n.hintOfferHelpMessage,
+    allowEmptyMessage: true,
+    showHelpTypeChips: true,
+  );
+  if (outcome != null && context.mounted) {
+    await cubit.offerHelp(
+      message: outcome.message,
+      helpTypes: outcome.helpTypesWire,
+    );
+  }
+}
+
+Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+  BuildContext context,
+  BeaconViewCubit cubit,
+  L10n l10n,
+) async {
+  final id = cubit.state.beacon.id;
+  final didForward = await context.router.push<bool>(
+    ForwardBeaconRoute(beaconId: id),
+  );
+  if (!context.mounted || didForward != true) return;
+  final s = cubit.state;
+  if (s.isHelpOffered ||
+      s.isBeaconMine ||
+      !s.beacon.allowsNewHelpOfferAsNonAuthor ||
+      s.beacon.lifecycle != BeaconLifecycle.open) {
+    return;
+  }
+  showSnackBar(
+    context,
+    text: l10n.nudgeOfferHelpAfterForward,
+    action: SnackBarAction(
+      label: l10n.labelOfferHelp,
+      onPressed: () => unawaited(
+        beaconViewRunInitialHelpOfferDialog(context, cubit, l10n),
+      ),
+    ),
+  );
+}
+
+bool forwardInPrimaryCta(BeaconViewState state) {
+  final b = state.beacon;
+  if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
+    return false;
+  }
+  if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
+    return true;
+  }
+  if (state.isHelpOffered && !b.allowsWithdrawWhileHelpOffered) {
+    return true;
+  }
+  return false;
+}
+
+bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
+  final b = state.beacon;
+  if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
+    return false;
+  }
+  if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
+    return true;
+  }
+  if (state.isHelpOffered && b.allowsWithdrawWhileHelpOffered) {
+    return true;
+  }
+  return false;
+}
+
+bool _authorLifecycleToggleEnabled(BeaconViewState state) {
+  final b = state.beacon;
+  if (b.lifecycle == BeaconLifecycle.open && b.isListed) {
+    return state.closureActionPriority != ClosureActionPriority.hidden;
+  }
+  return true;
+}
+
+(String, TenturaTone) beaconViewRoomAppBarStatus(L10n l10n, int roomUnread) {
+  if (roomUnread > 0) {
+    return (
+      '${l10n.beaconRoomTitle} · ${l10n.beaconRoomUnreadDividerCount(roomUnread)}',
+      TenturaTone.info,
+    );
+  }
+  return (l10n.inboxCardRoomUnread(0), TenturaTone.neutral);
+}
+
+String beaconViewRoomAppBarTooltip(BeaconViewState state, L10n l10n) {
+  if (state.canNavigateBeaconRoom) {
+    return l10n.beaconRoomOpen;
+  }
+  if (state.isRoomAdmissionBlocked) {
+    return state.coordinationDeniesRoomAdmission
+        ? l10n.beaconRoomNoAdmission
+        : l10n.beaconRoomWaitingForApproval;
+  }
+  return l10n.beaconViewRoomAccessUnavailableBanner;
+}
+
+Future<void> beaconViewRunAuthorCloseSheet({
+  required BuildContext context,
+  required BeaconViewCubit cubit,
+  required L10n l10n,
+  required void Function() onOpenPeopleTab,
+  required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
+}) async {
+  if (!context.mounted) return;
+  var summary = buildClosureConfirmationSummary(cubit.state);
+
+  Future<bool> attemptClose(bool expected) async {
+    final result = await cubit.closeBeacon(
+      expectedRequiresReviewWindow: expected,
+    );
+    if (!context.mounted || result == null) return false;
+    if (result.branchMismatch) {
+      if (!context.mounted) return false;
+      summary = buildClosureConfirmationSummary(cubit.state);
+      return showBeaconCloseConfirmSheet(
+        context: context,
+        summary: summary,
+        isLoading: cubit.state.isLoading,
+        onCloseBeacon: attemptClose,
+        onOpenPeople: onOpenPeopleTab,
+        onResolveRoom: cubit.state.canNavigateBeaconRoom
+            ? () => onEnterRoomSurface()
+            : null,
+      );
+    }
+    return true;
+  }
+
+  await showBeaconCloseConfirmSheet(
+    context: context,
+    summary: summary,
+    isLoading: cubit.state.isLoading,
+    onCloseBeacon: attemptClose,
+    onOpenPeople: onOpenPeopleTab,
+    onResolveRoom: cubit.state.canNavigateBeaconRoom
+        ? () => onEnterRoomSurface()
+        : null,
+  );
+}
+
+bool canShowCreatePromise(BeaconViewState state) {
+  final b = state.beacon;
+  if (b.lifecycle != BeaconLifecycle.open) return false;
+  if (!state.isAuthorOrSteward && !state.hasRoomAdmission) return false;
+  return hasPublishedPromiseTargets(
+    participants: state.roomParticipants,
+    myUserId: state.myProfile.id,
+    isAuthorOrSteward: state.isAuthorOrSteward,
+  );
+}
+
+VoidCallback? beaconViewRoomCreatePromiseAction({
+  required BuildContext context,
+  required BeaconViewState state,
+  required String beaconId,
+  required VoidCallback onSaved,
+  required bool inRoomSurface,
+}) {
+  if (!inRoomSurface || !canShowCreatePromise(state)) return null;
+  return () => unawaited(
+        showBeaconRoomPromiseSheet(
+          context,
+          beaconId: beaconId,
+          participants: state.roomParticipants,
+          myUserId: state.myProfile.id,
+          isAuthorOrSteward: state.isAuthorOrSteward,
+          onSaved: onSaved,
+        ),
+      );
+}
+
+Widget beaconViewAppBarOverflow({
+  required BuildContext context,
+  required BeaconViewState state,
+  required BeaconViewCubit cubit,
+  required ScreenCubit screenCubit,
+  required L10n l10n,
+  required Future<void> Function() onAuthorListedOpenClose,
+  required bool inRoomSurface,
+  required VoidCallback onItemsTabRefresh,
+}) {
+  final b = state.beacon;
+  final beaconId = b.id;
+  final hideOverflowForward = forwardInPrimaryCta(state);
+  final hideOfferHelpWithdraw = hideOfferHelpWithdrawFromOverflow(state);
+  final showBeaconManagementOverflow = !inRoomSurface;
+  final onCreatePromise = beaconViewRoomCreatePromiseAction(
+    context: context,
+    state: state,
+    beaconId: beaconId,
+    onSaved: onItemsTabRefresh,
+    inRoomSurface: inRoomSurface,
+  );
+
+  if (state.isBeaconMine) {
+    return BeaconOverflowMenu(
+      beacon: b,
+      onShare: showBeaconManagementOverflow
+          ? () => unawaited(
+              ShareCodeDialog.show(
+                context,
+                link: Uri.parse(kServerName).replace(
+                  queryParameters: {'id': beaconId},
+                  path: kPathAppLinkView,
+                ),
+                header: beaconId,
+              ),
+            )
+          : null,
+      onCloseBeacon: showBeaconManagementOverflow &&
+              state.isBeaconMine &&
+              state.beacon.lifecycle == BeaconLifecycle.open &&
+              state.closureActionPriority != ClosureActionPriority.hidden
+          ? () async {
+              if (!context.mounted) return;
+              await onAuthorListedOpenClose();
+            }
+          : null,
+      onCancelBeacon: state.isBeaconMine && beaconAllowsCancel(b)
+          ? () async {
+              if (!context.mounted) return;
+              await cubit.cancelBeacon();
+            }
+          : null,
+      onEdit: showBeaconManagementOverflow && b.lifecycle == BeaconLifecycle.open
+          ? () => unawaited(
+              context.router.pushPath(
+                '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
+              ),
+            )
+          : null,
+      onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
+          ? () async {
+              await runBeaconCreateFromAction(
+                context,
+                fork: () => cubit.forkFromThis(),
+              );
+            }
+          : null,
+      onCreatePromise: onCreatePromise,
+      onForward: showBeaconManagementOverflow
+          ? () => unawaited(
+              beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
+            )
+          : null,
+      onForwardsGraph: showBeaconManagementOverflow
+          ? () => screenCubit.showForwardsGraphFor(beaconId)
+          : null,
+      onDraftReview: state.showDraftEvaluationCta
+          ? () => unawaited(
+              context.router.pushPath(
+                '$kPathReviewContributions/$beaconId?draft=true',
+              ),
+            )
+          : null,
+      onDelete: showBeaconManagementOverflow
+          ? () async {
+              if (!context.mounted) return;
+              if (await BeaconDeleteDialog.show(
+                    context,
+                    lifecycle: b.lifecycle,
+                    hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
+                  ) ??
+                  false) {
+                if (!context.mounted) return;
+                await cubit.delete(beaconId);
+              }
+            }
+          : null,
+    );
+  }
+
+  return BeaconOverflowMenu(
+    beacon: b,
+    onCreatePromise: onCreatePromise,
+    onOfferHelp:
+        !hideOfferHelpWithdraw &&
+            !state.isHelpOffered &&
+            b.allowsNewHelpOfferAsNonAuthor
+        ? () async {
+            await beaconViewRunInitialHelpOfferDialog(context, cubit, l10n);
+          }
+        : null,
+    onWithdraw:
+        !hideOfferHelpWithdraw &&
+            state.isHelpOffered &&
+            b.allowsWithdrawWhileHelpOffered
+        ? () async {
+            if (!context.mounted) return;
+            final outcome = await HelpOfferMessageDialog.show(
+              context,
+              title: l10n.dialogWithdrawHelpOfferTitle,
+              hintText: l10n.hintWithdrawReason,
+              allowEmptyMessage: true,
+              requireWithdrawReason: true,
+            );
+            if (outcome?.withdrawReasonWire != null && context.mounted) {
+              await cubit.withdraw(
+                message: outcome!.message,
+                withdrawReason: outcome.withdrawReasonWire!,
+              );
+            }
+          }
+        : null,
+    onForward: showBeaconManagementOverflow && !hideOverflowForward
+        ? () => unawaited(
+            beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
+          )
+        : null,
+    onForwardsGraph: showBeaconManagementOverflow
+        ? () => screenCubit.showForwardsGraphFor(beaconId)
+        : null,
+    onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
+        ? () async {
+            await runBeaconCreateFromAction(
+              context,
+              fork: () => cubit.forkFromThis(),
+            );
+          }
+        : null,
+    onDraftReview: state.showDraftEvaluationCta
+        ? () => unawaited(
+            context.router.pushPath(
+              '$kPathReviewContributions/$beaconId?draft=true',
+            ),
+          )
+        : null,
+    onWatch: !state.isHelpOffered && state.inboxStatus == InboxItemStatus.needsMe
+        ? () => unawaited(cubit.moveToWatching())
+        : null,
+    onStopWatching:
+        !state.isHelpOffered && state.inboxStatus == InboxItemStatus.watching
+        ? () => unawaited(cubit.stopWatching())
+        : null,
+    onCantHelp:
+        state.inboxStatus == InboxItemStatus.needsMe ||
+            state.inboxStatus == InboxItemStatus.watching
+        ? () async {
+            if (!context.mounted) return;
+            final msg = await showRejectionDialog(context);
+            if (context.mounted && msg != null) {
+              await cubit.rejectInbox(message: msg);
+            }
+          }
+        : null,
+    onMoveToInbox: state.inboxStatus == InboxItemStatus.rejected
+        ? () => unawaited(cubit.unrejectInbox())
+        : null,
+    onComplaint: () => screenCubit.showComplaint(beaconId),
+  );
+}

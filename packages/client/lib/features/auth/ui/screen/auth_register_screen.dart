@@ -11,6 +11,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/auth_cubit.dart';
+import '../widget/auth_form_field.dart';
 
 @RoutePage()
 class AuthRegisterScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -92,8 +93,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
           children: [
         // Invite Code
         if (_env.needInviteCode)
-          Padding(
-            padding: kPaddingAll,
+          AuthFormField(
             child: TextFormField(
                 // Do NOT autofocus when the id is pre-filled from a deep link.
               // On iOS, autofocus during cold-start (e.g. QR-code launch) fires
@@ -139,8 +139,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
           ),
 
         // Username
-        Padding(
-          padding: kPaddingAll,
+        AuthFormField(
           child: TextFormField(
             autovalidateMode: AutovalidateMode.onUserInteraction,
             controller: _titleController,
@@ -156,8 +155,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
         ),
 
         // Handle (optional)
-        Padding(
-          padding: kPaddingAll,
+        AuthFormField(
           child: TextFormField(
             autovalidateMode: AutovalidateMode.onUserInteraction,
             controller: _handleController,
@@ -183,8 +181,7 @@ class _AuthRegisterScreenState extends State<AuthRegisterScreen>
         ),
 
         // Register
-        Padding(
-          padding: kPaddingAll,
+        AuthFormField(
           child: BlocSelector<AuthCubit, AuthState, bool>(
             bloc: _authCubit,
             selector: (state) => state.isLoading,

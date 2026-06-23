@@ -27,30 +27,20 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
     );
   }
 
-  Future<void> _confirmResetLocal(BuildContext context, L10n l10n) async {
+  Future<void> _confirmResetLocal(BuildContext context) async {
+    final l10n = L10n.of(context)!;
     final cubit = GetIt.I<SettingsCubit>();
     final seedWarning = await cubit.hasSeedOnlyLocalAccounts();
-    final confirmed = await showDialog<bool>(
+    if (!context.mounted) return;
+    final confirmed = await TenturaConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.authRecoveryResetLocalTitle),
-        content: Text(
-          seedWarning
-              ? '${l10n.authRecoveryResetLocalBody}\n\n'
-                    '${l10n.authRecoveryResetSeedWarning}'
-              : l10n.authRecoveryResetLocalBody,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.buttonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.authRecoveryResetLocalTitle),
-          ),
-        ],
-      ),
+      title: l10n.authRecoveryResetLocalTitle,
+      content: seedWarning
+          ? '${l10n.authRecoveryResetLocalBody}\n\n'
+                '${l10n.authRecoveryResetSeedWarning}'
+          : l10n.authRecoveryResetLocalBody,
+      confirmLabel: l10n.authRecoveryResetLocalTitle,
+      cancelLabel: l10n.buttonCancel,
     );
     if ((confirmed ?? false) && context.mounted) {
       await cubit.resetLocalAuthState();
@@ -65,9 +55,6 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
     final visibleVersion = cubit.state.visibleVersion;
-    final actionButtonStyle = OutlinedButton.styleFrom(
-      minimumSize: Size.fromHeight(tt.buttonHeight),
-    );
     return Scaffold(
       appBar: AppBar(
         leading: const AutoLeadingButton(),
@@ -103,78 +90,92 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
             children: [
               const LanguageSwitchButton(),
               const ThemeSwitchButton(),
-
-              // Seed (device-key accounts only; OAuth/session accounts have no local seed)
-              FutureBuilder<String?>(
-                future: cubit.tryGetCurrentAccountSeed(),
-                builder: (context, snapshot) {
-                  final seed = snapshot.data;
-                  if (seed == null || seed.isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return OutlinedButton.icon(
-                    style: actionButtonStyle,
-                    icon: const Icon(Icons.remove_red_eye_outlined),
-                    label: Text(l10n.showSeed),
-                    onPressed: () async {
-                      if (context.mounted) {
-                        await ShowSeedDialog.show(context, seed: seed);
-                      }
-                    },
-                  );
-                },
-              ),
-
-              // Sign-in methods
-              OutlinedButton.icon(
-                style: actionButtonStyle,
-                icon: const Icon(Icons.key_outlined),
-                label: Text(l10n.signInMethods),
-                onPressed: () => context.router.push(CredentialsRoute()),
-              ),
-
-              // Intro — native only: on web onboarding lives on the static
-              // landing and the router never enters IntroRoute (intro guards
-              // are no-ops on web), so this replay button would do nothing.
-              if (!kIsWeb)
-                OutlinedButton.icon(
-                  style: actionButtonStyle,
-                  icon: const Icon(Icons.reset_tv),
-                  label: Text(l10n.showIntroAgain),
-                  onPressed: () => cubit.setIntroEnabled(true),
-                ),
-
-              BlocSelector<AuthCubit, AuthState, bool>(
-                bloc: authCubit,
-                selector: (state) => state.isLoading,
-                builder: (context, isLoading) => OutlinedButton.icon(
-                  style: actionButtonStyle,
-                  onPressed: isLoading
-                      ? null
-                      : () => _confirmResetLocal(context, l10n),
-                  icon: const Icon(Icons.delete_forever_outlined),
-                  label: Text(l10n.authRecoveryResetLocalTitle),
-                ),
-              ),
-
-              BlocSelector<AuthCubit, AuthState, bool>(
-                bloc: authCubit,
-                selector: (state) => state.isLoading,
-                builder: (context, isLoading) => FilledButton.icon(
-                  onPressed: isLoading ? null : cubit.signOut,
-                  icon: const Icon(Icons.logout),
-                  label: Text(l10n.logout),
-                  style: FilledButton.styleFrom(
-                    minimumSize: Size.fromHeight(tt.buttonHeight),
-                    backgroundColor: scheme.error,
-                    foregroundColor: scheme.onError,
-                  ),
-                ),
+              _SettingsCommandList(
+                l10n: l10n,
+                authCubit: authCubit,
+                settingsCubit: cubit,
+                onConfirmResetLocal: () => _confirmResetLocal(context),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SettingsCommandList extends StatelessWidget {
+  const _SettingsCommandList({
+    required this.l10n,
+    required this.authCubit,
+    required this.settingsCubit,
+    required this.onConfirmResetLocal,
+  });
+
+  final L10n l10n;
+  final AuthCubit authCubit;
+  final SettingsCubit settingsCubit;
+  final VoidCallback onConfirmResetLocal;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
+    return BlocSelector<AuthCubit, AuthState, bool>(
+      bloc: authCubit,
+      selector: (state) => state.isLoading,
+      builder: (context, isLoading) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: tt.rowGap,
+          children: [
+            FutureBuilder<String?>(
+              future: settingsCubit.tryGetCurrentAccountSeed(),
+              builder: (context, snapshot) {
+                final seed = snapshot.data;
+                if (seed == null || seed.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return TenturaCommandButton(
+                  label: l10n.showSeed,
+                  icon: const Icon(Icons.remove_red_eye_outlined),
+                  onPressed: () async {
+                    if (context.mounted) {
+                      await ShowSeedDialog.show(context, seed: seed);
+                    }
+                  },
+                );
+              },
+            ),
+            TenturaCommandButton(
+              label: l10n.signInMethods,
+              icon: const Icon(Icons.key_outlined),
+              onPressed: () => context.router.push(CredentialsRoute()),
+            ),
+            if (!kIsWeb)
+              TenturaCommandButton(
+                label: l10n.showIntroAgain,
+                icon: const Icon(Icons.reset_tv),
+                onPressed: () => settingsCubit.setIntroEnabled(true),
+              ),
+            TenturaCommandButton(
+              label: l10n.authRecoveryResetLocalTitle,
+              icon: const Icon(Icons.delete_forever_outlined),
+              onPressed: isLoading ? null : onConfirmResetLocal,
+            ),
+            FilledButton.icon(
+              onPressed: isLoading ? null : settingsCubit.signOut,
+              icon: const Icon(Icons.logout),
+              label: Text(l10n.logout),
+              style: FilledButton.styleFrom(
+                minimumSize: Size.fromHeight(tt.buttonHeight),
+                backgroundColor: scheme.error,
+                foregroundColor: scheme.onError,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

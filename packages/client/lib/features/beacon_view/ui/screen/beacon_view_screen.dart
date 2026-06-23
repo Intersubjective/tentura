@@ -1,47 +1,30 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/beacon_activity_event.dart';
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/coordination_room_navigation.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_view_entry_source.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_title.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
-import 'package:tentura/domain/entity/beacon_activity_event.dart';
-import 'package:tentura/domain/entity/beacon_lifecycle.dart';
-import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
-import 'package:tentura/features/beacon/ui/sheet/beacon_close_confirm_sheet.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
-import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
-import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
-import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
-import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
-import 'package:tentura/features/beacon_room/ui/widget/beacon_room_promise_sheet.dart';
-import 'package:tentura/features/inbox/domain/enum.dart';
-import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/dialog/share_code_dialog.dart';
-
 import '../bloc/beacon_view_cubit.dart';
-import '../dialog/help_offer_message_dialog.dart';
-import '../widget/activity_list.dart';
-import '../widget/beacon_current_line_sheet.dart';
-import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
-import '../widget/beacon_operational_header_card.dart';
 import '../widget/beacon_anchor_status.dart';
-import '../widget/beacon_view_app_bar_title.dart';
-import '../widget/beacon_people_tab_body.dart';
-import '../widget/items_tab.dart';
+import '../widget/beacon_operational_scroll_view.dart';
+import '../widget/beacon_view_app_bar_overflow.dart';
+import '../widget/beacon_view_constants.dart';
+import '../widget/beacon_view_room_app_bar_button.dart';
 
 bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   if (v == null || v.isEmpty) return false;
@@ -50,10 +33,6 @@ bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
 }
 
 /// Operational tab indices: items(0), people(1), log(2). Room is a separate surface.
-const int kBeaconTabItems = 0;
-const int kBeaconTabPeople = 1;
-const int kBeaconTabLog = 2;
-const int _kBeaconTabCount = 3;
 
 /// Query [kQueryBeaconViewTab]: `items` | `people` | `log` (+ legacy aliases).
 /// Room opens via `tab=room` or [kQueryBeaconSurface]=room, not as a segment tab.
@@ -76,377 +55,6 @@ int _beaconViewTabIndex(String? viewTab) {
       return kBeaconTabItems;
   }
 }
-
-bool _forwardInPrimaryCta(BeaconViewState state) {
-  final b = state.beacon;
-  if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
-    return false;
-  }
-  if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
-    return true;
-  }
-  if (state.isHelpOffered && !b.allowsWithdrawWhileHelpOffered) {
-    return true;
-  }
-  return false;
-}
-
-bool _hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
-  final b = state.beacon;
-  if (state.isBeaconMine || b.lifecycle != BeaconLifecycle.open) {
-    return false;
-  }
-  if (!state.isHelpOffered && b.allowsNewHelpOfferAsNonAuthor) {
-    return true;
-  }
-  if (state.isHelpOffered && b.allowsWithdrawWhileHelpOffered) {
-    return true;
-  }
-  return false;
-}
-
-/// Initial help offer dialog + [BeaconViewCubit.offerHelp].
-Future<void> _beaconViewRunInitialHelpOfferDialog(
-  BuildContext context,
-  BeaconViewCubit cubit,
-  L10n l10n,
-) async {
-  if (!context.mounted) return;
-  final useOfferHelpAnyway =
-      cubit.state.beacon.coordinationStatus ==
-      BeaconCoordinationStatus.enoughHelpOffered;
-  final outcome = await HelpOfferMessageDialog.show(
-    context,
-    title: useOfferHelpAnyway
-        ? l10n.dialogOfferHelpAnywayTitle
-        : l10n.dialogOfferHelpTitle,
-    hintText: l10n.hintOfferHelpMessage,
-    allowEmptyMessage: true,
-    showHelpTypeChips: true,
-  );
-  if (outcome != null && context.mounted) {
-    await cubit.offerHelp(
-      message: outcome.message,
-      helpTypes: outcome.helpTypesWire,
-    );
-  }
-}
-
-Future<void> _beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-  BuildContext context,
-  BeaconViewCubit cubit,
-  L10n l10n,
-) async {
-  final id = cubit.state.beacon.id;
-  final didForward = await context.router.push<bool>(
-    ForwardBeaconRoute(beaconId: id),
-  );
-  if (!context.mounted || didForward != true) return;
-  final s = cubit.state;
-  if (s.isHelpOffered ||
-      s.isBeaconMine ||
-      !s.beacon.allowsNewHelpOfferAsNonAuthor ||
-      s.beacon.lifecycle != BeaconLifecycle.open) {
-    return;
-  }
-  showSnackBar(
-    context,
-    text: l10n.nudgeOfferHelpAfterForward,
-    action: SnackBarAction(
-      label: l10n.labelOfferHelp,
-      onPressed: () => unawaited(
-        _beaconViewRunInitialHelpOfferDialog(context, cubit, l10n),
-      ),
-    ),
-  );
-}
-
-bool _authorLifecycleToggleEnabled(BeaconViewState state) {
-  final b = state.beacon;
-  if (b.lifecycle == BeaconLifecycle.open && b.isListed) {
-    return state.closureActionPriority != ClosureActionPriority.hidden;
-  }
-  return true;
-}
-
-(String, TenturaTone) _beaconViewRoomAppBarStatus(L10n l10n, int roomUnread) {
-  if (roomUnread > 0) {
-    return (
-      '${l10n.beaconRoomTitle} · ${l10n.beaconRoomUnreadDividerCount(roomUnread)}',
-      TenturaTone.info,
-    );
-  }
-  return (l10n.inboxCardRoomUnread(0), TenturaTone.neutral);
-}
-
-String _beaconViewRoomAppBarTooltip(BeaconViewState state, L10n l10n) {
-  if (state.canNavigateBeaconRoom) {
-    return l10n.beaconRoomOpen;
-  }
-  if (state.isRoomAdmissionBlocked) {
-    return state.coordinationDeniesRoomAdmission
-        ? l10n.beaconRoomNoAdmission
-        : l10n.beaconRoomWaitingForApproval;
-  }
-  return l10n.beaconViewRoomAccessUnavailableBanner;
-}
-
-Future<void> _beaconViewRunAuthorCloseSheet({
-  required BuildContext context,
-  required BeaconViewCubit cubit,
-  required L10n l10n,
-  required void Function() onOpenPeopleTab,
-  required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
-}) async {
-  if (!context.mounted) return;
-  var summary = buildClosureConfirmationSummary(cubit.state);
-
-  Future<bool> attemptClose(bool expected) async {
-    final result = await cubit.closeBeacon(
-      expectedRequiresReviewWindow: expected,
-    );
-    if (!context.mounted || result == null) return false;
-    if (result.branchMismatch) {
-      if (!context.mounted) return false;
-      summary = buildClosureConfirmationSummary(cubit.state);
-      return showBeaconCloseConfirmSheet(
-        context: context,
-        summary: summary,
-        isLoading: cubit.state.isLoading,
-        onCloseBeacon: attemptClose,
-        onOpenPeople: onOpenPeopleTab,
-        onResolveRoom: cubit.state.canNavigateBeaconRoom
-            ? () => onEnterRoomSurface()
-            : null,
-      );
-    }
-    return true;
-  }
-
-  await showBeaconCloseConfirmSheet(
-    context: context,
-    summary: summary,
-    isLoading: cubit.state.isLoading,
-    onCloseBeacon: attemptClose,
-    onOpenPeople: onOpenPeopleTab,
-    onResolveRoom: cubit.state.canNavigateBeaconRoom
-        ? () => onEnterRoomSurface()
-        : null,
-  );
-}
-
-bool _canShowCreatePromise(BeaconViewState state) {
-  final b = state.beacon;
-  if (b.lifecycle != BeaconLifecycle.open) return false;
-  if (!state.isAuthorOrSteward && !state.hasRoomAdmission) return false;
-  return hasPublishedPromiseTargets(
-    participants: state.roomParticipants,
-    myUserId: state.myProfile.id,
-    isAuthorOrSteward: state.isAuthorOrSteward,
-  );
-}
-
-VoidCallback? _beaconViewRoomCreatePromiseAction({
-  required BuildContext context,
-  required BeaconViewState state,
-  required String beaconId,
-  required VoidCallback onSaved,
-  required bool inRoomSurface,
-}) {
-  if (!inRoomSurface || !_canShowCreatePromise(state)) return null;
-  return () => unawaited(
-        showBeaconRoomPromiseSheet(
-          context,
-          beaconId: beaconId,
-          participants: state.roomParticipants,
-          myUserId: state.myProfile.id,
-          isAuthorOrSteward: state.isAuthorOrSteward,
-          onSaved: onSaved,
-        ),
-      );
-}
-
-Widget _beaconViewAppBarOverflow({
-  required BuildContext context,
-  required BeaconViewState state,
-  required BeaconViewCubit cubit,
-  required ScreenCubit screenCubit,
-  required L10n l10n,
-  required Future<void> Function() onAuthorListedOpenClose,
-  required bool inRoomSurface,
-  required VoidCallback onItemsTabRefresh,
-}) {
-  final b = state.beacon;
-  final beaconId = b.id;
-  final hideOverflowForward = _forwardInPrimaryCta(state);
-  final hideOfferHelpWithdraw = _hideOfferHelpWithdrawFromOverflow(state);
-  final showBeaconManagementOverflow = !inRoomSurface;
-  final onCreatePromise = _beaconViewRoomCreatePromiseAction(
-    context: context,
-    state: state,
-    beaconId: beaconId,
-    onSaved: onItemsTabRefresh,
-    inRoomSurface: inRoomSurface,
-  );
-
-  if (state.isBeaconMine) {
-    return BeaconOverflowMenu(
-      beacon: b,
-      onShare: showBeaconManagementOverflow
-          ? () => unawaited(
-              ShareCodeDialog.show(
-                context,
-                link: Uri.parse(kServerName).replace(
-                  queryParameters: {'id': beaconId},
-                  path: kPathAppLinkView,
-                ),
-                header: beaconId,
-              ),
-            )
-          : null,
-      onCloseBeacon: showBeaconManagementOverflow &&
-              state.isBeaconMine &&
-              state.beacon.lifecycle == BeaconLifecycle.open &&
-              state.closureActionPriority != ClosureActionPriority.hidden
-          ? () async {
-              if (!context.mounted) return;
-              await onAuthorListedOpenClose();
-            }
-          : null,
-      onCancelBeacon: state.isBeaconMine && beaconAllowsCancel(b)
-          ? () async {
-              if (!context.mounted) return;
-              await cubit.cancelBeacon();
-            }
-          : null,
-      onEdit: showBeaconManagementOverflow && b.lifecycle == BeaconLifecycle.open
-          ? () => unawaited(
-              context.router.pushPath(
-                '$kPathBeaconNew?$kQueryBeaconEditId=$beaconId',
-              ),
-            )
-          : null,
-      onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
-          ? () async {
-              await runBeaconCreateFromAction(
-                context,
-                fork: () => cubit.forkFromThis(),
-              );
-            }
-          : null,
-      onCreatePromise: onCreatePromise,
-      onForward: showBeaconManagementOverflow
-          ? () => unawaited(
-              _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
-            )
-          : null,
-      onForwardsGraph: showBeaconManagementOverflow
-          ? () => screenCubit.showForwardsGraphFor(beaconId)
-          : null,
-      onDraftReview: state.showDraftEvaluationCta
-          ? () => unawaited(
-              context.router.pushPath(
-                '$kPathReviewContributions/$beaconId?draft=true',
-              ),
-            )
-          : null,
-      onDelete: showBeaconManagementOverflow
-          ? () async {
-              if (!context.mounted) return;
-              if (await BeaconDeleteDialog.show(
-                    context,
-                    lifecycle: b.lifecycle,
-                    hasEverHadCommitter: beaconDeleteBlockedByCommitters(b),
-                  ) ??
-                  false) {
-                if (!context.mounted) return;
-                await cubit.delete(beaconId);
-              }
-            }
-          : null,
-    );
-  }
-
-  return BeaconOverflowMenu(
-    beacon: b,
-    onCreatePromise: onCreatePromise,
-    onOfferHelp:
-        !hideOfferHelpWithdraw &&
-            !state.isHelpOffered &&
-            b.allowsNewHelpOfferAsNonAuthor
-        ? () async {
-            await _beaconViewRunInitialHelpOfferDialog(context, cubit, l10n);
-          }
-        : null,
-    onWithdraw:
-        !hideOfferHelpWithdraw &&
-            state.isHelpOffered &&
-            b.allowsWithdrawWhileHelpOffered
-        ? () async {
-            if (!context.mounted) return;
-            final outcome = await HelpOfferMessageDialog.show(
-              context,
-              title: l10n.dialogWithdrawHelpOfferTitle,
-              hintText: l10n.hintWithdrawReason,
-              allowEmptyMessage: true,
-              requireWithdrawReason: true,
-            );
-            if (outcome?.withdrawReasonWire != null && context.mounted) {
-              await cubit.withdraw(
-                message: outcome!.message,
-                withdrawReason: outcome.withdrawReasonWire!,
-              );
-            }
-          }
-        : null,
-    onForward: showBeaconManagementOverflow && !hideOverflowForward
-        ? () => unawaited(
-            _beaconViewOpenForwardThenMaybeNudgeOfferHelp(context, cubit, l10n),
-          )
-        : null,
-    onForwardsGraph: showBeaconManagementOverflow
-        ? () => screenCubit.showForwardsGraphFor(beaconId)
-        : null,
-    onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
-        ? () async {
-            await runBeaconCreateFromAction(
-              context,
-              fork: () => cubit.forkFromThis(),
-            );
-          }
-        : null,
-    onDraftReview: state.showDraftEvaluationCta
-        ? () => unawaited(
-            context.router.pushPath(
-              '$kPathReviewContributions/$beaconId?draft=true',
-            ),
-          )
-        : null,
-    onWatch: !state.isHelpOffered && state.inboxStatus == InboxItemStatus.needsMe
-        ? () => unawaited(cubit.moveToWatching())
-        : null,
-    onStopWatching:
-        !state.isHelpOffered && state.inboxStatus == InboxItemStatus.watching
-        ? () => unawaited(cubit.stopWatching())
-        : null,
-    onCantHelp:
-        state.inboxStatus == InboxItemStatus.needsMe ||
-            state.inboxStatus == InboxItemStatus.watching
-        ? () async {
-            if (!context.mounted) return;
-            final msg = await showRejectionDialog(context);
-            if (context.mounted && msg != null) {
-              await cubit.rejectInbox(message: msg);
-            }
-          }
-        : null,
-    onMoveToInbox: state.inboxStatus == InboxItemStatus.rejected
-        ? () => unawaited(cubit.unrejectInbox())
-        : null,
-    onComplaint: () => screenCubit.showComplaint(beaconId),
-  );
-}
-
 @RoutePage()
 class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconViewScreen({
@@ -567,7 +175,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     _showRoomSurface = _roomFromRouteParams(widget);
     _tabIndex = _beaconViewTabIndex(widget.viewTab).clamp(
       0,
-      _kBeaconTabCount - 1,
+      kBeaconTabCount - 1,
     );
     _peopleTabAttentionActive =
         _beaconPeopleTabAttentionQueryTruthy(widget.peopleTabAttention) &&
@@ -817,7 +425,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   void _switchToTab(int tab) {
-    if (tab < 0 || tab >= _kBeaconTabCount) return;
+    if (tab < 0 || tab >= kBeaconTabCount) return;
     setState(() {
       _tabIndex = tab;
       _bannerMessage = null;
@@ -915,7 +523,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           final roomUnread = _effectiveRoomUnreadCount(state);
           final statusSlots = beaconViewStatusSlots(l10n, state);
           final (appBarStatusLine, appBarStatusTone) = _showRoomSurface
-              ? _beaconViewRoomAppBarStatus(l10n, roomUnread)
+              ? beaconViewRoomAppBarStatus(l10n, roomUnread)
               : (
                   statusSlots.displayLine,
                   statusSlots.tone,
@@ -966,7 +574,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
             }
             body = BlocProvider.value(
               value: _itemsTabCubit!,
-              child: _BeaconOperationalScrollView(
+              child: BeaconOperationalScrollView(
                 beaconViewCubit: beaconViewCubit,
                 screenCubit: screenCubit,
                 tabIndex: _tabIndex,
@@ -981,7 +589,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 onTapCoordinationLogEvent: _onTapCoordinationLogEvent,
                 onEnterRoomSurface: _enterRoomSurface,
                 onOpenItemDiscussion: _openItemDiscussion,
-                onAuthorCloseRequested: (ctx) => _beaconViewRunAuthorCloseSheet(
+                onAuthorCloseRequested: (ctx) => beaconViewRunAuthorCloseSheet(
                   context: ctx,
                   cubit: beaconViewCubit,
                   l10n: L10n.of(ctx)!,
@@ -1029,16 +637,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   if (!showInitialLoading &&
                       !_showRoomSurface &&
                       state.canNavigateBeaconRoom)
-                    Badge(
-                      isLabelVisible: state.roomUnreadCount > 0,
-                      label: Text('${state.roomUnreadCount}'),
-                      child: IconButton(
-                        tooltip: _beaconViewRoomAppBarTooltip(state, l10n),
-                        icon: const Icon(Icons.forum_rounded),
-                        onPressed: _enterRoomSurface,
-                      ),
+                    BeaconViewRoomAppBarButton(
+                      state: state,
+                      onPressed: _enterRoomSurface,
                     ),
-                  _beaconViewAppBarOverflow(
+                  beaconViewAppBarOverflow(
                     context: context,
                     state: state,
                     cubit: beaconViewCubit,
@@ -1047,7 +650,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     inRoomSurface: _showRoomSurface,
                     onItemsTabRefresh: _refreshItemsTab,
                     onAuthorListedOpenClose: () =>
-                        _beaconViewRunAuthorCloseSheet(
+                        beaconViewRunAuthorCloseSheet(
                           context: context,
                           cubit: beaconViewCubit,
                           l10n: l10n,
@@ -1062,7 +665,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   child: LinearPiActive.builder(context, state.isLoading),
                 ),
               ),
-              body: Column(
+              body: SafeArea(
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (_bannerMessage != null)
@@ -1079,472 +683,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   Expanded(child: body),
                 ],
               ),
+                ),
             ),
           );
         },
       ),
     );
-  }
-}
-
-class _BeaconOperationalScrollView extends StatelessWidget {
-  const _BeaconOperationalScrollView({
-    required this.beaconViewCubit,
-    required this.screenCubit,
-    required this.tabIndex,
-    required this.onTabChanged,
-    required this.peopleTabAttentionActive,
-    required this.onPeopleTabAttentionCleared,
-    required this.focusItemId,
-    required this.focusUserId,
-    required this.onOperationalFocusCleared,
-    required this.onTapCoordinationLogEvent,
-    required this.onEnterRoomSurface,
-    required this.onOpenItemDiscussion,
-    required this.onAuthorCloseRequested,
-  });
-
-  final BeaconViewCubit beaconViewCubit;
-  final ScreenCubit screenCubit;
-  final int tabIndex;
-  final ValueChanged<int> onTabChanged;
-
-  /// Pulse/highlight People tab until first pointer interaction or tab change.
-  final bool peopleTabAttentionActive;
-  final VoidCallback onPeopleTabAttentionCleared;
-
-  /// Coordination item / participant to focus + flash (Log row tap-to-focus).
-  final String? focusItemId;
-  final String? focusUserId;
-  final VoidCallback onOperationalFocusCleared;
-  final void Function(BeaconActivityEvent event) onTapCoordinationLogEvent;
-
-  final void Function([CoordinationItem? focusItem]) onEnterRoomSurface;
-
-  final void Function(CoordinationItem item) onOpenItemDiscussion;
-
-  final Future<void> Function(BuildContext context) onAuthorCloseRequested;
-
-  void _setTab(int i) {
-    if (tabIndex == i) {
-      onPeopleTabAttentionCleared();
-      return;
-    }
-    onTabChanged(i);
-  }
-
-  void _onPointerDown(PointerDownEvent _) {
-    if (peopleTabAttentionActive) {
-      onPeopleTabAttentionCleared();
-    }
-    if (focusItemId != null || focusUserId != null) {
-      onOperationalFocusCleared();
-    }
-  }
-
-  Future<void> _showUpdateStatusSheet(
-    BuildContext context,
-    BeaconViewState state,
-  ) async {
-    final l10n = L10n.of(context)!;
-    final publicOptions = <(int, String)>[
-      (0, l10n.beaconPublicStatusOpen),
-      (1, l10n.beaconPublicStatusCoordinating),
-      (2, l10n.beaconPublicStatusMoreHelp),
-      (3, l10n.beaconPublicStatusEnoughHelp),
-      (4, l10n.beaconPublicStatusClosed),
-    ];
-    final coordinationOptions = <(int, String)>[
-      (
-        BeaconCoordinationStatus.neutral.smallintValue,
-        l10n.coordinationNeutral,
-      ),
-      (
-        BeaconCoordinationStatus.moreOrDifferentHelpNeeded.smallintValue,
-        l10n.coordinationMoreHelpNeeded,
-      ),
-      (
-        BeaconCoordinationStatus.enoughHelpOffered.smallintValue,
-        l10n.coordinationEnoughHelp,
-      ),
-    ];
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) {
-        final tt = ctx.tt;
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  tt.screenHPadding,
-                  tt.tightGap * 2,
-                  tt.screenHPadding,
-                  tt.tightGap * 2,
-                ),
-                child: Text(
-                  l10n.beaconPublicStatusCardTitle,
-                  style: Theme.of(ctx).textTheme.titleSmall,
-                ),
-              ),
-              for (final o in publicOptions)
-                ListTile(
-                  leading: state.beacon.publicStatus == o.$1
-                      ? Icon(Icons.check, size: tt.iconSize)
-                      : SizedBox(width: tt.iconSize),
-                  title: Text(o.$2),
-                  onTap: () {
-                    Navigator.of(ctx).pop();
-                    unawaited(beaconViewCubit.updatePublicStatus(o.$1));
-                  },
-                ),
-              if (state.isBeaconMine) ...[
-                Divider(height: tt.rowGap),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    tt.screenHPadding,
-                    tt.tightGap * 2,
-                    tt.screenHPadding,
-                    tt.tightGap * 2,
-                  ),
-                  child: Text(
-                    l10n.coordinationSetOverallStatus,
-                    style: Theme.of(ctx).textTheme.titleSmall,
-                  ),
-                ),
-                for (final o in coordinationOptions)
-                  ListTile(
-                    title: Text(o.$2),
-                    onTap: () {
-                      Navigator.of(ctx).pop();
-                      unawaited(
-                        beaconViewCubit.setBeaconCoordinationStatus(
-                          BeaconCoordinationStatus.fromSmallint(o.$1),
-                        ),
-                      );
-                    },
-                  ),
-              ],
-              SizedBox(height: tt.rowGap),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _beaconViewAuthorCloseFlow(BuildContext context) async {
-    await onAuthorCloseRequested(context);
-  }
-
-  Future<void> _runOfferHelpFlow(BuildContext context, L10n l10n) async {
-    await _beaconViewRunInitialHelpOfferDialog(
-      context,
-      beaconViewCubit,
-      l10n,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-    final idx = tabIndex.clamp(0, _kBeaconTabCount - 1);
-    return BlocBuilder<BeaconViewCubit, BeaconViewState>(
-      bloc: beaconViewCubit,
-      buildWhen: (p, c) =>
-          p.beacon != c.beacon ||
-          p.beacon.coordinationStatus != c.beacon.coordinationStatus ||
-          p.beacon.lifecycle != c.beacon.lifecycle ||
-          p.timeline != c.timeline ||
-          p.roomActivityEvents != c.roomActivityEvents ||
-          p.helpOffers != c.helpOffers ||
-          p.isHelpOffered != c.isHelpOffered ||
-          p.isLoading != c.isLoading ||
-          p.forwardProvenance != c.forwardProvenance ||
-          p.inboxStatus != c.inboxStatus ||
-          p.viewerForwardEdges != c.viewerForwardEdges ||
-          p.forwardsLoaded != c.forwardsLoaded ||
-          p.forwardsLoading != c.forwardsLoading ||
-          p.factCards != c.factCards ||
-          p.roomParticipants.length != c.roomParticipants.length ||
-          (p.roomParticipants
-                  .map(
-                    (e) =>
-                        '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.status}|${e.nextMoveStatus}',
-                  )
-                  .join() !=
-              c.roomParticipants
-                  .map(
-                    (e) =>
-                        '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.status}|${e.nextMoveStatus}',
-                  )
-                  .join()) ||
-          p.beaconRoomCue?.lastRoomMeaningfulChange !=
-              c.beaconRoomCue?.lastRoomMeaningfulChange ||
-          p.beaconRoomCue?.currentLine != c.beaconRoomCue?.currentLine ||
-          p.beaconRoomCue?.openBlockerTitle !=
-              c.beaconRoomCue?.openBlockerTitle ||
-          p.showDraftEvaluationCta != c.showDraftEvaluationCta ||
-          p.unansweredHelpOffersCount != c.unansweredHelpOffersCount ||
-          p.needCoordinationHelpOffersCount !=
-              c.needCoordinationHelpOffersCount,
-      builder: (context, state) {
-        final beaconId = state.beacon.id;
-
-        final tabBody = switch (idx) {
-          kBeaconTabItems => ItemsTab(
-            state: state,
-            onOpenItemThread: onOpenItemDiscussion,
-            focusItemId: focusItemId,
-          ),
-          kBeaconTabPeople => BeaconPeopleTabBody(
-            state: state,
-            beaconViewCubit: beaconViewCubit,
-            l10n: l10n,
-            focusUserId: focusUserId,
-          ),
-          kBeaconTabLog => BeaconActivityList(
-            timeline: const [],
-            beacon: state.beacon,
-            isAuthorView: state.isBeaconMine,
-            roomActivityEvents: state.roomActivityEvents,
-            coordinationLogOnly: true,
-            onTapCoordinationEvent: onTapCoordinationLogEvent,
-            actors: {
-              for (final p in state.roomParticipants) p.userId: p,
-            },
-          ),
-          _ => const SizedBox.shrink(),
-        };
-
-        final tt = context.tt;
-        final tabPadding = idx == kBeaconTabPeople
-            ? EdgeInsets.fromLTRB(
-                tt.screenHPadding,
-                tt.cardPadding.top,
-                tt.screenHPadding,
-                tt.cardPadding.bottom,
-              )
-            : EdgeInsets.all(tt.screenHPadding);
-
-        final peopleTabBadge =
-            state.isBeaconMine && state.unansweredHelpOffersCount > 0
-            ? state.unansweredHelpOffersCount
-            : null;
-        final peopleTabSecondaryBadge =
-            state.needCoordinationHelpOffersCount > 0
-            ? state.needCoordinationHelpOffersCount
-            : null;
-
-        // Single CustomScrollView (no NestedScrollView) so the scroll position
-        // is unified: there is no outer/inner coordinator that can let the
-        // body scroll past its end when the tab content fits the viewport.
-        return Listener(
-          behavior: HitTestBehavior.translucent,
-          onPointerDown: _onPointerDown,
-          child: CustomScrollView(
-            physics: const ClampingScrollPhysics(),
-            slivers: [
-              if (state.beacon.lineageParentBeaconId != null &&
-                  state.beacon.lineageParentBeaconId!.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: ColoredBox(
-                    color: scheme.surface,
-                    child: BeaconLineageParentLink(
-                      parentBeaconId: state.beacon.lineageParentBeaconId!,
-                    ),
-                  ),
-                ),
-              SliverToBoxAdapter(
-                child: ColoredBox(
-                  color: scheme.surface,
-                  child: BeaconOperationalHeaderCard(
-                    state: state,
-                    onAuthorTap: () =>
-                        screenCubit.showProfile(state.beacon.author.id),
-                    onUpdateStatus:
-                        state.isAuthorOrSteward &&
-                            state.beacon.lifecycle == BeaconLifecycle.open
-                        ? () => unawaited(_showUpdateStatusSheet(context, state))
-                        : null,
-                    onOfferHelp:
-                        !state.isBeaconMine &&
-                            state.beacon.lifecycle == BeaconLifecycle.open &&
-                            !state.isHelpOffered &&
-                            state.beacon.allowsNewHelpOfferAsNonAuthor
-                        ? () => _runOfferHelpFlow(context, l10n)
-                        : null,
-                    onForward: () => unawaited(
-                      _beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-                        context,
-                        beaconViewCubit,
-                        l10n,
-                      ),
-                    ),
-                    onWatch:
-                        !state.isBeaconMine &&
-                            !state.isHelpOffered &&
-                            state.inboxStatus == InboxItemStatus.needsMe
-                        ? () => unawaited(beaconViewCubit.moveToWatching())
-                        : null,
-                    onStopWatching:
-                        !state.isBeaconMine &&
-                            !state.isHelpOffered &&
-                            state.inboxStatus == InboxItemStatus.watching
-                        ? () => unawaited(beaconViewCubit.stopWatching())
-                        : null,
-                    onViewChain: () =>
-                        screenCubit.showForwardsGraphFor(beaconId),
-                    onSwitchToPeopleTab: () => _setTab(kBeaconTabPeople),
-                    onCloseBeacon:
-                        state.isBeaconMine &&
-                            state.beacon.lifecycle == BeaconLifecycle.open &&
-                            state.closureActionPriority !=
-                                ClosureActionPriority.hidden
-                        ? () => unawaited(_beaconViewAuthorCloseFlow(context))
-                        : null,
-                    onOpenReview:
-                        state.isBeaconMine &&
-                            state.beacon.lifecycle != BeaconLifecycle.open &&
-                            state.beacon.lifecycle !=
-                                BeaconLifecycle.reviewOpen &&
-                            state.beacon.lifecycle != BeaconLifecycle.deleted
-                        ? () => unawaited(
-                            context.router.pushPath(
-                              '$kPathReviewContributions/$beaconId',
-                            ),
-                          )
-                        : null,
-                    onOpenLogTab:
-                        state.isBeaconMine &&
-                            state.beacon.lifecycle !=
-                                BeaconLifecycle.reviewOpen
-                        ? () => _setTab(kBeaconTabLog)
-                        : null,
-                    onEditNowLine: state.canCoordinateInBeaconRoom
-                        ? () => unawaited(
-                            showBeaconCurrentLineSheet(
-                              context,
-                              beaconId: beaconId,
-                              initialText:
-                                  state.beaconRoomCue?.currentLine ?? '',
-                              onSaved: (line) => unawaited(
-                                beaconViewCubit.refreshBeaconRoomCue(
-                                  savedCurrentLine: line,
-                                ),
-                              ),
-                            ),
-                          )
-                        : null,
-                  ),
-                ),
-              ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _PinnedSegmentBarDelegate(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.tt.screenHPadding,
-                    ),
-                    child: Align(
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: BlocBuilder<ItemsTabCubit, ItemsTabState>(
-                          buildWhen: (p, c) =>
-                              p.openItems != c.openItems ||
-                              p.unreadDiscussionCount !=
-                                  c.unreadDiscussionCount,
-                          builder: (context, itemsTabState) {
-                            final itemsTabBadge =
-                                itemsTabState.unreadDiscussionCount > 0
-                                ? itemsTabState.unreadDiscussionCount
-                                : null;
-                            return TenturaUnderlineTabs(
-                              tabs: [
-                                l10n.labelBeaconTabItems,
-                                l10n.labelBeaconTabPeople,
-                                l10n.labelBeaconTabLog,
-                              ],
-                              selectedIndex: idx,
-                              onChanged: _setTab,
-                              badges: [
-                                itemsTabBadge,
-                                peopleTabBadge,
-                                null,
-                              ],
-                              secondaryBadges: [
-                                null,
-                                peopleTabSecondaryBadge,
-                                null,
-                              ],
-                              attentionIndex: kBeaconTabPeople,
-                              attentionActive: peopleTabAttentionActive,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              SliverPadding(
-                key: ValueKey<int>(idx),
-                padding: tabPadding,
-                sliver: SliverToBoxAdapter(child: tabBody),
-              ),
-              // Pads any remaining viewport so short tab content cannot be
-              // scrolled out of view; collapses to zero when content overflows.
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: SizedBox.shrink(),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Pinned tab bar: fixed height so layoutExtent matches paintExtent under
-/// NestedScrollView (avoids invalid SliverGeometry on web).
-class _PinnedSegmentBarDelegate extends SliverPersistentHeaderDelegate {
-  _PinnedSegmentBarDelegate({required this.child});
-
-  final Widget child;
-
-  static const double _barHeight = 48;
-
-  @override
-  double get minExtent => _barHeight;
-
-  @override
-  double get maxExtent => _barHeight;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: overlapsContent ? 0.5 : 0,
-      child: SizedBox(
-        height: _barHeight,
-        width: double.infinity,
-        child: child,
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _PinnedSegmentBarDelegate oldDelegate) {
-    return child != oldDelegate.child;
   }
 }

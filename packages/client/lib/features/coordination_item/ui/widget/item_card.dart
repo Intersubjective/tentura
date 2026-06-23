@@ -7,16 +7,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
-enum _ItemMenuAction {
-  edit,
-  remind,
-  accept,
-  resolve,
-  cancel,
-  reject,
-}
+import 'coordination_item_overflow_menu.dart';
 
-/// Mirrors beacon activity log tiers — drives header label weight only.
 enum _ItemHeaderTier { high, medium, low }
 
 const _bodyPreviewThreshold = 60;
@@ -59,14 +51,6 @@ String? _formatStaleRemaining(CoordinationItem item) {
     return '${diff.inHours}h ${diff.inMinutes.remainder(60)}m';
   }
   return '${diff.inMinutes}m';
-}
-
-String _participantDisplayName(BeaconParticipant? participant) {
-  if (participant == null) return '';
-  final title = participant.userTitle.trim();
-  if (title.isNotEmpty) return title;
-  final id = participant.userId;
-  return id.length <= 16 ? id : '${id.substring(0, 14)}…';
 }
 
 class ItemCard extends StatefulWidget {
@@ -135,10 +119,19 @@ class _ItemCardState extends State<ItemCard> {
       CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
     };
 
-    final statusEntries = _statusMenuEntries(l10n);
-    final menuEntries = _allMenuEntries(l10n, statusEntries);
-    final showMenu = widget.onEdit != null ||
-        (item.published && statusEntries.isNotEmpty);
+    final menuEntries = coordinationItemCardMenuEntries(
+      l10n: l10n,
+      item: item,
+      viewerId: widget.viewerId,
+      responsibleParticipant: widget.responsibleParticipant,
+      includeEdit: widget.onEdit != null,
+      includeRemind: widget.onRemind != null,
+      canResolve: widget.onResolve != null,
+      canCancel: widget.onCancel != null,
+      canAccept: widget.onAccept != null,
+      canReject: widget.onReject != null || widget.onCancel != null,
+    );
+    final showMenu = menuEntries.isNotEmpty;
     final headerTier = _itemHeaderTier(item);
     final eventIcon = coordinationCompoundStatusIcon(
       kind: item.kind,
@@ -246,28 +239,21 @@ class _ItemCardState extends State<ItemCard> {
                   if (hasAvatarTrail) avatarTrail,
                   if (hasAvatarTrail && showMenu) const SizedBox(width: 8),
                   if (showMenu)
-                    PopupMenuButton<_ItemMenuAction>(
-                      tooltip: l10n.beaconHudOverflowMore,
-                      padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.more_vert, size: 18),
-                      constraints: const BoxConstraints(
-                        minWidth: 44,
-                        minHeight: 44,
-                      ),
-                      itemBuilder: (ctx) => [
-                        for (final e in menuEntries)
-                          PopupMenuItem<_ItemMenuAction>(
-                            value: e.$1,
-                            child: Text(e.$2),
-                          ),
-                      ],
+                    CoordinationItemCardOverflowMenu(
+                      item: item,
+                      menuEntries: menuEntries,
                       onSelected: (action) => switch (action) {
-                        _ItemMenuAction.edit => widget.onEdit?.call(),
-                        _ItemMenuAction.remind => widget.onRemind?.call(),
-                        _ItemMenuAction.accept => widget.onAccept?.call(),
-                        _ItemMenuAction.resolve => widget.onResolve?.call(),
-                        _ItemMenuAction.cancel => widget.onCancel?.call(),
-                        _ItemMenuAction.reject =>
+                        CoordinationItemCardMenuAction.edit =>
+                          widget.onEdit?.call(),
+                        CoordinationItemCardMenuAction.remind =>
+                          widget.onRemind?.call(),
+                        CoordinationItemCardMenuAction.accept =>
+                          widget.onAccept?.call(),
+                        CoordinationItemCardMenuAction.resolve =>
+                          widget.onResolve?.call(),
+                        CoordinationItemCardMenuAction.cancel =>
+                          widget.onCancel?.call(),
+                        CoordinationItemCardMenuAction.reject =>
                           (widget.onReject ?? widget.onCancel)?.call(),
                       },
                     ),
@@ -305,101 +291,5 @@ class _ItemCardState extends State<ItemCard> {
         ),
       ),
     );
-  }
-
-  List<(_ItemMenuAction, String)> _allMenuEntries(
-    L10n l10n,
-    List<(_ItemMenuAction, String)> statusEntries,
-  ) {
-    final entries = <(_ItemMenuAction, String)>[];
-    if (widget.onEdit != null) {
-      entries.add((_ItemMenuAction.edit, l10n.helpOffersTabActionEdit));
-    }
-    final viewer = widget.viewerId;
-    if (viewer != null &&
-        widget.onRemind != null &&
-        widget.item.canRemind(viewer)) {
-      final name = _participantDisplayName(
-        widget.responsibleParticipant,
-      );
-      entries.add((
-        _ItemMenuAction.remind,
-        name.isEmpty ? l10n.itemNeedsAttention : l10n.remindAction(name),
-      ));
-    }
-    entries.addAll(statusEntries);
-    return entries;
-  }
-
-  List<(_ItemMenuAction, String)> _statusMenuEntries(L10n l10n) {
-    final item = widget.item;
-    if (!item.published || !item.isActive) {
-      return const [];
-    }
-
-    if (item.kind == CoordinationItemKind.blocker) {
-      return [
-        if (widget.onResolve != null)
-          (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-        if (widget.onCancel != null)
-          (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
-      ];
-    }
-    if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
-      return [
-        if (widget.onAccept != null)
-          (_ItemMenuAction.accept, l10n.coordinationResolutionAcceptLabel),
-        if (widget.onReject != null || widget.onCancel != null)
-          (
-            _ItemMenuAction.reject,
-            l10n.coordinationResolutionRejectLabel,
-          ),
-      ];
-    }
-    if (item.kind == CoordinationItemKind.plan && item.isPlanStep) {
-      return [
-        if (widget.onResolve != null)
-          (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-      ];
-    }
-    if (item.kind == CoordinationItemKind.ask) {
-      if (item.isOpen && widget.onAccept != null) {
-        return [
-          (_ItemMenuAction.accept, l10n.coordinationAskAcceptLabel),
-          if (widget.onResolve != null)
-            (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-          if (widget.onCancel != null)
-            (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
-        ];
-      }
-      if (item.isAccepted) {
-        return [
-          if (widget.onResolve != null)
-            (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-          if (widget.onCancel != null)
-            (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
-        ];
-      }
-    }
-    if (item.kind == CoordinationItemKind.promise) {
-      if (item.isOpen && widget.onAccept != null) {
-        return [
-          (_ItemMenuAction.accept, l10n.coordinationPromiseAcceptLabel),
-          if (widget.onResolve != null)
-            (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-          if (widget.onCancel != null)
-            (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
-        ];
-      }
-      if (item.isAccepted) {
-        return [
-          if (widget.onResolve != null)
-            (_ItemMenuAction.resolve, l10n.coordinationBlockerActionResolve),
-          if (widget.onCancel != null)
-            (_ItemMenuAction.cancel, l10n.coordinationBlockerActionCancel),
-        ];
-      }
-    }
-    return const [];
   }
 }

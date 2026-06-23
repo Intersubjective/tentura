@@ -3,6 +3,7 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
@@ -82,7 +83,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
           builder: (_, scrollController) => Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: EdgeInsets.fromLTRB(
+                  context.tt.screenHPadding,
+                  context.tt.sectionGap,
+                  context.tt.screenHPadding,
+                  context.tt.tightGap * 2,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -104,7 +110,12 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                  padding: EdgeInsets.fromLTRB(
+                    context.tt.screenHPadding,
+                    0,
+                    context.tt.screenHPadding,
+                    context.tt.sectionGap * 2,
+                  ),
                   children: [
                     CapabilityChipSet(
                       selectedSlugs: selected,
@@ -122,8 +133,9 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      BlocListener<BeaconCreateCubit, BeaconCreateState>(
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return BlocListener<BeaconCreateCubit, BeaconCreateState>(
         bloc: _cubit,
         listenWhen: (prev, curr) =>
             prev.location != curr.location ||
@@ -192,7 +204,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
             // Need summary & success criteria (need-first; publish enforces min length)
             Padding(
-              padding: kPaddingSmallV,
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
               child: Text(
                 _l10n.beaconNeedSummaryTitle,
                 style: _theme.textTheme.titleSmall?.copyWith(
@@ -226,7 +238,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               },
             ),
             Padding(
-              padding: kPaddingSmallV,
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
               child: TextFormField(
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 controller: _successCriteriaController,
@@ -250,7 +262,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
             // Requirements — same bottom sheet pattern as forward “Why?” picker
             Padding(
-              padding: kPaddingSmallV,
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -317,15 +329,15 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
             // Context (topics selector; gated — see kShowBeaconCreateContextSelector)
             if (kShowBeaconCreateContextSelector)
-              const Padding(
-                padding: kPaddingSmallV,
-                child: ContextDropDown(),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+                child: const ContextDropDown(),
               ),
 
             // Timing — declare the meaning of the dates first (event vs
             // deadline), then pick. This is where date ambiguity is removed.
             Padding(
-              padding: kPaddingSmallV,
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -367,7 +379,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   ),
                   if (_timingKind != BeaconScheduleKind.none)
                     Padding(
-                      padding: kPaddingSmallT,
+                      padding: EdgeInsets.only(top: tt.tightGap * 2),
                       child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
                           String>(
                         bloc: _cubit,
@@ -391,7 +403,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
             // Beacon symbol (optional identity tile)
             Padding(
-              padding: kPaddingSmallV,
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
               child: Text(
                 _l10n.beaconSymbolTitle,
                 style: _theme.textTheme.titleSmall?.copyWith(
@@ -472,7 +484,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
             // Location
             Padding(
-              padding: kPaddingSmallV,
+              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
               child: BlocSelector<BeaconCreateCubit, BeaconCreateState,
                   ({String location, Coordinates? coordinates})>(
                 bloc: _cubit,
@@ -499,6 +511,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
           ],
         ),
       );
+  }
 
   /// Picker row styled like a [TextFormField] but opened via [InkWell], not
   /// `readOnly` + `onTap` on a real text input.

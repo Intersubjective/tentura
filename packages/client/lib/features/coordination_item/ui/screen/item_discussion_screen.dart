@@ -1,20 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart';
+import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
 import '../bloc/item_actions_cubit.dart';
 import '../bloc/item_actions_state.dart';
+import '../widget/coordination_item_overflow_menu.dart';
 
 Widget _itemDiscussionProviders({
   required CoordinationItem item,
@@ -103,165 +104,19 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
         actions: [
           BlocBuilder<ItemActionsCubit, ItemActionsState>(
             buildWhen: (p, c) =>
-                p.item.status != c.item.status ||
+                p.item != c.item ||
                 p.pendingResolution != c.pendingResolution ||
                 p.isLoading != c.isLoading,
-            builder: (context, state) {
-              if (!state.item.isActive) return const SizedBox.shrink();
-              if (state.isLoading) {
-                return SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Center(
-                    child: SizedBox(
-                      width: context.tt.iconSize,
-                      height: context.tt.iconSize,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                );
-              }
-              final item = state.item;
-              final hasPendingResolution = state.pendingResolution != null;
-              final actionsCubit = context.read<ItemActionsCubit>();
-              final viewerId = GetIt.I<ProfileCubit>().state.profile.id;
-              final canProposeResolution =
-                  !hasPendingResolution &&
-                  (item.kind == CoordinationItemKind.blocker ||
-                      item.kind == CoordinationItemKind.ask ||
-                      item.kind == CoordinationItemKind.promise);
-
-              // Resolution items manage accept/reject via the pending banner
-              // inside the parent item's discussion — not via this overflow menu.
-              if (item.kind == CoordinationItemKind.resolution) {
-                return const SizedBox.shrink();
-              }
-
-              return PopupMenuButton<String>(
-                tooltip: l10n.beaconHudOverflowMore,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 48,
-                  minHeight: 48,
-                ),
-                onSelected: (v) {
-                  if (v == 'remind') {
-                    unawaited(actionsCubit.remindItem());
-                    return;
-                  }
-                  if (v == 'propose_resolution') {
-                    unawaited(
-                      _showProposeResolutionSheet(
-                        context,
-                        actionsCubit,
-                        l10n,
-                      ),
-                    );
-                    return;
-                  }
-                  if (item.kind == CoordinationItemKind.ask) {
-                    if (v == 'accept') unawaited(actionsCubit.acceptAsk());
-                    if (v == 'resolve') unawaited(actionsCubit.resolveAsk());
-                    if (v == 'cancel') unawaited(actionsCubit.cancelAsk());
-                  } else if (item.kind == CoordinationItemKind.promise) {
-                    if (v == 'accept') unawaited(actionsCubit.acceptPromise());
-                    if (v == 'resolve') unawaited(actionsCubit.resolvePromise());
-                    if (v == 'cancel') unawaited(actionsCubit.cancelPromise());
-                  } else {
-                    if (v == 'resolve') unawaited(actionsCubit.resolveBlocker());
-                    if (v == 'cancel') unawaited(actionsCubit.cancelBlocker());
-                  }
-                },
-                itemBuilder: (_) {
-                  final remindLabel = item.canRemind(viewerId)
-                      ? l10n.remindAction(
-                          item.responsibleUserId?.substring(
-                                0,
-                                item.responsibleUserId!.length.clamp(0, 12),
-                              ) ??
-                              '',
-                        )
-                      : null;
-                  if (item.kind == CoordinationItemKind.ask) {
-                    return [
-                      if (remindLabel != null)
-                        PopupMenuItem(
-                          value: 'remind',
-                          child: Text(remindLabel),
-                        ),
-                      if (item.isOpen)
-                        PopupMenuItem(
-                          value: 'accept',
-                          child: Text(l10n.coordinationAskAcceptLabel),
-                        ),
-                      PopupMenuItem(
-                        value: 'resolve',
-                        child: Text(l10n.coordinationBlockerActionResolve),
-                      ),
-                      PopupMenuItem(
-                        value: 'cancel',
-                        child: Text(l10n.coordinationBlockerActionCancel),
-                      ),
-                      if (canProposeResolution)
-                        PopupMenuItem(
-                          value: 'propose_resolution',
-                          child: Text(l10n.beaconRoomActionCreateResolution),
-                        ),
-                    ];
-                  }
-                  if (item.kind == CoordinationItemKind.promise) {
-                    return [
-                      if (remindLabel != null)
-                        PopupMenuItem(
-                          value: 'remind',
-                          child: Text(remindLabel),
-                        ),
-                      if (item.isOpen && item.targetPersonId == viewerId)
-                        PopupMenuItem(
-                          value: 'accept',
-                          child: Text(l10n.coordinationPromiseAcceptLabel),
-                        ),
-                      PopupMenuItem(
-                        value: 'resolve',
-                        child: Text(l10n.coordinationBlockerActionResolve),
-                      ),
-                      PopupMenuItem(
-                        value: 'cancel',
-                        child: Text(l10n.coordinationBlockerActionCancel),
-                      ),
-                      if (canProposeResolution)
-                        PopupMenuItem(
-                          value: 'propose_resolution',
-                          child: Text(l10n.beaconRoomActionCreateResolution),
-                        ),
-                    ];
-                  }
-                  return [
-                    if (remindLabel != null)
-                      PopupMenuItem(
-                        value: 'remind',
-                        child: Text(remindLabel),
-                      ),
-                    PopupMenuItem(
-                      value: 'resolve',
-                      child: Text(l10n.coordinationBlockerActionResolve),
-                    ),
-                    PopupMenuItem(
-                      value: 'cancel',
-                      child: Text(l10n.coordinationBlockerActionCancel),
-                    ),
-                    if (canProposeResolution)
-                      PopupMenuItem(
-                        value: 'propose_resolution',
-                        child: Text(l10n.beaconRoomActionCreateResolution),
-                      ),
-                  ];
-                },
-              );
-            },
+            builder: (context, state) => CoordinationItemDiscussionOverflowMenu(
+              item: state.item,
+              hasPendingResolution: state.pendingResolution != null,
+              isLoading: state.isLoading,
+              onProposeResolution: () => _showProposeResolutionSheet(
+                context,
+                context.read<ItemActionsCubit>(),
+                l10n,
+              ),
+            ),
           ),
         ],
       ),
@@ -349,8 +204,13 @@ class _ItemDiscussionHydrateLoaderState extends State<_ItemDiscussionHydrateLoad
       future: _itemFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator.adaptive()),
+          return Scaffold(
+            appBar: AppBar(
+              leading: BackButton(
+                onPressed: () => unawaited(context.router.maybePop()),
+              ),
+            ),
+            body: const Center(child: CircularProgressIndicator.adaptive()),
           );
         }
         final item = snapshot.data;
