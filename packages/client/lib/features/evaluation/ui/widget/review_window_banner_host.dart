@@ -139,9 +139,16 @@ class _ReviewWindowBannerHostState extends State<ReviewWindowBannerHost> {
       );
     }
     final w = _window;
-    if (w == null || !w.hasWindow || w.totalCount == 0) {
+    if (w == null || !w.hasWindow || w.windowComplete) {
       return const SizedBox.shrink();
     }
+
+    final showReviewCta = w.viewerHasOutstandingReviewWork;
+    final showAuthorManagement = widget.isAuthor;
+    if (!showReviewCta && !showAuthorManagement) {
+      return const SizedBox.shrink();
+    }
+
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final canCloseNow = widget.isAuthor &&
@@ -152,22 +159,24 @@ class _ReviewWindowBannerHostState extends State<ReviewWindowBannerHost> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ReviewBanner(
-            isDraftPhase: false,
-            margin: EdgeInsets.zero,
-            onPrimary: () => context.router.pushPath(
-              '$kPathReviewContributions/${widget.beaconId}',
+          if (showReviewCta) ...[
+            ReviewBanner(
+              isDraftPhase: false,
+              margin: EdgeInsets.zero,
+              onPrimary: () => context.router.pushPath(
+                '$kPathReviewContributions/${widget.beaconId}',
+              ),
             ),
-          ),
-          if (w.closesAt != null && w.closesAt!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              l10n.beaconReviewWindowClosesAt(w.closesAt!),
-              style: TenturaText.status(scheme.onSurfaceVariant),
-            ),
+            if (w.closesAt != null && w.closesAt!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                l10n.beaconReviewWindowClosesAt(w.closesAt!),
+                style: TenturaText.status(scheme.onSurfaceVariant),
+              ),
+            ],
           ],
-          if (widget.isAuthor) ...[
-            const SizedBox(height: 8),
+          if (showAuthorManagement) ...[
+            if (showReviewCta) const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,

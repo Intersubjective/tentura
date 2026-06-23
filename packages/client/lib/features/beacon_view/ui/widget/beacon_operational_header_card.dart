@@ -4,7 +4,6 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -23,11 +22,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onForward,
     this.onWatch,
     this.onStopWatching,
-    this.onViewChain,
     this.onSwitchToPeopleTab,
-    this.onCloseBeacon,
-    this.onOpenReview,
-    this.onOpenLogTab,
     this.onEditNowLine,
     this.onOpenItemDiscussion,
     super.key,
@@ -42,19 +37,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   final VoidCallback? onForward;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
-  final VoidCallback? onViewChain;
 
   /// Switches to the People lens (tab index 1).
   final VoidCallback? onSwitchToPeopleTab;
-
-  /// Author-only: close beacon (confirm + mutation), wired from screen when allowed.
-  final VoidCallback? onCloseBeacon;
-
-  /// Closed beacon: open contribution review.
-  final VoidCallback? onOpenReview;
-
-  /// Closed beacon: switch to Log tab.
-  final VoidCallback? onOpenLogTab;
 
   /// Edit room current line (NOW row).
   final VoidCallback? onEditNowLine;
@@ -66,7 +51,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final bundle = _buildHudActions(l10n);
+    final specs = _buildHudActions(l10n);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -89,18 +74,13 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
             ),
           ),
           if (state.beacon.lifecycle == BeaconLifecycle.reviewOpen)
-            ReviewWindowBannerHost(beaconId: state.beacon.id)
-          else if (bundle.specs.isNotEmpty || bundle.showOverflowClose) ...[
+            ReviewWindowBannerHost(
+              beaconId: state.beacon.id,
+              isAuthor: state.isBeaconMine,
+            )
+          else if (specs.isNotEmpty) ...[
             const SizedBox(height: 10),
-            _HudActionRail(
-              actions: bundle.specs,
-              trailing: bundle.showOverflowClose && onCloseBeacon != null
-                  ? _HudCloseOverflowButton(
-                      l10n: l10n,
-                      onPressed: onCloseBeacon!,
-                    )
-                  : null,
-            ),
+            _HudActionRail(actions: specs),
             const SizedBox(height: 10),
           ],
           Divider(height: 1, color: tt.border),
@@ -109,63 +89,19 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     );
   }
 
-  _HudActionBundle _buildHudActions(L10n l10n) {
+  List<_HudActionSpec> _buildHudActions(L10n l10n) {
     final b = state.beacon;
     final open = b.lifecycle == BeaconLifecycle.open;
 
-    if (b.lifecycle == BeaconLifecycle.deleted) {
-      return const _HudActionBundle(specs: [], showOverflowClose: false);
-    }
-
-    if (b.lifecycle == BeaconLifecycle.reviewOpen) {
-      return const _HudActionBundle(specs: [], showOverflowClose: false);
-    }
-
-    if (!open) {
-      final out = <_HudActionSpec>[];
-      if (onOpenReview != null) {
-        out.add(
-          _HudActionSpec(
-            icon: Icons.rate_review_outlined,
-            label: l10n.beaconHudCtaReviewContributions,
-            onPressed: onOpenReview,
-            filled: false,
-          ),
-        );
-      }
-      if (onOpenLogTab != null && out.length < 3) {
-        out.add(
-          _HudActionSpec(
-            icon: Icons.format_list_bulleted_outlined,
-            label: l10n.beaconHudCtaOpenLog,
-            onPressed: onOpenLogTab,
-            filled: false,
-          ),
-        );
-      }
-      if (onViewChain != null && out.length < 3) {
-        out.add(
-          _HudActionSpec(
-            icon: Icons.account_tree_outlined,
-            label: l10n.beaconCtaViewChain,
-            onPressed: onViewChain,
-            filled: false,
-          ),
-        );
-      }
-      return _HudActionBundle(specs: out.take(3).toList(), showOverflowClose: false);
+    if (b.lifecycle == BeaconLifecycle.deleted ||
+        b.lifecycle == BeaconLifecycle.reviewOpen ||
+        !open) {
+      return const [];
     }
 
     if (state.isAuthorOrSteward) {
-      final cp = state.closureActionPriority;
-
-      final overflowClose =
-          cp == ClosureActionPriority.overflow && onCloseBeacon != null;
-
       final specs = <_HudActionSpec>[];
-
-      void addForward() {
-        if (onForward == null) return;
+      if (onForward != null) {
         specs.add(
           _HudActionSpec(
             icon: Icons.send_outlined,
@@ -175,21 +111,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           ),
         );
       }
-
-      void addClose({required bool filled}) {
-        if (onCloseBeacon == null) return;
-        specs.add(
-          _HudActionSpec(
-            icon: Icons.flag_outlined,
-            label: l10n.buttonClose,
-            onPressed: onCloseBeacon,
-            filled: filled,
-          ),
-        );
-      }
-
-      void addUpdateStatus() {
-        if (onUpdateStatus == null) return;
+      if (onUpdateStatus != null) {
         specs.add(
           _HudActionSpec(
             icon: Icons.tune_outlined,
@@ -199,44 +121,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           ),
         );
       }
-
-      switch (cp) {
-        case ClosureActionPriority.primary:
-          addClose(filled: true);
-          addForward();
-        case ClosureActionPriority.secondary:
-          addClose(filled: false);
-          addForward();
-        case ClosureActionPriority.overflow:
-        case ClosureActionPriority.hidden:
-          addForward();
-      }
-      addUpdateStatus();
-
-      while (specs.length > 3) {
-        var removed = false;
-        for (var i = specs.length - 1; i >= 0; i--) {
-          if (specs[i].label == l10n.labelForward) {
-            specs.removeAt(i);
-            removed = true;
-            break;
-          }
-        }
-        if (removed) continue;
-        for (var i = specs.length - 1; i >= 0; i--) {
-          if (specs[i].label == l10n.buttonClose) {
-            specs.removeAt(i);
-            removed = true;
-            break;
-          }
-        }
-        if (!removed) break;
-      }
-
-      return _HudActionBundle(
-        specs: specs.take(3).toList(growable: false),
-        showOverflowClose: overflowClose,
-      );
+      return specs;
     }
 
     final canOfferHelp = open &&
@@ -284,7 +169,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
           ),
         );
       }
-      return _HudActionBundle(specs: out.take(3).toList(), showOverflowClose: false);
+      return out.take(3).toList();
     }
 
     final out = <_HudActionSpec>[];
@@ -318,59 +203,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         ),
       );
     }
-    if (onViewChain != null && out.length < 3) {
-      out.add(
-        _HudActionSpec(
-          icon: Icons.account_tree_outlined,
-          label: l10n.beaconCtaViewChain,
-          onPressed: onViewChain,
-          filled: false,
-        ),
-      );
-    }
-    return _HudActionBundle(specs: out.take(3).toList(), showOverflowClose: false);
-  }
-}
-
-class _HudActionBundle {
-  const _HudActionBundle({
-    required this.specs,
-    required this.showOverflowClose,
-  });
-
-  final List<_HudActionSpec> specs;
-  final bool showOverflowClose;
-}
-
-class _HudCloseOverflowButton extends StatelessWidget {
-  const _HudCloseOverflowButton({
-    required this.l10n,
-    required this.onPressed,
-  });
-
-  final L10n l10n;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return PopupMenuButton<String>(
-      tooltip: l10n.beaconHudOverflowMore,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 44, minHeight: 40),
-      icon: Icon(Icons.more_horiz, color: scheme.onSurface),
-      onSelected: (value) {
-        if (value == 'close') {
-          onPressed();
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'close',
-          child: Text(l10n.beaconHudOverflowCloseBeacon),
-        ),
-      ],
-    );
+    return out.take(3).toList();
   }
 }
 
@@ -389,13 +222,9 @@ class _HudActionSpec {
 }
 
 class _HudActionRail extends StatelessWidget {
-  const _HudActionRail({
-    required this.actions,
-    this.trailing,
-  });
+  const _HudActionRail({required this.actions});
 
   final List<_HudActionSpec> actions;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -408,10 +237,6 @@ class _HudActionRail extends StatelessWidget {
           Expanded(
             child: _HudActionButton(spec: actions[i]),
           ),
-        ],
-        if (trailing != null) ...[
-          const SizedBox(width: 8),
-          trailing!,
         ],
       ],
     );

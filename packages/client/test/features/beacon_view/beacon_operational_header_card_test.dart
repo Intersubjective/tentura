@@ -48,7 +48,6 @@ Future<void> _pumpHeaderCard(
   required BeaconViewState state,
   VoidCallback? onUpdateStatus,
   VoidCallback? onForward,
-  VoidCallback? onCloseBeacon,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -65,7 +64,6 @@ Future<void> _pumpHeaderCard(
               onAuthorTap: () {},
               onUpdateStatus: onUpdateStatus,
               onForward: onForward ?? () {},
-              onCloseBeacon: onCloseBeacon,
             ),
           ),
         ),
@@ -266,6 +264,80 @@ void main() {
       );
 
       expect(find.text('Update status'), findsOneWidget);
+    });
+  });
+
+  group('removed HUD CTAs', () {
+    testWidgets('open author shows Forward and Update status without Close', (
+      tester,
+    ) async {
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(),
+        myProfile: authorProfile,
+      );
+
+      await _pumpHeaderCard(
+        tester,
+        state: state,
+        onUpdateStatus: () {},
+      );
+
+      expect(find.text('Forward'), findsOneWidget);
+      expect(find.text('Update status'), findsOneWidget);
+      expect(find.text('Close'), findsNothing);
+    });
+
+    testWidgets('steward shows Forward and Update status without Close', (
+      tester,
+    ) async {
+      const stewardProfile = Profile(id: 'uSteward', displayName: 'Steward');
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(),
+        myProfile: stewardProfile,
+        roomParticipants: [
+          BeaconParticipant(
+            id: 'p1',
+            beaconId: 'b1',
+            userId: 'uSteward',
+            role: BeaconParticipantRoleBits.steward,
+            status: BeaconParticipantStatusBits.committed,
+            roomAccess: RoomAccessBits.admitted,
+            createdAt: t,
+            updatedAt: t,
+          ),
+        ],
+      );
+
+      await _pumpHeaderCard(
+        tester,
+        state: state,
+        onUpdateStatus: () {},
+      );
+
+      expect(find.text('Forward'), findsOneWidget);
+      expect(find.text('Update status'), findsOneWidget);
+      expect(find.text('Close'), findsNothing);
+    });
+
+    testWidgets('closed author shows no Review Log or View chain CTAs', (
+      tester,
+    ) async {
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(lifecycle: BeaconLifecycle.closed),
+        myProfile: authorProfile,
+      );
+
+      await _pumpHeaderCard(
+        tester,
+        state: state,
+        onUpdateStatus: () {},
+      );
+
+      expect(find.text('Review'), findsNothing);
+      expect(find.text('Log'), findsNothing);
+      expect(find.text('View chain'), findsNothing);
+      expect(find.text('Forward'), findsNothing);
+      expect(find.text('Update status'), findsNothing);
     });
   });
 }

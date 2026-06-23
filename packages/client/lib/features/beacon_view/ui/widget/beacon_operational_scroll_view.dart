@@ -1,18 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_lifecycle.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/coordination_status.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
-import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
@@ -21,7 +17,6 @@ import 'package:tentura/features/beacon_view/ui/widget/items_tab.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'beacon_view_constants.dart';
 import 'beacon_view_status_bottom_sheet.dart';
@@ -41,7 +36,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
     required this.onTapCoordinationLogEvent,
     required this.onEnterRoomSurface,
     required this.onOpenItemDiscussion,
-    required this.onAuthorCloseRequested,
   });
 
   final BeaconViewCubit beaconViewCubit;
@@ -63,8 +57,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
 
   final void Function(CoordinationItem item) onOpenItemDiscussion;
 
-  final Future<void> Function(BuildContext context) onAuthorCloseRequested;
-
   void _setTab(int i) {
     if (tabIndex == i) {
       onPeopleTabAttentionCleared();
@@ -80,10 +72,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
     if (focusItemId != null || focusUserId != null) {
       onOperationalFocusCleared();
     }
-  }
-
-  Future<void> _authorCloseFlow(BuildContext context) async {
-    await onAuthorCloseRequested(context);
   }
 
   Future<void> _runOfferHelpFlow(BuildContext context, L10n l10n) async {
@@ -249,34 +237,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
                             state.inboxStatus == InboxItemStatus.watching
                         ? () => unawaited(beaconViewCubit.stopWatching())
                         : null,
-                    onViewChain: () =>
-                        screenCubit.showForwardsGraphFor(beaconId),
                     onSwitchToPeopleTab: () => _setTab(kBeaconTabPeople),
-                    onCloseBeacon:
-                        state.isBeaconMine &&
-                            state.beacon.lifecycle == BeaconLifecycle.open &&
-                            state.closureActionPriority !=
-                                ClosureActionPriority.hidden
-                        ? () => unawaited(_authorCloseFlow(context))
-                        : null,
-                    onOpenReview:
-                        state.isBeaconMine &&
-                            state.beacon.lifecycle != BeaconLifecycle.open &&
-                            state.beacon.lifecycle !=
-                                BeaconLifecycle.reviewOpen &&
-                            state.beacon.lifecycle != BeaconLifecycle.deleted
-                        ? () => unawaited(
-                            context.router.pushPath(
-                              '$kPathReviewContributions/$beaconId',
-                            ),
-                          )
-                        : null,
-                    onOpenLogTab:
-                        state.isBeaconMine &&
-                            state.beacon.lifecycle !=
-                                BeaconLifecycle.reviewOpen
-                        ? () => _setTab(kBeaconTabLog)
-                        : null,
                     onEditNowLine: state.canCoordinateInBeaconRoom
                         ? () => unawaited(
                             showBeaconCurrentLineSheet(
