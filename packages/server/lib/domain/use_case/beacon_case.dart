@@ -32,6 +32,20 @@ const _kNeedSummaryPublishMin = 16;
 
 const _kSuccessCriteriaHardMax = 240;
 
+/// Domain result for beacon lifecycle mutations that expose id/state/closesAt
+/// (GraphQL `BeaconCloseReviewResult`).
+final class BeaconCloseReviewResult {
+  const BeaconCloseReviewResult({
+    required this.id,
+    required this.state,
+    this.closesAt,
+  });
+
+  final String id;
+  final int state;
+  final String? closesAt;
+}
+
 String? _trimOrNull(String? raw) {
   if (raw == null) return null;
   final t = raw.trim();
@@ -427,9 +441,7 @@ final class BeaconCase extends UseCaseBase {
   }
 
   /// Author cancels an open beacon with zero acknowledged committers (state 1).
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> beaconCancel({
+  Future<BeaconCloseReviewResult> beaconCancel({
     required String beaconId,
     required String userId,
   }) =>
@@ -471,10 +483,10 @@ final class BeaconCase extends UseCaseBase {
             reason: BeaconLifecycleChangeReason.cancelled,
             actorId: userId,
           );
-          return {
-            'id': beaconId,
-            'state': 1,
-          };
+          return BeaconCloseReviewResult(
+            id: beaconId,
+            state: 1,
+          );
         },
       );
 
