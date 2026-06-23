@@ -52,7 +52,7 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
                 graphSourceRepository: GetIt.I<ForwardsGraphRepository>(),
                 forwardsGraphBeaconId: focus,
                 helpOffererFocusUserId: helpOffererId,
-                edgeColors: GraphEdgeColors.fromTokens(context.tt),
+                edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
               );
             },
           ),

@@ -33,7 +33,7 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
         create: (context) => GraphCubit(
           me: GetIt.I<ProfileCubit>().state.profile,
           focus: focus,
-          edgeColors: GraphEdgeColors.fromTokens(context.tt),
+          edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
         ),
       ),
     ],
