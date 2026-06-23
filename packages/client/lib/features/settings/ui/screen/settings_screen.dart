@@ -53,7 +53,6 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
     final authCubit = GetIt.I<AuthCubit>();
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final scheme = Theme.of(context).colorScheme;
     final visibleVersion = cubit.state.visibleVersion;
     return Scaffold(
       appBar: AppBar(
@@ -67,24 +66,6 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
             builder: LinearPiActive.builder,
           ),
         ),
-        actions: visibleVersion != null && visibleVersion.isNotEmpty
-            ? [
-                Padding(
-                  padding: EdgeInsets.only(right: tt.screenHPadding),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 180),
-                      child: Text(
-                        visibleVersion,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TenturaText.bodySmall(scheme.onSurfaceVariant),
-                      ),
-                    ),
-                  ),
-                ),
-              ]
-            : null,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -101,6 +82,13 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                 settingsCubit: cubit,
                 onConfirmResetLocal: () => _confirmResetLocal(context),
               ),
+              if (visibleVersion != null && visibleVersion.isNotEmpty)
+                Center(
+                  child: TenturaMetaText(
+                    visibleVersion,
+                    maxLines: 2,
+                  ),
+                ),
             ],
           ),
         ),
