@@ -22,7 +22,7 @@ Plan: see workspace plan `beacon_room_implementation_54f2f85e.plan.md` (do not e
 
 **Alternatives considered:** Keep `comment` table until client shipped — rejected; dropping in migration matches plan Phase 1 cleanup.
 
-**Files touched:** `packages/server/lib/data/database/migration/m003[6-7].dart`, `_migrations.dart`, `tentura_db.dart`, `table/beacon_*`, deleted `comments.dart`/comment repo/mapper/mock/entities, shared view edits, `beacon_room_repository.dart`, `beacon_room_case.dart`, consts bits.
+**Files touched:** `packages/server/lib/data/database/migration/m0036.dart`, `m0037.dart`, `_migrations.dart`, `tentura_db.dart`, `table/beacon_*`, deleted `comments.dart`/comment repo/mapper/mock/entities, shared view edits, `beacon_room_repository.dart`, `beacon_room_case.dart`, consts bits.
 
 **Open follow-ups:** Register V2 operations (`RoomMessageCreate`, `RoomMessageList`, …) in graphql schema + `mutation_*` / `query_*` + `_mutataions_all` / `_queries_all` + client Ferry + `_tenturaDirectOperationNames`; Hasura metadata remove `comment` tracking + track `beacon_participant`/steward/room_state; reaction table missing `notify_entity_change` trigger (invalidate room on reaction); phases 2–6 migrations (`public_status`, fact cards, blockers, `activity_event`, unread); full client Beacon UI + Peoples tab rename; `MIN_CLIENT_VERSION` if required.
 
@@ -46,7 +46,7 @@ Plan: see workspace plan `beacon_room_implementation_54f2f85e.plan.md` (do not e
 
 ## 2026-04-28 — Phase 2.1–2.x (incremental)
 
-**Decision:** Migration `m0038` adds `beacon.public_status` (smallint default 0) and `last_public_meaningful_change` (nullable text). **`beacon_help offer` drop deferred:** forward/coordination and Hasura `help offers` still depend on the table; Phase 2.1 drop requires migrating commit flows to `beacon_participant` + coordinating repo refactors first.
+**Decision:** Migration `m0038` adds `beacon.public_status` (smallint default 0) and `last_public_meaningful_change` (nullable text). **`beacon_help_offer` drop deferred:** forward/coordination and Hasura `beacon_help_offer` still depend on the table; Phase 2.1 drop requires migrating commit flows to `beacon_participant` + coordinating repo refactors first.
 
 **Rationale:** Public status surfaces on Hasura-backed `BeaconModel`/`Beacon` immediately; committing table removal without replacing forward-graph reads would break prod.
 
@@ -54,7 +54,7 @@ Plan: see workspace plan `beacon_room_implementation_54f2f85e.plan.md` (do not e
 
 **Files touched:** Server `m0038.dart`, `_migrations.dart`, `table/beacons.dart`, `beacon_repository*.dart`, `beacon_mapper.dart`, `beacon_entity.dart`, `beacon_public_status.dart`, `beacon_room_consts.dart`, `beacon_room_repository.dart`, `beacon_room_case.dart`, GraphQL beacon/room mutations+queries; client `schema.graphql`, `beacon_model.graphql`, `beacon_model.dart`, `beacon_room/**`, `beacon_repository.dart`, `build_client.dart`; `hasura/metadata.json`.
 
-**Follow-up:** Dedicated migration to drop `beacon_help offer` after forward/commit paths use participants only; Overview/Forward/Inbox **strips** using `publicStatus` (UI polish); optional `beacon_order_by` / filters if Hasura complains on new columns.
+**Follow-up:** Dedicated migration to drop `beacon_help_offer` after forward/commit paths use participants only; Overview/Forward/Inbox **strips** using `publicStatus` (UI polish); optional `beacon_order_by` / filters if Hasura complains on new columns.
 
 ## 2026-04-28 — Phase 5.4 guardrails + Phase 6 propagation close-out
 

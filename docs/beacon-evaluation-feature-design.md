@@ -7,14 +7,14 @@ Companion to [beacon-evaluation-principles.md](./beacon-evaluation-principles.md
 - **Close the loop** / **Acknowledge contributions** / **How did this contribution affect this beacon?**
 - Never: 360 review, rating people, reputation, leaderboards.
 
-**Not the same as over-offer coordination:** During an **open** beacon, authors may set per-commit **coordination responses** and a beacon-level **coordination status** (coverage / fit of the need — not “approval” of helpers). That feature is documented in [`over-offer-coordination-feature-design.md`](./over-offer-coordination-feature-design.md). Evaluation here applies **after** successful closure and the review window; coordination metadata during active work may provide context later but is **not** an evaluation submission.
+**Not the same as over-offer coordination:** During an **open** beacon, authors may set per-commit **coordination responses** and a beacon-level **coordination status** (coverage / fit of the need — not “approval” of helpers). That feature is documented in [`help-offer-coordination-feature-design.md`](./help-offer-coordination-feature-design.md). Evaluation here applies **after** successful closure and the review window; coordination metadata during active work may provide context later but is **not** an evaluation submission.
 
 **Not the same as Watching:** The inbox **Watching** stance ([`docs/v1/watching-mechanism.md`](./v1/watching-mechanism.md)) does **not** by itself confer evaluation eligibility; eligibility follows the participant and visibility rules in this document only.
 
 ## Phase 1 scope
 
 - Successful closure **by beacon author** only (`beaconCloseWithReview` V2 mutation).
-- Roles: **author**, **helpers** (active `beacon_help offer` at closure), **adjacent forwarders** only (see below).
+- Roles: **author**, **helpers** (active `beacon_help_offer` at closure), **adjacent forwarders** only (see below).
 - Excluded: dead-branch forwarders, failed/disputed closures, stewards, cross-beacon summaries.
 
 ### Reopen / needs-more-help cycle (Phase 1)

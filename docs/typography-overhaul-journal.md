@@ -109,8 +109,7 @@
 - [x] features/beacon_view/ui/widget/plain_mini_avatar.dart — verified
 - [x] features/beacon_view/ui/widget/coordination_response_bottom_sheet.dart — verified
 - [x] features/beacon_view/ui/widget/overview/beacon_overview_tab.dart — Phase 3 TextTheme cleanup
-- [x] features/beacon_view/ui/widget/commitments_summary_card.dart — verified
-- [x] features/beacon_view/ui/widget/commitment_tile.dart — bodySmall migration (Phase 1)
+- [x] features/beacon_view/ui/widget/help_offer_tile.dart — bodySmall migration (Phase 1)
 - [x] features/forward/ui/screen/forward_beacon_screen.dart — bodySmall migration
 - [x] features/forward/ui/widget/forward_top_bar.dart — verified
 - [x] features/forward/ui/widget/forward_bottom_composer.dart — verified

@@ -26,6 +26,5 @@ redirected to `{origin}/#th=<base64url(json)>` with `{ userId, seed }`. WASM
 captured the fragment before boot. That path failed when cookie-less visitors
 hit `/` and Caddy served landing instead of WASM (ADR 0002).
 
-Removed artifacts: `packages/landing/handoff.js`, `handoff-dev.html`,
-`packages/client/.../web_handoff_*.dart`, `handoff_codec.dart`,
+Removed artifacts: `handoff.js` and `handoff-dev.html` on the landing package, client `web_handoff_*.dart`, `handoff_codec.dart`,
 `scripts/check_handoff_contract.sh`, `#th=` capture in `packages/client/web/index.html`.

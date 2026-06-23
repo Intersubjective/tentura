@@ -152,8 +152,8 @@ Tests:
 
 **Follow-ups (Phase 3):**
 - Extend `kAllowedHelpTypeKeys` and `CommitHelpType` with new slugs; deprecate `skill`.
-- Migration `m00YY_help_type_taxonomy_align`: rewrite `beacon_commitment.help_type = 'skill'` → `'other'`.
-- `CommitmentCase.commit` writes a `commit_role` capability event after the existing `beacon_commitment` upsert.
+- Migration `m00YY_help_type_taxonomy_align`: rewrite `beacon_help_offer.help_type = 'skill'` → `'other'`.
+- `HelpOfferCase.commit` writes a `commit_role` capability event after the existing `beacon_help_offer` upsert.
 - Commit dialog adds ChoiceChip row of commit-role-eligible slugs.
 - `NetworkPersonCard` + `ProfileViewBody` render `commitRoles` cues.
 - l10n: `commitRolePrompt`, `capabilityCueCommitted`.
@@ -168,17 +168,17 @@ Tests:
 
 Server:
 - `packages/server/lib/domain/coordination/help_type.dart`: `kAllowedHelpTypeKeys` extended with `'documents'`, `'physical_help'`, `'tools'`, `'housing'`, `'workspace'`, `'introductions'`. Legacy `'skill'` retained in the set for backward compatibility with old clients still in flight.
-- `packages/server/lib/data/database/migration/m0049.dart` (new): single `UPDATE beacon_commitment SET help_type = 'other' WHERE help_type = 'skill'` — retires `skill` at the data layer.
+- `packages/server/lib/data/database/migration/m0049.dart` (new): single `UPDATE beacon_help_offer SET help_type = 'other' WHERE help_type = 'skill'` — retires `skill` at the data layer (table was `beacon_commitment` before `m0063`).
 - `_migrations.dart`: `part 'm0049.dart';` added; `m0049` registered in the migrations list.
-- `packages/server/lib/domain/use_case/commitment_case.dart`: injected `CapabilityCase _capabilityCase` (5th positional constructor param, mirroring `ForwardCase` pattern); after each of the two `_commitmentRepository.upsert(...)` calls (hasActive branch + new-commit branch), calls `_capabilityCase.recordCommitRole(observerId: userId, subjectId: userId, beaconId: beaconId, slug: helpType)` guarded by null/empty check and wrapped in try/catch (non-fatal, logs warnings). Call placed before `_coordinationRepository.recompute...`.
-- `di.config.dart`: injectable DI config updated — `gh<CapabilityCase>()` wired as the 5th argument to `CommitmentCase`.
-- `test/domain/use_case/commitment_case_mocks.dart`: `PersonCapabilityEventRepositoryPort` added to `@GenerateMocks`; `capability_case.dart` + `capabilityCase` field added to test setUp.
+- `packages/server/lib/domain/use_case/help_offer_case.dart`: injected `CapabilityCase _capabilityCase` (5th positional constructor param, mirroring `ForwardCase` pattern); after each of the two `_helpOfferRepository.upsert(...)` calls (hasActive branch + new-commit branch), calls `_capabilityCase.recordCommitRole(observerId: userId, subjectId: userId, beaconId: beaconId, slug: helpType)` guarded by null/empty check and wrapped in try/catch (non-fatal, logs warnings). Call placed before `_coordinationRepository.recompute...`.
+- `di.config.dart`: injectable DI config updated — `gh<CapabilityCase>()` wired as the 5th argument to `HelpOfferCase`.
+- `test/domain/use_case/help_offer_case_mocks.dart`: `PersonCapabilityEventRepositoryPort` added to `@GenerateMocks`; `capability_case.dart` + `capabilityCase` field added to test setUp.
 - Server bumped to 0.23.0.
 - `dart analyze --fatal-infos`: no issues.
 
 Client:
-- `packages/client/lib/domain/entity/help_type.dart`: removed `skill` entry; added `documents`, `physicalHelp`, `tools`, `housing`, `workspace`, `introductions`; updated `wireKey` + `tryParse`; mapped `'skill'` → `CommitHelpType.other` in `tryParse` for backward compat.
-- `packages/client/lib/features/beacon_view/ui/dialog/commitment_message_dialog.dart`: section label changed from `labelHelpTypeOptional` → `commitRolePrompt`; `_helpTypeLabel` updated — removed `skill` case, added 6 new entries using `capabilityTag*` l10n keys.
+- `packages/client/lib/domain/capability/capability_tag.dart`: removed `isCommitRoleEligible` field and all `isCommitRoleEligible: true` annotations. All 33 tags are now valid commit roles.
+- `packages/client/lib/features/beacon_view/ui/dialog/help_offer_message_dialog.dart`: section label changed from `labelHelpTypeOptional` → `commitRolePrompt`; `_helpTypeLabel` updated — removed `skill` case, added 6 new entries using `capabilityTag*` l10n keys.
 - `packages/client/l10n/app_en.arb` + `app_ru.arb`: added `commitRolePrompt` and `capabilityCueCommitted` (with `{tags}` placeholder).
 - `packages/client/lib/features/capability/ui/widget/network_person_card.dart`: added `commitRoleSlugs` parameter; renders "Committed: ..." line when non-empty.
 - `packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart`: added `commitRoles` `BlocSelector` strip after private-label section; beacon-scoped, visible to all viewers.
@@ -186,11 +186,11 @@ Client:
 - `dart run build_runner build -d`, `flutter analyze --fatal-infos`, `dart analyze --fatal-infos`, `dart run custom_lint` all green.
 
 **Why:**
-- Per plan: Phase 3 adds commit-role capability signal (source_type=2, beacon_scoped); stored in both `beacon_commitment.help_type` (legacy) and `person_capability_event` (new).
+- Per plan: Phase 3 adds commit-role capability signal (source_type=2, beacon_scoped); stored in both `beacon_help_offer.help_type` (legacy) and `person_capability_event` (new).
 
 **Unexpected findings:**
 - `di.config.dart` needed manual update (injectable does not auto-detect new positional args without running `build_runner`).
-- `commitment_case_mocks.mocks.dart` required manual edit since `build_runner` was not run mid-session.
+- `help_offer_case_mocks.mocks.dart` required manual edit since `build_runner` was not run mid-session.
 
 **Confirmed untouched:**
 - `ProfileEditScreen` diff is empty — intentionally not modified.
@@ -264,12 +264,12 @@ Client:
 **What changed:**
 
 Client:
-- `packages/client/lib/domain/entity/help_type.dart`: **deleted**. `CommitHelpType` enum was a redundant subset of `CapabilityTag`; its 12 values mapped 1:1 to the `isCommitRoleEligible: true` subset.
+- **Deleted** client `CommitHelpType` help-type entity (formerly `domain/entity/help_type.dart`): redundant subset of `CapabilityTag`; its 12 values mapped 1:1 to the `isCommitRoleEligible: true` subset.
 - `packages/client/lib/domain/capability/capability_tag.dart`: removed `isCommitRoleEligible` field and all `isCommitRoleEligible: true` annotations. All 33 tags are now valid commit roles.
-- `packages/client/lib/features/beacon_view/ui/dialog/commitment_message_dialog.dart`: replaced `CommitHelpType` with `CapabilityTag`. Chip loop now iterates all 33 `CapabilityTag.values`; labels via `tag.labelOf(l10n)`; wire key via `tag.slug`. Removed `_helpTypeLabel` static switch.
+- `packages/client/lib/features/beacon_view/ui/dialog/help_offer_message_dialog.dart`: replaced `CommitHelpType` with `CapabilityTag`. Chip loop now iterates all 33 `CapabilityTag.values`; labels via `tag.labelOf(l10n)`; wire key via `tag.slug`. Removed `_helpTypeLabel` static switch.
 - `packages/client/lib/features/beacon/ui/widget/coordination_ui.dart`: replaced stale 7-case `helpTypeLabel()` switch with `CapabilityTag.fromSlug(wireKey)?.labelOf(l10n) ?? wireKey`. This also fixes the Phase 3 bug where `documents`, `physical_help`, `tools`, `housing`, `workspace`, `introductions` fell through to raw wire-key display.
 - `packages/client/l10n/app_en.arb` + `app_ru.arb`: removed 7 `helpType*` keys (`helpTypeMoney`, `helpTypeTime`, `helpTypeSkill`, `helpTypeVerification`, `helpTypeContact`, `helpTypeTransport`, `helpTypeOther`). All labels now use `capabilityTag*` keys. `'skill'` (migrated to `other` by m0049) falls through to raw key via `fromSlug` null fallback — acceptable since no live data has this slug.
-- `packages/client/test/features/beacon_view/commitment_chip_roundtrip_test.dart`: updated to use `CapabilityTag.values.length`, `CapabilityTag.slug` round-trip test.
+- `packages/client/test/features/beacon_view/help_offer_chip_roundtrip_test.dart`: updated to use `CapabilityTag.values.length`, `CapabilityTag.slug` round-trip test.
 
 Server:
 - `packages/server/lib/domain/coordination/help_type.dart`: replaced `kAllowedHelpTypeKeys` constant with a thin `isAllowedHelpType` wrapper delegating to `kAllowedCapabilitySlugs`. Server now accepts all 33 capability slugs as valid help types (previously only 13).
@@ -282,7 +282,7 @@ Server:
 - `dart analyze --fatal-infos`: no issues (client). Pre-existing `unnecessary_parenthesis` info in server unrelated to these changes.
 - `flutter analyze --fatal-infos`: no issues.
 - `dart run custom_lint`: no issues.
-- `dart test commitment_case_test.dart capability_case_test.dart`: all 21 tests passed.
+- `dart test help_offer_case_test.dart capability_case_test.dart`: all 21 tests passed.
 - No remaining references to `CommitHelpType`, `kAllowedHelpTypeKeys`, `isCommitRoleEligible`, or `helpType*` l10n keys.
 
 **Confirmed untouched:**

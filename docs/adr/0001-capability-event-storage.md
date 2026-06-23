@@ -8,7 +8,7 @@ Tentura needs deterministic, observer-derived capability cues to help people und
 
 1. **Private labels** — a viewer privately tags someone with slugs they believe apply.
 2. **Forward reasons** — when forwarding a beacon to a recipient, the forwarder picks why that person might help.
-3. **Commit roles** — when committing to a beacon, the committer selects what kind of help they are offering (already stored as `beacon_commitment.help_type`; now also mirrored into the event table).
+3. **Commit roles** — when committing to a beacon, the committer selects what kind of help they are offering (stored as `beacon_help_offer.help_type`; also mirrored into the event table).
 4. **Close acknowledgements** — when evaluating a completed beacon, the evaluator tags what the participant actually helped with.
 
 A fifth source — self-declared capabilities ("I can help with X") — was considered and **explicitly rejected** by the user because people are unwilling to maintain such data and it would re-introduce the exact pattern removed from scope.

@@ -2,7 +2,7 @@
 
 Complete inventory of screens, routes, dialogs, bottom sheets, and overlay entry points in the Tentura Flutter client.
 
-**Generated:** 2026-06-22 (source scan of `packages/client/lib`)
+**Generated:** 2026-06-22 (source scan of `packages/client/lib`; refreshed 2026-06-23 for removed stub screens)
 
 ---
 
@@ -23,7 +23,7 @@ Searched `packages/client/lib` for:
 | `DraggableScrollableSheet`, `ModalBottomSheet` | Sheet implementations |
 | `ScreenCubit.navigateTo` / `pushPath` | Programmatic navigation targets |
 
-Cross-checked `root_router.dart` against all `@RoutePage()` annotations. **Widgetbook:** no screen mirrors found under `packages/widgetbook`.
+Cross-checked `root_router.dart` against all `@RoutePage()` annotations. **Widgetbook:** no widgetbook package in the repo.
 
 ---
 
@@ -62,12 +62,12 @@ Cross-checked `root_router.dart` against all `@RoutePage()` annotations. **Widge
 | **GraphScreen** | `/graph/:id` | `lib/features/graph/ui/screen/graph_screen.dart` | Trust graph |
 | **ComplaintScreen** | `/complaint/:id` | `lib/features/complaint/ui/screen/complaint_screen.dart` | Fullscreen dialog |
 
-#### `@RoutePage()` but **not registered** in `root_router.dart` (orphan / dead route codegen)
+#### Removed stub screens (no longer in tree)
 
-| Name | File | Notes |
-|------|------|-------|
-| **UpdatesScreen** | `lib/features/updates/ui/screen/updates_screen.dart` | Stub "nothing here" screen; no router entry |
-| **FavoritesScreen** | `lib/features/favorites/ui/screen/favorites_screen.dart` | Pinned-beacons list; no router entry (`kPathFavorites` unused) |
+| Name | Former path | Notes |
+|------|-------------|-------|
+| **UpdatesScreen** | `lib/features/updates/ui/screen/updates_screen.dart` | Stub removed 2026-06 |
+| **FavoritesScreen** | `lib/features/favorites/ui/screen/favorites_screen.dart` | Screen removed; pin GQL/cubit remain under `features/favorites/` |
 
 #### Dialog-only "screens" (no `@RoutePage`, opened via `showDialog`)
 
@@ -348,10 +348,6 @@ App (RootRouter — packages/client/lib/app/router/root_router.dart)
 ├── [Non–Auto Route pushes]
 │   ├── BeaconGalleryViewer (from beacon photos)
 │   └── RoomAttachmentFullscreenGallery (from room attachments)
-│
-└── [Orphan @RoutePage — not in router]
-    ├── UpdatesScreen
-    └── FavoritesScreen
 ```
 
 ---
@@ -360,6 +356,6 @@ App (RootRouter — packages/client/lib/app/router/root_router.dart)
 
 1. **Room is not a separate navigable screen anymore** — `BeaconRoomRoute` redirects into `BeaconViewScreen` with room surface; `BeaconRoomScreen` still exists as dead/legacy implementation.
 2. **Three dialog modules appear unwired:** `FriendRemoveDialog`, `MyProfileDeleteDialog`, `EditPrivateLabelsDialog` (profile view uses `removeFriend` cubit method directly instead).
-3. **Two orphan routes:** `UpdatesScreen`, `FavoritesScreen` have `@RoutePage()` but no `AutoRoute` registration.
+3. **Pin-only favorites module:** `features/favorites/` (GQL + cubit + `BeaconPinIconButton`) remains; standalone `FavoritesScreen` was removed.
 4. **No Tentura-prefixed sheet/dialog wrappers** in `design_system/` — overlays use Flutter primitives directly.
 5. **Fullscreen-dialog routes** (slide-up on mobile): Register, AcceptInvite, ProfileEdit, Settings, Credentials, BeaconCreate, ForwardBeacon, Complaint.
