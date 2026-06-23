@@ -345,4 +345,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
 /// Extension accessor for [TenturaTokens].
 extension TenturaThemeX on BuildContext {
   TenturaTokens get tt => Theme.of(this).extension<TenturaTokens>()!;
+
+  /// One-shot token read for lifecycles that cannot subscribe to [Theme]
+  /// (e.g. provider create callbacks, [State.initState]).
+  TenturaTokens get ttOnce =>
+      findAncestorWidgetOfExactType<Theme>()!.data.extension<TenturaTokens>()!;
 }
