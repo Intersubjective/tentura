@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -8,7 +9,6 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../bloc/auth_cubit.dart';
@@ -62,6 +62,7 @@ class _RecoverScreenState extends State<RecoverScreen> {
   final _seedController = TextEditingController();
 
   var _hasScanResult = false;
+  final _scanLiveRegionKey = GlobalKey();
 
   @override
   void dispose() {
@@ -81,35 +82,32 @@ class _RecoverScreenState extends State<RecoverScreen> {
     if (value == null || value.isEmpty) return;
     _hasScanResult = true;
     _seedController.text = value;
+    if (mounted) {
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        L10n.of(context)!.recoverFromSeedAction,
+        TextDirection.ltr,
+      );
+    }
     unawaited(_recover(value));
   }
 
-  Future<void> _confirmResetLocal(BuildContext context, L10n l10n) async {
+  Future<void> _confirmResetLocal() async {
+    final l10n = L10n.of(context)!;
     final authCubit = context.read<AuthCubit>();
     final seedWarning = await authCubit.hasSeedOnlyLocalAccounts();
-    final confirmed = await showDialog<bool>(
+    if (!mounted) return;
+    final confirmed = await TenturaConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.authRecoveryResetLocalTitle),
-        content: Text(
-          seedWarning
-              ? '${l10n.authRecoveryResetLocalBody}\n\n'
-                    '${l10n.authRecoveryResetSeedWarning}'
-              : l10n.authRecoveryResetLocalBody,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.buttonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.authRecoveryResetLocalTitle),
-          ),
-        ],
-      ),
+      title: l10n.authRecoveryResetLocalTitle,
+      content: seedWarning
+          ? '${l10n.authRecoveryResetLocalBody}\n\n'
+                '${l10n.authRecoveryResetSeedWarning}'
+          : l10n.authRecoveryResetLocalBody,
+      confirmLabel: l10n.authRecoveryResetLocalTitle,
+      cancelLabel: l10n.buttonCancel,
     );
-    if ((confirmed ?? false) && context.mounted) {
+    if ((confirmed ?? false) && mounted) {
       await authCubit.resetLocalAuthState();
     }
   }
@@ -147,24 +145,24 @@ class _RecoverScreenState extends State<RecoverScreen> {
                     l10n.authSessionProblemBanner,
                     style: theme.textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: kSpacingMedium),
+                  SizedBox(height: tt.sectionGap),
                   FilledButton(
                     onPressed: isLoading ? null : authCubit.signInAgain,
                     child: Text(l10n.authRecoverySignInAgain),
                   ),
-                  const SizedBox(height: kSpacingSmall),
+                  SizedBox(height: tt.rowGap),
                   OutlinedButton(
                     onPressed: isLoading
                         ? null
-                        : () => _confirmResetLocal(context, l10n),
+                        : () => unawaited(_confirmResetLocal()),
                     child: Text(l10n.authRecoveryResetLocalTitle),
                   ),
-                  const SizedBox(height: kSpacingLarge),
+                  SizedBox(height: tt.sectionGap * 2),
                   Text(
                     l10n.recoverFromSeedHint,
                     style: theme.textTheme.bodyMedium,
                   ),
-                  const SizedBox(height: kSpacingMedium),
+                  SizedBox(height: tt.sectionGap),
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final viewportH = MediaQuery.sizeOf(context).height;
@@ -172,13 +170,18 @@ class _RecoverScreenState extends State<RecoverScreen> {
                       return SizedBox(
                         height: qrHeight,
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(kBorderRadius),
-                          child: MobileScanner(onDetect: _handleBarcode),
+                          borderRadius: BorderRadius.circular(tt.cardRadius),
+                          child: Semantics(
+                            key: _scanLiveRegionKey,
+                            label: l10n.recoverFromSeedHint,
+                            liveRegion: true,
+                            child: MobileScanner(onDetect: _handleBarcode),
+                          ),
                         ),
                       );
                     },
                   ),
-                  const SizedBox(height: kSpacingMedium),
+                  SizedBox(height: tt.sectionGap),
                   TextField(
                     controller: _seedController,
                     autocorrect: false,
@@ -191,12 +194,12 @@ class _RecoverScreenState extends State<RecoverScreen> {
                     ),
                     onSubmitted: _recover,
                   ),
-                  const SizedBox(height: kSpacingSmall),
+                  SizedBox(height: tt.rowGap),
                   Text(
                     l10n.recoverFromSeedPrivacyNote,
                     style: theme.textTheme.bodySmall,
                   ),
-                  const SizedBox(height: kSpacingMedium),
+                  SizedBox(height: tt.sectionGap),
                   Row(
                     children: [
                       TextButton.icon(

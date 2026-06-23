@@ -4,18 +4,16 @@ import 'package:auto_route/auto_route.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
-import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
-import 'package:tentura/features/inbox/domain/enum.dart';
-import 'package:tentura/features/inbox/ui/widget/inbox_item_tile.dart';
+import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import '../../domain/enum.dart';
 import '../bloc/beacon_cubit.dart';
+import '../widget/beacon_tile.dart';
 
 @RoutePage()
 class BeaconScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -74,6 +72,29 @@ class _BeaconScreenState extends State<BeaconScreen> {
     super.dispose();
   }
 
+  String _labelForFilter(BeaconFilter filter) => switch (filter) {
+    BeaconFilter.active => _l10n.beaconsFilterActive,
+    BeaconFilter.closed => _l10n.beaconsFilterClosed,
+  };
+
+  Future<void> _showFilterMenu(BuildContext buttonContext) async {
+    final selected = await showAnchoredPopupMenu<BeaconFilter>(
+      anchorContext: buttonContext,
+      items: [
+        for (final f in BeaconFilter.values)
+          PopupMenuItem<BeaconFilter>(
+            value: f,
+            child: Text(_labelForFilter(f)),
+          ),
+      ],
+    );
+    if (selected != null && buttonContext.mounted) {
+      _beaconCubit.setFilter(selected);
+    }
+  }
+
+  Future<void> _onRefresh() => _beaconCubit.fetch(reset: true);
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -91,21 +112,33 @@ class _BeaconScreenState extends State<BeaconScreen> {
               padding: EdgeInsets.only(right: tt.tightGap),
               child: Tooltip(
                 message: _l10n.myWorkFilterMenuTooltip,
-                child: DropdownButton<BeaconFilter>(
-                  icon: const Icon(Icons.filter_alt),
-                  items: [
-                    DropdownMenuItem(
-                      value: BeaconFilter.active,
-                      child: Text(_l10n.beaconsFilterActive),
-                    ),
-                    DropdownMenuItem(
-                      value: BeaconFilter.closed,
-                      child: Text(_l10n.beaconsFilterClosed),
-                    ),
-                  ],
-                  onChanged: _beaconCubit.setFilter,
-                  value: filter,
-                  dropdownColor: scheme.surfaceContainer,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
+                    minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
+                    foregroundColor: scheme.onPrimary,
+                  ),
+                  onPressed: () => unawaited(_showFilterMenu(context)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.filter_alt, color: scheme.onPrimary),
+                      SizedBox(width: tt.iconTextGap),
+                      Flexible(
+                        child: Text(
+                          _labelForFilter(filter),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TenturaText.labelLarge(scheme.onPrimary)
+                              .copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_drop_down,
+                        color: scheme.onPrimary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -151,43 +184,56 @@ class _BeaconScreenState extends State<BeaconScreen> {
               );
             }
             if (state.beacons.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: tt.cardPadding,
-                  child: Semantics(
-                    label: _l10n.noBeaconsMessage,
-                    child: Text(
-                      _l10n.noBeaconsMessage,
-                      style: TenturaText.bodyMedium(scheme.onSurfaceVariant),
-                      textAlign: TextAlign.center,
+              return RefreshIndicator.adaptive(
+                onRefresh: _onRefresh,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.sizeOf(context).height * 0.4,
+                      child: Center(
+                        child: Padding(
+                          padding: tt.cardPadding,
+                          child: Semantics(
+                            label: _l10n.noBeaconsMessage,
+                            child: Text(
+                              _l10n.noBeaconsMessage,
+                              style: TenturaText.bodyMedium(scheme.onSurfaceVariant),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               );
             }
-            return ListView.builder(
-              key: ValueKey(state.beacons),
-              controller: _scrollController,
-              padding: kPaddingSmallV,
-              itemCount: state.beacons.length,
-              itemBuilder: (_, i) {
-                final beacon = state.beacons[i];
-                return Padding(
-                  padding: kPaddingSmallV,
-                  child: InboxItemTile(
-                    key: ValueKey(beacon.id),
-                    item: _inboxItemFromBeacon(beacon),
-                    onOpenBeacon: () => context.router.pushPath(
-                      '$kPathBeaconView/${beacon.id}',
+            return RefreshIndicator.adaptive(
+              onRefresh: _onRefresh,
+              child: ListView.builder(
+                key: ValueKey(state.beacons),
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: kPaddingSmallV,
+                itemCount: state.beacons.length,
+                itemBuilder: (_, i) {
+                  final beacon = state.beacons[i];
+                  return Padding(
+                    padding: kPaddingSmallV,
+                    child: BeaconTile(
+                      key: ValueKey(beacon.id),
+                      beacon: beacon,
+                      onOpenBeacon: () => context.router.pushPath(
+                        '$kPathBeaconView/${beacon.id}',
+                      ),
+                      onForward: () => context.router.pushPath(
+                        '$kPathForwardBeacon/${beacon.id}',
+                      ),
                     ),
-                    onTap: () => context.router.pushPath(
-                      '$kPathForwardBeacon/${beacon.id}',
-                    ),
-                    showCtaRow: false,
-                    showProvenance: false,
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             );
           },
         ),
@@ -196,10 +242,3 @@ class _BeaconScreenState extends State<BeaconScreen> {
   }
 }
 
-InboxItem _inboxItemFromBeacon(Beacon beacon) => InboxItem(
-      beaconId: beacon.id,
-      latestForwardAt: beacon.updatedAt,
-      beacon: beacon,
-      context: beacon.context,
-      status: InboxItemStatus.watching,
-    );

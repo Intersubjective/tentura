@@ -148,7 +148,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                     alpha: 0.72,
                   ),
                   indicatorColor: scheme.onPrimary,
-                  dividerColor: Colors.transparent,
+                  dividerColor: scheme.primary.withValues(alpha: 0),
                   indicatorSize: TabBarIndicatorSize.label,
                   labelStyle: theme.textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w600,
@@ -202,11 +202,7 @@ class _FriendsScreenState extends State<FriendsScreen>
           body: TabBarView(
             controller: _tabController,
             children: [
-              _FriendsTabBody(
-                friendsCubit: friendsCubit,
-                theme: theme,
-                l10n: l10n,
-              ),
+              _FriendsTabBody(friendsCubit: friendsCubit),
               _InvitesTabBody(
                 invitationCubit: _invitationCubit,
                 scrollController: _invitesScrollController,
@@ -223,18 +219,15 @@ class _FriendsScreenState extends State<FriendsScreen>
 }
 
 class _FriendsTabBody extends StatelessWidget {
-  const _FriendsTabBody({
-    required this.friendsCubit,
-    required this.theme,
-    required this.l10n,
-  });
+  const _FriendsTabBody({required this.friendsCubit});
 
   final FriendsCubit friendsCubit;
-  final ThemeData theme;
-  final L10n l10n;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
     return BlocBuilder<FriendsCubit, FriendsState>(
       bloc: friendsCubit,
       buildWhen: (_, c) => c.isSuccess || c.isLoading || c.hasError,
@@ -251,10 +244,10 @@ class _FriendsTabBody extends StatelessWidget {
               children: [
                 Icon(
                   Icons.error_outline,
-                  size: 48,
+                  size: tt.iconSize * 2,
                   color: theme.colorScheme.error,
                 ),
-                const SizedBox(height: kSpacingMedium),
+                SizedBox(height: tt.sectionGap),
                 FilledButton(
                   onPressed: () => unawaited(friendsCubit.fetch()),
                   child: Text(l10n.myWorkRetry),
@@ -271,7 +264,7 @@ class _FriendsTabBody extends StatelessWidget {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     SizedBox(
-                      height: MediaQuery.sizeOf(context).height * 0.5,
+                      height: MediaQuery.sizeOf(context).height * 0.35,
                       child: Center(
                         child: Text(
                           l10n.labelNothingHere,
@@ -321,6 +314,7 @@ class _InvitesTabBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final tt = context.tt;
     final onSurfaceVariant = scheme.onSurfaceVariant;
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
 
@@ -339,19 +333,21 @@ class _InvitesTabBody extends StatelessWidget {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: Padding(
-                    padding: kPaddingAll,
+                    padding: tt.cardPadding,
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 320),
+                        constraints: BoxConstraints(
+                          maxWidth: tt.contentMaxWidth ?? 320,
+                        ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.person_add_alt_1_outlined,
-                              size: 64,
+                              size: tt.iconSize * 3,
                               color: onSurfaceVariant,
                             ),
-                            const SizedBox(height: kSpacingMedium),
+                            SizedBox(height: tt.sectionGap),
                             Text(
                               l10n.friendsInvitesEmptyTitle,
                               style: theme.textTheme.titleMedium?.copyWith(
@@ -359,7 +355,7 @@ class _InvitesTabBody extends StatelessWidget {
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: kSpacingSmall),
+                            SizedBox(height: tt.rowGap),
                             Text(
                               l10n.friendsInvitesEmptyBody,
                               style: theme.textTheme.bodyMedium?.copyWith(
@@ -367,7 +363,7 @@ class _InvitesTabBody extends StatelessWidget {
                               ),
                               textAlign: TextAlign.center,
                             ),
-                            const SizedBox(height: kSpacingMedium),
+                            SizedBox(height: tt.sectionGap),
                             FilledButton.icon(
                               icon: const Icon(Icons.person_add_alt_1),
                               label: Text(l10n.friendsCreateInvitation),

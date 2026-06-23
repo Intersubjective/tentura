@@ -70,49 +70,49 @@ You are operating in a loop. Each invocation must complete **exactly one task** 
 
 ### Navigation & UX Flows
 
-- [ ] TASK-26: `ItemDiscussionScreen` — add an AppBar with a back/dismiss button to `_ItemDiscussionHydrateLoader` so users can exit on deep-link refresh without being stuck
-- [ ] TASK-27: `BeaconScreen` — replace the raw `DropdownButton` filter in the AppBar with a `PopupMenuButton` pattern consistent with My Work / Inbox
+- [x] TASK-26: `ItemDiscussionScreen` — add an AppBar with a back/dismiss button to `_ItemDiscussionHydrateLoader` so users can exit on deep-link refresh without being stuck
+- [x] TASK-27: `BeaconScreen` — replace the raw `DropdownButton` filter in the AppBar with a `PopupMenuButton` pattern consistent with My Work / Inbox
 - [x] TASK-28: `ForwardBeaconScreen` / `ForwardTopBar` — implement the filter callback (`onFilterPressed`) or remove the dead control entirely
-- [ ] TASK-29: `BeaconScreen` — add `RefreshIndicator` wrapping the list body for pull-to-refresh
-- [ ] TASK-30: `CredentialsScreen` — add `RefreshIndicator` for pull-to-refresh; replace `DateTime.toString()` credential dates with `DateFormat` or a relative-time helper
+- [x] TASK-29: `BeaconScreen` — add `RefreshIndicator` wrapping the list body for pull-to-refresh
+- [x] TASK-30: `CredentialsScreen` — add `RefreshIndicator` for pull-to-refresh; replace `DateTime.toString()` credential dates with `DateFormat` or a relative-time helper
 - [x] TASK-31: `RatingScreen` — remove the commented-out `ContextDropDown` (dead code); add an empty-state widget shown when the search filter returns zero rows
 
 ### Design System Token Migrations
 
 - [x] TASK-32: `MyWorkScreen` — migrate sort button to `tt.tightGap * 2` and `TenturaText.labelLarge`; replace magic icon sizes (20/48), `maxWidth: 88`, animation offset `8`, and deprecated `kPaddingSmallV`/`kPaddingSmallH` with `context.tt` tokens
 - [x] TASK-33: `InboxScreen` — migrate `Colors.transparent` on AppBar/TabBar; replace `BorderRadius.circular(999)` tombstone pill with a design-system radius token; replace magic `titleSpacing: 8`, icon 20, `maxWidth: 88`
-- [ ] TASK-34: `FriendsScreen` — migrate `Colors.transparent` on TabBar; replace `kPaddingAll` in invites empty state; replace hard-coded `maxWidth: 320`, `Icon(size: 64)`, and `MediaQuery.sizeOf(context).height * 0.5` with `context.tt` / window-class tokens
+- [x] TASK-34: `FriendsScreen` — migrate `Colors.transparent` on TabBar; replace `kPaddingAll` in invites empty state; replace hard-coded `maxWidth: 320`, `Icon(size: 64)`, and `MediaQuery.sizeOf(context).height * 0.5` with `context.tt` / window-class tokens
 - [x] TASK-35: `InboxRejectedScreen` — migrate `Colors.transparent` and `kPaddingSmallH`/`kPaddingSmallV`; replace plain `Text` in AppBar title with `TenturaText.title`
 - [x] TASK-36: `IntroScreen` — migrate `kPaddingAll`, `kPaddingAllS`, `kPaddingV`; replace raw `8` width/height for page dots with a named token or `tt.iconTextGap`
 - [x] TASK-37: `AuthLoginScreen` — migrate remaining `kPaddingAll`/`kPaddingH` on empty state and QR/clipboard buttons; replace bare `Text()` with `TenturaText` variants
-- [ ] TASK-38: `RecoverScreen` — migrate `kSpacing*` constants; replace `BorderRadius.circular(kBorderRadius)` with `tt.cardRadius`
-- [ ] TASK-39: `AuthRegisterScreen` — migrate the four `Padding(padding: kPaddingAll)` to `context.tt.cardPadding` or equivalent
+- [x] TASK-38: `RecoverScreen` — migrate `kSpacing*` constants; replace `BorderRadius.circular(kBorderRadius)` with `tt.cardRadius`
+- [x] TASK-39: `AuthRegisterScreen` — migrate the four `Padding(padding: kPaddingAll)` to `context.tt.cardPadding` or equivalent
 - [x] TASK-40: `ProfileEditScreen` — replace `kTenturaAvatarBigSize` (160) with `tt.avatarSize`; center the avatar stack horizontally on wide layouts
-- [ ] TASK-41: `SettingsScreen` — replace `_confirmResetLocal` raw `AlertDialog` with the shared design-system dialog wrapper
-- [ ] TASK-42: `CredentialsScreen` — center the list on expanded screens with `contentMaxWidth`; migrate dialog(s) to shared design-system dialog wrapper
-- [ ] TASK-43: `BeaconIconPickerScreen` — replace `Colors.black` / `Colors.white` fallback in `_pickerTileColors` with semantic `ColorScheme` tokens
-- [ ] TASK-44: `info_tab.dart` (BeaconCreate) — migrate raw `EdgeInsets.fromLTRB(16,…)` and `kPadding*` constants to `context.tt` tokens
-- [ ] TASK-45: `image_tab.dart` (BeaconCreate) — replace `Colors.black54` and fixed icon sizes in `_ImageCard` with design-system tokens and `ColorScheme` roles
-- [ ] TASK-46: `BeaconCreateScreen` — consolidate the double horizontal padding (screen wrapper + tab content) so padding is owned at one level only
+- [x] TASK-41: `SettingsScreen` — replace `_confirmResetLocal` raw `AlertDialog` with the shared design-system dialog wrapper
+- [x] TASK-42: `CredentialsScreen` — center the list on expanded screens with `contentMaxWidth`; migrate dialog(s) to shared design-system dialog wrapper
+- [x] TASK-43: `BeaconIconPickerScreen` — replace `Colors.black` / `Colors.white` fallback in `_pickerTileColors` with semantic `ColorScheme` tokens
+- [x] TASK-44: `info_tab.dart` (BeaconCreate) — migrate raw `EdgeInsets.fromLTRB(16,…)` and `kPadding*` constants to `context.tt` tokens
+- [x] TASK-45: `image_tab.dart` (BeaconCreate) — replace `Colors.black54` and fixed icon sizes in `_ImageCard` with design-system tokens and `ColorScheme` roles
+- [x] TASK-46: `BeaconCreateScreen` — consolidate the double horizontal padding (screen wrapper + tab content) so padding is owned at one level only
 - [x] TASK-47: `forward_recipient_row.dart` + `lineage_suggestions_sheet.dart` — migrate raw chip insets and padding to `context.tt` tokens
 - [x] TASK-48: `forward_bottom_composer.dart` — replace hardcoded icon sizes 14/16 with `tt.iconSize` tokens
 - [x] TASK-49: `graph_body.dart` — replace `Colors.indigo` edge-highlight color with a `ColorScheme` token; replace bare `Text` node labels with `TenturaText`
-- [ ] TASK-50: `BeaconViewScreen` — wrap the Scaffold body in `SafeArea` to prevent bottom-inset issues on notched devices
+- [x] TASK-50: `BeaconViewScreen` — wrap the Scaffold body in `SafeArea` to prevent bottom-inset issues on notched devices
 - [x] TASK-51: `EvaluationPrivacyInfoRow` — migrate raw icon sizes and spacing to `context.tt` tokens; add combined `Semantics` label to participant-status rows in `ReviewContributionsScreen`
 - [x] TASK-52: `HomeScreen` + `profile_navbar_item.dart` — add a vertical hairline token for `VerticalDivider(width:1, thickness:1)`; add `Semantics` to the `ProfileNavBarItem` long-press target
-- [ ] TASK-53: `RecoverScreen` / QR scanner widget — add `Semantics` wrapper and a live-region announcement on successful scan
-- [ ] TASK-54: `RecoverScreen` — fix the pre-existing `use_build_context_synchronously` warning in `_confirmResetLocal` (use mounted guard or pass a reference before async gap)
+- [x] TASK-53: `RecoverScreen` / QR scanner widget — add `Semantics` wrapper and a live-region announcement on successful scan
+- [x] TASK-54: `RecoverScreen` — fix the pre-existing `use_build_context_synchronously` warning in `_confirmResetLocal` (use mounted guard or pass a reference before async gap)
 - [x] TASK-55: `profile_app_bar.dart` + `profile_body.dart` — fix `ProfileAppBar` raw spacing and 40 dp touch targets; migrate deprecated `kPaddingT` / `kPaddingSmallT` in `ProfileBody`
 
 ### Structural Issues
 
-- [ ] TASK-56: `FriendsScreen` — refactor `_FriendsTabBody` to read `Theme` and `L10n` from `BuildContext` internally instead of receiving them as constructor parameters
+- [x] TASK-56: `FriendsScreen` — refactor `_FriendsTabBody` to read `Theme` and `L10n` from `BuildContext` internally instead of receiving them as constructor parameters
 - [x] TASK-57: `ProfileViewScreen` — remove the unused `isDeepLink` `@QueryParam` declaration (or wire it up if intended)
-- [ ] TASK-58: `AuthRegisterScreen` — extract a shared auth form widget (e.g. `AuthFormField`) to deduplicate the repeated `Padding` + `TextFormField` blocks shared with login/recover
-- [ ] TASK-59: `SettingsScreen` — refactor the flat `Column` of `TextButton`s to a `TenturaCommandButton`-based grouped list (Settings IA pass)
-- [ ] TASK-60: `BeaconIconPickerScreen` — extract a shared `_FilterChoiceChip` wrapper to replace the ~17 nearly-identical `ChoiceChip` definitions
-- [ ] TASK-61: `ItemDiscussionScreen` — extract the ~120-line overflow menu logic into a shared builder/widget reused by both `ItemDiscussionScreen` and `ItemCard`
-- [ ] TASK-62: `BeaconViewScreen` — split the ~1500-line file into focused widget files (AppBar widget, tab-page widgets, room-button widget, status bottom-sheet widget)
-- [ ] TASK-63: `BeaconScreen` — evaluate replacing the synthetic `InboxItem` wrapper passed to `InboxItemTile` with a dedicated `BeaconTile` widget for the profile-beacon list
+- [x] TASK-58: `AuthRegisterScreen` — extract a shared auth form widget (e.g. `AuthFormField`) to deduplicate the repeated `Padding` + `TextFormField` blocks shared with login/recover
+- [x] TASK-59: `SettingsScreen` — refactor the flat `Column` of `TextButton`s to a `TenturaCommandButton`-based grouped list (Settings IA pass)
+- [x] TASK-60: `BeaconIconPickerScreen` — extract a shared `_FilterChoiceChip` wrapper to replace the ~17 nearly-identical `ChoiceChip` definitions
+- [x] TASK-61: `ItemDiscussionScreen` — extract the ~120-line overflow menu logic into a shared builder/widget reused by both `ItemDiscussionScreen` and `ItemCard`
+- [x] TASK-62: `BeaconViewScreen` — split the ~1500-line file into focused widget files (AppBar widget, tab-page widgets, room-button widget, status bottom-sheet widget)
+- [x] TASK-63: `BeaconScreen` — evaluate replacing the synthetic `InboxItem` wrapper passed to `InboxItemTile` with a dedicated `BeaconTile` widget for the profile-beacon list
 - [x] TASK-64: `ForwardsGraphScreen` — derive the AppBar title from `GraphState` instead of reading a private cubit field directly
 - [x] TASK-65: `GraphScreen` — remove or implement the commented-out context selector in the AppBar `bottom:` slot

@@ -1,139 +1,75 @@
-import 'dart:async';
-
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import 'package:tentura/consts.dart';
+import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
+import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/author_info.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
 
-import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
-import 'package:tentura/features/evaluation/ui/widget/beacon_review_countdown_row.dart';
-
-import 'beacon_info.dart';
-import 'beacon_mine_control.dart';
-import 'beacon_overflow_menu.dart';
-import 'beacon_tile_control.dart';
-import 'coordination_ui.dart';
-
+/// Profile-beacon list tile — uses [Beacon] directly (no synthetic [InboxItem]).
 class BeaconTile extends StatelessWidget {
   const BeaconTile({
     required this.beacon,
-    required this.isMine,
-    this.onClickTag,
+    required this.onOpenBeacon,
+    required this.onForward,
     super.key,
   });
 
-  final bool isMine;
-
   final Beacon beacon;
-
-  final TagClickCallback? onClickTag;
+  final VoidCallback onOpenBeacon;
+  final VoidCallback onForward;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: kPaddingAllS,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Context (gated — see kShowBeaconCardContextCategory)
-            if (kShowBeaconCardContextCategory && beacon.context.isNotEmpty)
-              Padding(
-                padding: kPaddingAllS,
-                child: Row(
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(right: 4),
-                      child: Icon(
-                        Icons.group_outlined,
-                        size: 16,
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () =>
-                            context.read<ContextCubit>().add(beacon.context),
-                        child: Text(
-                          beacon.context,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    final tt = context.tt;
 
-            // User row
-            if (!isMine)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Avatar and Title
-                  AuthorInfo(author: beacon.author),
+    final phaseInput = beaconPhaseInputFromInbox(beacon: beacon);
+    final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
+    final phaseStatus = formatBeaconPhaseStatus(
+      l10n,
+      phaseResult,
+      now: DateTime.now(),
+    );
+    final updatedLine = beaconHasRealUpdate(beacon)
+        ? l10n.myWorkUpdatedLine(
+            '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
+          )
+        : null;
 
-                  BeaconOverflowMenu(
-                    beacon: beacon,
-                    onForward: () => unawaited(
-                      context.router.pushPath(
-                        '$kPathForwardBeacon/${beacon.id}',
-                      ),
-                    ),
-                    onForwardsGraph: () => context
-                        .read<ScreenCubit>()
-                        .showForwardsGraphFor(beacon.id),
-                    onComplaint: () =>
-                        context.read<ScreenCubit>().showComplaint(beacon.id),
-                  ),
-                ],
-              ),
-
-            // Beacon Info
-            BeaconInfo(
+    return BeaconCardShell(
+      onTap: onOpenBeacon,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          BeaconCardHeaderRow(
+            beacon: beacon,
+            statusLine: phaseStatus.statusLine,
+            statusTone: phaseStatus.tone,
+            menu: BeaconOverflowMenu(
               beacon: beacon,
-              isTitleLarge: true,
-              isShowBeaconEnabled: true,
-              onClickTag: onClickTag,
+              onOpenBeacon: onOpenBeacon,
+              onForward: onForward,
+              onForwardsGraph: () =>
+                  context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
             ),
-
-            Padding(
-              padding: kPaddingSmallT,
-              child: Text(
-                coordinationStatusLabel(l10n, beacon.coordinationStatus),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: coordinationStatusOnSurfaceColor(
-                    theme.colorScheme,
-                    beacon.coordinationStatus,
-                  ),
-                ),
-              ),
-            ),
-
-            BeaconReviewCountdownRow(beacon: beacon),
-
-            // Beacon Control
-            Padding(
-              key: ValueKey(beacon.id),
-              padding: kPaddingSmallV,
-              child: isMine
-                  ? BeaconMineControl(beacon: beacon)
-                  : BeaconTileControl(beacon: beacon),
-            ),
+          ),
+          SizedBox(height: tt.rowGap),
+          BeaconCardMetadataLine(
+            beacon: beacon,
+            updatedLine: updatedLine,
+          ),
+          if (beacon.needs.isNotEmpty) ...[
+            SizedBox(height: tt.rowGap),
+            BeaconRequirementsBar(needs: beacon.needs),
           ],
-        ),
+        ],
       ),
     );
   }

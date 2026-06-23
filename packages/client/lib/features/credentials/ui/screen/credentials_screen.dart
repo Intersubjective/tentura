@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/show_seed_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
@@ -88,11 +90,24 @@ class _CredentialsScreenState extends State<CredentialsScreen>
         child: BlocBuilder<CredentialsCubit, CredentialsState>(
           builder: (context, state) {
             final itemCount = _listItemCount(state);
-            return ListView.builder(
-              padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
-              itemCount: itemCount,
-              itemBuilder: (context, index) =>
-                  _listItemAt(context, l10n, theme, state, index),
+            final maxW = tt.contentMaxWidth;
+            final listView = RefreshIndicator.adaptive(
+              onRefresh: () => context.read<CredentialsCubit>().fetch(),
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
+                itemCount: itemCount,
+                itemBuilder: (context, index) =>
+                    _listItemAt(context, l10n, theme, state, index),
+              ),
+            );
+            if (maxW == null) return listView;
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxW),
+                child: listView,
+              ),
             );
           },
         ),
@@ -144,7 +159,7 @@ class _CredentialsScreenState extends State<CredentialsScreen>
         leading: Icon(_iconForType(credential.type)),
         title: Text(_typeLabel(l10n, credential.type)),
         subtitle: Text(
-          _subtitle(credential),
+          _subtitle(context, l10n, credential),
           style: theme.textTheme.bodySmall,
         ),
         trailing: IconButton(
@@ -265,21 +280,11 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     if (seed == null || !context.mounted) return;
     await ShowSeedDialog.show(context, seed: seed);
     if (!context.mounted) return;
-    await showAdaptiveDialog<void>(
+    await TenturaConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog.adaptive(
-        title: Text(l10n.seedBackupTitle),
-        content: Text(
-          l10n.seedBackupBody,
-          style: Theme.of(dialogContext).textTheme.bodyMedium,
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.seedBackupConfirm),
-          ),
-        ],
-      ),
+      title: l10n.seedBackupTitle,
+      content: l10n.seedBackupBody,
+      confirmLabel: l10n.seedBackupConfirm,
     );
   }
 
@@ -288,22 +293,12 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     L10n l10n,
     CredentialEntity credential,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await TenturaConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.removeCredentialTitle),
-        content: Text(l10n.removeCredentialBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.buttonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.buttonRemove),
-          ),
-        ],
-      ),
+      title: l10n.removeCredentialTitle,
+      content: l10n.removeCredentialBody,
+      confirmLabel: l10n.buttonRemove,
+      cancelLabel: l10n.buttonCancel,
     );
     if ((confirmed ?? false) && context.mounted) {
       await context.read<CredentialsCubit>().remove(credential.id);
@@ -324,13 +319,19 @@ class _CredentialsScreenState extends State<CredentialsScreen>
     _ => type,
   };
 
-  String _subtitle(CredentialEntity credential) {
+  String _subtitle(BuildContext context, L10n l10n, CredentialEntity credential) {
     final identifier = credential.identifier.length > 16
         ? '${credential.identifier.substring(0, 16)}…'
         : credential.identifier;
     final created = credential.createdAt;
-    return created == null
-        ? identifier
-        : '$identifier · ${created.toLocal().toString().split(' ').first}';
+    if (created == null) return identifier;
+    final now = DateTime.now();
+    final relative = compactRelativeTimeAgo(when: created, now: now, l10n: l10n);
+    if (now.difference(created).inDays < 7) {
+      return '$identifier · $relative';
+    }
+    final locale = l10n.localeName;
+    final formatted = DateFormat.yMMMd(locale).format(created.toLocal());
+    return '$identifier · $formatted';
   }
 }
