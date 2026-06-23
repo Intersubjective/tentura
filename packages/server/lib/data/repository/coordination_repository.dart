@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
+import 'package:tentura_server/domain/coordination/coordination_status_rules.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
@@ -115,6 +116,39 @@ class CoordinationRepository implements CoordinationRepositoryPort {
           coordinationStatusUpdatedAt: Value(PgDateTime(DateTime.timestamp())),
         ),
       );
+
+  /// Deterministic coordination status from active help offers + author responses.
+  Future<void> recomputeAndPersistBeaconCoordinationStatus(
+    String beaconId,
+  ) async {
+    final beacon = await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .getSingleOrNull();
+    if (beacon == null) return;
+
+    final active = await _database.managers.beaconHelpOffers
+        .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))
+        .get();
+
+    final coords = await _coordinationByCommitUserId(beaconId);
+    final derived = deriveBeaconCoordinationStatus(
+      activeOffers: [
+        for (final offer in active)
+          CoordinationStatusActiveOffer(
+            userId: offer.userId,
+            createdAt: offer.createdAt.dateTime,
+          ),
+      ],
+      responseTypeByOfferUserId: {
+        for (final entry in coords.entries) entry.key: entry.value.responseType,
+      },
+    );
+
+    await setBeaconCoordinationFields(
+      beaconId: beaconId,
+      coordinationStatus: derived,
+    );
+  }
 
   @override
   Future<List<HelpOfferWithCoordinationRow>> helpOffersWithCoordination(
