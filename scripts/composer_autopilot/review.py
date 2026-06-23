@@ -1,4 +1,4 @@
-"""Opus 4.8 one-shot review for Composer Autopilot."""
+"""One-shot review agent for Composer Autopilot."""
 
 from __future__ import annotations
 

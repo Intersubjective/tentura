@@ -10,7 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INTEGRATION_BRANCH = "composer-autopilot"
 DEFAULT_WORKER_MODEL = "auto"
-DEFAULT_REVIEW_MODEL_FALLBACK = "claude-opus-4-8-thinking-high"
+DEFAULT_REVIEW_MODEL_FALLBACK = "auto"
 DEFAULT_MAX_RETRIES = 2
 DEFAULT_AGENT_TIMEOUT_SECONDS = 1800.0
 DEFAULT_SUBPROCESS_TIMEOUT_SECONDS = 600.0
@@ -109,7 +109,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-hours", type=float, default=None, help="Wall-clock stop after N hours")
     p.add_argument("--allow-dirty", action="store_true", help="Stash dirty tree before start")
     p.add_argument("--dry-run", action="store_true", help="Run workers/gates/review without committing")
-    p.add_argument("--skip-review", action="store_true", help="Skip Opus review (gates only)")
+    p.add_argument("--skip-review", action="store_true", help="Skip review agent (gates only)")
     p.add_argument("--runs-dir", default=None, help="Directory for run reports")
     p.add_argument("--include-disabled", action="store_true", help="Include default-OFF tasks")
     return p
