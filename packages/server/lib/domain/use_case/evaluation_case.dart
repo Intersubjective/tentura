@@ -4,7 +4,7 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
-import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
@@ -28,7 +28,7 @@ final class EvaluationCase extends UseCaseBase {
     this._beaconRepository,
     this._forwardEdgeRepository,
     this._evaluationRepository,
-    this._userRepository,
+    this._userProfileBatchLookup,
     this._roomPush,
     this._participantGraphBuilder,
     this._draftPurger,
@@ -40,7 +40,7 @@ final class EvaluationCase extends UseCaseBase {
   final BeaconRepositoryPort _beaconRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final EvaluationRepositoryPort _evaluationRepository;
-  final UserRepositoryPort _userRepository;
+  final UserProfileBatchLookup _userProfileBatchLookup;
   final BeaconRoomPushService _roomPush;
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
@@ -393,6 +393,14 @@ final class EvaluationCase extends UseCaseBase {
       evaluatorId: evaluatorId,
     );
 
+    final visibleParticipantIds = [
+      for (final v in vis)
+        if (partByUser[v.participantId] != null) v.participantId,
+    ];
+    final usersById = await _userProfileBatchLookup.userEntitiesByIds(
+      visibleParticipantIds,
+    );
+
     final out = <Map<String, dynamic>>[];
     for (final v in vis) {
       final pid = v.participantId;
@@ -400,7 +408,10 @@ final class EvaluationCase extends UseCaseBase {
       if (row == null) {
         continue;
       }
-      final u = await _userRepository.getById(pid);
+      final u = usersById[pid];
+      if (u == null) {
+        throw IdNotFoundException(id: pid);
+      }
       final ev = evByTarget[pid];
       out.add({
         'userId': pid,
@@ -480,6 +491,16 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       evaluatorId: evaluatorId,
     );
+
+    final visibleParticipantIds = [
+      for (final v in graph.visibility)
+        if (v.evaluatorId == evaluatorId && byId[v.participantId] != null)
+          v.participantId,
+    ];
+    final usersById = await _userProfileBatchLookup.userEntitiesByIds(
+      visibleParticipantIds,
+    );
+
     final out = <Map<String, dynamic>>[];
     for (final v in graph.visibility) {
       if (v.evaluatorId != evaluatorId) {
@@ -490,7 +511,10 @@ final class EvaluationCase extends UseCaseBase {
       if (row == null) {
         continue;
       }
-      final u = await _userRepository.getById(pid);
+      final u = usersById[pid];
+      if (u == null) {
+        throw IdNotFoundException(id: pid);
+      }
       final ev = evByTarget[pid];
       final useEv =
           ev != null && ev.status == BeaconEvaluationRowStatus.draft ? ev : null;
