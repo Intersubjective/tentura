@@ -24,6 +24,7 @@ class AccountListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final materialLocalizations = MaterialLocalizations.of(context);
     final profile = AccountCase.fromAccountEntity(account);
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -43,8 +44,11 @@ class AccountListTile extends StatelessWidget {
           );
         },
       ),
-      trailing: PopupMenuButton(
-        itemBuilder: (context) => <PopupMenuEntry<void>>[
+      trailing: Semantics(
+        label: materialLocalizations.popupMenuLabel,
+        child: PopupMenuButton(
+          tooltip: materialLocalizations.showMenuTooltip,
+          itemBuilder: (context) => <PopupMenuEntry<void>>[
           //
           // Share account code
           PopupMenuItem<void>(
@@ -80,6 +84,7 @@ class AccountListTile extends StatelessWidget {
             onTap: () => AccountRemoveDialog.show(context, id: account.id),
           ),
         ],
+        ),
       ),
 
       // Log in
