@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/use_case/beacon_forward_graph_case.dart';
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
+import '../mappers/gql_v2_dto_maps.dart';
 
 /// Root query field [beaconForwardGraph]: edges visible to the viewer plus the
 /// ancestor closure and the chain that delivered the beacon to each active
@@ -26,7 +27,7 @@ final class QueryForwardGraph extends GqlNodeBase {
           return _beaconForwardGraphCase.asMap(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             currentUserId: creds.sub,
-          );
+          ).then(forwardGraphResultToGqlMap);
         },
       );
 }

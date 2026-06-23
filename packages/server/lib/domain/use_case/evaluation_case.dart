@@ -4,9 +4,14 @@ import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/data/service/beacon_room_push_service.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
-import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
+import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_close_review_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_draft_row_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_participant_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/evaluation_summary_result.dart';
+import 'package:tentura_server/domain/entity/gql_public/review_window_status_result.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
@@ -15,110 +20,11 @@ import 'package:tentura_server/domain/evaluation/evaluation_summary_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
-import 'beacon_case.dart' show BeaconCloseReviewResult;
 import 'capability_case.dart';
 import 'evaluation/evaluation_draft_purger.dart';
 import 'evaluation/evaluation_participant_graph_builder.dart';
 import 'evaluation/evaluation_prompt_variant.dart';
 import '_use_case_base.dart';
-
-/// One evaluation participant row for review/draft UIs (GraphQL `EvaluationParticipant`).
-final class EvaluationParticipantResult {
-  const EvaluationParticipantResult({
-    required this.userId,
-    required this.displayName,
-    required this.imageId,
-    required this.role,
-    required this.contributionSummary,
-    required this.causalHint,
-    required this.reasonTags,
-    required this.note,
-    required this.promptVariant,
-    this.value,
-  });
-
-  final String userId;
-  final String displayName;
-  final String imageId;
-  final int role;
-  final String contributionSummary;
-  final String causalHint;
-  final int? value;
-  final List<String> reasonTags;
-  final String note;
-  final String promptVariant;
-}
-
-/// One saved draft row (GraphQL `EvaluationDraftRow`).
-final class EvaluationDraftRowResult {
-  const EvaluationDraftRowResult({
-    required this.evaluatedUserId,
-    required this.value,
-    required this.reasonTags,
-    required this.note,
-  });
-
-  final String evaluatedUserId;
-  final int value;
-  final List<String> reasonTags;
-  final String note;
-}
-
-/// Review window snapshot for the viewer (GraphQL `ReviewWindowStatus`).
-final class ReviewWindowStatusResult {
-  const ReviewWindowStatusResult({
-    required this.beaconId,
-    required this.hasWindow,
-    required this.beaconTitle,
-    this.openedAt,
-    this.closesAt,
-    this.windowComplete,
-    this.userReviewStatus,
-    this.reviewedCount,
-    this.totalCount,
-    this.extensionsUsed,
-    this.canCloseNow,
-  });
-
-  final String beaconId;
-  final bool hasWindow;
-  final String beaconTitle;
-  final String? openedAt;
-  final String? closesAt;
-  final bool? windowComplete;
-  final int? userReviewStatus;
-  final int? reviewedCount;
-  final int? totalCount;
-  final int? extensionsUsed;
-  final bool? canCloseNow;
-}
-
-/// Aggregated evaluation summary for one participant (GraphQL `EvaluationSummary`).
-final class EvaluationSummaryResult {
-  const EvaluationSummaryResult({
-    required this.suppressed,
-    required this.tone,
-    required this.message,
-    required this.topReasonTags,
-    required this.roleSummaryLine,
-    this.neg2,
-    this.neg1,
-    this.zero,
-    this.pos1,
-    this.pos2,
-  });
-
-  final bool suppressed;
-  final String tone;
-  final String message;
-  final List<String> topReasonTags;
-  final int? neg2;
-  final int? neg1;
-  final int? zero;
-  final int? pos1;
-  final int? pos2;
-  final String roleSummaryLine;
-}
 
 List<String> _reasonTagsFromCsv(String csv) => csv.isEmpty
     ? <String>[]
@@ -320,7 +226,7 @@ final class EvaluationCase extends UseCaseBase {
         return BeaconCloseReviewResult(
           id: beaconId,
           state: 5,
-          closesAt: closesAt.toUtc().toIso8601String(),
+          closesAt: closesAt,
         );
       },
     );
@@ -364,7 +270,7 @@ final class EvaluationCase extends UseCaseBase {
         return BeaconCloseReviewResult(
           id: beaconId,
           state: 5,
-          closesAt: closesAt.toUtc().toIso8601String(),
+          closesAt: closesAt,
         );
       },
     );
@@ -822,8 +728,8 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       hasWindow: true,
       beaconTitle: beaconTitle,
-      openedAt: w.openedAt.toUtc().toIso8601String(),
-      closesAt: w.closesAt.toUtc().toIso8601String(),
+      openedAt: w.openedAt,
+      closesAt: w.closesAt,
       windowComplete: w.status == 1,
       userReviewStatus: st ?? -1,
       reviewedCount: reviewed,

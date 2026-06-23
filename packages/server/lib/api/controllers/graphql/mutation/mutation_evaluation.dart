@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
+import '../mappers/gql_v2_dto_maps.dart';
 
 final class MutationEvaluation extends GqlNodeBase {
   MutationEvaluation({EvaluationCase? evaluationCase})
@@ -66,7 +67,7 @@ final class MutationEvaluation extends GqlNodeBase {
             userId: jwt.sub,
             expectedRequiresReviewWindow:
                 _expectedRequiresReviewWindow.fromArgsNonNullable(args),
-          );
+          ).then(beaconCloseReviewResultToGqlMap);
         },
       );
 
@@ -80,7 +81,7 @@ final class MutationEvaluation extends GqlNodeBase {
           return _evaluationCase.extendReviewWindow(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
-          );
+          ).then(beaconCloseReviewResultToGqlMap);
         },
       );
 
@@ -94,7 +95,7 @@ final class MutationEvaluation extends GqlNodeBase {
           return _evaluationCase.reopenFromReview(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
-          );
+          ).then(beaconCloseReviewResultToGqlMap);
         },
       );
 
@@ -108,7 +109,7 @@ final class MutationEvaluation extends GqlNodeBase {
           return _evaluationCase.closeNow(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
-          );
+          ).then(beaconCloseReviewResultToGqlMap);
         },
       );
 

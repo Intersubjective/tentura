@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -9,42 +10,6 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 import '_use_case_base.dart';
-
-/// One forward edge in the V2 forwards-graph view (GraphQL `ForwardGraphEdge`).
-final class ForwardGraphEdgeResult {
-  const ForwardGraphEdgeResult({
-    required this.id,
-    required this.beaconId,
-    required this.senderId,
-    required this.recipientId,
-    this.parentEdgeId,
-    this.batchId,
-  });
-
-  final String id;
-  final String beaconId;
-  final String senderId;
-  final String recipientId;
-  final String? parentEdgeId;
-  final String? batchId;
-}
-
-/// Result of `beaconForwardGraph` (GraphQL `ForwardGraphResult`).
-final class ForwardGraphResult {
-  const ForwardGraphResult({
-    required this.beaconId,
-    required this.authorId,
-    required this.helpOffererIds,
-    required this.edges,
-    this.viewerId,
-  });
-
-  final String beaconId;
-  final String authorId;
-  final String? viewerId;
-  final List<String> helpOffererIds;
-  final List<ForwardGraphEdgeResult> edges;
-}
 
 ForwardGraphEdgeResult _edgeToResult(ForwardEdgeEntity e) => ForwardGraphEdgeResult(
       id: e.id,

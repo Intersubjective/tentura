@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/use_case/beacon_help_offerer_forward_path_
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
+import '../mappers/gql_v2_dto_maps.dart';
 
 /// Root query field [beaconHelpOffererForwardPath]: edge set delivering the
 /// beacon to a single active help offerer (the focus user) plus the viewer's
@@ -38,7 +39,7 @@ final class QueryHelpOffererForwardPath extends GqlNodeBase {
             beaconId: InputFieldId.fromArgsNonNullable(args),
             helpOffererId: _helpOffererId.fromArgsNonNullable(args),
             currentUserId: creds.sub,
-          );
+          ).then(forwardGraphResultToGqlMap);
         },
       );
 }
