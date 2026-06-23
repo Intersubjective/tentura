@@ -5,8 +5,8 @@ Skills: ui-ux-pro-max, flutter-build-responsive-layout, tentura-design-system
 
 ## Summary
 
-- **Screens reviewed:** 29 (all `*_screen.dart` under `packages/client/lib/features/`)
-- **Small fixes applied:** 29 files (see [Fixes applied](#fixes-applied))
+- **Screens reviewed:** 27 (all `*_screen.dart` under `packages/client/lib/features/` at review time; `UpdatesScreen` / `FavoritesScreen` removed afterward)
+- **Small fixes applied:** 27 route screens at review time (see [Fixes applied](#fixes-applied))
 - **Findings requiring follow-up:** ~85 across screens and child widgets (see per-screen tables)
 
 ### Cross-cutting themes (report-only)
@@ -17,9 +17,7 @@ Skills: ui-ux-pro-max, flutter-build-responsive-layout, tentura-design-system
 | App-level max-width | `TenturaResponsiveScope` in `app.dart` caps content on regular/expanded | Per-screen `ConstrainedBox` only where tabs need explicit full-bleed vs capped content |
 | Child widget debt | Nav items, tiles, overflow menus, graph body, beacon tabs | Audit `profile_navbar_item.dart`, `beacon_overflow_menu.dart`, `graph_body.dart`, `info_tab.dart`, etc. |
 | Loading UX split | Graph screens, beacon room, item discussion | Add body-level loading overlays where app-bar strip alone is insufficient |
-| Orphan/stub screens | `UpdatesScreen`, `FavoritesScreen` | Register routes or remove dead `@RoutePage()` annotations |
-| Raw `Colors.transparent` on TabBars | Inbox, Friends, Inbox Rejected | Migrate with parent AppBar refactor |
-| Empty/error states | Beacon, Favorites, Rating, Updates | Add inline error/retry UI where cubit exposes errors |
+| Empty/error states | Beacon, Rating | Add inline error/retry UI where cubit exposes errors |
 
 ---
 
@@ -266,24 +264,7 @@ Skills: ui-ux-pro-max, flutter-build-responsive-layout, tentura-design-system
 | warning | forms | Uncontrolled fields — cubit reset/pre-fill won't update UI | Add `controller` or `initialValue` from state |
 | info | testing | No screen-level widget/golden test | Add when feature matures |
 
-### UpdatesScreen (`packages/client/lib/features/updates/ui/screen/updates_screen.dart`)
-
-| Severity | Category | Finding | Recommendation |
-|----------|----------|---------|----------------|
-| critical | feature | Stub only — no cubit, repository, or data layer | Implement feature or remove route annotation |
-| critical | navigation | Not registered in `root_router.dart` | Register or delete |
-| info | UX | No AppBar title l10n key | Add when feature ships |
-| info | typography | Empty uses `displaySmall` vs newer `TenturaText.bodyMedium` pattern | Align empty-state typography |
-
-### FavoritesScreen (`packages/client/lib/features/favorites/ui/screen/favorites_screen.dart`)
-
-| Severity | Category | Finding | Recommendation |
-|----------|----------|---------|----------------|
-| critical | navigation | `@RoutePage()` but not in `root_router.dart`; `kPathFavorites` unused | Register route or remove |
-| warning | shell | No `Scaffold` / `AppBar` — unlike peer tab screens | Add shell if routed standalone |
-| warning | error_state | `buildWhen: isSuccess` skips error rebuilds; no inline retry | Add error UI like My Work |
-| info | UX | Generic `labelNothingHere` empty state | Favorites-specific empty with icon/CTA |
-| info | child_widgets | `BeaconPinIconButton` lacks tooltip on pin/unpin | Fix in pin button widget |
+> **Post-review (2026-06):** `UpdatesScreen` and `FavoritesScreen` were removed from the client (`features/updates/` deleted; `features/favorites/` retains pin infrastructure only via `BeaconPinIconButton`).
 
 ---
 
@@ -316,5 +297,3 @@ Skills: ui-ux-pro-max, flutter-build-responsive-layout, tentura-design-system
 - `forwards_graph_screen.dart`: Loading bar; overflow menu tooltip + 48dp constraints
 - `graph_screen.dart`: Overflow menu tooltip + 48dp; BlocBuilder for filter label
 - `complaint_screen.dart`: SafeArea; tokens; FilledButton; loading bar; disabled inputs while submitting
-- `updates_screen.dart`: Tokens; SafeArea; TenturaTextAction + tooltip
-- `favorites_screen.dart`: Tokens; scrollable empty for pull-to-refresh; screen Semantics

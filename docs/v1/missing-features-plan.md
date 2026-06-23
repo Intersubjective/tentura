@@ -6,7 +6,7 @@ Reference: feedless coordination, inbox-first, manual forwarding, MR-guided visi
 
 **Recently implemented:** §2 (inbox row provenance + lifecycle badge), §4 (`beacon.state` lifecycle, My Work Active/Closed, client no longer uses `enabled` on `BeaconModel`), and §3 forward screen (header, filters, MR-sorted sectioned list, involvement-driven buckets, shared + per-recipient notes, `computeBeaconListSections` single-pass UI data). See those sections for details and ops follow-ups.
 
-**Overcommit coordination (active beacon):** design and implementation map — [`../overcommit-coordination-feature-design.md`](../overcommit-coordination-feature-design.md) (commit note + optional help-type, author per-commit responses, beacon `coordination_status`, uncommit reasons, Inbox/My Work/detail UI).
+**Overcommit coordination (active beacon):** design and implementation map — [`../help-offer-coordination-feature-design.md`](../help-offer-coordination-feature-design.md) (commit note + optional help-type, author per-commit responses, beacon `coordination_status`, uncommit reasons, Inbox/My Work/detail UI).
 
 ---
 
@@ -253,6 +253,6 @@ Post-implementation review of the shipped stack (server migrations, Hasura contr
 | 8   | Beacon graph tab                  | Open             | `beacon_view_screen.dart`                                                                                                                                                                                                                                                                |
 | 9   | Hide                              | Open             | `beacon_view_screen.dart`                                                                                                                                                                                                                                                                |
 | 10  | Updates cleanup                   | Open             | router, `features/updates`                                                                                                                                                                                                                                                               |
-| 11  | Watching                          | **Done**         | `watching-mechanism.md`, `forward_case.dart`, `commitment_case.dart`, `beacon_involvement_case.dart`, `beacon_involvement_data.graphql`, `inbox_item_status_for_beacon.graphql`, `forward_cubit.dart`, `inbox_item_tile.dart`, `beacon_view_screen.dart`                                  |
+| 11  | Watching                          | **Done**         | `watching-mechanism.md`, `forward_case.dart`, `help_offer_case.dart`, `beacon_involvement_case.dart`, `beacon_involvement_data.graphql`, `inbox_item_status_for_beacon.graphql`, `forward_cubit.dart`, `inbox_item_tile.dart`, `beacon_view_screen.dart`                                  |
 
 

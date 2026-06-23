@@ -6,14 +6,14 @@ Companion to [beacon-evaluation-feature-design.md](./beacon-evaluation-feature-d
 
 | Area | Location |
 |------|----------|
-| Commit V2 mutations | [`packages/server/lib/api/controllers/graphql/mutation/mutation_help offer.dart`](../packages/server/lib/api/controllers/graphql/mutation/mutation_help offer.dart) — `beaconCommit`, `beaconWithdraw` |
-| Commit use case | [`packages/server/lib/domain/use_case/help offer_case.dart`](../packages/server/lib/domain/use_case/help offer_case.dart) |
-| Commit persistence | [`packages/server/lib/data/repository/help offer_repository.dart`](../packages/server/lib/data/repository/help offer_repository.dart), table [`beacon_help offers.dart`](../packages/server/lib/data/database/table/beacon_help offers.dart) → Postgres `beacon_help offer` |
-| Client commit / fetch | [`packages/client/lib/features/forward/data/repository/forward_repository.dart`](../packages/client/lib/features/forward/data/repository/forward_repository.dart), GQL [`beacon_commit.graphql`](../packages/client/lib/features/forward/data/gql/beacon_commit.graphql), [`help offers_fetch.graphql`](../packages/client/lib/features/forward/data/gql/help offers_fetch.graphql) |
+| Commit V2 mutations | [`packages/server/lib/api/controllers/graphql/mutation/mutation_help_offer.dart`](../packages/server/lib/api/controllers/graphql/mutation/mutation_help_offer.dart) — `beaconOfferHelp`, `beaconWithdraw` |
+| Commit use case | [`packages/server/lib/domain/use_case/help_offer_case.dart`](../packages/server/lib/domain/use_case/help_offer_case.dart) |
+| Commit persistence | [`packages/server/lib/data/repository/help_offer_repository.dart`](../packages/server/lib/data/repository/help_offer_repository.dart), table [`beacon_help_offers.dart`](../packages/server/lib/data/database/table/beacon_help_offers.dart) → Postgres `beacon_help_offer` |
+| Client commit / fetch | [`packages/client/lib/features/forward/data/repository/forward_repository.dart`](../packages/client/lib/features/forward/data/repository/forward_repository.dart), GQL [`beacon_offer_help.graphql`](../packages/client/lib/features/forward/data/gql/beacon_offer_help.graphql), [`beacon_withdraw.graphql`](../packages/client/lib/features/forward/data/gql/beacon_withdraw.graphql), [`help_offers_fetch.graphql`](../packages/client/lib/features/forward/data/gql/help_offers_fetch.graphql), [`help_offers_with_coordination.graphql`](../packages/client/lib/features/beacon_view/data/gql/help_offers_with_coordination.graphql) |
 | Beacon detail UI | [`packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart`](../packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart), [`beacon_view_cubit.dart`](../packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart), closure readiness helper [`beacon_closure_readiness.dart`](../packages/client/lib/features/beacon_view/ui/util/beacon_closure_readiness.dart) |
 | My Work / Inbox | [`my_work_fetch.graphql`](../packages/client/lib/features/my_work/data/gql/my_work_fetch.graphql), [`inbox_fetch.graphql`](../packages/client/lib/features/inbox/data/gql/inbox_fetch.graphql), [`beacon_model.graphql`](../packages/client/lib/data/gql/beacon_model.graphql) |
 | V2 routing | [`packages/client/lib/data/service/remote_api_client/build_client.dart`](../packages/client/lib/data/service/remote_api_client/build_client.dart) — `_tenturaDirectOperationNames` |
-| Hasura | [`hasura/metadata.json`](../hasura/metadata.json) — track `beacon_help offer_coordination`, new columns on `beacon` / `beacon_help offer` |
+| Hasura | [`hasura/metadata.json`](../hasura/metadata.json) — track `beacon_help_offer_coordination`, new columns on `beacon` / `beacon_help_offer` |
 
 ---
 
@@ -88,10 +88,10 @@ Commit means explicit responsibility to help, visible help offer, beacon in My W
 
 **Lifecycle (server `beacon.state` / client `BeaconLifecycle`):**
 
-* **Commit (`beaconCommit`)** is allowed only when the beacon is **OPEN** (`state = 0`). Draft, closed, deleted, pending review, and post-close review lifecycles cannot receive new help offers.
+* **Commit (`beaconOfferHelp`)** is allowed only when the beacon is **OPEN** (`state = 0`). Draft, closed, deleted, pending review, and post-close review lifecycles cannot receive new help offers.
 * **Beacon-level coordination status does not block commit** — including “enough help offered help” (`coordination_status = 3`). Authors signal coverage; the system does not treat that as a lock. A new commit can move derivation back to “help offers waiting for review” (§8 rule 2) when that commit has no author coordination row yet.
 * **Author cannot commit** to their own beacon (`authorCannotCommit` on server).
-* **Editing an existing active help offer** (note / help type) uses the same `beaconCommit` upsert path when the user already has an active row (still requires OPEN lifecycle).
+* **Editing an existing active help offer** (note / help type) uses the same `beaconOfferHelp` upsert path when the user already has an active row (still requires OPEN lifecycle).
 
 **Fields (Postgres / app):** `beacon_id`, `user_id`, `created_at`, `status` (active `0` / withdrawn `1` — existing), `message` (public note), `help_type` (optional text key), `withdraw_reason` (set on withdraw).
 
@@ -146,9 +146,9 @@ On **withdraw**, delete coordination row for that commit (if any) and re-derive.
 
 ## 10. V2 GraphQL (client must route to `/api/v2/graphql`)
 
-**Extended mutations:** `beaconCommit(id, message, helpType)`, `beaconWithdraw(id, message, withdrawReason)`.
+**Extended mutations:** `beaconOfferHelp(id, message, helpTypes)`, `beaconWithdraw(id, message, withdrawReason)`.
 
-**New:** `setCoordinationResponse(beaconId, commitUserId, responseType)`, `setBeaconCoordinationStatus(beaconId, status)`, `help offersWithCoordination(beaconId)`.
+**New:** `setCoordinationResponse(beaconId, commitUserId, responseType)`, `setBeaconCoordinationStatus(beaconId, status)`, `helpOffersWithCoordination(beaconId)`.
 
 ---
 

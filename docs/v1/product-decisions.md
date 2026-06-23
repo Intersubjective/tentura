@@ -67,9 +67,9 @@ Amendments and locks for implementation agents. These **override** older phrasin
 ## Commit and over-offer coordination (Phase 1)
 
 - **Commit stays open by default** — no mandatory pre-approval for ordinary commits.
-- **Hard lifecycle gate for commit:** only **OPEN** beacons accept new help offers (`beaconCommit`). Coordination status is **not** a commit lock (including “enough help offered help”); use softer UI copy in that case (see over-offer doc §11).
-- **Withdraw:** allowed only when lifecycle is **not** closed, draft, deleted, or closed-review-complete — i.e. allowed on **open**, **pending review**, and **closed review open** (see over-offer doc §9).
-- **Author coordination responses** describe **coverage / fit of the beacon’s need**, not approval or rejection of a person. UI and data model must keep that framing (see [`../over-offer-coordination-feature-design.md`](../over-offer-coordination-feature-design.md)).
+- **Hard lifecycle gate for commit:** only **OPEN** beacons accept new help offers (`beaconOfferHelp`). Coordination status is **not** a commit lock (including “enough help offered help”); use softer UI copy in that case (see help-offer coordination doc §11).
+- **Withdraw:** allowed only when lifecycle is **not** closed, draft, deleted, or closed-review-complete — i.e. allowed on **open**, **pending review**, and **closed review open** (see help-offer coordination doc §9).
+- **Author coordination responses** describe **coverage / fit of the beacon’s need**, not approval or rejection of a person. UI and data model must keep that framing (see [`../help-offer-coordination-feature-design.md`](../help-offer-coordination-feature-design.md)).
 
 ---
 
@@ -97,6 +97,6 @@ Amendments and locks for implementation agents. These **override** older phrasin
 | `product-decisions.md` (this file) | Locks and amended goals |
 | `missing-features-plan.md` | What to build; references this file |
 | `contradictions-plan.md` | Code vs brief conflicts still to fix |
-| `../over-offer-coordination-feature-design.md` | Over-offer coordination (active beacon), commit / withdraw / status |
+| `../help-offer-coordination-feature-design.md` | Over-offer coordination (active beacon), commit / withdraw / status |
 | `watching-mechanism.md` | Watching stance: surfaces, transitions, forward-list precedence, copy |
 | `../before-response-terminal-tombstone.md` | Terminal-before-triage: relation states, tombstone UI, dismiss, corner cases |
