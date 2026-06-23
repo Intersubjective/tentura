@@ -60,7 +60,7 @@ You are operating in a loop. Each invocation must complete **exactly one task** 
 - [x] TASK-19: `FriendsScreen` — add a loading indicator and an empty/error state to the Friends tab body during fetch (currently only the Invites tab has this)
 - [x] TASK-20: `HomeScreen` — add a `selectedIcon` to the Profile `NavigationRailDestination` so it has a selected visual state matching other rail destinations
 - [x] TASK-21: `account_list_tile.dart` — add `tooltip` and `semanticLabel` to the `PopupMenuButton` in `AccountListTile`
-- [ ] TASK-22: `ItemDiscussionScreen` — replace the raw English enum string (`OPEN`, `RESOLVED`) with a localized helper `coordinationItemStatusLabel(l10n, status)`; add the l10n key if missing
+- [x] TASK-22: `ItemDiscussionScreen` — replace the raw English enum string (`OPEN`, `RESOLVED`) with a localized helper `coordinationItemStatusLabel(l10n, status)`; add the l10n key if missing
 - [ ] TASK-23: `ThemeSwitchButton` — add a top-level `Semantics` label (mirror the approach used for `LanguageSwitchButton`)
 
 ### Forms
