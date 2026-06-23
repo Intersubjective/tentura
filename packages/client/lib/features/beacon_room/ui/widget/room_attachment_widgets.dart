@@ -242,11 +242,15 @@ class _RoomAttachmentFullscreenGalleryState
   @override
   Widget build(BuildContext context) {
     final items = widget.attachments;
+    final tt = context.tt;
+    final chromeBg = tt.text;
+    final chromeFg = tt.surface;
+    final chromeMuted = tt.textFaint;
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: chromeBg,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: chromeBg,
+        foregroundColor: chromeFg,
         leading: IconButton(
           icon: const Icon(Icons.close),
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
@@ -255,7 +259,7 @@ class _RoomAttachmentFullscreenGalleryState
         title: items.length > 1
             ? Text(
                 '${_index + 1} / ${items.length}',
-                style: const TextStyle(color: Colors.white),
+                style: TenturaText.body(chromeFg),
               )
             : null,
       ),
@@ -269,9 +273,9 @@ class _RoomAttachmentFullscreenGalleryState
           final img = Image.network(
             url,
             fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => const Icon(
+            errorBuilder: (_, _, _) => Icon(
               Icons.broken_image_outlined,
-              color: Colors.white54,
+              color: chromeMuted,
               size: 64,
             ),
           );

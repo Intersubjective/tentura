@@ -3,9 +3,6 @@
 
 import 'dart:async';
 import 'package:get_it/get_it.dart';
-// TBD: return int instead of Colors?
-// ignore: avoid_flutter_imports
-import 'package:flutter/material.dart' show Colors;
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/consts.dart';
@@ -22,6 +19,7 @@ import '../../data/repository/forwards_graph_repository.dart';
 import '../../data/repository/graph_repository.dart';
 import '../../data/repository/graph_source_repository.dart';
 import '../../domain/entity/edge_details.dart';
+import '../../domain/entity/graph_edge_colors.dart';
 import '../../domain/entity/edge_directed.dart';
 import '../../domain/prune_directed_paths.dart';
 import '../../domain/entity/node_details.dart';
@@ -65,7 +63,9 @@ class GraphCubit extends Cubit<GraphState> {
     BeaconRepository? beaconRepository,
     ProfileRepositoryPort? profileRepository,
     UiEffectPort? effects,
-  }) : _egoNode = UserNode(
+    required GraphEdgeColors edgeColors,
+  }) : _edgeColors = edgeColors,
+       _egoNode = UserNode(
          user: me.copyWith(displayName: 'Me', score: 2),
          pinned: true,
          size: 80,
@@ -95,6 +95,8 @@ class GraphCubit extends Cubit<GraphState> {
   final ProfileRepositoryPort _profileRepository;
 
   final UiEffectPort _effects;
+
+  final GraphEdgeColors _edgeColors;
 
   /// Resolved viewer role for the help-offerer-path view; null when the cubit
   /// is operating in any other mode (regular forwards graph or MeritRank).
@@ -408,10 +410,10 @@ class GraphCubit extends Cubit<GraphState> {
         destination: dst,
         strokeWidth: (src == _egoNode || dst == _egoNode) ? 3 : 2,
         color: e.weight < 0
-            ? Colors.redAccent
+            ? _edgeColors.negative
             : src == _egoNode || dst == _egoNode
-            ? Colors.amberAccent
-            : Colors.cyanAccent,
+            ? _edgeColors.ego
+            : _edgeColors.neutral,
       );
       if (!mutator.controller.nodes.contains(src)) {
         mutator.addNode(src);
