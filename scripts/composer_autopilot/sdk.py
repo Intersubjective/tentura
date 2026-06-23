@@ -230,7 +230,10 @@ def send_and_wait(
 
 
 def resolve_review_model(fallback: str) -> str:
-    """Pick Opus 4.8 from account model list, else use fallback literal."""
+    """Use configured review model; resolve Opus id from catalog only when needed."""
+    if fallback.strip().lower() == "auto":
+        log.info("using review model: auto")
+        return "auto"
     try:
         from cursor_sdk import Cursor
 
