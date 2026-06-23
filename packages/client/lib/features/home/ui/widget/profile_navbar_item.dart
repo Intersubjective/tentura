@@ -19,6 +19,7 @@ class ProfileNavBarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authCubit = GetIt.I<AuthCubit>();
+    final l10n = L10n.of(context)!;
     return BlocBuilder<AuthCubit, AuthState>(
       bloc: authCubit,
       builder: (context, state) {
@@ -37,35 +38,41 @@ class ProfileNavBarItem extends StatelessWidget {
                 },
               ),
           ],
-          child: GestureDetector(
-            key: Key('ProfileNavbarItem:${state.currentAccount}'),
-            onLongPress: state.accounts.length > 1 ? menuController.open : null,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: BlocBuilder<ProfileCubit, ProfileState>(
-                bloc: GetIt.I<ProfileCubit>(),
-                buildWhen: (p, c) =>
-                    p.profile.hasAvatar != c.profile.hasAvatar ||
-                    p.profile.image?.blurHash != c.profile.image?.blurHash ||
-                    p.profile.displayName != c.profile.displayName,
-                builder: (context, state) {
-                  final avatar = SelfAwareAvatar.medium(
-                    profile: state.profile,
-                  );
-                  if (!selected) {
-                    return avatar;
-                  }
-                  return DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 2,
+          child: Semantics(
+            button: true,
+            label: l10n.profile,
+            hint: state.accounts.length > 1 ? l10n.chooseAccount : null,
+            child: GestureDetector(
+              key: Key('ProfileNavbarItem:${state.currentAccount}'),
+              onLongPress:
+                  state.accounts.length > 1 ? menuController.open : null,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: BlocBuilder<ProfileCubit, ProfileState>(
+                  bloc: GetIt.I<ProfileCubit>(),
+                  buildWhen: (p, c) =>
+                      p.profile.hasAvatar != c.profile.hasAvatar ||
+                      p.profile.image?.blurHash != c.profile.image?.blurHash ||
+                      p.profile.displayName != c.profile.displayName,
+                  builder: (context, state) {
+                    final avatar = SelfAwareAvatar.medium(
+                      profile: state.profile,
+                    );
+                    if (!selected) {
+                      return avatar;
+                    }
+                    return DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
                       ),
-                    ),
-                    child: avatar,
-                  );
-                },
+                      child: avatar,
+                    );
+                  },
+                ),
               ),
             ),
           ),

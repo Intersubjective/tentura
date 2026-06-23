@@ -108,8 +108,8 @@ class _PreviewBody extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.history, size: 48, color: context.tt.textMuted),
-            const SizedBox(height: 8),
+            Icon(Icons.history, size: context.tt.iconSize * 2, color: context.tt.textMuted),
+            SizedBox(height: context.tt.rowGap),
             Text(
               l10n.beaconLineagePreviewEmpty,
               textAlign: TextAlign.center,

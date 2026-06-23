@@ -135,7 +135,7 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
                             ),
                           ],
                         ),
-                        const VerticalDivider(width: 1, thickness: 1),
+                        const TenturaVerticalHairline(),
                         Expanded(child: child),
                       ],
                     ),

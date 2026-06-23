@@ -6,7 +6,6 @@ import 'package:vector_graphics/vector_graphics.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -47,6 +46,7 @@ class _IntroScreenState extends State<IntroScreen> {
       (title: l10n.introPage3Title, text: l10n.introPage3Text),
     ];
     final isLast = _page == _pageCount - 1;
+    final tt = context.tt;
     return BlocBuilder<SettingsCubit, SettingsState>(
       bloc: _settingsCubit,
       buildWhen: (previous, current) =>
@@ -55,7 +55,7 @@ class _IntroScreenState extends State<IntroScreen> {
         final isPersistingIntro = settingsState.isLoading;
         return Scaffold(
           body: SafeArea(
-            minimum: kPaddingAll,
+            minimum: tt.cardPadding,
             child: Column(
               children: [
                 LinearPiActive.builder(context, isPersistingIntro),
@@ -75,7 +75,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
                     // Title
                     Padding(
-                      padding: kPaddingAllS,
+                      padding: tt.cardPadding,
                       child: Text(
                         pages[index].title,
                         textAlign: TextAlign.center,
@@ -85,7 +85,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
                     // Text
                     Padding(
-                      padding: kPaddingAllS,
+                      padding: tt.cardPadding,
                       child: Text(
                         pages[index].text,
                         textAlign: TextAlign.center,
@@ -110,8 +110,8 @@ class _IntroScreenState extends State<IntroScreen> {
                     ),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 8,
-                      height: 8,
+                      width: tt.iconTextGap + tt.tightGap,
+                      height: tt.iconTextGap + tt.tightGap,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: i == _page
@@ -125,7 +125,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
                 // Next / Start
                 Padding(
-                  padding: kPaddingV,
+                  padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
                   child: FilledButton(
                     onPressed: isLast && isPersistingIntro
                         ? null

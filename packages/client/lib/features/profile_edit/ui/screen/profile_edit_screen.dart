@@ -75,12 +75,15 @@ class ProfileEditScreen extends StatelessWidget
         child: Column(
         children: [
           // Avatar
-          BlocBuilder<ProfileEditCubit, ProfileEditState>(
+          Center(
+            child: BlocBuilder<ProfileEditCubit, ProfileEditState>(
             buildWhen: (p, c) =>
                 p.image != c.image ||
                 p.willDropImage != c.willDropImage ||
                 p.isLoading != c.isLoading,
             builder: (_, state) {
+              final avatarSize =
+                  tt.avatarSize * (kTenturaAvatarBigSize / kTenturaAvatarDefaultMedium);
               // Global [iconTheme] uses [ColorScheme.primary], same as
               // [secondaryContainer] on filled tonal buttons — icons would be
               // invisible without an explicit on-container foreground.
@@ -91,6 +94,7 @@ class ProfileEditScreen extends StatelessWidget
                 iconSize: tt.iconSize,
               );
               return Stack(
+                alignment: Alignment.center,
                 children: [
                   if (state.hasNoImage && state.canDropImage)
                     // Original Avatar
@@ -99,7 +103,7 @@ class ProfileEditScreen extends StatelessWidget
                     )
                   else
                     SizedBox.square(
-                      dimension: kTenturaAvatarBigSize,
+                      dimension: avatarSize,
                       child: ClipOval(
                         child: state.hasNoImage || state.willDropImage
                             ? TenturaAvatar.avatarPlaceholder()
@@ -162,6 +166,7 @@ class ProfileEditScreen extends StatelessWidget
                 ],
               );
             },
+          ),
           ),
 
           // Username

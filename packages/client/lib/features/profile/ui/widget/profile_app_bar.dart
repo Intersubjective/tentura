@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -20,15 +21,16 @@ class ProfileAppBar extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
 
     return SliverInboxStyleAppBar(
       title: Row(
         children: [
           SelfAwareAvatar.medium(
             profile: profile,
-            size: 32,
+            size: tt.metadataAvatarSize + tt.tightGap * 2,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: tt.iconTextGap),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,19 +63,25 @@ class ProfileAppBar extends StatelessWidget {
         IconButton(
           tooltip: l10n.profileOverflowEdit,
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          constraints: BoxConstraints(
+            minWidth: tt.buttonHeight,
+            minHeight: tt.buttonHeight,
+          ),
           onPressed: () => context.read<ScreenCubit>().showProfileEditor(),
           icon: const Icon(Icons.edit_outlined),
         ),
         Padding(
-          padding: const EdgeInsets.only(right: 4),
+          padding: EdgeInsets.only(right: tt.tightGap * 2),
           child: ShareCodeIconButton.id(profile.id),
         ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
           tooltip: MaterialLocalizations.of(context).showMenuTooltip,
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          constraints: BoxConstraints(
+            minWidth: tt.buttonHeight,
+            minHeight: tt.buttonHeight,
+          ),
           onSelected: (value) {
             if (value == 'rating') {
               context.read<ScreenCubit>().showRating();
@@ -86,10 +94,10 @@ class ProfileAppBar extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.leaderboard,
-                    size: 22,
+                    size: tt.iconSize,
                     color: Theme.of(menuContext).colorScheme.onSurface,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: tt.rowGap),
                   Text(l10n.rating),
                 ],
               ),

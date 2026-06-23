@@ -7,7 +7,6 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/home/ui/bloc/new_stuff_cubit.dart';
 
 import '../bloc/inbox_cubit.dart';
@@ -44,7 +43,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
       backgroundColor: scheme.surface,
       appBar: AppBar(
         backgroundColor: scheme.surfaceContainer,
-        surfaceTintColor: Colors.transparent,
+        surfaceTintColor: scheme.surfaceContainer,
         elevation: 0,
         scrolledUnderElevation: 0,
         toolbarHeight: tt.appBarHeight,
@@ -52,10 +51,13 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
         leading: BackButton(
           onPressed: () => context.router.maybePop(),
         ),
-        title: Text(l10n.inboxRejectedTitle),
+        title: Text(
+          l10n.inboxRejectedTitle,
+          style: TenturaText.title(scheme.onSurface),
+        ),
       ),
       body: SafeArea(
-        minimum: kPaddingSmallH,
+        minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
         child: BlocBuilder<NewStuffCubit, NewStuffState>(
           buildWhen: (p, c) =>
               p.inboxLastSeenMs != c.inboxLastSeenMs ||
@@ -77,10 +79,10 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                       children: [
                         Icon(
                           Icons.error_outline,
-                          size: 48,
+                          size: tt.iconSize * 2,
                           color: scheme.error,
                         ),
-                        const SizedBox(height: kSpacingMedium),
+                        SizedBox(height: tt.sectionGap),
                         FilledButton(
                           onPressed: () => unawaited(inboxCubit.fetch()),
                           child: Text(l10n.myWorkRetry),
@@ -106,10 +108,10 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                   onRefresh: inboxCubit.fetch,
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: kPaddingSmallV,
+                    padding: EdgeInsets.symmetric(vertical: tt.rowGap),
                     itemCount: items.length,
                     separatorBuilder: (_, _) =>
-                        const SizedBox(height: kSpacingSmall),
+                        SizedBox(height: tt.rowGap),
                     itemBuilder: (_, i) {
                       final item = items[i];
                       return InboxItemTile(

@@ -3,8 +3,10 @@ library;
 
 export 'components/tentura_avatar.dart';
 export 'components/tentura_command_button.dart';
+export 'components/tentura_confirm_dialog.dart';
 export 'components/tentura_count_badge.dart';
 export 'components/tentura_hairline_divider.dart';
+export 'components/tentura_vertical_hairline.dart';
 export 'components/tentura_meta_text.dart';
 export 'components/tentura_status_text.dart';
 export 'components/tentura_tech_card.dart';

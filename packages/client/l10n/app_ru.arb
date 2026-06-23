@@ -1653,6 +1653,10 @@
   "@myWorkSortAlphabetical": {
     "context": "MyWorkScreen"
   },
+  "myWorkSortMenuTooltip": "Изменить сортировку",
+  "@myWorkSortMenuTooltip": {
+    "context": "MyWorkScreen"
+  },
   "myWorkFilterMenuTooltip": "Фильтр списка",
   "@myWorkFilterMenuTooltip": {
     "context": "MyWorkScreen"

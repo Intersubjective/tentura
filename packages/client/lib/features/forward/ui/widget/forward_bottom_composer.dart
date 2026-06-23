@@ -109,7 +109,7 @@ class ForwardBottomComposer extends StatelessWidget {
             if (onInvite != null)
               TextButton.icon(
                 onPressed: onInvite,
-                icon: const Icon(Icons.person_add_alt_1_outlined, size: 16),
+                icon: Icon(Icons.person_add_alt_1_outlined, size: tt.iconSize),
                 label: Text(l10n.forwardInviteNewPerson),
                 style: TextButton.styleFrom(
                   foregroundColor: tt.textMuted,
@@ -141,7 +141,7 @@ class ForwardBottomComposer extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.send,
-                      size: 14,
+                      size: tt.iconSize,
                       color: enabled ? tt.info : tt.textFaint,
                     ),
                     SizedBox(width: tt.rowGap),

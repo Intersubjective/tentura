@@ -318,9 +318,6 @@ class _ForwardBeaconPageState extends State<ForwardBeaconPage> {
                           onSearchPressed: () {
                             setState(() => _searchOverlayOpen = true);
                           },
-                          onFilterPressed: () {
-                            // Advanced filters sheet (later).
-                          },
                         ),
                         const TenturaHairlineDivider(),
                         if (beacon != null && beacon.id.isNotEmpty) ...[

@@ -145,7 +145,9 @@ class GraphBodyState extends State<GraphBody>
     },
   );
 
-  Widget _buildGraphView() => GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
+  Widget _buildGraphView() {
+    final scheme = Theme.of(context).colorScheme;
+    return GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
     controller: _graphCubit.graphController,
     canvasSize: widget.canvasSize,
     minScale: widget.scaleRange.dx,
@@ -157,7 +159,7 @@ class GraphBodyState extends State<GraphBody>
         curve: const EaseInOutReynolds(),
       ),
       highlightRadius: 0.15,
-      highlightColor: Colors.indigo,
+      highlightColor: scheme.primary,
       isAnimated: _graphCubit.state.isAnimated,
     ),
     labelBuilder: widget.isLabeled
@@ -169,6 +171,9 @@ class GraphBodyState extends State<GraphBody>
                 node.label,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
+                style: TenturaText.labelSmall(
+                  Theme.of(context).colorScheme.onSurface,
+                ),
               ),
               _ => const SizedBox.shrink(),
             },
@@ -181,6 +186,7 @@ class GraphBodyState extends State<GraphBody>
       onTap: () => _onNodeTap(node),
     ),
   );
+  }
 }
 
 class _GraphSideControls extends StatelessWidget {

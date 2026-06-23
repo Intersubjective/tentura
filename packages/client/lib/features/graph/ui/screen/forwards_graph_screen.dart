@@ -69,8 +69,11 @@ class ForwardsGraphScreen extends StatelessWidget implements AutoRouteWrapper {
       appBar: AppBar(
         leading: const AutoLeadingWithFallback(fallbackPath: kPathHome),
         title: BlocBuilder<GraphCubit, GraphState>(
-          buildWhen: (p, c) => p.status != c.status,
-          builder: (_, _) => Text(_titleFor(l10n, cubit.helpOffererViewerRole)),
+          buildWhen: (p, c) =>
+              p.status != c.status ||
+              p.helpOffererViewerRole != c.helpOffererViewerRole,
+          builder: (context, state) =>
+              Text(_titleFor(l10n, state.helpOffererViewerRole)),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(LinearPiActive.height),

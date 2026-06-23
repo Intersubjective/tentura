@@ -58,7 +58,8 @@ class _RatingScreenState extends State<RatingScreen> {
           p.isSortedByAsc != c.isSortedByAsc ||
           p.isSortedByReverse != c.isSortedByReverse ||
           p.isSortedByAlter != c.isSortedByAlter ||
-          p.isSortedByClass != c.isSortedByClass,
+          p.isSortedByClass != c.isSortedByClass ||
+          p.searchFilter != c.searchFilter,
       builder: (context, state) {
         final tt = context.tt;
         final filter = state.searchFilter;
@@ -95,22 +96,35 @@ class _RatingScreenState extends State<RatingScreen> {
                 isSortedByClass: state.isSortedByClass,
               ),
               Expanded(
-                child: RefreshIndicator.adaptive(
-                  onRefresh: cubit.fetch,
-                  child: ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: items.length,
-                    itemBuilder: (_, i) {
-                      final profile = items[i];
-                      return RatingListTile(
-                        key: ValueKey(profile.id),
-                        profile: profile,
-                      );
-                    },
-                    padding: kPaddingH + kPaddingT,
-                    separatorBuilder: separatorBuilder,
-                  ),
-                ),
+                child: items.isEmpty && filter.isNotEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: tt.cardPadding,
+                          child: Text(
+                            l10n.labelNothingHere,
+                            textAlign: TextAlign.center,
+                            style: TenturaText.bodyMedium(
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      )
+                    : RefreshIndicator.adaptive(
+                        onRefresh: cubit.fetch,
+                        child: ListView.separated(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: items.length,
+                          itemBuilder: (_, i) {
+                            final profile = items[i];
+                            return RatingListTile(
+                              key: ValueKey(profile.id),
+                              profile: profile,
+                            );
+                          },
+                          padding: kPaddingH + kPaddingT,
+                          separatorBuilder: separatorBuilder,
+                        ),
+                      ),
               ),
             ],
           );
@@ -177,15 +191,6 @@ class _RatingScreenState extends State<RatingScreen> {
                       height: tt.tightGap,
                       child: const LinearProgressIndicator(),
                     ),
-                  // const Padding(
-                  //   padding: kPaddingH,
-                  //   child: SizedBox(
-                  //     height: 48,
-                  //     child: ContextDropDown(
-                  //       key: Key('RatingContextSelector'),
-                  //     ),
-                  //   ),
-                  // ),
                 ],
               ),
             ),
