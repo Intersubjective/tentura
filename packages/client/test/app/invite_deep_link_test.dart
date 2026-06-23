@@ -29,6 +29,22 @@ void main() {
         uri,
       );
     });
+
+    test('invite id not starting with I is unchanged', () {
+      final uri = Uri.parse('/invite/abc123');
+      expect(
+        transformInviteDeepLink(uri: uri, isAuthenticated: true),
+        uri,
+      );
+    });
+
+    test('decodes percent-encoded invite id', () {
+      final out = transformInviteDeepLink(
+        uri: Uri.parse('/invite/I%2Fabc'),
+        isAuthenticated: false,
+      );
+      expect(out.path, '$kPathSignUp/I/abc');
+    });
   });
 
   group('transformSharedViewInviteDeepLink', () {

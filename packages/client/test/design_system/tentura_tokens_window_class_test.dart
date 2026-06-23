@@ -1,35 +1,29 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tentura/design_system/tentura_design_system.dart';
+
+import 'package:tentura/design_system/tentura_tokens.dart';
+import 'package:tentura/design_system/tentura_window_class.dart';
 
 void main() {
   group('TenturaTokens.applyWindowClass', () {
-    test('compact matches TenturaSpacing density', () {
-      final t = TenturaTokens.light.applyWindowClass(WindowClass.compact);
-      expect(t.cardPadding, TenturaSpacing.cardPaddingAll);
-      expect(t.cardGap, TenturaSpacing.cardGap);
-      expect(t.screenHPadding, TenturaSpacing.screenH);
-      expect(t.rowGap, TenturaSpacing.row);
-      expect(t.sectionGap, TenturaSpacing.section);
-      expect(t.iconTextGap, TenturaSpacing.iconText);
-      expect(t.avatarTextGap, TenturaSpacing.avatarText);
-      expect(t.contentMaxWidth, isNull);
+    test('compact keeps full-width content and compact density', () {
+      final tokens = TenturaTokens.light.applyWindowClass(WindowClass.compact);
+      expect(tokens.contentMaxWidth, isNull);
+      expect(tokens.avatarSize, 36);
+      expect(tokens.bottomNavHeight, 64);
     });
 
-    test('regular bumps spacing and caps content width', () {
-      final t = TenturaTokens.light.applyWindowClass(WindowClass.regular);
-      expect(t.cardPadding, const EdgeInsets.all(14));
-      expect(t.cardGap, 11);
-      expect(t.screenHPadding, 20);
-      expect(t.contentMaxWidth, 560);
+    test('regular constrains content width and increases density', () {
+      final tokens = TenturaTokens.light.applyWindowClass(WindowClass.regular);
+      expect(tokens.contentMaxWidth, 560);
+      expect(tokens.avatarSize, 40);
+      expect(tokens.bottomNavHeight, 72);
     });
 
-    test('expanded uses widest spacing tier', () {
-      final t = TenturaTokens.light.applyWindowClass(WindowClass.expanded);
-      expect(t.cardPadding, const EdgeInsets.all(16));
-      expect(t.cardGap, 12);
-      expect(t.screenHPadding, 24);
-      expect(t.contentMaxWidth, 720);
+    test('expanded uses widest content max width', () {
+      final tokens = TenturaTokens.light.applyWindowClass(WindowClass.expanded);
+      expect(tokens.contentMaxWidth, 720);
+      expect(tokens.avatarSize, 44);
+      expect(tokens.screenHPadding, 24);
     });
   });
 }
