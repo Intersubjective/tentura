@@ -415,6 +415,7 @@ void main() {
     final helpOfferRepo = EmptyGraphHelpOfferRepository();
     final forwardRepo = EmptyGraphForwardEdgeRepository();
     final userRepo = StubUserRepository('User');
+    final userProfileBatchLookup = StubUserProfileBatchLookup('User');
 
     final graphBuilder = EvaluationParticipantGraphBuilder(
       helpOfferRepo,
@@ -434,7 +435,7 @@ void main() {
       MockBeaconRepository(),
       forwardRepo,
       evalRepo,
-      userRepo,
+      userProfileBatchLookup,
       MockBeaconRoomPushService(),
       graphBuilder,
       draftPurger,
@@ -715,6 +716,7 @@ void main() {
       final helpOfferRepo = EmptyGraphHelpOfferRepository();
       final forwardRepo = EmptyGraphForwardEdgeRepository();
       final userRepo = StubUserRepository('User');
+      final userProfileBatchLookup = StubUserProfileBatchLookup('User');
       final graphBuilder = EvaluationParticipantGraphBuilder(
         helpOfferRepo,
         EmptyGraphCoordinationRepository(),
@@ -725,7 +727,7 @@ void main() {
         beaconRepo,
         forwardRepo,
         evalRepo,
-        userRepo,
+        userProfileBatchLookup,
         MockBeaconRoomPushService(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),
@@ -791,6 +793,7 @@ void main() {
       );
       final forwardRepo = EmptyGraphForwardEdgeRepository();
       final userRepo = StubUserRepository('User');
+      final userProfileBatchLookup = StubUserProfileBatchLookup('User');
       final graphBuilder = EvaluationParticipantGraphBuilder(
         helpOfferRepo,
         coordinationRepo,
@@ -801,7 +804,7 @@ void main() {
         beaconRepo,
         forwardRepo,
         evalRepo,
-        userRepo,
+        userProfileBatchLookup,
         _NoopBeaconRoomPushService(),
         graphBuilder,
         EvaluationDraftPurger(evalRepo),

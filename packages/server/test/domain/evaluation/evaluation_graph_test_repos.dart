@@ -7,7 +7,9 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
+import 'package:tentura_server/data/repository/user_profile_batch_lookup.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
+import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 
 /// Returns no coordination responses for graph builder tests.
@@ -305,4 +307,29 @@ final class StubUserRepository implements UserRepositoryPort {
     required String userId,
   }) =>
       throw UnimplementedError();
+}
+
+final class StubUserProfileBatchLookup implements UserProfileBatchLookup {
+  StubUserProfileBatchLookup(this._displayName);
+
+  final String _displayName;
+
+  @override
+  Future<Map<String, UserEntity>> userEntitiesByIds(Iterable<String> ids) async =>
+      {for (final id in ids) id: UserEntity(id: id, displayName: _displayName)};
+
+  @override
+  Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
+    required Iterable<String> ids,
+    required Set<String> reciprocalPeerIds,
+  }) async =>
+      {
+        for (final id in ids)
+          id: UserPublicRecord(
+            id: id,
+            displayName: _displayName,
+            description: '',
+            isMutualFriend: reciprocalPeerIds.contains(id),
+          ),
+      };
 }

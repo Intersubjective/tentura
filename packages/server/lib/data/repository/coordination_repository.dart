@@ -3,14 +3,12 @@ import 'package:drift_postgres/drift_postgres.dart';
 
 import 'package:tentura_server/domain/coordination/coordination_status_rules.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
-import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
-import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
-import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
-import 'package:tentura_server/domain/port/user_presence_repository_port.dart';
 
 import '../database/tentura_db.dart';
 import 'vote_user_friendship_lookup.dart';
+import 'user_profile_batch_lookup.dart';
 
 @Injectable(
   as: CoordinationRepositoryPort,
@@ -20,13 +18,13 @@ import 'vote_user_friendship_lookup.dart';
 class CoordinationRepository implements CoordinationRepositoryPort {
   CoordinationRepository(
     this._database,
-    this._userPresenceRepository,
+    this._userProfileBatchLookup,
     this._voteUserFriendshipLookup,
   );
 
   final TenturaDb _database;
 
-  final UserPresenceRepositoryPort _userPresenceRepository;
+  final UserProfileBatchLookup _userProfileBatchLookup;
 
   final VoteUserFriendshipLookup _voteUserFriendshipLookup;
 
@@ -174,48 +172,19 @@ class CoordinationRepository implements CoordinationRepositoryPort {
       for (final p in participantRows) p.userId: p.roomAccess,
     };
 
+    final userIds = rows.map((r) => r.userId).toList();
+    final usersById = await _userProfileBatchLookup.userPublicRecordsByIds(
+      ids: userIds,
+      reciprocalPeerIds: reciprocal,
+    );
+
     final out = <HelpOfferWithCoordinationRow>[];
     for (final row in rows) {
-      final user = await _database.managers.users
-          .filter((e) => e.id.equals(row.userId))
-          .getSingle();
-      ImagePublicRecord? imageRecord;
-      final imageId = user.imageId;
-      if (imageId != null) {
-        final image = await _database.managers.images
-            .filter((e) => e.id.equals(imageId))
-            .getSingleOrNull();
-        if (image != null) {
-          imageRecord = ImagePublicRecord(
-            id: image.id.toString(),
-            hash: image.hash,
-            height: image.height,
-            width: image.width,
-            authorId: image.authorId,
-            createdAt: image.createdAt.dateTime.toUtc(),
-          );
-        }
+      final userPublic = usersById[row.userId];
+      if (userPublic == null) {
+        throw IdNotFoundException(id: row.userId);
       }
-
-      final presence = await _userPresenceRepository.get(user.id);
       final coord = coords[row.userId];
-      final userPresence = presence == null
-          ? null
-          : UserPresenceRecord(
-              lastSeenAt: presence.lastSeenAt,
-              status: presence.status.index,
-            );
-      final userPublic = UserPublicRecord(
-        id: user.id,
-        displayName: user.displayName,
-        description: user.description,
-        handle: (user.handle ?? '').trim().isEmpty
-            ? null
-            : user.handle!.trim(),
-        isMutualFriend: reciprocal.contains(user.id),
-        image: imageRecord,
-        userPresence: userPresence,
-      );
       out.add(
         HelpOfferWithCoordinationRow(
           beaconId: row.beaconId,
