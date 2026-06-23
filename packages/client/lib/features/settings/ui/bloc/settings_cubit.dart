@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/env.dart';
+import 'package:tentura/config/app_build_info.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -49,7 +50,9 @@ class SettingsCubit extends Cubit<SettingsState> {
       effects: effects,
       state: SettingsState(
         introEnabled: isIntroEnabled,
-        visibleVersion: await platformRepository.getAppVersion(),
+        visibleVersion: AppBuildInfo.formatVisibleVersionLabel(
+          await platformRepository.getAppVersion(),
+        ),
         localePreference: localePreference,
         themeMode: ThemeMode.values.firstWhere(
           (themeMode) => themeMode.name == themeModeName,

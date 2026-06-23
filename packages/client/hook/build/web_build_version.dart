@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:pubspec_parse/pubspec_parse.dart';
+import 'package:tentura/config/build_id.dart';
 
 /// Single source of truth for the web cache-busting build version.
 ///
@@ -15,8 +16,7 @@ String resolveWebBuildVersion({String? buildId, String pubspecPath = 'pubspec.ya
   final pubspecVersion =
       Pubspec.parse(File(pubspecPath).readAsStringSync()).version.toString();
   final rawId = buildId ?? Platform.environment['WEB_BUILD_ID'] ?? '';
-  final safeId = rawId.replaceAll(RegExp('[^A-Za-z0-9]'), '');
-  if (safeId.isEmpty) return pubspecVersion;
-  final shortId = safeId.length > 12 ? safeId.substring(0, 12) : safeId;
+  final shortId = sanitizeBuildId(rawId);
+  if (shortId.isEmpty) return pubspecVersion;
   return '$pubspecVersion-$shortId';
 }

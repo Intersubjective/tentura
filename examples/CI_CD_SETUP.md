@@ -60,6 +60,8 @@ Configure secrets under **Settings → Environments** (per environment) and **Se
   | `CLIENT_SERVER_NAME` | **Yes** | WASM `--dart-define=SERVER_NAME` and invite share links (`/invite/I…`) on the single public origin (e.g. `https://dev.tentura.io`) |
   | `IMAGE_SERVER` | **Yes** | WASM `--dart-define=IMAGE_SERVER` (CDN/S3 base for image URLs) |
 
+  CI also passes `--dart-define=BUILD_GIT_SHA` (commit SHA, same as `WEB_BUILD_ID`) and `--dart-define=BUILD_DATE` (UTC `YYYY-MM-DD` at build time). These surface in **Settings** for build verification.
+
   Local check: `CLIENT_SERVER_NAME=https://dev.tentura.io IMAGE_SERVER=https://cdn.example/bucket bash scripts/resolve_deploy_web_config.sh --check-only`
 
   **Server vs client:** `FB_APP_ID` on the VPS (service worker via Tentura API) and in `CLIENT_DART_DEFINES` (compiled into the Flutter web app) must both be correct. Redeploying the API alone does not fix a bad web build — push to `main` must rebuild web after updating the secret.

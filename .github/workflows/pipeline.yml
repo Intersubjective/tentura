@@ -106,11 +106,13 @@ jobs:
       - name: Build dev web in builder container
         run: |
           set -euo pipefail
+          BUILD_DATE="$(date -u +%Y-%m-%d)"
           docker run --rm \
             -v "${{ github.workspace }}":/app -w /app \
             -v "${{ github.workspace }}/.pub-cache":/root/.pub-cache \
             --env SERVER_VERSION="${{ steps.versions.outputs.server_version }}" \
             --env WEB_BUILD_ID="${{ github.sha }}" \
+            --env BUILD_DATE="${BUILD_DATE}" \
             --env IMAGE_SERVER="${{ steps.webcfg.outputs.image_server }}" \
             --env CLIENT_SERVER_NAME="${{ steps.webcfg.outputs.client_server_name }}" \
             ${{ env.BUILDER_IMAGE }}:latest \
@@ -129,7 +131,9 @@ jobs:
                   --dart-define-from-file=/app/.env \\
                   --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
                   --dart-define=NEED_INVITE_CODE=true \\
-                  --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
+                  --dart-define=IMAGE_SERVER=\${IMAGE_SERVER} \\
+                  --dart-define=BUILD_GIT_SHA=\${WEB_BUILD_ID} \\
+                  --dart-define=BUILD_DATE=\${BUILD_DATE}
               else
                 flutter build web \\
                   --profile \\
@@ -139,7 +143,9 @@ jobs:
                   --base-href=/ \\
                   --dart-define=SERVER_NAME=\${CLIENT_SERVER_NAME} \\
                   --dart-define=NEED_INVITE_CODE=true \\
-                  --dart-define=IMAGE_SERVER=\${IMAGE_SERVER}
+                  --dart-define=IMAGE_SERVER=\${IMAGE_SERVER} \\
+                  --dart-define=BUILD_GIT_SHA=\${WEB_BUILD_ID} \\
+                  --dart-define=BUILD_DATE=\${BUILD_DATE}
               fi
               # Preload manifest + cache SW must be generated from the FINISHED
               # build/web (the build hook ran too early on fresh checkouts and

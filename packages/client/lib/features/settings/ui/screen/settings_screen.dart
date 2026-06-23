@@ -72,9 +72,14 @@ class SettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                 Padding(
                   padding: EdgeInsets.only(right: tt.screenHPadding),
                   child: Center(
-                    child: Text(
-                      visibleVersion,
-                      style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      child: Text(
+                        visibleVersion,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.bodySmall(scheme.onSurfaceVariant),
+                      ),
                     ),
                   ),
                 ),
