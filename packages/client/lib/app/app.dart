@@ -10,6 +10,7 @@ import 'package:tentura/ui/bloc/app_update_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/effect/ui_effect_handler.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/utils/app_reload.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/tentura_responsive_scope.dart';
@@ -180,6 +181,7 @@ class App extends StatelessWidget {
                 ),
               ],
               child: UiEffectHandler(
+                effects: GetIt.I<UiEffectPort>(),
                 child: TenturaResponsiveScope(
                   child: AuthRecoveryListener(child: child),
                 ),
