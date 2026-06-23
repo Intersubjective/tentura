@@ -10,6 +10,51 @@ import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 
 import '_use_case_base.dart';
 
+/// One forward edge in the V2 forwards-graph view (GraphQL `ForwardGraphEdge`).
+final class ForwardGraphEdgeResult {
+  const ForwardGraphEdgeResult({
+    required this.id,
+    required this.beaconId,
+    required this.senderId,
+    required this.recipientId,
+    this.parentEdgeId,
+    this.batchId,
+  });
+
+  final String id;
+  final String beaconId;
+  final String senderId;
+  final String recipientId;
+  final String? parentEdgeId;
+  final String? batchId;
+}
+
+/// Result of `beaconForwardGraph` (GraphQL `ForwardGraphResult`).
+final class ForwardGraphResult {
+  const ForwardGraphResult({
+    required this.beaconId,
+    required this.authorId,
+    required this.helpOffererIds,
+    required this.edges,
+    this.viewerId,
+  });
+
+  final String beaconId;
+  final String authorId;
+  final String? viewerId;
+  final List<String> helpOffererIds;
+  final List<ForwardGraphEdgeResult> edges;
+}
+
+ForwardGraphEdgeResult _edgeToResult(ForwardEdgeEntity e) => ForwardGraphEdgeResult(
+      id: e.id,
+      beaconId: e.beaconId,
+      senderId: e.senderId,
+      recipientId: e.recipientId,
+      parentEdgeId: e.parentEdgeId,
+      batchId: e.batchId,
+    );
+
 /// Builds the edge set powering the V2 `beaconForwardGraph` query.
 ///
 /// The viewer only sees:
@@ -39,9 +84,7 @@ final class BeaconForwardGraphCase extends UseCaseBase {
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
 
-  // TODO(contract): Phase-2 DTO migration — replace Map return with typed DTO at resolver boundary.
-  // ignore: tentura_lints/no_map_dynamic_in_use_case_api
-  Future<Map<String, dynamic>> asMap({
+  Future<ForwardGraphResult> asMap({
     required String beaconId,
     required String currentUserId,
   }) async {
@@ -108,21 +151,11 @@ final class BeaconForwardGraphCase extends UseCaseBase {
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    return {
-      'beaconId': beaconId,
-      'authorId': authorId,
-      'helpOffererIds': helpOffererIds.toList(),
-      'edges': [
-        for (final e in visibleEdges)
-          {
-            'id': e.id,
-            'beaconId': e.beaconId,
-            'senderId': e.senderId,
-            'recipientId': e.recipientId,
-            'parentEdgeId': e.parentEdgeId,
-            'batchId': e.batchId,
-          },
-      ],
-    };
+    return ForwardGraphResult(
+      beaconId: beaconId,
+      authorId: authorId,
+      helpOffererIds: helpOffererIds.toList(),
+      edges: visibleEdges.map(_edgeToResult).toList(),
+    );
   }
 }
