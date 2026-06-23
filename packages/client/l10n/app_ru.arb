@@ -943,6 +943,10 @@
   "@dark": {
     "context": "ThemeSwitchButton"
   },
+  "labelTheme": "Тема",
+  "@labelTheme": {
+    "context": "ThemeSwitchButton"
+  },
   "labelLanguage": "Язык",
   "@labelLanguage": {
     "context": "LanguageSwitchButton"
