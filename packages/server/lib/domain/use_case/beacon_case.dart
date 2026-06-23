@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 
 import '../entity/beacon_entity.dart';
+import '../entity/gql_public/beacon_close_review_result.dart';
 import '../entity/task_entity.dart';
 import '_use_case_base.dart';
 
@@ -31,20 +32,6 @@ const _kNeedSummaryHardMax = 280;
 const _kNeedSummaryPublishMin = 16;
 
 const _kSuccessCriteriaHardMax = 240;
-
-/// Domain result for beacon lifecycle mutations that expose id/state/closesAt
-/// (GraphQL `BeaconCloseReviewResult`).
-final class BeaconCloseReviewResult {
-  const BeaconCloseReviewResult({
-    required this.id,
-    required this.state,
-    this.closesAt,
-  });
-
-  final String id;
-  final int state;
-  final String? closesAt;
-}
 
 String? _trimOrNull(String? raw) {
   if (raw == null) return null;

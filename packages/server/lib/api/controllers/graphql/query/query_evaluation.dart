@@ -3,6 +3,7 @@ import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
+import '../mappers/gql_v2_dto_maps.dart';
 
 final class QueryEvaluation extends GqlNodeBase {
   QueryEvaluation({EvaluationCase? evaluationCase})
@@ -28,7 +29,7 @@ final class QueryEvaluation extends GqlNodeBase {
           return _evaluationCase.evaluationParticipants(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             evaluatorId: jwt.sub,
-          );
+          ).then((l) => l.map(evaluationParticipantToGqlMap).toList());
         },
       );
 
@@ -42,7 +43,7 @@ final class QueryEvaluation extends GqlNodeBase {
           return _evaluationCase.evaluationDraftParticipants(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             evaluatorId: jwt.sub,
-          );
+          ).then((l) => l.map(evaluationParticipantToGqlMap).toList());
         },
       );
 
@@ -56,7 +57,7 @@ final class QueryEvaluation extends GqlNodeBase {
           return _evaluationCase.evaluationDrafts(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             evaluatorId: jwt.sub,
-          );
+          ).then((l) => l.map(evaluationDraftRowToGqlMap).toList());
         },
       );
 
@@ -70,7 +71,7 @@ final class QueryEvaluation extends GqlNodeBase {
           return _evaluationCase.reviewWindowStatus(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
-          );
+          ).then(reviewWindowStatusToGqlMap);
         },
       );
 
@@ -84,7 +85,7 @@ final class QueryEvaluation extends GqlNodeBase {
           return _evaluationCase.evaluationSummary(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             userId: jwt.sub,
-          );
+          ).then(evaluationSummaryToGqlMap);
         },
       );
 }

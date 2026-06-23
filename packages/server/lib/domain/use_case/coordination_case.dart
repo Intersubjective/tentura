@@ -6,25 +6,13 @@ import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
 import 'package:tentura_server/domain/coordination/beacon_coordination_status.dart';
 import 'package:tentura_server/domain/coordination/coordination_response_type.dart';
+import 'package:tentura_server/domain/entity/gql_public/coordination_status_result.dart';
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 
 import '_use_case_base.dart';
-
-/// Domain result for `setCoordinationResponse` (GraphQL `CoordinationStatusResult`).
-final class CoordinationStatusResult {
-  const CoordinationStatusResult({
-    required this.beaconId,
-    required this.coordinationStatus,
-    this.coordinationStatusUpdatedAt,
-  });
-
-  final String beaconId;
-  final int coordinationStatus;
-  final String? coordinationStatusUpdatedAt;
-}
 
 @Singleton(order: 2)
 final class CoordinationCase extends UseCaseBase {
@@ -126,8 +114,7 @@ final class CoordinationCase extends UseCaseBase {
     return CoordinationStatusResult(
       beaconId: beaconId,
       coordinationStatus: snap.coordinationStatus,
-      coordinationStatusUpdatedAt:
-          snap.coordinationStatusUpdatedAt?.toUtc().toIso8601String(),
+      coordinationStatusUpdatedAt: snap.coordinationStatusUpdatedAt,
     );
   }
 

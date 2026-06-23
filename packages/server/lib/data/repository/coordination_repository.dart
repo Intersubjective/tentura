@@ -5,6 +5,7 @@ import 'package:tentura_server/domain/coordination/coordination_status_rules.dar
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/coordination_repository_port.dart';
+import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart';
 import 'vote_user_friendship_lookup.dart';

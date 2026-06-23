@@ -9,7 +9,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
-import 'package:tentura_server/domain/use_case/beacon_forward_graph_case.dart';
+import 'package:tentura_server/domain/entity/gql_public/forward_graph_result.dart';
 import 'package:tentura_server/domain/use_case/beacon_help_offerer_forward_path_case.dart';
 
 import 'forward_case_mocks.mocks.dart';

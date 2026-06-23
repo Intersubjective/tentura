@@ -5,20 +5,11 @@ import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart';
 import '../mapper/user_mapper.dart';
 import '../mapper/user_presence_mapper.dart';
-
-/// Batch-friendly user profile reads (display fields, public GraphQL shape).
-abstract interface class UserProfileBatchLookup {
-  Future<Map<String, UserEntity>> userEntitiesByIds(Iterable<String> ids);
-
-  Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
-    required Iterable<String> ids,
-    required Set<String> reciprocalPeerIds,
-  });
-}
 
 @LazySingleton(as: UserProfileBatchLookup)
 class DriftUserProfileBatchLookup implements UserProfileBatchLookup {

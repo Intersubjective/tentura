@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/entity/gql_public/beacon_involvement_result.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
@@ -8,43 +9,6 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 
 import '_use_case_base.dart';
-
-/// Per-recipient forward record from the current user's perspective
-/// (GraphQL `MyForwardRecipient`).
-final class MyForwardRecipientResult {
-  const MyForwardRecipientResult({
-    required this.edgeId,
-    required this.recipientId,
-    required this.note,
-    this.readAt,
-  });
-
-  final String edgeId;
-  final String recipientId;
-  final String note;
-  final String? readAt;
-}
-
-/// V2 forward-screen involvement id sets (GraphQL `BeaconInvolvement`).
-final class BeaconInvolvementResult {
-  const BeaconInvolvementResult({
-    required this.forwardedToIds,
-    required this.helpOfferedIds,
-    required this.withdrawnIds,
-    required this.rejectedIds,
-    required this.watchingIds,
-    required this.onwardForwarderIds,
-    required this.myForwardedRecipients,
-  });
-
-  final List<String> forwardedToIds;
-  final List<String> helpOfferedIds;
-  final List<String> withdrawnIds;
-  final List<String> rejectedIds;
-  final List<String> watchingIds;
-  final List<String> onwardForwarderIds;
-  final List<MyForwardRecipientResult> myForwardedRecipients;
-}
 
 /// Aggregates forward / help-offer / inbox-rejection data for a beacon.
 ///
@@ -106,7 +70,7 @@ final class BeaconInvolvementCase extends UseCaseBase {
             edgeId: edge.id,
             recipientId: edge.recipientId,
             note: edge.note,
-            readAt: edge.recipientReadAt?.toIso8601String(),
+            readAt: edge.recipientReadAt,
           ),
         );
       }
